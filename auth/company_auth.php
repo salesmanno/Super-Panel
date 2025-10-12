@@ -48,9 +48,10 @@ try {
     
     $_SESSION['tenant_admin_id'] = $admin['id'];
     $_SESSION['company_id'] = $admin['company_id'];
-    $_SESSION['admin_email'] = $admin['email'];
-    $_SESSION['admin_name'] = $admin['name'];
-    $_SESSION['admin_role'] = $admin['role'];
+    $_SESSION['admin_email'] = $admin['staff_email'] ?? '';
+    $_SESSION['admin_first_name'] = $admin['first_name'] ?? '';
+    $_SESSION['admin_last_name'] = $admin['last_name'] ?? '';
+    $_SESSION['admin_name'] = trim(($admin['first_name'] ?? '') . ' ' . ($admin['last_name'] ?? ''));
     $_SESSION['company_name'] = $admin['company_name'];
     $_SESSION['subdomain'] = $admin['subdomain'];
     $_SESSION['logged_in_at'] = time();
