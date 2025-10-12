@@ -5,8 +5,11 @@ require_once __DIR__ . '/../config/database.php';
 function getTenantAdminByUsername($username) {
     $db = getDBConnection();
     $stmt = $db->prepare("
-        SELECT ta.*, tc.name as company_name, tc.subdomain, tc.is_active as company_active
+        SELECT ta.*, 
+               ts.first_name, ts.last_name, ts.email as staff_email,
+               tc.name as company_name, tc.subdomain, tc.is_active as company_active
         FROM tenant_admins ta
+        LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
         INNER JOIN tenant_companies tc ON ta.company_id = tc.id
         WHERE ta.username = ? AND ta.is_active = 1
     ");
