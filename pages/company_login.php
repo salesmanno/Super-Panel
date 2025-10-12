@@ -76,14 +76,21 @@ if (isset($_GET['message'])) {
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             overflow: hidden;
-            max-width: 500px;
+            max-width: 1100px;
             width: 100%;
-            display: block;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
         }
         
         @media (max-width: 992px) {
             .login-container {
                 grid-template-columns: 1fr;
+            }
+            .news-section {
+                display: block;
+                max-height: 300px;
+                padding: 30px 25px;
             }
             .login-section {
                 padding: 40px 25px;
@@ -99,6 +106,9 @@ if (isset($_GET['message'])) {
             }
             .login-section {
                 padding: 30px 20px;
+            }
+            .news-section {
+                padding: 20px 20px;
             }
         }
         
@@ -237,6 +247,145 @@ if (isset($_GET['message'])) {
             text-decoration: underline;
             outline: none;
         }
+        
+        .news-section {
+            background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%);
+            padding: 60px 50px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 0;
+        }
+        
+        .news-header {
+            margin-bottom: 32px;
+        }
+        
+        .news-header h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.3px;
+        }
+        
+        .news-header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .news-content {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        
+        .news-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .news-content::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        
+        .news-content::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+        
+        .news-content::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+        
+        .news-item {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            transition: all 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        
+        .news-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(4px);
+        }
+        
+        .news-item-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 8px;
+            letter-spacing: -0.2px;
+        }
+        
+        .news-item-content {
+            font-size: 14px;
+            line-height: 1.6;
+            opacity: 0.95;
+            margin-bottom: 12px;
+        }
+        
+        .news-item-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            opacity: 0.8;
+            font-weight: 500;
+        }
+        
+        .news-loading {
+            text-align: center;
+            padding: 40px 20px;
+            opacity: 0.9;
+        }
+        
+        .spinner-border {
+            width: 2rem;
+            height: 2rem;
+            border-width: 3px;
+        }
+        
+        .news-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .news-badge.critical {
+            background: rgba(239, 68, 68, 0.9);
+        }
+        
+        .news-badge.high {
+            background: rgba(251, 191, 36, 0.9);
+        }
+        
+        .news-badge.medium {
+            background: rgba(59, 130, 246, 0.9);
+        }
+        
+        .news-badge.low {
+            background: rgba(16, 185, 129, 0.8);
+        }
+        
+        .news-type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.25);
+            text-transform: capitalize;
+        }
     </style>
 </head>
 <body>
@@ -296,13 +445,32 @@ if (isset($_GET['message'])) {
                 </button>
             </form>
         </div>
+        
+        <div class="news-section">
+            <div class="news-header">
+                <h2><i class="bi bi-newspaper me-2"></i>Siste nyheter</h2>
+                <p>Hold deg oppdatert med de nyeste endringene</p>
+            </div>
+            
+            <div class="news-content" id="news-content">
+                <div class="news-loading">
+                    <div class="spinner-border text-light mb-3" role="status">
+                        <span class="visually-hidden">Laster nyheter...</span>
+                    </div>
+                    <p>Laster siste nyheter...</p>
+                </div>
+            </div>
+        </div>
     </div>
     
     <script>
+        let eventSource = null;
+        let reconnectTimeout = null;
         let dbCheckInterval = null;
         let isForgotPasswordMode = false;
         
         document.addEventListener('DOMContentLoaded', function() {
+            connectToNewsStream();
             checkDatabaseStatus();
             // Check database status every 10 seconds
             dbCheckInterval = setInterval(checkDatabaseStatus, 10000);
@@ -400,11 +568,136 @@ if (isset($_GET['message'])) {
                 });
         }
         
+        function connectToNewsStream() {
+            if (eventSource) {
+                eventSource.close();
+            }
+            
+            eventSource = new EventSource('/api/news_stream.php');
+            
+            eventSource.onopen = function() {
+                console.log('SSE connection established');
+                if (reconnectTimeout) {
+                    clearTimeout(reconnectTimeout);
+                    reconnectTimeout = null;
+                }
+            };
+            
+            eventSource.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    updateNewsDisplay(data);
+                } catch (error) {
+                    console.error('Error parsing SSE data:', error);
+                }
+            };
+            
+            eventSource.onerror = function(error) {
+                console.error('SSE error:', error);
+                eventSource.close();
+                
+                document.getElementById('news-content').innerHTML = `
+                    <div class="news-loading">
+                        <i class="bi bi-exclamation-triangle fs-2 mb-3 d-block"></i>
+                        <p>Mistet tilkobling. Prøver å koble til igjen...</p>
+                    </div>
+                `;
+                
+                reconnectTimeout = setTimeout(connectToNewsStream, 5000);
+            };
+        }
+        
+        function updateNewsDisplay(data) {
+            const newsContent = document.getElementById('news-content');
+            
+            if (data.success && data.news && data.news.length > 0) {
+                let newsHtml = '';
+                
+                data.news.forEach(item => {
+                    const severityBadge = `<span class="news-badge ${item.severity}">${item.priority_text}</span>`;
+                    
+                    const newsTypeIcon = getNewsTypeIcon(item.news_type);
+                    const newsTypeLabel = getNewsTypeLabel(item.news_type);
+                    
+                    newsHtml += `
+                        <div class="news-item">
+                            <div class="news-item-title">
+                                ${escapeHtml(item.title)}
+                            </div>
+                            <div class="news-item-content">
+                                ${escapeHtml(item.content)}
+                            </div>
+                            <div class="news-item-meta">
+                                <div>
+                                    <span class="news-type-badge">
+                                        <i class="${newsTypeIcon}"></i>
+                                        ${newsTypeLabel}
+                                    </span>
+                                    <span class="ms-2"><i class="bi bi-calendar3 me-1"></i>${item.formatted_date}</span>
+                                </div>
+                                ${severityBadge}
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                newsContent.innerHTML = newsHtml;
+            } else {
+                newsContent.innerHTML = `
+                    <div class="news-loading">
+                        <i class="bi bi-info-circle fs-2 mb-3 d-block"></i>
+                        <p>Ingen nyheter tilgjengelig</p>
+                    </div>
+                `;
+            }
+        }
+        
         window.addEventListener('beforeunload', function() {
+            if (eventSource) {
+                eventSource.close();
+            }
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+            }
             if (dbCheckInterval) {
                 clearInterval(dbCheckInterval);
             }
         });
+        
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+        
+        function getNewsTypeIcon(type) {
+            const icons = {
+                'system': 'bi bi-gear',
+                'feature': 'bi bi-star',
+                'maintenance': 'bi bi-tools',
+                'update': 'bi bi-arrow-up-circle',
+                'security': 'bi bi-shield-check',
+                'announcement': 'bi bi-megaphone',
+                'bug': 'bi bi-bug'
+            };
+            return icons[type] || 'bi bi-info-circle';
+        }
+        
+        function getNewsTypeLabel(type) {
+            const labels = {
+                'system': 'System',
+                'feature': 'Ny funksjon',
+                'maintenance': 'Vedlikehold',
+                'update': 'Oppdatering',
+                'security': 'Sikkerhet',
+                'announcement': 'Kunngjøring',
+                'bug': 'Feilretting'
+            };
+            return labels[type] || type;
+        }
     </script>
 </body>
 </html>
