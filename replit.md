@@ -42,6 +42,12 @@ The system is built on a PHP 8.2 backend with a MySQL database.
 - **Storage**: Object storage for contract document uploads.
 
 ## Recent Updates
+- 2025-10-12: **Username-basert autentisering** - Lagt til brukernavn-støtte i tenant_admins
+  * Lagt til username kolonne (VARCHAR(255) NOT NULL) i tenant_admins
+  * Beholdt email kolonne for kontaktinformasjon
+  * Innlogging bruker nå username (via getTenantAdminByUsername)
+  * Gjenopprettet e-postadresser fra tenant_staff-koblingen
+  * Unike constraints på både (company_id, username) og (company_id, email)
 - 2025-10-12: **Database-struktur optimalisering** - Restrukturert tenant_admins og tenant_staff tabeller
   * Koblet tenant_admins til tenant_staff via tenant_staff_id foreign key
   * Reversert relasjon: tenant_admins.tenant_staff_id → tenant_staff.id

@@ -307,6 +307,7 @@ CREATE TABLE tenant_admins (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
     company_id CHAR(36) NOT NULL,
     tenant_staff_id CHAR(36) NULL,
+    username VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -319,6 +320,7 @@ CREATE TABLE tenant_admins (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
     FOREIGN KEY (tenant_staff_id) REFERENCES tenant_staff(id) ON DELETE SET NULL,
+    UNIQUE(company_id, username),
     UNIQUE(company_id, email)
 );
 
