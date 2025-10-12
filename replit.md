@@ -42,6 +42,12 @@ The system is built on a PHP 8.2 backend with a MySQL database.
 - **Storage**: Object storage for contract document uploads.
 
 ## Recent Updates
+- 2025-10-12: **Database-struktur optimalisering** - Restrukturert tenant_admins og tenant_staff tabeller
+  * Koblet tenant_admins til tenant_staff via tenant_staff_id foreign key
+  * Reversert relasjon: tenant_admins.tenant_staff_id → tenant_staff.id
+  * Fjernet salary og hire_date kolonner fra tenant_staff (ikke nødvendig)
+  * Oppdatert database-skjema dokumentasjon med ny struktur
+  * Beholdt alle persondata (navn, kontaktinfo, adresse, jobbinformasjon)
 - 2025-10-12: **Dashboard for innloggede brukere** - Komplett dashboard med statistikk og sanntidsoppdateringer
   * Fire statistikk-kort: tilgjengelige moduler, kontostatus, brukerrolle, og siste innlogging
   * Dynamisk beregning av innloggingstid (Nå, X min siden, X t siden, I går, eller faktisk dato/tid)
