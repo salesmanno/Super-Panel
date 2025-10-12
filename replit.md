@@ -42,6 +42,15 @@ The system is built on a PHP 8.2 backend with a MySQL database.
 - **Storage**: Object storage for contract document uploads.
 
 ## Recent Updates
+- 2025-10-12: **Dashboard for innloggede brukere** - Komplett dashboard med statistikk og sanntidsoppdateringer
+  * Fire statistikk-kort: tilgjengelige moduler, kontostatus, brukerrolle, og siste innlogging
+  * Dynamisk beregning av innloggingstid (Nå, X min siden, X t siden, I går, eller faktisk dato/tid)
+  * Modul-oversikt med ikoner og beskrivelser i responsive kort
+  * SSE-drevet nyhetswidget med sanntidsoppdateringer
+  * Fullstendig responsiv layout for desktop, tablet og mobil
+  * Moderne gradient-design med purple (#667eea til #764ba2)
+  * Interaktive hover-effekter og smooth transitions
+  * Automatisk utloggingsknapp med session-håndtering
 - 2025-10-12: **SSE (Server-Sent Events) og responsiv design** - Implementert sanntids nyhetsoppdateringer og fullstendig responsivitet
   * Server-Sent Events for real-time nyhetsstreaming
   * SSE endpoint med automatisk oppdatering hver 30. sekund
