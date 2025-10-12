@@ -42,6 +42,16 @@ The system is built on a PHP 8.2 backend with a MySQL database.
 - **Storage**: Object storage for contract document uploads.
 
 ## Recent Updates
+- 2025-10-12: **Glemt passord-funksjonalitet** - Dynamisk skjemabytte på innloggingssiden
+  * Tekstlink "Har du mistet passordet ditt?" under innloggingsknappen
+  * Bytter input-felter til e-postadresse og hemmelig kode
+  * Knappen endres til "Send forespørsel" med konvolutt-ikon
+  * Tekstlink endres til "Til innlogging" for å gå tilbake
+  * Form action endres dynamisk mellom /auth/company_auth.php og /auth/forgot_password.php
+  * Automatisk fokus på relevante felt ved bytte
+  * Required-attributter oppdateres basert på modus
+  * Bruker button-element (type="button") for tilgjengelighet (keyboard navigation)
+  * Fokus-styling med :focus pseudo-klasse
 - 2025-10-12: **Grå bakgrunn ved database-feil** - Visuell indikator når database er utilgjengelig
   * Grå bakgrunn (#6b7280) erstatter lilla gradient når database er disconnected
   * Automatisk database-sjekk via /api/check_database_status.php

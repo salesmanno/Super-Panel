@@ -351,6 +351,26 @@ if (isset($_GET['error'])) {
             background: rgba(255, 255, 255, 0.25);
             text-transform: capitalize;
         }
+        
+        .forgot-password-link {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 14px;
+            color: var(--primary-start);
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 0;
+            width: 100%;
+        }
+        
+        .forgot-password-link:hover,
+        .forgot-password-link:focus {
+            color: var(--primary-end);
+            text-decoration: underline;
+            outline: none;
+        }
     </style>
 </head>
 <body>
@@ -369,21 +389,37 @@ if (isset($_GET['error'])) {
                 </div>
             <?php endif; ?>
 
-            <form method="POST" action="/auth/company_auth.php">
-                <div class="form-floating">
+            <form method="POST" action="/auth/company_auth.php" id="login-form">
+                <div class="form-floating" id="username-field">
                     <input type="text" class="form-control" id="username" name="username" 
                            placeholder="Brukernavn" required autofocus autocomplete="username">
                     <label for="username">Brukernavn</label>
                 </div>
                 
-                <div class="form-floating">
+                <div class="form-floating" id="password-field">
                     <input type="password" class="form-control" id="password" name="password" 
                            placeholder="Passord" required autocomplete="current-password">
                     <label for="password">Passord</label>
                 </div>
                 
+                <div class="form-floating d-none" id="email-field">
+                    <input type="email" class="form-control" id="email" name="email" 
+                           placeholder="E-postadresse" autocomplete="email">
+                    <label for="email">E-postadresse</label>
+                </div>
+                
+                <div class="form-floating d-none" id="secret-field">
+                    <input type="text" class="form-control" id="secret" name="secret" 
+                           placeholder="Hemmelig kode">
+                    <label for="secret">Hemmelig kode</label>
+                </div>
+                
                 <button class="btn btn-primary btn-login w-100" type="submit" id="login-button">
                     <i class="bi bi-box-arrow-in-right me-2"></i>Logg inn
+                </button>
+                
+                <button type="button" class="forgot-password-link" id="toggle-mode">
+                    Har du mistet passordet ditt?
                 </button>
             </form>
         </div>
@@ -410,12 +446,78 @@ if (isset($_GET['error'])) {
         let reconnectTimeout = null;
         let dbCheckInterval = null;
         
+        let isForgotPasswordMode = false;
+        
         document.addEventListener('DOMContentLoaded', function() {
             connectToNewsStream();
             checkDatabaseStatus();
             // Check database status every 10 seconds
             dbCheckInterval = setInterval(checkDatabaseStatus, 10000);
+            
+            // Toggle between login and forgot password mode
+            document.getElementById('toggle-mode').addEventListener('click', toggleMode);
         });
+        
+        function toggleMode() {
+            isForgotPasswordMode = !isForgotPasswordMode;
+            
+            const usernameField = document.getElementById('username-field');
+            const passwordField = document.getElementById('password-field');
+            const emailField = document.getElementById('email-field');
+            const secretField = document.getElementById('secret-field');
+            const loginButton = document.getElementById('login-button');
+            const toggleText = document.getElementById('toggle-mode');
+            const loginForm = document.getElementById('login-form');
+            
+            if (isForgotPasswordMode) {
+                // Switch to forgot password mode
+                usernameField.classList.add('d-none');
+                passwordField.classList.add('d-none');
+                emailField.classList.remove('d-none');
+                secretField.classList.remove('d-none');
+                
+                // Update button
+                loginButton.innerHTML = '<i class="bi bi-envelope-paper me-2"></i>Send forespørsel';
+                
+                // Update toggle text
+                toggleText.textContent = 'Til innlogging';
+                
+                // TODO: Change form action when forgot password endpoint is ready
+                // loginForm.action = '/auth/forgot_password.php';
+                
+                // Update required fields
+                document.getElementById('username').removeAttribute('required');
+                document.getElementById('password').removeAttribute('required');
+                document.getElementById('email').setAttribute('required', 'required');
+                document.getElementById('secret').setAttribute('required', 'required');
+                
+                // Focus on email field
+                document.getElementById('email').focus();
+            } else {
+                // Switch back to login mode
+                usernameField.classList.remove('d-none');
+                passwordField.classList.remove('d-none');
+                emailField.classList.add('d-none');
+                secretField.classList.add('d-none');
+                
+                // Update button
+                loginButton.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>Logg inn';
+                
+                // Update toggle text
+                toggleText.textContent = 'Har du mistet passordet ditt?';
+                
+                // Form action stays as company_auth.php
+                
+                // Update required fields
+                document.getElementById('username').setAttribute('required', 'required');
+                document.getElementById('password').setAttribute('required', 'required');
+                document.getElementById('email').removeAttribute('required');
+                document.getElementById('secret').removeAttribute('required');
+                
+                // Focus on username field
+                document.getElementById('username').focus();
+            }
+        }
         
         function connectToNewsStream() {
             if (eventSource) {
