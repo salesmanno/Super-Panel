@@ -279,6 +279,7 @@ CREATE TABLE tenant_subscriptions (
 CREATE TABLE tenant_admins (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
     company_id CHAR(36) NOT NULL,
+    username VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -290,6 +291,7 @@ CREATE TABLE tenant_admins (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    UNIQUE(company_id, username),
     UNIQUE(company_id, email)
 );
 

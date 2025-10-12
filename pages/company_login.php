@@ -1,0 +1,416 @@
+<?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+$error_message = '';
+if (isset($_GET['error'])) {
+    switch ($_GET['error']) {
+        case 'invalid_credentials':
+            $error_message = 'Ugyldig brukernavn eller passord.';
+            break;
+        case 'system_error':
+            $error_message = 'Systemfeil. Vennligst prøv igjen senere.';
+            break;
+        case 'account_inactive':
+            $error_message = 'Kontoen din er inaktiv. Kontakt administrator.';
+            break;
+        case 'company_inactive':
+            $error_message = 'Firmaet er deaktivert. Kontakt support for assistanse.';
+            break;
+        default:
+            $error_message = 'En feil oppstod. Vennligst prøv igjen.';
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bedriftsportal - Innlogging</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-start: #667eea;
+            --primary-end: #764ba2;
+            --shadow-light: rgba(102, 126, 234, 0.15);
+            --shadow-medium: rgba(102, 126, 234, 0.25);
+            --shadow-strong: rgba(102, 126, 234, 0.35);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            padding: 20px;
+        }
+        
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            max-width: 1100px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+        }
+        
+        @media (max-width: 992px) {
+            .login-container {
+                grid-template-columns: 1fr;
+            }
+            .news-section {
+                display: none;
+            }
+        }
+        
+        .login-section {
+            padding: 60px 50px;
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .login-header img {
+            height: 80px;
+            width: auto;
+            margin-bottom: 24px;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+        }
+        
+        .login-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-start), var(--primary-end));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+        
+        .login-header p {
+            color: #6b7280;
+            font-size: 15px;
+            font-weight: 400;
+        }
+        
+        .form-floating {
+            margin-bottom: 20px;
+        }
+        
+        .form-floating > .form-control {
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            font-size: 15px;
+            transition: all 0.2s ease;
+            height: 58px;
+        }
+        
+        .form-floating > .form-control:focus {
+            border-color: var(--primary-start);
+            box-shadow: 0 0 0 4px var(--shadow-light);
+            outline: none;
+        }
+        
+        .form-floating > label {
+            padding: 1rem 1.25rem;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+        
+        .form-floating > .form-control:focus ~ label,
+        .form-floating > .form-control:not(:placeholder-shown) ~ label {
+            color: var(--primary-start);
+            transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+        }
+        
+        .btn-login {
+            background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%);
+            border: none;
+            padding: 16px 24px;
+            font-weight: 600;
+            font-size: 16px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            letter-spacing: 0.3px;
+            box-shadow: 0 4px 12px var(--shadow-medium);
+        }
+        
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px var(--shadow-strong);
+            background: linear-gradient(135deg, #7690ff 0%, #8556bb 100%);
+        }
+        
+        .btn-login:active {
+            transform: translateY(0);
+        }
+        
+        .alert {
+            border-radius: 12px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 14px 18px;
+            margin-bottom: 24px;
+        }
+        
+        .alert-danger {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+        
+        .news-section {
+            background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%);
+            padding: 60px 50px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .news-header {
+            margin-bottom: 32px;
+        }
+        
+        .news-header h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.3px;
+        }
+        
+        .news-header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .news-content {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        
+        .news-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .news-content::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        
+        .news-content::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+        
+        .news-content::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+        
+        .news-item {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            transition: all 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        
+        .news-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(4px);
+        }
+        
+        .news-item-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 8px;
+            letter-spacing: -0.2px;
+        }
+        
+        .news-item-content {
+            font-size: 14px;
+            line-height: 1.6;
+            opacity: 0.95;
+            margin-bottom: 12px;
+        }
+        
+        .news-item-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            opacity: 0.8;
+            font-weight: 500;
+        }
+        
+        .news-loading {
+            text-align: center;
+            padding: 40px 20px;
+            opacity: 0.9;
+        }
+        
+        .spinner-border {
+            width: 2rem;
+            height: 2rem;
+            border-width: 3px;
+        }
+        
+        .news-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .news-badge.critical {
+            background: rgba(239, 68, 68, 0.9);
+        }
+        
+        .news-badge.high {
+            background: rgba(251, 191, 36, 0.9);
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-section">
+            <div class="login-header">
+                <img src="/attached_assets/26617BFC-F76D-481A-88CE-14CD3D5BBB66_1755491554819.png" alt="Logo">
+                <h1>Salesman.no</h1>
+                <p>Bedriftsportal - Logg inn</p>
+            </div>
+            
+            <?php if ($error_message): ?>
+                <div class="alert alert-danger d-flex align-items-center" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <div><?= htmlspecialchars($error_message, ENT_QUOTES, 'UTF-8') ?></div>
+                </div>
+            <?php endif; ?>
+
+            <form method="POST" action="/auth/company_auth.php">
+                <div class="form-floating">
+                    <input type="text" class="form-control" id="username" name="username" 
+                           placeholder="Brukernavn" required autofocus autocomplete="username">
+                    <label for="username">Brukernavn</label>
+                </div>
+                
+                <div class="form-floating">
+                    <input type="password" class="form-control" id="password" name="password" 
+                           placeholder="Passord" required autocomplete="current-password">
+                    <label for="password">Passord</label>
+                </div>
+                
+                <button class="btn btn-primary btn-login w-100" type="submit">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Logg inn
+                </button>
+            </form>
+        </div>
+        
+        <div class="news-section">
+            <div class="news-header">
+                <h2><i class="bi bi-newspaper me-2"></i>Siste nyheter</h2>
+                <p>Hold deg oppdatert med de nyeste endringene</p>
+            </div>
+            
+            <div class="news-content" id="news-content">
+                <div class="news-loading">
+                    <div class="spinner-border text-light mb-3" role="status">
+                        <span class="visually-hidden">Laster nyheter...</span>
+                    </div>
+                    <p>Laster siste nyheter...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadNews();
+        });
+        
+        function loadNews() {
+            fetch('/api/get_latest_news.php')
+                .then(response => response.json())
+                .then(data => {
+                    const newsContent = document.getElementById('news-content');
+                    
+                    if (data.success && data.news && data.news.length > 0) {
+                        let newsHtml = '';
+                        
+                        data.news.forEach(item => {
+                            const badge = item.severity === 'critical' || item.severity === 'high' 
+                                ? `<span class="news-badge ${item.severity}">${item.priority_text}</span>` 
+                                : '';
+                            
+                            newsHtml += `
+                                <div class="news-item">
+                                    <div class="news-item-title">
+                                        ${escapeHtml(item.title)}
+                                    </div>
+                                    <div class="news-item-content">
+                                        ${escapeHtml(item.content)}
+                                    </div>
+                                    <div class="news-item-meta">
+                                        <span><i class="bi bi-calendar3 me-1"></i>${item.formatted_date}</span>
+                                        ${badge}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        
+                        newsContent.innerHTML = newsHtml;
+                    } else {
+                        newsContent.innerHTML = `
+                            <div class="news-loading">
+                                <i class="bi bi-info-circle fs-2 mb-3 d-block"></i>
+                                <p>Ingen nyheter tilgjengelig</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading news:', error);
+                    document.getElementById('news-content').innerHTML = `
+                        <div class="news-loading">
+                            <i class="bi bi-exclamation-triangle fs-2 mb-3 d-block"></i>
+                            <p>Kunne ikke laste nyheter</p>
+                        </div>
+                    `;
+                });
+        }
+        
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>

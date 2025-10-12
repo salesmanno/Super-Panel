@@ -14,19 +14,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Sync Daemon"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "PHP Server"
-
-[[workflows.workflow]]
-name = "Sync Daemon"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "while true; do sleep 3600; php sync/database_sync.php; done"
 
 [[workflows.workflow]]
 name = "PHP Server"
@@ -51,6 +39,10 @@ externalPort = 3000
 [[ports]]
 localPort = 33523
 externalPort = 3001
+
+[[ports]]
+localPort = 37677
+externalPort = 3002
 
 [agent]
 expertMode = true

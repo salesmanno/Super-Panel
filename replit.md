@@ -34,12 +34,26 @@ The system is built on a PHP 8.2 backend with a MySQL database.
     - **Database Structure**: Key tables include `webmail_accounts`, `webmail_messages`, `x_events` (with `image_url` and `member_price` columns), `companies`, `super_users`, `modules`, `module_privileges`, `module_visibility`, `homepage_templates`, `company_homepage_settings`, `super_user_profiles`, `rental_objects`, `rental_reservations`, `x_rental`, `contract_documents`, `sales_items`, and `reservation_settings`.
 
 ## External Dependencies
-- **Database**: MySQL database hosted on Domeneshop (`salesmanno04.mysql.domeneshop.no`).
+- **Database**: MySQL database hosted on Domeneshop (`salesmanno04.mysql.domeneshop.no/salesmanno04`).
+  - Connection credentials stored in `config/database.php`
+  - Uses PDO for secure database operations
 - **UI Framework**: Bootstrap 5.
 - **Email Protocols**: SMTP (`smtp.domeneshop.no:587` with TLS) and IMAP (`imap.domeneshop.no:993` with SSL) for the integrated webmail client.
 - **Storage**: Object storage for contract document uploads.
 
 ## Recent Updates
+- 2025-10-12: **Database Migration to salesmanno04** - Migrated to new MySQL database structure
+  * Disconnected from salesmanno03 and connected to salesmanno04.mysql.domeneshop.no
+  * Implemented tenant-based architecture with tenant_companies and tenant_admins tables
+  * Login system now uses username (not email) for tenant_admins authentication
+  * Created refined company login page with sharper design (purple gradient: #667eea to #764ba2)
+  * Branding updated to "Salesman.no Bedriftsportal"
+  * Integrated news system from core_sys_news table
+  * Module-based access control with tenant_admin_modules and tenant_company_modules
+  * Created comprehensive database schema documentation in docs/database_schema.sql
+  * Key tables: tenant_companies, tenant_admins (with username field), system_modules, core_sys_news
+  * Authentication uses PDO prepared statements for security
+  * API endpoint /api/get_latest_news.php for system news display
 - 2025-10-10: **Arrangementsbilde og medlemspris** - Utvidet events-modulen med bildefunksjonalitet og medlemsprising
   * Lagt til `image_url` og `member_price` kolonner i `x_events` tabellen
   * Bildeadresse kan legges inn direkte som URL eller lastes opp som fil
