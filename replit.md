@@ -42,6 +42,14 @@ The system is built on a PHP 8.2 backend with a MySQL database.
 - **Storage**: Object storage for contract document uploads.
 
 ## Recent Updates
+- 2025-10-12: **Grå bakgrunn ved database-feil** - Visuell indikator når database er utilgjengelig
+  * Grå bakgrunn (#6b7280) erstatter lilla gradient når database er disconnected
+  * Automatisk database-sjekk via /api/check_database_status.php
+  * Innloggingsknapp deaktiveres når database er utilgjengelig
+  * Oppdatering hver 10. sekund med smooth CSS-overgang (0.3s ease)
+  * API returnerer kun status (connected/disconnected) uten sensitiv databaseinfo
+  * index.php hopper over API-requests for å unngå HTML-responser
+  * PDO timeout på 3 sekunder for rask feilhåndtering
 - 2025-10-12: **Username-basert autentisering** - Lagt til brukernavn-støtte i tenant_admins
   * Lagt til username kolonne (VARCHAR(255) NOT NULL) i tenant_admins
   * Beholdt email kolonne for kontaktinformasjon

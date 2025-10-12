@@ -54,6 +54,11 @@ if (isset($_GET['error'])) {
             justify-content: center;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             padding: 20px;
+            transition: background 0.3s ease;
+        }
+        
+        body.db-error {
+            background: #6b7280;
         }
         
         .login-container {
@@ -99,6 +104,8 @@ if (isset($_GET['error'])) {
         
         .login-section {
             padding: 60px 50px;
+            position: relative;
+            z-index: 1;
         }
         
         .login-header {
@@ -171,6 +178,9 @@ if (isset($_GET['error'])) {
             transition: all 0.3s ease;
             letter-spacing: 0.3px;
             box-shadow: 0 4px 12px var(--shadow-medium);
+            position: relative;
+            z-index: 10;
+            cursor: pointer;
         }
         
         .btn-login:hover {
@@ -181,6 +191,12 @@ if (isset($_GET['error'])) {
         
         .btn-login:active {
             transform: translateY(0);
+        }
+        
+        .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
         
         .alert {
@@ -203,6 +219,8 @@ if (isset($_GET['error'])) {
             color: white;
             display: flex;
             flex-direction: column;
+            position: relative;
+            z-index: 0;
         }
         
         .news-header {
@@ -364,7 +382,7 @@ if (isset($_GET['error'])) {
                     <label for="password">Passord</label>
                 </div>
                 
-                <button class="btn btn-primary btn-login w-100" type="submit">
+                <button class="btn btn-primary btn-login w-100" type="submit" id="login-button">
                     <i class="bi bi-box-arrow-in-right me-2"></i>Logg inn
                 </button>
             </form>
@@ -390,9 +408,13 @@ if (isset($_GET['error'])) {
     <script>
         let eventSource = null;
         let reconnectTimeout = null;
+        let dbCheckInterval = null;
         
         document.addEventListener('DOMContentLoaded', function() {
             connectToNewsStream();
+            checkDatabaseStatus();
+            // Check database status every 10 seconds
+            dbCheckInterval = setInterval(checkDatabaseStatus, 10000);
         });
         
         function connectToNewsStream() {
@@ -479,12 +501,42 @@ if (isset($_GET['error'])) {
             }
         }
         
+        function checkDatabaseStatus() {
+            const loginButton = document.getElementById('login-button');
+            
+            fetch('/api/check_database_status.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'connected') {
+                        document.body.classList.remove('db-error');
+                        if (loginButton) {
+                            loginButton.disabled = false;
+                        }
+                    } else {
+                        document.body.classList.add('db-error');
+                        if (loginButton) {
+                            loginButton.disabled = true;
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Database check failed:', error);
+                    document.body.classList.add('db-error');
+                    if (loginButton) {
+                        loginButton.disabled = true;
+                    }
+                });
+        }
+        
         window.addEventListener('beforeunload', function() {
             if (eventSource) {
                 eventSource.close();
             }
             if (reconnectTimeout) {
                 clearTimeout(reconnectTimeout);
+            }
+            if (dbCheckInterval) {
+                clearInterval(dbCheckInterval);
             }
         });
         
