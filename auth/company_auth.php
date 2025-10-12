@@ -54,6 +54,9 @@ try {
     $_SESSION['company_name'] = $admin['company_name'];
     $_SESSION['subdomain'] = $admin['subdomain'];
     $_SESSION['logged_in_at'] = time();
+    $_SESSION['session_id'] = session_id();
+    
+    createTenantAdminSession($admin['id'], session_id());
     
     header('Location: ../pages/company_dashboard.php');
     exit;

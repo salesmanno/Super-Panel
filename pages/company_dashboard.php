@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/session_manager.php';
 
 $adminName = $_SESSION['admin_name'] ?? 'Bruker';
 $companyName = $_SESSION['company_name'] ?? 'Firma';
@@ -278,6 +279,10 @@ if (isset($_SESSION['logged_in_at'])) {
                     <i class="bi bi-person-circle me-1"></i>
                     <span class="d-none d-sm-inline"><?= htmlspecialchars($adminName) ?></span>
                 </span>
+                <a href="admin_sessions.php" class="btn btn-logout btn-sm me-2">
+                    <i class="bi bi-clock-history me-1"></i>
+                    <span class="d-none d-sm-inline">Sessions</span>
+                </a>
                 <a href="/auth/logout.php" class="btn btn-logout btn-sm">
                     <i class="bi bi-box-arrow-right me-1"></i>
                     <span class="d-none d-sm-inline">Logg ut</span>

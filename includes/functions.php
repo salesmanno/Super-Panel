@@ -85,3 +85,146 @@ function getCompanyBySubdomain($subdomain) {
     $stmt->execute([$subdomain]);
     return $stmt->fetch();
 }
+
+// ==================== SESSION TRACKING FUNCTIONS ====================
+
+function createTenantAdminSession($tenantAdminId, $sessionId) {
+    $db = getDBConnection();
+    if (!$db) return false;
+    
+    $ipAddress = $_SERVER['REMOTE_ADDR'] ?? null;
+    $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
+    
+    try {
+        $stmt = $db->prepare("
+            INSERT INTO tenant_admin_sessions 
+            (tenant_admin_id, session_id, ip_address, user_agent, login_time, last_activity, is_active)
+            VALUES (?, ?, ?, ?, NOW(), NOW(), 1)
+        ");
+        return $stmt->execute([$tenantAdminId, $sessionId, $ipAddress, $userAgent]);
+    } catch (PDOException $e) {
+        error_log("Error creating session: " . $e->getMessage());
+        return false;
+    }
+}
+
+function updateSessionActivity($sessionId) {
+    $db = getDBConnection();
+    if (!$db) return false;
+    
+    try {
+        $stmt = $db->prepare("
+            UPDATE tenant_admin_sessions 
+            SET last_activity = NOW() 
+            WHERE session_id = ? AND is_active = 1
+        ");
+        return $stmt->execute([$sessionId]);
+    } catch (PDOException $e) {
+        error_log("Error updating session activity: " . $e->getMessage());
+        return false;
+    }
+}
+
+function endTenantAdminSession($sessionId) {
+    $db = getDBConnection();
+    if (!$db) return false;
+    
+    try {
+        $stmt = $db->prepare("
+            UPDATE tenant_admin_sessions 
+            SET logout_time = NOW(), is_active = 0 
+            WHERE session_id = ? AND is_active = 1
+        ");
+        return $stmt->execute([$sessionId]);
+    } catch (PDOException $e) {
+        error_log("Error ending session: " . $e->getMessage());
+        return false;
+    }
+}
+
+function getTenantAdminActiveSessions($tenantAdminId) {
+    $db = getDBConnection();
+    if (!$db) return [];
+    
+    try {
+        $stmt = $db->prepare("
+            SELECT * FROM tenant_admin_sessions 
+            WHERE tenant_admin_id = ? AND is_active = 1
+            ORDER BY last_activity DESC
+        ");
+        $stmt->execute([$tenantAdminId]);
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        error_log("Error getting active sessions: " . $e->getMessage());
+        return [];
+    }
+}
+
+function getTenantAdminSessionHistory($tenantAdminId, $limit = 50) {
+    $db = getDBConnection();
+    if (!$db) return [];
+    
+    try {
+        $limit = (int)$limit;
+        $stmt = $db->prepare("
+            SELECT * FROM tenant_admin_sessions 
+            WHERE tenant_admin_id = ?
+            ORDER BY login_time DESC
+            LIMIT " . $limit
+        );
+        $stmt->execute([$tenantAdminId]);
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        error_log("Error getting session history: " . $e->getMessage());
+        return [];
+    }
+}
+
+function getAllActiveSessions($companyId = null) {
+    $db = getDBConnection();
+    if (!$db) return [];
+    
+    try {
+        if ($companyId) {
+            $stmt = $db->prepare("
+                SELECT tas.*, ta.username, ta.name, ta.email
+                FROM tenant_admin_sessions tas
+                INNER JOIN tenant_admins ta ON tas.tenant_admin_id = ta.id
+                WHERE ta.company_id = ? AND tas.is_active = 1
+                ORDER BY tas.last_activity DESC
+            ");
+            $stmt->execute([$companyId]);
+        } else {
+            $stmt = $db->query("
+                SELECT tas.*, ta.username, ta.name, ta.email, tc.name as company_name
+                FROM tenant_admin_sessions tas
+                INNER JOIN tenant_admins ta ON tas.tenant_admin_id = ta.id
+                INNER JOIN tenant_companies tc ON ta.company_id = tc.id
+                WHERE tas.is_active = 1
+                ORDER BY tas.last_activity DESC
+            ");
+        }
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        error_log("Error getting all active sessions: " . $e->getMessage());
+        return [];
+    }
+}
+
+function endInactiveSessions($inactiveMinutes = 30) {
+    $db = getDBConnection();
+    if (!$db) return false;
+    
+    try {
+        $stmt = $db->prepare("
+            UPDATE tenant_admin_sessions 
+            SET is_active = 0, logout_time = NOW() 
+            WHERE is_active = 1 
+            AND last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE)
+        ");
+        return $stmt->execute([$inactiveMinutes]);
+    } catch (PDOException $e) {
+        error_log("Error ending inactive sessions: " . $e->getMessage());
+        return false;
+    }
+}

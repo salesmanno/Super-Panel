@@ -354,5 +354,25 @@ CREATE TABLE tenant_admin_modules (
     UNIQUE(tenant_admin_id, module_id)
 );
 
+-- Tenant admin session tracking
+CREATE TABLE tenant_admin_sessions (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    tenant_admin_id CHAR(36) NOT NULL,
+    session_id VARCHAR(255) NOT NULL,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    login_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
+    logout_time DATETIME NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_admin_id) REFERENCES tenant_admins(id) ON DELETE CASCADE,
+    INDEX idx_tenant_admin_id (tenant_admin_id),
+    INDEX idx_session_id (session_id),
+    INDEX idx_is_active (is_active),
+    INDEX idx_login_time (login_time)
+);
+
 -- Additional tables follow...
 -- (See attached file for complete structure with all modules: sales, rental, members, email, reservations, events, marketplace, economy, etc.)
