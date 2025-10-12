@@ -4,6 +4,8 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 $error_message = '';
+$success_message = '';
+
 if (isset($_GET['error'])) {
     switch ($_GET['error']) {
         case 'invalid_credentials':
@@ -20,6 +22,14 @@ if (isset($_GET['error'])) {
             break;
         default:
             $error_message = 'En feil oppstod. Vennligst prøv igjen.';
+    }
+}
+
+if (isset($_GET['message'])) {
+    switch ($_GET['message']) {
+        case 'reset_request_sent':
+            $success_message = 'Din forespørsel er mottatt og behandles.';
+            break;
     }
 }
 ?>
@@ -213,6 +223,11 @@ if (isset($_GET['error'])) {
             color: #dc2626;
         }
         
+        .alert-success {
+            background: #f0fdf4;
+            color: #16a34a;
+        }
+        
         .news-section {
             background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%);
             padding: 60px 50px;
@@ -388,6 +403,13 @@ if (isset($_GET['error'])) {
                     <div><?= htmlspecialchars($error_message, ENT_QUOTES, 'UTF-8') ?></div>
                 </div>
             <?php endif; ?>
+            
+            <?php if ($success_message): ?>
+                <div class="alert alert-success d-flex align-items-center" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <div><?= htmlspecialchars($success_message, ENT_QUOTES, 'UTF-8') ?></div>
+                </div>
+            <?php endif; ?>
 
             <form method="POST" action="/auth/company_auth.php" id="login-form">
                 <div class="form-floating" id="username-field">
@@ -482,8 +504,8 @@ if (isset($_GET['error'])) {
                 // Update toggle text
                 toggleText.textContent = 'Til innlogging';
                 
-                // TODO: Change form action when forgot password endpoint is ready
-                // loginForm.action = '/auth/forgot_password.php';
+                // Change form action for forgot password
+                loginForm.action = '/auth/forgot_password.php';
                 
                 // Update required fields
                 document.getElementById('username').removeAttribute('required');
@@ -506,7 +528,8 @@ if (isset($_GET['error'])) {
                 // Update toggle text
                 toggleText.textContent = 'Har du mistet passordet ditt?';
                 
-                // Form action stays as company_auth.php
+                // Change form action back to login
+                loginForm.action = '/auth/company_auth.php';
                 
                 // Update required fields
                 document.getElementById('username').setAttribute('required', 'required');
