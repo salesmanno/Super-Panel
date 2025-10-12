@@ -102,7 +102,7 @@ if (isset($_GET['message'])) {
                 font-size: 24px;
             }
             .login-header img {
-                height: 60px;
+                height: 120px;
             }
             .login-section {
                 padding: 30px 20px;
@@ -124,7 +124,7 @@ if (isset($_GET['message'])) {
         }
         
         .login-header img {
-            height: 80px;
+            height: 160px;
             width: auto;
             margin-bottom: 24px;
             filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
@@ -392,7 +392,7 @@ if (isset($_GET['message'])) {
     <div class="login-container">
         <div class="login-section">
             <div class="login-header">
-                <img src="/attached_assets/salesman_1760298921492.png" alt="Logo">
+                <img src="/attached_assets/salesman-removebg-preview_1760299160728.png" alt="Logo">
                 <h1>SuperUser Portal</h1>
                 <p>Bedriftsportal - Logg inn</p>
             </div>

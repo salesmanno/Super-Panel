@@ -46,6 +46,8 @@ The system is built on a PHP 8.2 backend with a MySQL database.
   * Oppdatert til ny Salesman.no logo (illustrasjon av salesman med kryssede armer)
   * Endret hovedtittel fra "Salesman.no" til "SuperUser Portal"
   * Beholder undertekst "Bedriftsportal - Logg inn"
+  * Logo skalert opp til 160px høyde (dobbel størrelse) for bedre synlighet
+  * Responsiv skalering på mobil (120px)
 - 2025-10-12: **Glemt passord-funksjonalitet** - Komplett passordgjenopprettingssystem
   * Tekstlink "Har du mistet passordet ditt?" under innloggingsknappen
   * Dynamisk skjemabytte: brukernavn/passord → e-post/hemmelig kode
