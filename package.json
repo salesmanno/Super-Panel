@@ -1,0 +1,23 @@
+{
+  "name": "workspace",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@google-cloud/storage": "^7.16.0",
+    "@uppy/aws-s3": "^4.3.2",
+    "@uppy/core": "^4.5.2",
+    "@uppy/dashboard": "^4.4.3",
+    "@uppy/drag-drop": "^4.2.2",
+    "@uppy/file-input": "^4.2.2",
+    "@uppy/progress-bar": "^4.3.2",
+    "@uppy/react": "^4.5.2",
+    "google-auth-library": "^10.2.1"
+  }
+}

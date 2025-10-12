@@ -1,0 +1,56 @@
+modules = ["php", "php-8.2", "postgresql-16", "python-3.11", "python3", "nodejs-20"]
+
+[nix]
+channel = "stable-24_05"
+packages = ["php82Extensions.zip", "imagemagick", "php82Extensions.imap", "mysql80", "php82Extensions.pdo_pgsql", "php82Extensions.pgsql"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Sync Daemon"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "PHP Server"
+
+[[workflows.workflow]]
+name = "Sync Daemon"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "while true; do sleep 3600; php sync/database_sync.php; done"
+
+[[workflows.workflow]]
+name = "PHP Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "php -S 0.0.0.0:5000 -t ."
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 33125
+externalPort = 3000
+
+[[ports]]
+localPort = 33523
+externalPort = 3001
+
+[agent]
+expertMode = true

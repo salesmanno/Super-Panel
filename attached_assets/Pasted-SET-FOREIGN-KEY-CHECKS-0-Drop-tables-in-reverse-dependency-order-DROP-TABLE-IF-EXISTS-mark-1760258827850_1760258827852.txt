@@ -1,0 +1,1267 @@
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- Drop tables in reverse dependency order
+DROP TABLE IF EXISTS marketplace_favorites;
+DROP TABLE IF EXISTS marketplace_inquiries;
+DROP TABLE IF EXISTS marketplace_categories;
+DROP TABLE IF EXISTS market_marketplace;
+DROP TABLE IF EXISTS reservation_service_bookings;
+DROP TABLE IF EXISTS reservation_services;
+DROP TABLE IF EXISTS reservations_confirmed;
+DROP TABLE IF EXISTS reservations_reservations;
+DROP TABLE IF EXISTS reservations_resources;
+DROP TABLE IF EXISTS activity_summaries;
+DROP TABLE IF EXISTS audit_logs;
+DROP TABLE IF EXISTS economy_invoices;
+DROP TABLE IF EXISTS sales_orders_items;
+DROP TABLE IF EXISTS sales_orders;
+DROP TABLE IF EXISTS sales_products_stock;
+DROP TABLE IF EXISTS sales_products;
+DROP TABLE IF EXISTS sales_categories;
+DROP TABLE IF EXISTS membership_members;
+DROP TABLE IF EXISTS membership_plans;
+DROP TABLE IF EXISTS tenant_customers;
+DROP TABLE IF EXISTS email_logs;
+DROP TABLE IF EXISTS email_templates;
+DROP TABLE IF EXISTS email_configs;
+DROP TABLE IF EXISTS email_drafts;
+DROP TABLE IF EXISTS email_attachments;
+DROP TABLE IF EXISTS email_messages;
+DROP TABLE IF EXISTS email_folders;
+DROP TABLE IF EXISTS email_accounts;
+DROP TABLE IF EXISTS economy_tax_rates;
+DROP TABLE IF EXISTS economy_daily_summary;
+DROP TABLE IF EXISTS economy_categories;
+DROP TABLE IF EXISTS economy_transactions;
+DROP TABLE IF EXISTS economy_payment_gateways;
+DROP TABLE IF EXISTS economy_bank_accounts;
+DROP TABLE IF EXISTS saas_invoices;
+DROP TABLE IF EXISTS tenant_staff_modules;
+DROP TABLE IF EXISTS tenant_staff;
+DROP TABLE IF EXISTS tenant_admin_modules;
+DROP TABLE IF EXISTS tenant_admins;
+DROP TABLE IF EXISTS tenant_storage;
+DROP TABLE IF EXISTS tenant_website_config;
+DROP TABLE IF EXISTS tenant_settings;
+DROP TABLE IF EXISTS tenant_company_modules;
+DROP TABLE IF EXISTS tenant_subscriptions;
+DROP TABLE IF EXISTS tenant_companies;
+DROP TABLE IF EXISTS saas_subscription_plans;
+DROP TABLE IF EXISTS system_modules;
+DROP TABLE IF EXISTS self_company;
+DROP TABLE IF EXISTS core_sys_updates;
+DROP TABLE IF EXISTS core_sys_news;
+DROP TABLE IF EXISTS saas_admins;
+DROP TABLE IF EXISTS saas_staff;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+
+-- ==================== SAAS MANAGEMENT MODULE ====================
+-- SaaS Platform Staff (Salesman company employees - descriptive information)
+CREATE TABLE saas_staff (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    phone VARCHAR(50),
+    job_title VARCHAR(100),
+    department VARCHAR(100),
+    employment_type VARCHAR(50) DEFAULT 'full_time',
+    hire_date DATE,
+    address_street VARCHAR(255),
+    address_city VARCHAR(255),
+    address_state VARCHAR(255),
+    address_zip VARCHAR(50),
+    address_country VARCHAR(100),
+    emergency_contact_name VARCHAR(255),
+    emergency_contact_phone VARCHAR(50),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- System Administrators (Login credentials tied to staff members)
+CREATE TABLE saas_admins (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    saas_staff_id CHAR(36) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(50) DEFAULT 'admin',
+    permissions TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    last_login DATETIME NULL,
+    mfa_enabled BOOLEAN DEFAULT FALSE,
+    mfa_secret VARCHAR(100),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (saas_staff_id) REFERENCES saas_staff(id) ON DELETE CASCADE,
+    UNIQUE(saas_staff_id)
+);
+
+-- ==================== SYSTEM NEWS & UPDATES ====================
+CREATE TABLE core_sys_news (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    news_type VARCHAR(50) DEFAULT 'info',
+    severity VARCHAR(20) DEFAULT 'low',
+    is_published BOOLEAN DEFAULT FALSE,
+    publish_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expire_at DATETIME NULL,
+    target_audience VARCHAR(50) DEFAULT 'all',
+    created_by CHAR(36),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES saas_admins(id)
+);
+
+CREATE TABLE core_sys_updates (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    version VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    update_type VARCHAR(50) DEFAULT 'feature',
+    release_date DATE NOT NULL,
+    is_published BOOLEAN DEFAULT FALSE,
+    documentation_url VARCHAR(500),
+    created_by CHAR(36),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES saas_admins(id),
+    UNIQUE(version)
+);
+
+-- ==================== SALESMAN SELF COMPANY DETAILS ====================
+CREATE TABLE self_company (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_name VARCHAR(255) NOT NULL,
+    legal_name VARCHAR(255),
+    organization_no VARCHAR(100),
+    tax_id VARCHAR(100),
+    company_number VARCHAR(100),
+    contact_email VARCHAR(255),
+    contact_phone VARCHAR(50),
+    website VARCHAR(255),
+    logo_url VARCHAR(500),
+    
+    -- Legal Address
+    legal_address_street VARCHAR(255),
+    legal_address_city VARCHAR(255),
+    legal_address_state VARCHAR(255),
+    legal_address_zip VARCHAR(50),
+    legal_address_country VARCHAR(100) DEFAULT 'Norway',
+    
+    -- Banking Information
+    bank_name VARCHAR(255),
+    bank_account_number VARCHAR(100),
+    bank_swift_code VARCHAR(100),
+    
+    -- Invoice Settings
+    invoice_prefix VARCHAR(50) DEFAULT 'INV',
+    invoice_start_number INT DEFAULT 1000,
+    invoice_terms TEXT,
+    invoice_due_days INT DEFAULT 30,
+    
+    -- Tax Settings for Salesman (your company)
+    default_tax_rate DECIMAL(5,2) DEFAULT 0,
+    tax_enabled BOOLEAN DEFAULT FALSE,
+    
+    -- Currency
+    default_currency VARCHAR(3) DEFAULT 'NOK',
+    
+    -- Status
+    is_active BOOLEAN DEFAULT TRUE,
+    setup_completed BOOLEAN DEFAULT FALSE,
+    
+    created_by CHAR(36),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (created_by) REFERENCES saas_admins(id)
+);
+
+-- ==================== MODULE MANAGEMENT ====================
+CREATE TABLE system_modules (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    module_key VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    category VARCHAR(50) DEFAULT 'business',
+    icon VARCHAR(100),
+    version VARCHAR(20) DEFAULT '1.0.0',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- ==================== SAAS SUBSCRIPTION & BILLING ====================
+CREATE TABLE saas_subscription_plans (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    price_monthly DECIMAL(10,2),
+    price_annual DECIMAL(10,2),
+    max_users INTEGER,
+    max_storage_mb INTEGER,
+    features TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_by CHAR(36),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES saas_admins(id)
+);
+
+-- ==================== TENANT MODULE ====================
+CREATE TABLE tenant_companies (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    name VARCHAR(255) NOT NULL,
+    legal_name VARCHAR(255),
+    entity_type VARCHAR(20) DEFAULT 'company',
+    subdomain VARCHAR(100) UNIQUE NOT NULL,
+    domain VARCHAR(255) UNIQUE,
+    industry VARCHAR(100),
+    company_size VARCHAR(50),
+    
+    -- Contact Information
+    contact_email VARCHAR(255),
+    contact_phone VARCHAR(50),
+    website VARCHAR(255),
+    logo_url VARCHAR(500),
+    
+    -- Address Information
+    address_street VARCHAR(255),
+    address_city VARCHAR(255),
+    address_state VARCHAR(255),
+    address_zip VARCHAR(50),
+    address_country VARCHAR(100) DEFAULT 'Norway',
+    
+    -- Tax Information (specifically for Norway)
+    tax_id VARCHAR(100),
+    tax_registered BOOLEAN DEFAULT FALSE,
+    
+    -- Status
+    is_active BOOLEAN DEFAULT TRUE,
+    trial_ends_at DATETIME NULL,
+    onboarded_by CHAR(36),
+    
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (onboarded_by) REFERENCES saas_admins(id)
+);
+
+CREATE TABLE tenant_subscriptions (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    self_company_id CHAR(36) NOT NULL,
+    plan_id CHAR(36),
+    status VARCHAR(20) DEFAULT 'active',
+    billing_cycle VARCHAR(20) DEFAULT 'monthly',
+    current_period_start DATETIME,
+    current_period_end DATETIME,
+    stripe_subscription_id VARCHAR(255),
+    stripe_customer_id VARCHAR(255),
+    canceled_at DATETIME NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (self_company_id) REFERENCES self_company(id),
+    FOREIGN KEY (plan_id) REFERENCES saas_subscription_plans(id)
+);
+
+-- ==================== TENANT USER MANAGEMENT ====================
+CREATE TABLE tenant_admins (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    role VARCHAR(50) DEFAULT 'admin',
+    is_active BOOLEAN DEFAULT TRUE,
+    last_login DATETIME NULL,
+    mfa_enabled BOOLEAN DEFAULT FALSE,
+    mfa_secret VARCHAR(100),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    UNIQUE(company_id, email)
+);
+
+-- SaaS admin controls which modules are available to each tenant
+CREATE TABLE tenant_company_modules (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    module_id CHAR(36) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    config TEXT,
+    activated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    deactivated_at DATETIME NULL,
+    assigned_by CHAR(36),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (module_id) REFERENCES system_modules(id) ON DELETE CASCADE,
+    FOREIGN KEY (assigned_by) REFERENCES saas_admins(id),
+    UNIQUE(company_id, module_id)
+);
+
+-- Tenant Settings with simple key-value pairs
+CREATE TABLE tenant_settings (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    setting_key VARCHAR(255) NOT NULL,
+    setting_value TEXT NOT NULL,
+    setting_type VARCHAR(20) DEFAULT 'string',
+    category VARCHAR(100) DEFAULT 'general',
+    description TEXT,
+    is_public BOOLEAN DEFAULT FALSE,
+    created_by CHAR(36),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES tenant_admins(id),
+    UNIQUE(company_id, setting_key)
+);
+
+CREATE TABLE tenant_admin_modules (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    tenant_admin_id CHAR(36) NOT NULL,
+    module_id CHAR(36) NOT NULL,
+    granted_by CHAR(36),
+    granted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_admin_id) REFERENCES tenant_admins(id) ON DELETE CASCADE,
+    FOREIGN KEY (module_id) REFERENCES system_modules(id) ON DELETE CASCADE,
+    FOREIGN KEY (granted_by) REFERENCES tenant_admins(id),
+    UNIQUE(tenant_admin_id, module_id)
+);
+
+CREATE TABLE tenant_staff (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    tenant_admin_id CHAR(36),
+    employee_code VARCHAR(100),
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(50),
+    date_of_birth DATE,
+    job_title VARCHAR(100),
+    department VARCHAR(100),
+    employment_type VARCHAR(50) DEFAULT 'full_time',
+    hire_date DATE,
+    salary DECIMAL(12,2),
+    address_street VARCHAR(255),
+    address_city VARCHAR(255),
+    address_state VARCHAR(255),
+    address_zip VARCHAR(50),
+    address_country VARCHAR(100),
+    emergency_contact_name VARCHAR(255),
+    emergency_contact_phone VARCHAR(50),
+    is_active BOOLEAN DEFAULT TRUE,
+    last_login DATETIME NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (tenant_admin_id) REFERENCES tenant_admins(id) ON DELETE SET NULL,
+    UNIQUE(company_id, email),
+    UNIQUE(company_id, employee_code)
+);
+
+CREATE TABLE tenant_staff_modules (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    staff_id CHAR(36) NOT NULL,
+    module_id CHAR(36) NOT NULL,
+    granted_by CHAR(36),
+    granted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (staff_id) REFERENCES tenant_staff(id) ON DELETE CASCADE,
+    FOREIGN KEY (module_id) REFERENCES system_modules(id) ON DELETE CASCADE,
+    FOREIGN KEY (granted_by) REFERENCES tenant_admins(id),
+    UNIQUE(staff_id, module_id)
+);
+
+-- Tenant Website Configuration
+CREATE TABLE tenant_website_config (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    module_id CHAR(36) NOT NULL,
+    display_name VARCHAR(255),
+    display_order INTEGER DEFAULT 0,
+    is_public BOOLEAN DEFAULT TRUE,
+    show_in_navigation BOOLEAN DEFAULT TRUE,
+    template_data TEXT,
+    style_config TEXT,
+    layout_config TEXT,
+    seo_config TEXT,
+    created_by CHAR(36),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (module_id) REFERENCES system_modules(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES tenant_admins(id),
+    UNIQUE(company_id, module_id)
+);
+
+-- ==================== CUSTOMER MODULE ====================
+CREATE TABLE tenant_customers (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    customer_code VARCHAR(100) NOT NULL,
+    first_name VARCHAR(255),
+    last_name VARCHAR(255),
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    date_of_birth DATE,
+    company_name VARCHAR(255),
+    job_title VARCHAR(100),
+    address_street VARCHAR(255),
+    address_city VARCHAR(255),
+    address_state VARCHAR(255),
+    address_zip VARCHAR(50),
+    address_country VARCHAR(100),
+    customer_type VARCHAR(20) DEFAULT 'individual',
+    customer_tier VARCHAR(50) DEFAULT 'regular',
+    source VARCHAR(100),
+    is_member BOOLEAN DEFAULT FALSE,
+    status VARCHAR(50) DEFAULT 'active',
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    UNIQUE(company_id, customer_code),
+    UNIQUE(company_id, email)
+);
+
+-- ==================== SAAS BILLING & INVOICING ====================
+CREATE TABLE saas_invoices (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    self_company_id CHAR(36) NOT NULL,
+    tenant_company_id CHAR(36) NOT NULL,
+    invoice_number VARCHAR(100) NOT NULL,
+    invoice_date DATE NOT NULL,
+    due_date DATE NOT NULL,
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+    
+    -- Billing amounts
+    subtotal DECIMAL(15,2) NOT NULL,
+    tax_rate DECIMAL(5,2) DEFAULT 0,
+    tax_amount DECIMAL(15,2) DEFAULT 0,
+    total_amount DECIMAL(15,2) NOT NULL,
+    
+    currency VARCHAR(3) DEFAULT 'NOK',
+    status VARCHAR(20) DEFAULT 'draft',
+    payment_method VARCHAR(50),
+    paid_at DATETIME NULL,
+    notes TEXT,
+    
+    created_by CHAR(36),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (self_company_id) REFERENCES self_company(id),
+    FOREIGN KEY (tenant_company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES saas_admins(id),
+    UNIQUE(self_company_id, invoice_number)
+);
+
+-- ==================== ECONOMY MODULE EXPANSION ====================
+-- Bank Accounts for tenants
+CREATE TABLE economy_bank_accounts (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    account_name VARCHAR(255) NOT NULL,
+    account_number VARCHAR(100),
+    bank_name VARCHAR(255),
+    currency VARCHAR(3) DEFAULT 'NOK',
+    opening_balance DECIMAL(15,2) DEFAULT 0,
+    current_balance DECIMAL(15,2) DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE
+);
+
+-- Payment Gateway Configuration
+CREATE TABLE economy_payment_gateways (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    gateway_name VARCHAR(50) NOT NULL,
+    display_name VARCHAR(255) NOT NULL,
+    is_active BOOLEAN DEFAULT FALSE,
+    test_mode BOOLEAN DEFAULT TRUE,
+    
+    -- Vipps Configuration
+    vipps_client_id VARCHAR(255),
+    vipps_client_secret_encrypted TEXT,
+    vipps_merchant_serial_number VARCHAR(255),
+    vipps_subscription_key VARCHAR(255),
+    
+    -- PayPal Configuration
+    paypal_client_id VARCHAR(255),
+    paypal_client_secret_encrypted TEXT,
+    paypal_webhook_id VARCHAR(255),
+    
+    -- Stripe Configuration
+    stripe_public_key VARCHAR(255),
+    stripe_secret_key_encrypted TEXT,
+    stripe_webhook_secret VARCHAR(255),
+    
+    -- Common Configuration
+    config_data TEXT,
+    created_by CHAR(36),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES tenant_admins(id),
+    UNIQUE(company_id, gateway_name)
+);
+
+-- Financial Transactions (Complete economic activity tracking)
+CREATE TABLE economy_transactions (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    transaction_date DATE NOT NULL,
+    reference_number VARCHAR(100),
+    description VARCHAR(500) NOT NULL,
+    transaction_type VARCHAR(50) NOT NULL,
+    status VARCHAR(20) DEFAULT 'completed',
+    amount DECIMAL(15,2) NOT NULL,
+    currency VARCHAR(3) DEFAULT 'NOK',
+    
+    -- Related entities
+    invoice_id CHAR(36),
+    sale_order_id CHAR(36),
+    customer_id CHAR(36),
+    vendor_name VARCHAR(255),
+    bank_account_id CHAR(36),
+    payment_gateway_id CHAR(36),
+    
+    -- Payment details
+    payment_method VARCHAR(50) DEFAULT 'cash',
+    payment_reference VARCHAR(255),
+    payment_date DATE,
+    
+    -- Categorization
+    category VARCHAR(100),
+    tags TEXT,
+    
+    created_by CHAR(36),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES tenant_customers(id),
+    FOREIGN KEY (bank_account_id) REFERENCES economy_bank_accounts(id),
+    FOREIGN KEY (payment_gateway_id) REFERENCES economy_payment_gateways(id),
+    FOREIGN KEY (created_by) REFERENCES tenant_admins(id)
+);
+
+-- Transaction Categories for organization
+CREATE TABLE economy_categories (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(20) NOT NULL,
+    parent_category_id CHAR(36),
+    description TEXT,
+    color VARCHAR(7) DEFAULT '#3366CC',
+    is_active BOOLEAN DEFAULT TRUE,
+    sort_order INT DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_category_id) REFERENCES economy_categories(id),
+    UNIQUE(company_id, name, type)
+);
+
+-- Economic Summary Views
+CREATE TABLE economy_daily_summary (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    summary_date DATE NOT NULL,
+    total_income DECIMAL(15,2) DEFAULT 0,
+    total_expenses DECIMAL(15,2) DEFAULT 0,
+    net_amount DECIMAL(15,2) DEFAULT 0,
+    transaction_count INT DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    UNIQUE(company_id, summary_date)
+);
+
+-- Tax Rates and Configuration
+CREATE TABLE economy_tax_rates (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    rate DECIMAL(5,2) NOT NULL,
+    country_code VARCHAR(2) DEFAULT 'NO',
+    tax_type VARCHAR(20) DEFAULT 'vat',
+    is_compound BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    applies_to VARCHAR(20) DEFAULT 'all',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    UNIQUE(company_id, name)
+);
+
+-- ==================== ECONOMY MODULE (Original) ====================
+CREATE TABLE economy_invoices (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    customer_id CHAR(36),
+    invoice_number VARCHAR(100) NOT NULL,
+    invoice_date DATE NOT NULL,
+    due_date DATE NOT NULL,
+    
+    -- Customer type affects tax (B2C vs B2B)
+    customer_entity_type VARCHAR(20) DEFAULT 'individual',
+    
+    -- Amounts
+    subtotal DECIMAL(15,2) NOT NULL,
+    tax_rate DECIMAL(5,2) DEFAULT 0,
+    tax_amount DECIMAL(15,2) DEFAULT 0,
+    total_amount DECIMAL(15,2) NOT NULL,
+    
+    currency VARCHAR(3) DEFAULT 'NOK',
+    status VARCHAR(20) DEFAULT 'draft',
+    payment_terms VARCHAR(255),
+    notes TEXT,
+    
+    sent_at DATETIME NULL,
+    paid_at DATETIME NULL,
+    
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES tenant_customers(id),
+    UNIQUE(company_id, invoice_number)
+);
+
+-- ==================== EMAIL CLIENT MODULE ====================
+-- Email Accounts (Multiple accounts per company)
+CREATE TABLE email_accounts (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    email_address VARCHAR(255) NOT NULL,
+    display_name VARCHAR(255) NOT NULL,
+    
+    -- IMAP Configuration
+    imap_host VARCHAR(255),
+    imap_port INT DEFAULT 993,
+    imap_username VARCHAR(255),
+    imap_password_encrypted TEXT,
+    imap_ssl BOOLEAN DEFAULT TRUE,
+    
+    -- SMTP Configuration
+    smtp_host VARCHAR(255),
+    smtp_port INT DEFAULT 587,
+    smtp_username VARCHAR(255),
+    smtp_password_encrypted TEXT,
+    smtp_ssl BOOLEAN DEFAULT TRUE,
+    
+    -- Account Settings
+    signature TEXT,
+    is_default BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    last_sync DATETIME,
+    
+    created_by CHAR(36),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES tenant_admins(id),
+    UNIQUE(company_id, email_address)
+);
+
+-- Email Folders
+CREATE TABLE email_folders (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    account_id CHAR(36) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(20) DEFAULT 'custom',
+    parent_folder_id CHAR(36),
+    sync_enabled BOOLEAN DEFAULT TRUE,
+    sort_order INT DEFAULT 0,
+    unread_count INT DEFAULT 0,
+    total_count INT DEFAULT 0,
+    
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (account_id) REFERENCES email_accounts(id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_folder_id) REFERENCES email_folders(id),
+    UNIQUE(account_id, name)
+);
+
+-- Email Messages
+CREATE TABLE email_messages (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    account_id CHAR(36) NOT NULL,
+    folder_id CHAR(36) NOT NULL,
+    message_uid VARCHAR(500),
+    
+    -- Message Headers
+    from_address VARCHAR(255) NOT NULL,
+    from_name VARCHAR(255),
+    to_addresses TEXT NOT NULL,
+    cc_addresses TEXT,
+    bcc_addresses TEXT,
+    subject VARCHAR(1000),
+    
+    -- Message Content
+    body_text TEXT,
+    body_html TEXT,
+    
+    -- Message Status
+    is_read BOOLEAN DEFAULT FALSE,
+    is_important BOOLEAN DEFAULT FALSE,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    has_attachments BOOLEAN DEFAULT FALSE,
+    
+    -- Dates
+    sent_at DATETIME,
+    received_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (account_id) REFERENCES email_accounts(id) ON DELETE CASCADE,
+    FOREIGN KEY (folder_id) REFERENCES email_folders(id),
+    UNIQUE(account_id, message_uid)
+);
+
+-- Email Attachments
+CREATE TABLE email_attachments (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    message_id CHAR(36) NOT NULL,
+    filename VARCHAR(255) NOT NULL,
+    file_path VARCHAR(500),
+    file_size INT,
+    mime_type VARCHAR(100),
+    content_id VARCHAR(255),
+    
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (message_id) REFERENCES email_messages(id) ON DELETE CASCADE
+);
+
+-- Email Drafts
+CREATE TABLE email_drafts (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    account_id CHAR(36) NOT NULL,
+    subject VARCHAR(1000),
+    body_text TEXT,
+    body_html TEXT,
+    to_addresses TEXT,
+    cc_addresses TEXT,
+    bcc_addresses TEXT,
+    attachments TEXT,
+    
+    created_by CHAR(36),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (account_id) REFERENCES email_accounts(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES tenant_admins(id)
+);
+
+-- ==================== EMAIL MODULE (Original) ====================
+CREATE TABLE email_configs (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    display_name VARCHAR(255) NOT NULL,
+    smtp_host VARCHAR(255),
+    smtp_port INTEGER,
+    smtp_username VARCHAR(255),
+    smtp_password_encrypted TEXT,
+    signature TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    UNIQUE(company_id)
+);
+
+CREATE TABLE email_templates (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    subject VARCHAR(500) NOT NULL,
+    body_html TEXT,
+    body_text TEXT,
+    template_type VARCHAR(100),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE
+);
+
+CREATE TABLE email_logs (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    sent_by CHAR(36),
+    from_email VARCHAR(255) NOT NULL,
+    from_name VARCHAR(255) NOT NULL,
+    to_email VARCHAR(255) NOT NULL,
+    to_name VARCHAR(255),
+    subject VARCHAR(500) NOT NULL,
+    body_text TEXT,
+    body_html TEXT,
+    template_used VARCHAR(100),
+    status VARCHAR(20) DEFAULT 'sent',
+    error_message TEXT,
+    sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (sent_by) REFERENCES tenant_admins(id)
+);
+
+-- ==================== MEMBERSHIP MODULE ====================
+CREATE TABLE membership_plans (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    plan_code VARCHAR(100) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2) NOT NULL,
+    currency VARCHAR(3) DEFAULT 'USD',
+    billing_cycle VARCHAR(20) DEFAULT 'monthly',
+    benefits TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    UNIQUE(company_id, plan_code)
+);
+
+CREATE TABLE membership_members (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    customer_id CHAR(36) NOT NULL,
+    membership_plan_id CHAR(36),
+    member_code VARCHAR(100) NOT NULL,
+    status VARCHAR(50) DEFAULT 'active',
+    join_date DATE NOT NULL,
+    expiration_date DATE,
+    auto_renew BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES tenant_customers(id) ON DELETE CASCADE,
+    FOREIGN KEY (membership_plan_id) REFERENCES membership_plans(id),
+    UNIQUE(company_id, member_code),
+    UNIQUE(company_id, customer_id)
+);
+
+-- ==================== SALES MODULE ====================
+CREATE TABLE sales_categories (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    parent_category_id CHAR(36),
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_category_id) REFERENCES sales_categories(id),
+    UNIQUE(company_id, name)
+);
+
+CREATE TABLE sales_products (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    category_id CHAR(36),
+    sku VARCHAR(100) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    barcode VARCHAR(100),
+    cost_price DECIMAL(15,2) DEFAULT 0,
+    selling_price DECIMAL(15,2) NOT NULL,
+    member_price DECIMAL(15,2),
+    currency VARCHAR(3) DEFAULT 'USD',
+    tax_rate DECIMAL(5,2) DEFAULT 0,
+    unit VARCHAR(50) DEFAULT 'pcs',
+    reorder_level INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES sales_categories(id),
+    UNIQUE(company_id, sku)
+);
+
+CREATE TABLE sales_products_stock (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    product_id CHAR(36) NOT NULL,
+    location VARCHAR(100) DEFAULT 'main',
+    quantity INTEGER DEFAULT 0 NOT NULL,
+    reserved_quantity INTEGER DEFAULT 0,
+    last_restocked DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES sales_products(id) ON DELETE CASCADE,
+    UNIQUE(product_id, location)
+);
+
+CREATE TABLE sales_orders (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    customer_id CHAR(36),
+    member_id CHAR(36),
+    order_number VARCHAR(100) NOT NULL,
+    order_date DATE NOT NULL,
+    status VARCHAR(50) DEFAULT 'draft',
+    payment_status VARCHAR(50) DEFAULT 'pending',
+    subtotal DECIMAL(15,2) NOT NULL,
+    tax_amount DECIMAL(15,2) DEFAULT 0,
+    discount_amount DECIMAL(15,2) DEFAULT 0,
+    membership_discount DECIMAL(15,2) DEFAULT 0,
+    total_amount DECIMAL(15,2) NOT NULL,
+    currency VARCHAR(3) DEFAULT 'USD',
+    notes TEXT,
+    shipping_address_street VARCHAR(255),
+    shipping_address_city VARCHAR(255),
+    shipping_address_state VARCHAR(255),
+    shipping_address_zip VARCHAR(50),
+    shipping_address_country VARCHAR(100),
+    created_by CHAR(36),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES tenant_customers(id),
+    FOREIGN KEY (member_id) REFERENCES membership_members(id),
+    FOREIGN KEY (created_by) REFERENCES tenant_admins(id),
+    UNIQUE(company_id, order_number)
+);
+
+CREATE TABLE sales_orders_items (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    order_id CHAR(36) NOT NULL,
+    product_id CHAR(36),
+    product_name VARCHAR(255) NOT NULL,
+    quantity INTEGER NOT NULL,
+    unit_price DECIMAL(15,2) NOT NULL,
+    member_unit_price DECIMAL(15,2),
+    tax_rate DECIMAL(5,2) DEFAULT 0,
+    line_total DECIMAL(15,2) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES sales_orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES sales_products(id)
+);
+
+-- ==================== ENHANCED ACTIVITY & AUDIT MODULE ====================
+CREATE TABLE audit_logs (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36),
+    user_id CHAR(36),
+    user_type VARCHAR(20),
+    user_email VARCHAR(255),
+    action VARCHAR(255) NOT NULL,
+    resource_type VARCHAR(100),
+    resource_id CHAR(36),
+    resource_name VARCHAR(255),
+    old_values TEXT,
+    new_values TEXT,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    severity VARCHAR(20) DEFAULT 'info',
+    performed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    module VARCHAR(100),
+    session_id VARCHAR(255),
+    location VARCHAR(255),
+    device_info TEXT,
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE
+);
+
+CREATE TABLE activity_summaries (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36),
+    user_id CHAR(36),
+    user_type VARCHAR(20),
+    date_date DATE NOT NULL,
+    total_actions INT DEFAULT 0,
+    modules_used TEXT,
+    first_action DATETIME,
+    last_action DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    UNIQUE(company_id, user_id, date_date)
+);
+
+-- ==================== RESERVATIONS MODULE ====================
+CREATE TABLE reservations_resources (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    resource_name VARCHAR(255) NOT NULL,
+    resource_type VARCHAR(20) DEFAULT 'room',
+    description TEXT,
+    capacity INT DEFAULT 1,
+    location VARCHAR(255),
+    hourly_rate DECIMAL(10,2) DEFAULT 0,
+    daily_rate DECIMAL(10,2) DEFAULT 0,
+    is_available BOOLEAN DEFAULT TRUE,
+    features TEXT,
+    image_url VARCHAR(500),
+    
+    created_by CHAR(36),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES tenant_admins(id)
+);
+
+CREATE TABLE reservations_reservations (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    resource_id CHAR(36) NOT NULL,
+    customer_id CHAR(36),
+    staff_id CHAR(36),
+    
+    -- Reservation Details
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    start_datetime DATETIME NOT NULL,
+    end_datetime DATETIME NOT NULL,
+    
+    -- Pricing
+    total_amount DECIMAL(10,2) DEFAULT 0,
+    deposit_amount DECIMAL(10,2) DEFAULT 0,
+    currency VARCHAR(3) DEFAULT 'NOK',
+    
+    -- Status
+    status VARCHAR(20) DEFAULT 'pending',
+    guest_count INT DEFAULT 1,
+    
+    -- Recurring reservations
+    is_recurring BOOLEAN DEFAULT FALSE,
+    recurrence_pattern VARCHAR(20),
+    recurrence_end_date DATE,
+    
+    created_by CHAR(36),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (resource_id) REFERENCES reservations_resources(id),
+    FOREIGN KEY (customer_id) REFERENCES tenant_customers(id),
+    FOREIGN KEY (staff_id) REFERENCES tenant_staff(id),
+    FOREIGN KEY (created_by) REFERENCES tenant_admins(id)
+);
+
+-- Reservation confirmation and payment tracking
+CREATE TABLE reservations_confirmed (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    reservation_id CHAR(36) NOT NULL,
+    
+    -- Confirmation Details
+    confirmed_by CHAR(36) NOT NULL,
+    confirmed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    confirmation_method VARCHAR(20) DEFAULT 'online',
+    
+    -- Payment Status
+    payment_status VARCHAR(20) DEFAULT 'pending',
+    amount_paid DECIMAL(10,2) DEFAULT 0,
+    payment_date DATETIME,
+    payment_method VARCHAR(50),
+    payment_reference VARCHAR(255),
+    
+    -- Event/Schedule Details
+    event_type VARCHAR(100),
+    schedule_notes TEXT,
+    special_requirements TEXT,
+    
+    -- Check-in/Check-out
+    actual_check_in DATETIME,
+    actual_check_out DATETIME,
+    
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (reservation_id) REFERENCES reservations_reservations(id) ON DELETE CASCADE,
+    FOREIGN KEY (confirmed_by) REFERENCES tenant_admins(id),
+    UNIQUE(reservation_id)
+);
+
+-- Reservation add-ons/services
+CREATE TABLE reservation_services (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    service_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2) DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE
+);
+
+CREATE TABLE reservation_service_bookings (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    reservation_id CHAR(36) NOT NULL,
+    service_id CHAR(36) NOT NULL,
+    quantity INT DEFAULT 1,
+    unit_price DECIMAL(10,2) NOT NULL,
+    total_price DECIMAL(10,2) NOT NULL,
+    
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (reservation_id) REFERENCES reservations_reservations(id) ON DELETE CASCADE,
+    FOREIGN KEY (service_id) REFERENCES reservation_services(id),
+    UNIQUE(reservation_id, service_id)
+);
+
+-- ==================== MARKETPLACE MODULE ====================
+CREATE TABLE market_marketplace (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    
+    -- Item identification
+    item_type VARCHAR(20) NOT NULL,
+    source_table VARCHAR(100) NOT NULL, -- Original table name
+    source_id CHAR(36) NOT NULL, -- ID from the original table
+    
+    -- Marketplace listing details
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    category VARCHAR(100),
+    tags TEXT,
+    
+    -- Media
+    image_urls TEXT, -- JSON array of image URLs
+    video_url VARCHAR(500),
+    
+    -- Pricing and availability
+    price DECIMAL(15,2),
+    currency VARCHAR(3) DEFAULT 'NOK',
+    compare_at_price DECIMAL(15,2),
+    is_negotiable BOOLEAN DEFAULT FALSE,
+    stock_quantity INT DEFAULT 0,
+    min_quantity INT DEFAULT 1,
+    max_quantity INT DEFAULT 10,
+    
+    -- Location (for physical items/rentals)
+    location_address VARCHAR(255),
+    location_city VARCHAR(255),
+    location_state VARCHAR(255),
+    location_zip VARCHAR(50),
+    location_country VARCHAR(100),
+    latitude DECIMAL(10,8),
+    longitude DECIMAL(11,8),
+    
+    -- Listing status
+    status VARCHAR(20) DEFAULT 'draft',
+    is_featured BOOLEAN DEFAULT FALSE,
+    is_verified BOOLEAN DEFAULT FALSE,
+    
+    -- Visibility and SEO
+    seo_title VARCHAR(255),
+    seo_description TEXT,
+    slug VARCHAR(255) UNIQUE,
+    view_count INT DEFAULT 0,
+    
+    -- Dates
+    published_at DATETIME,
+    expires_at DATETIME,
+    
+    created_by CHAR(36),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES tenant_admins(id),
+    UNIQUE(company_id, source_table, source_id)
+);
+
+-- Marketplace categories
+CREATE TABLE marketplace_categories (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    company_id CHAR(36) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    parent_category_id CHAR(36),
+    image_url VARCHAR(500),
+    sort_order INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_category_id) REFERENCES marketplace_categories(id),
+    UNIQUE(company_id, name)
+);
+
+-- Marketplace inquiries/leads
+CREATE TABLE marketplace_inquiries (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    marketplace_item_id CHAR(36) NOT NULL,
+    customer_id CHAR(36),
+    customer_name VARCHAR(255) NOT NULL,
+    customer_email VARCHAR(255) NOT NULL,
+    customer_phone VARCHAR(50),
+    message TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'new',
+    
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (marketplace_item_id) REFERENCES market_marketplace(id) ON DELETE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES tenant_customers(id)
+);
+
+-- Marketplace favorites/wishlist
+CREATE TABLE marketplace_favorites (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    marketplace_item_id CHAR(36) NOT NULL,
+    customer_id CHAR(36) NOT NULL,
+    
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (marketplace_item_id) REFERENCES market_marketplace(id) ON DELETE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES tenant_customers(id) ON DELETE CASCADE,
+    UNIQUE(marketplace_item_id, customer_id)
+);
+
+-- ==================== INDEXES ====================
+CREATE INDEX idx_tenant_companies_subdomain ON tenant_companies(subdomain);
+CREATE INDEX idx_tenant_companies_entity_type ON tenant_companies(entity_type);
+CREATE INDEX idx_tenant_settings_company_key ON tenant_settings(company_id, setting_key);
+CREATE INDEX idx_saas_invoices_tenant ON saas_invoices(tenant_company_id);
+CREATE INDEX idx_economy_invoices_customer_type ON economy_invoices(customer_entity_type);
+CREATE INDEX idx_economy_transactions_date ON economy_transactions(company_id, transaction_date);
+CREATE INDEX idx_economy_transactions_type ON economy_transactions(transaction_type);
+CREATE INDEX idx_email_accounts_company ON email_accounts(company_id);
+CREATE INDEX idx_email_messages_account_folder ON email_messages(account_id, folder_id);
+
+-- Enhanced activity logging indexes
+CREATE INDEX idx_audit_logs_company_date ON audit_logs(company_id, performed_at);
+CREATE INDEX idx_audit_logs_user_module ON audit_logs(user_id, module);
+
+-- Reservations indexes
+CREATE INDEX idx_reservations_dates ON reservations_reservations(company_id, start_datetime, end_datetime);
+CREATE INDEX idx_reservations_status ON reservations_reservations(status);
+CREATE INDEX idx_reservations_confirmed_payment ON reservations_confirmed(payment_status);
+
+-- Marketplace indexes
+CREATE INDEX idx_marketplace_status ON market_marketplace(company_id, status);
+CREATE INDEX idx_marketplace_category ON market_marketplace(company_id, category);
+CREATE INDEX idx_marketplace_location ON market_marketplace(company_id, location_city, location_state);
+CREATE INDEX idx_marketplace_type ON market_marketplace(item_type, source_table);
+CREATE INDEX idx_marketplace_slug ON market_marketplace(slug);
+
+-- ==================== SAMPLE DATA ====================
+-- Insert default system modules
+INSERT INTO system_modules (id, module_key, name, description, category, icon) VALUES 
+(UUID(), 'sales', 'Sales', 'Product and inventory management', 'business', 'shopping-cart'),
+(UUID(), 'economy', 'Economy', 'Financial transactions and accounting', 'business', 'dollar-sign'),
+(UUID(), 'rental', 'Rental', 'Property and unit management', 'operations', 'home'),
+(UUID(), 'events', 'Events', 'Event planning and registration', 'operations', 'calendar'),
+(UUID(), 'reservations', 'Reservations', 'Resource booking system', 'operations', 'clock'),
+(UUID(), 'email', 'Email', 'Email configuration and templates', 'communication', 'mail'),
+(UUID(), 'membership', 'Membership', 'Member plans and benefits', 'business', 'users'),
+(UUID(), 'marketplace', 'Marketplace', 'Online marketplace for products and services', 'business', 'shopping-bag');

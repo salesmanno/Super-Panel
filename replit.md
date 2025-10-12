@@ -1,0 +1,66 @@
+# Salesman Superportal System
+
+## Overview
+The Salesman Superportal System is a comprehensive super_user admin portal for managing company operations. It provides a centralized platform for company administrators to manage modules and settings based on their privileges. The system aims to streamline business processes across various domains, including sales, webmail, reservations, economy, membership, rental, events, and marketplace management, with the vision of offering a robust platform for efficient oversight of diverse company operations.
+
+## User Preferences
+- Language: Norwegian
+- Clean, compact dashboard design (not oversized)
+- Simple navigation header
+- Focus on functionality over visual complexity
+- Modules should be displayed as tabs (faner) instead of cards
+- Only show modules where user has privileges (can_access = true)
+- Each module tab should have sub-tabs with the same name showing current content
+
+## System Architecture
+The system is built on a PHP 8.2 backend with a MySQL database.
+- **UI/UX Decisions**: Prioritizes a clean, compact dashboard with a simple navigation header. Modules are presented as Bootstrap 5 tabs (faner) for efficient navigation, with sub-tabs reflecting current content. Color schemes include a blue hero banner with company logos.
+- **Technical Implementations**:
+    - **Authentication**: Session-based system with failsafe messages.
+    - **Module & Privilege Management**: Granular access control using `module_privileges` and `module_visibility` tables; modules only appear if `can_access` is true. Super_users can update their own module privileges dynamically with backend validation.
+    - **Webmail Client**: Integrated client with inbox, compose, and message viewing, connected to live database data, supporting read-only configuration.
+    - **Events Module**: Comprehensive event management with CRUD operations via JavaScript and dedicated API endpoints. Supports event images via URL or file upload, and member pricing (displayed only when membership module is active).
+    - **User Profiles**: `super_user_profiles` table stores personal information for features like automatic email signatures and a profile editing page.
+    - **Homepage Template System**: An isolated system allowing companies to choose from 5 pre-defined homepage templates. Includes template management, settings flow, public rendering, live preview, and publishing options (SEO, custom domains).
+    - **Rental System**: Manages individual rental objects with serial number tracking and condition notes. Integrates with a reservation system for booking periods, overlap checks, and price calculation. Includes contract management for document uploads (PDF, DOC, DOCX, TXT, RTF).
+    - **Global Reservation System**: Manages reservations across modules (rental, sales, events, economy), assigning unique reservation numbers with prefixes (RENT, SALE, EVNT, ECON). Includes API endpoint for retrieving all reservations based on user privileges and settings, advanced filtering, and statistics.
+    - **Homepage Template Placeholders**: Templates use `{{company_name}}` and `{{company_logo}}` placeholders for flexibility, with previews showing a generic logo and actual usage displaying the company's specific logo and name.
+    - **Homepage Template Storage**: Homepage templates are stored as complete HTML content in the `homepage_templates` table, and `company_homepage_settings` tracks template choices per company.
+    - **Sales Module**: Includes functionality to add sales items via a dedicated sub-pane, with a form for data entry, JavaScript for submission, and an API endpoint (`create_sales_item.php`) for storage in a `sales_items` table, including validation and duplicate SKU checks.
+    - **Reservation Settings**: A `reservation_settings` table controls which modules (arrangements, economy, sales, membership, webmail, rental) are included in the global reservation system, respecting both these settings and user privileges.
+- **System Design Choices**:
+    - **Modularity**: Core system features are organized into distinct modules.
+    - **Data Flow (Homepage System)**: Involves template selection, settings configuration, public rendering, and live preview, all interacting with the database via API.
+    - **Database Structure**: Key tables include `webmail_accounts`, `webmail_messages`, `x_events` (with `image_url` and `member_price` columns), `companies`, `super_users`, `modules`, `module_privileges`, `module_visibility`, `homepage_templates`, `company_homepage_settings`, `super_user_profiles`, `rental_objects`, `rental_reservations`, `x_rental`, `contract_documents`, `sales_items`, and `reservation_settings`.
+
+## External Dependencies
+- **Database**: MySQL database hosted on Domeneshop (`salesmanno04.mysql.domeneshop.no`).
+- **UI Framework**: Bootstrap 5.
+- **Email Protocols**: SMTP (`smtp.domeneshop.no:587` with TLS) and IMAP (`imap.domeneshop.no:993` with SSL) for the integrated webmail client.
+- **Storage**: Object storage for contract document uploads.
+
+## Recent Updates
+- 2025-10-10: **Arrangementsbilde og medlemspris** - Utvidet events-modulen med bildefunksjonalitet og medlemsprising
+  * Lagt til `image_url` og `member_price` kolonner i `x_events` tabellen
+  * Bildeadresse kan legges inn direkte som URL eller lastes opp som fil
+  * Medlemspris vises kun når medlemsmodulen er aktiv (use_membership privilege)
+  * Arrangementsbilde vises i oversikten med thumbnail (60x60px) eller fallback-ikon
+  * API-endepunkter oppdatert: `get_events.php` og `create_event.php` støtter nye felter
+  * Frontend viser medlemspris i grønn tekst under ordinær pris
+- 2025-10-01: **Database-tilkoblingsindikator** - Lagt til live database-status i navigasjonen
+  * Visuell indikator med grønn/rød pulserende prikk i navbar
+  * Hover-funksjonalitet viser database-server og -navn (MySQL: salesmanno04.mysql.domeneshop.no/salesmanno04)
+  * API-endpoint `/api/check_database_status.php` returnerer sanntids database-status
+  * Automatisk oppdatering hver 30. sekund for live overvåking
+  * Animert pulsering som indikerer tilkoblingsstatus
+- 2025-08-22: **Reservasjonsoversikt** - Implementert detaljert oversikt med både dagsoversikt og timesoversikt for reservasjoner
+  * Opprettet tabs-struktur i reservasjonsmodulen: "Reservasjonsoversikt" og "Reservasjonsmottak"
+  * Dagsoversikt grupperer reservasjoner etter dato med kortvisning og antallsindikatorer
+  * Timesoversikt viser detaljert timeplan med reservasjoner organisert etter dato og klokkeslett
+  * Radioknapper for å bytte mellom dag- og timevisning med JavaScript-funksjonalitet
+  * Bruker eksisterende get_all_reservations.php API som respekterer reservation_settings og bruger-privilegier
+- 2025-08-22: **Hjemmeside-forhåndsvisning fikset** - "Se hjemmeside" viser nå valgt mal med bedriftens logo
+  * Oppdatert get_homepage_preview.php til å bruke companies.logo_url som primær logokilde
+  * Implementert automatisk erstatning av hardkodede Salesman-logoer med bedriftens logo
+  * Prioriteringskjede: innstillinger-logo > bedrift-logo-url > fallback-logo
+  * Fjernet alle Salesman-logo-variasjoner og erstattet med bedriftens faktiske logo
