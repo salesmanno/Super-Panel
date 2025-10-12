@@ -42,6 +42,15 @@ The system is built on a PHP 8.2 backend with a MySQL database.
 - **Storage**: Object storage for contract document uploads.
 
 ## Recent Updates
+- 2025-10-12: **SSE (Server-Sent Events) og responsiv design** - Implementert sanntids nyhetsoppdateringer og fullstendig responsivitet
+  * Server-Sent Events for real-time nyhetsstreaming
+  * SSE endpoint med automatisk oppdatering hver 30. sekund
+  * Heartbeat (5 sek) for å forhindre timeout
+  * Automatisk reconnect ved tilkoblingstap (5 sek forsinkelse)
+  * Fullstendig responsiv design: desktop, tablet (≤992px), og mobil (≤576px)
+  * Nyhetsseksjon nå synlig på alle enheter med tilpasset layout
+  * EventSource API med proper cleanup og feilhåndtering
+  * Sikker streaming med output buffer-håndtering
 - 2025-10-12: **Nyhetsvisning med alle felt** - Koblet alle core_sys_news felt til nyhetsrammen på innloggingssiden
   * Viser alle databasefelt: title, content, news_type, severity
   * news_type vises som badge med ikon og norsk label (System, Ny funksjon, Vedlikehold, etc.)
