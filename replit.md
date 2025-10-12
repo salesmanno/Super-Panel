@@ -42,6 +42,13 @@ The system is built on a PHP 8.2 backend with a MySQL database.
 - **Storage**: Object storage for contract document uploads.
 
 ## Recent Updates
+- 2025-10-12: **Nyhetsvisning med alle felt** - Koblet alle core_sys_news felt til nyhetsrammen på innloggingssiden
+  * Viser alle databasefelt: title, content, news_type, severity
+  * news_type vises som badge med ikon og norsk label (System, Ny funksjon, Vedlikehold, etc.)
+  * severity vises som fargekodet badge for alle nivåer (kritisk=rød, høy=orange, middels=blå, lav=grønn)
+  * Hver nyhet viser: tittel, innhold, type, alvorlighetsgrad og publiseringsdato
+  * Konsistent styling med lilla gradient-tema
+  * Sikker visning med HTML-escaping
 - 2025-10-12: **Database Migration to salesmanno04** - Migrated to new MySQL database structure
   * Disconnected from salesmanno03 and connected to salesmanno04.mysql.domeneshop.no
   * Implemented tenant-based architecture with tenant_companies and tenant_admins tables
@@ -54,6 +61,8 @@ The system is built on a PHP 8.2 backend with a MySQL database.
   * Key tables: tenant_companies, tenant_admins (with username field), system_modules, core_sys_news
   * Authentication uses PDO prepared statements for security
   * API endpoint /api/get_latest_news.php for system news display
+  * Session regeneration after login for security
+  * Fixed PDO LIMIT binding issue for news queries
 - 2025-10-10: **Arrangementsbilde og medlemspris** - Utvidet events-modulen med bildefunksjonalitet og medlemsprising
   * Lagt til `image_url` og `member_price` kolonner i `x_events` tabellen
   * Bildeadresse kan legges inn direkte som URL eller lastes opp som fil

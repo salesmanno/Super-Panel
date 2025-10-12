@@ -73,7 +73,27 @@ if (isset($_GET['error'])) {
                 grid-template-columns: 1fr;
             }
             .news-section {
-                display: none;
+                display: block;
+                max-height: 300px;
+                padding: 30px 25px;
+            }
+            .login-section {
+                padding: 40px 25px;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .login-header h1 {
+                font-size: 24px;
+            }
+            .login-header img {
+                height: 60px;
+            }
+            .login-section {
+                padding: 30px 20px;
+            }
+            .news-section {
+                padding: 20px 20px;
             }
         }
         
@@ -293,6 +313,26 @@ if (isset($_GET['error'])) {
         .news-badge.high {
             background: rgba(251, 191, 36, 0.9);
         }
+        
+        .news-badge.medium {
+            background: rgba(59, 130, 246, 0.9);
+        }
+        
+        .news-badge.low {
+            background: rgba(16, 185, 129, 0.8);
+        }
+        
+        .news-type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.25);
+            text-transform: capitalize;
+        }
     </style>
 </head>
 <body>
@@ -348,60 +388,105 @@ if (isset($_GET['error'])) {
     </div>
     
     <script>
+        let eventSource = null;
+        let reconnectTimeout = null;
+        
         document.addEventListener('DOMContentLoaded', function() {
-            loadNews();
+            connectToNewsStream();
         });
         
-        function loadNews() {
-            fetch('/api/get_latest_news.php')
-                .then(response => response.json())
-                .then(data => {
-                    const newsContent = document.getElementById('news-content');
+        function connectToNewsStream() {
+            if (eventSource) {
+                eventSource.close();
+            }
+            
+            eventSource = new EventSource('/api/news_stream.php');
+            
+            eventSource.onopen = function() {
+                console.log('SSE connection established');
+                if (reconnectTimeout) {
+                    clearTimeout(reconnectTimeout);
+                    reconnectTimeout = null;
+                }
+            };
+            
+            eventSource.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    updateNewsDisplay(data);
+                } catch (error) {
+                    console.error('Error parsing SSE data:', error);
+                }
+            };
+            
+            eventSource.onerror = function(error) {
+                console.error('SSE error:', error);
+                eventSource.close();
+                
+                document.getElementById('news-content').innerHTML = `
+                    <div class="news-loading">
+                        <i class="bi bi-exclamation-triangle fs-2 mb-3 d-block"></i>
+                        <p>Mistet tilkobling. Prøver å koble til igjen...</p>
+                    </div>
+                `;
+                
+                reconnectTimeout = setTimeout(connectToNewsStream, 5000);
+            };
+        }
+        
+        function updateNewsDisplay(data) {
+            const newsContent = document.getElementById('news-content');
+            
+            if (data.success && data.news && data.news.length > 0) {
+                let newsHtml = '';
+                
+                data.news.forEach(item => {
+                    const severityBadge = `<span class="news-badge ${item.severity}">${item.priority_text}</span>`;
                     
-                    if (data.success && data.news && data.news.length > 0) {
-                        let newsHtml = '';
-                        
-                        data.news.forEach(item => {
-                            const badge = item.severity === 'critical' || item.severity === 'high' 
-                                ? `<span class="news-badge ${item.severity}">${item.priority_text}</span>` 
-                                : '';
-                            
-                            newsHtml += `
-                                <div class="news-item">
-                                    <div class="news-item-title">
-                                        ${escapeHtml(item.title)}
-                                    </div>
-                                    <div class="news-item-content">
-                                        ${escapeHtml(item.content)}
-                                    </div>
-                                    <div class="news-item-meta">
-                                        <span><i class="bi bi-calendar3 me-1"></i>${item.formatted_date}</span>
-                                        ${badge}
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        
-                        newsContent.innerHTML = newsHtml;
-                    } else {
-                        newsContent.innerHTML = `
-                            <div class="news-loading">
-                                <i class="bi bi-info-circle fs-2 mb-3 d-block"></i>
-                                <p>Ingen nyheter tilgjengelig</p>
+                    const newsTypeIcon = getNewsTypeIcon(item.news_type);
+                    const newsTypeLabel = getNewsTypeLabel(item.news_type);
+                    
+                    newsHtml += `
+                        <div class="news-item">
+                            <div class="news-item-title">
+                                ${escapeHtml(item.title)}
                             </div>
-                        `;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading news:', error);
-                    document.getElementById('news-content').innerHTML = `
-                        <div class="news-loading">
-                            <i class="bi bi-exclamation-triangle fs-2 mb-3 d-block"></i>
-                            <p>Kunne ikke laste nyheter</p>
+                            <div class="news-item-content">
+                                ${escapeHtml(item.content)}
+                            </div>
+                            <div class="news-item-meta">
+                                <div>
+                                    <span class="news-type-badge">
+                                        <i class="${newsTypeIcon}"></i>
+                                        ${newsTypeLabel}
+                                    </span>
+                                    <span class="ms-2"><i class="bi bi-calendar3 me-1"></i>${item.formatted_date}</span>
+                                </div>
+                                ${severityBadge}
+                            </div>
                         </div>
                     `;
                 });
+                
+                newsContent.innerHTML = newsHtml;
+            } else {
+                newsContent.innerHTML = `
+                    <div class="news-loading">
+                        <i class="bi bi-info-circle fs-2 mb-3 d-block"></i>
+                        <p>Ingen nyheter tilgjengelig</p>
+                    </div>
+                `;
+            }
         }
+        
+        window.addEventListener('beforeunload', function() {
+            if (eventSource) {
+                eventSource.close();
+            }
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+            }
+        });
         
         function escapeHtml(unsafe) {
             return unsafe
@@ -410,6 +495,32 @@ if (isset($_GET['error'])) {
                 .replace(/>/g, "&gt;")
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;");
+        }
+        
+        function getNewsTypeIcon(type) {
+            const icons = {
+                'system': 'bi bi-gear',
+                'feature': 'bi bi-star',
+                'maintenance': 'bi bi-tools',
+                'update': 'bi bi-arrow-up-circle',
+                'security': 'bi bi-shield-check',
+                'announcement': 'bi bi-megaphone',
+                'bug': 'bi bi-bug'
+            };
+            return icons[type] || 'bi bi-info-circle';
+        }
+        
+        function getNewsTypeLabel(type) {
+            const labels = {
+                'system': 'System',
+                'feature': 'Ny funksjon',
+                'maintenance': 'Vedlikehold',
+                'update': 'Oppdatering',
+                'security': 'Sikkerhet',
+                'announcement': 'Kunngjøring',
+                'bug': 'Feilretting'
+            };
+            return labels[type] || type;
         }
     </script>
 </body>
