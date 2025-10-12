@@ -42,6 +42,10 @@ The system is built on a PHP 8.2 backend with a MySQL database.
 - **Storage**: Object storage for contract document uploads.
 
 ## Recent Updates
+- 2025-10-12: **Logo og branding oppdatering** - Ny Salesman.no logo og "SuperUser Portal" tittel
+  * Oppdatert til ny Salesman.no logo (illustrasjon av salesman med kryssede armer)
+  * Endret hovedtittel fra "Salesman.no" til "SuperUser Portal"
+  * Beholder undertekst "Bedriftsportal - Logg inn"
 - 2025-10-12: **Glemt passord-funksjonalitet** - Komplett passordgjenopprettingssystem
   * Tekstlink "Har du mistet passordet ditt?" under innloggingsknappen
   * Dynamisk skjemabytte: brukernavn/passord → e-post/hemmelig kode
