@@ -1,4 +1,4 @@
-<?php if (!$webmailConfigured): ?>
+<?php if (!isset($webmailConfigured) || !$webmailConfigured): ?>
 <div class="module-content">
     <div class="alert alert-warning border-warning">
         <div class="d-flex align-items-center">

@@ -36,8 +36,9 @@ Prioritizes a clean, compact dashboard with a simple navigation header. Modules 
   - **Medlemskap**: "Dine medlemskapsplaner", "Medlemmer", "Medlemsinntekter"
   - **Reservasjoner**: "Reservasjonsmottak", "Bekreftede Reservasjoner"
   - **Utleie**: "Se og opprett utleieobjekt", "Kontrakt & betingelser", "Kommende utleie", "Deres utleie resultat"
-  - **Webmail**: "E-post klient", "E-post historikk" (only available when webmail_accounts configured)
-  - **Økonomi**: "Deres resultat", "Se inntekt", "Se utgift", "Se og Aktiver nettbetaling"
+  - **Webmail**: "E-post klient", "E-post historikk", "AutoMailer" (only available when webmail_accounts configured; AutoMailer allows enable/disable of automatic emails for modules: utleie, arrangement, medlemskap, reservasjoner)
+  - **Økonomi**: "Deres resultat", "Se inntekt", "Se utgift", "Se og Aktiver nettbetaling" (payment subtab shows warning when no payment_integrations configured)
+  - **Salg**: "Produkter", "Ordrer", "Salgsstatistikk"
   - Subtab IDs are namespaced per module (e.g., events-my, membership-plans) to prevent collisions. JavaScript uses Bootstrap's `shown.bs.tab` event to handle tab switching, ensuring only one module and subtab is visible at a time.
 
 ### System Design Choices

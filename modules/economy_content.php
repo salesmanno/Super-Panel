@@ -227,7 +227,7 @@
     </div>
 
     <div id="economy-payment" class="subtab-content" style="display: none;">
-        <?php if (!$paymentConfigured): ?>
+        <?php if (!isset($paymentConfigured) || !$paymentConfigured): ?>
         <div class="card">
             <div class="card-body">
                 <div class="alert alert-warning border-warning">
