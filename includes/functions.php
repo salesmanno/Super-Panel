@@ -8,20 +8,23 @@ function getTenantAdminByUsername($username) {
         return false;
     }
     
-    $dbType = getDBType();
-    $activeCheck = ($dbType === 'pgsql') ? 'TRUE' : '1';
-    
     $stmt = $db->prepare("
-        SELECT ta.*, 
-               ts.first_name, ts.last_name, ts.email as staff_email,
+        SELECT ta.id, ta.company_id, ta.email, ta.password_hash, ta.username, ta.is_active,
                tc.name as company_name, tc.subdomain, tc.is_active as company_active
         FROM tenant_admins ta
-        LEFT JOIN tenant_staff ts ON ts.tenant_admin_id = ta.id
         INNER JOIN tenant_companies tc ON ta.company_id = tc.id
-        WHERE ta.username = ? AND ta.is_active = {$activeCheck}
+        WHERE ta.username = ? AND ta.is_active = 1
     ");
     $stmt->execute([$username]);
-    return $stmt->fetch();
+    $admin = $stmt->fetch();
+    
+    if ($admin) {
+        $admin['first_name'] = '';
+        $admin['last_name'] = '';
+        $admin['staff_email'] = $admin['email'];
+    }
+    
+    return $admin;
 }
 
 function updateTenantAdminLastLogin($adminId) {
@@ -42,7 +45,7 @@ function getTenantAdminModules($adminId) {
         SELECT sm.* 
         FROM system_modules sm
         INNER JOIN tenant_admin_modules tam ON sm.id = tam.module_id
-        WHERE tam.tenant_admin_id = ? AND sm.is_active = TRUE
+        WHERE tam.tenant_admin_id = ? AND sm.is_active = 1
         ORDER BY sm.name
     ");
     $stmt->execute([$adminId]);
@@ -58,7 +61,7 @@ function getCompanyModules($companyId) {
         SELECT sm.* 
         FROM system_modules sm
         INNER JOIN tenant_company_modules tcm ON sm.id = tcm.module_id
-        WHERE tcm.company_id = ? AND tcm.is_active = TRUE AND sm.is_active = TRUE
+        WHERE tcm.company_id = ? AND tcm.is_active = 1 AND sm.is_active = 1
         ORDER BY sm.name
     ");
     $stmt->execute([$companyId]);
@@ -73,7 +76,7 @@ function getLatestNews($limit = 5) {
     $limit = (int)$limit;
     $stmt = $db->prepare("
         SELECT * FROM core_sys_news 
-        WHERE is_published = TRUE 
+        WHERE is_published = 1 
         AND (expire_at IS NULL OR expire_at > NOW())
         AND publish_at <= NOW()
         ORDER BY publish_at DESC 
@@ -102,7 +105,7 @@ function getCompanyBySubdomain($subdomain) {
     $db = getDBConnection();
     $stmt = $db->prepare("
         SELECT * FROM tenant_companies 
-        WHERE subdomain = ? AND is_active = TRUE
+        WHERE subdomain = ? AND is_active = 1
     ");
     $stmt->execute([$subdomain]);
     return $stmt->fetch();
@@ -117,14 +120,11 @@ function createTenantAdminSession($tenantAdminId, $sessionId) {
     $ipAddress = $_SERVER['REMOTE_ADDR'] ?? null;
     $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
     
-    $dbType = getDBType();
-    $activeValue = ($dbType === 'pgsql') ? 'TRUE' : '1';
-    
     try {
         $stmt = $db->prepare("
             INSERT INTO tenant_admin_sessions 
             (tenant_admin_id, session_id, ip_address, user_agent, login_at, last_activity, is_active)
-            VALUES (?, ?, ?, ?, NOW(), NOW(), {$activeValue})
+            VALUES (?, ?, ?, ?, NOW(), NOW(), 1)
         ");
         return $stmt->execute([$tenantAdminId, $sessionId, $ipAddress, $userAgent]);
     } catch (PDOException $e) {
