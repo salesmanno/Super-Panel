@@ -410,10 +410,7 @@ try {
                                 <div class="row mt-3">
                                     <div class="col-md-12">
                                         <div class="card">
-                                            <div class="card-header bg-primary text-white py-2">
-                                                <h6 class="mb-0"><i class="bi bi-globe me-2"></i>Offentlig modulvisning</h6>
-                                            </div>
-                                            <div class="card-body p-3">
+                                            <div class="card-body p-2">
                                                 <?php
                                                 $publicModules = [
                                                     ['id' => 7, 'name' => 'Arrangement', 'slug' => 'events', 'icon' => 'bi-calendar-event'],
@@ -435,18 +432,18 @@ try {
                                                 }
                                                 ?>
                                                 
-                                                <div class="list-group list-group-flush">
+                                                <div class="d-flex align-items-center gap-3 flex-wrap">
+                                                    <small class="text-muted fw-bold"><i class="bi bi-globe me-1"></i>Offentlig:</small>
                                                     <?php foreach ($publicModules as $module): ?>
-                                                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
-                                                        <div class="d-flex align-items-center gap-2">
-                                                            <i class="bi <?= $module['icon'] ?> text-primary"></i>
-                                                            <span class="fw-medium"><?= $module['name'] ?></span>
-                                                        </div>
-                                                        <div class="form-check form-switch mb-0">
+                                                    <div class="d-flex align-items-center gap-1">
+                                                        <i class="bi <?= $module['icon'] ?> text-primary" style="font-size: 14px;"></i>
+                                                        <small><?= $module['name'] ?></small>
+                                                        <div class="form-check form-switch mb-0" style="padding-left: 2rem;">
                                                             <input class="form-check-input public-module-toggle" 
                                                                    type="checkbox" 
                                                                    id="public-<?= $module['slug'] ?>"
                                                                    data-module-id="<?= $module['id'] ?>"
+                                                                   style="margin-left: -1.5rem;"
                                                                    <?= isset($publicSettings[$module['id']]) && $publicSettings[$module['id']] ? 'checked' : '' ?>>
                                                         </div>
                                                     </div>
