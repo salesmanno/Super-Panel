@@ -1,3 +1,25 @@
+<?php if (!$webmailConfigured): ?>
+<div class="module-content">
+    <div class="alert alert-warning border-warning">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle-fill fs-1 me-3"></i>
+            <div>
+                <h5 class="alert-heading mb-2">Webmail ikke konfigurert</h5>
+                <p class="mb-2">E-postklient er ikke konfigurert for din bedrift. Du må opprette en webmail-konto før du kan bruke denne modulen.</p>
+                <hr class="my-3">
+                <p class="mb-0">
+                    <strong>Hva må gjøres:</strong>
+                </p>
+                <ul class="mb-0">
+                    <li>Kontakt systemadministrator for å konfigurere e-post server (IMAP/SMTP)</li>
+                    <li>Opprett webmail-konto med e-postadresse og innstillinger</li>
+                    <li>Konfigurer domeneoppsett for e-post (domeneshop.no eller lignende)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<?php else: ?>
 <div class="module-content">
     <div id="webmail-client" class="subtab-content">
         <div class="row">
@@ -77,4 +99,5 @@
         </div>
     </div>
 </div>
+<?php endif; ?>
 

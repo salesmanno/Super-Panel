@@ -20,6 +20,7 @@ Prioritizes a clean, compact dashboard with a simple navigation header. Modules 
 
 ### Technical Implementations
 - **Authentication**: Session-based system with robust backend validation and failsafe messages. Includes a complete session tracking system with login/logout logging, IP addresses, user agents, activity timestamps, and auto-cleanup of inactive sessions.
+- **Tab Navigation System**: Uses Bootstrap 5's native tab component with `shown.bs.tab` event listeners to ensure proper show/hide behavior. Prevents content stacking by letting Bootstrap handle all `.active` class management instead of manual manipulation.
 - **Module & Privilege Management**: Granular access control using `module_privileges` and `module_visibility` tables ensures modules are only visible if `can_access` is true. Super_users can dynamically update their own module privileges.
 - **Webmail Client**: Integrated client supporting inbox, compose, and message viewing, connected to live database data with read-only configuration.
 - **Events Module**: Comprehensive CRUD operations for event management, including image support (URL or file upload) and conditional display of member pricing.
@@ -35,9 +36,9 @@ Prioritizes a clean, compact dashboard with a simple navigation header. Modules 
   - **Medlemskap**: "Dine medlemskapsplaner", "Medlemmer", "Medlemsinntekter"
   - **Reservasjoner**: "Reservasjonsmottak", "Bekreftede Reservasjoner"
   - **Utleie**: "Se og opprett utleieobjekt", "Kontrakt & betingelser", "Kommende utleie", "Deres utleie resultat"
-  - **Webmail**: "E-post klient", "E-post historikk"
-  - **Økonomi**: "Deres resultat", "Se og Aktiver nettbetaling"
-  - Subtab IDs are namespaced per module (e.g., events-my, membership-plans) to prevent collisions. JavaScript uses scoped querySelector within module containers for correct content switching.
+  - **Webmail**: "E-post klient", "E-post historikk" (only available when webmail_accounts configured)
+  - **Økonomi**: "Deres resultat", "Se inntekt", "Se utgift", "Se og Aktiver nettbetaling"
+  - Subtab IDs are namespaced per module (e.g., events-my, membership-plans) to prevent collisions. JavaScript uses Bootstrap's `shown.bs.tab` event to handle tab switching, ensuring only one module and subtab is visible at a time.
 
 ### System Design Choices
 - **Modularity**: Core system features are organized into distinct, manageable modules.

@@ -68,6 +68,164 @@
         </div>
     </div>
 
+    <div id="economy-income" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-arrow-down-circle text-success me-2"></i>Inntekter</h5>
+                <p class="text-muted">Oversikt over alle inntekter</p>
+                
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white">
+                            <div class="card-body">
+                                <small>Total inntekt</small>
+                                <h4 class="mb-0">0 NOK</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <small class="text-muted">Denne måneden</small>
+                                <h4 class="mb-0">0 NOK</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <small class="text-muted">Dette året</small>
+                                <h4 class="mb-0">0 NOK</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <small class="text-muted">Gjennomsnitt/mnd</small>
+                                <h4 class="mb-0">0 NOK</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Inntektstransaksjoner</h6>
+                            <div>
+                                <input type="date" class="form-control form-control-sm d-inline-block" style="width: auto;">
+                                <span class="mx-2">til</span>
+                                <input type="date" class="form-control form-control-sm d-inline-block" style="width: auto;">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Dato</th>
+                                        <th>Beskrivelse</th>
+                                        <th>Kategori</th>
+                                        <th>Kilde</th>
+                                        <th class="text-end">Beløp</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-3">
+                                            Ingen inntekter registrert
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="economy-expense" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-arrow-up-circle text-danger me-2"></i>Utgifter</h5>
+                <p class="text-muted">Oversikt over alle utgifter</p>
+                
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-danger text-white">
+                            <div class="card-body">
+                                <small>Totale utgifter</small>
+                                <h4 class="mb-0">0 NOK</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <small class="text-muted">Denne måneden</small>
+                                <h4 class="mb-0">0 NOK</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <small class="text-muted">Dette året</small>
+                                <h4 class="mb-0">0 NOK</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <small class="text-muted">Gjennomsnitt/mnd</small>
+                                <h4 class="mb-0">0 NOK</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Utgiftstransaksjoner</h6>
+                            <div>
+                                <input type="date" class="form-control form-control-sm d-inline-block" style="width: auto;">
+                                <span class="mx-2">til</span>
+                                <input type="date" class="form-control form-control-sm d-inline-block" style="width: auto;">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Dato</th>
+                                        <th>Beskrivelse</th>
+                                        <th>Kategori</th>
+                                        <th>Leverandør</th>
+                                        <th class="text-end">Beløp</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-3">
+                                            Ingen utgifter registrert
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="economy-payment" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">

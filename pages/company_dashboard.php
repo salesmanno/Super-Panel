@@ -24,6 +24,20 @@ $userModules = array_filter($allUserModules, function($module) {
     return !in_array($module['slug'], ['dashboard', 'ditt_nettsted']);
 });
 $allModules = getCompanyModules($_SESSION['company_id']);
+
+// Sjekk om webmail er konfigurert
+$webmailConfigured = false;
+try {
+    $db = getDBConnection();
+    if ($db) {
+        $stmt = $db->prepare("SELECT COUNT(*) FROM webmail_accounts WHERE company_id = ?");
+        $stmt->execute([$_SESSION['company_id']]);
+        $webmailConfigured = ($stmt->fetchColumn() > 0);
+    }
+} catch (Exception $e) {
+    // Tabellen eksisterer ikke ennå
+    $webmailConfigured = false;
+}
 ?>
 <!DOCTYPE html>
 <html lang="no">
@@ -303,7 +317,26 @@ $allModules = getCompanyModules($_SESSION['company_id']);
                     <a class="nav-link active" href="#economy-results">Deres resultat</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="#economy-income">Se inntekt</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#economy-expense">Se utgift</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="#economy-payment">Se og Aktiver nettbetaling</a>
+                </li>
+            </ul>
+            
+            <!-- Sales subtabs -->
+            <ul class="nav nav-pills py-2 subtabs" id="subtabs-sales" style="display: none;">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#sales-items">Produkter</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#sales-orders">Ordrer</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#sales-statistics">Salgsstatistikk</a>
                 </li>
             </ul>
         </div>
@@ -358,6 +391,9 @@ $allModules = getCompanyModules($_SESSION['company_id']);
                                 break;
                             case 'marketplace':
                                 include __DIR__ . '/../modules/marketplace_content.php';
+                                break;
+                            case 'sales':
+                                include __DIR__ . '/../modules/sales_content.php';
                                 break;
                             default:
                                 echo '<div class="alert alert-warning">Modul under utvikling</div>';
