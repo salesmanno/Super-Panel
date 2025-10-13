@@ -7,14 +7,18 @@ function getTenantAdminByUsername($username) {
     if (!$db) {
         return false;
     }
+    
+    $dbType = getDBType();
+    $activeCheck = ($dbType === 'pgsql') ? 'TRUE' : '1';
+    
     $stmt = $db->prepare("
         SELECT ta.*, 
                ts.first_name, ts.last_name, ts.email as staff_email,
                tc.name as company_name, tc.subdomain, tc.is_active as company_active
         FROM tenant_admins ta
-        LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
+        LEFT JOIN tenant_staff ts ON ts.tenant_admin_id = ta.id
         INNER JOIN tenant_companies tc ON ta.company_id = tc.id
-        WHERE ta.username = ? AND ta.is_active = TRUE
+        WHERE ta.username = ? AND ta.is_active = {$activeCheck}
     ");
     $stmt->execute([$username]);
     return $stmt->fetch();
@@ -113,11 +117,14 @@ function createTenantAdminSession($tenantAdminId, $sessionId) {
     $ipAddress = $_SERVER['REMOTE_ADDR'] ?? null;
     $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
     
+    $dbType = getDBType();
+    $activeValue = ($dbType === 'pgsql') ? 'TRUE' : '1';
+    
     try {
         $stmt = $db->prepare("
             INSERT INTO tenant_admin_sessions 
             (tenant_admin_id, session_id, ip_address, user_agent, login_at, last_activity, is_active)
-            VALUES (?, ?, ?, ?, NOW(), NOW(), TRUE)
+            VALUES (?, ?, ?, ?, NOW(), NOW(), {$activeValue})
         ");
         return $stmt->execute([$tenantAdminId, $sessionId, $ipAddress, $userAgent]);
     } catch (PDOException $e) {
