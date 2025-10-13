@@ -444,7 +444,7 @@ if (isset($_GET['message'])) {
                 </button>
                 
                 <button type="button" class="forgot-password-link" id="toggle-mode">
-                    Har du mistet passordet ditt?
+                    Innloggingsproblemer?
                 </button>
             </form>
         </div>
