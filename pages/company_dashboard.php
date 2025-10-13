@@ -323,6 +323,9 @@ try {
                 <li class="nav-item">
                     <a class="nav-link" href="#webmail-history">E-post historikk</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#webmail-automailer">AutoMailer</a>
+                </li>
             </ul>
             
             <!-- Economy subtabs -->

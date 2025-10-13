@@ -98,6 +98,185 @@
             </div>
         </div>
     </div>
+
+    <div id="webmail-automailer" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-envelope-paper me-2"></i>AutoMailer - Automatiske e-poster</h5>
+                <p class="text-muted">Aktiver eller deaktiver automatiske e-postutsendelser knyttet til forskjellige moduler</p>
+                
+                <div class="alert alert-info mb-4">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Når AutoMailer er aktivert for en modul, vil systemet automatisk sende e-poster ved viktige hendelser.
+                </div>
+                
+                <!-- Utleie AutoMailer -->
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1"><i class="bi bi-key me-2"></i>Utleie</h6>
+                                <small class="text-muted">Automatiske e-poster for utleiebekreftelser, påminnelser og kvitteringer</small>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="automailer-rental" style="width: 3rem; height: 1.5rem;">
+                                <label class="form-check-label ms-2" for="automailer-rental"></label>
+                            </div>
+                        </div>
+                        <div class="mt-3 collapse" id="rental-automailer-settings">
+                            <hr>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="rental-booking-confirm">
+                                <label class="form-check-label" for="rental-booking-confirm">
+                                    Bekreftelse ved ny utleiebooking
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="rental-reminder">
+                                <label class="form-check-label" for="rental-reminder">
+                                    Påminnelse 24 timer før utleie
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="rental-receipt">
+                                <label class="form-check-label" for="rental-receipt">
+                                    Kvittering etter utleie
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Arrangement AutoMailer -->
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1"><i class="bi bi-calendar-event me-2"></i>Arrangement</h6>
+                                <small class="text-muted">Automatiske e-poster for arrangementsbekreftelser og påminnelser</small>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="automailer-events" style="width: 3rem; height: 1.5rem;">
+                                <label class="form-check-label ms-2" for="automailer-events"></label>
+                            </div>
+                        </div>
+                        <div class="mt-3 collapse" id="events-automailer-settings">
+                            <hr>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="events-registration-confirm">
+                                <label class="form-check-label" for="events-registration-confirm">
+                                    Bekreftelse ved påmelding
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="events-reminder">
+                                <label class="form-check-label" for="events-reminder">
+                                    Påminnelse 3 dager før arrangement
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="events-thank-you">
+                                <label class="form-check-label" for="events-thank-you">
+                                    Takkebrev etter arrangement
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Medlemskap AutoMailer -->
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1"><i class="bi bi-people me-2"></i>Medlemskap</h6>
+                                <small class="text-muted">Automatiske e-poster for medlemskapsbekreftelser og fornyelser</small>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="automailer-membership" style="width: 3rem; height: 1.5rem;">
+                                <label class="form-check-label ms-2" for="automailer-membership"></label>
+                            </div>
+                        </div>
+                        <div class="mt-3 collapse" id="membership-automailer-settings">
+                            <hr>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="membership-welcome">
+                                <label class="form-check-label" for="membership-welcome">
+                                    Velkomst-e-post til nye medlemmer
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="membership-renewal">
+                                <label class="form-check-label" for="membership-renewal">
+                                    Fornyelsespåminnelse 30 dager før utløp
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="membership-expired">
+                                <label class="form-check-label" for="membership-expired">
+                                    Varsel ved utløpt medlemskap
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Reservasjoner AutoMailer -->
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1"><i class="bi bi-calendar-check me-2"></i>Reservasjoner</h6>
+                                <small class="text-muted">Automatiske e-poster for reservasjonsbekreftelser</small>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="automailer-reservations" style="width: 3rem; height: 1.5rem;">
+                                <label class="form-check-label ms-2" for="automailer-reservations"></label>
+                            </div>
+                        </div>
+                        <div class="mt-3 collapse" id="reservations-automailer-settings">
+                            <hr>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="reservations-confirm">
+                                <label class="form-check-label" for="reservations-confirm">
+                                    Bekreftelse ved ny reservasjon
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="reservations-cancellation">
+                                <label class="form-check-label" for="reservations-cancellation">
+                                    Varsel ved kansellering
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-end mt-4">
+                    <button class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i>Lagre innstillinger
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 <?php endif; ?>
+
+<script>
+// Toggle AutoMailer settings
+document.querySelectorAll('[id^="automailer-"]').forEach(toggle => {
+    toggle.addEventListener('change', function() {
+        const module = this.id.replace('automailer-', '');
+        const settingsDiv = document.getElementById(module + '-automailer-settings');
+        if (settingsDiv) {
+            if (this.checked) {
+                settingsDiv.classList.add('show');
+            } else {
+                settingsDiv.classList.remove('show');
+            }
+        }
+    });
+});
+</script>
 
