@@ -234,11 +234,12 @@ function endInactiveSessions($inactiveMinutes = 30) {
     if (!$db) return false;
     
     try {
+        $intervalSQL = dbInterval($inactiveMinutes);
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
-            SET is_active = FALSE, logout_at = NOW() 
-            WHERE is_active = TRUE 
-            AND last_activity < NOW() - INTERVAL '1 MINUTE' * ?
+            SET is_active = " . dbBool(false) . ", logout_at = NOW() 
+            WHERE is_active = " . dbBool(true) . " 
+            AND last_activity < NOW() - {$intervalSQL}
         ");
         return $stmt->execute([$inactiveMinutes]);
     } catch (PDOException $e) {
