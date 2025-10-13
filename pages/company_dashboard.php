@@ -194,12 +194,12 @@ $allModules = getCompanyModules($_SESSION['company_id']);
                 <?php foreach ($officialModules as $index => $module): ?>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link <?= $index === 0 ? 'active' : '' ?>" 
-                                id="tab-<?= $module['id'] ?>" 
+                                id="tab-<?= $module['slug'] ?>" 
                                 data-bs-toggle="tab" 
-                                data-bs-target="#content-<?= $module['id'] ?>" 
+                                data-bs-target="#content-<?= $module['slug'] ?>" 
                                 type="button" 
                                 role="tab"
-                                onclick="showSubTabs('<?= $module['slug'] ?>')">
+                                onclick="showSubTabs('<?= $module['slug'] ?>', this)">
                             <i class="bi bi-<?= htmlspecialchars($module['icon'] ?? 'grid') ?> me-2"></i>
                             <?= htmlspecialchars($module['name']) ?>
                         </button>
@@ -218,12 +218,12 @@ $allModules = getCompanyModules($_SESSION['company_id']);
                 <?php foreach ($userModules as $index => $module): ?>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link <?= $index === 0 && empty($officialModules) ? 'active' : '' ?>" 
-                                id="tab-<?= $module['id'] ?>" 
+                                id="tab-<?= $module['slug'] ?>" 
                                 data-bs-toggle="tab" 
-                                data-bs-target="#content-<?= $module['id'] ?>" 
+                                data-bs-target="#content-<?= $module['slug'] ?>" 
                                 type="button" 
                                 role="tab"
-                                onclick="showSubTabs('<?= $module['slug'] ?>')">
+                                onclick="showSubTabs('<?= $module['slug'] ?>', this)">
                             <i class="bi bi-<?= htmlspecialchars($module['icon'] ?? 'grid') ?> me-2"></i>
                             <?= htmlspecialchars($module['name']) ?>
                         </button>
@@ -326,7 +326,7 @@ $allModules = getCompanyModules($_SESSION['company_id']);
                 foreach ($allModulesForDisplay as $index => $module): 
                 ?>
                     <div class="tab-pane fade <?= $index === 0 ? 'show active' : '' ?>" 
-                         id="content-<?= $module['id'] ?>" 
+                         id="content-<?= $module['slug'] ?>" 
                          role="tabpanel">
                         <?php 
                         switch ($module['slug']) {
@@ -457,7 +457,18 @@ $allModules = getCompanyModules($_SESSION['company_id']);
             });
         }
         
-        function showSubTabs(moduleSlug) {
+        function showSubTabs(moduleSlug, moduleTabButton) {
+            // Deaktivere ALLE tabs (både offisielle og andre moduler)
+            document.querySelectorAll('.module-tabs .nav-link').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Aktivere kun den klikkede taben
+            if (moduleTabButton) {
+                moduleTabButton.classList.add('active');
+            }
+            
+            // Håndtere subtabs
             const container = document.getElementById('subtabs-container');
             const allSubtabs = document.querySelectorAll('.subtabs');
             
@@ -509,9 +520,15 @@ $allModules = getCompanyModules($_SESSION['company_id']);
             });
             
             <?php if (!empty($officialModules)): ?>
-                showSubTabs('<?= $officialModules[0]['slug'] ?? '' ?>');
+                const firstOfficialTab = document.getElementById('tab-<?= $officialModules[0]['slug'] ?? '' ?>');
+                if (firstOfficialTab) {
+                    showSubTabs('<?= $officialModules[0]['slug'] ?? '' ?>', firstOfficialTab);
+                }
             <?php elseif (!empty($userModules)): ?>
-                showSubTabs('<?= $userModules[0]['slug'] ?? '' ?>');
+                const firstUserTab = document.getElementById('tab-<?= $userModules[0]['slug'] ?? '' ?>');
+                if (firstUserTab) {
+                    showSubTabs('<?= $userModules[0]['slug'] ?? '' ?>', firstUserTab);
+                }
             <?php endif; ?>
         });
     </script>
