@@ -17,6 +17,8 @@ $db = getDBConnection();
 
 $templates = [];
 $currentSettings = null;
+$isLocked = false;
+$privilegeGrantedAt = null;
 
 if ($db) {
     $stmt = $db->prepare("SELECT * FROM website_templates WHERE is_active = TRUE ORDER BY template_id");
@@ -26,6 +28,23 @@ if ($db) {
     $stmt = $db->prepare("SELECT * FROM webconfiguration WHERE company_id = ?");
     $stmt->execute([$companyId]);
     $currentSettings = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    $stmt = $db->prepare("
+        SELECT tam.granted_at 
+        FROM tenant_admin_modules tam 
+        JOIN system_modules sm ON tam.module_id = sm.id 
+        WHERE tam.tenant_admin_id = ? AND sm.slug = 'ditt_nettsted'
+    ");
+    $stmt->execute([$_SESSION['tenant_admin_id']]);
+    $privilege = $stmt->fetch(PDO::FETCH_ASSOC);
+    $privilegeGrantedAt = $privilege ? $privilege['granted_at'] : null;
+    
+    if ($currentSettings && $privilegeGrantedAt) {
+        $configUpdatedAt = strtotime($currentSettings['updated_at']);
+        $grantedAt = strtotime($privilegeGrantedAt);
+        
+        $isLocked = ($grantedAt <= $configUpdatedAt);
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -157,25 +176,50 @@ if ($db) {
     </nav>
 
     <div class="container py-4">
-        <div class="row mb-4">
-            <div class="col-md-8">
-                <h2>Velg Nettside Mal</h2>
-                <p class="text-muted">Velg en mal for kundens nettsted. Denne vil bli synlig på deres offentlige domene.</p>
-            </div>
-            <div class="col-md-4 text-end">
-                <?php if ($currentSettings && $currentSettings['is_published']): ?>
-                    <span class="status-badge status-published">
-                        <i class="bi bi-check-circle me-1"></i>Publisert
-                    </span>
-                <?php else: ?>
-                    <span class="status-badge status-draft">
-                        <i class="bi bi-pencil me-1"></i>Utkast
-                    </span>
+        <?php if ($isLocked): ?>
+            <div class="alert alert-warning text-center py-5">
+                <i class="bi bi-lock-fill" style="font-size: 3rem;"></i>
+                <h3 class="mt-3">Nettside Konfigurert</h3>
+                <p class="mb-0">Nettsiden er allerede konfigurert. For å endre, må du miste og få tilbake privilegiet fra administrator.</p>
+                <?php if ($currentSettings): ?>
+                    <div class="mt-4">
+                        <strong>Valgt mal:</strong> 
+                        <?php 
+                        $selectedTemplate = array_filter($templates, function($t) use ($currentSettings) {
+                            return $t['template_id'] == $currentSettings['template_id'];
+                        });
+                        $selectedTemplate = reset($selectedTemplate);
+                        echo htmlspecialchars($selectedTemplate['name'] ?? 'Ukjent');
+                        ?>
+                    </div>
                 <?php endif; ?>
             </div>
-        </div>
+        <?php else: ?>
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <h2>Velg Nettside Mal</h2>
+                    <p class="text-muted">Velg en mal for kundens nettsted. Denne vil bli synlig på deres offentlige domene.</p>
+                    <?php if ($currentSettings): ?>
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Merk:</strong> Du kan endre mal siden du nettopp fikk tilbake dette privilegiet.
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <div class="col-md-4 text-end">
+                    <?php if ($currentSettings && $currentSettings['is_published']): ?>
+                        <span class="status-badge status-published">
+                            <i class="bi bi-check-circle me-1"></i>Publisert
+                        </span>
+                    <?php else: ?>
+                        <span class="status-badge status-draft">
+                            <i class="bi bi-pencil me-1"></i>Utkast
+                        </span>
+                    <?php endif; ?>
+                </div>
+            </div>
 
-        <div class="row g-4" id="templateGallery">
+            <div class="row g-4" id="templateGallery">
             <?php foreach ($templates as $template): ?>
                 <div class="col-md-6 col-lg-4">
                     <div class="template-card position-relative" 
@@ -207,19 +251,25 @@ if ($db) {
             </div>
         <?php endif; ?>
 
-        <div class="mt-5 text-center">
-            <button id="saveTemplate" class="btn btn-primary-gradient btn-lg" disabled>
-                <i class="bi bi-save me-2"></i>Lagre Valg
-            </button>
-        </div>
+            <div class="mt-5 text-center">
+                <button id="saveTemplate" class="btn btn-primary-gradient btn-lg" disabled>
+                    <i class="bi bi-save me-2"></i>Lagre Valg
+                </button>
+            </div>
+        <?php endif; ?>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        const isLocked = <?= $isLocked ? 'true' : 'false' ?>;
         let selectedTemplateId = <?= $currentSettings ? $currentSettings['template_id'] : 'null' ?>;
         
         const templateCards = document.querySelectorAll('.template-card');
         const saveBtn = document.getElementById('saveTemplate');
+        
+        if (isLocked) {
+            // Do nothing if locked
+        } else {
         
         templateCards.forEach(card => {
             if (card.dataset.selected === 'true') {
@@ -289,6 +339,8 @@ if ($db) {
                 }, 2000);
             }
         });
+        
+        }  // End of else (not locked)
     </script>
 </body>
 </html>
