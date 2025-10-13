@@ -4,6 +4,9 @@ require_once __DIR__ . '/../config/database.php';
 
 function getTenantAdminByUsername($username) {
     $db = getDBConnection();
+    if (!$db) {
+        return false;
+    }
     $stmt = $db->prepare("
         SELECT ta.*, 
                ts.first_name, ts.last_name, ts.email as staff_email,
@@ -19,12 +22,18 @@ function getTenantAdminByUsername($username) {
 
 function updateTenantAdminLastLogin($adminId) {
     $db = getDBConnection();
+    if (!$db) {
+        return false;
+    }
     $stmt = $db->prepare("UPDATE tenant_admins SET last_login = NOW() WHERE id = ?");
     return $stmt->execute([$adminId]);
 }
 
 function getTenantAdminModules($adminId) {
     $db = getDBConnection();
+    if (!$db) {
+        return [];
+    }
     $stmt = $db->prepare("
         SELECT sm.* 
         FROM system_modules sm
@@ -38,6 +47,9 @@ function getTenantAdminModules($adminId) {
 
 function getCompanyModules($companyId) {
     $db = getDBConnection();
+    if (!$db) {
+        return [];
+    }
     $stmt = $db->prepare("
         SELECT sm.* 
         FROM system_modules sm
@@ -51,6 +63,9 @@ function getCompanyModules($companyId) {
 
 function getLatestNews($limit = 5) {
     $db = getDBConnection();
+    if (!$db) {
+        return [];
+    }
     $limit = (int)$limit;
     $stmt = $db->prepare("
         SELECT * FROM core_sys_news 

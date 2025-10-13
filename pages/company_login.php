@@ -20,6 +20,9 @@ if (isset($_GET['error'])) {
         case 'company_inactive':
             $error_message = 'Firmaet er deaktivert. Kontakt support for assistanse.';
             break;
+        case 'database_unavailable':
+            $error_message = 'Databasen er ikke tilgjengelig. Vennligst prøv igjen senere.';
+            break;
         default:
             $error_message = 'En feil oppstod. Vennligst prøv igjen.';
     }

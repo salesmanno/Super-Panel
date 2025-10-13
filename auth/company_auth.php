@@ -20,6 +20,12 @@ if (empty($username) || empty($password)) {
 }
 
 try {
+    $db = getDBConnection();
+    if (!$db) {
+        header('Location: ../index.php?error=database_unavailable');
+        exit;
+    }
+    
     $admin = getTenantAdminByUsername($username);
     
     if (!$admin) {
