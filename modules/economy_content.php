@@ -227,6 +227,31 @@
     </div>
 
     <div id="economy-payment" class="subtab-content" style="display: none;">
+        <?php if (!$paymentConfigured): ?>
+        <div class="card">
+            <div class="card-body">
+                <div class="alert alert-warning border-warning">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle-fill fs-1 me-3"></i>
+                        <div>
+                            <h5 class="alert-heading mb-2">Ingen betalingsmetoder konfigurert</h5>
+                            <p class="mb-2">Du har ikke konfigurert noen betalingsløsninger ennå. Aktiver en betalingsmetode for å kunne motta betalinger fra kunder.</p>
+                            <hr class="my-3">
+                            <p class="mb-0">
+                                <strong>Tilgjengelige betalingsløsninger:</strong>
+                            </p>
+                            <ul class="mb-0">
+                                <li>Stripe - Kort og nettbetaling (Internasjonalt)</li>
+                                <li>Vipps - Norsk mobilbetaling</li>
+                                <li>Klarna - Betal senere løsninger</li>
+                                <li>PayPal - Internasjonal betalingsløsning</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php else: ?>
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title">Nettbetalingsløsninger</h5>
@@ -275,6 +300,7 @@
                 </div>
             </div>
         </div>
+        <?php endif; ?>
     </div>
 </div>
 

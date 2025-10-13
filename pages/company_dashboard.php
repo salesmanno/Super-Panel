@@ -38,6 +38,20 @@ try {
     // Tabellen eksisterer ikke ennå
     $webmailConfigured = false;
 }
+
+// Sjekk om betalingsmetoder er konfigurert
+$paymentConfigured = false;
+try {
+    $db = getDBConnection();
+    if ($db) {
+        $stmt = $db->prepare("SELECT COUNT(*) FROM payment_integrations WHERE company_id = ? AND is_active = TRUE");
+        $stmt->execute([$_SESSION['company_id']]);
+        $paymentConfigured = ($stmt->fetchColumn() > 0);
+    }
+} catch (Exception $e) {
+    // Tabellen eksisterer ikke ennå
+    $paymentConfigured = false;
+}
 ?>
 <!DOCTYPE html>
 <html lang="no">
