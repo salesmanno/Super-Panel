@@ -100,6 +100,69 @@
         </div>
     </div>
 
+    <div id="membership-requests" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-person-plus me-2"></i>Medlemsforespørsler</h5>
+                <p class="text-muted">Se og behandle innkommende medlemskapsforespørsler</p>
+                
+                <div class="mb-3">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <input type="text" class="form-control" placeholder="Søk i forespørsler...">
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select">
+                                <option value="">Alle medlemstyper</option>
+                                <option value="standard">Standardmedlemskap</option>
+                                <option value="premium">Premium</option>
+                                <option value="student">Student</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select">
+                                <option value="">Alle statuser</option>
+                                <option value="pending">Venter</option>
+                                <option value="approved">Godkjent</option>
+                                <option value="rejected">Avvist</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Dato</th>
+                                <th>Fornavn</th>
+                                <th>Etternavn</th>
+                                <th>E-post</th>
+                                <th>Telefon</th>
+                                <th>Medlemstype</th>
+                                <th>Status</th>
+                                <th>Handling</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox fs-1 d-block mb-3 text-muted"></i>
+                                    Ingen forespørsler å behandle
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Nye medlemsforespørsler vises her når de mottas via nettside eller påmeldingsskjema
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="membership-income" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">

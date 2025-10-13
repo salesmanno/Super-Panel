@@ -300,6 +300,9 @@ try {
                     <a class="nav-link" href="#membership-members">Medlemmer</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="#membership-requests">Medlemsforespørsler</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="#membership-income">Medlemsinntekter</a>
                 </li>
             </ul>
@@ -357,7 +360,7 @@ try {
                     <a class="nav-link" href="#economy-expense">Se utgift</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#economy-payment">Se og Aktiver nettbetaling</a>
+                    <a class="nav-link" href="#economy-payment">Betalingsløsninger</a>
                 </li>
             </ul>
             

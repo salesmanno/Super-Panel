@@ -279,6 +279,49 @@
                     </div>
                 </div>
                 
+                <!-- Salg AutoMailer -->
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1"><i class="bi bi-cart me-2"></i>Salg</h6>
+                                <small class="text-muted">Automatiske e-poster for ordrebekreftelser og leveringsstatus</small>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="automailer-sales" style="width: 3rem; height: 1.5rem;">
+                                <label class="form-check-label ms-2" for="automailer-sales"></label>
+                            </div>
+                        </div>
+                        <div class="mt-3 collapse" id="sales-automailer-settings">
+                            <hr>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="sales-order-confirm">
+                                <label class="form-check-label" for="sales-order-confirm">
+                                    Ordrebekreftelse ved kjøp
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="sales-shipping">
+                                <label class="form-check-label" for="sales-shipping">
+                                    Varsel når ordre sendes
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="sales-delivered">
+                                <label class="form-check-label" for="sales-delivered">
+                                    Bekreftelse ved levering
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="sales-receipt">
+                                <label class="form-check-label" for="sales-receipt">
+                                    Kvittering og faktura
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="text-end mt-4">
                     <button class="btn btn-primary">
                         <i class="bi bi-save me-1"></i>Lagre innstillinger
