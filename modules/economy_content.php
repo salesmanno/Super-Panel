@@ -120,22 +120,3 @@
     </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('#subtabs-economy .nav-link').forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const targetId = this.getAttribute('href').substring(1);
-            
-            document.querySelectorAll('#content-economy .subtab-content').forEach(content => {
-                content.style.display = 'none';
-            });
-            
-            document.getElementById(targetId).style.display = 'block';
-            
-            document.querySelectorAll('#subtabs-economy .nav-link').forEach(l => l.classList.remove('active'));
-            this.classList.add('active');
-        });
-    });
-});
-</script>

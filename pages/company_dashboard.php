@@ -463,12 +463,47 @@ $allModules = getCompanyModules($_SESSION['company_id']);
             if (moduleSubtabs) {
                 container.style.display = 'block';
                 moduleSubtabs.style.display = 'flex';
+                
+                const firstSubtabLink = moduleSubtabs.querySelector('.nav-link');
+                if (firstSubtabLink) {
+                    const targetId = firstSubtabLink.getAttribute('href').substring(1);
+                    showSubTabContent(moduleSlug, targetId);
+                }
             } else {
                 container.style.display = 'none';
             }
         }
         
+        function showSubTabContent(moduleSlug, targetId) {
+            const moduleContent = document.getElementById('content-' + moduleSlug);
+            if (!moduleContent) return;
+            
+            const allSubtabContents = moduleContent.querySelectorAll('.subtab-content');
+            allSubtabContents.forEach(content => {
+                content.style.display = 'none';
+            });
+            
+            const targetContent = moduleContent.querySelector('#' + targetId);
+            if (targetContent) {
+                targetContent.style.display = 'block';
+            }
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.subtabs .nav-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href').substring(1);
+                    const subtabsContainer = this.closest('.subtabs');
+                    const moduleSlug = subtabsContainer.id.replace('subtabs-', '');
+                    
+                    subtabsContainer.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    showSubTabContent(moduleSlug, targetId);
+                });
+            });
+            
             <?php if (!empty($officialModules)): ?>
                 showSubTabs('<?= $officialModules[0]['slug'] ?? '' ?>');
             <?php elseif (!empty($userModules)): ?>
