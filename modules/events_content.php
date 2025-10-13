@@ -72,8 +72,8 @@
     <div id="events-expenses" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">Arrangement utgifter</h5>
-                <p class="text-muted">Oversikt over alle utgifter knyttet til arrangementer</p>
+                <h5 class="card-title">Arrangement resultat</h5>
+                <p class="text-muted">Økonomisk oversikt for arrangementer</p>
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>

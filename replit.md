@@ -31,7 +31,7 @@ Prioritizes a clean, compact dashboard with a simple navigation header. Modules 
 - **Dynamic Database Status**: Live database connection status indicator in the navigation, with automatic checks and visual feedback (pulsating dot) and graceful degradation (gray background, disabled login) upon disconnection.
 - **Website Configuration (Ditt Nettsted)**: Module-based feature with one-time configuration logic. Tenant admins can select website templates once per privilege grant. If they lose and regain the module privilege, they can reconfigure. Template selections are stored in the `webconfiguration` table (with custom_css and custom_colors fields) and can be retrieved via public API (`api/get_company_website.php`) by external domains using company_id or subdomain. Includes 5 pre-defined templates: Moderne Bedrift, E-handel Basic, Kreativ Portefølje, Restaurant & Café, and Minimalistisk Landing. Lock mechanism compares `tenant_admin_modules.granted_at` with `webconfiguration.updated_at` to determine if reconfiguration is allowed.
 - **Module Subtabs System**: Each module has dedicated subtabs displayed in a separate row beneath the main module navigation:
-  - **Arrangement**: "Dine arrangement", "Opprett arrangement", "Arrangement utgifter"
+  - **Arrangement**: "Dine arrangement", "Opprett arrangement", "Arrangement resultat"
   - **Medlemskap**: "Dine medlemskapsplaner", "Medlemmer", "Medlemsinntekter"
   - **Reservasjoner**: "Reservasjonsmottak", "Bekreftede Reservasjoner"
   - **Utleie**: "Se og opprett utleieobjekt", "Kontrakt & betingelser", "Kommende utleie", "Deres utleie resultat"

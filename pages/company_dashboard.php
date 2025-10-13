@@ -246,7 +246,7 @@ $allModules = getCompanyModules($_SESSION['company_id']);
                     <a class="nav-link" href="#events-create">Opprett arrangement</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#events-expenses">Arrangement utgifter</a>
+                    <a class="nav-link" href="#events-expenses">Arrangement resultat</a>
                 </li>
             </ul>
             
@@ -331,9 +331,13 @@ $allModules = getCompanyModules($_SESSION['company_id']);
                         <?php 
                         switch ($module['slug']) {
                             case 'dashboard':
-                                echo '<h3>Dashboard</h3>';
-                                echo '<p class="text-muted">Oversikt over systemet</p>';
-                                echo '<div class="alert alert-info">Dashboard innhold kommer snart</div>';
+                                ?>
+                                <div class="module-content">
+                                    <h3>Dashboard</h3>
+                                    <p class="text-muted">Oversikt over systemet</p>
+                                    <div class="alert alert-info">Dashboard innhold kommer snart</div>
+                                </div>
+                                <?php
                                 break;
                             case 'ditt_nettsted':
                                 echo '<iframe src="ditt_nettsted.php" style="width: 100%; height: 80vh; border: none; border-radius: 8px;" frameborder="0"></iframe>';
