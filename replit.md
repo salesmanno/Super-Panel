@@ -21,7 +21,7 @@ Prioritizes a clean, compact dashboard with a simple navigation header. Modules 
 ### Technical Implementations
 - **Authentication**: Session-based system with robust backend validation and failsafe messages. Includes a complete session tracking system with login/logout logging, IP addresses, user agents, activity timestamps, and auto-cleanup of inactive sessions.
 - **Tab Navigation System**: Uses Bootstrap 5's native tab component with `shown.bs.tab` event listeners to ensure proper show/hide behavior. Prevents content stacking by letting Bootstrap handle all `.active` class management instead of manual manipulation.
-- **Module & Privilege Management**: Granular access control using `module_privileges` and `module_visibility` tables ensures modules are only visible if `can_access` is true. Super_users can dynamically update their own module privileges.
+- **Module & Privilege Management**: Granular access control using `tenant_admin_modules` and `tenant_company_modules` tables ensures modules are only visible based on user privileges. Tenant admins can dynamically update their own module privileges.
 - **Webmail Client**: Integrated client supporting inbox, compose, and message viewing. Includes SMTP configuration validation from `x_webmailconfiguration` table - displays detailed warnings when SMTP server data (host, port, username, password) is missing. Email client interface expanded to 600px height for better usability with additional folders (Stjernemerket, Arkiv).
 - **Events Module**: Comprehensive CRUD operations for event management, including image support (URL or file upload) and conditional display of member pricing.
 - **User Profiles**: Stores personal information for features like automatic email signatures and profile editing.
@@ -45,7 +45,7 @@ Prioritizes a clean, compact dashboard with a simple navigation header. Modules 
 ### System Design Choices
 - **Modularity**: Core system features are organized into distinct, manageable modules.
 - **Data Flow**: Emphasizes clear data flow, especially in the homepage system (template selection, settings, preview, publishing).
-- **Database Structure**: Key tables include `tenant_admin_sessions`, `webmail_accounts`, `x_events`, `companies`, `super_users`, `modules`, `module_privileges`, `homepage_templates`, `company_homepage_settings`, `super_user_profiles`, `rental_objects`, `rental_reservations`, `contract_documents`, `sales_items`, `reservation_settings`, `webconfiguration`, `website_templates`, and `saas_admins`. The `tenant_admins` table now includes a `username` field for authentication and is linked to `tenant_staff`. The `tenant_admin_modules` table includes a `granted_by` column linking to `saas_admins` for permission tracking.
+- **Database Structure**: Key tables include `tenant_admin_sessions`, `tenant_admins`, `tenant_admin_modules`, `tenant_company_modules`, `tenant_companies`, `tenant_staff`, `webmail_accounts`, `x_events`, `companies`, `system_modules`, `homepage_templates`, `company_homepage_settings`, `rental_objects`, `rental_reservations`, `contract_documents`, `sales_items`, `reservation_settings`, `webconfiguration`, `website_templates`, and `saas_admins`. The `tenant_admins` table includes a `username` field for authentication and is linked to `tenant_staff`. The `tenant_admin_modules` table includes a `granted_by` column linking to `saas_admins` for permission tracking.
 
 ## External Dependencies
 - **Database**: Dual database support with cross-compatibility:
