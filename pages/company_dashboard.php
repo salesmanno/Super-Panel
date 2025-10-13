@@ -332,11 +332,9 @@ $allModules = getCompanyModules($_SESSION['company_id']);
                         switch ($module['slug']) {
                             case 'dashboard':
                                 ?>
-                                <div class="module-content">
-                                    <h3>Dashboard</h3>
-                                    <p class="text-muted">Oversikt over systemet</p>
-                                    <div class="alert alert-info">Dashboard innhold kommer snart</div>
-                                </div>
+                                <h3>Dashboard</h3>
+                                <p class="text-muted">Oversikt over systemet</p>
+                                <div class="alert alert-info">Dashboard innhold kommer snart</div>
                                 <?php
                                 break;
                             case 'ditt_nettsted':
