@@ -29,11 +29,12 @@ Prioritizes a clean, compact dashboard with a simple navigation header. Modules 
 - **Global Reservation System**: Manages reservations across multiple modules (rental, sales, events, economy) with unique reservation numbering (e.g., RENT, SALE, EVNT). Includes API endpoints for retrieval, advanced filtering, and statistics, respecting user privileges and `reservation_settings`.
 - **Sales Module**: Functionality to add sales items via a dedicated sub-pane, with form data entry, JavaScript submission, and API endpoints for storage, including validation and duplicate SKU checks.
 - **Dynamic Database Status**: Live database connection status indicator in the navigation, with automatic checks and visual feedback (pulsating dot) and graceful degradation (gray background, disabled login) upon disconnection.
+- **Website Configuration (Ditt Nettsted)**: Native, always-available feature allowing tenant admins to select website templates for their company. Template selections are stored in the `webconfiguration` table and can be retrieved via public API (`api/get_company_website.php`) by external domains using company_id or subdomain. Includes 5 pre-defined templates: Moderne Bedrift, E-handel Basic, Kreativ Portefølje, Restaurant & Café, and Minimalistisk Landing.
 
 ### System Design Choices
 - **Modularity**: Core system features are organized into distinct, manageable modules.
 - **Data Flow**: Emphasizes clear data flow, especially in the homepage system (template selection, settings, preview, publishing).
-- **Database Structure**: Key tables include `tenant_admin_sessions`, `webmail_accounts`, `x_events`, `companies`, `super_users`, `modules`, `module_privileges`, `homepage_templates`, `company_homepage_settings`, `super_user_profiles`, `rental_objects`, `rental_reservations`, `contract_documents`, `sales_items`, and `reservation_settings`. The `tenant_admins` table now includes a `username` field for authentication and is linked to `tenant_staff`.
+- **Database Structure**: Key tables include `tenant_admin_sessions`, `webmail_accounts`, `x_events`, `companies`, `super_users`, `modules`, `module_privileges`, `homepage_templates`, `company_homepage_settings`, `super_user_profiles`, `rental_objects`, `rental_reservations`, `contract_documents`, `sales_items`, `reservation_settings`, `webconfiguration`, `website_templates`, and `saas_admins`. The `tenant_admins` table now includes a `username` field for authentication and is linked to `tenant_staff`. The `tenant_admin_modules` table includes a `granted_by` column linking to `saas_admins` for permission tracking.
 
 ## External Dependencies
 - **Database**: Dual database support:
