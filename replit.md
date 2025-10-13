@@ -16,7 +16,7 @@ The Salesman Superportal System is a comprehensive super_user administration por
 The system is built on a PHP 8.2 backend with dual database support (MySQL production, PostgreSQL development/backup), emphasizing modularity and granular access control.
 
 ### UI/UX Decisions
-Prioritizes a clean, compact dashboard with a simple navigation header. Modules are presented as Bootstrap 5 tabs (faner) for efficient navigation, with sub-tabs reflecting current content. The design includes a blue hero banner and consistent use of company logos.
+Prioritizes a clean, compact dashboard with a simple navigation header. Modules are presented as Bootstrap 5 tabs (faner) for efficient navigation. Official modules (Dashboard, Ditt Nettsted) are displayed in a dedicated tab row, while other modules (Webmail, Reservasjoner, Arrangement, etc.) are shown in a separate row below. Each module displays its specific subtabs in a dedicated row beneath the main module tabs, allowing efficient navigation within modules. Subtabs use namespaced IDs (e.g., events-my, membership-plans) to avoid collisions, and JavaScript scopes content switching to the active module container. The design includes a blue hero banner and consistent use of company logos.
 
 ### Technical Implementations
 - **Authentication**: Session-based system with robust backend validation and failsafe messages. Includes a complete session tracking system with login/logout logging, IP addresses, user agents, activity timestamps, and auto-cleanup of inactive sessions.
@@ -30,6 +30,14 @@ Prioritizes a clean, compact dashboard with a simple navigation header. Modules 
 - **Sales Module**: Functionality to add sales items via a dedicated sub-pane, with form data entry, JavaScript submission, and API endpoints for storage, including validation and duplicate SKU checks.
 - **Dynamic Database Status**: Live database connection status indicator in the navigation, with automatic checks and visual feedback (pulsating dot) and graceful degradation (gray background, disabled login) upon disconnection.
 - **Website Configuration (Ditt Nettsted)**: Module-based feature with one-time configuration logic. Tenant admins can select website templates once per privilege grant. If they lose and regain the module privilege, they can reconfigure. Template selections are stored in the `webconfiguration` table (with custom_css and custom_colors fields) and can be retrieved via public API (`api/get_company_website.php`) by external domains using company_id or subdomain. Includes 5 pre-defined templates: Moderne Bedrift, E-handel Basic, Kreativ Portefølje, Restaurant & Café, and Minimalistisk Landing. Lock mechanism compares `tenant_admin_modules.granted_at` with `webconfiguration.updated_at` to determine if reconfiguration is allowed.
+- **Module Subtabs System**: Each module has dedicated subtabs displayed in a separate row beneath the main module navigation:
+  - **Arrangement**: "Dine arrangement", "Opprett arrangement", "Arrangement utgifter"
+  - **Medlemskap**: "Dine medlemskapsplaner", "Medlemmer", "Medlemsinntekter"
+  - **Reservasjoner**: "Reservasjonsmottak", "Bekreftede Reservasjoner"
+  - **Utleie**: "Se og opprett utleieobjekt", "Kontrakt & betingelser", "Kommende utleie", "Deres utleie resultat"
+  - **Webmail**: "E-post klient", "E-post historikk"
+  - **Økonomi**: "Deres resultat", "Se og Aktiver nettbetaling"
+  - Subtab IDs are namespaced per module (e.g., events-my, membership-plans) to prevent collisions. JavaScript uses scoped querySelector within module containers for correct content switching.
 
 ### System Design Choices
 - **Modularity**: Core system features are organized into distinct, manageable modules.
