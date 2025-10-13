@@ -22,6 +22,7 @@ try {
     
     $templateId = intval($input['template_id']);
     $companyId = $_SESSION['company_id'];
+    $adminId = $_SESSION['tenant_admin_id'];
     
     $db = getDBConnection();
     if (!$db) {
@@ -34,9 +35,31 @@ try {
         throw new Exception('Ugyldig mal');
     }
     
-    $stmt = $db->prepare("SELECT id FROM webconfiguration WHERE company_id = ?");
+    $stmt = $db->prepare("SELECT * FROM webconfiguration WHERE company_id = ?");
     $stmt->execute([$companyId]);
     $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    $stmt = $db->prepare("
+        SELECT tam.granted_at 
+        FROM tenant_admin_modules tam 
+        JOIN system_modules sm ON tam.module_id = sm.id 
+        WHERE tam.tenant_admin_id = ? AND sm.slug = 'ditt_nettsted'
+    ");
+    $stmt->execute([$adminId]);
+    $privilege = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$privilege) {
+        throw new Exception('Ingen tilgang til denne modulen');
+    }
+    
+    if ($existing) {
+        $configUpdatedAt = strtotime($existing['updated_at']);
+        $grantedAt = strtotime($privilege['granted_at']);
+        
+        if ($grantedAt <= $configUpdatedAt) {
+            throw new Exception('Nettside er allerede konfigurert. Du må miste og få tilbake privilegiet for å endre.');
+        }
+    }
     
     if ($existing) {
         $stmt = $db->prepare("
