@@ -323,9 +323,11 @@ try {
                 <li class="nav-item">
                     <a class="nav-link" href="#webmail-history">E-post historikk</a>
                 </li>
+                <?php if ($webmailConfigured): ?>
                 <li class="nav-item">
                     <a class="nav-link" href="#webmail-automailer">AutoMailer</a>
                 </li>
+                <?php endif; ?>
             </ul>
             
             <!-- Economy subtabs -->
