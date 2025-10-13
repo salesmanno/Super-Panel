@@ -361,9 +361,9 @@ CREATE TABLE tenant_admin_sessions (
     session_id VARCHAR(255) NOT NULL,
     ip_address VARCHAR(45),
     user_agent TEXT,
-    login_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    login_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
-    logout_time DATETIME NULL,
+    logout_at DATETIME NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -371,7 +371,7 @@ CREATE TABLE tenant_admin_sessions (
     INDEX idx_tenant_admin_id (tenant_admin_id),
     INDEX idx_session_id (session_id),
     INDEX idx_is_active (is_active),
-    INDEX idx_login_time (login_time)
+    INDEX idx_login_at (login_at)
 );
 
 -- Additional tables follow...

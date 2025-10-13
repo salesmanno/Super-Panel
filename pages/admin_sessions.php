@@ -186,7 +186,7 @@ function formatSessionDuration($loginTime, $logoutTime) {
                                 <div class="row">
                                     <div class="col-md-6">
                                         <small class="text-muted">
-                                            <i class="bi bi-clock me-1"></i>Innlogget: <?= formatTimeDifference($session['login_time']) ?>
+                                            <i class="bi bi-clock me-1"></i>Innlogget: <?= formatTimeDifference($session['login_at']) ?>
                                         </small>
                                     </div>
                                     <div class="col-md-6">
@@ -222,7 +222,7 @@ function formatSessionDuration($loginTime, $logoutTime) {
                             <div class="flex-grow-1">
                                 <div class="d-flex align-items-center mb-2">
                                     <i class="bi bi-calendar-check me-2"></i>
-                                    <strong><?= date('d.m.Y H:i', strtotime($session['login_time'])) ?></strong>
+                                    <strong><?= date('d.m.Y H:i', strtotime($session['login_at'])) ?></strong>
                                     <?php if ($session['session_id'] === $_SESSION['session_id']): ?>
                                         <span class="badge bg-info ms-2">Nåværende session</span>
                                     <?php endif; ?>
@@ -230,7 +230,7 @@ function formatSessionDuration($loginTime, $logoutTime) {
                                 <div class="row mt-2">
                                     <div class="col-md-4">
                                         <small class="text-muted">
-                                            <i class="bi bi-hourglass me-1"></i>Varighet: <?= formatSessionDuration($session['login_time'], $session['logout_time']) ?>
+                                            <i class="bi bi-hourglass me-1"></i>Varighet: <?= formatSessionDuration($session['login_at'], $session['logout_at']) ?>
                                         </small>
                                     </div>
                                     <div class="col-md-4">
@@ -239,9 +239,9 @@ function formatSessionDuration($loginTime, $logoutTime) {
                                         </small>
                                     </div>
                                     <div class="col-md-4">
-                                        <?php if ($session['logout_time']): ?>
+                                        <?php if ($session['logout_at']): ?>
                                             <small class="text-muted">
-                                                <i class="bi bi-box-arrow-right me-1"></i>Utlogget: <?= date('d.m.Y H:i', strtotime($session['logout_time'])) ?>
+                                                <i class="bi bi-box-arrow-right me-1"></i>Utlogget: <?= date('d.m.Y H:i', strtotime($session['logout_at'])) ?>
                                             </small>
                                         <?php endif; ?>
                                     </div>

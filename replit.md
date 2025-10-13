@@ -13,7 +13,7 @@ The Salesman Superportal System is a comprehensive super_user administration por
 - Each module tab should have sub-tabs with the same name showing current content
 
 ## System Architecture
-The system is built on a PHP 8.2 backend with a MySQL database, emphasizing modularity and granular access control.
+The system is built on a PHP 8.2 backend with dual database support (MySQL production, PostgreSQL development/backup), emphasizing modularity and granular access control.
 
 ### UI/UX Decisions
 Prioritizes a clean, compact dashboard with a simple navigation header. Modules are presented as Bootstrap 5 tabs (faner) for efficient navigation, with sub-tabs reflecting current content. The design includes a blue hero banner and consistent use of company logos.
@@ -36,8 +36,13 @@ Prioritizes a clean, compact dashboard with a simple navigation header. Modules 
 - **Database Structure**: Key tables include `tenant_admin_sessions`, `webmail_accounts`, `x_events`, `companies`, `super_users`, `modules`, `module_privileges`, `homepage_templates`, `company_homepage_settings`, `super_user_profiles`, `rental_objects`, `rental_reservations`, `contract_documents`, `sales_items`, and `reservation_settings`. The `tenant_admins` table now includes a `username` field for authentication and is linked to `tenant_staff`.
 
 ## External Dependencies
-- **Database**: MySQL hosted on Domeneshop (`salesmanno04.mysql.domeneshop.no/salesmanno04`).
-  - Connection managed via `config/database.php` using PDO.
+- **Database**: Dual database support:
+  - **Production**: MySQL hosted on Domeneshop (`salesmanno04.mysql.domeneshop.no/salesmanno04`)
+  - **Development/Testing**: PostgreSQL (auto-detected via DATABASE_URL environment variable)
+  - Connection managed via `config/database.php` using PDO with automatic database type detection
+  - All boolean comparisons use TRUE/FALSE (PostgreSQL compatible)
+  - Timestamp columns use `login_at`, `logout_at` naming convention
+  - Interval syntax uses PostgreSQL format: `NOW() - INTERVAL '1 MINUTE' * ?`
 - **UI Framework**: Bootstrap 5.
 - **Email Protocols**: SMTP (`smtp.domeneshop.no:587` with TLS) and IMAP (`imap.domeneshop.no:993` with SSL) for the integrated webmail client.
 - **Storage**: Object storage for contract document uploads.
