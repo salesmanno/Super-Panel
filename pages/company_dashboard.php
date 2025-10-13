@@ -400,9 +400,102 @@ try {
                         switch ($module['slug']) {
                             case 'dashboard':
                                 ?>
-                                <h3>Dashboard</h3>
-                                <p class="text-muted">Oversikt over systemet</p>
-                                <div class="alert alert-info">Dashboard innhold kommer snart</div>
+                                <div class="row">
+                                    <div class="col-12">
+                                        <h3><i class="bi bi-speedometer2 me-2"></i>Dashboard</h3>
+                                        <p class="text-muted">Oversikt og innstillinger for bedriften</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-4">
+                                    <div class="col-md-12">
+                                        <div class="card">
+                                            <div class="card-header bg-primary text-white">
+                                                <h5 class="mb-0"><i class="bi bi-globe me-2"></i>Offentlig modulvisning på nettside</h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <p class="text-muted mb-4">Kontroller hvilke moduler som skal vises offentlig på bedriftens nettside</p>
+                                                
+                                                <?php
+                                                // Hent publiseringsinnstillinger
+                                                $publicModules = [
+                                                    ['id' => 7, 'name' => 'Arrangement', 'slug' => 'events', 'icon' => 'bi-calendar-event', 'description' => 'Vis arrangementer på nettside'],
+                                                    ['id' => 5, 'name' => 'Medlemskap', 'slug' => 'membership', 'icon' => 'bi-people', 'description' => 'Vis medlemskapsplaner på nettside'],
+                                                    ['id' => 3, 'name' => 'Reservasjoner', 'slug' => 'reservations', 'icon' => 'bi-calendar-check', 'description' => 'Aktiver reservasjonssystem på nettside'],
+                                                    ['id' => 12, 'name' => 'Salg', 'slug' => 'sales', 'icon' => 'bi-cart', 'description' => 'Vis nettbutikk på nettside'],
+                                                    ['id' => 6, 'name' => 'Utleie', 'slug' => 'rental', 'icon' => 'bi-key', 'description' => 'Vis utleieobjekter på nettside']
+                                                ];
+                                                
+                                                try {
+                                                    $stmt = $db->prepare("SELECT module_id, is_public FROM tenant_company_modules WHERE company_id = ?");
+                                                    $stmt->execute([$_SESSION['company_id']]);
+                                                    $publicSettings = [];
+                                                    while ($row = $stmt->fetch()) {
+                                                        $publicSettings[$row['module_id']] = $row['is_public'];
+                                                    }
+                                                } catch (Exception $e) {
+                                                    $publicSettings = [];
+                                                }
+                                                ?>
+                                                
+                                                <div class="row">
+                                                    <?php foreach ($publicModules as $module): ?>
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="card border">
+                                                            <div class="card-body">
+                                                                <div class="d-flex justify-content-between align-items-center">
+                                                                    <div class="d-flex align-items-center">
+                                                                        <i class="bi <?= $module['icon'] ?> fs-2 me-3 text-primary"></i>
+                                                                        <div>
+                                                                            <h6 class="mb-0"><?= $module['name'] ?></h6>
+                                                                            <small class="text-muted"><?= $module['description'] ?></small>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="form-check form-switch">
+                                                                        <input class="form-check-input public-module-toggle" 
+                                                                               type="checkbox" 
+                                                                               id="public-<?= $module['slug'] ?>"
+                                                                               data-module-id="<?= $module['id'] ?>"
+                                                                               <?= isset($publicSettings[$module['id']]) && $publicSettings[$module['id']] ? 'checked' : '' ?>
+                                                                               style="width: 3rem; height: 1.5rem;">
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                                
+                                                <div class="alert alert-info mt-3">
+                                                    <i class="bi bi-info-circle me-2"></i>
+                                                    <strong>Merk:</strong> Aktiverte moduler vil vises på bedriftens offentlige nettside. Du kan når som helst endre disse innstillingene.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <script>
+                                // Toggle public module visibility
+                                document.querySelectorAll('.public-module-toggle').forEach(toggle => {
+                                    toggle.addEventListener('change', function() {
+                                        const moduleId = this.dataset.moduleId;
+                                        const isPublic = this.checked;
+                                        
+                                        fetch('api/toggle_public_module.php', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ module_id: moduleId, is_public: isPublic })
+                                        })
+                                        .then(response => response.json())
+                                        .then(data => {
+                                            if (data.success) {
+                                                console.log('Module visibility updated');
+                                            }
+                                        });
+                                    });
+                                });
+                                </script>
                                 <?php
                                 break;
                             case 'ditt_nettsted':
