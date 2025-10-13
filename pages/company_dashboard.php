@@ -482,7 +482,7 @@ try {
                                         const moduleId = this.dataset.moduleId;
                                         const isPublic = this.checked;
                                         
-                                        fetch('api/toggle_public_module.php', {
+                                        fetch('../api/toggle_public_module.php', {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify({ module_id: moduleId, is_public: isPublic })
