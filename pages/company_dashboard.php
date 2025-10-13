@@ -126,6 +126,10 @@ $allModules = getCompanyModules($_SESSION['company_id']);
                     <i class="bi bi-person-circle me-1"></i>
                     <span class="d-none d-sm-inline"><?= htmlspecialchars($adminName) ?></span>
                 </span>
+                <a href="ditt_nettsted.php" class="btn btn-nav btn-sm">
+                    <i class="bi bi-globe me-1"></i>
+                    <span class="d-none d-sm-inline">Ditt Nettsted</span>
+                </a>
                 <button class="btn btn-nav btn-sm" data-bs-toggle="modal" data-bs-target="#permissionsModal">
                     <i class="bi bi-shield-check me-1"></i>
                     <span class="d-none d-sm-inline">Permissions</span>
@@ -180,24 +184,13 @@ $allModules = getCompanyModules($_SESSION['company_id']);
                     <div class="tab-pane fade <?= $index === 0 ? 'show active' : '' ?>" 
                          id="content-<?= $module['id'] ?>" 
                          role="tabpanel">
-                        <?php if ($module['slug'] === 'ditt_nettsted'): ?>
-                            <div class="text-center py-4">
-                                <i class="bi bi-globe" style="font-size: 3rem; color: var(--primary-start);"></i>
-                                <h3 class="mt-3"><?= htmlspecialchars($module['name']) ?></h3>
-                                <p class="text-muted"><?= htmlspecialchars($module['description']) ?></p>
-                                <a href="ditt_nettsted.php" class="btn btn-primary btn-lg mt-3">
-                                    <i class="bi bi-arrow-right-circle me-2"></i>Velg Nettside Mal
-                                </a>
-                            </div>
-                        <?php else: ?>
-                            <h3><?= htmlspecialchars($module['name']) ?></h3>
-                            <p class="text-muted"><?= htmlspecialchars($module['description'] ?? 'Modul innhold kommer snart') ?></p>
-                            <hr>
-                            <div class="alert alert-info">
-                                <i class="bi bi-info-circle me-2"></i>
-                                Innhold for <strong><?= htmlspecialchars($module['name']) ?></strong> er under utvikling.
-                            </div>
-                        <?php endif; ?>
+                        <h3><?= htmlspecialchars($module['name']) ?></h3>
+                        <p class="text-muted"><?= htmlspecialchars($module['description'] ?? 'Modul innhold kommer snart') ?></p>
+                        <hr>
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Innhold for <strong><?= htmlspecialchars($module['name']) ?></strong> er under utvikling.
+                        </div>
                     </div>
                 <?php endforeach; ?>
             </div>

@@ -39,13 +39,13 @@ try {
     
     $stmt = $db->prepare("
         SELECT 
-            cws.*,
+            wc.*,
             wt.name as template_name,
             wt.description as template_description,
             wt.template_type
-        FROM company_website_settings cws
-        JOIN website_templates wt ON cws.template_id = wt.template_id
-        WHERE cws.company_id = ?
+        FROM webconfiguration wc
+        JOIN website_templates wt ON wc.template_id = wt.template_id
+        WHERE wc.company_id = ?
     ");
     $stmt->execute([$companyId]);
     $settings = $stmt->fetch(PDO::FETCH_ASSOC);

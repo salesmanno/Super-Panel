@@ -23,7 +23,7 @@ if ($db) {
     $stmt->execute();
     $templates = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    $stmt = $db->prepare("SELECT * FROM company_website_settings WHERE company_id = ?");
+    $stmt = $db->prepare("SELECT * FROM webconfiguration WHERE company_id = ?");
     $stmt->execute([$companyId]);
     $currentSettings = $stmt->fetch(PDO::FETCH_ASSOC);
 }

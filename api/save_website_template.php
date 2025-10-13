@@ -34,20 +34,20 @@ try {
         throw new Exception('Ugyldig mal');
     }
     
-    $stmt = $db->prepare("SELECT id FROM company_website_settings WHERE company_id = ?");
+    $stmt = $db->prepare("SELECT id FROM webconfiguration WHERE company_id = ?");
     $stmt->execute([$companyId]);
     $existing = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($existing) {
         $stmt = $db->prepare("
-            UPDATE company_website_settings 
+            UPDATE webconfiguration 
             SET template_id = ?, updated_at = CURRENT_TIMESTAMP 
             WHERE company_id = ?
         ");
         $stmt->execute([$templateId, $companyId]);
     } else {
         $stmt = $db->prepare("
-            INSERT INTO company_website_settings (company_id, template_id, updated_at) 
+            INSERT INTO webconfiguration (company_id, template_id, updated_at) 
             VALUES (?, ?, CURRENT_TIMESTAMP)
         ");
         $stmt->execute([$companyId, $templateId]);
