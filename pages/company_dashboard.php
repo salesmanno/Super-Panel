@@ -17,6 +17,9 @@ $companyName = $_SESSION['company_name'] ?? 'Firma';
 $adminRole = $_SESSION['admin_role'] ?? 'admin';
 
 $allUserModules = getTenantAdminModules($_SESSION['tenant_admin_id']);
+$officialModules = array_filter($allUserModules, function($module) {
+    return in_array($module['slug'], ['dashboard', 'ditt_nettsted']);
+});
 $userModules = array_filter($allUserModules, function($module) {
     return !in_array($module['slug'], ['dashboard', 'ditt_nettsted']);
 });
@@ -160,9 +163,32 @@ $allModules = getCompanyModules($_SESSION['company_id']);
     <div class="dashboard-header">
         <div class="container">
             <h1 class="mb-2">Velkommen, <?= htmlspecialchars($adminName) ?>!</h1>
-            <p class="text-muted mb-0">Du har tilgang til <?= count($userModules) ?> modul<?= count($userModules) != 1 ? 'er' : '' ?></p>
+            <p class="text-muted mb-0">Du har tilgang til <?= count($allUserModules) ?> modul<?= count($allUserModules) != 1 ? 'er' : '' ?></p>
         </div>
     </div>
+    
+    <?php if (!empty($officialModules)): ?>
+    <!-- Official Modules Navigation -->
+    <div class="bg-light border-bottom">
+        <div class="container">
+            <ul class="nav nav-tabs module-tabs border-0 mb-0" role="tablist">
+                <?php foreach ($officialModules as $index => $module): ?>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link <?= $index === 0 && empty($userModules) ? 'active' : '' ?>" 
+                                id="tab-<?= $module['id'] ?>" 
+                                data-bs-toggle="tab" 
+                                data-bs-target="#content-<?= $module['id'] ?>" 
+                                type="button" 
+                                role="tab">
+                            <i class="bi bi-<?= htmlspecialchars($module['icon'] ?? 'grid') ?> me-2"></i>
+                            <?= htmlspecialchars($module['name']) ?>
+                        </button>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    </div>
+    <?php endif; ?>
     
     <?php if (!empty($userModules)): ?>
     <!-- Module Navigation Bar -->
@@ -185,10 +211,11 @@ $allModules = getCompanyModules($_SESSION['company_id']);
             </ul>
         </div>
     </div>
+    <?php endif; ?>
     
     <!-- Module Content -->
     <div class="container">
-        <?php if (empty($userModules)): ?>
+        <?php if (empty($allUserModules)): ?>
             <div class="empty-state">
                 <i class="bi bi-inbox"></i>
                 <h3>Ingen moduler tilgjengelig</h3>
@@ -196,23 +223,48 @@ $allModules = getCompanyModules($_SESSION['company_id']);
             </div>
         <?php else: ?>
             <div class="tab-content">
-                <?php foreach ($userModules as $index => $module): ?>
+                <?php 
+                $allModulesForDisplay = array_merge($officialModules, $userModules);
+                foreach ($allModulesForDisplay as $index => $module): 
+                ?>
                     <div class="tab-pane fade <?= $index === 0 ? 'show active' : '' ?>" 
                          id="content-<?= $module['id'] ?>" 
                          role="tabpanel">
-                        <?php if ($module['slug'] === 'ditt_nettsted'): ?>
-                            <iframe src="ditt_nettsted.php" 
-                                    style="width: 100%; height: 80vh; border: none; border-radius: 8px;"
-                                    frameborder="0"></iframe>
-                        <?php else: ?>
-                            <h3><?= htmlspecialchars($module['name']) ?></h3>
-                            <p class="text-muted"><?= htmlspecialchars($module['description'] ?? 'Modul innhold kommer snart') ?></p>
-                            <hr>
-                            <div class="alert alert-info">
-                                <i class="bi bi-info-circle me-2"></i>
-                                Innhold for <strong><?= htmlspecialchars($module['name']) ?></strong> er under utvikling.
-                            </div>
-                        <?php endif; ?>
+                        <?php 
+                        switch ($module['slug']) {
+                            case 'dashboard':
+                                echo '<h3>Dashboard</h3>';
+                                echo '<p class="text-muted">Oversikt over systemet</p>';
+                                echo '<div class="alert alert-info">Dashboard innhold kommer snart</div>';
+                                break;
+                            case 'ditt_nettsted':
+                                echo '<iframe src="ditt_nettsted.php" style="width: 100%; height: 80vh; border: none; border-radius: 8px;" frameborder="0"></iframe>';
+                                break;
+                            case 'webmail':
+                                include __DIR__ . '/../modules/webmail_content.php';
+                                break;
+                            case 'reservations':
+                                include __DIR__ . '/../modules/reservations_content.php';
+                                break;
+                            case 'economy':
+                                include __DIR__ . '/../modules/economy_content.php';
+                                break;
+                            case 'membership':
+                                include __DIR__ . '/../modules/membership_content.php';
+                                break;
+                            case 'rental':
+                                include __DIR__ . '/../modules/rental_content.php';
+                                break;
+                            case 'events':
+                                include __DIR__ . '/../modules/events_content.php';
+                                break;
+                            case 'marketplace':
+                                include __DIR__ . '/../modules/marketplace_content.php';
+                                break;
+                            default:
+                                echo '<div class="alert alert-warning">Modul under utvikling</div>';
+                        }
+                        ?>
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -303,6 +355,5 @@ $allModules = getCompanyModules($_SESSION['company_id']);
             });
         }
     </script>
-<?php endif; ?>
 </body>
 </html>
