@@ -25,18 +25,33 @@ $userModules = array_filter($allUserModules, function($module) {
 });
 $allModules = getCompanyModules($_SESSION['company_id']);
 
-// Sjekk om webmail er konfigurert
+// Sjekk om webmail er konfigurert (med SMTP data)
 $webmailConfigured = false;
+$smtpConfigured = false;
 try {
     $db = getDBConnection();
     if ($db) {
+        // Sjekk om SMTP er konfigurert i x_webmailconfiguration
+        $stmt = $db->prepare("SELECT smtp_host, smtp_port, smtp_username FROM x_webmailconfiguration WHERE company_id = ?");
+        $stmt->execute([$_SESSION['company_id']]);
+        $smtpData = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($smtpData && !empty($smtpData['smtp_host']) && !empty($smtpData['smtp_username'])) {
+            $smtpConfigured = true;
+        }
+        
+        // Sjekk om webmail_accounts har data
         $stmt = $db->prepare("SELECT COUNT(*) FROM webmail_accounts WHERE company_id = ?");
         $stmt->execute([$_SESSION['company_id']]);
-        $webmailConfigured = ($stmt->fetchColumn() > 0);
+        $hasAccount = ($stmt->fetchColumn() > 0);
+        
+        // Webmail er kun konfigurert hvis både SMTP og konto finnes
+        $webmailConfigured = $smtpConfigured && $hasAccount;
     }
 } catch (Exception $e) {
-    // Tabellen eksisterer ikke ennå
+    // Tabellene eksisterer ikke ennå
     $webmailConfigured = false;
+    $smtpConfigured = false;
 }
 
 // Sjekk om betalingsmetoder er konfigurert

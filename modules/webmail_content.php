@@ -4,17 +4,25 @@
         <div class="d-flex align-items-center">
             <i class="bi bi-exclamation-triangle-fill fs-1 me-3"></i>
             <div>
-                <h5 class="alert-heading mb-2">Webmail ikke konfigurert</h5>
-                <p class="mb-2">E-postklient er ikke konfigurert for din bedrift. Du må opprette en webmail-konto før du kan bruke denne modulen.</p>
+                <h5 class="alert-heading mb-2">
+                    <i class="bi bi-envelope-slash me-2"></i>E-postklient ikke konfigurert
+                </h5>
+                <p class="mb-2">E-postklient mangler nødvendig konfigurasjon for din bedrift.</p>
                 <hr class="my-3">
-                <p class="mb-0">
-                    <strong>Hva må gjøres:</strong>
+                <p class="mb-2">
+                    <strong>Manglende konfigurasjon:</strong>
                 </p>
-                <ul class="mb-0">
-                    <li>Kontakt systemadministrator for å konfigurere e-post server (IMAP/SMTP)</li>
-                    <li>Opprett webmail-konto med e-postadresse og innstillinger</li>
-                    <li>Konfigurer domeneoppsett for e-post (domeneshop.no eller lignende)</li>
+                <ul class="mb-3">
+                    <?php if (!isset($smtpConfigured) || !$smtpConfigured): ?>
+                    <li class="text-danger"><strong>SMTP-server ikke konfigurert</strong> - Nødvendig for å sende e-poster</li>
+                    <?php endif; ?>
+                    <li>Webmail-konto med e-postadresse må opprettes</li>
+                    <li>Domeneoppsett for e-post må konfigureres (domeneshop.no eller lignende)</li>
                 </ul>
+                <div class="alert alert-info mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>SMTP-konfigurasjon kreves:</strong> SMTP-server (host, port, brukernavn og passord) må legges inn i <code>x_webmailconfiguration</code> tabellen før e-postklienten kan brukes.
+                </div>
             </div>
         </div>
     </div>
@@ -24,7 +32,7 @@
     <div id="webmail-client" class="subtab-content">
         <div class="row">
             <div class="col-md-3">
-                <div class="card">
+                <div class="card" style="min-height: 600px;">
                     <div class="card-body">
                         <button class="btn btn-primary w-100 mb-3">
                             <i class="bi bi-pencil-square me-1"></i>Ny e-post
@@ -37,6 +45,12 @@
                                 <i class="bi bi-send me-2"></i>Sendt
                             </a>
                             <a href="#" class="list-group-item list-group-item-action">
+                                <i class="bi bi-star me-2"></i>Stjernemerket
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action">
+                                <i class="bi bi-archive me-2"></i>Arkiv
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action">
                                 <i class="bi bi-trash me-2"></i>Papirkurv
                             </a>
                         </div>
@@ -44,12 +58,25 @@
                 </div>
             </div>
             <div class="col-md-9">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Innboks</h5>
-                        <div class="text-center text-muted py-5">
-                            <i class="bi bi-envelope-open fs-1 d-block mb-3"></i>
-                            <p>Ingen e-poster i innboksen</p>
+                <div class="card" style="min-height: 600px;">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0"><i class="bi bi-inbox me-2"></i>Innboks</h5>
+                            <div>
+                                <button class="btn btn-sm btn-outline-secondary me-2">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-funnel"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 d-flex align-items-center justify-content-center">
+                            <div class="text-center text-muted">
+                                <i class="bi bi-envelope-open fs-1 d-block mb-3"></i>
+                                <h6>Ingen e-poster i innboksen</h6>
+                                <p class="small">E-poster vil vises her når de mottas</p>
+                            </div>
                         </div>
                     </div>
                 </div>
