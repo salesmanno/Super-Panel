@@ -407,23 +407,20 @@ try {
                                     </div>
                                 </div>
                                 
-                                <div class="row mt-4">
+                                <div class="row mt-3">
                                     <div class="col-md-12">
                                         <div class="card">
-                                            <div class="card-header bg-primary text-white">
-                                                <h5 class="mb-0"><i class="bi bi-globe me-2"></i>Offentlig modulvisning på nettside</h5>
+                                            <div class="card-header bg-primary text-white py-2">
+                                                <h6 class="mb-0"><i class="bi bi-globe me-2"></i>Offentlig modulvisning</h6>
                                             </div>
-                                            <div class="card-body">
-                                                <p class="text-muted mb-4">Kontroller hvilke moduler som skal vises offentlig på bedriftens nettside</p>
-                                                
+                                            <div class="card-body p-3">
                                                 <?php
-                                                // Hent publiseringsinnstillinger
                                                 $publicModules = [
-                                                    ['id' => 7, 'name' => 'Arrangement', 'slug' => 'events', 'icon' => 'bi-calendar-event', 'description' => 'Vis arrangementer på nettside'],
-                                                    ['id' => 5, 'name' => 'Medlemskap', 'slug' => 'membership', 'icon' => 'bi-people', 'description' => 'Vis medlemskapsplaner på nettside'],
-                                                    ['id' => 3, 'name' => 'Reservasjoner', 'slug' => 'reservations', 'icon' => 'bi-calendar-check', 'description' => 'Aktiver reservasjonssystem på nettside'],
-                                                    ['id' => 12, 'name' => 'Salg', 'slug' => 'sales', 'icon' => 'bi-cart', 'description' => 'Vis nettbutikk på nettside'],
-                                                    ['id' => 6, 'name' => 'Utleie', 'slug' => 'rental', 'icon' => 'bi-key', 'description' => 'Vis utleieobjekter på nettside']
+                                                    ['id' => 7, 'name' => 'Arrangement', 'slug' => 'events', 'icon' => 'bi-calendar-event'],
+                                                    ['id' => 5, 'name' => 'Medlemskap', 'slug' => 'membership', 'icon' => 'bi-people'],
+                                                    ['id' => 3, 'name' => 'Reservasjoner', 'slug' => 'reservations', 'icon' => 'bi-calendar-check'],
+                                                    ['id' => 12, 'name' => 'Salg', 'slug' => 'sales', 'icon' => 'bi-cart'],
+                                                    ['id' => 6, 'name' => 'Utleie', 'slug' => 'rental', 'icon' => 'bi-key']
                                                 ];
                                                 
                                                 try {
@@ -438,37 +435,22 @@ try {
                                                 }
                                                 ?>
                                                 
-                                                <div class="row">
+                                                <div class="list-group list-group-flush">
                                                     <?php foreach ($publicModules as $module): ?>
-                                                    <div class="col-md-6 mb-3">
-                                                        <div class="card border">
-                                                            <div class="card-body">
-                                                                <div class="d-flex justify-content-between align-items-center">
-                                                                    <div class="d-flex align-items-center">
-                                                                        <i class="bi <?= $module['icon'] ?> fs-2 me-3 text-primary"></i>
-                                                                        <div>
-                                                                            <h6 class="mb-0"><?= $module['name'] ?></h6>
-                                                                            <small class="text-muted"><?= $module['description'] ?></small>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div class="form-check form-switch">
-                                                                        <input class="form-check-input public-module-toggle" 
-                                                                               type="checkbox" 
-                                                                               id="public-<?= $module['slug'] ?>"
-                                                                               data-module-id="<?= $module['id'] ?>"
-                                                                               <?= isset($publicSettings[$module['id']]) && $publicSettings[$module['id']] ? 'checked' : '' ?>
-                                                                               style="width: 3rem; height: 1.5rem;">
-                                                                    </div>
-                                                                </div>
-                                                            </div>
+                                                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <i class="bi <?= $module['icon'] ?> text-primary"></i>
+                                                            <span class="fw-medium"><?= $module['name'] ?></span>
+                                                        </div>
+                                                        <div class="form-check form-switch mb-0">
+                                                            <input class="form-check-input public-module-toggle" 
+                                                                   type="checkbox" 
+                                                                   id="public-<?= $module['slug'] ?>"
+                                                                   data-module-id="<?= $module['id'] ?>"
+                                                                   <?= isset($publicSettings[$module['id']]) && $publicSettings[$module['id']] ? 'checked' : '' ?>>
                                                         </div>
                                                     </div>
                                                     <?php endforeach; ?>
-                                                </div>
-                                                
-                                                <div class="alert alert-info mt-3">
-                                                    <i class="bi bi-info-circle me-2"></i>
-                                                    <strong>Merk:</strong> Aktiverte moduler vil vises på bedriftens offentlige nettside. Du kan når som helst endre disse innstillingene.
                                                 </div>
                                             </div>
                                         </div>
