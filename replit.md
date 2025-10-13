@@ -22,7 +22,7 @@ Prioritizes a clean, compact dashboard with a simple navigation header. Modules 
 - **Authentication**: Session-based system with robust backend validation and failsafe messages. Includes a complete session tracking system with login/logout logging, IP addresses, user agents, activity timestamps, and auto-cleanup of inactive sessions.
 - **Tab Navigation System**: Uses Bootstrap 5's native tab component with `shown.bs.tab` event listeners to ensure proper show/hide behavior. Prevents content stacking by letting Bootstrap handle all `.active` class management instead of manual manipulation.
 - **Module & Privilege Management**: Granular access control using `module_privileges` and `module_visibility` tables ensures modules are only visible if `can_access` is true. Super_users can dynamically update their own module privileges.
-- **Webmail Client**: Integrated client supporting inbox, compose, and message viewing, connected to live database data with read-only configuration.
+- **Webmail Client**: Integrated client supporting inbox, compose, and message viewing. Includes SMTP configuration validation from `x_webmailconfiguration` table - displays detailed warnings when SMTP server data (host, port, username, password) is missing. Email client interface expanded to 600px height for better usability with additional folders (Stjernemerket, Arkiv).
 - **Events Module**: Comprehensive CRUD operations for event management, including image support (URL or file upload) and conditional display of member pricing.
 - **User Profiles**: Stores personal information for features like automatic email signatures and profile editing.
 - **Homepage Template System**: An isolated system offering 5 pre-defined templates, including management, settings flow, public rendering, live preview, and publishing options (SEO, custom domains). Templates use placeholders like `{{company_name}}` and `{{company_logo}}`.
@@ -36,7 +36,7 @@ Prioritizes a clean, compact dashboard with a simple navigation header. Modules 
   - **Medlemskap**: "Dine medlemskapsplaner", "Medlemmer" (with detailed fields: medlemsnr, fornavn, etternavn, e-post, telefon, adresse, medlemstype, status, medlem siden, gyldig til), "Medlemsinntekter"
   - **Reservasjoner**: "Reservasjonsmottak", "Bekreftede Reservasjoner"
   - **Utleie**: "Se og opprett utleieobjekt", "Kontrakt & betingelser", "Kommende utleie", "Deres utleie resultat"
-  - **Webmail**: "E-post klient", "E-post historikk", "AutoMailer" (AutoMailer subtab only visible when webmail_accounts is configured; allows enable/disable of automatic emails for modules: utleie, arrangement, medlemskap, reservasjoner)
+  - **Webmail**: "E-post klient" (600px height, includes SMTP validation check), "E-post historikk", "AutoMailer" (AutoMailer subtab only visible when both webmail_accounts AND x_webmailconfiguration SMTP data are configured; allows enable/disable of automatic emails for modules: utleie, arrangement, medlemskap, reservasjoner)
   - **Økonomi**: "Deres resultat", "Se inntekt", "Se utgift", "Se og Aktiver nettbetaling" (payment subtab shows warning when no payment_integrations configured)
   - **Salg**: "Produkter", "Ordrer", "Salgsstatistikk"
   - Subtab IDs are namespaced per module (e.g., events-my, membership-plans) to prevent collisions. JavaScript uses Bootstrap's `shown.bs.tab` event to handle tab switching, ensuring only one module and subtab is visible at a time.
