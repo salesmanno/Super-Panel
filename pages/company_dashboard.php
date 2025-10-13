@@ -174,7 +174,7 @@ $allModules = getCompanyModules($_SESSION['company_id']);
             <ul class="nav nav-tabs module-tabs border-0 mb-0" role="tablist">
                 <?php foreach ($officialModules as $index => $module): ?>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link <?= $index === 0 && empty($userModules) ? 'active' : '' ?>" 
+                        <button class="nav-link <?= $index === 0 ? 'active' : '' ?>" 
                                 id="tab-<?= $module['id'] ?>" 
                                 data-bs-toggle="tab" 
                                 data-bs-target="#content-<?= $module['id'] ?>" 
@@ -197,7 +197,7 @@ $allModules = getCompanyModules($_SESSION['company_id']);
             <ul class="nav nav-tabs module-tabs border-0 mb-0" role="tablist">
                 <?php foreach ($userModules as $index => $module): ?>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link <?= $index === 0 ? 'active' : '' ?>" 
+                        <button class="nav-link <?= $index === 0 && empty($officialModules) ? 'active' : '' ?>" 
                                 id="tab-<?= $module['id'] ?>" 
                                 data-bs-toggle="tab" 
                                 data-bs-target="#content-<?= $module['id'] ?>" 
