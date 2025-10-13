@@ -111,6 +111,25 @@ $allModules = getCompanyModules($_SESSION['company_id']);
             font-size: 1.1rem;
         }
         
+        .subtabs .nav-link {
+            color: #6b7280;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+        
+        .subtabs .nav-link:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: var(--primary-start);
+        }
+        
+        .subtabs .nav-link.active {
+            background: var(--primary-start);
+            color: white;
+        }
+        
         .tab-content {
             background: white;
             border-radius: 12px;
@@ -179,7 +198,8 @@ $allModules = getCompanyModules($_SESSION['company_id']);
                                 data-bs-toggle="tab" 
                                 data-bs-target="#content-<?= $module['id'] ?>" 
                                 type="button" 
-                                role="tab">
+                                role="tab"
+                                onclick="showSubTabs('<?= $module['slug'] ?>')">
                             <i class="bi bi-<?= htmlspecialchars($module['icon'] ?? 'grid') ?> me-2"></i>
                             <?= htmlspecialchars($module['name']) ?>
                         </button>
@@ -192,7 +212,7 @@ $allModules = getCompanyModules($_SESSION['company_id']);
     
     <?php if (!empty($userModules)): ?>
     <!-- Module Navigation Bar -->
-    <div class="bg-white border-bottom mb-4">
+    <div class="bg-white border-bottom">
         <div class="container">
             <ul class="nav nav-tabs module-tabs border-0 mb-0" role="tablist">
                 <?php foreach ($userModules as $index => $module): ?>
@@ -202,7 +222,8 @@ $allModules = getCompanyModules($_SESSION['company_id']);
                                 data-bs-toggle="tab" 
                                 data-bs-target="#content-<?= $module['id'] ?>" 
                                 type="button" 
-                                role="tab">
+                                role="tab"
+                                onclick="showSubTabs('<?= $module['slug'] ?>')">
                             <i class="bi bi-<?= htmlspecialchars($module['icon'] ?? 'grid') ?> me-2"></i>
                             <?= htmlspecialchars($module['name']) ?>
                         </button>
@@ -212,6 +233,83 @@ $allModules = getCompanyModules($_SESSION['company_id']);
         </div>
     </div>
     <?php endif; ?>
+    
+    <!-- SubTabs Container -->
+    <div class="bg-light border-bottom mb-4" id="subtabs-container" style="display: none;">
+        <div class="container">
+            <!-- Events subtabs -->
+            <ul class="nav nav-pills py-2 subtabs" id="subtabs-events" style="display: none;">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#events-my">Dine arrangement</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#events-create">Opprett arrangement</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#events-expenses">Arrangement utgifter</a>
+                </li>
+            </ul>
+            
+            <!-- Membership subtabs -->
+            <ul class="nav nav-pills py-2 subtabs" id="subtabs-membership" style="display: none;">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#membership-plans">Dine medlemskapsplaner</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#membership-members">Medlemmer</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#membership-income">Medlemsinntekter</a>
+                </li>
+            </ul>
+            
+            <!-- Reservations subtabs -->
+            <ul class="nav nav-pills py-2 subtabs" id="subtabs-reservations" style="display: none;">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#reservations-incoming">Reservasjonsmottak</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#reservations-confirmed">Bekreftede Reservasjoner</a>
+                </li>
+            </ul>
+            
+            <!-- Rental subtabs -->
+            <ul class="nav nav-pills py-2 subtabs" id="subtabs-rental" style="display: none;">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#rental-objects">Se og opprett utleieobjekt</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#rental-contracts">Kontrakt & betingelser</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#rental-upcoming">Kommende utleie</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#rental-results">Deres utleie resultat</a>
+                </li>
+            </ul>
+            
+            <!-- Webmail subtabs -->
+            <ul class="nav nav-pills py-2 subtabs" id="subtabs-webmail" style="display: none;">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#webmail-client">E-post klient</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#webmail-history">E-post historikk</a>
+                </li>
+            </ul>
+            
+            <!-- Economy subtabs -->
+            <ul class="nav nav-pills py-2 subtabs" id="subtabs-economy" style="display: none;">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#economy-results">Deres resultat</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#economy-payment">Se og Aktiver nettbetaling</a>
+                </li>
+            </ul>
+        </div>
+    </div>
     
     <!-- Module Content -->
     <div class="container">
@@ -354,6 +452,29 @@ $allModules = getCompanyModules($_SESSION['company_id']);
                 alert('En feil oppstod ved lagring av permissions');
             });
         }
+        
+        function showSubTabs(moduleSlug) {
+            const container = document.getElementById('subtabs-container');
+            const allSubtabs = document.querySelectorAll('.subtabs');
+            
+            allSubtabs.forEach(subtab => subtab.style.display = 'none');
+            
+            const moduleSubtabs = document.getElementById('subtabs-' + moduleSlug);
+            if (moduleSubtabs) {
+                container.style.display = 'block';
+                moduleSubtabs.style.display = 'flex';
+            } else {
+                container.style.display = 'none';
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            <?php if (!empty($officialModules)): ?>
+                showSubTabs('<?= $officialModules[0]['slug'] ?? '' ?>');
+            <?php elseif (!empty($userModules)): ?>
+                showSubTabs('<?= $userModules[0]['slug'] ?? '' ?>');
+            <?php endif; ?>
+        });
     </script>
 </body>
 </html>
