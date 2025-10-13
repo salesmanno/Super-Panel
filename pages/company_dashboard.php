@@ -16,7 +16,10 @@ $adminName = $_SESSION['admin_name'] ?? 'Bruker';
 $companyName = $_SESSION['company_name'] ?? 'Firma';
 $adminRole = $_SESSION['admin_role'] ?? 'admin';
 
-$userModules = getTenantAdminModules($_SESSION['tenant_admin_id']);
+$allUserModules = getTenantAdminModules($_SESSION['tenant_admin_id']);
+$userModules = array_filter($allUserModules, function($module) {
+    return !in_array($module['slug'], ['dashboard', 'ditt_nettsted']);
+});
 $allModules = getCompanyModules($_SESSION['company_id']);
 ?>
 <!DOCTYPE html>
@@ -74,24 +77,35 @@ $allModules = getCompanyModules($_SESSION['company_id']);
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         
+        .module-tabs {
+            padding: 0.5rem 0;
+        }
+        
         .module-tabs .nav-link {
             color: #6b7280;
-            font-weight: 500;
-            padding: 1rem 1.5rem;
+            font-weight: 600;
+            padding: 0.875rem 1.75rem;
             border: none;
             border-bottom: 3px solid transparent;
             transition: all 0.2s;
+            background: transparent;
+            border-radius: 0;
         }
         
         .module-tabs .nav-link:hover {
             color: var(--primary-start);
-            border-bottom-color: var(--primary-start);
+            border-bottom-color: rgba(102, 126, 234, 0.3);
+            background: rgba(102, 126, 234, 0.05);
         }
         
         .module-tabs .nav-link.active {
             color: var(--primary-start);
-            background: transparent;
+            background: linear-gradient(to bottom, rgba(102, 126, 234, 0.1), transparent);
             border-bottom-color: var(--primary-start);
+        }
+        
+        .module-tabs .nav-link i {
+            font-size: 1.1rem;
         }
         
         .tab-content {
@@ -150,16 +164,11 @@ $allModules = getCompanyModules($_SESSION['company_id']);
         </div>
     </div>
     
-    <!-- Module Tabs -->
-    <div class="container">
-        <?php if (empty($userModules)): ?>
-            <div class="empty-state">
-                <i class="bi bi-inbox"></i>
-                <h3>Ingen moduler tilgjengelig</h3>
-                <p class="mb-0">Kontakt administrator for å få tilgang til moduler</p>
-            </div>
-        <?php else: ?>
-            <ul class="nav nav-tabs module-tabs mb-0" role="tablist">
+    <?php if (!empty($userModules)): ?>
+    <!-- Module Navigation Bar -->
+    <div class="bg-white border-bottom mb-4">
+        <div class="container">
+            <ul class="nav nav-tabs module-tabs border-0 mb-0" role="tablist">
                 <?php foreach ($userModules as $index => $module): ?>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link <?= $index === 0 ? 'active' : '' ?>" 
@@ -174,7 +183,18 @@ $allModules = getCompanyModules($_SESSION['company_id']);
                     </li>
                 <?php endforeach; ?>
             </ul>
-
+        </div>
+    </div>
+    
+    <!-- Module Content -->
+    <div class="container">
+        <?php if (empty($userModules)): ?>
+            <div class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <h3>Ingen moduler tilgjengelig</h3>
+                <p class="mb-0">Kontakt administrator for å få tilgang til moduler</p>
+            </div>
+        <?php else: ?>
             <div class="tab-content">
                 <?php foreach ($userModules as $index => $module): ?>
                     <div class="tab-pane fade <?= $index === 0 ? 'show active' : '' ?>" 
@@ -283,5 +303,6 @@ $allModules = getCompanyModules($_SESSION['company_id']);
             });
         }
     </script>
+<?php endif; ?>
 </body>
 </html>
