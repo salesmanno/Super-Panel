@@ -198,8 +198,7 @@ $allModules = getCompanyModules($_SESSION['company_id']);
                                 data-bs-toggle="tab" 
                                 data-bs-target="#content-<?= $module['slug'] ?>" 
                                 type="button" 
-                                role="tab"
-                                onclick="showSubTabs('<?= $module['slug'] ?>', this)">
+                                role="tab">
                             <i class="bi bi-<?= htmlspecialchars($module['icon'] ?? 'grid') ?> me-2"></i>
                             <?= htmlspecialchars($module['name']) ?>
                         </button>
@@ -222,8 +221,7 @@ $allModules = getCompanyModules($_SESSION['company_id']);
                                 data-bs-toggle="tab" 
                                 data-bs-target="#content-<?= $module['slug'] ?>" 
                                 type="button" 
-                                role="tab"
-                                onclick="showSubTabs('<?= $module['slug'] ?>', this)">
+                                role="tab">
                             <i class="bi bi-<?= htmlspecialchars($module['icon'] ?? 'grid') ?> me-2"></i>
                             <?= htmlspecialchars($module['name']) ?>
                         </button>
@@ -455,18 +453,8 @@ $allModules = getCompanyModules($_SESSION['company_id']);
             });
         }
         
-        function showSubTabs(moduleSlug, moduleTabButton) {
-            // Deaktivere ALLE tabs (både offisielle og andre moduler)
-            document.querySelectorAll('.module-tabs .nav-link').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            // Aktivere kun den klikkede taben
-            if (moduleTabButton) {
-                moduleTabButton.classList.add('active');
-            }
-            
-            // Håndtere subtabs
+        function showSubTabs(moduleSlug) {
+            // Håndtere subtabs - La Bootstrap håndtere tab-switching
             const container = document.getElementById('subtabs-container');
             const allSubtabs = document.querySelectorAll('.subtabs');
             
@@ -503,6 +491,16 @@ $allModules = getCompanyModules($_SESSION['company_id']);
         }
         
         document.addEventListener('DOMContentLoaded', function() {
+            // Lytt til Bootstrap's tab shown event
+            document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function(tabButton) {
+                tabButton.addEventListener('shown.bs.tab', function(event) {
+                    const targetId = event.target.getAttribute('data-bs-target');
+                    const moduleSlug = targetId.replace('#content-', '');
+                    showSubTabs(moduleSlug);
+                });
+            });
+            
+            // Håndter subtab clicks
             document.querySelectorAll('.subtabs .nav-link').forEach(link => {
                 link.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -517,16 +515,11 @@ $allModules = getCompanyModules($_SESSION['company_id']);
                 });
             });
             
+            // Initialiser første modul
             <?php if (!empty($officialModules)): ?>
-                const firstOfficialTab = document.getElementById('tab-<?= $officialModules[0]['slug'] ?? '' ?>');
-                if (firstOfficialTab) {
-                    showSubTabs('<?= $officialModules[0]['slug'] ?? '' ?>', firstOfficialTab);
-                }
+                showSubTabs('<?= $officialModules[0]['slug'] ?? '' ?>');
             <?php elseif (!empty($userModules)): ?>
-                const firstUserTab = document.getElementById('tab-<?= $userModules[0]['slug'] ?? '' ?>');
-                if (firstUserTab) {
-                    showSubTabs('<?= $userModules[0]['slug'] ?? '' ?>', firstUserTab);
-                }
+                showSubTabs('<?= $userModules[0]['slug'] ?? '' ?>');
             <?php endif; ?>
         });
     </script>
