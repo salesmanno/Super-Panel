@@ -1,0 +1,68 @@
+<?php
+header('Content-Type: application/json');
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+if (!isset($_SESSION['tenant_admin_id'])) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Ikke autentisert']);
+    exit;
+}
+
+require_once __DIR__ . '/../config/database.php';
+
+try {
+    $input = json_decode(file_get_contents('php://input'), true);
+    
+    if (!isset($input['template_id'])) {
+        throw new Exception('Template ID mangler');
+    }
+    
+    $templateId = intval($input['template_id']);
+    $companyId = $_SESSION['company_id'];
+    
+    $db = getDBConnection();
+    if (!$db) {
+        throw new Exception('Database tilkobling feilet');
+    }
+    
+    $stmt = $db->prepare("SELECT template_id FROM website_templates WHERE template_id = ? AND is_active = TRUE");
+    $stmt->execute([$templateId]);
+    if (!$stmt->fetch()) {
+        throw new Exception('Ugyldig mal');
+    }
+    
+    $stmt = $db->prepare("SELECT id FROM company_website_settings WHERE company_id = ?");
+    $stmt->execute([$companyId]);
+    $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($existing) {
+        $stmt = $db->prepare("
+            UPDATE company_website_settings 
+            SET template_id = ?, updated_at = CURRENT_TIMESTAMP 
+            WHERE company_id = ?
+        ");
+        $stmt->execute([$templateId, $companyId]);
+    } else {
+        $stmt = $db->prepare("
+            INSERT INTO company_website_settings (company_id, template_id, updated_at) 
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+        ");
+        $stmt->execute([$companyId, $templateId]);
+    }
+    
+    echo json_encode([
+        'success' => true,
+        'message' => 'Mal lagret',
+        'template_id' => $templateId
+    ]);
+    
+} catch (Exception $e) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'error' => $e->getMessage()
+    ]);
+}
