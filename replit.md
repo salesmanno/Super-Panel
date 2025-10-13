@@ -47,13 +47,16 @@ Prioritizes a clean, compact dashboard with a simple navigation header. Modules 
 - **Database Structure**: Key tables include `tenant_admin_sessions`, `webmail_accounts`, `x_events`, `companies`, `super_users`, `modules`, `module_privileges`, `homepage_templates`, `company_homepage_settings`, `super_user_profiles`, `rental_objects`, `rental_reservations`, `contract_documents`, `sales_items`, `reservation_settings`, `webconfiguration`, `website_templates`, and `saas_admins`. The `tenant_admins` table now includes a `username` field for authentication and is linked to `tenant_staff`. The `tenant_admin_modules` table includes a `granted_by` column linking to `saas_admins` for permission tracking.
 
 ## External Dependencies
-- **Database**: Dual database support:
+- **Database**: Dual database support with cross-compatibility:
   - **Production**: MySQL hosted on Domeneshop (`salesmanno04.mysql.domeneshop.no/salesmanno04`)
   - **Development/Testing**: PostgreSQL (auto-detected via DATABASE_URL environment variable)
   - Connection managed via `config/database.php` using PDO with automatic database type detection
-  - All boolean comparisons use TRUE/FALSE (PostgreSQL compatible)
+  - **Database-agnostic helpers** for cross-compatibility:
+    - `getDBType()`: Returns current database driver (pgsql/mysql)
+    - `dbBool($value)`: Returns TRUE/FALSE for PostgreSQL, 1/0 for MySQL
+    - `dbInterval($amount, $unit)`: Returns proper INTERVAL syntax for each database
   - Timestamp columns use `login_at`, `logout_at` naming convention
-  - Interval syntax uses PostgreSQL format: `NOW() - INTERVAL '1 MINUTE' * ?`
+  - All queries use database-agnostic helpers to ensure smooth MySQL/PostgreSQL transition
 - **UI Framework**: Bootstrap 5.
 - **Email Protocols**: SMTP (`smtp.domeneshop.no:587` with TLS) and IMAP (`imap.domeneshop.no:993` with SSL) for the integrated webmail client.
 - **Storage**: Object storage for contract document uploads.
