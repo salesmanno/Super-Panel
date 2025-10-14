@@ -10,7 +10,7 @@ function getTenantAdminByUsername($username) {
     
     $stmt = $db->prepare("
         SELECT ta.id, ta.company_id, ta.tenant_staff_id, ta.email, ta.password_hash, ta.username, ta.is_active,
-               tc.company_name, tc.subdomain, tc.is_active as company_active,
+               tc.name as company_name, tc.subdomain, tc.is_active as company_active,
                ts.staff_name, ts.staff_email, ts.staff_phone, ts.position
         FROM tenant_admins ta
         INNER JOIN tenant_companies tc ON ta.company_id = tc.id
