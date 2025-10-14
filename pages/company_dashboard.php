@@ -236,7 +236,12 @@ try {
             
             <!-- DEBUG INFO -->
             <div class="alert alert-info mt-3" style="font-size: 0.85rem;">
-                <strong>🔧 DEBUG:</strong><br>
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <strong>🔧 DEBUG:</strong>
+                    <button class="btn btn-sm btn-primary" onclick="refreshSession()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Refresh Session
+                    </button>
+                </div>
                 <strong>SESSION DATA:</strong><br>
                 - tenant_admin_id: <code><?= var_export($_SESSION['tenant_admin_id'] ?? 'NOT SET', true) ?></code><br>
                 - admin_name: <code><?= var_export($_SESSION['admin_name'] ?? 'NOT SET', true) ?></code><br>
@@ -592,6 +597,23 @@ try {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        function refreshSession() {
+            fetch('/api/refresh_session.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Session oppdatert! Navn: ' + data.admin_name);
+                        location.reload();
+                    } else {
+                        alert('Feil: ' + (data.error || 'Kunne ikke oppdatere session'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('En feil oppstod ved refresh av session');
+                });
+        }
+        
         function savePermissions() {
             const form = document.getElementById('permissionsForm');
             const checkboxes = form.querySelectorAll('input[type="checkbox"]');
