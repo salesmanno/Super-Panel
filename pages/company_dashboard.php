@@ -238,9 +238,14 @@ try {
             <div class="alert alert-info mt-3" style="font-size: 0.85rem;">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <strong>🔧 DEBUG:</strong>
-                    <button class="btn btn-sm btn-primary" onclick="refreshSession()">
-                        <i class="bi bi-arrow-clockwise me-1"></i>Refresh Session
-                    </button>
+                    <div>
+                        <button class="btn btn-sm btn-primary me-2" onclick="refreshSession()">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Refresh Session
+                        </button>
+                        <a href="/auth/logout.php" class="btn btn-sm btn-warning">
+                            <i class="bi bi-box-arrow-right me-1"></i>Logg ut & inn igjen
+                        </a>
+                    </div>
                 </div>
                 <strong>SESSION DATA:</strong><br>
                 - tenant_admin_id: <code><?= var_export($_SESSION['tenant_admin_id'] ?? 'NOT SET', true) ?></code><br>
