@@ -18,10 +18,10 @@ $adminRole = $_SESSION['admin_role'] ?? 'admin';
 
 $allUserModules = getTenantAdminModules($_SESSION['tenant_admin_id']);
 $officialModules = array_filter($allUserModules, function($module) {
-    return in_array($module['slug'], ['dashboard', 'ditt_nettsted']);
+    return in_array($module['module_key'], ['dashboard', 'ditt_nettsted']);
 });
 $userModules = array_filter($allUserModules, function($module) {
-    return !in_array($module['slug'], ['dashboard', 'ditt_nettsted']);
+    return !in_array($module['module_key'], ['dashboard', 'ditt_nettsted']);
 });
 $allModules = getCompanyModules($_SESSION['company_id']);
 
@@ -237,9 +237,9 @@ try {
                 <?php foreach ($officialModules as $index => $module): ?>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link <?= $index === 0 ? 'active' : '' ?>" 
-                                id="tab-<?= $module['slug'] ?>" 
+                                id="tab-<?= $module['module_key'] ?>" 
                                 data-bs-toggle="tab" 
-                                data-bs-target="#content-<?= $module['slug'] ?>" 
+                                data-bs-target="#content-<?= $module['module_key'] ?>" 
                                 type="button" 
                                 role="tab">
                             <i class="bi bi-<?= htmlspecialchars($module['icon'] ?? 'grid') ?> me-2"></i>
@@ -260,9 +260,9 @@ try {
                 <?php foreach ($userModules as $index => $module): ?>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link <?= $index === 0 && empty($officialModules) ? 'active' : '' ?>" 
-                                id="tab-<?= $module['slug'] ?>" 
+                                id="tab-<?= $module['module_key'] ?>" 
                                 data-bs-toggle="tab" 
-                                data-bs-target="#content-<?= $module['slug'] ?>" 
+                                data-bs-target="#content-<?= $module['module_key'] ?>" 
                                 type="button" 
                                 role="tab">
                             <i class="bi bi-<?= htmlspecialchars($module['icon'] ?? 'grid') ?> me-2"></i>
@@ -394,10 +394,10 @@ try {
                 foreach ($allModulesForDisplay as $index => $module): 
                 ?>
                     <div class="tab-pane fade <?= $index === 0 ? 'show active' : '' ?>" 
-                         id="content-<?= $module['slug'] ?>" 
+                         id="content-<?= $module['module_key'] ?>" 
                          role="tabpanel">
                         <?php 
-                        switch ($module['slug']) {
+                        switch ($module['module_key']) {
                             case 'dashboard':
                                 ?>
                                 <div class="row">
@@ -441,7 +441,7 @@ try {
                                                         <div class="form-check form-switch mb-0" style="padding-left: 2rem;">
                                                             <input class="form-check-input public-module-toggle" 
                                                                    type="checkbox" 
-                                                                   id="public-<?= $module['slug'] ?>"
+                                                                   id="public-<?= $module['module_key'] ?>"
                                                                    data-module-id="<?= $module['id'] ?>"
                                                                    style="margin-left: -1.5rem;"
                                                                    <?= isset($publicSettings[$module['id']]) && $publicSettings[$module['id']] ? 'checked' : '' ?>>
