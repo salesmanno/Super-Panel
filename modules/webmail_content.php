@@ -1,34 +1,43 @@
+<div class="module-content position-relative">
 <?php if (!isset($webmailConfigured) || !$webmailConfigured): ?>
-<div class="module-content">
-    <div class="alert alert-warning border-warning">
-        <div class="d-flex align-items-center">
-            <i class="bi bi-exclamation-triangle-fill fs-1 me-3"></i>
-            <div>
-                <h5 class="alert-heading mb-2">
-                    <i class="bi bi-envelope-slash me-2"></i>E-postklient ikke konfigurert
-                </h5>
-                <p class="mb-2">E-postklient mangler nødvendig konfigurasjon for din bedrift.</p>
-                <hr class="my-3">
-                <p class="mb-2">
-                    <strong>Manglende konfigurasjon:</strong>
-                </p>
-                <ul class="mb-3">
+    <!-- Overlay melding for ikke-konfigurert -->
+    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.95); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+        <div class="text-center" style="max-width: 600px; padding: 3rem;">
+            <i class="bi bi-envelope-x" style="font-size: 5rem; color: #ffc107; margin-bottom: 1.5rem;"></i>
+            <h3 class="mb-3">E-postklient må konfigureres</h3>
+            <p class="text-muted mb-4">E-postklienten er klar til bruk, men krever konfigurasjon før den kan aktiveres.</p>
+            
+            <div class="alert alert-warning text-start mb-4">
+                <h6 class="alert-heading"><i class="bi bi-list-check me-2"></i>Konfigurasjonssjekk:</h6>
+                <ul class="mb-0">
                     <?php if (!isset($smtpConfigured) || !$smtpConfigured): ?>
-                    <li class="text-danger"><strong>SMTP-server ikke konfigurert</strong> - Nødvendig for å sende e-poster</li>
+                    <li class="text-danger mb-2">
+                        <i class="bi bi-x-circle me-1"></i>
+                        <strong>SMTP-server ikke konfigurert</strong> - Host, port, brukernavn og passord mangler
+                    </li>
+                    <?php else: ?>
+                    <li class="text-success mb-2">
+                        <i class="bi bi-check-circle me-1"></i>
+                        <strong>SMTP-server konfigurert</strong>
+                    </li>
                     <?php endif; ?>
-                    <li>Webmail-konto med e-postadresse må opprettes</li>
-                    <li>Domeneoppsett for e-post må konfigureres (domeneshop.no eller lignende)</li>
+                    <li class="text-muted">
+                        <i class="bi bi-circle me-1"></i>
+                        Webmail-konto må opprettes
+                    </li>
+                    <li class="text-muted">
+                        <i class="bi bi-circle me-1"></i>
+                        Domene-konfigurasjon anbefales
+                    </li>
                 </ul>
-                <div class="alert alert-info mb-0">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <strong>SMTP-konfigurasjon kreves:</strong> SMTP-server (host, port, brukernavn og passord) må legges inn i <code>x_webmailconfiguration</code> tabellen før e-postklienten kan brukes.
-                </div>
             </div>
+            
+            <button class="btn btn-warning btn-lg" disabled>
+                <i class="bi bi-gear me-2"></i>Konfigurasjon kreves
+            </button>
         </div>
     </div>
-</div>
-<?php else: ?>
-<div class="module-content">
+<?php endif; ?>
     <div id="webmail-client" class="subtab-content">
         <div class="row">
             <div class="col-md-3">
