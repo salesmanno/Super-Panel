@@ -370,8 +370,8 @@ try {
                 </li>
             </ul>
             
-            <!-- Webmail subtabs -->
-            <ul class="nav nav-pills py-2 subtabs" id="subtabs-webmail" style="display: none;">
+            <!-- Email/Webmail subtabs -->
+            <ul class="nav nav-pills py-2 subtabs" id="subtabs-email" style="display: none;">
                 <li class="nav-item">
                     <a class="nav-link active" href="#webmail-client">E-post klient</a>
                 </li>
