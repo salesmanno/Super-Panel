@@ -12,11 +12,18 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/session_manager.php';
 
+// Debug: Log session data
+error_log("SESSION DATA: " . print_r($_SESSION, true));
+
 $adminName = $_SESSION['admin_name'] ?? 'Bruker';
 $companyName = $_SESSION['company_name'] ?? 'Firma';
 $adminRole = $_SESSION['admin_role'] ?? 'admin';
 
 $allUserModules = getTenantAdminModules($_SESSION['tenant_admin_id']);
+
+// Debug: Log module counts
+error_log("ALL USER MODULES COUNT: " . count($allUserModules));
+error_log("ALL USER MODULES: " . print_r($allUserModules, true));
 $officialModules = array_filter($allUserModules, function($module) {
     return in_array($module['module_key'], ['dashboard', 'ditt_nettsted']);
 });
@@ -226,6 +233,20 @@ try {
         <div class="container">
             <h1 class="mb-2">Velkommen, <?= htmlspecialchars($adminName) ?>!</h1>
             <p class="text-muted mb-0">Du har tilgang til <?= count($allUserModules) ?> modul<?= count($allUserModules) != 1 ? 'er' : '' ?></p>
+            
+            <!-- DEBUG INFO -->
+            <div class="alert alert-info mt-3" style="font-size: 0.85rem;">
+                <strong>🔧 DEBUG:</strong><br>
+                Session Admin Name: <code><?= var_export($_SESSION['admin_name'] ?? 'NOT SET', true) ?></code><br>
+                Session Company: <code><?= var_export($_SESSION['company_name'] ?? 'NOT SET', true) ?></code><br>
+                Total Modules: <code><?= count($allUserModules) ?></code><br>
+                Official Modules: <code><?= count($officialModules) ?></code><br>
+                User Modules: <code><?= count($userModules) ?></code><br>
+                <?php if (!empty($allUserModules)): ?>
+                    First Module Key: <code><?= $allUserModules[0]['module_key'] ?? 'NO KEY' ?></code><br>
+                    First Module Name: <code><?= $allUserModules[0]['name'] ?? 'NO NAME' ?></code>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
     
@@ -662,9 +683,9 @@ try {
             
             // Initialiser første modul
             <?php if (!empty($officialModules)): ?>
-                showSubTabs('<?= $officialModules[0]['slug'] ?? '' ?>');
+                showSubTabs('<?= $officialModules[0]['module_key'] ?? '' ?>');
             <?php elseif (!empty($userModules)): ?>
-                showSubTabs('<?= $userModules[0]['slug'] ?? '' ?>');
+                showSubTabs('<?= $userModules[0]['module_key'] ?? '' ?>');
             <?php endif; ?>
         });
     </script>
