@@ -9,10 +9,12 @@ function getTenantAdminByUsername($username) {
     }
     
     $stmt = $db->prepare("
-        SELECT ta.id, ta.company_id, ta.email, ta.password_hash, ta.username, ta.is_active,
-               tc.name as company_name, tc.subdomain, tc.is_active as company_active
+        SELECT ta.id, ta.company_id, ta.tenant_staff_id, ta.email, ta.password_hash, ta.username, ta.is_active,
+               tc.company_name, tc.subdomain, tc.is_active as company_active,
+               ts.staff_name, ts.staff_email, ts.staff_phone, ts.position
         FROM tenant_admins ta
         INNER JOIN tenant_companies tc ON ta.company_id = tc.id
+        LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
         WHERE ta.username = ? AND ta.is_active = 1
     ");
     $stmt->execute([$username]);
@@ -21,7 +23,14 @@ function getTenantAdminByUsername($username) {
     if ($admin) {
         $admin['first_name'] = '';
         $admin['last_name'] = '';
-        $admin['staff_email'] = $admin['email'];
+        if (empty($admin['staff_email'])) {
+            $admin['staff_email'] = $admin['email'];
+        }
+        if (!empty($admin['staff_name'])) {
+            $parts = explode(' ', $admin['staff_name'], 2);
+            $admin['first_name'] = $parts[0] ?? '';
+            $admin['last_name'] = $parts[1] ?? '';
+        }
     }
     
     return $admin;
