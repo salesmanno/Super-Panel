@@ -32,14 +32,14 @@ $userModules = array_filter($allUserModules, function($module) {
 });
 $allModules = getCompanyModules($_SESSION['company_id']);
 
-// Sjekk om webmail er konfigurert (med SMTP data)
+// Sjekk om email er konfigurert (med SMTP data)
 $webmailConfigured = false;
 $smtpConfigured = false;
 try {
     $db = getDBConnection();
     if ($db) {
-        // Sjekk om SMTP er konfigurert i x_webmailconfiguration
-        $stmt = $db->prepare("SELECT smtp_host, smtp_port, smtp_username FROM x_webmailconfiguration WHERE company_id = ?");
+        // Sjekk om SMTP er konfigurert i email_configs
+        $stmt = $db->prepare("SELECT smtp_host, smtp_port, smtp_username FROM email_configs WHERE company_id = ?");
         $stmt->execute([$_SESSION['company_id']]);
         $smtpData = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -47,12 +47,12 @@ try {
             $smtpConfigured = true;
         }
         
-        // Sjekk om webmail_accounts har data
-        $stmt = $db->prepare("SELECT COUNT(*) FROM webmail_accounts WHERE company_id = ?");
+        // Sjekk om email_accounts har data
+        $stmt = $db->prepare("SELECT COUNT(*) FROM email_accounts WHERE company_id = ?");
         $stmt->execute([$_SESSION['company_id']]);
         $hasAccount = ($stmt->fetchColumn() > 0);
         
-        // Webmail er kun konfigurert hvis både SMTP og konto finnes
+        // Email er kun konfigurert hvis både SMTP og konto finnes
         $webmailConfigured = $smtpConfigured && $hasAccount;
     }
 } catch (Exception $e) {
