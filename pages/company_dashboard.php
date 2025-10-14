@@ -237,14 +237,20 @@ try {
             <!-- DEBUG INFO -->
             <div class="alert alert-info mt-3" style="font-size: 0.85rem;">
                 <strong>🔧 DEBUG:</strong><br>
-                Session Admin Name: <code><?= var_export($_SESSION['admin_name'] ?? 'NOT SET', true) ?></code><br>
-                Session Company: <code><?= var_export($_SESSION['company_name'] ?? 'NOT SET', true) ?></code><br>
-                Total Modules: <code><?= count($allUserModules) ?></code><br>
-                Official Modules: <code><?= count($officialModules) ?></code><br>
-                User Modules: <code><?= count($userModules) ?></code><br>
+                <strong>SESSION DATA:</strong><br>
+                - tenant_admin_id: <code><?= var_export($_SESSION['tenant_admin_id'] ?? 'NOT SET', true) ?></code><br>
+                - admin_name: <code><?= var_export($_SESSION['admin_name'] ?? 'NOT SET', true) ?></code><br>
+                - admin_first_name: <code><?= var_export($_SESSION['admin_first_name'] ?? 'NOT SET', true) ?></code><br>
+                - admin_last_name: <code><?= var_export($_SESSION['admin_last_name'] ?? 'NOT SET', true) ?></code><br>
+                - company_name: <code><?= var_export($_SESSION['company_name'] ?? 'NOT SET', true) ?></code><br>
+                - company_id: <code><?= var_export($_SESSION['company_id'] ?? 'NOT SET', true) ?></code><br>
+                <strong>MODULES:</strong><br>
+                - Total: <code><?= count($allUserModules) ?></code><br>
+                - Official: <code><?= count($officialModules) ?></code><br>
+                - User: <code><?= count($userModules) ?></code><br>
                 <?php if (!empty($allUserModules)): ?>
-                    First Module Key: <code><?= $allUserModules[0]['module_key'] ?? 'NO KEY' ?></code><br>
-                    First Module Name: <code><?= $allUserModules[0]['name'] ?? 'NO NAME' ?></code>
+                    - First Module Key: <code><?= $allUserModules[0]['module_key'] ?? 'NO KEY' ?></code><br>
+                    - First Module Name: <code><?= $allUserModules[0]['name'] ?? 'NO NAME' ?></code>
                 <?php endif; ?>
             </div>
         </div>
@@ -501,6 +507,7 @@ try {
                             case 'ditt_nettsted':
                                 echo '<iframe src="ditt_nettsted.php" style="width: 100%; height: 80vh; border: none; border-radius: 8px;" frameborder="0"></iframe>';
                                 break;
+                            case 'email':
                             case 'webmail':
                                 include __DIR__ . '/../modules/webmail_content.php';
                                 break;
