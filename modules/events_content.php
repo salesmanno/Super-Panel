@@ -36,10 +36,11 @@
                 <h5 class="card-title">Opprett nytt arrangement</h5>
                 <form id="create-event-form">
                     <div class="row">
-                        <div class="col-md-8 mb-3">
+                        <div class="col-md-<?php echo isset($hasMembershipAccess) && $hasMembershipAccess ? '8' : '12'; ?> mb-3">
                             <label class="form-label">Arrangement navn *</label>
                             <input type="text" class="form-control" name="title" required placeholder="F.eks. Sommerfest 2025">
                         </div>
+                        <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Kun for medlemmer?</label>
                             <div class="form-check form-switch mt-2">
@@ -47,6 +48,7 @@
                                 <label class="form-check-label" for="memberExclusive">Kun medlemmer</label>
                             </div>
                         </div>
+                        <?php endif; ?>
                     </div>
                     
                     <div class="mb-3">

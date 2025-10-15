@@ -534,6 +534,14 @@ try {
                                 include __DIR__ . '/../modules/rental_content.php';
                                 break;
                             case 'events':
+                                // Check if user has membership module access
+                                $hasMembershipAccess = false;
+                                foreach ($allUserModules as $userMod) {
+                                    if ($userMod['module_key'] === 'membership') {
+                                        $hasMembershipAccess = true;
+                                        break;
+                                    }
+                                }
                                 include __DIR__ . '/../modules/events_content.php';
                                 break;
                             case 'marketplace':
