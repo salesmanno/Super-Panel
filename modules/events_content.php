@@ -119,6 +119,16 @@
                         </div>
                     </div>
 
+                    <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Medlemspris (NOK)</label>
+                            <input type="number" step="0.01" class="form-control" name="member_ticket_price" placeholder="Valgfri medlemsrabatt">
+                            <small class="form-text text-muted">La stå tom hvis samme pris som ordinær billett</small>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
                     <div class="mb-3">
                         <label class="form-label">Bilde-URL</label>
                         <input type="url" class="form-control" name="event_image_url" placeholder="https://example.com/bilde.jpg">
@@ -233,6 +243,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 max_attendees: formData.get('max_attendees') || null,
                 age_limit: formData.get('age_limit') || null,
                 ticket_price: formData.get('ticket_price') || 0,
+                member_ticket_price: formData.get('member_ticket_price') || null,
                 event_image_url: formData.get('event_image_url') || null,
                 is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0
             };
@@ -278,6 +289,14 @@ async function loadEvents() {
                     dateTime += ` - ${event.end_date || event.start_date} ${event.end_time || ''}`;
                 }
                 
+                let priceDisplay = 'Gratis';
+                if (event.ticket_price > 0) {
+                    priceDisplay = event.ticket_price + ' kr';
+                    if (event.member_ticket_price !== null && event.member_ticket_price !== undefined) {
+                        priceDisplay += ` <span class="badge bg-success">${event.member_ticket_price} kr (medlem)</span>`;
+                    }
+                }
+                
                 return `
                     <tr>
                         <td>
@@ -287,7 +306,7 @@ async function loadEvents() {
                         <td>${dateTime}</td>
                         <td>${event.venue_name || event.event_city || '-'}</td>
                         <td>0 / ${event.max_attendees || '∞'}</td>
-                        <td>${event.ticket_price ? event.ticket_price + ' kr' : 'Gratis'}</td>
+                        <td>${priceDisplay}</td>
                         <td>
                             <button class="btn btn-sm btn-outline-primary" onclick="viewEvent('${event.id}')">
                                 <i class="bi bi-eye"></i>

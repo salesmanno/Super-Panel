@@ -40,9 +40,11 @@ try {
             end_date,
             event_image_url,
             ticket_price,
+            member_ticket_price,
             created_by
         ) VALUES (
             UUID(),
+            ?,
             ?,
             ?,
             ?,
@@ -82,6 +84,7 @@ try {
         $data['end_date'] ?? null,
         $data['event_image_url'] ?? null,
         $data['ticket_price'] ?? 0,
+        $data['member_ticket_price'] ?? null,
         $_SESSION['tenant_admin_id']
     ]);
     

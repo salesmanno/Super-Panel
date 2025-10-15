@@ -30,7 +30,8 @@ try {
             end_time,
             end_date,
             event_image_url,
-            ticket_price
+            ticket_price,
+            member_ticket_price
         FROM tenant_events
         WHERE company_id = ?
         ORDER BY start_date DESC, start_time DESC
