@@ -27,6 +27,8 @@ try {
             venue_name,
             start_time,
             start_date,
+            end_time,
+            end_date,
             event_image_url,
             ticket_price
         FROM tenant_events

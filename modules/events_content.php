@@ -57,15 +57,26 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">Startdato *</label>
                             <input type="date" class="form-control" name="start_date" required>
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">Starttid *</label>
                             <input type="time" class="form-control" name="start_time" required>
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Sluttdato</label>
+                            <input type="date" class="form-control" name="end_date">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Sluttid</label>
+                            <input type="time" class="form-control" name="end_time">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
                             <label class="form-label">Aldersgrense</label>
                             <input type="number" class="form-control" name="age_limit" placeholder="F.eks. 18">
                         </div>
@@ -212,6 +223,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 description: formData.get('description'),
                 start_date: formData.get('start_date'),
                 start_time: formData.get('start_time'),
+                end_date: formData.get('end_date') || null,
+                end_time: formData.get('end_time') || null,
                 venue_name: formData.get('venue_name'),
                 event_address: formData.get('event_address'),
                 event_city: formData.get('event_city'),
@@ -259,26 +272,33 @@ async function loadEvents() {
 
         const eventsList = document.getElementById('events-list');
         if (result.success && result.events && result.events.length > 0) {
-            eventsList.innerHTML = result.events.map(event => `
-                <tr>
-                    <td>
-                        <strong>${event.title}</strong>
-                        ${event.is_member_exclusive == 1 ? '<span class="badge bg-warning ms-2">Kun medlemmer</span>' : ''}
-                    </td>
-                    <td>${event.start_date} ${event.start_time}</td>
-                    <td>${event.venue_name || event.event_city || '-'}</td>
-                    <td>0 / ${event.max_attendees || '∞'}</td>
-                    <td>${event.ticket_price ? event.ticket_price + ' kr' : 'Gratis'}</td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-primary" onclick="viewEvent('${event.id}')">
-                            <i class="bi bi-eye"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteEvent('${event.id}')">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
+            eventsList.innerHTML = result.events.map(event => {
+                let dateTime = `${event.start_date} ${event.start_time}`;
+                if (event.end_date || event.end_time) {
+                    dateTime += ` - ${event.end_date || event.start_date} ${event.end_time || ''}`;
+                }
+                
+                return `
+                    <tr>
+                        <td>
+                            <strong>${event.title}</strong>
+                            ${event.is_member_exclusive == 1 ? '<span class="badge bg-warning ms-2">Kun medlemmer</span>' : ''}
+                        </td>
+                        <td>${dateTime}</td>
+                        <td>${event.venue_name || event.event_city || '-'}</td>
+                        <td>0 / ${event.max_attendees || '∞'}</td>
+                        <td>${event.ticket_price ? event.ticket_price + ' kr' : 'Gratis'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewEvent('${event.id}')">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteEvent('${event.id}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         } else {
             eventsList.innerHTML = `
                 <tr>

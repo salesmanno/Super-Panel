@@ -36,11 +36,15 @@ try {
             venue_name,
             start_time,
             start_date,
+            end_time,
+            end_date,
             event_image_url,
             ticket_price,
             created_by
         ) VALUES (
             UUID(),
+            ?,
+            ?,
             ?,
             ?,
             ?,
@@ -74,6 +78,8 @@ try {
         $data['venue_name'] ?? null,
         $data['start_time'],
         $data['start_date'],
+        $data['end_time'] ?? null,
+        $data['end_date'] ?? null,
         $data['event_image_url'] ?? null,
         $data['ticket_price'] ?? 0,
         $_SESSION['tenant_admin_id']
