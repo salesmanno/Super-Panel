@@ -476,7 +476,7 @@ try {
                     <a class="nav-link active" href="#sales-varesalg">Varesalg</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#sales-transactions">Varesalgstransaksjoner</a>
+                    <a class="nav-link" href="#sales-transactions">Transaksjoner</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="#sales-items">Produkter</a>

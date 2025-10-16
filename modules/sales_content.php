@@ -1,5 +1,5 @@
 <div class="module-content">
-    <div id="sales-varesalg" class="subtab-content">
+    <div id="sales-varesalg" class="subtab-content active">
         <div class="row">
             <!-- Products with Shopping Cart -->
             <div class="col-md-8">
@@ -97,7 +97,7 @@
     <div id="sales-transactions" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title"><i class="bi bi-receipt me-2"></i>Varesalgstransaksjoner</h5>
+                <h5 class="card-title"><i class="bi bi-receipt me-2"></i>Transaksjoner</h5>
                 <p class="text-muted">Oversikt over alle gjennomførte varesalg</p>
                 
                 <div class="table-responsive">
