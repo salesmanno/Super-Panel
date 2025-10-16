@@ -293,13 +293,10 @@ document.getElementById('quick-sale-form')?.addEventListener('submit', async fun
     e.preventDefault();
     
     const saleData = {
-        product_id: document.getElementById('sale-product-id').value,
+        output_product_id: document.getElementById('sale-product-id').value,
         quantity: parseInt(document.getElementById('sale-quantity').value),
-        price: parseFloat(document.getElementById('sale-price').value),
-        customer_name: document.getElementById('sale-customer-name').value,
         payment_method: document.getElementById('sale-payment-method').value,
-        notes: document.getElementById('sale-notes').value,
-        company_id: <?= $_SESSION['company_id'] ?>
+        notes: document.getElementById('sale-notes').value
     };
     
     try {

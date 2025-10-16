@@ -12,7 +12,7 @@ require_once __DIR__ . '/../config/database.php';
 try {
     $data = json_decode(file_get_contents('php://input'), true);
     
-    if (!isset($data['product_id']) || !isset($data['quantity']) || !isset($data['price'])) {
+    if (!isset($data['output_product_id']) || !isset($data['quantity'])) {
         echo json_encode(['success' => false, 'message' => 'Mangler påkrevde felt']);
         exit;
     }
@@ -21,55 +21,108 @@ try {
     $db->beginTransaction();
     
     try {
-        // Generate sale ID
-        $saleId = bin2hex(random_bytes(16));
+        // Hent produkt info fra output_products
+        $stmt = $db->prepare("SELECT product_type, product_id FROM output_products WHERE id = ?");
+        $stmt->execute([$data['output_product_id']]);
+        $outputProduct = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Create sale record (you may need to create sales_transactions table)
+        if (!$outputProduct) {
+            throw new Exception('Produkt ikke funnet');
+        }
+        
+        // Hent produkt detaljer basert på type
+        $productName = '';
+        $unitPrice = 0;
+        
+        if ($outputProduct['product_type'] === 'event') {
+            $stmt = $db->prepare("SELECT title as name, ticket_price as price FROM events_eventdata WHERE id = ?");
+            $stmt->execute([$outputProduct['product_id']]);
+            $product = $stmt->fetch(PDO::FETCH_ASSOC);
+            $productName = $product['name'] ?? '';
+            $unitPrice = $product['price'] ?? 0;
+        } elseif ($outputProduct['product_type'] === 'product') {
+            $stmt = $db->prepare("SELECT name, selling_price as price FROM sales_products WHERE id = ?");
+            $stmt->execute([$outputProduct['product_id']]);
+            $product = $stmt->fetch(PDO::FETCH_ASSOC);
+            $productName = $product['name'] ?? '';
+            $unitPrice = $product['price'] ?? 0;
+        }
+        
+        $totalAmount = $data['quantity'] * $unitPrice;
+        
+        // Generer ordre-ID og ordrenummer
+        $orderId = bin2hex(random_bytes(16));
+        $orderNumber = 'ORD-' . date('Ymd') . '-' . strtoupper(substr($orderId, 0, 6));
+        $orderDate = date('Y-m-d'); // Database-agnostic date
+        $currentTimestamp = date('Y-m-d H:i:s'); // Database-agnostic timestamp
+        
+        // Opprett sales_order
         $stmt = $db->prepare("
-            INSERT INTO sales_transactions (
+            INSERT INTO sales_orders (
                 id,
                 company_id,
-                product_id,
-                quantity,
-                unit_price,
+                order_number,
+                order_date,
+                status,
+                payment_status,
+                subtotal,
                 total_amount,
-                customer_name,
-                payment_method,
+                currency,
                 notes,
                 created_by,
                 created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            ) VALUES (?, ?, ?, ?, 'completed', ?, ?, ?, 'NOK', ?, ?, ?)
         ");
         
-        $totalAmount = $data['quantity'] * $data['price'];
+        $paymentStatus = $data['payment_method'] === 'online' ? 'paid' : 'pending';
         
         $stmt->execute([
-            $saleId,
+            $orderId,
             $_SESSION['company_id'],
-            $data['product_id'],
-            $data['quantity'],
-            $data['price'],
+            $orderNumber,
+            $orderDate,
+            $paymentStatus,
             $totalAmount,
-            $data['customer_name'] ?? null,
-            $data['payment_method'] ?? 'cash',
+            $totalAmount,
             $data['notes'] ?? null,
-            $_SESSION['tenant_admin_id']
+            $_SESSION['tenant_admin_id'],
+            $currentTimestamp
         ]);
         
-        // Update stock if available (only for sales_items)
-        // First check if this is a sales item from output_products
-        $stmt = $db->prepare("SELECT product_type, product_id FROM output_products WHERE id = ?");
-        $stmt->execute([$data['product_id']]);
-        $productInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+        // Opprett sales_orders_items
+        $orderItemId = bin2hex(random_bytes(16));
+        $stmt = $db->prepare("
+            INSERT INTO sales_orders_items (
+                id,
+                order_id,
+                product_id,
+                product_name,
+                quantity,
+                unit_price,
+                line_total,
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ");
         
-        if ($productInfo && $productInfo['product_type'] === 'sales') {
-            // Update stock for sales items only
+        $stmt->execute([
+            $orderItemId,
+            $orderId,
+            $outputProduct['product_id'],
+            $productName,
+            $data['quantity'],
+            $unitPrice,
+            $totalAmount,
+            $currentTimestamp
+        ]);
+        
+        // Oppdater stock hvis det er et sales_product
+        if ($outputProduct['product_type'] === 'product') {
             $stmt = $db->prepare("
-                UPDATE sales_items 
-                SET stock_quantity = stock_quantity - ? 
-                WHERE id = ?
+                UPDATE sales_products_stock 
+                SET quantity_in_stock = quantity_in_stock - ? 
+                WHERE product_id = ?
             ");
-            $stmt->execute([$data['quantity'], $productInfo['product_id']]);
+            $stmt->execute([$data['quantity'], $outputProduct['product_id']]);
         }
         
         $db->commit();
@@ -77,7 +130,8 @@ try {
         echo json_encode([
             'success' => true,
             'message' => 'Salg registrert',
-            'sale_id' => $saleId,
+            'order_id' => $orderId,
+            'order_number' => $orderNumber,
             'total_amount' => $totalAmount
         ]);
         

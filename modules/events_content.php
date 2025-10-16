@@ -832,4 +832,58 @@ async function loadCheckins(eventId) {
 document.querySelector('[href="#events-checkin"]')?.addEventListener('click', function() {
     loadCheckinEventSelector();
 });
+
+// Load events results
+async function loadEventsResults() {
+    try {
+        const response = await fetch('/api/get_events_results.php');
+        const result = await response.json();
+        
+        if (result.success) {
+            // Oppdater sammendragskort
+            document.getElementById('total-events').textContent = result.summary.total_events;
+            document.getElementById('total-revenue').textContent = result.summary.total_revenue + ' kr';
+            document.getElementById('total-attendees').textContent = result.summary.total_attendees;
+            document.getElementById('upcoming-events').textContent = result.summary.upcoming_events;
+            
+            // Oppdater arrangement liste
+            const resultsList = document.getElementById('events-results-list');
+            
+            if (result.events && result.events.length > 0) {
+                resultsList.innerHTML = result.events.map(event => {
+                    const statusBadge = event.status === 'Kommende' 
+                        ? '<span class="badge bg-primary">Kommende</span>'
+                        : event.status === 'Pågår'
+                        ? '<span class="badge bg-success">Pågår</span>'
+                        : '<span class="badge bg-secondary">Avsluttet</span>';
+                    
+                    return `
+                        <tr>
+                            <td><strong>${event.title}</strong></td>
+                            <td>${event.start_date} ${event.start_time}</td>
+                            <td>${event.attendee_count}</td>
+                            <td>${parseFloat(event.event_revenue).toFixed(2)} kr</td>
+                            <td>${statusBadge}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                resultsList.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            Ingen resultater tilgjengelig
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading events results:', error);
+    }
+}
+
+// Load results when results tab is shown
+document.querySelector('[href="#events-results"]')?.addEventListener('shown.bs.tab', function() {
+    loadEventsResults();
+});
 </script>
