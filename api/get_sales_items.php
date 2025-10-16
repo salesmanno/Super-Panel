@@ -29,8 +29,7 @@ try {
                 WHEN op.product_type = 'product' THEN sp.selling_price
                 WHEN op.product_type = 'membership' THEN mp.price
                 ELSE NULL
-            END as price,
-            op.product_type as category
+            END as price
         FROM output_products op
         LEFT JOIN events_eventdata e ON op.product_type = 'event' AND op.product_id = e.id
         LEFT JOIN sales_products sp ON op.product_type = 'product' AND op.product_id = sp.id
