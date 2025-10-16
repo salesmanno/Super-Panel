@@ -602,10 +602,19 @@ document.getElementById('checkout-btn')?.addEventListener('click', async functio
     }
 });
 
-document.getElementById('tab-sales')?.addEventListener('shown.bs.tab', loadSalesProducts);
-
-if (document.getElementById('tab-sales')?.classList.contains('active')) {
-    loadSalesProducts();
+// Load products when sales tab is shown
+const salesTab = document.getElementById('tab-sales');
+if (salesTab) {
+    salesTab.addEventListener('shown.bs.tab', function(e) {
+        console.log('Sales tab shown - loading products');
+        loadSalesProducts();
+    });
+    
+    // Also load immediately if tab is already active
+    if (salesTab.classList.contains('active')) {
+        console.log('Sales tab already active - loading products');
+        loadSalesProducts();
+    }
 }
 
 async function submitSalesItem() {
