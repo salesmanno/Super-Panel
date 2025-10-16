@@ -8,12 +8,11 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/ProductCatalogService.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
     
-    if (empty($data['plan_name'])) {
+    if (empty($data['name'])) {
         echo json_encode(['success' => false, 'message' => 'Mangler plan navn']);
         exit;
     }
@@ -22,45 +21,63 @@ try {
     $db->beginTransaction();
     
     try {
-        // 1. Create membership plan
+        // Generer ID-er
+        $planId = bin2hex(random_bytes(16));
+        $outputProductId = bin2hex(random_bytes(16));
+        $planCode = 'PLAN-' . strtoupper(substr($planId, 0, 8));
+        
+        // 1. Opprett medlemskapsplan
         $stmt = $db->prepare("
-            INSERT INTO x_membership_plan (
+            INSERT INTO membership_plans (
+                id,
                 company_id,
-                plan_name,
+                plan_code,
+                name,
                 description,
                 price,
-                duration_months,
-                features,
-                is_active
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                currency,
+                billing_cycle,
+                benefits,
+                is_active,
+                created_at,
+                output_product_id
+            ) VALUES (?, ?, ?, ?, ?, ?, 'NOK', ?, ?, 1, NOW(), ?)
         ");
         
         $stmt->execute([
+            $planId,
             $_SESSION['company_id'],
-            $data['plan_name'],
+            $planCode,
+            $data['name'],
             $data['description'] ?? null,
             $data['price'] ?? 0,
-            $data['duration_months'] ?? 12,
-            $data['features'] ?? null,
-            $data['is_active'] ?? true
+            $data['billing_cycle'] ?? 'monthly',
+            $data['benefits'] ?? null,
+            $outputProductId
         ]);
         
-        // Get last insert ID (works in both MySQL and PostgreSQL)
-        $planId = $db->lastInsertId();
+        // 2. Auto-generer output_products entry
+        $stmt = $db->prepare("
+            INSERT INTO output_products (
+                id,
+                company_id,
+                module_id,
+                product_type,
+                product_id,
+                is_visible,
+                is_public,
+                is_marketplace_featured,
+                created_at,
+                created_by
+            ) VALUES (?, ?, 1, 'membership', ?, 1, 1, 0, NOW(), ?)
+        ");
         
-        // 2. Auto-generate output_products entry
-        $catalogService = new ProductCatalogService($db);
-        $outputProductId = $catalogService->createProductEntry(
+        $stmt->execute([
+            $outputProductId,
             $_SESSION['company_id'],
-            'membership',
             $planId,
-            [
-                'is_visible' => true,
-                'is_public' => $data['is_public'] ?? true,
-                'is_marketplace_featured' => $data['is_marketplace_featured'] ?? false
-            ],
             $_SESSION['tenant_admin_id']
-        );
+        ]);
         
         $db->commit();
         
