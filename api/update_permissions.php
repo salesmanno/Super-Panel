@@ -42,6 +42,10 @@ try {
     
     $db->beginTransaction();
     
+    // Hent system saas_admin ID (for granted_by kolonnen)
+    $stmt = $db->query("SELECT id FROM saas_admins LIMIT 1");
+    $saasAdminId = $stmt->fetchColumn();
+    
     $stmt = $db->prepare("DELETE FROM tenant_admin_modules WHERE tenant_admin_id = ?");
     $stmt->execute([$adminId]);
     
@@ -52,7 +56,7 @@ try {
         ");
         
         foreach ($validModuleIds as $moduleId) {
-            $stmt->execute([$adminId, $moduleId, $adminId]);
+            $stmt->execute([$adminId, $moduleId, $saasAdminId]);
         }
     }
     
