@@ -19,9 +19,11 @@ try {
 
     $db = getDBConnection();
     
-    // Delete only if the event belongs to the user's company
+    // Soft delete: mark as inactive instead of deleting
+    // This preserves output_products and historical data
     $stmt = $db->prepare("
-        DELETE FROM tenant_events 
+        UPDATE events_eventdata 
+        SET is_active = FALSE
         WHERE id = ? AND company_id = ?
     ");
     

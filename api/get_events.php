@@ -14,27 +14,31 @@ try {
     
     $stmt = $db->prepare("
         SELECT 
-            id,
-            title,
-            description,
-            max_attendees,
-            min_attendees,
-            age_limit,
-            is_member_exclusive,
-            event_address,
-            event_city,
-            event_postal,
-            venue_name,
-            start_time,
-            start_date,
-            end_time,
-            end_date,
-            event_image_url,
-            ticket_price,
-            member_ticket_price
-        FROM tenant_events
-        WHERE company_id = ?
-        ORDER BY start_date DESC, start_time DESC
+            e.id,
+            e.title,
+            e.description,
+            e.max_attendees,
+            e.min_attendees,
+            e.age_limit,
+            e.is_member_exclusive,
+            e.event_address,
+            e.event_city,
+            e.event_postal,
+            e.venue_name,
+            e.start_time,
+            e.start_date,
+            e.end_time,
+            e.end_date,
+            e.event_image_url,
+            e.ticket_price,
+            e.member_ticket_price,
+            e.output_product_id,
+            op.is_visible,
+            op.is_public
+        FROM events_eventdata e
+        LEFT JOIN output_products op ON e.output_product_id = op.id
+        WHERE e.company_id = ? AND e.is_active = TRUE
+        ORDER BY e.start_date DESC, e.start_time DESC
     ");
     
     $stmt->execute([$_SESSION['company_id']]);
