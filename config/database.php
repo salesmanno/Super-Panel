@@ -11,7 +11,7 @@ function getDBConnection() {
     
     if ($conn === null) {
         try {
-            // FORCE MySQL connection - ignore PostgreSQL DATABASE_URL
+            // Try MySQL first
             $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
             $options = [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -24,8 +24,31 @@ function getDBConnection() {
             $conn = new PDO($dsn, DB_USER, DB_PASS, $options);
             $conn->setAttribute(PDO::ATTR_DRIVER_NAME, 'mysql');
         } catch (PDOException $e) {
-            error_log("Database connection error: " . $e->getMessage());
-            return null;
+            error_log("MySQL connection failed: " . $e->getMessage() . ". Falling back to PostgreSQL.");
+            
+            // Fallback to PostgreSQL if MySQL fails
+            $databaseUrl = $_ENV['DATABASE_URL'] ?? getenv('DATABASE_URL');
+            if ($databaseUrl) {
+                try {
+                    // Parse PostgreSQL URL: postgresql://user:pass@host:port/dbname
+                    $parsed = parse_url($databaseUrl);
+                    $pgDsn = sprintf(
+                        "pgsql:host=%s;port=%s;dbname=%s",
+                        $parsed['host'],
+                        $parsed['port'] ?? 5432,
+                        ltrim($parsed['path'], '/')
+                    );
+                    $conn = new PDO($pgDsn, $parsed['user'], $parsed['pass'], [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+                    ]);
+                } catch (PDOException $pgErr) {
+                    error_log("PostgreSQL connection also failed: " . $pgErr->getMessage());
+                    return null;
+                }
+            } else {
+                return null;
+            }
         }
     }
     
