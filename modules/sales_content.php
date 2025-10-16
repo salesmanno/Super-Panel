@@ -370,12 +370,19 @@ async function loadSalesProducts() {
         const response = await fetch('/api/get_sales_items.php');
         const data = await response.json();
         
+        console.log('Sales items API response:', data);
+        
         if (data.success && data.items) {
             const products = data.items.filter(item => item.product_type === 'product');
             const services = data.items.filter(item => item.product_type !== 'product');
             
+            console.log('Products filtered:', products);
+            console.log('Services filtered:', services);
+            
             displayProducts(products);
             displayServices(services);
+        } else {
+            console.warn('No items returned from API');
         }
     } catch (error) {
         console.error('Error loading products:', error);
