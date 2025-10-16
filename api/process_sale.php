@@ -46,6 +46,12 @@ try {
             $product = $stmt->fetch(PDO::FETCH_ASSOC);
             $productName = $product['name'] ?? '';
             $unitPrice = $product['price'] ?? 0;
+        } elseif ($outputProduct['product_type'] === 'membership') {
+            $stmt = $db->prepare("SELECT name, price FROM membership_plans WHERE id = ?");
+            $stmt->execute([$outputProduct['product_id']]);
+            $product = $stmt->fetch(PDO::FETCH_ASSOC);
+            $productName = $product['name'] ?? '';
+            $unitPrice = $product['price'] ?? 0;
         }
         
         $totalAmount = $data['quantity'] * $unitPrice;

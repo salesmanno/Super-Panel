@@ -21,18 +21,21 @@ try {
             CASE 
                 WHEN op.product_type = 'event' THEN e.title
                 WHEN op.product_type = 'product' THEN sp.name
+                WHEN op.product_type = 'membership' THEN mp.name
                 ELSE NULL
             END as item_name,
             CASE 
                 WHEN op.product_type = 'event' THEN e.ticket_price
                 WHEN op.product_type = 'product' THEN sp.selling_price
+                WHEN op.product_type = 'membership' THEN mp.price
                 ELSE NULL
             END as price,
             op.product_type as category
         FROM output_products op
         LEFT JOIN events_eventdata e ON op.product_type = 'event' AND op.product_id = e.id
         LEFT JOIN sales_products sp ON op.product_type = 'product' AND op.product_id = sp.id
-        WHERE op.company_id = ? AND op.is_visible = " . dbBool(true) . "
+        LEFT JOIN membership_plans mp ON op.product_type = 'membership' AND op.product_id = mp.id
+        WHERE op.company_id = ? AND op.is_visible = 1
         ORDER BY item_name ASC
     ");
     
