@@ -281,37 +281,17 @@ try {
         </div>
     </div>
     
-    <?php if (!empty($officialModules)): ?>
-    <!-- Official Modules Navigation -->
+    <?php if (!empty($allUserModules)): ?>
+    <!-- Module Navigation Bar -->
     <div class="bg-light border-bottom">
         <div class="container">
             <ul class="nav nav-tabs module-tabs border-0 mb-0" role="tablist">
-                <?php foreach ($officialModules as $index => $module): ?>
+                <?php 
+                $allModulesForNav = array_merge($officialModules, $userModules);
+                foreach ($allModulesForNav as $index => $module): 
+                ?>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link <?= $index === 0 ? 'active' : '' ?>" 
-                                id="tab-<?= $module['module_key'] ?>" 
-                                data-bs-toggle="tab" 
-                                data-bs-target="#content-<?= $module['module_key'] ?>" 
-                                type="button" 
-                                role="tab">
-                            <i class="bi bi-<?= htmlspecialchars($module['icon'] ?? 'grid') ?> me-2"></i>
-                            <?= htmlspecialchars($module['name']) ?>
-                        </button>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-        </div>
-    </div>
-    <?php endif; ?>
-    
-    <?php if (!empty($userModules)): ?>
-    <!-- Module Navigation Bar -->
-    <div class="bg-white border-bottom">
-        <div class="container">
-            <ul class="nav nav-tabs module-tabs border-0 mb-0" role="tablist">
-                <?php foreach ($userModules as $index => $module): ?>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link <?= $index === 0 && empty($officialModules) ? 'active' : '' ?>" 
                                 id="tab-<?= $module['module_key'] ?>" 
                                 data-bs-toggle="tab" 
                                 data-bs-target="#content-<?= $module['module_key'] ?>" 
