@@ -21,13 +21,13 @@ $companyLogo = null;
 try {
     $db = getDBConnection();
     if ($db && isset($_SESSION['subdomain'])) {
-        // Prøv først tenant_companies.company_logo_url
-        $stmt = $db->prepare("SELECT company_logo_url FROM tenant_companies WHERE subdomain = ?");
+        // Prøv først tenant_companies.logo_url
+        $stmt = $db->prepare("SELECT logo_url FROM tenant_companies WHERE subdomain = ?");
         $stmt->execute([$_SESSION['subdomain']]);
         $logoData = $stmt->fetch(PDO::FETCH_ASSOC);
         
         // Hvis ikke funnet, prøv companies-tabellen
-        if (!$logoData || empty($logoData['company_logo_url'])) {
+        if (!$logoData || empty($logoData['logo_url'])) {
             $stmt = $db->prepare("SELECT logo_index FROM companies WHERE subdomain = ?");
             $stmt->execute([$_SESSION['subdomain']]);
             $logoData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -35,7 +35,7 @@ try {
                 $companyLogo = $logoData['logo_index'];
             }
         } else {
-            $companyLogo = $logoData['company_logo_url'];
+            $companyLogo = $logoData['logo_url'];
         }
     }
 } catch (Exception $e) {
