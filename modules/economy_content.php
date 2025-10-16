@@ -316,11 +316,12 @@
                 if (data.success) {
                     location.reload();
                 } else {
+                    // Show error message - page will not reload so toggle state stays unchanged
                     alert('Feil: ' + (data.error || 'Kunne ikke oppdatere kontantbetaling'));
                 }
             })
             .catch(error => {
-                alert('En feil oppstod');
+                alert('En feil oppstod: ' + error.message);
             });
         }
         </script>
