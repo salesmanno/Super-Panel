@@ -25,7 +25,7 @@ try {
             benefits,
             is_active,
             created_at,
-            output_product_id
+            product_id
         FROM membership_plans
         WHERE company_id = ? AND is_active = 1
         ORDER BY created_at DESC

@@ -40,7 +40,7 @@ try {
                 benefits,
                 is_active,
                 created_at,
-                output_product_id
+                product_id
             ) VALUES (?, ?, ?, ?, ?, ?, 'NOK', ?, ?, 1, NOW(), ?)
         ");
         
