@@ -13,11 +13,6 @@ try {
     $db = getDBConnection();
     $company_id = $_SESSION['company_id'];
     
-    // Debug: Log the company_id being used
-    error_log("Fetching sales items for company_id: " . $company_id);
-    
-    // Hent alle produkter fra output_products med detaljer fra kildetabeller
-    // Use COALESCE with output_products.name/price as fallback
     $stmt = $db->prepare("
         SELECT 
             op.id,
@@ -52,16 +47,9 @@ try {
     $stmt->execute([$company_id]);
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Debug: Log the number of items found
-    error_log("Found " . count($items) . " items for company " . $company_id);
-    
     echo json_encode([
         'success' => true,
-        'items' => $items,
-        'debug' => [
-            'company_id' => $company_id,
-            'count' => count($items)
-        ]
+        'items' => $items
     ]);
     
 } catch (Exception $e) {

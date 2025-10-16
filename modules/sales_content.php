@@ -366,58 +366,33 @@
 <script>
 // Load products and services
 async function loadSalesProducts() {
-    console.log('🔄 loadSalesProducts called');
     try {
-        console.log('📡 Fetching /api/get_sales_items.php');
         const response = await fetch('/api/get_sales_items.php');
-        console.log('📥 Response received:', response.status);
-        
         const data = await response.json();
-        console.log('📦 Sales items API response:', data);
-        console.log('✅ data.success:', data.success);
-        console.log('📊 data.items:', data.items);
         
         if (data.success && data.items) {
-            console.log('🔍 Filtering items...');
             const products = data.items.filter(item => item.product_type === 'product');
             const services = data.items.filter(item => item.product_type !== 'product');
             
-            console.log('📦 Products filtered:', products.length, 'items', products);
-            console.log('🎫 Services filtered:', services.length, 'items', services);
-            
             displayProducts(products);
             displayServices(services);
-        } else {
-            console.warn('⚠️ No items returned from API - success:', data.success, 'items:', data.items);
         }
     } catch (error) {
-        console.error('❌ Error loading products:', error);
+        console.error('Error loading products:', error);
     }
     
-    console.log('🛒 Loading cart...');
     await loadCart();
-    console.log('✅ loadSalesProducts complete');
 }
 
 function displayProducts(products) {
-    console.log('🎨 displayProducts called with:', products);
     const container = document.getElementById('products-list');
-    console.log('📦 Container found:', container);
-    
-    // Check if parent subtab is visible
-    const subtabContainer = document.getElementById('sales-varesalg');
-    console.log('👁️ Subtab #sales-varesalg display:', subtabContainer ? window.getComputedStyle(subtabContainer).display : 'not found');
     
     if (products.length === 0) {
         container.innerHTML = '<div class="col-12 text-center text-muted py-4">Ingen produkter tilgjengelig</div>';
         return;
     }
     
-    // Log first product structure
-    console.log('🔍 First product structure:', products[0]);
-    console.log('📝 First product keys:', Object.keys(products[0]));
-    
-    const html = products.map(product => `
+    container.innerHTML = products.map(product => `
         <div class="col-md-6 mb-3">
             <div class="card h-100">
                 <div class="card-body">
@@ -433,12 +408,6 @@ function displayProducts(products) {
             </div>
         </div>
     `).join('');
-    
-    console.log('💾 Generated HTML length:', html.length, 'chars');
-    container.innerHTML = html;
-    console.log('✅ displayProducts HTML updated');
-    console.log('🔎 Container innerHTML length after update:', container.innerHTML.length);
-    console.log('🧐 Container HTML preview:', container.innerHTML.substring(0, 200));
 }
 
 function displayServices(services) {
@@ -626,20 +595,21 @@ document.getElementById('checkout-btn')?.addEventListener('click', async functio
     }
 });
 
-// Load products when sales tab is shown
-const salesTab = document.getElementById('tab-sales');
-if (salesTab) {
-    salesTab.addEventListener('shown.bs.tab', function(e) {
-        console.log('Sales tab shown - loading products');
-        loadSalesProducts();
-    });
-    
-    // Also load immediately if tab is already active
-    if (salesTab.classList.contains('active')) {
-        console.log('Sales tab already active - loading products');
-        loadSalesProducts();
+// Load products when Varesalg subtab is shown
+document.addEventListener('DOMContentLoaded', function() {
+    const salesTab = document.getElementById('tab-sales');
+    if (salesTab) {
+        salesTab.addEventListener('shown.bs.tab', function(e) {
+            // Wait a bit for subtabs to initialize
+            setTimeout(loadSalesProducts, 100);
+        });
+        
+        // Also load immediately if tab is already active
+        if (salesTab.classList.contains('active')) {
+            setTimeout(loadSalesProducts, 100);
+        }
     }
-}
+});
 
 async function submitSalesItem() {
     const form = document.getElementById('addSalesItemForm');
