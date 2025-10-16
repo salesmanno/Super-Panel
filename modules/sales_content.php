@@ -413,7 +413,7 @@ function displayProducts(products) {
     console.log('🔍 First product structure:', products[0]);
     console.log('📝 First product keys:', Object.keys(products[0]));
     
-    container.innerHTML = products.map(product => `
+    const html = products.map(product => `
         <div class="col-md-6 mb-3">
             <div class="card h-100">
                 <div class="card-body">
@@ -430,7 +430,11 @@ function displayProducts(products) {
         </div>
     `).join('');
     
+    console.log('💾 Generated HTML length:', html.length, 'chars');
+    container.innerHTML = html;
     console.log('✅ displayProducts HTML updated');
+    console.log('🔎 Container innerHTML length after update:', container.innerHTML.length);
+    console.log('🧐 Container HTML preview:', container.innerHTML.substring(0, 200));
 }
 
 function displayServices(services) {
