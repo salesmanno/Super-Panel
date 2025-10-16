@@ -11,25 +11,36 @@ require_once __DIR__ . '/../config/database.php';
 
 try {
     $db = getDBConnection();
+    $company_id = $_SESSION['company_id'];
+    
+    // Debug: Log the company_id being used
+    error_log("Fetching sales items for company_id: " . $company_id);
     
     // Hent alle produkter fra output_products med detaljer fra kildetabeller
+    // Use COALESCE with output_products.name/price as fallback
     $stmt = $db->prepare("
         SELECT 
             op.id,
             op.product_type,
             op.product_id,
-            CASE 
-                WHEN op.product_type = 'event' THEN e.title
-                WHEN op.product_type = 'product' THEN sp.name
-                WHEN op.product_type = 'membership' THEN mp.name
-                ELSE NULL
-            END as item_name,
-            CASE 
-                WHEN op.product_type = 'event' THEN e.ticket_price
-                WHEN op.product_type = 'product' THEN sp.selling_price
-                WHEN op.product_type = 'membership' THEN mp.price
-                ELSE NULL
-            END as price
+            COALESCE(
+                CASE 
+                    WHEN op.product_type = 'event' THEN e.title
+                    WHEN op.product_type = 'product' THEN sp.name
+                    WHEN op.product_type = 'membership' THEN mp.name
+                    ELSE NULL
+                END,
+                op.name
+            ) as item_name,
+            COALESCE(
+                CASE 
+                    WHEN op.product_type = 'event' THEN e.ticket_price
+                    WHEN op.product_type = 'product' THEN sp.selling_price
+                    WHEN op.product_type = 'membership' THEN mp.price
+                    ELSE NULL
+                END,
+                op.price
+            ) as price
         FROM output_products op
         LEFT JOIN events_eventdata e ON op.product_type = 'event' AND op.product_id = e.id
         LEFT JOIN sales_products sp ON op.product_type = 'product' AND op.product_id = sp.id
@@ -38,12 +49,19 @@ try {
         ORDER BY item_name ASC
     ");
     
-    $stmt->execute([$_SESSION['company_id']]);
+    $stmt->execute([$company_id]);
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Debug: Log the number of items found
+    error_log("Found " . count($items) . " items for company " . $company_id);
     
     echo json_encode([
         'success' => true,
-        'items' => $items
+        'items' => $items,
+        'debug' => [
+            'company_id' => $company_id,
+            'count' => count($items)
+        ]
     ]);
     
 } catch (Exception $e) {
