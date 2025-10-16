@@ -148,6 +148,136 @@
         </div>
     </div>
 
+    <div id="events-checkin" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Innsjekking</h5>
+                <p class="text-muted">Sjekk inn deltakere og administrer oppmøte</p>
+                
+                <!-- Event Selector -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label">Velg arrangement</label>
+                        <select class="form-select" id="checkin-event-selector">
+                            <option value="">Laster arrangementer...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Check-in Statistics -->
+                <div class="row mb-4" id="checkin-stats" style="display: none;">
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="text-muted mb-2">Totalt påmeldte</h6>
+                                <h3 class="mb-0" id="checkin-total-attendees">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white">
+                            <div class="card-body">
+                                <h6 class="mb-2">Betalt</h6>
+                                <h3 class="mb-0" id="checkin-paid-count">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning text-white">
+                            <div class="card-body">
+                                <h6 class="mb-2">Venter</h6>
+                                <h3 class="mb-0" id="checkin-pending-count">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body">
+                                <h6 class="mb-2">Total inntekt</h6>
+                                <h3 class="mb-0" id="checkin-total-revenue">0 kr</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check-in Form -->
+                <div class="card mb-4" id="checkin-form-container" style="display: none;">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="bi bi-person-plus me-2"></i>Ny innsjekking</h6>
+                    </div>
+                    <div class="card-body">
+                        <form id="checkin-form">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Navn *</label>
+                                    <input type="text" class="form-control" name="attendee_name" required>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">E-post</label>
+                                    <input type="email" class="form-control" name="attendee_email">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Telefon</label>
+                                    <input type="tel" class="form-control" name="attendee_phone">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Billett type</label>
+                                    <select class="form-select" name="ticket_type">
+                                        <option value="regular">Ordinær</option>
+                                        <option value="member">Medlem</option>
+                                        <option value="vip">VIP</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Betalingsmetode</label>
+                                    <select class="form-select" name="payment_method">
+                                        <option value="cash">Kontant</option>
+                                        <option value="card">Kort</option>
+                                        <option value="vipps">Vipps</option>
+                                        <option value="online">Online</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Notater</label>
+                                    <input type="text" class="form-control" name="notes" placeholder="Valgfritt">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Sjekk inn
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Checked-in Attendees List -->
+                <div class="table-responsive" id="checkin-list-container" style="display: none;">
+                    <h6 class="mb-3">Påmeldte deltakere</h6>
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Navn</th>
+                                <th>Kontakt</th>
+                                <th>Billett type</th>
+                                <th>Pris</th>
+                                <th>Betaling</th>
+                                <th>Innsjekket</th>
+                            </tr>
+                        </thead>
+                        <tbody id="checkin-attendees-list">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    Ingen deltakere ennå
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="events-results" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">

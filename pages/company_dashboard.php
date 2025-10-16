@@ -324,6 +324,9 @@ try {
                     <a class="nav-link" href="#events-create">Opprett arrangement</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="#events-checkin">Innsjekking</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="#events-expenses">Arrangement resultat</a>
                 </li>
             </ul>
