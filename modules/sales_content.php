@@ -366,29 +366,37 @@
 <script>
 // Load products and services
 async function loadSalesProducts() {
+    console.log('🔄 loadSalesProducts called');
     try {
+        console.log('📡 Fetching /api/get_sales_items.php');
         const response = await fetch('/api/get_sales_items.php');
-        const data = await response.json();
+        console.log('📥 Response received:', response.status);
         
-        console.log('Sales items API response:', data);
+        const data = await response.json();
+        console.log('📦 Sales items API response:', data);
+        console.log('✅ data.success:', data.success);
+        console.log('📊 data.items:', data.items);
         
         if (data.success && data.items) {
+            console.log('🔍 Filtering items...');
             const products = data.items.filter(item => item.product_type === 'product');
             const services = data.items.filter(item => item.product_type !== 'product');
             
-            console.log('Products filtered:', products);
-            console.log('Services filtered:', services);
+            console.log('📦 Products filtered:', products.length, 'items', products);
+            console.log('🎫 Services filtered:', services.length, 'items', services);
             
             displayProducts(products);
             displayServices(services);
         } else {
-            console.warn('No items returned from API');
+            console.warn('⚠️ No items returned from API - success:', data.success, 'items:', data.items);
         }
     } catch (error) {
-        console.error('Error loading products:', error);
+        console.error('❌ Error loading products:', error);
     }
     
+    console.log('🛒 Loading cart...');
     await loadCart();
+    console.log('✅ loadSalesProducts complete');
 }
 
 function displayProducts(products) {
