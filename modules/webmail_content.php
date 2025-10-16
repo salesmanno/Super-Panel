@@ -340,7 +340,6 @@
         </div>
     </div>
 </div>
-<?php endif; ?>
 
 <script>
 // Toggle AutoMailer settings
