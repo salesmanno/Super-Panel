@@ -94,6 +94,40 @@
         </div>
     </div>
 
+    <div id="sales-transactions" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-receipt me-2"></i>Varesalgstransaksjoner</h5>
+                <p class="text-muted">Oversikt over alle gjennomførte varesalg</p>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Transaksjon ID</th>
+                                <th>Dato</th>
+                                <th>Kunde</th>
+                                <th>Produkter</th>
+                                <th>Betalingsmetode</th>
+                                <th>Totalbeløp</th>
+                                <th>Handlinger</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-list">
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Laster...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="sales-items" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">
@@ -393,7 +427,7 @@ function displayProducts(products) {
         return;
     }
     
-    const html = products.map(product => `
+    container.innerHTML = products.map(product => `
         <div class="col-md-6 mb-3">
             <div class="card h-100">
                 <div class="card-body">
@@ -409,11 +443,6 @@ function displayProducts(products) {
             </div>
         </div>
     `).join('');
-    
-    container.innerHTML = html;
-    
-    // Force reflow to ensure content is rendered
-    void container.offsetHeight;
 }
 
 function displayServices(services) {
@@ -601,21 +630,17 @@ document.getElementById('checkout-btn')?.addEventListener('click', async functio
     }
 });
 
-// Load products when Varesalg subtab is shown
-document.addEventListener('DOMContentLoaded', function() {
-    const salesTab = document.getElementById('tab-sales');
-    if (salesTab) {
-        salesTab.addEventListener('shown.bs.tab', function(e) {
-            // Wait a bit for subtabs to initialize
-            setTimeout(loadSalesProducts, 100);
-        });
-        
-        // Also load immediately if tab is already active
-        if (salesTab.classList.contains('active')) {
-            setTimeout(loadSalesProducts, 100);
-        }
+// Load products when sales tab is shown
+const salesTab = document.getElementById('tab-sales');
+if (salesTab) {
+    salesTab.addEventListener('shown.bs.tab', function(e) {
+        loadSalesProducts();
+    });
+    
+    if (salesTab.classList.contains('active')) {
+        loadSalesProducts();
     }
-});
+}
 
 async function submitSalesItem() {
     const form = document.getElementById('addSalesItemForm');

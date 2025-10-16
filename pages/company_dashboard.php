@@ -476,6 +476,9 @@ try {
                     <a class="nav-link active" href="#sales-varesalg">Varesalg</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="#sales-transactions">Varesalgstransaksjoner</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="#sales-items">Produkter</a>
                 </li>
                 <li class="nav-item">
@@ -862,11 +865,13 @@ try {
             const allSubtabContents = moduleContent.querySelectorAll('.subtab-content');
             allSubtabContents.forEach(content => {
                 content.style.display = 'none';
+                content.classList.remove('active');
             });
             
             const targetContent = moduleContent.querySelector('#' + targetId);
             if (targetContent) {
                 targetContent.style.display = 'block';
+                targetContent.classList.add('active');
             }
         }
         
