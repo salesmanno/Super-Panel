@@ -51,7 +51,7 @@ function getTenantAdminModules($adminId) {
     }
     $activeValue = dbBool(true);
     $stmt = $db->prepare("
-        SELECT sm.id, sm.name, sm.slug as module_key, sm.description, sm.icon, sm.is_active, sm.created_at
+        SELECT sm.id, sm.name, sm.module_key, sm.description, sm.icon, sm.is_active, sm.created_at
         FROM system_modules sm
         INNER JOIN tenant_admin_modules tam ON sm.id = tam.module_id
         WHERE tam.tenant_admin_id = ? AND sm.is_active = $activeValue
@@ -68,7 +68,7 @@ function getCompanyModules($companyId) {
     }
     $activeValue = dbBool(true);
     $stmt = $db->prepare("
-        SELECT sm.id, sm.name, sm.slug as module_key, sm.description, sm.icon, sm.is_active, sm.created_at
+        SELECT sm.id, sm.name, sm.module_key, sm.description, sm.icon, sm.is_active, sm.created_at
         FROM system_modules sm
         INNER JOIN tenant_company_modules tcm ON sm.id = tcm.module_id
         WHERE tcm.company_id = ? AND tcm.is_active = $activeValue AND sm.is_active = $activeValue

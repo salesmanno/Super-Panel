@@ -151,6 +151,7 @@ try {
         
         .module-tabs {
             padding: 0;
+            margin: 0;
         }
         
         .module-tabs .nav-link {
@@ -159,6 +160,7 @@ try {
             padding: 0.75rem 1.5rem;
             border: none;
             border-bottom: 3px solid transparent;
+            margin-bottom: 0;
             transition: all 0.2s;
             background: transparent;
             border-radius: 0;
@@ -228,12 +230,15 @@ try {
         }
         
         .header-logo {
-            max-height: 80px;
-            max-width: 200px;
+            max-height: 120px;
+            max-width: 250px;
             width: auto;
             height: auto;
-            margin-bottom: 16px;
             object-fit: contain;
+            position: absolute;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
         }
     </style>
 </head>
@@ -272,19 +277,19 @@ try {
     
     <!-- Header -->
     <div class="dashboard-header">
-        <div class="container">
+        <div class="container" style="position: relative;">
+            <h1 class="mb-2">Velkommen, <?= htmlspecialchars($adminName) ?>!</h1>
+            <p class="text-muted mb-0">Du har tilgang til <?= count($allUserModules) ?> modul<?= count($allUserModules) != 1 ? 'er' : '' ?></p>
             <?php if ($companyLogo): ?>
                 <img src="<?= htmlspecialchars($companyLogo) ?>" alt="<?= htmlspecialchars($companyName) ?>" class="header-logo">
             <?php endif; ?>
-            <h1 class="mb-2">Velkommen, <?= htmlspecialchars($adminName) ?>!</h1>
-            <p class="text-muted mb-0">Du har tilgang til <?= count($allUserModules) ?> modul<?= count($allUserModules) != 1 ? 'er' : '' ?></p>
         </div>
     </div>
     
     <?php if (!empty($allUserModules)): ?>
     <!-- Module Navigation Bar -->
-    <div class="bg-light border-bottom">
-        <div class="container">
+    <div class="bg-light border-bottom" style="padding: 0;">
+        <div class="container" style="padding-top: 0;">
             <ul class="nav nav-tabs module-tabs border-0 mb-0" role="tablist">
                 <?php 
                 $allModulesForNav = array_merge($officialModules, $userModules);
