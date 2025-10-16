@@ -386,13 +386,14 @@ async function loadSalesProducts() {
 
 function displayProducts(products) {
     const container = document.getElementById('products-list');
+    if (!container) return;
     
     if (products.length === 0) {
         container.innerHTML = '<div class="col-12 text-center text-muted py-4">Ingen produkter tilgjengelig</div>';
         return;
     }
     
-    container.innerHTML = products.map(product => `
+    const html = products.map(product => `
         <div class="col-md-6 mb-3">
             <div class="card h-100">
                 <div class="card-body">
@@ -408,6 +409,11 @@ function displayProducts(products) {
             </div>
         </div>
     `).join('');
+    
+    container.innerHTML = html;
+    
+    // Force reflow to ensure content is rendered
+    void container.offsetHeight;
 }
 
 function displayServices(services) {
