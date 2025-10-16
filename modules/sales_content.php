@@ -249,14 +249,17 @@
 <script>
 // Load products when sales module is active
 async function loadSalesProducts() {
+    console.log('Loading sales products...');
     try {
         const response = await fetch('/api/get_sales_items.php');
         const data = await response.json();
+        console.log('Sales items response:', data);
         
         if (data.success && data.items) {
             const select = document.getElementById('sale-product-id');
             select.innerHTML = '<option value="">-- Velg produkt --</option>';
             
+            console.log('Adding', data.items.length, 'products to dropdown');
             data.items.forEach(item => {
                 const option = document.createElement('option');
                 option.value = item.id;
@@ -264,6 +267,9 @@ async function loadSalesProducts() {
                 option.dataset.price = item.price;
                 select.appendChild(option);
             });
+            console.log('Products loaded successfully');
+        } else {
+            console.error('API error:', data.message || 'Unknown error');
         }
     } catch (error) {
         console.error('Error loading products:', error);
