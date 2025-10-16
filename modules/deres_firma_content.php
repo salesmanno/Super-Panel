@@ -263,13 +263,15 @@
 </div>
 
 <script>
-// Handle About Us form submission - attach listener when DOM is ready
-function setupAboutUsForm() {
-    const form = document.getElementById('about-us-form');
-    if (form && !form.hasAttribute('data-listener-attached')) {
-        form.setAttribute('data-listener-attached', 'true');
-        form.addEventListener('submit', async function(e) {
+// Handle About Us form submission
+(function() {
+    // Attach event using event delegation to catch form even when hidden
+    document.addEventListener('submit', async function(e) {
+        if (e.target && e.target.id === 'about-us-form') {
             e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('About us form submitted');
             
             const aboutUsText = document.getElementById('about-us-text').value;
             
@@ -286,6 +288,7 @@ function setupAboutUsForm() {
                 });
                 
                 const result = await response.json();
+                console.log('API response:', result);
                 
                 if (result.success) {
                     alert('✅ "Om oss" tekst lagret!');
@@ -296,19 +299,9 @@ function setupAboutUsForm() {
                 console.error('Error saving about us:', error);
                 alert('❌ Feil ved lagring av tekst');
             }
-        });
-    }
-}
-
-// Setup when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupAboutUsForm);
-} else {
-    setupAboutUsForm();
-}
-
-// Also setup when the "Om oss" tab is clicked
-document.querySelector('[href="#firma-about"]')?.addEventListener('click', function() {
-    setTimeout(setupAboutUsForm, 100);
-});
+            
+            return false;
+        }
+    }, true);
+})();
 </script>
