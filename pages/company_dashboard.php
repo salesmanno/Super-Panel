@@ -495,7 +495,7 @@ try {
                                                         <div class="form-check form-switch mb-0" style="padding-left: 2rem;">
                                                             <input class="form-check-input public-module-toggle" 
                                                                    type="checkbox" 
-                                                                   id="public-<?= $module['module_key'] ?>"
+                                                                   id="public-<?= $module['slug'] ?>"
                                                                    data-module-id="<?= $module['id'] ?>"
                                                                    style="margin-left: -1.5rem;"
                                                                    <?= isset($publicSettings[$module['id']]) && $publicSettings[$module['id']] ? 'checked' : '' ?>>
@@ -529,6 +529,93 @@ try {
                                     });
                                 });
                                 </script>
+                                
+                                <!-- Admin Activity Log -->
+                                <div class="row mt-4">
+                                    <div class="col-md-12">
+                                        <div class="card">
+                                            <div class="card-header bg-primary text-white">
+                                                <h6 class="mb-0"><i class="bi bi-activity me-2"></i>Admin Aktivitetslogg</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <?php
+                                                try {
+                                                    // Hent aktivitet for alle tenant admins i dette firmaet
+                                                    $stmt = $db->prepare("
+                                                        SELECT 
+                                                            tas.login_at,
+                                                            tas.logout_at,
+                                                            tas.ip_address,
+                                                            tas.last_activity,
+                                                            ts.first_name,
+                                                            ts.last_name,
+                                                            ts.email
+                                                        FROM tenant_admin_sessions tas
+                                                        INNER JOIN tenant_admins ta ON tas.tenant_admin_id = ta.id
+                                                        LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
+                                                        WHERE ta.company_id = ?
+                                                        ORDER BY tas.login_at DESC
+                                                        LIMIT 20
+                                                    ");
+                                                    $stmt->execute([$_SESSION['company_id']]);
+                                                    $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                                                } catch (Exception $e) {
+                                                    $activities = [];
+                                                }
+                                                ?>
+                                                
+                                                <?php if (!empty($activities)): ?>
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-hover">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Admin</th>
+                                                                <th>Innlogget</th>
+                                                                <th>Utlogget</th>
+                                                                <th>Siste aktivitet</th>
+                                                                <th>IP-adresse</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <?php foreach ($activities as $activity): ?>
+                                                            <tr>
+                                                                <td>
+                                                                    <strong><?= htmlspecialchars(($activity['first_name'] ?? '') . ' ' . ($activity['last_name'] ?? '')) ?></strong>
+                                                                    <?php if (!empty($activity['email'])): ?>
+                                                                        <br><small class="text-muted"><?= htmlspecialchars($activity['email']) ?></small>
+                                                                    <?php endif; ?>
+                                                                </td>
+                                                                <td><?= date('d.m.Y H:i', strtotime($activity['login_at'])) ?></td>
+                                                                <td>
+                                                                    <?php if ($activity['logout_at']): ?>
+                                                                        <?= date('d.m.Y H:i', strtotime($activity['logout_at'])) ?>
+                                                                    <?php else: ?>
+                                                                        <span class="badge bg-success">Aktiv</span>
+                                                                    <?php endif; ?>
+                                                                </td>
+                                                                <td>
+                                                                    <?php if ($activity['last_activity']): ?>
+                                                                        <?= date('d.m.Y H:i', strtotime($activity['last_activity'])) ?>
+                                                                    <?php else: ?>
+                                                                        -
+                                                                    <?php endif; ?>
+                                                                </td>
+                                                                <td><small><?= htmlspecialchars($activity['ip_address'] ?? '-') ?></small></td>
+                                                            </tr>
+                                                            <?php endforeach; ?>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                <?php else: ?>
+                                                <div class="text-center py-4 text-muted">
+                                                    <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                                    <p class="mb-0 mt-2">Ingen aktivitet registrert ennå</p>
+                                                </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 <?php
                                 break;
                             case 'ditt_nettsted':

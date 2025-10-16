@@ -222,15 +222,23 @@
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
                                     <label class="form-label">Billett type</label>
                                     <select class="form-select" name="ticket_type">
                                         <option value="regular">Ordinær</option>
                                         <option value="member">Medlem</option>
                                         <option value="vip">VIP</option>
+                                        <option value="staff">Ansatt</option>
                                     </select>
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Skal betale?</label>
+                                    <div class="form-check form-switch mt-2">
+                                        <input class="form-check-input" type="checkbox" name="is_paying" id="isPayingCheckbox" checked>
+                                        <label class="form-check-label" for="isPayingCheckbox">Betaler</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-3" id="payment-method-container">
                                     <label class="form-label">Betalingsmetode</label>
                                     <select class="form-select" name="payment_method">
                                         <option value="cash">Kontant</option>
@@ -239,10 +247,14 @@
                                         <option value="online">Online</option>
                                     </select>
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
                                     <label class="form-label">Notater</label>
                                     <input type="text" class="form-control" name="notes">
                                 </div>
+                            </div>
+                            <div class="alert alert-info" id="staff-info" style="display: none;">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <span id="staff-info-text">Deltakeren er registrert som ansatt</span>
                             </div>
                             <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-check-circle me-1"></i>Sjekk inn
@@ -524,6 +536,41 @@ async function loadCheckinEventSelector() {
     }
 }
 
+// Handle payment toggle
+document.getElementById('isPayingCheckbox')?.addEventListener('change', function(e) {
+    const paymentContainer = document.getElementById('payment-method-container');
+    const paymentSelect = document.querySelector('[name="payment_method"]');
+    
+    if (e.target.checked) {
+        paymentContainer.style.display = 'block';
+        paymentSelect.required = true;
+    } else {
+        paymentContainer.style.display = 'none';
+        paymentSelect.required = false;
+    }
+});
+
+// Check if email matches staff member
+document.querySelector('[name="attendee_email"]')?.addEventListener('blur', async function(e) {
+    const email = e.target.value.trim();
+    if (!email) return;
+    
+    try {
+        const response = await fetch(`../api/check_staff.php?email=${encodeURIComponent(email)}&company_id=<?= $_SESSION['company_id'] ?>`);
+        const result = await response.json();
+        
+        if (result.is_staff) {
+            document.getElementById('staff-info').style.display = 'block';
+            document.getElementById('staff-info-text').textContent = `${result.name} er registrert som ansatt`;
+            document.querySelector('[name="ticket_type"]').value = 'staff';
+        } else {
+            document.getElementById('staff-info').style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error checking staff:', error);
+    }
+});
+
 // Handle event selection
 document.getElementById('checkin-event-selector')?.addEventListener('change', function(e) {
     selectedEventId = e.target.value;
@@ -550,13 +597,15 @@ document.getElementById('checkin-form')?.addEventListener('submit', async functi
     }
     
     const formData = new FormData(this);
+    const isPaying = document.getElementById('isPayingCheckbox').checked;
     const data = {
         event_id: selectedEventId,
         attendee_name: formData.get('attendee_name'),
         attendee_email: formData.get('attendee_email'),
         attendee_phone: formData.get('attendee_phone'),
         ticket_type: formData.get('ticket_type'),
-        payment_method: formData.get('payment_method'),
+        payment_method: isPaying ? formData.get('payment_method') : 'free',
+        is_paying: isPaying,
         notes: formData.get('notes')
     };
     
