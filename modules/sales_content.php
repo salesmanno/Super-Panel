@@ -1,5 +1,10 @@
 <div class="module-content">
     <div id="sales-varesalg" class="subtab-content active">
+        <div class="d-flex justify-content-end mb-3">
+            <button class="btn btn-sm btn-outline-primary" onclick="loadAllSalesData()">
+                <i class="bi bi-arrow-clockwise me-1"></i>Oppdater
+            </button>
+        </div>
         <div class="row">
             <!-- Products with Shopping Cart -->
             <div class="col-md-8">

@@ -848,8 +848,15 @@ try {
                 container.style.display = 'block';
                 moduleSubtabs.style.display = 'flex';
                 
+                // Fjern .active fra alle subtab links i denne modulen
+                moduleSubtabs.querySelectorAll('.nav-link').forEach(link => {
+                    link.classList.remove('active');
+                });
+                
                 const firstSubtabLink = moduleSubtabs.querySelector('.nav-link');
                 if (firstSubtabLink) {
+                    // Legg til .active på første subtab
+                    firstSubtabLink.classList.add('active');
                     const targetId = firstSubtabLink.getAttribute('href').substring(1);
                     showSubTabContent(moduleSlug, targetId);
                 }
