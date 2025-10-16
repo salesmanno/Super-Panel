@@ -323,10 +323,10 @@ document.getElementById('quick-sale-form')?.addEventListener('submit', async fun
 });
 
 // Load products when sales tab becomes active
-document.querySelector('[href="#tab-sales"]')?.addEventListener('shown.bs.tab', loadSalesProducts);
+document.getElementById('tab-sales')?.addEventListener('shown.bs.tab', loadSalesProducts);
 
 // Load products immediately if on sales tab
-if (document.querySelector('[href="#tab-sales"]')?.classList.contains('active')) {
+if (document.getElementById('tab-sales')?.classList.contains('active')) {
     loadSalesProducts();
 }
 
