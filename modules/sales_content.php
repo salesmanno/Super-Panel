@@ -60,6 +60,17 @@
                             </div>
                             
                             <div class="mb-3">
+                                <label class="form-label small">E-post</label>
+                                <input type="email" class="form-control form-control-sm" id="checkout-customer-email">
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" id="send-receipt-checkbox">
+                                    <label class="form-check-label small" for="send-receipt-checkbox">
+                                        Send kvittering til e-post
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
                                 <label class="form-label small">Betalingsmetode</label>
                                 <select class="form-select form-select-sm" id="checkout-payment-method">
                                     <option value="cash">Kontant</option>
@@ -217,48 +228,59 @@
             <div class="modal-body">
                 <form id="addSalesItemForm">
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Produktnavn *</label>
-                            <input type="text" class="form-control" name="product_name" required>
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label">Produktnavn <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="name" required>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">SKU / Varenummer *</label>
-                            <input type="text" class="form-control" name="sku" required>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Enhet</label>
+                            <select class="form-select" name="unit">
+                                <option value="stk">Stk</option>
+                                <option value="kg">Kg</option>
+                                <option value="liter">Liter</option>
+                                <option value="meter">Meter</option>
+                                <option value="pakke">Pakke</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Kostpris (NOK)</label>
+                            <input type="number" class="form-control" name="cost_price" step="0.01" value="0">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Salgspris (NOK) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="selling_price" step="0.01" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Medlemspris (NOK)</label>
+                            <input type="number" class="form-control" name="member_price" step="0.01">
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Kategori</label>
-                            <select class="form-select" name="category">
-                                <option value="">Velg kategori</option>
-                                <option value="electronics">Elektronikk</option>
-                                <option value="clothing">Klær</option>
-                                <option value="food">Mat & Drikke</option>
-                                <option value="services">Tjenester</option>
-                                <option value="other">Annet</option>
+                            <label class="form-label">MVA-sats (%)</label>
+                            <select class="form-select" name="tax_rate">
+                                <option value="25" selected>25% (Standard)</option>
+                                <option value="15">15% (Mat)</option>
+                                <option value="12">12% (Transport, kino)</option>
+                                <option value="0">0% (Fritatt)</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Pris (NOK) *</label>
-                            <input type="number" class="form-control" name="price" step="0.01" required>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Lager antall</label>
-                            <input type="number" class="form-control" name="stock" value="0">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Status</label>
-                            <select class="form-select" name="status">
-                                <option value="active">Aktiv</option>
-                                <option value="inactive">Inaktiv</option>
-                            </select>
+                            <label class="form-label">Bestillingspunkt (reorder)</label>
+                            <input type="number" class="form-control" name="reorder_level" value="0">
                         </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Beskrivelse</label>
-                        <textarea class="form-control" name="description" rows="3"></textarea>
+                        <textarea class="form-control" name="description" rows="2"></textarea>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="productActive" checked>
+                        <label class="form-check-label" for="productActive">
+                            Aktiv (tilgjengelig for salg)
+                        </label>
                     </div>
                 </form>
             </div>
@@ -396,26 +418,30 @@ function displayServices(services) {
         return;
     }
     
-    container.innerHTML = services.map(service => `
-        <div class="col-md-12 mb-3">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h6 class="card-title mb-1">${service.item_name}</h6>
-                            <small class="text-muted">
-                                <span class="badge bg-info">${getServiceTypeName(service.product_type)}</span>
-                            </small>
-                            <p class="mb-2 mt-2"><strong>${service.price} NOK</strong></p>
-                        </div>
-                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#servicePurchaseModal" onclick="setServiceData('${service.id}', '${service.product_type}', '${service.item_name}', ${service.price})">
-                            <i class="bi bi-bag-check"></i> Selg
-                        </button>
+    const colors = {
+        'event': 'primary',
+        'membership': 'success',
+        'rental': 'warning'
+    };
+    
+    container.innerHTML = '<div class="d-flex flex-wrap gap-2">' + services.map(service => {
+        const color = colors[service.product_type] || 'secondary';
+        return `
+            <div class="badge bg-${color} p-2 text-start" 
+                 style="cursor: pointer; min-width: 180px; max-width: 250px;"
+                 data-bs-toggle="modal" 
+                 data-bs-target="#servicePurchaseModal" 
+                 onclick="setServiceData('${service.id}', '${service.product_type}', '${service.item_name}', ${service.price})">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div style="font-size: 0.9rem; font-weight: 600;">${service.item_name}</div>
+                        <small style="opacity: 0.9;">${service.price} NOK • ${getServiceTypeName(service.product_type)}</small>
                     </div>
+                    <i class="bi bi-bag-check ms-2"></i>
                 </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('') + '</div>';
 }
 
 function getServiceTypeName(type) {
@@ -529,6 +555,8 @@ async function removeFromCart(cartId) {
 
 document.getElementById('checkout-btn')?.addEventListener('click', async function() {
     const customerName = document.getElementById('checkout-customer-name').value;
+    const customerEmail = document.getElementById('checkout-customer-email').value;
+    const sendReceipt = document.getElementById('send-receipt-checkbox').checked;
     const paymentMethod = document.getElementById('checkout-payment-method').value;
     const notes = document.getElementById('checkout-notes').value;
     
@@ -536,14 +564,26 @@ document.getElementById('checkout-btn')?.addEventListener('click', async functio
         const response = await fetch('/api/checkout_cart.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({customer_name: customerName, payment_method: paymentMethod, notes: notes})
+            body: JSON.stringify({
+                customer_name: customerName, 
+                customer_email: customerEmail,
+                send_receipt: sendReceipt,
+                payment_method: paymentMethod, 
+                notes: notes
+            })
         });
         
         const result = await response.json();
         
         if (result.success) {
-            alert(`✅ Salg gjennomført!\nAntall varer: ${result.items_sold}\nTotalsum: ${result.total.toFixed(2)} NOK`);
+            let message = `✅ Salg gjennomført!\nAntall varer: ${result.items_sold}\nTotalsum: ${result.total.toFixed(2)} NOK`;
+            if (sendReceipt && customerEmail) {
+                message += `\n📧 Kvittering sendt til ${customerEmail}`;
+            }
+            alert(message);
             document.getElementById('checkout-customer-name').value = '';
+            document.getElementById('checkout-customer-email').value = '';
+            document.getElementById('send-receipt-checkbox').checked = false;
             document.getElementById('checkout-notes').value = '';
             await loadCart();
         } else {
@@ -561,13 +601,48 @@ if (document.getElementById('tab-sales')?.classList.contains('active')) {
     loadSalesProducts();
 }
 
-function submitSalesItem() {
+async function submitSalesItem() {
     const form = document.getElementById('addSalesItemForm');
+    
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
     const formData = new FormData(form);
-    console.log('Lagrer produkt:', Object.fromEntries(formData));
-    bootstrap.Modal.getInstance(document.getElementById('addSalesItemModal')).hide();
-    form.reset();
-    alert('Produkt lagret! (Dette er en placeholder - koble til database)');
+    const productData = {
+        name: formData.get('name'),
+        description: formData.get('description'),
+        cost_price: parseFloat(formData.get('cost_price')) || 0,
+        selling_price: parseFloat(formData.get('selling_price')),
+        member_price: formData.get('member_price') ? parseFloat(formData.get('member_price')) : null,
+        tax_rate: parseFloat(formData.get('tax_rate')),
+        unit: formData.get('unit'),
+        reorder_level: parseInt(formData.get('reorder_level')) || 0,
+        is_active: formData.get('is_active') ? true : false
+    };
+    
+    try {
+        const response = await fetch('/api/create_sales_product.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(productData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`✅ Produkt opprettet!\nProdukt ID: ${result.product_id}`);
+            bootstrap.Modal.getInstance(document.getElementById('addSalesItemModal')).hide();
+            form.reset();
+            await loadSalesProducts(); // Reload products
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (error) {
+        console.error('Product creation error:', error);
+        alert('❌ Feil ved opprettelse av produkt');
+    }
 }
 
 // Service purchase functions

@@ -4,13 +4,13 @@ require_once '../config/database.php';
 
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['admin_id']) || !isset($_SESSION['company_id'])) {
+if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
     exit;
 }
 
 $db = getDBConnection();
-$admin_id = $_SESSION['admin_id'];
+$admin_id = $_SESSION['tenant_admin_id'];
 $company_id = $_SESSION['company_id'];
 
 $data = json_decode(file_get_contents('php://input'), true);
