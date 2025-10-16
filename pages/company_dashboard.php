@@ -21,13 +21,13 @@ $companyLogo = null;
 try {
     $db = getDBConnection();
     if ($db && isset($_SESSION['subdomain'])) {
-        // Prøv først tenant_companies.logo_url
-        $stmt = $db->prepare("SELECT logo_url FROM tenant_companies WHERE subdomain = ?");
+        // Prøv først tenant_companies.company_logo_url
+        $stmt = $db->prepare("SELECT company_logo_url FROM tenant_companies WHERE subdomain = ?");
         $stmt->execute([$_SESSION['subdomain']]);
         $logoData = $stmt->fetch(PDO::FETCH_ASSOC);
         
         // Hvis ikke funnet, prøv companies-tabellen
-        if (!$logoData || empty($logoData['logo_url'])) {
+        if (!$logoData || empty($logoData['company_logo_url'])) {
             $stmt = $db->prepare("SELECT logo_index FROM companies WHERE subdomain = ?");
             $stmt->execute([$_SESSION['subdomain']]);
             $logoData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -35,7 +35,7 @@ try {
                 $companyLogo = $logoData['logo_index'];
             }
         } else {
-            $companyLogo = $logoData['logo_url'];
+            $companyLogo = $logoData['company_logo_url'];
         }
     }
 } catch (Exception $e) {
@@ -411,6 +411,19 @@ try {
                     <a class="nav-link" href="#sales-statistics">Salgsstatistikk</a>
                 </li>
             </ul>
+            
+            <!-- Deres firma subtabs -->
+            <ul class="nav nav-pills py-2 subtabs" id="subtabs-ditt_nettsted" style="display: none;">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#firma-firmadata">Firmadata</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#firma-about">Om oss</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#firma-staff">Stillinger</a>
+                </li>
+            </ul>
         </div>
     </div>
     
@@ -513,7 +526,7 @@ try {
                                 <?php
                                 break;
                             case 'ditt_nettsted':
-                                echo '<iframe src="ditt_nettsted.php" style="width: 100%; height: 80vh; border: none; border-radius: 8px;" frameborder="0"></iframe>';
+                                include __DIR__ . '/../modules/deres_firma_content.php';
                                 break;
                             case 'email':
                             case 'webmail':

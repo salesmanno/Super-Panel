@@ -1,0 +1,206 @@
+<div class="module-content">
+    <div id="firma-firmadata" class="subtab-content">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-building me-2"></i>Firmadata</h5>
+                <p class="text-muted">Administrer bedriftens grunnleggende informasjon</p>
+                
+                <?php
+                // Hent firmadata fra tenant_companies
+                $companyData = [];
+                try {
+                    $db = getDBConnection();
+                    if ($db) {
+                        $stmt = $db->prepare("SELECT * FROM tenant_companies WHERE id = ?");
+                        $stmt->execute([$_SESSION['company_id']]);
+                        $companyData = $stmt->fetch(PDO::FETCH_ASSOC);
+                    }
+                } catch (Exception $e) {
+                    echo '<div class="alert alert-danger">Kunne ikke laste firmadata: ' . htmlspecialchars($e->getMessage()) . '</div>';
+                }
+                ?>
+                
+                <?php if ($companyData): ?>
+                <form id="companyDataForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Firmanavn</label>
+                            <input type="text" class="form-control" value="<?= htmlspecialchars($companyData['name'] ?? '') ?>" readonly>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Organisasjonsnummer</label>
+                            <input type="text" class="form-control" value="<?= htmlspecialchars($companyData['org_number'] ?? '') ?>" readonly>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Adresse</label>
+                            <input type="text" class="form-control" value="<?= htmlspecialchars($companyData['address'] ?? '') ?>" readonly>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Postnummer</label>
+                            <input type="text" class="form-control" value="<?= htmlspecialchars($companyData['postal_code'] ?? '') ?>" readonly>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Sted</label>
+                            <input type="text" class="form-control" value="<?= htmlspecialchars($companyData['city'] ?? '') ?>" readonly>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Telefon</label>
+                            <input type="text" class="form-control" value="<?= htmlspecialchars($companyData['phone'] ?? '') ?>" readonly>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">E-post</label>
+                            <input type="email" class="form-control" value="<?= htmlspecialchars($companyData['email'] ?? '') ?>" readonly>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Nettside</label>
+                            <input type="url" class="form-control" value="<?= htmlspecialchars($companyData['website'] ?? '') ?>" readonly>
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>Kontakt systemadministrator for å endre firmadata
+                    </div>
+                </form>
+                <?php else: ?>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Ingen firmadata funnet
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <div id="firma-about" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-info-circle me-2"></i>Om oss</h5>
+                <p class="text-muted">Bedriftens historie og beskrivelse</p>
+                
+                <?php if ($companyData && !empty($companyData['description'])): ?>
+                <div class="mb-4">
+                    <h6>Bedriftsbeskrivelse</h6>
+                    <p><?= nl2br(htmlspecialchars($companyData['description'] ?? '')) ?></p>
+                </div>
+                <?php else: ?>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Ingen bedriftsbeskrivelse er lagt til ennå
+                </div>
+                <?php endif; ?>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">Bedriftsinformasjon</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <strong>Opprettet:</strong> 
+                                <?= isset($companyData['created_at']) ? date('d.m.Y', strtotime($companyData['created_at'])) : 'N/A' ?>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <strong>Status:</strong> 
+                                <?php if ($companyData['is_active'] ?? false): ?>
+                                    <span class="badge bg-success">Aktiv</span>
+                                <?php else: ?>
+                                    <span class="badge bg-secondary">Inaktiv</span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <strong>Subdomain:</strong> <?= htmlspecialchars($companyData['subdomain'] ?? '') ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="firma-staff" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-people me-2"></i>Stillinger og ansatte</h5>
+                <p class="text-muted">Oversikt over alle ansatte i bedriften</p>
+                
+                <?php
+                // Hent ansatte fra tenant_staff
+                $staff = [];
+                try {
+                    $db = getDBConnection();
+                    if ($db) {
+                        $stmt = $db->prepare("SELECT * FROM tenant_staff WHERE company_id = ? ORDER BY last_name, first_name");
+                        $stmt->execute([$_SESSION['company_id']]);
+                        $staff = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    }
+                } catch (Exception $e) {
+                    echo '<div class="alert alert-danger">Kunne ikke laste ansatte: ' . htmlspecialchars($e->getMessage()) . '</div>';
+                }
+                ?>
+                
+                <?php if (!empty($staff)): ?>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Navn</th>
+                                <th>Stilling</th>
+                                <th>E-post</th>
+                                <th>Telefon</th>
+                                <th>Avdeling</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($staff as $employee): ?>
+                            <tr>
+                                <td>
+                                    <strong><?= htmlspecialchars($employee['first_name'] . ' ' . $employee['last_name']) ?></strong>
+                                </td>
+                                <td><?= htmlspecialchars($employee['job_title'] ?? 'N/A') ?></td>
+                                <td>
+                                    <?php if (!empty($employee['email'])): ?>
+                                        <a href="mailto:<?= htmlspecialchars($employee['email']) ?>">
+                                            <?= htmlspecialchars($employee['email']) ?>
+                                        </a>
+                                    <?php else: ?>
+                                        N/A
+                                    <?php endif; ?>
+                                </td>
+                                <td><?= htmlspecialchars($employee['phone'] ?? 'N/A') ?></td>
+                                <td><?= htmlspecialchars($employee['department'] ?? 'N/A') ?></td>
+                                <td>
+                                    <?php if ($employee['is_active'] ?? false): ?>
+                                        <span class="badge bg-success">Aktiv</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-secondary">Inaktiv</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php else: ?>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Ingen ansatte er registrert ennå
+                </div>
+                <?php endif; ?>
+                
+                <div class="mt-3">
+                    <p class="text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Totalt <?= count($staff) ?> ansatte registrert
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
