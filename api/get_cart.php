@@ -19,9 +19,9 @@ try {
             sc.id as cart_id,
             sc.output_product_id,
             sc.quantity,
-            op.name as product_name,
-            sp.selling_price as price,
-            (sc.quantity * sp.selling_price) as subtotal
+            COALESCE(sp.name, op.name) as product_name,
+            COALESCE(sp.selling_price, op.price, 0) as price,
+            (sc.quantity * COALESCE(sp.selling_price, op.price, 0)) as subtotal
         FROM sales_cart sc
         JOIN output_products op ON sc.output_product_id = op.id
         LEFT JOIN sales_products sp ON op.product_id = sp.id AND op.product_type = 'product'

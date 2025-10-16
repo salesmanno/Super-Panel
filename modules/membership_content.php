@@ -318,6 +318,6 @@ async function loadMembershipPlans() {
 }
 
 // Last inn planer når medlemskap-tab vises
-document.querySelector('[href="#tab-membership"]')?.addEventListener('shown.bs.tab', loadMembershipPlans);
+document.getElementById('tab-membership')?.addEventListener('shown.bs.tab', loadMembershipPlans);
 </script>
 
