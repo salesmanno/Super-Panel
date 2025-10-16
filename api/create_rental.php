@@ -38,7 +38,6 @@ try {
                 serial_number,
                 condition_notes
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            RETURNING object_id
         ");
         
         $stmt->execute([
@@ -56,7 +55,8 @@ try {
             $data['condition_notes'] ?? null
         ]);
         
-        $rentalId = $stmt->fetchColumn();
+        // Get last insert ID (works in both MySQL and PostgreSQL)
+        $rentalId = $db->lastInsertId();
         
         // 2. Auto-generate output_products entry
         $catalogService = new ProductCatalogService($db);

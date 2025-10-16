@@ -33,7 +33,6 @@ try {
                 features,
                 is_active
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            RETURNING plan_id
         ");
         
         $stmt->execute([
@@ -46,7 +45,8 @@ try {
             $data['is_active'] ?? true
         ]);
         
-        $planId = $stmt->fetchColumn();
+        // Get last insert ID (works in both MySQL and PostgreSQL)
+        $planId = $db->lastInsertId();
         
         // 2. Auto-generate output_products entry
         $catalogService = new ProductCatalogService($db);
