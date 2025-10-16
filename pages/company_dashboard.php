@@ -16,6 +16,32 @@ $adminName = $_SESSION['admin_name'] ?? 'Bruker';
 $companyName = $_SESSION['company_name'] ?? 'Firma';
 $adminRole = $_SESSION['admin_role'] ?? 'admin';
 
+// Hent company logo fra database
+$companyLogo = null;
+try {
+    $db = getDBConnection();
+    if ($db && isset($_SESSION['subdomain'])) {
+        // Prøv først tenant_companies
+        $stmt = $db->prepare("SELECT company_logo_url FROM tenant_companies WHERE subdomain = ?");
+        $stmt->execute([$_SESSION['subdomain']]);
+        $logoData = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Hvis ikke funnet, prøv companies-tabellen
+        if (!$logoData || empty($logoData['company_logo_url'])) {
+            $stmt = $db->prepare("SELECT logo_index FROM companies WHERE subdomain = ?");
+            $stmt->execute([$_SESSION['subdomain']]);
+            $logoData = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($logoData && !empty($logoData['logo_index'])) {
+                $companyLogo = $logoData['logo_index'];
+            }
+        } else {
+            $companyLogo = $logoData['company_logo_url'];
+        }
+    }
+} catch (Exception $e) {
+    $companyLogo = null;
+}
+
 $allUserModules = getTenantAdminModules($_SESSION['tenant_admin_id']);
 $officialModules = array_filter($allUserModules, function($module) {
     return in_array($module['module_key'], ['dashboard', 'ditt_nettsted']);
@@ -191,14 +217,34 @@ try {
             margin-bottom: 1rem;
             opacity: 0.5;
         }
+        
+        .company-logo {
+            height: 40px;
+            width: auto;
+            margin-right: 12px;
+            border-radius: 4px;
+            background: white;
+            padding: 4px;
+        }
+        
+        .header-logo {
+            height: 60px;
+            width: auto;
+            margin-bottom: 16px;
+        }
     </style>
 </head>
 <body>
     <!-- Navigation -->
     <nav class="navbar navbar-gradient navbar-dark">
         <div class="container-fluid">
-            <a class="navbar-brand" href="#">
-                <i class="bi bi-building me-2"></i><?= htmlspecialchars($companyName) ?>
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <?php if ($companyLogo): ?>
+                    <img src="<?= htmlspecialchars($companyLogo) ?>" alt="<?= htmlspecialchars($companyName) ?>" class="company-logo">
+                <?php else: ?>
+                    <i class="bi bi-building me-2"></i>
+                <?php endif; ?>
+                <?= htmlspecialchars($companyName) ?>
             </a>
             <div class="d-flex align-items-center gap-2">
                 <span class="navbar-text">
@@ -224,38 +270,11 @@ try {
     <!-- Header -->
     <div class="dashboard-header">
         <div class="container">
+            <?php if ($companyLogo): ?>
+                <img src="<?= htmlspecialchars($companyLogo) ?>" alt="<?= htmlspecialchars($companyName) ?>" class="header-logo">
+            <?php endif; ?>
             <h1 class="mb-2">Velkommen, <?= htmlspecialchars($adminName) ?>!</h1>
             <p class="text-muted mb-0">Du har tilgang til <?= count($allUserModules) ?> modul<?= count($allUserModules) != 1 ? 'er' : '' ?></p>
-            
-            <!-- DEBUG INFO -->
-            <div class="alert alert-info mt-3" style="font-size: 0.85rem;">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <strong>🔧 DEBUG:</strong>
-                    <div>
-                        <button class="btn btn-sm btn-primary me-2" onclick="refreshSession()">
-                            <i class="bi bi-arrow-clockwise me-1"></i>Refresh Session
-                        </button>
-                        <a href="/auth/logout.php" class="btn btn-sm btn-warning">
-                            <i class="bi bi-box-arrow-right me-1"></i>Logg ut & inn igjen
-                        </a>
-                    </div>
-                </div>
-                <strong>SESSION DATA:</strong><br>
-                - tenant_admin_id: <code><?= var_export($_SESSION['tenant_admin_id'] ?? 'NOT SET', true) ?></code><br>
-                - admin_name: <code><?= var_export($_SESSION['admin_name'] ?? 'NOT SET', true) ?></code><br>
-                - admin_first_name: <code><?= var_export($_SESSION['admin_first_name'] ?? 'NOT SET', true) ?></code><br>
-                - admin_last_name: <code><?= var_export($_SESSION['admin_last_name'] ?? 'NOT SET', true) ?></code><br>
-                - company_name: <code><?= var_export($_SESSION['company_name'] ?? 'NOT SET', true) ?></code><br>
-                - company_id: <code><?= var_export($_SESSION['company_id'] ?? 'NOT SET', true) ?></code><br>
-                <strong>MODULES:</strong><br>
-                - Total: <code><?= count($allUserModules) ?></code><br>
-                - Official: <code><?= count($officialModules) ?></code><br>
-                - User: <code><?= count($userModules) ?></code><br>
-                <?php if (!empty($allUserModules)): ?>
-                    - First Module Key: <code><?= $allUserModules[0]['module_key'] ?? 'NO KEY' ?></code><br>
-                    - First Module Name: <code><?= $allUserModules[0]['name'] ?? 'NO NAME' ?></code>
-                <?php endif; ?>
-            </div>
         </div>
     </div>
     
