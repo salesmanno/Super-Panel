@@ -645,16 +645,41 @@ if (salesModule) {
     });
 }
 
-// Load products when sales tab is shown
+// Load all sales data when sales tab is shown
 const salesTab = document.getElementById('tab-sales');
 if (salesTab) {
     salesTab.addEventListener('shown.bs.tab', function(e) {
-        loadSalesProducts();
+        loadAllSalesData();
     });
     
     if (salesTab.classList.contains('active')) {
-        loadSalesProducts();
+        loadAllSalesData();
     }
+}
+
+// Load all sales data in one function
+async function loadAllSalesData() {
+    await Promise.all([
+        loadSalesProducts(),
+        loadTransactions()
+    ]);
+}
+
+async function loadTransactions() {
+    const salesModule = document.getElementById('content-sales');
+    if (!salesModule) return;
+    
+    const container = salesModule.querySelector('#transactions-list');
+    if (!container) return;
+    
+    // TODO: Replace with real API when ready
+    container.innerHTML = `
+        <tr>
+            <td colspan="7" class="text-center text-muted py-4">
+                Ingen transaksjoner funnet
+            </td>
+        </tr>
+    `;
 }
 
 async function submitSalesItem() {
