@@ -1,5 +1,63 @@
 <div class="module-content">
-    <div id="sales-items" class="subtab-content">
+    <div id="sales-varesalg" class="subtab-content">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-cart-check me-2"></i>Varesalg</h5>
+                <p class="text-muted">Registrer et nytt salg</p>
+                
+                <form id="quick-sale-form">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Velg produkt</label>
+                            <select class="form-select" id="sale-product-id" required>
+                                <option value="">-- Velg produkt --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Antall</label>
+                            <input type="number" class="form-control" id="sale-quantity" min="1" value="1" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Pris per stk</label>
+                            <input type="number" class="form-control" id="sale-price" step="0.01" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Kundenavn (valgfritt)</label>
+                            <input type="text" class="form-control" id="sale-customer-name">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Betalingsmetode</label>
+                            <select class="form-select" id="sale-payment-method" required>
+                                <option value="cash">Kontant</option>
+                                <option value="card">Kort</option>
+                                <option value="online">Nettbank</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Notater (valgfritt)</label>
+                            <textarea class="form-control" id="sale-notes" rows="2"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <strong>Totalsum:</strong> <span id="sale-total">0.00</span> NOK
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-check-circle me-2"></i>Gjennomfør salg
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="sales-items" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -189,6 +247,92 @@
 </div>
 
 <script>
+// Load products when sales module is active
+async function loadSalesProducts() {
+    try {
+        const response = await fetch('/api/get_sales_items.php');
+        const data = await response.json();
+        
+        if (data.success && data.items) {
+            const select = document.getElementById('sale-product-id');
+            select.innerHTML = '<option value="">-- Velg produkt --</option>';
+            
+            data.items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = `${item.item_name} - ${item.price} NOK`;
+                option.dataset.price = item.price;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading products:', error);
+    }
+}
+
+// Update price when product is selected
+document.getElementById('sale-product-id')?.addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    const price = selectedOption.dataset.price || 0;
+    document.getElementById('sale-price').value = price;
+    calculateTotal();
+});
+
+// Calculate total when quantity changes
+document.getElementById('sale-quantity')?.addEventListener('input', calculateTotal);
+
+function calculateTotal() {
+    const price = parseFloat(document.getElementById('sale-price').value) || 0;
+    const quantity = parseInt(document.getElementById('sale-quantity').value) || 0;
+    const total = (price * quantity).toFixed(2);
+    document.getElementById('sale-total').textContent = total;
+}
+
+// Handle quick sale submission
+document.getElementById('quick-sale-form')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const saleData = {
+        product_id: document.getElementById('sale-product-id').value,
+        quantity: parseInt(document.getElementById('sale-quantity').value),
+        price: parseFloat(document.getElementById('sale-price').value),
+        customer_name: document.getElementById('sale-customer-name').value,
+        payment_method: document.getElementById('sale-payment-method').value,
+        notes: document.getElementById('sale-notes').value,
+        company_id: <?= $_SESSION['company_id'] ?>
+    };
+    
+    try {
+        const response = await fetch('/api/process_sale.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(saleData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Salg registrert!');
+            this.reset();
+            document.getElementById('sale-price').value = '';
+            document.getElementById('sale-total').textContent = '0.00';
+        } else {
+            alert('❌ Feil: ' + (result.message || 'Kunne ikke registrere salg'));
+        }
+    } catch (error) {
+        console.error('Error processing sale:', error);
+        alert('❌ Feil ved registrering av salg');
+    }
+});
+
+// Load products when sales tab becomes active
+document.querySelector('[href="#tab-sales"]')?.addEventListener('shown.bs.tab', loadSalesProducts);
+
+// Load products immediately if on sales tab
+if (document.querySelector('[href="#tab-sales"]')?.classList.contains('active')) {
+    loadSalesProducts();
+}
+
 function submitSalesItem() {
     const form = document.getElementById('addSalesItemForm');
     const formData = new FormData(form);

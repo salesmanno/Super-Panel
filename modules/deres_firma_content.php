@@ -89,7 +89,7 @@
                 <h5 class="card-title"><i class="bi bi-info-circle me-2"></i>Om oss</h5>
                 <p class="text-muted">Bedriftens historie og beskrivelse</p>
                 
-                <form id="about-us-form">
+                <form id="about-us-form" onsubmit="return handleAboutUsSubmit(event);">
                     <div class="mb-3">
                         <label class="form-label">Om bedriften</label>
                         <textarea class="form-control" id="about-us-text" name="about_us" rows="10" style="line-height: 1.8;"><?= htmlspecialchars($companyData['about_us'] ?? '') ?></textarea>
@@ -263,45 +263,39 @@
 </div>
 
 <script>
-// Handle About Us form submission
-(function() {
-    // Attach event using event delegation to catch form even when hidden
-    document.addEventListener('submit', async function(e) {
-        if (e.target && e.target.id === 'about-us-form') {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            console.log('About us form submitted');
-            
-            const aboutUsText = document.getElementById('about-us-text').value;
-            
-            try {
-                const response = await fetch('/api/update_about_us.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ 
-                        about_us: aboutUsText,
-                        company_id: <?= $_SESSION['company_id'] ?>
-                    })
-                });
-                
-                const result = await response.json();
-                console.log('API response:', result);
-                
-                if (result.success) {
-                    alert('✅ "Om oss" tekst lagret!');
-                } else {
-                    alert('❌ Feil: ' + (result.message || 'Kunne ikke lagre tekst'));
-                }
-            } catch (error) {
-                console.error('Error saving about us:', error);
-                alert('❌ Feil ved lagring av tekst');
-            }
-            
-            return false;
+async function handleAboutUsSubmit(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    console.log('About us form submitted');
+    
+    const aboutUsText = document.getElementById('about-us-text').value;
+    
+    try {
+        const response = await fetch('/api/update_about_us.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                about_us: aboutUsText,
+                company_id: <?= $_SESSION['company_id'] ?>
+            })
+        });
+        
+        const result = await response.json();
+        console.log('API response:', result);
+        
+        if (result.success) {
+            alert('✅ "Om oss" tekst lagret!');
+        } else {
+            alert('❌ Feil: ' + (result.message || 'Kunne ikke lagre tekst'));
         }
-    }, true);
-})();
+    } catch (error) {
+        console.error('Error saving about us:', error);
+        alert('❌ Feil ved lagring av tekst');
+    }
+    
+    return false;
+}
 </script>

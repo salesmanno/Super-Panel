@@ -473,7 +473,10 @@ try {
             <!-- Sales subtabs -->
             <ul class="nav nav-pills py-2 subtabs" id="subtabs-sales" style="display: none;">
                 <li class="nav-item">
-                    <a class="nav-link active" href="#sales-items">Produkter</a>
+                    <a class="nav-link active" href="#sales-varesalg">Varesalg</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#sales-items">Produkter</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="#sales-orders">Ordrer</a>
