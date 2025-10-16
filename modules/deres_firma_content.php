@@ -89,11 +89,11 @@
                 <h5 class="card-title"><i class="bi bi-info-circle me-2"></i>Om oss</h5>
                 <p class="text-muted">Bedriftens historie og beskrivelse</p>
                 
-                <?php if ($companyData && !empty($companyData['description'])): ?>
+                <?php if ($companyData && !empty($companyData['about_us'])): ?>
                 <div class="mb-4">
-                    <h6>Bedriftsbeskrivelse</h6>
+                    <h6>Om bedriften</h6>
                     <div class="p-3 bg-light rounded">
-                        <p class="mb-0" style="line-height: 1.8; white-space: pre-wrap;"><?= htmlspecialchars($companyData['description'] ?? '') ?></p>
+                        <p class="mb-0" style="line-height: 1.8; white-space: pre-wrap;"><?= htmlspecialchars($companyData['about_us'] ?? '') ?></p>
                     </div>
                 </div>
                 <?php else: ?>
