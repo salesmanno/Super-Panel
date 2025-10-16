@@ -86,7 +86,9 @@
                 <?php if ($companyData && !empty($companyData['description'])): ?>
                 <div class="mb-4">
                     <h6>Bedriftsbeskrivelse</h6>
-                    <p><?= nl2br(htmlspecialchars($companyData['description'] ?? '')) ?></p>
+                    <div class="p-3 bg-light rounded">
+                        <p class="mb-0" style="line-height: 1.8; white-space: pre-wrap;"><?= htmlspecialchars($companyData['description'] ?? '') ?></p>
+                    </div>
                 </div>
                 <?php else: ?>
                 <div class="alert alert-warning">
@@ -133,12 +135,51 @@
                 <?php
                 // Hent ansatte fra tenant_staff
                 $staff = [];
+                $staffModules = [];
+                $totalModules = 0;
+                
                 try {
                     $db = getDBConnection();
                     if ($db) {
+                        // Hent alle ansatte
                         $stmt = $db->prepare("SELECT * FROM tenant_staff WHERE company_id = ? ORDER BY last_name, first_name");
                         $stmt->execute([$_SESSION['company_id']]);
                         $staff = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                        
+                        // Hent totalt antall aktive moduler
+                        $activeValue = dbBool(true);
+                        $stmt = $db->prepare("SELECT COUNT(*) FROM system_modules WHERE is_active = $activeValue");
+                        $stmt->execute();
+                        $totalModules = $stmt->fetchColumn();
+                        
+                        // Hent modultilgang for hver ansatt
+                        foreach ($staff as $employee) {
+                            // Finn tenant_admin basert på staff_id
+                            $stmt = $db->prepare("SELECT id FROM tenant_admins WHERE tenant_staff_id = ?");
+                            $stmt->execute([$employee['id']]);
+                            $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+                            
+                            if ($admin) {
+                                // Hent moduler for denne adminen
+                                $stmt = $db->prepare("
+                                    SELECT sm.name 
+                                    FROM system_modules sm
+                                    INNER JOIN tenant_admin_modules tam ON sm.id = tam.module_id
+                                    WHERE tam.tenant_admin_id = ? AND sm.is_active = $activeValue
+                                    ORDER BY sm.name
+                                ");
+                                $stmt->execute([$admin['id']]);
+                                $modules = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                                
+                                if (count($modules) >= $totalModules) {
+                                    $staffModules[$employee['id']] = 'ALLE';
+                                } else {
+                                    $staffModules[$employee['id']] = implode(', ', $modules);
+                                }
+                            } else {
+                                $staffModules[$employee['id']] = 'Ingen tilgang';
+                            }
+                        }
                     }
                 } catch (Exception $e) {
                     echo '<div class="alert alert-danger">Kunne ikke laste ansatte: ' . htmlspecialchars($e->getMessage()) . '</div>';
@@ -155,6 +196,7 @@
                                 <th>E-post</th>
                                 <th>Telefon</th>
                                 <th>Avdeling</th>
+                                <th>Modultilgang</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -176,6 +218,17 @@
                                 </td>
                                 <td><?= htmlspecialchars($employee['phone'] ?? 'N/A') ?></td>
                                 <td><?= htmlspecialchars($employee['department'] ?? 'N/A') ?></td>
+                                <td>
+                                    <?php 
+                                    $modules = $staffModules[$employee['id']] ?? 'Ingen tilgang';
+                                    if ($modules === 'ALLE'): ?>
+                                        <span class="badge bg-primary">ALLE</span>
+                                    <?php elseif ($modules === 'Ingen tilgang'): ?>
+                                        <span class="badge bg-secondary">Ingen tilgang</span>
+                                    <?php else: ?>
+                                        <small><?= htmlspecialchars($modules) ?></small>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <?php if ($employee['is_active'] ?? false): ?>
                                         <span class="badge bg-success">Aktiv</span>
