@@ -263,34 +263,52 @@
 </div>
 
 <script>
-// Handle About Us form submission
-document.getElementById('about-us-form')?.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const aboutUsText = document.getElementById('about-us-text').value;
-    
-    try {
-        const response = await fetch('../api/update_about_us.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-                about_us: aboutUsText,
-                company_id: <?= $_SESSION['company_id'] ?>
-            })
+// Handle About Us form submission - attach listener when DOM is ready
+function setupAboutUsForm() {
+    const form = document.getElementById('about-us-form');
+    if (form && !form.hasAttribute('data-listener-attached')) {
+        form.setAttribute('data-listener-attached', 'true');
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const aboutUsText = document.getElementById('about-us-text').value;
+            
+            try {
+                const response = await fetch('../api/update_about_us.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        about_us: aboutUsText,
+                        company_id: <?= $_SESSION['company_id'] ?>
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('✅ "Om oss" tekst lagret!');
+                } else {
+                    alert('❌ Feil: ' + (result.message || 'Kunne ikke lagre tekst'));
+                }
+            } catch (error) {
+                console.error('Error saving about us:', error);
+                alert('❌ Feil ved lagring av tekst');
+            }
         });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            alert('✅ "Om oss" tekst lagret!');
-        } else {
-            alert('❌ Feil: ' + (result.message || 'Kunne ikke lagre tekst'));
-        }
-    } catch (error) {
-        console.error('Error saving about us:', error);
-        alert('❌ Feil ved lagring av tekst');
     }
+}
+
+// Setup when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupAboutUsForm);
+} else {
+    setupAboutUsForm();
+}
+
+// Also setup when the "Om oss" tab is clicked
+document.querySelector('[href="#firma-about"]')?.addEventListener('click', function() {
+    setTimeout(setupAboutUsForm, 100);
 });
 </script>
