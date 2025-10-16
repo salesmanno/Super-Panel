@@ -56,13 +56,21 @@ try {
             $_SESSION['tenant_admin_id']
         ]);
         
-        // Update stock if available
-        $stmt = $db->prepare("
-            UPDATE sales_items 
-            SET stock_quantity = stock_quantity - ? 
-            WHERE id = ? AND company_id = ?
-        ");
-        $stmt->execute([$data['quantity'], $data['product_id'], $_SESSION['company_id']]);
+        // Update stock if available (only for sales_items)
+        // First check if this is a sales item from output_products
+        $stmt = $db->prepare("SELECT product_type, product_id FROM output_products WHERE id = ?");
+        $stmt->execute([$data['product_id']]);
+        $productInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($productInfo && $productInfo['product_type'] === 'sales') {
+            // Update stock for sales items only
+            $stmt = $db->prepare("
+                UPDATE sales_items 
+                SET stock_quantity = stock_quantity - ? 
+                WHERE id = ?
+            ");
+            $stmt->execute([$data['quantity'], $productInfo['product_id']]);
+        }
         
         $db->commit();
         
