@@ -497,4 +497,146 @@ function deleteEvent(eventId) {
         });
     }
 }
+
+// ========== CHECK-IN FUNCTIONALITY ==========
+
+let selectedEventId = null;
+
+// Load events into check-in selector
+async function loadCheckinEventSelector() {
+    try {
+        const response = await fetch('../api/get_events.php');
+        const result = await response.json();
+        
+        const selector = document.getElementById('checkin-event-selector');
+        if (result.success && result.events && result.events.length > 0) {
+            selector.innerHTML = '<option value="">-- Velg arrangement --</option>' + 
+                result.events.map(event => `
+                    <option value="${event.id}">
+                        ${event.title} - ${event.start_date} ${event.start_time}
+                    </option>
+                `).join('');
+        } else {
+            selector.innerHTML = '<option value="">Ingen arrangementer tilgjengelig</option>';
+        }
+    } catch (error) {
+        console.error('Error loading events:', error);
+    }
+}
+
+// Handle event selection
+document.getElementById('checkin-event-selector')?.addEventListener('change', function(e) {
+    selectedEventId = e.target.value;
+    
+    if (selectedEventId) {
+        document.getElementById('checkin-stats').style.display = 'block';
+        document.getElementById('checkin-form-container').style.display = 'block';
+        document.getElementById('checkin-list-container').style.display = 'block';
+        loadCheckins(selectedEventId);
+    } else {
+        document.getElementById('checkin-stats').style.display = 'none';
+        document.getElementById('checkin-form-container').style.display = 'none';
+        document.getElementById('checkin-list-container').style.display = 'none';
+    }
+});
+
+// Check-in form submission
+document.getElementById('checkin-form')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (!selectedEventId) {
+        alert('Velg et arrangement først');
+        return;
+    }
+    
+    const formData = new FormData(this);
+    const data = {
+        event_id: selectedEventId,
+        attendee_name: formData.get('attendee_name'),
+        attendee_email: formData.get('attendee_email'),
+        attendee_phone: formData.get('attendee_phone'),
+        ticket_type: formData.get('ticket_type'),
+        payment_method: formData.get('payment_method'),
+        notes: formData.get('notes')
+    };
+    
+    try {
+        const response = await fetch('../api/checkin_event.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Deltaker sjekket inn!');
+            this.reset();
+            loadCheckins(selectedEventId);
+        } else {
+            alert('❌ Feil: ' + (result.message || 'Kunne ikke sjekke inn'));
+        }
+    } catch (error) {
+        console.error('Error checking in:', error);
+        alert('❌ Feil ved innsjekking');
+    }
+});
+
+// Load check-ins for selected event
+async function loadCheckins(eventId) {
+    try {
+        const response = await fetch(`../api/get_event_checkins.php?event_id=${eventId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            // Update statistics
+            document.getElementById('checkin-total-attendees').textContent = result.summary.total_attendees;
+            document.getElementById('checkin-paid-count').textContent = result.summary.paid_count;
+            document.getElementById('checkin-pending-count').textContent = result.summary.pending_count;
+            document.getElementById('checkin-total-revenue').textContent = result.summary.total_revenue.toFixed(2) + ' kr';
+            
+            // Update attendee list
+            const list = document.getElementById('checkin-attendees-list');
+            if (result.checkins && result.checkins.length > 0) {
+                list.innerHTML = result.checkins.map(checkin => {
+                    const name = checkin.attendee_name || (checkin.first_name + ' ' + checkin.last_name);
+                    const contact = checkin.attendee_email || checkin.attendee_phone || '-';
+                    const checkinTime = checkin.check_in_time ? new Date(checkin.check_in_time).toLocaleString('no-NO') : '-';
+                    
+                    const paymentBadge = checkin.payment_status === 'paid' 
+                        ? '<span class="badge bg-success">Betalt</span>' 
+                        : '<span class="badge bg-warning">Venter</span>';
+                    
+                    return `
+                        <tr>
+                            <td><strong>${name}</strong></td>
+                            <td>${contact}</td>
+                            <td>${checkin.ticket_type}</td>
+                            <td>${checkin.ticket_price} kr</td>
+                            <td>${paymentBadge}</td>
+                            <td><small>${checkinTime}</small></td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                list.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            Ingen deltakere ennå
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading check-ins:', error);
+    }
+}
+
+// Load check-in selector when check-in tab is shown
+document.querySelector('[href="#events-checkin"]')?.addEventListener('click', function() {
+    loadCheckinEventSelector();
+});
 </script>

@@ -8,6 +8,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/ProductCatalogService.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -94,53 +95,19 @@ try {
             $_SESSION['tenant_admin_id']
         ]);
         
-        // 2. Get events module ID
-        $stmt = $db->prepare("SELECT id FROM system_modules WHERE module_key = 'events'");
-        $stmt->execute();
-        $moduleId = $stmt->fetchColumn();
-        
-        if (!$moduleId) {
-            throw new Exception('Events module ikke funnet');
-        }
-        
-        // 3. Create output_products entry
-        $outputProductId = bin2hex(random_bytes(16));
-        
-        $stmt = $db->prepare("
-            INSERT INTO output_products (
-                id,
-                company_id,
-                module_id,
-                product_type,
-                product_id,
-                is_visible,
-                is_public,
-                is_marketplace_featured,
-                created_by
-            ) VALUES (
-                ?,
-                ?,
-                ?,
-                'event',
-                ?,
-                TRUE,
-                TRUE,
-                FALSE,
-                ?
-            )
-        ");
-        
-        $stmt->execute([
-            $outputProductId,
+        // 2. Auto-generate output_products entry using service
+        $catalogService = new ProductCatalogService($db);
+        $outputProductId = $catalogService->createProductEntry(
             $_SESSION['company_id'],
-            $moduleId,
+            'events',
             $eventId,
+            [
+                'is_visible' => true,
+                'is_public' => true,
+                'is_marketplace_featured' => false
+            ],
             $_SESSION['tenant_admin_id']
-        ]);
-        
-        // 4. Link output_product back to event
-        $stmt = $db->prepare("UPDATE events_eventdata SET output_product_id = ? WHERE id = ?");
-        $stmt->execute([$outputProductId, $eventId]);
+        );
         
         $db->commit();
         
