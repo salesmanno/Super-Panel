@@ -400,12 +400,18 @@ async function loadSalesProducts() {
 }
 
 function displayProducts(products) {
+    console.log('🎨 displayProducts called with:', products);
     const container = document.getElementById('products-list');
+    console.log('📦 Container found:', container);
     
     if (products.length === 0) {
         container.innerHTML = '<div class="col-12 text-center text-muted py-4">Ingen produkter tilgjengelig</div>';
         return;
     }
+    
+    // Log first product structure
+    console.log('🔍 First product structure:', products[0]);
+    console.log('📝 First product keys:', Object.keys(products[0]));
     
     container.innerHTML = products.map(product => `
         <div class="col-md-6 mb-3">
@@ -423,6 +429,8 @@ function displayProducts(products) {
             </div>
         </div>
     `).join('');
+    
+    console.log('✅ displayProducts HTML updated');
 }
 
 function displayServices(services) {
