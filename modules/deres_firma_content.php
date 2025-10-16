@@ -89,18 +89,16 @@
                 <h5 class="card-title"><i class="bi bi-info-circle me-2"></i>Om oss</h5>
                 <p class="text-muted">Bedriftens historie og beskrivelse</p>
                 
-                <?php if ($companyData && !empty($companyData['about_us'])): ?>
-                <div class="mb-4">
-                    <h6>Om bedriften</h6>
-                    <div class="p-3 bg-light rounded">
-                        <p class="mb-0" style="line-height: 1.8; white-space: pre-wrap;"><?= htmlspecialchars($companyData['about_us'] ?? '') ?></p>
+                <form id="about-us-form">
+                    <div class="mb-3">
+                        <label class="form-label">Om bedriften</label>
+                        <textarea class="form-control" id="about-us-text" name="about_us" rows="10" style="line-height: 1.8;"><?= htmlspecialchars($companyData['about_us'] ?? '') ?></textarea>
+                        <small class="form-text text-muted">Skriv en beskrivelse av bedriften, dens historie og verdier</small>
                     </div>
-                </div>
-                <?php else: ?>
-                <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle me-2"></i>Ingen bedriftsbeskrivelse er lagt til ennå
-                </div>
-                <?php endif; ?>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-2"></i>Lagre endringer
+                    </button>
+                </form>
                 
                 <div class="card mt-3">
                     <div class="card-header">
@@ -263,3 +261,36 @@
         </div>
     </div>
 </div>
+
+<script>
+// Handle About Us form submission
+document.getElementById('about-us-form')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const aboutUsText = document.getElementById('about-us-text').value;
+    
+    try {
+        const response = await fetch('../api/update_about_us.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                about_us: aboutUsText,
+                company_id: <?= $_SESSION['company_id'] ?>
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ "Om oss" tekst lagret!');
+        } else {
+            alert('❌ Feil: ' + (result.message || 'Kunne ikke lagre tekst'));
+        }
+    } catch (error) {
+        console.error('Error saving about us:', error);
+        alert('❌ Feil ved lagring av tekst');
+    }
+});
+</script>
