@@ -419,7 +419,11 @@ async function loadSalesProducts() {
 }
 
 function displayProducts(products) {
-    const container = document.getElementById('products-list');
+    // Scope to active sales module to avoid duplicate IDs
+    const salesModule = document.getElementById('content-sales');
+    if (!salesModule) return;
+    
+    const container = salesModule.querySelector('#products-list');
     if (!container) return;
     
     if (products.length === 0) {
@@ -446,7 +450,10 @@ function displayProducts(products) {
 }
 
 function displayServices(services) {
-    const container = document.getElementById('services-list');
+    const salesModule = document.getElementById('content-sales');
+    if (!salesModule) return;
+    
+    const container = salesModule.querySelector('#services-list');
     
     if (services.length === 0) {
         container.innerHTML = '<div class="col-12 text-center text-muted py-4">Ingen tjenester tilgjengelig</div>';
@@ -526,10 +533,13 @@ async function loadCart() {
 }
 
 function displayCart(items, total, count) {
-    const container = document.getElementById('cart-items');
-    const countBadge = document.getElementById('cart-count');
-    const totalElement = document.getElementById('cart-total');
-    const checkoutBtn = document.getElementById('checkout-btn');
+    const salesModule = document.getElementById('content-sales');
+    if (!salesModule) return;
+    
+    const container = salesModule.querySelector('#cart-items');
+    const countBadge = salesModule.querySelector('#cart-count');
+    const totalElement = salesModule.querySelector('#cart-total');
+    const checkoutBtn = salesModule.querySelector('#checkout-btn');
     
     countBadge.textContent = count;
     totalElement.textContent = total.toFixed(2);
@@ -588,12 +598,16 @@ async function removeFromCart(cartId) {
     }
 }
 
-document.getElementById('checkout-btn')?.addEventListener('click', async function() {
-    const customerName = document.getElementById('checkout-customer-name').value;
-    const customerEmail = document.getElementById('checkout-customer-email').value;
-    const sendReceipt = document.getElementById('send-receipt-checkbox').checked;
-    const paymentMethod = document.getElementById('checkout-payment-method').value;
-    const notes = document.getElementById('checkout-notes').value;
+// Scope checkout button to sales module
+const salesModule = document.getElementById('content-sales');
+if (salesModule) {
+    const checkoutBtn = salesModule.querySelector('#checkout-btn');
+    checkoutBtn?.addEventListener('click', async function() {
+        const customerName = salesModule.querySelector('#checkout-customer-name').value;
+        const customerEmail = salesModule.querySelector('#checkout-customer-email').value;
+        const sendReceipt = salesModule.querySelector('#send-receipt-checkbox').checked;
+        const paymentMethod = salesModule.querySelector('#checkout-payment-method').value;
+        const notes = salesModule.querySelector('#checkout-notes').value;
     
     try {
         const response = await fetch('/api/checkout_cart.php', {
@@ -616,10 +630,10 @@ document.getElementById('checkout-btn')?.addEventListener('click', async functio
                 message += `\n📧 Kvittering sendt til ${customerEmail}`;
             }
             alert(message);
-            document.getElementById('checkout-customer-name').value = '';
-            document.getElementById('checkout-customer-email').value = '';
-            document.getElementById('send-receipt-checkbox').checked = false;
-            document.getElementById('checkout-notes').value = '';
+            salesModule.querySelector('#checkout-customer-name').value = '';
+            salesModule.querySelector('#checkout-customer-email').value = '';
+            salesModule.querySelector('#send-receipt-checkbox').checked = false;
+            salesModule.querySelector('#checkout-notes').value = '';
             await loadCart();
         } else {
             alert('❌ ' + result.message);
@@ -628,7 +642,8 @@ document.getElementById('checkout-btn')?.addEventListener('click', async functio
         console.error('Checkout error:', error);
         alert('❌ Feil ved betaling');
     }
-});
+    });
+}
 
 // Load products when sales tab is shown
 const salesTab = document.getElementById('tab-sales');
