@@ -19,27 +19,19 @@ try {
             op.product_type,
             op.product_id,
             CASE 
-                WHEN op.product_type = 'events' THEN e.title
-                WHEN op.product_type = 'sales' THEN si.item_name
-                WHEN op.product_type = 'rental' THEN r.item_name
-                WHEN op.product_type = 'membership' THEN mp.plan_name
+                WHEN op.product_type = 'event' THEN e.title
+                WHEN op.product_type = 'product' THEN sp.name
+                ELSE NULL
             END as item_name,
             CASE 
-                WHEN op.product_type = 'events' THEN e.ticket_price
-                WHEN op.product_type = 'sales' THEN si.price
-                WHEN op.product_type = 'rental' THEN r.daily_price
-                WHEN op.product_type = 'membership' THEN mp.price
-            END as price,
-            CASE 
-                WHEN op.product_type = 'sales' THEN si.stock_quantity
+                WHEN op.product_type = 'event' THEN e.ticket_price
+                WHEN op.product_type = 'product' THEN sp.selling_price
                 ELSE NULL
-            END as stock_quantity,
+            END as price,
             op.product_type as category
         FROM output_products op
-        LEFT JOIN events_eventdata e ON op.product_type = 'events' AND op.product_id = e.id
-        LEFT JOIN sales_items si ON op.product_type = 'sales' AND op.product_id = si.id
-        LEFT JOIN rental_objects r ON op.product_type = 'rental' AND op.product_id = r.id
-        LEFT JOIN membership_plans mp ON op.product_type = 'membership' AND op.product_id = mp.id
+        LEFT JOIN events_eventdata e ON op.product_type = 'event' AND op.product_id = e.id
+        LEFT JOIN sales_products sp ON op.product_type = 'product' AND op.product_id = sp.id
         WHERE op.company_id = ? AND op.is_visible = " . dbBool(true) . "
         ORDER BY item_name ASC
     ");
