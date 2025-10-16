@@ -16,26 +16,42 @@ $adminName = $_SESSION['admin_name'] ?? 'Bruker';
 $companyName = $_SESSION['company_name'] ?? 'Firma';
 $adminRole = $_SESSION['admin_role'] ?? 'admin';
 
-// Hent company logo fra database
+// Hent company logo, subdomain og status fra database
 $companyLogo = null;
+$companySubdomain = $_SESSION['subdomain'] ?? null;
+$companyIsActive = false;
 try {
     $db = getDBConnection();
     if ($db && isset($_SESSION['subdomain'])) {
-        // Prøv først tenant_companies.logo_url
-        $stmt = $db->prepare("SELECT logo_url FROM tenant_companies WHERE subdomain = ?");
+        // Prøv først tenant_companies.logo_url, subdomain og is_active
+        $stmt = $db->prepare("SELECT logo_url, subdomain, is_active FROM tenant_companies WHERE subdomain = ?");
         $stmt->execute([$_SESSION['subdomain']]);
         $logoData = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Hvis ikke funnet, prøv companies-tabellen
-        if (!$logoData || empty($logoData['logo_url'])) {
-            $stmt = $db->prepare("SELECT logo_index FROM companies WHERE subdomain = ?");
-            $stmt->execute([$_SESSION['subdomain']]);
-            $logoData = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($logoData && !empty($logoData['logo_index'])) {
-                $companyLogo = $logoData['logo_index'];
+        if ($logoData) {
+            // Funnet i tenant_companies
+            $companyLogo = $logoData['logo_url'];
+            $companySubdomain = $logoData['subdomain'] ?? $companySubdomain;
+            $companyIsActive = $logoData['is_active'] ?? false;
+            
+            // Hvis logo_url er tom, prøv companies-tabellen for logo
+            if (empty($logoData['logo_url'])) {
+                $stmt = $db->prepare("SELECT logo_index FROM companies WHERE subdomain = ?");
+                $stmt->execute([$_SESSION['subdomain']]);
+                $fallbackData = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($fallbackData && !empty($fallbackData['logo_index'])) {
+                    $companyLogo = $fallbackData['logo_index'];
+                }
             }
         } else {
-            $companyLogo = $logoData['logo_url'];
+            // Ikke funnet i tenant_companies, prøv companies-tabellen
+            $stmt = $db->prepare("SELECT logo_index, is_active FROM companies WHERE subdomain = ?");
+            $stmt->execute([$_SESSION['subdomain']]);
+            $fallbackData = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($fallbackData) {
+                $companyLogo = $fallbackData['logo_index'] ?? null;
+                $companyIsActive = $fallbackData['is_active'] ?? false;
+            }
         }
     }
 } catch (Exception $e) {
@@ -241,6 +257,44 @@ try {
             top: 50%;
             transform: translateY(-50%);
         }
+        
+        .subdomain-info {
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .subdomain-url {
+            color: #667eea;
+            font-weight: 500;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        
+        .subdomain-url:hover {
+            color: #5568d3;
+            text-decoration: underline;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .status-active {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-inactive {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
     </style>
 </head>
 <body>
@@ -281,6 +335,17 @@ try {
         <div class="container" style="position: relative;">
             <h1 class="mb-2">Velkommen, <?= htmlspecialchars($adminName) ?>!</h1>
             <p class="text-muted mb-0">Du har tilgang til <?= count($allUserModules) ?> modul<?= count($allUserModules) != 1 ? 'er' : '' ?></p>
+            <?php if ($companySubdomain): ?>
+                <div class="subdomain-info">
+                    <a href="https://<?= htmlspecialchars($companySubdomain) ?>.salesman.no" target="_blank" class="subdomain-url">
+                        <?= htmlspecialchars($companySubdomain) ?>.salesman.no
+                        <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.75rem;"></i>
+                    </a>
+                    <span class="status-badge <?= $companyIsActive ? 'status-active' : 'status-inactive' ?>">
+                        <?= $companyIsActive ? 'Aktiv' : 'Inaktiv' ?>
+                    </span>
+                </div>
+            <?php endif; ?>
             <?php if ($companyLogo): ?>
                 <img src="<?= htmlspecialchars($companyLogo) ?>" alt="<?= htmlspecialchars($companyName) ?>" class="header-logo">
             <?php endif; ?>

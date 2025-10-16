@@ -1,30 +1,137 @@
+<style>
+.event-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    background: white;
+    height: 100%;
+}
+
+.event-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.event-image {
+    height: 180px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+
+.event-image-placeholder {
+    height: 180px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.event-image-placeholder i {
+    font-size: 3rem;
+    color: white;
+    opacity: 0.7;
+}
+
+.event-badge-overlay {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+}
+
+.event-body {
+    padding: 1.5rem;
+}
+
+.event-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+}
+
+.event-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+
+.event-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.event-meta-item i {
+    width: 20px;
+    color: #667eea;
+}
+
+.event-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #f3f4f6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.event-price {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #667eea;
+}
+
+.event-price-free {
+    color: #10b981;
+}
+
+.event-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.loading-events {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #6b7280;
+}
+
+.empty-events {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.empty-events i {
+    font-size: 4rem;
+    color: #d1d5db;
+    margin-bottom: 1rem;
+}
+</style>
+
 <div class="module-content">
     <div id="events-my" class="subtab-content">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Dine arrangement</h5>
-                <p class="text-muted">Oversikt over alle dine arrangementer</p>
-                <div class="table-responsive">
-                    <table class="table table-hover" id="events-table">
-                        <thead>
-                            <tr>
-                                <th>Arrangement</th>
-                                <th>Dato & Tid</th>
-                                <th>Sted</th>
-                                <th>Påmeldte</th>
-                                <th>Pris</th>
-                                <th>Handling</th>
-                            </tr>
-                        </thead>
-                        <tbody id="events-list">
-                            <tr>
-                                <td colspan="6" class="text-center text-muted py-4">
-                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                                    Laster arrangementer...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h4 class="mb-1"><i class="bi bi-calendar-event me-2"></i>Dine arrangement</h4>
+                <p class="text-muted mb-0">Oversikt over alle dine arrangementer</p>
+            </div>
+            <button class="btn btn-primary" onclick="document.querySelector('[href=\'#events-create\']').click()">
+                <i class="bi bi-plus-circle me-2"></i>Opprett nytt
+            </button>
+        </div>
+        
+        <div id="events-list" class="row g-4">
+            <div class="col-12">
+                <div class="loading-events">
+                    <div class="spinner-border text-primary mb-3" role="status"></div>
+                    <p class="mb-0">Laster arrangementer...</p>
                 </div>
             </div>
         </div>
@@ -426,57 +533,87 @@ async function loadEvents() {
         const eventsList = document.getElementById('events-list');
         if (result.success && result.events && result.events.length > 0) {
             eventsList.innerHTML = result.events.map(event => {
-                let dateTime = `${event.start_date} ${event.start_time}`;
-                if (event.end_date || event.end_time) {
-                    dateTime += ` - ${event.end_date || event.start_date} ${event.end_time || ''}`;
-                }
+                const startDate = new Date(event.start_date + ' ' + event.start_time);
+                const dateStr = startDate.toLocaleDateString('no-NO', { day: 'numeric', month: 'short', year: 'numeric' });
+                const timeStr = event.start_time ? event.start_time.substring(0, 5) : '';
                 
-                let priceDisplay = 'Gratis';
+                let priceDisplay = '<span class="event-price event-price-free">Gratis</span>';
                 if (event.ticket_price > 0) {
-                    priceDisplay = event.ticket_price + ' kr';
-                    if (event.member_ticket_price !== null && event.member_ticket_price !== undefined) {
-                        priceDisplay += ` <span class="badge bg-success">${event.member_ticket_price} kr (medlem)</span>`;
+                    priceDisplay = `<span class="event-price">${event.ticket_price} kr</span>`;
+                    if (event.member_ticket_price !== null && event.member_ticket_price !== undefined && event.member_ticket_price > 0) {
+                        priceDisplay += `<br><small class="text-muted">${event.member_ticket_price} kr (medlem)</small>`;
                     }
                 }
                 
+                const imageHtml = event.event_image_url 
+                    ? `<div class="event-image" style="background-image: url('${event.event_image_url}')"></div>`
+                    : `<div class="event-image-placeholder"><i class="bi bi-calendar-event"></i></div>`;
+                
+                const memberBadge = event.is_member_exclusive == 1 
+                    ? '<span class="badge bg-warning event-badge-overlay">Kun medlemmer</span>' 
+                    : '';
+                
+                const location = event.venue_name || event.event_city || 'Ikke angitt';
+                const capacity = event.max_attendees ? `0 / ${event.max_attendees}` : 'Ubegrenset';
+                
                 return `
-                    <tr>
-                        <td>
-                            <strong>${event.title}</strong>
-                            ${event.is_member_exclusive == 1 ? '<span class="badge bg-warning ms-2">Kun medlemmer</span>' : ''}
-                        </td>
-                        <td>${dateTime}</td>
-                        <td>${event.venue_name || event.event_city || '-'}</td>
-                        <td>0 / ${event.max_attendees || '∞'}</td>
-                        <td>${priceDisplay}</td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary" onclick="viewEvent('${event.id}')">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteEvent('${event.id}')">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
+                    <div class="col-md-4">
+                        <div class="event-card">
+                            ${imageHtml}
+                            ${memberBadge}
+                            <div class="event-body">
+                                <h5 class="event-title">${event.title}</h5>
+                                <div class="event-meta">
+                                    <div class="event-meta-item">
+                                        <i class="bi bi-calendar3"></i>
+                                        <span>${dateStr} ${timeStr}</span>
+                                    </div>
+                                    <div class="event-meta-item">
+                                        <i class="bi bi-geo-alt"></i>
+                                        <span>${location}</span>
+                                    </div>
+                                    <div class="event-meta-item">
+                                        <i class="bi bi-people"></i>
+                                        <span>${capacity} plasser</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="event-footer">
+                                <div>${priceDisplay}</div>
+                                <div class="event-actions">
+                                    <button class="btn btn-sm btn-outline-primary" onclick="viewEvent('${event.id}')" title="Vis detaljer">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteEvent('${event.id}')" title="Slett">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 `;
             }).join('');
         } else {
             eventsList.innerHTML = `
-                <tr>
-                    <td colspan="6" class="text-center text-muted py-4">
-                        Ingen arrangementer funnet
-                    </td>
-                </tr>
+                <div class="col-12">
+                    <div class="empty-events">
+                        <i class="bi bi-calendar-x"></i>
+                        <h5>Ingen arrangementer ennå</h5>
+                        <p class="text-muted">Opprett ditt første arrangement ved å klikke på "Opprett nytt" knappen ovenfor</p>
+                    </div>
+                </div>
             `;
         }
     } catch (error) {
         console.error('Error loading events:', error);
         document.getElementById('events-list').innerHTML = `
-            <tr>
-                <td colspan="6" class="text-center text-danger py-4">
-                    Feil ved lasting av arrangementer
-                </td>
-            </tr>
+            <div class="col-12">
+                <div class="empty-events">
+                    <i class="bi bi-exclamation-triangle text-danger"></i>
+                    <h5>Feil ved lasting av arrangementer</h5>
+                    <p class="text-muted">Vennligst prøv igjen senere</p>
+                </div>
+            </div>
         `;
     }
 }
