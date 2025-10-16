@@ -152,6 +152,7 @@ try {
         .module-tabs {
             padding: 0;
             margin: 0;
+            border-bottom: none !important;
         }
         
         .module-tabs .nav-link {
@@ -160,7 +161,7 @@ try {
             padding: 0.75rem 1.5rem;
             border: none;
             border-bottom: 3px solid transparent;
-            margin-bottom: 0;
+            margin-bottom: -1px;
             transition: all 0.2s;
             background: transparent;
             border-radius: 0;
@@ -288,9 +289,9 @@ try {
     
     <?php if (!empty($allUserModules)): ?>
     <!-- Module Navigation Bar -->
-    <div class="bg-light border-bottom" style="padding: 0;">
-        <div class="container" style="padding-top: 0;">
-            <ul class="nav nav-tabs module-tabs border-0 mb-0" role="tablist">
+    <div class="bg-light border-bottom">
+        <div class="container">
+            <ul class="nav nav-tabs module-tabs border-0" role="tablist">
                 <?php 
                 $allModulesForNav = array_merge($officialModules, $userModules);
                 foreach ($allModulesForNav as $index => $module): 
