@@ -38,7 +38,7 @@
                     <div class="row">
                         <div class="col-md-<?php echo isset($hasMembershipAccess) && $hasMembershipAccess ? '8' : '12'; ?> mb-3">
                             <label class="form-label">Arrangement navn *</label>
-                            <input type="text" class="form-control" name="title" required placeholder="F.eks. Sommerfest 2025">
+                            <input type="text" class="form-control" name="title" required>
                         </div>
                         <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
                         <div class="col-md-4 mb-3">
@@ -53,7 +53,7 @@
                     
                     <div class="mb-3">
                         <label class="form-label">Beskrivelse</label>
-                        <textarea class="form-control" name="description" rows="3" placeholder="Beskriv arrangementet..."></textarea>
+                        <textarea class="form-control" name="description" rows="3"></textarea>
                     </div>
 
                     <div class="row">
@@ -78,44 +78,44 @@
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Aldersgrense</label>
-                            <input type="number" class="form-control" name="age_limit" placeholder="F.eks. 18">
+                            <input type="number" class="form-control" name="age_limit">
                         </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Stedsnavn</label>
-                            <input type="text" class="form-control" name="venue_name" placeholder="F.eks. Oslo Konserthus">
+                            <input type="text" class="form-control" name="venue_name">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Adresse</label>
-                            <input type="text" class="form-control" name="event_address" placeholder="Gateadresse">
+                            <input type="text" class="form-control" name="event_address">
                         </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">By</label>
-                            <input type="text" class="form-control" name="event_city" placeholder="F.eks. Oslo">
+                            <input type="text" class="form-control" name="event_city">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Postnummer</label>
-                            <input type="text" class="form-control" name="event_postal" placeholder="F.eks. 0150">
+                            <input type="text" class="form-control" name="event_postal">
                         </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Min. deltakere</label>
-                            <input type="number" class="form-control" name="min_attendees" placeholder="Minimum">
+                            <input type="number" class="form-control" name="min_attendees">
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Maks. deltakere</label>
-                            <input type="number" class="form-control" name="max_attendees" placeholder="Maksimum">
+                            <input type="number" class="form-control" name="max_attendees">
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Billettpris (NOK)</label>
-                            <input type="number" step="0.01" class="form-control" name="ticket_price" placeholder="0">
+                            <input type="number" step="0.01" class="form-control" name="ticket_price">
                         </div>
                     </div>
 
@@ -123,7 +123,7 @@
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Medlemspris (NOK)</label>
-                            <input type="number" step="0.01" class="form-control" name="member_ticket_price" placeholder="Valgfri medlemsrabatt">
+                            <input type="number" step="0.01" class="form-control" name="member_ticket_price">
                             <small class="form-text text-muted">La stå tom hvis samme pris som ordinær billett</small>
                         </div>
                     </div>
@@ -131,7 +131,7 @@
 
                     <div class="mb-3">
                         <label class="form-label">Bilde-URL</label>
-                        <input type="url" class="form-control" name="event_image_url" placeholder="https://example.com/bilde.jpg">
+                        <input type="url" class="form-control" name="event_image_url">
                         <small class="form-text text-muted">Valgfri: URL til arrangementsbilde</small>
                     </div>
 
@@ -241,7 +241,7 @@
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label">Notater</label>
-                                    <input type="text" class="form-control" name="notes" placeholder="Valgfritt">
+                                    <input type="text" class="form-control" name="notes">
                                 </div>
                             </div>
                             <button type="submit" class="btn btn-primary">

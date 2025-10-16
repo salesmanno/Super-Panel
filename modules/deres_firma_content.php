@@ -64,6 +64,12 @@
                             <input type="url" class="form-control" value="<?= htmlspecialchars($companyData['website'] ?? '') ?>" readonly>
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Logo URL</label>
+                            <input type="url" class="form-control" value="<?= htmlspecialchars($companyData['logo_url'] ?? '') ?>" readonly>
+                        </div>
+                    </div>
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle me-2"></i>Kontakt systemadministrator for å endre firmadata
                     </div>
