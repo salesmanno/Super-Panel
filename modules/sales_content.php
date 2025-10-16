@@ -404,6 +404,10 @@ function displayProducts(products) {
     const container = document.getElementById('products-list');
     console.log('📦 Container found:', container);
     
+    // Check if parent subtab is visible
+    const subtabContainer = document.getElementById('sales-varesalg');
+    console.log('👁️ Subtab #sales-varesalg display:', subtabContainer ? window.getComputedStyle(subtabContainer).display : 'not found');
+    
     if (products.length === 0) {
         container.innerHTML = '<div class="col-12 text-center text-muted py-4">Ingen produkter tilgjengelig</div>';
         return;
