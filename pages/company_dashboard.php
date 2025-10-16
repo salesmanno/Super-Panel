@@ -219,18 +219,21 @@ try {
         }
         
         .company-logo {
-            height: 40px;
+            max-height: 36px;
+            max-width: 120px;
             width: auto;
-            margin-right: 12px;
-            border-radius: 4px;
-            background: white;
-            padding: 4px;
+            height: auto;
+            margin-right: 10px;
+            object-fit: contain;
         }
         
         .header-logo {
-            height: 60px;
+            max-height: 80px;
+            max-width: 200px;
             width: auto;
+            height: auto;
             margin-bottom: 16px;
+            object-fit: contain;
         }
     </style>
 </head>
