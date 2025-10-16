@@ -555,6 +555,9 @@ async function loadEvents() {
                 
                 const location = event.venue_name || event.event_city || 'Ikke angitt';
                 const capacity = event.max_attendees ? `0 / ${event.max_attendees}` : 'Ubegrenset';
+                const createdBy = (event.first_name && event.last_name) 
+                    ? `${event.first_name} ${event.last_name}` 
+                    : 'Ukjent bruker';
                 
                 return `
                     <div class="col-md-4">
@@ -575,6 +578,10 @@ async function loadEvents() {
                                     <div class="event-meta-item">
                                         <i class="bi bi-people"></i>
                                         <span>${capacity} plasser</span>
+                                    </div>
+                                    <div class="event-meta-item">
+                                        <i class="bi bi-person-circle"></i>
+                                        <span>Opprettet av ${createdBy}</span>
                                     </div>
                                 </div>
                             </div>
