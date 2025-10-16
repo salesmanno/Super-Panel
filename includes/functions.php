@@ -49,13 +49,26 @@ function getTenantAdminModules($adminId) {
     if (!$db) {
         return [];
     }
-    $stmt = $db->prepare("
-        SELECT sm.*, sm.slug AS module_key 
-        FROM system_modules sm
-        INNER JOIN tenant_admin_modules tam ON sm.id = tam.module_id
-        WHERE tam.tenant_admin_id = ? AND sm.is_active = 1
-        ORDER BY sm.name
-    ");
+    
+    // Check if 'slug' column exists (PostgreSQL has it, MySQL might not)
+    $dbType = getDBType();
+    if ($dbType === 'mysql') {
+        $stmt = $db->prepare("
+            SELECT sm.*, sm.module_slug AS module_key 
+            FROM system_modules sm
+            INNER JOIN tenant_admin_modules tam ON sm.id = tam.module_id
+            WHERE tam.tenant_admin_id = ? AND sm.is_active = 1
+            ORDER BY sm.name
+        ");
+    } else {
+        $stmt = $db->prepare("
+            SELECT sm.*, sm.slug AS module_key 
+            FROM system_modules sm
+            INNER JOIN tenant_admin_modules tam ON sm.id = tam.module_id
+            WHERE tam.tenant_admin_id = ? AND sm.is_active = 1
+            ORDER BY sm.name
+        ");
+    }
     $stmt->execute([$adminId]);
     return $stmt->fetchAll();
 }
@@ -65,13 +78,26 @@ function getCompanyModules($companyId) {
     if (!$db) {
         return [];
     }
-    $stmt = $db->prepare("
-        SELECT sm.*, sm.slug AS module_key 
-        FROM system_modules sm
-        INNER JOIN tenant_company_modules tcm ON sm.id = tcm.module_id
-        WHERE tcm.company_id = ? AND tcm.is_active = 1 AND sm.is_active = 1
-        ORDER BY sm.name
-    ");
+    
+    // Check if 'slug' column exists (PostgreSQL has it, MySQL might not)
+    $dbType = getDBType();
+    if ($dbType === 'mysql') {
+        $stmt = $db->prepare("
+            SELECT sm.*, sm.module_slug AS module_key 
+            FROM system_modules sm
+            INNER JOIN tenant_company_modules tcm ON sm.id = tcm.module_id
+            WHERE tcm.company_id = ? AND tcm.is_active = 1 AND sm.is_active = 1
+            ORDER BY sm.name
+        ");
+    } else {
+        $stmt = $db->prepare("
+            SELECT sm.*, sm.slug AS module_key 
+            FROM system_modules sm
+            INNER JOIN tenant_company_modules tcm ON sm.id = tcm.module_id
+            WHERE tcm.company_id = ? AND tcm.is_active = 1 AND sm.is_active = 1
+            ORDER BY sm.name
+        ");
+    }
     $stmt->execute([$companyId]);
     return $stmt->fetchAll();
 }
