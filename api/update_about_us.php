@@ -39,5 +39,6 @@ try {
     echo json_encode(['success' => true, 'message' => 'Om oss tekst oppdatert']);
     
 } catch (Exception $e) {
+    error_log("Error updating about_us: " . $e->getMessage());
     echo json_encode(['success' => false, 'message' => 'Feil: ' . $e->getMessage()]);
 }

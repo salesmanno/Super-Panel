@@ -274,7 +274,7 @@ function setupAboutUsForm() {
             const aboutUsText = document.getElementById('about-us-text').value;
             
             try {
-                const response = await fetch('../api/update_about_us.php', {
+                const response = await fetch('/api/update_about_us.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
