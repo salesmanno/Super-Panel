@@ -12,18 +12,11 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/session_manager.php';
 
-// Debug: Log session data
-error_log("SESSION DATA: " . print_r($_SESSION, true));
-
 $adminName = $_SESSION['admin_name'] ?? 'Bruker';
 $companyName = $_SESSION['company_name'] ?? 'Firma';
 $adminRole = $_SESSION['admin_role'] ?? 'admin';
 
 $allUserModules = getTenantAdminModules($_SESSION['tenant_admin_id']);
-
-// Debug: Log module counts
-error_log("ALL USER MODULES COUNT: " . count($allUserModules));
-error_log("ALL USER MODULES: " . print_r($allUserModules, true));
 $officialModules = array_filter($allUserModules, function($module) {
     return in_array($module['module_key'], ['dashboard', 'ditt_nettsted']);
 });
