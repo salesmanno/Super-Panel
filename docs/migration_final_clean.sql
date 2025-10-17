@@ -203,42 +203,9 @@ ADD COLUMN IF NOT EXISTS profit_margin DECIMAL(10,2) GENERATED ALWAYS AS (sellin
 -- ================================================================
 -- FASE 3: MIGRERE DATA FRA REDUNDANTE TABELLER
 -- ================================================================
+-- MERK: x_* tabeller eksisterer IKKE i produksjonsdatabase, derfor skippes disse
 
--- 3.1 Migrer x_membership_plan → membership_plans (hvis data finnes)
--- ================================================================
-INSERT IGNORE INTO membership_plans (id, company_id, name, description, price, duration_months, benefits, is_active, created_at, updated_at)
-SELECT 
-    UUID() as id,
-    1 as company_id, -- Standard company_id (oppdater om nødvendig)
-    name,
-    description,
-    price,
-    duration_months,
-    benefits,
-    is_active,
-    created_at,
-    updated_at
-FROM x_membership_plan
-WHERE EXISTS (SELECT 1 FROM x_membership_plan LIMIT 1);
-
--- 3.2 Migrer x_webmailconfiguration → email_configs (hvis data finnes)
--- ================================================================
-INSERT IGNORE INTO email_configs (id, company_id, smtp_host, smtp_port, smtp_user, smtp_password, from_email, from_name, created_at, updated_at)
-SELECT 
-    UUID() as id,
-    1 as company_id, -- Standard company_id (oppdater om nødvendig)
-    smtp_host,
-    smtp_port,
-    smtp_user,
-    smtp_password,
-    from_email,
-    from_name,
-    created_at,
-    updated_at
-FROM x_webmailconfiguration
-WHERE EXISTS (SELECT 1 FROM x_webmailconfiguration LIMIT 1);
-
--- 3.3 Migrer sales_items → sales_products (hvis data finnes og ikke duplikat)
+-- 3.1 Migrer sales_items → sales_products (hvis data finnes og ikke duplikat)
 -- ================================================================
 -- MERK: Denne migreringen KAN feile hvis sales_products allerede har data
 -- Fjern kommentaren hvis du vil kjøre den:
@@ -389,10 +356,6 @@ INSERT INTO email_templates (id, company_id, template_key, name, subject_templat
 -- DROP TABLE IF EXISTS sales_items;
 -- DROP TABLE IF EXISTS sales_orders_items;
 -- DROP TABLE IF EXISTS sales_orders;
--- DROP TABLE IF EXISTS x_events;
--- DROP TABLE IF EXISTS x_reservations;
--- DROP TABLE IF EXISTS x_membership_plan;
--- DROP TABLE IF EXISTS x_webmailconfiguration;
 
 -- ================================================================
 -- FASE 7: VERIFISERING
@@ -415,7 +378,6 @@ DESCRIBE sales_products;
 -- Sjekk duplikater (skal være 0 etter sletting)
 -- SELECT COUNT(*) as sales_items_count FROM sales_items;
 -- SELECT COUNT(*) as sales_orders_count FROM sales_orders;
--- SELECT COUNT(*) as x_events_count FROM x_events;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
