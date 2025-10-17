@@ -174,31 +174,17 @@ CREATE TABLE IF NOT EXISTS unified_ledger (
 -- FASE 2: LEGGE TIL KOLONNER I EKSISTERENDE TABELLER
 -- ================================================================
 
--- 2.1 Legge til cost_price tracking i events_eventdata
+-- 2.1 cost_price og profit_per_ticket i events_eventdata eksisterer allerede
 -- ================================================================
-ALTER TABLE events_eventdata 
-ADD COLUMN IF NOT EXISTS cost_price DECIMAL(10,2) DEFAULT 0 COMMENT 'Total cost for event';
+-- MERK: events_eventdata har allerede cost_price og profit_per_ticket, skipper ALTER
 
-ALTER TABLE events_eventdata 
-ADD COLUMN IF NOT EXISTS profit_per_ticket DECIMAL(10,2) GENERATED ALWAYS AS (
-    CASE 
-        WHEN max_attendees > 0 THEN ticket_price - (cost_price / max_attendees)
-        ELSE ticket_price - cost_price
-    END
-) STORED COMMENT 'Calculated profit per ticket';
-
--- 2.2 Legge til denormaliserte felt i output_products for ytelse
+-- 2.2 Denormaliserte felt i output_products eksisterer allerede
 -- ================================================================
-ALTER TABLE output_products 
-ADD COLUMN IF NOT EXISTS name VARCHAR(255) COMMENT 'Denormalized product name';
+-- MERK: output_products har allerede name og price kolonner, skipper ALTER
 
-ALTER TABLE output_products 
-ADD COLUMN IF NOT EXISTS price DECIMAL(10,2) COMMENT 'Denormalized price';
-
--- 2.3 Legge til profit_margin i sales_products (hvis mangler)
+-- 2.3 profit_margin i sales_products eksisterer allerede
 -- ================================================================
-ALTER TABLE sales_products 
-ADD COLUMN IF NOT EXISTS profit_margin DECIMAL(10,2) GENERATED ALWAYS AS (selling_price - IFNULL(cost_price, 0)) STORED;
+-- MERK: sales_products har allerede profit_margin, skipper ALTER
 
 -- ================================================================
 -- FASE 3: MIGRERE DATA FRA REDUNDANTE TABELLER
@@ -279,8 +265,8 @@ WHERE op.product_type = 'membership';
 UPDATE output_products op
 INNER JOIN rental_objects ro ON op.product_id = ro.id AND op.product_type = 'rental'
 SET 
-    op.name = ro.name,
-    op.price = ro.rental_price_daily
+    op.name = ro.object_name,
+    op.price = ro.rental_price
 WHERE op.product_type = 'rental';
 
 -- ================================================================
