@@ -28,12 +28,14 @@ class ProductCatalogService {
                 throw new Exception("Module '$moduleKey' not found");
             }
             
-            // Map module_key to product_type
+            // Map module_key to product_type (CLEAN: updated mapping)
             $productTypeMap = [
                 'events' => 'event',
-                'sales' => 'sales_item',
+                'sales' => 'product',
+                'product' => 'product',
                 'rental' => 'rental',
-                'membership' => 'membership'
+                'membership' => 'membership',
+                'service' => 'service'
             ];
             
             $productType = $productTypeMap[$moduleKey] ?? $moduleKey;
@@ -141,14 +143,18 @@ class ProductCatalogService {
                 case 'event':
                     $stmt = $this->db->prepare("SELECT * FROM events_eventdata WHERE id = ?");
                     break;
-                case 'sales_item':
-                    $stmt = $this->db->prepare("SELECT * FROM sales_items WHERE id = ?");
+                case 'product':
+                case 'sales_item': // Legacy support
+                    $stmt = $this->db->prepare("SELECT * FROM sales_products WHERE id = ?");
                     break;
                 case 'rental':
-                    $stmt = $this->db->prepare("SELECT * FROM rental_objects WHERE object_id = ?");
+                    $stmt = $this->db->prepare("SELECT * FROM rental_objects WHERE id = ?");
                     break;
                 case 'membership':
-                    $stmt = $this->db->prepare("SELECT * FROM x_membership_plan WHERE plan_id = ?");
+                    $stmt = $this->db->prepare("SELECT * FROM membership_plans WHERE id = ?");
+                    break;
+                case 'service':
+                    $stmt = $this->db->prepare("SELECT * FROM service_bookings WHERE id = ?");
                     break;
                 default:
                     return null;

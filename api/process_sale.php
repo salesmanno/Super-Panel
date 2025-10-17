@@ -57,87 +57,59 @@ try {
         $totalAmount = $data['quantity'] * $unitPrice;
         
         // Generer ordre-ID og ordrenummer
-        $orderId = bin2hex(random_bytes(16));
-        $orderNumber = 'ORD-' . date('Ymd') . '-' . strtoupper(substr($orderId, 0, 6));
-        $orderDate = date('Y-m-d'); // Database-agnostic date
+        $transactionId = bin2hex(random_bytes(16));
+        $orderNumber = 'ORD-' . date('Ymd') . '-' . strtoupper(substr($transactionId, 0, 6));
         $currentTimestamp = date('Y-m-d H:i:s'); // Database-agnostic timestamp
         
-        // Opprett sales_order
+        // CLEAN: Opprett sales_transaction (simple structure - no separate items table)
         $stmt = $db->prepare("
-            INSERT INTO sales_orders (
+            INSERT INTO sales_transactions (
                 id,
                 company_id,
-                order_number,
-                order_date,
-                status,
-                payment_status,
-                subtotal,
-                total_amount,
-                currency,
-                notes,
-                created_by,
-                created_at
-            ) VALUES (?, ?, ?, ?, 'completed', ?, ?, ?, 'NOK', ?, ?, ?)
-        ");
-        
-        $paymentStatus = $data['payment_method'] === 'online' ? 'paid' : 'pending';
-        
-        $stmt->execute([
-            $orderId,
-            $_SESSION['company_id'],
-            $orderNumber,
-            $orderDate,
-            $paymentStatus,
-            $totalAmount,
-            $totalAmount,
-            $data['notes'] ?? null,
-            $_SESSION['tenant_admin_id'],
-            $currentTimestamp
-        ]);
-        
-        // Opprett sales_orders_items
-        $orderItemId = bin2hex(random_bytes(16));
-        $stmt = $db->prepare("
-            INSERT INTO sales_orders_items (
-                id,
+                admin_id,
                 order_id,
-                product_id,
-                product_name,
-                quantity,
-                unit_price,
-                line_total,
+                customer_name,
+                customer_email,
+                items_sold,
+                total_amount,
+                payment_method,
+                payment_status,
+                receipt_sent,
+                notes,
+                transaction_date,
                 created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         
+        $paymentStatus = $data['payment_method'] === 'cash' ? 'completed' : 'pending';
+        
         $stmt->execute([
-            $orderItemId,
-            $orderId,
-            $outputProduct['product_id'],
-            $productName,
+            $transactionId,
+            $_SESSION['company_id'],
+            $_SESSION['tenant_admin_id'],
+            $orderNumber,
+            $data['customer_name'] ?? 'Walk-in customer',
+            $data['customer_email'] ?? null,
             $data['quantity'],
-            $unitPrice,
             $totalAmount,
+            $data['payment_method'] ?? 'cash',
+            $paymentStatus,
+            false, // receipt_sent
+            $data['notes'] ?? null,
+            $currentTimestamp,
             $currentTimestamp
         ]);
         
-        // Oppdater stock hvis det er et sales_product
-        if ($outputProduct['product_type'] === 'product') {
-            $stmt = $db->prepare("
-                UPDATE sales_products_stock 
-                SET quantity_in_stock = quantity_in_stock - ? 
-                WHERE product_id = ?
-            ");
-            $stmt->execute([$data['quantity'], $outputProduct['product_id']]);
-        }
+        // NOTE: Stock management removed - sales_products has no quantity column
+        // Stock tracking can be added separately via sales_products_stock table if needed
         
         $db->commit();
         
         echo json_encode([
             'success' => true,
             'message' => 'Salg registrert',
-            'order_id' => $orderId,
-            'order_number' => $orderNumber,
+            'transaction_id' => $transactionId,
+            'order_id' => $orderNumber,
             'total_amount' => $totalAmount
         ]);
         

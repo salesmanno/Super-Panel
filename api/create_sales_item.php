@@ -13,7 +13,9 @@ require_once __DIR__ . '/../includes/ProductCatalogService.php';
 try {
     $data = json_decode(file_get_contents('php://input'), true);
     
-    if (empty($data['item_name'])) {
+    $productName = $data['item_name'] ?? $data['name'] ?? null;
+    
+    if (empty($productName)) {
         echo json_encode(['success' => false, 'message' => 'Mangler produktnavn']);
         exit;
     }
@@ -22,48 +24,50 @@ try {
     $db->beginTransaction();
     
     try {
-        // Generate sales item ID
-        $salesItemId = bin2hex(random_bytes(16));
+        // Generate sales product ID
+        $salesProductId = bin2hex(random_bytes(16));
         
-        // 1. Create sales item
+        // 1. Create sales product (CLEAN: using sales_products table)
         $stmt = $db->prepare("
-            INSERT INTO sales_items (
+            INSERT INTO sales_products (
                 id,
                 company_id,
-                item_name,
+                name,
                 sku,
                 description,
-                category,
-                price,
+                category_id,
+                selling_price,
                 cost_price,
-                stock_quantity,
-                low_stock_threshold,
-                is_active,
-                tax_rate
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                member_price,
+                tax_rate,
+                unit,
+                reorder_level,
+                is_active
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         
         $stmt->execute([
-            $salesItemId,
+            $salesProductId,
             $_SESSION['company_id'],
-            $data['item_name'],
+            $productName,
             $data['sku'] ?? null,
             $data['description'] ?? null,
-            $data['category'] ?? null,
-            $data['price'] ?? 0,
-            $data['cost_price'] ?? null,
-            $data['stock_quantity'] ?? 0,
-            $data['low_stock_threshold'] ?? 5,
-            $data['is_active'] ?? true,
-            $data['tax_rate'] ?? 0
+            $data['category'] ?? $data['category_id'] ?? null,
+            $data['price'] ?? $data['selling_price'] ?? 0,
+            $data['cost_price'] ?? 0,
+            $data['member_price'] ?? null,
+            $data['tax_rate'] ?? 0,
+            $data['unit'] ?? 'stk',
+            $data['reorder_level'] ?? $data['low_stock_threshold'] ?? 5,
+            $data['is_active'] ?? true
         ]);
         
         // 2. Auto-generate output_products entry
         $catalogService = new ProductCatalogService($db);
         $outputProductId = $catalogService->createProductEntry(
             $_SESSION['company_id'],
-            'sales',
-            $salesItemId,
+            'product',
+            $salesProductId,
             [
                 'is_visible' => true,
                 'is_public' => $data['is_public'] ?? true,
@@ -77,7 +81,7 @@ try {
         echo json_encode([
             'success' => true,
             'message' => 'Salgsprodukt opprettet',
-            'sales_item_id' => $salesItemId,
+            'product_id' => $salesProductId,
             'output_product_id' => $outputProductId
         ]);
         

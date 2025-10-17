@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/database.php';
+require_once '../includes/EmailService.php';
 
 header('Content-Type: application/json');
 
@@ -46,35 +47,57 @@ try {
         exit;
     }
     
-    $total = 0;
+    // Generate order ID and transaction ID
+    $transactionId = bin2hex(random_bytes(16));
+    $orderId = 'ORD-' . date('Ymd') . '-' . strtoupper(substr($transactionId, 0, 6));
+    $currentTimestamp = date('Y-m-d H:i:s');
     
-    // Process each item
+    // Calculate total
+    $total = 0;
+    $itemCount = 0;
     foreach ($items as $item) {
-        $subtotal = $item['quantity'] * $item['price'];
-        $total += $subtotal;
-        
-        // Create sales transaction
-        $stmt = $db->prepare("
-            INSERT INTO sales_transactions 
-            (company_id, sales_product_id, quantity, total_price, payment_method, customer_name, customer_email, send_receipt, notes, created_by, created_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-        ");
-        $stmt->execute([
-            $company_id,
-            $item['product_id'],
-            $item['quantity'],
-            $subtotal,
-            $payment_method,
-            $customer_name,
-            $customer_email,
-            $send_receipt ? 1 : 0,
-            $notes,
-            $admin_id
-        ]);
-        
-        // Stock update removed - sales_products table has no quantity column
-        // Inventory management should be implemented separately if needed
+        $total += $item['quantity'] * $item['price'];
+        $itemCount += $item['quantity'];
     }
+    
+    // Create single aggregated sales transaction (CLEAN SCHEMA)
+    $stmt = $db->prepare("
+        INSERT INTO sales_transactions (
+            id,
+            company_id,
+            admin_id,
+            order_id,
+            customer_name,
+            customer_email,
+            items_sold,
+            total_amount,
+            payment_method,
+            payment_status,
+            receipt_sent,
+            notes,
+            transaction_date,
+            created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ");
+    
+    $paymentStatus = $payment_method === 'cash' ? 'completed' : 'pending';
+    
+    $stmt->execute([
+        $transactionId,
+        $company_id,
+        $admin_id,
+        $orderId,
+        $customer_name,
+        $customer_email,
+        $itemCount,
+        $total,
+        $payment_method,
+        $paymentStatus,
+        $send_receipt ? 1 : 0,
+        $notes,
+        $currentTimestamp,
+        $currentTimestamp
+    ]);
     
     // Clear cart
     $stmt = $db->prepare("DELETE FROM sales_cart WHERE admin_id = ? AND company_id = ?");
@@ -82,11 +105,37 @@ try {
     
     $db->commit();
     
+    // Send email receipt if requested
+    $emailSent = false;
+    if ($send_receipt && !empty($customer_email)) {
+        try {
+            $emailService = new EmailService($db, $company_id);
+            $emailResult = $emailService->send([
+                'template' => 'sale_receipt',
+                'to' => $customer_email,
+                'data' => [
+                    'order_id' => $orderId,
+                    'customer_name' => $customer_name,
+                    'items_sold' => count($items),
+                    'total_amount' => number_format($total, 2, ',', ' '),
+                    'payment_method' => $payment_method
+                ],
+                'module_source' => 'sales',
+                'source_id' => $orderId
+            ]);
+            $emailSent = $emailResult['success'];
+        } catch (Exception $e) {
+            error_log("Email sending error: " . $e->getMessage());
+        }
+    }
+    
     echo json_encode([
         'success' => true,
         'message' => 'Salg gjennomført',
         'total' => $total,
-        'items_sold' => count($items)
+        'items_sold' => count($items),
+        'email_sent' => $emailSent,
+        'order_id' => $orderId
     ]);
     
 } catch (Exception $e) {

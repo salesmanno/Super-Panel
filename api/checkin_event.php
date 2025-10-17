@@ -8,6 +8,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/EmailService.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -21,7 +22,7 @@ try {
     
     // Get event details and pricing
     $stmt = $db->prepare("
-        SELECT ticket_price, member_ticket_price, is_member_exclusive
+        SELECT title, date_from, time_from, location, ticket_price, member_ticket_price, is_member_exclusive
         FROM events_eventdata
         WHERE id = ? AND company_id = ?
     ");
@@ -102,12 +103,38 @@ try {
         $_SESSION['tenant_admin_id']
     ]);
     
+    // Send confirmation email if attendee email is provided
+    $emailSent = false;
+    if (!empty($data['attendee_email'])) {
+        try {
+            $emailService = new EmailService($db, $_SESSION['company_id']);
+            $emailResult = $emailService->send([
+                'template' => 'event_confirmation',
+                'to' => $data['attendee_email'],
+                'data' => [
+                    'customer_name' => $data['attendee_name'] ?? 'Deltaker',
+                    'event_title' => $event['title'],
+                    'event_date' => $event['date_from'],
+                    'event_time' => $event['time_from'],
+                    'event_location' => $event['location'] ?? 'Se arrangementdetaljer',
+                    'ticket_type' => $ticketType === 'member' ? 'Medlemsbillett' : 'Ordinær billett'
+                ],
+                'module_source' => 'events',
+                'source_id' => $checkinId
+            ]);
+            $emailSent = $emailResult['success'];
+        } catch (Exception $e) {
+            error_log("Email sending error: " . $e->getMessage());
+        }
+    }
+    
     echo json_encode([
         'success' => true,
         'message' => 'Check-in registrert',
         'checkin_id' => $checkinId,
         'ticket_price' => $ticketPrice,
-        'payment_status' => $paymentStatus
+        'payment_status' => $paymentStatus,
+        'email_sent' => $emailSent
     ]);
     
 } catch (Exception $e) {
