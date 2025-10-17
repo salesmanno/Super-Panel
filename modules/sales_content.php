@@ -148,16 +148,19 @@
                                 <th>Produktnavn</th>
                                 <th>SKU</th>
                                 <th>Kategori</th>
-                                <th>Pris</th>
-                                <th>Lager</th>
+                                <th>Kostpris</th>
+                                <th>Salgspris</th>
+                                <th>Profitt</th>
                                 <th>Status</th>
                                 <th>Handlinger</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="sales-items-list">
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-4">
-                                    Ingen produkter registrert
+                                <td colspan="8" class="text-center text-muted py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Laster...</span>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>
@@ -661,8 +664,70 @@ if (salesTab) {
 async function loadAllSalesData() {
     await Promise.all([
         loadSalesProducts(),
-        loadTransactions()
+        loadTransactions(),
+        loadProductsWithProfit()
     ]);
+}
+
+async function loadProductsWithProfit() {
+    try {
+        const response = await fetch('/api/get_sales_products.php');
+        const data = await response.json();
+        
+        if (data.success && data.products) {
+            displayProductsWithProfit(data.products);
+        }
+    } catch (error) {
+        console.error('Error loading products with profit:', error);
+    }
+}
+
+function displayProductsWithProfit(products) {
+    const container = document.getElementById('sales-items-list');
+    if (!container) return;
+    
+    if (products.length === 0) {
+        container.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Ingen produkter registrert</td></tr>';
+        return;
+    }
+    
+    container.innerHTML = products.map(product => {
+        const profit = parseFloat(product.profit_margin) || 0;
+        const profitClass = profit > 0 ? 'text-success' : 'text-danger';
+        const statusBadge = product.is_active == 1 
+            ? '<span class="badge bg-success">Aktiv</span>' 
+            : '<span class="badge bg-secondary">Inaktiv</span>';
+        
+        return `
+            <tr>
+                <td>${product.name}</td>
+                <td><code>${product.sku || '-'}</code></td>
+                <td>${product.category_id || '-'}</td>
+                <td>${parseFloat(product.cost_price || 0).toFixed(2)} NOK</td>
+                <td>${parseFloat(product.selling_price).toFixed(2)} NOK</td>
+                <td class="${profitClass}"><strong>${profit.toFixed(2)} NOK</strong></td>
+                <td>${statusBadge}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="editProduct('${product.id}')">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct('${product.id}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function editProduct(productId) {
+    alert('Redigering kommer snart for produkt: ' + productId);
+}
+
+function deleteProduct(productId) {
+    if (confirm('Er du sikker på at du vil slette dette produktet?')) {
+        alert('Sletting kommer snart for produkt: ' + productId);
+    }
 }
 
 async function loadTransactions() {
