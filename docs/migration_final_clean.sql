@@ -24,7 +24,7 @@ SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';
 -- 1.1 Email Templates (for automatiske bekreftelser)
 -- ================================================================
 CREATE TABLE IF NOT EXISTS email_templates (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    id CHAR(36) NOT NULL PRIMARY KEY,
     company_id CHAR(36) NOT NULL,
     
     template_key VARCHAR(100) NOT NULL COMMENT 'sale_receipt, event_confirmation, etc.',
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS email_templates (
 -- 1.2 Email Logs (sporing av sendte e-poster)
 -- ================================================================
 CREATE TABLE IF NOT EXISTS email_logs (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    id CHAR(36) NOT NULL PRIMARY KEY,
     company_id CHAR(36) NOT NULL,
     template_id CHAR(36) NULL,
     
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS email_logs (
 -- 1.3 Service Bookings (for servicenæring: frisør, massasje, etc.)
 -- ================================================================
 CREATE TABLE IF NOT EXISTS service_bookings (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    id CHAR(36) NOT NULL PRIMARY KEY,
     company_id CHAR(36) NOT NULL,
     admin_id CHAR(36) NOT NULL,
     
@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS service_bookings (
 -- 1.4 Unified Ledger (samlet økonomi på tvers av moduler)
 -- ================================================================
 CREATE TABLE IF NOT EXISTS unified_ledger (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    id CHAR(36) NOT NULL PRIMARY KEY,
     order_id VARCHAR(100) NOT NULL,
     company_id CHAR(36) NOT NULL,
     
