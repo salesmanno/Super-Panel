@@ -26,21 +26,21 @@ SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';
 CREATE TABLE IF NOT EXISTS email_templates (
     id CHAR(36) NOT NULL PRIMARY KEY,
     company_id CHAR(36) NOT NULL,
-    
+
     template_key VARCHAR(100) NOT NULL COMMENT 'sale_receipt, event_confirmation, etc.',
     name VARCHAR(255) NOT NULL,
     subject_template VARCHAR(500) NOT NULL COMMENT 'Subject with {{placeholders}}',
     body_template TEXT NOT NULL COMMENT 'HTML body with {{placeholders}}',
-    
+
     is_active BOOLEAN DEFAULT TRUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
+
     FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
     UNIQUE KEY unique_template_per_company (company_id, template_key),
     INDEX idx_template_company (company_id),
     INDEX idx_template_key (template_key)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- 1.2 Email Logs (sporing av sendte e-poster)
 -- ================================================================
@@ -48,28 +48,28 @@ CREATE TABLE IF NOT EXISTS email_logs (
     id CHAR(36) NOT NULL PRIMARY KEY,
     company_id CHAR(36) NOT NULL,
     template_id CHAR(36) NULL,
-    
+
     module_source VARCHAR(50) NOT NULL COMMENT 'sales, events, membership, rental, service',
     source_id CHAR(36) NOT NULL COMMENT 'ID fra original modul',
-    
+
     recipient_email VARCHAR(255) NOT NULL,
     subject VARCHAR(500) NOT NULL,
-    
+
     sent_at DATETIME NULL,
     status VARCHAR(50) DEFAULT 'pending' COMMENT 'sent, failed, pending',
     error_message TEXT NULL,
-    
+
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    
+
     FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
     FOREIGN KEY (template_id) REFERENCES email_templates(id) ON DELETE SET NULL,
-    
+
     INDEX idx_email_logs_company (company_id),
     INDEX idx_email_logs_module (module_source, source_id),
     INDEX idx_email_logs_status (status),
     INDEX idx_email_logs_recipient (recipient_email),
     INDEX idx_email_logs_sent_at (sent_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- 1.3 Service Bookings (for servicenæring: frisør, massasje, etc.)
 -- ================================================================
@@ -77,48 +77,48 @@ CREATE TABLE IF NOT EXISTS service_bookings (
     id CHAR(36) NOT NULL PRIMARY KEY,
     company_id CHAR(36) NOT NULL,
     admin_id CHAR(36) NOT NULL,
-    
+
     -- Service details
     service_name VARCHAR(255) NOT NULL,
     service_description TEXT,
     selling_price DECIMAL(10,2) NOT NULL,
     cost_price DECIMAL(10,2) DEFAULT NULL COMMENT 'Optional cost for profit tracking',
     profit_margin DECIMAL(10,2) GENERATED ALWAYS AS (selling_price - IFNULL(cost_price, 0)) STORED,
-    
+
     -- Time slot
     duration INT NOT NULL COMMENT 'Duration in minutes',
     date_from DATE NOT NULL,
     time_from TIME NOT NULL,
     date_to DATE NOT NULL,
     time_to TIME NOT NULL,
-    
+
     -- Assignment
     assigned_staff_id CHAR(36) DEFAULT NULL,
-    
+
     -- Booking details  
     customer_name VARCHAR(255),
     customer_email VARCHAR(255),
     customer_phone VARCHAR(50),
     payment_method VARCHAR(50),
     payment_status VARCHAR(50) DEFAULT 'pending',
-    
+
     -- Status
     status VARCHAR(50) DEFAULT 'available' COMMENT 'available, booked, completed, blocked, cancelled',
-    
+
     -- Metadata
     notes TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
+
     FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
     FOREIGN KEY (admin_id) REFERENCES tenant_admins(id) ON DELETE CASCADE,
     FOREIGN KEY (assigned_staff_id) REFERENCES tenant_staff(id) ON DELETE SET NULL,
-    
+
     INDEX idx_service_bookings_company (company_id),
     INDEX idx_service_bookings_date (date_from, date_to),
     INDEX idx_service_bookings_status (status),
     INDEX idx_service_bookings_staff (assigned_staff_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- 1.4 Unified Ledger (samlet økonomi på tvers av moduler)
 -- ================================================================
@@ -126,41 +126,41 @@ CREATE TABLE IF NOT EXISTS unified_ledger (
     id CHAR(36) NOT NULL PRIMARY KEY,
     order_id VARCHAR(100) NOT NULL,
     company_id CHAR(36) NOT NULL,
-    
+
     -- Source tracking
     module_source VARCHAR(50) NOT NULL COMMENT 'sales, events, membership, rental, service',
     item_type VARCHAR(50) NOT NULL COMMENT 'product, event, membership, rental, service',
     source_id CHAR(36) NOT NULL COMMENT 'ID from original module table',
-    
+
     -- Item details
     item_name VARCHAR(255) NOT NULL,
     quantity INT DEFAULT 1,
-    
+
     -- Financial
     selling_price DECIMAL(10,2) NOT NULL,
     cost_price DECIMAL(10,2) DEFAULT NULL,
     profit DECIMAL(10,2) GENERATED ALWAYS AS (selling_price - IFNULL(cost_price, 0)) STORED,
-    
+
     -- Customer info
     customer_name VARCHAR(255),
     customer_email VARCHAR(255),
-    
+
     -- Payment
     payment_method VARCHAR(50),
     payment_status VARCHAR(50) DEFAULT 'completed',
-    
+
     -- Status
     status VARCHAR(50) DEFAULT 'active',
-    
+
     -- Timestamps
     transaction_date DATETIME NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    
+
     -- Metadata (JSON for module-specific data)
     metadata JSON,
-    
+
     FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
-    
+
     INDEX idx_unified_ledger_company (company_id),
     INDEX idx_unified_ledger_module (module_source, item_type),
     INDEX idx_unified_ledger_order (order_id),
@@ -168,7 +168,7 @@ CREATE TABLE IF NOT EXISTS unified_ledger (
     INDEX idx_unified_ledger_customer (customer_email),
     INDEX idx_unified_ledger_status (status),
     UNIQUE KEY unique_transaction (module_source, source_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ================================================================
 -- FASE 2: LEGGE TIL KOLONNER I EKSISTERENDE TABELLER
