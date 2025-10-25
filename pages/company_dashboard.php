@@ -60,13 +60,19 @@ try {
 
 $allUserModules = getTenantAdminModules($_SESSION['tenant_admin_id']);
 
-$officialModules = array_values(array_filter($allUserModules, function($module) {
-    return in_array($module['module_key'], ['dashboard', 'ditt_nettsted']);
+// Ditt nettsted skal ikke vises i nav baren, kun tilgjengelig via firma-navnet
+$hiddenModules = ['dashboard', 'ditt_nettsted'];
+
+$officialModules = array_values(array_filter($allUserModules, function($module) use ($hiddenModules) {
+    return in_array($module['module_key'], $hiddenModules);
 }));
 
-$userModules = array_values(array_filter($allUserModules, function($module) {
-    return !in_array($module['module_key'], ['dashboard', 'ditt_nettsted']);
+$userModules = array_values(array_filter($allUserModules, function($module) use ($hiddenModules) {
+    return !in_array($module['module_key'], $hiddenModules);
 }));
+
+// Kun vis moduler som ikke skal skjules i nav baren
+$visibleModules = $userModules;
 $allModules = getCompanyModules($_SESSION['company_id']);
 
 // Sjekk om email er konfigurert (med SMTP data)
@@ -354,14 +360,13 @@ try {
         </div>
     </div>
     
-    <?php if (!empty($allUserModules)): ?>
+    <?php if (!empty($visibleModules)): ?>
     <!-- Module Navigation Bar -->
     <div class="bg-light border-bottom">
         <div class="container">
             <ul class="nav nav-tabs module-tabs border-0" role="tablist">
                 <?php 
-                $allModulesForNav = array_merge($officialModules, $userModules);
-                foreach ($allModulesForNav as $index => $module): 
+                foreach ($visibleModules as $index => $module): 
                 ?>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link <?= $index === 0 ? 'active' : '' ?>" 
