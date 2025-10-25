@@ -20,6 +20,18 @@ $currentSettings = null;
 $isLocked = false;
 $privilegeGrantedAt = null;
 
+// Check if unlocked via admin password (expires after 30 minutes)
+$isUnlockedByPassword = false;
+if (isset($_SESSION['website_unlocked']) && isset($_SESSION['website_unlock_time'])) {
+    $timeSinceUnlock = time() - $_SESSION['website_unlock_time'];
+    if ($timeSinceUnlock < 1800) { // 30 minutes
+        $isUnlockedByPassword = true;
+    } else {
+        unset($_SESSION['website_unlocked']);
+        unset($_SESSION['website_unlock_time']);
+    }
+}
+
 if ($db) {
     $stmt = $db->prepare("SELECT * FROM website_templates WHERE is_active = TRUE ORDER BY template_id");
     $stmt->execute();
@@ -43,7 +55,7 @@ if ($db) {
         $configUpdatedAt = strtotime($currentSettings['updated_at']);
         $grantedAt = strtotime($privilegeGrantedAt);
         
-        $isLocked = ($grantedAt <= $configUpdatedAt);
+        $isLocked = ($grantedAt <= $configUpdatedAt) && !$isUnlockedByPassword;
     }
 }
 ?>
@@ -160,6 +172,24 @@ if ($db) {
             background: #fef3c7;
             color: #92400e;
         }
+        
+        .unlock-form {
+            max-width: 400px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .unlock-form .form-control {
+            border-radius: 8px;
+        }
+        
+        .unlock-form .btn {
+            width: 100%;
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
@@ -180,9 +210,9 @@ if ($db) {
             <div class="alert alert-warning text-center py-5">
                 <i class="bi bi-lock-fill" style="font-size: 3rem;"></i>
                 <h3 class="mt-3">Nettside Konfigurert</h3>
-                <p class="mb-0">Nettsiden er allerede konfigurert. For å endre, må du miste og få tilbake privilegiet fra administrator.</p>
+                <p class="mb-3">Nettsiden er allerede konfigurert. Oppgi admin-passord for å låse opp redigering.</p>
                 <?php if ($currentSettings): ?>
-                    <div class="mt-4">
+                    <div class="mt-3 mb-4">
                         <strong>Valgt mal:</strong> 
                         <?php 
                         $selectedTemplate = array_filter($templates, function($t) use ($currentSettings) {
@@ -194,7 +224,27 @@ if ($db) {
                     </div>
                 <?php endif; ?>
             </div>
+            
+            <div class="unlock-form">
+                <h5 class="text-center mb-4"><i class="bi bi-key me-2"></i>Lås Opp Nettside</h5>
+                <div id="unlockError" class="alert alert-danger d-none"></div>
+                <form id="unlockForm">
+                    <div class="mb-3">
+                        <label for="adminPassword" class="form-label">Admin-passord</label>
+                        <input type="password" class="form-control" id="adminPassword" placeholder="Skriv inn admin-passord" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary-gradient">
+                        <i class="bi bi-unlock me-2"></i>Lås Opp
+                    </button>
+                </form>
+            </div>
         <?php else: ?>
+            <?php if ($isUnlockedByPassword): ?>
+                <div class="alert alert-success mb-4">
+                    <i class="bi bi-check-circle me-2"></i>
+                    <strong>Låst opp!</strong> Du kan nå redigere nettside-mal. Opplåsingen utløper om 30 minutter.
+                </div>
+            <?php endif; ?>
             <div class="row mb-4">
                 <div class="col-md-8">
                     <h2>Velg Nettside Mal</h2>
@@ -268,7 +318,48 @@ if ($db) {
         const saveBtn = document.getElementById('saveTemplate');
         
         if (isLocked) {
-            // Do nothing if locked
+            // Handle unlock form
+            const unlockForm = document.getElementById('unlockForm');
+            const unlockError = document.getElementById('unlockError');
+            
+            if (unlockForm) {
+                unlockForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const password = document.getElementById('adminPassword').value;
+                    const submitBtn = this.querySelector('button[type="submit"]');
+                    
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Verifiserer...';
+                    unlockError.classList.add('d-none');
+                    
+                    try {
+                        const response = await fetch('../api/verify_admin_password.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ password: password })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            window.location.reload();
+                        } else {
+                            unlockError.textContent = result.error || 'Feil passord';
+                            unlockError.classList.remove('d-none');
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = '<i class="bi bi-unlock me-2"></i>Lås Opp';
+                        }
+                    } catch (error) {
+                        unlockError.textContent = 'Nettverksfeil. Prøv igjen.';
+                        unlockError.classList.remove('d-none');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="bi bi-unlock me-2"></i>Lås Opp';
+                    }
+                });
+            }
         } else {
         
         templateCards.forEach(card => {
