@@ -6,6 +6,18 @@
                 <p class="text-muted">Administrer bedriftens grunnleggende informasjon</p>
                 
                 <?php
+                // Check if unlocked via admin password (expires after 30 minutes)
+                $isFirmadataUnlocked = false;
+                if (isset($_SESSION['website_unlocked']) && isset($_SESSION['website_unlock_time'])) {
+                    $timeSinceUnlock = time() - $_SESSION['website_unlock_time'];
+                    if ($timeSinceUnlock < 1800) { // 30 minutes
+                        $isFirmadataUnlocked = true;
+                    } else {
+                        unset($_SESSION['website_unlocked']);
+                        unset($_SESSION['website_unlock_time']);
+                    }
+                }
+                
                 // Hent firmadata fra tenant_companies
                 $companyData = [];
                 try {
@@ -20,56 +32,89 @@
                 }
                 ?>
                 
+                <?php if (!$isFirmadataUnlocked): ?>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-lock me-2"></i>
+                        <strong>Låst:</strong> Oppgi admin-passord for å redigere firmadata.
+                    </div>
+                    
+                    <div id="unlockFirmadataError" class="alert alert-danger d-none"></div>
+                    
+                    <form id="unlockFirmadataForm" class="mb-4">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="firmadataPassword" class="form-label">Admin-passord</label>
+                                <input type="password" class="form-control" id="firmadataPassword" placeholder="Skriv inn admin-passord" required>
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-unlock me-2"></i>Lås Opp
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                <?php endif; ?>
+                
                 <?php if ($companyData): ?>
-                <form id="companyDataForm">
+                <form id="companyDataForm" onsubmit="return handleSaveCompanyData(event);">
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Firmanavn</label>
-                            <input type="text" class="form-control" value="<?= htmlspecialchars($companyData['name'] ?? '') ?>" readonly>
+                            <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($companyData['name'] ?? '') ?>" <?= !$isFirmadataUnlocked ? 'readonly' : '' ?>>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Organisasjonsnummer</label>
-                            <input type="text" class="form-control" value="<?= htmlspecialchars($companyData['org_number'] ?? '') ?>" readonly>
+                            <input type="text" name="org_number" class="form-control" value="<?= htmlspecialchars($companyData['org_number'] ?? '') ?>" <?= !$isFirmadataUnlocked ? 'readonly' : '' ?>>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Adresse</label>
-                            <input type="text" class="form-control" value="<?= htmlspecialchars($companyData['address'] ?? '') ?>" readonly>
+                            <input type="text" name="address" class="form-control" value="<?= htmlspecialchars($companyData['address'] ?? '') ?>" <?= !$isFirmadataUnlocked ? 'readonly' : '' ?>>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Postnummer</label>
-                            <input type="text" class="form-control" value="<?= htmlspecialchars($companyData['postal_code'] ?? '') ?>" readonly>
+                            <input type="text" name="postal_code" class="form-control" value="<?= htmlspecialchars($companyData['postal_code'] ?? '') ?>" <?= !$isFirmadataUnlocked ? 'readonly' : '' ?>>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Sted</label>
-                            <input type="text" class="form-control" value="<?= htmlspecialchars($companyData['city'] ?? '') ?>" readonly>
+                            <input type="text" name="city" class="form-control" value="<?= htmlspecialchars($companyData['city'] ?? '') ?>" <?= !$isFirmadataUnlocked ? 'readonly' : '' ?>>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Telefon</label>
-                            <input type="text" class="form-control" value="<?= htmlspecialchars($companyData['phone'] ?? '') ?>" readonly>
+                            <input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($companyData['phone'] ?? '') ?>" <?= !$isFirmadataUnlocked ? 'readonly' : '' ?>>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">E-post</label>
-                            <input type="email" class="form-control" value="<?= htmlspecialchars($companyData['email'] ?? '') ?>" readonly>
+                            <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($companyData['email'] ?? '') ?>" <?= !$isFirmadataUnlocked ? 'readonly' : '' ?>>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Nettside</label>
-                            <input type="url" class="form-control" value="<?= htmlspecialchars($companyData['website'] ?? '') ?>" readonly>
+                            <input type="url" name="website" class="form-control" value="<?= htmlspecialchars($companyData['website'] ?? '') ?>" <?= !$isFirmadataUnlocked ? 'readonly' : '' ?>>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Logo URL</label>
-                            <input type="url" class="form-control" value="<?= htmlspecialchars($companyData['logo_url'] ?? '') ?>" readonly>
+                            <input type="url" name="logo_url" class="form-control" value="<?= htmlspecialchars($companyData['logo_url'] ?? '') ?>" <?= !$isFirmadataUnlocked ? 'readonly' : '' ?>>
                         </div>
                     </div>
+                    
+                    <?php if ($isFirmadataUnlocked): ?>
+                    <div class="alert alert-success mb-3">
+                        <i class="bi bi-check-circle me-2"></i>
+                        <strong>Låst opp!</strong> Du kan nå redigere firmadata. Opplåsingen utløper om 30 minutter.
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-2"></i>Lagre Endringer
+                    </button>
+                    <?php endif; ?>
                 </form>
                 <?php else: ?>
                 <div class="alert alert-warning">
@@ -260,6 +305,92 @@
 </div>
 
 <script>
+// Unlock firmadata with admin password
+document.addEventListener('DOMContentLoaded', function() {
+    const unlockForm = document.getElementById('unlockFirmadataForm');
+    if (unlockForm) {
+        unlockForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const password = document.getElementById('firmadataPassword').value;
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const errorDiv = document.getElementById('unlockFirmadataError');
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Verifiserer...';
+            errorDiv.classList.add('d-none');
+            
+            try {
+                const response = await fetch('/api/verify_admin_password.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ password: password })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    window.location.reload();
+                } else {
+                    errorDiv.textContent = result.error || 'Feil passord';
+                    errorDiv.classList.remove('d-none');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="bi bi-unlock me-2"></i>Lås Opp';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Nettverksfeil. Prøv igjen.';
+                errorDiv.classList.remove('d-none');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-unlock me-2"></i>Lås Opp';
+            }
+        });
+    }
+});
+
+// Save company data
+async function handleSaveCompanyData(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    const data = {};
+    formData.forEach((value, key) => {
+        data[key] = value;
+    });
+    
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Lagrer...';
+    
+    try {
+        const response = await fetch('/api/update_company_data.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Firmadata lagret!');
+        } else {
+            alert('❌ Feil: ' + (result.error || 'Kunne ikke lagre firmadata'));
+        }
+    } catch (error) {
+        console.error('Error saving company data:', error);
+        alert('❌ Feil ved lagring av firmadata');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="bi bi-save me-2"></i>Lagre Endringer';
+    }
+    
+    return false;
+}
+
 async function handleAboutUsSubmit(event) {
     event.preventDefault();
     event.stopPropagation();
