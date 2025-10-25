@@ -554,7 +554,7 @@ async function loadEvents() {
                     : '';
                 
                 const location = event.venue_name || event.event_city || 'Ikke angitt';
-                const capacity = event.max_attendees ? `0 / ${event.max_attendees}` : 'Ubegrenset';
+                const capacity = event.max_attendees ? `${event.current_attendees || 0} / ${event.max_attendees}` : 'Ubegrenset';
                 const createdBy = (event.first_name && event.last_name) 
                     ? `${event.first_name} ${event.last_name}` 
                     : 'Ukjent bruker';
