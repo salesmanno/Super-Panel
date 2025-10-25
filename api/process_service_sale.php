@@ -35,9 +35,18 @@ if (!$output_product_id || !$service_type || !$customer_first_name || !$customer
 try {
     $db->beginTransaction();
     
+    // Check if this is a member price purchase (output_product_id ends with _member)
+    $is_member_price = false;
+    $actual_output_product_id = $output_product_id;
+    
+    if (str_ends_with($output_product_id, '_member')) {
+        $is_member_price = true;
+        $actual_output_product_id = str_replace('_member', '', $output_product_id);
+    }
+    
     // Get output_product first
     $stmt = $db->prepare("SELECT product_id, product_type FROM output_products WHERE id = ? AND company_id = ?");
-    $stmt->execute([$output_product_id, $company_id]);
+    $stmt->execute([$actual_output_product_id, $company_id]);
     $outputProduct = $stmt->fetch();
     
     if (!$outputProduct || $outputProduct['product_type'] !== $service_type) {
@@ -52,9 +61,15 @@ try {
     // Fetch service details based on type (separate queries to avoid column conflicts)
     switch ($service_type) {
         case 'event':
-            $stmt = $db->prepare("SELECT id, title as service_name, ticket_price as price FROM events_eventdata WHERE id = ?");
+            $stmt = $db->prepare("SELECT id, title as service_name, ticket_price as price, member_ticket_price FROM events_eventdata WHERE id = ?");
             $stmt->execute([$product_id]);
             $service = $stmt->fetch();
+            
+            // Use member price if this is a member purchase
+            if ($is_member_price && !empty($service['member_ticket_price'])) {
+                $service['price'] = $service['member_ticket_price'];
+                $service['service_name'] .= ' (Medlemspris)';
+            }
             break;
             
         case 'membership':
@@ -117,6 +132,13 @@ try {
         case 'event':
             // Record event check-in or registration
             $checkin_id = bin2hex(random_bytes(16));
+            
+            // Add member price indicator to notes
+            $event_notes = $notes;
+            if ($is_member_price) {
+                $event_notes = "Medlemspris brukt. " . $notes;
+            }
+            
             $stmt = $db->prepare("
                 INSERT INTO events_checkin 
                 (id, event_id, customer_id, attendee_name, attendee_email, attendee_phone, 
@@ -136,7 +158,7 @@ try {
                 'paid',
                 false, // not checked in yet
                 $admin_id,
-                $notes
+                $event_notes
             ]);
             break;
             

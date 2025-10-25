@@ -36,6 +36,10 @@ try {
                 END,
                 op.price
             ) as price,
+            CASE 
+                WHEN op.product_type = 'event' THEN e.member_ticket_price
+                ELSE NULL
+            END as member_price,
             sp.img_product,
             sp.item_taxable
         FROM output_products op
@@ -49,9 +53,26 @@ try {
     $stmt->execute([$company_id]);
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    // Duplicate events with member_price to show both regular and member pricing
+    $finalItems = [];
+    foreach ($items as $item) {
+        // Add regular item
+        $finalItems[] = $item;
+        
+        // If it's an event with member_price, add a second entry for member pricing
+        if ($item['product_type'] === 'event' && !empty($item['member_price']) && $item['member_price'] > 0) {
+            $memberItem = $item;
+            $memberItem['id'] = $item['id'] . '_member'; // Unique ID for member version
+            $memberItem['item_name'] = $item['item_name'] . ' (Medlemspris)';
+            $memberItem['price'] = $item['member_price'];
+            $memberItem['is_member_price'] = true;
+            $finalItems[] = $memberItem;
+        }
+    }
+    
     echo json_encode([
         'success' => true,
-        'items' => $items
+        'items' => $finalItems
     ]);
     
 } catch (Exception $e) {
