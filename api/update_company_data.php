@@ -12,17 +12,16 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 }
 
 // Check if unlocked
-if (!isset($_SESSION['website_unlocked']) || !isset($_SESSION['website_unlock_time'])) {
+if (!isset($_SESSION['ditt_nettsted_unlocked']) || !isset($_SESSION['ditt_nettsted_expires'])) {
     http_response_code(403);
     echo json_encode(['success' => false, 'error' => 'Ikke låst opp. Oppgi admin-passord først.']);
     exit;
 }
 
 // Check if unlock is still valid (30 minutes)
-$timeSinceUnlock = time() - $_SESSION['website_unlock_time'];
-if ($timeSinceUnlock >= 1800) {
-    unset($_SESSION['website_unlocked']);
-    unset($_SESSION['website_unlock_time']);
+if (time() > $_SESSION['ditt_nettsted_expires']) {
+    unset($_SESSION['ditt_nettsted_unlocked']);
+    unset($_SESSION['ditt_nettsted_expires']);
     http_response_code(403);
     echo json_encode(['success' => false, 'error' => 'Opplåsingen har utløpt. Lås opp igjen.']);
     exit;

@@ -884,6 +884,84 @@ try {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Global functions for firmadata in modal
+        async function handleSaveCompanyData(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const formData = new FormData(form);
+            const data = {};
+            formData.forEach((value, key) => {
+                data[key] = value;
+            });
+            
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Lagrer...';
+            
+            try {
+                const response = await fetch('/api/update_company_data.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('✅ Firmadata lagret!');
+                } else {
+                    alert('❌ Feil: ' + (result.error || 'Kunne ikke lagre firmadata'));
+                }
+            } catch (error) {
+                console.error('Error saving company data:', error);
+                alert('❌ Feil ved lagring av firmadata');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-save me-2"></i>Lagre Endringer';
+            }
+            
+            return false;
+        }
+
+        async function handleAboutUsSubmit(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            console.log('About us form submitted');
+            
+            const aboutUsText = document.getElementById('about-us-text').value;
+            
+            try {
+                const response = await fetch('/api/update_about_us.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        about_us: aboutUsText,
+                        company_id: <?= $_SESSION['company_id'] ?>
+                    })
+                });
+                
+                const result = await response.json();
+                console.log('API response:', result);
+                
+                if (result.success) {
+                    alert('✅ "Om oss" tekst lagret!');
+                } else {
+                    alert('❌ Feil: ' + (result.message || 'Kunne ikke lagre tekst'));
+                }
+            } catch (error) {
+                console.error('Error saving about us:', error);
+                alert('❌ Feil ved lagring av tekst');
+            }
+            
+            return false;
+        }
+        
         function refreshSession() {
             fetch('/api/refresh_session.php')
                 .then(response => response.json())
