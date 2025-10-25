@@ -141,24 +141,22 @@ try {
             break;
             
         case 'membership':
-            // Create membership transaction
+            // Create member record (active membership)
             $stmt = $db->prepare("
-                INSERT INTO membership_transactions 
-                (company_id, membership_plan_id, customer_name, customer_email, customer_phone, 
-                 quantity, total_price, payment_method, notes, created_by, created_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                INSERT INTO members 
+                (company_id, plan_id, first_name, last_name, email, phone, 
+                 join_date, expiry_date, status, notes, created_at, updated_at) 
+                VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW() + INTERVAL '1 month', 'active', ?, NOW(), NOW())
+                RETURNING member_id
             ");
             $stmt->execute([
                 $company_id,
                 $product_id,
-                $customer_full_name,
+                $customer_first_name,
+                $customer_last_name,
                 $customer_email,
                 $customer_phone,
-                $quantity,
-                $total,
-                $payment_method,
-                $notes,
-                $admin_id
+                "Kjøpt via varesalg - Betalt: {$total} NOK ({$payment_method}). " . $notes
             ]);
             break;
             
@@ -166,20 +164,24 @@ try {
             // Create rental reservation
             $stmt = $db->prepare("
                 INSERT INTO rental_reservations 
-                (rental_object_id, customer_name, customer_email, customer_phone, 
-                 quantity, total_price, payment_method, notes, created_by, created_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                (company_id, object_id, customer_name, customer_email, customer_phone, 
+                 start_date, end_date, daily_price, total_price, deposit_paid, status, notes, created_at, updated_at) 
+                VALUES (?, ?, ?, ?, ?, NOW(), NOW() + INTERVAL '1 day', ?, ?, 0, 'confirmed', ?, NOW(), NOW())
+                RETURNING reservation_id
             ");
+            
+            // Calculate daily price from total (assuming 1 day rental by default)
+            $daily_price = $total / $quantity;
+            
             $stmt->execute([
+                $company_id,
                 $product_id,
                 $customer_full_name,
                 $customer_email,
                 $customer_phone,
-                $quantity,
+                $daily_price,
                 $total,
-                $payment_method,
-                $notes,
-                $admin_id
+                "Kjøpt via varesalg - Betalingsmetode: {$payment_method}. " . $notes
             ]);
             break;
             
