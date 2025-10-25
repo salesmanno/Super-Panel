@@ -52,7 +52,8 @@ $allowedFields = [
     'address_zip',
     'address_country',
     'org_number',
-    'tax_id'
+    'tax_id',
+    'logo_url'
 ];
 $updateFields = [];
 $params = [];

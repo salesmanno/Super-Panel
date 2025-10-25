@@ -71,13 +71,17 @@
                     </div>
                     
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Domene</label>
                             <input type="text" name="domain" class="form-control" value="<?= htmlspecialchars($companyData['domain'] ?? '') ?>" placeholder="dinbedrift.no">
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Bransje</label>
                             <input type="text" name="industry" class="form-control" value="<?= htmlspecialchars($companyData['industry'] ?? '') ?>">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Logo URL</label>
+                            <input type="url" name="logo_url" class="form-control" value="<?= htmlspecialchars($companyData['logo_url'] ?? '') ?>" placeholder="https://...">
                         </div>
                     </div>
                     
