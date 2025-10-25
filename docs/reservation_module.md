@@ -1,15 +1,17 @@
 # Reservation Module Documentation
 
 ## Overview
-The Reservation Module provides comprehensive reservation management with staff assignment, date filtering, and status tracking.
+The Reservation Module provides comprehensive reservation management with staff assignment, date filtering, status tracking, and dual-view display (agenda and calendar).
 
 ## Module Structure
 
 ### Subtabs
 1. **Reservasjonsoversikt** (Primary view)
-   - First subtab, shows upcoming reservations
-   - Configurable date range filter (7, 14, 30, 60, 90 days)
-   - Staff member filter
+   - First subtab, shows reservations in agenda or calendar view
+   - **Agenda View**: List grouped by date with compact cards
+   - **Calendar View**: Monthly grid with color-coded reservations
+   - Configurable date range filter (7, 14, 30, 60, 90 days) - agenda only
+   - Staff member filter (works in both views)
    - Status filter (pending, confirmed, cancelled, completed)
    - Real-time statistics cards
    - Action buttons for view, confirm, cancel
@@ -75,9 +77,15 @@ Staff assignments reference this table for assigned personnel.
 **Purpose**: Fetch reservations with filtering
 
 **Query Parameters**:
-- `days` (int) - Number of days forward to show (default: 14)
+- `days` (int) - Number of days forward to show (default: 14) - used when no date range
+- `start_date` (string, YYYY-MM-DD) - Start of date range (optional, for calendar view)
+- `end_date` (string, YYYY-MM-DD) - End of date range (optional, for calendar view)
 - `staff_id` (UUID) - Filter by staff member (optional)
 - `status` (string) - Filter by status (optional)
+
+**Date Range Logic**:
+- If `start_date` and `end_date` provided: Uses explicit date range
+- Otherwise: Uses `days` parameter (default 14 days from now)
 
 **Response**:
 ```json
@@ -131,21 +139,57 @@ Staff assignments reference this table for assigned personnel.
 
 ## Features
 
+### View Modes
+
+#### Agenda View (Default)
+- List display with reservations grouped by date
+- Shows date headers with Norwegian formatting
+- Compact reservation cards with:
+  - Time range
+  - Customer/title
+  - Staff member (with color-coded left border)
+  - Guest count
+  - Amount
+  - Status badge
+  - Action buttons
+- Date range filter (7-90 days forward)
+
+#### Calendar View
+- Monthly grid calendar (Mon-Sun)
+- Shows current month with navigation controls
+- Displays reservations as colored bars in date cells
+- Each reservation shows: time + title
+- Color-coded by staff member (10 distinct colors)
+- Staff legend shows color assignments
+- Month navigation: Previous, Next, "I dag" (today)
+- Automatic date range calculation including overflow days
+- Timezone-safe date handling (local time, not UTC)
+
 ### Statistics Dashboard
 - **Total Reservations**: Count of all reservations in date range
 - **Pending**: Reservations awaiting confirmation
 - **Confirmed**: Approved reservations
 - **Total Value**: Sum of all reservation amounts
+- Updates automatically with filter changes
 
 ### Filtering Capabilities
-1. **Date Range**: Choose how many days forward to display
-2. **Staff Assignment**: Filter by specific staff member
-3. **Status**: Filter by reservation status
-4. **Real-time Updates**: Click "Oppdater" to refresh data
+1. **View Toggle**: Switch between agenda and calendar view
+2. **Date Range** (Agenda only): Choose 7, 14, 30, 60, or 90 days forward
+3. **Staff Assignment**: Filter by specific staff member (both views)
+4. **Status**: Filter by pending/confirmed/cancelled (both views)
+5. **Real-time Updates**: Click "Oppdater" to refresh data
+
+### Staff Color Coding
+- 10 distinct colors assigned to staff members
+- Colors cycle if more than 10 staff
+- Consistent across both views:
+  - **Agenda**: Left border of reservation cards
+  - **Calendar**: Background color of reservation bars
+- Staff legend displays in calendar view sidebar
 
 ### Action Buttons
 - **View** (👁️): View full reservation details
-- **Confirm** (✓): Approve pending reservation
+- **Confirm** (✓): Approve pending reservation (pending only)
 - **Cancel** (✕): Cancel/reject reservation
 
 ## User Interface
@@ -171,12 +215,45 @@ Staff assignments reference this table for assigned personnel.
 ### Collation Fix
 All database queries include `SET collation_connection = 'utf8mb4_general_ci'` to prevent collation mismatch errors between MariaDB 11.4.7 default (utf8mb4_0900_ai_ci) and table definitions (utf8mb4_general_ci).
 
+### Timezone-Safe Date Handling
+Custom `formatDateLocal()` function formats dates using local timezone instead of UTC:
+```javascript
+function formatDateLocal(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+```
+This prevents date shifts for users outside UTC (e.g., Norway UTC+1).
+
 ### JavaScript Functions
-- `loadStaffFilter()`: Populates staff dropdown on page load
-- `loadReservationsOverview()`: Fetches and displays reservations
+
+#### Data Loading
+- `loadStaffFilter()`: Populates staff dropdown and assigns colors
+- `loadReservations()`: Main loader, calls agenda or calendar based on view
+- `loadReservationsOverview()`: Fetches data for agenda view
+- `loadCalendarView()`: Fetches data for calendar view with month range
 - `updateStatistics()`: Updates stat cards with current data
-- `displayReservations()`: Renders reservation table rows
-- `getStatusBadge()`: Returns HTML for status badges
+
+#### Agenda View
+- `displayReservationsAgenda()`: Groups and renders reservation cards by date
+- `createReservationCard()`: Creates individual reservation card HTML
+
+#### Calendar View
+- `renderCalendar()`: Renders monthly calendar grid
+- `getReservationsForDate()`: Filters reservations for specific date
+- `changeMonth(delta)`: Navigate to previous/next month
+- `goToToday()`: Jump to current month
+- `isDateToday()`: Checks if date is today
+
+#### Staff & Display
+- `updateStaffLegend()`: Renders staff color legend
+- `getStaffColor(staffId)`: Returns color for staff member
+- `getStatusBadge(status)`: Returns HTML for status badges
+- `formatDateLocal(date)`: Timezone-safe date formatter
+
+#### Actions
 - `viewReservation(id)`: View reservation details (placeholder)
 - `confirmReservation(id)`: Confirm pending reservation (placeholder)
 - `cancelReservation(id)`: Cancel reservation (placeholder)
