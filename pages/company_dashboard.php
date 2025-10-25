@@ -63,15 +63,15 @@ $allUserModules = getTenantAdminModules($_SESSION['tenant_admin_id']);
 // Debug: Log hvilke moduler som lastes
 error_log("All user modules: " . json_encode(array_column($allUserModules, 'module_key')));
 
-$officialModules = array_filter($allUserModules, function($module) {
+$officialModules = array_values(array_filter($allUserModules, function($module) {
     return in_array($module['module_key'], ['dashboard', 'ditt_nettsted']);
-});
+}));
 
 error_log("Official modules: " . json_encode(array_column($officialModules, 'module_key')));
 
-$userModules = array_filter($allUserModules, function($module) {
+$userModules = array_values(array_filter($allUserModules, function($module) {
     return !in_array($module['module_key'], ['dashboard', 'ditt_nettsted']);
-});
+}));
 $allModules = getCompanyModules($_SESSION['company_id']);
 
 // Sjekk om email er konfigurert (med SMTP data)
