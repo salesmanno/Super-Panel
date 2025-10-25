@@ -456,19 +456,21 @@ function displayProducts(products) {
     }
     
     container.innerHTML = products.map(product => {
-        const imgHtml = product.img_product ? 
-            `<img src="${product.img_product}" class="card-img-top" style="height: 180px; object-fit: cover;" alt="${product.item_name}">` : 
-            `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 180px;">
-                <i class="bi bi-image" style="font-size: 3rem; color: #ccc;"></i>
-            </div>`;
+        const imgUrl = product.img_product || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23f0f0f0" width="400" height="300"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em" font-size="40"%3EIngen bilde%3C/text%3E%3C/svg%3E';
         
         return `
-        <div class="col-md-6 mb-3">
-            <div class="card h-100">
-                ${imgHtml}
-                <div class="card-body">
-                    <h6 class="card-title">${product.item_name}</h6>
-                    <p class="text-muted mb-0">${product.price} NOK</p>
+        <div class="col-md-12 mb-3">
+            <div class="card h-100 position-relative overflow-hidden" 
+                 style="cursor: pointer; min-height: 300px;" 
+                 onclick="addToCart('${product.id}')">
+                <img src="${imgUrl}" 
+                     class="card-img" 
+                     style="height: 300px; width: 100%; object-fit: cover;" 
+                     alt="${product.item_name}">
+                <div class="position-absolute bottom-0 start-0 end-0 p-3" 
+                     style="background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.6) 70%, transparent 100%);">
+                    <h5 class="text-white mb-1 fw-bold">${product.item_name}</h5>
+                    <p class="text-white mb-0 fs-4 fw-bold">${product.price} NOK</p>
                 </div>
             </div>
         </div>
@@ -524,7 +526,7 @@ function getServiceTypeName(type) {
 }
 
 async function addToCart(productId) {
-    const quantity = parseInt(document.getElementById('qty-' + productId).value) || 1;
+    const quantity = 1; // Always add 1 item when clicking product card
     
     try {
         const response = await fetch('/api/add_to_cart.php', {
@@ -537,13 +539,27 @@ async function addToCart(productId) {
         
         if (result.success) {
             await loadCart();
-            document.getElementById('qty-' + productId).value = 1;
+            // Visual feedback
+            showToast('✅ Lagt til i handlekurv');
         } else {
             alert('❌ ' + result.message);
         }
     } catch (error) {
         console.error('Add to cart error:', error);
     }
+}
+
+function showToast(message) {
+    const existingToast = document.querySelector('.cart-toast');
+    if (existingToast) existingToast.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = 'cart-toast position-fixed top-0 start-50 translate-middle-x mt-3';
+    toast.style.cssText = 'z-index: 9999; padding: 12px 24px; background: #28a745; color: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.remove(), 2000);
 }
 
 async function loadCart() {
