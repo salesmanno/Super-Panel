@@ -13,9 +13,13 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 
-$days = isset($_GET['days']) ? (int)$_GET['days'] : 14;
 $staffId = isset($_GET['staff_id']) ? $_GET['staff_id'] : '';
 $statusFilter = isset($_GET['status']) ? $_GET['status'] : '';
+
+// Support both days-from-now and explicit date range
+$startDate = isset($_GET['start_date']) ? $_GET['start_date'] : null;
+$endDate = isset($_GET['end_date']) ? $_GET['end_date'] : null;
+$days = isset($_GET['days']) ? (int)$_GET['days'] : 14;
 
 try {
     $db = getDBConnection();
@@ -33,9 +37,18 @@ try {
     $params = [$companyId];
     
     // Date range filter
-    $whereConditions[] = "r.start_datetime >= NOW()";
-    $whereConditions[] = "r.start_datetime <= DATE_ADD(NOW(), INTERVAL ? DAY)";
-    $params[] = $days;
+    if ($startDate && $endDate) {
+        // Explicit date range
+        $whereConditions[] = "DATE(r.start_datetime) >= ?";
+        $whereConditions[] = "DATE(r.start_datetime) <= ?";
+        $params[] = $startDate;
+        $params[] = $endDate;
+    } else {
+        // Days from now (default)
+        $whereConditions[] = "r.start_datetime >= NOW()";
+        $whereConditions[] = "r.start_datetime <= DATE_ADD(NOW(), INTERVAL ? DAY)";
+        $params[] = $days;
+    }
     
     // Staff filter
     if (!empty($staffId)) {
