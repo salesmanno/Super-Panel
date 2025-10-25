@@ -414,9 +414,12 @@ try {
             </ul>
             
             <!-- Reservations subtabs -->
-            <ul class="nav nav-pills py-2 subtabs" id="subtabs-reservations" style="display: none;">
+            <ul class="nav nav-pills py-2 subtabs" id="subtabs-reservation" style="display: none;">
                 <li class="nav-item">
-                    <a class="nav-link active" href="#reservations-incoming">Reservasjonsmottak</a>
+                    <a class="nav-link active" href="#reservations-overview">Reservasjonsoversikt</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#reservations-incoming">Reservasjonsmottak</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="#reservations-confirmed">Bekreftede Reservasjoner</a>
