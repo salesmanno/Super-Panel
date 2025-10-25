@@ -26,35 +26,35 @@ try {
         $outputProductId = bin2hex(random_bytes(16));
         $planCode = 'PLAN-' . strtoupper(substr($planId, 0, 8));
         
-        // 1. Opprett medlemskapsplan
+        // 1. Opprett medlemskapsplan (match faktisk PostgreSQL struktur)
         $stmt = $db->prepare("
-            INSERT INTO membership_plans (
-                id,
+            INSERT INTO x_membership_plan (
                 company_id,
-                plan_code,
-                name,
+                plan_name,
                 description,
                 price,
-                currency,
-                billing_cycle,
-                benefits,
+                duration_months,
+                features,
                 is_active,
-                created_at,
-                product_id
-            ) VALUES (?, ?, ?, ?, ?, ?, 'NOK', ?, ?, 1, NOW(), ?)
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 1, NOW())
+            RETURNING plan_id
         ");
         
+        $billingCycle = $data['billing_cycle'] ?? 'monthly';
+        $durationMonths = $billingCycle === 'yearly' ? 12 : 1;
+        
         $stmt->execute([
-            $planId,
             $_SESSION['company_id'],
-            $planCode,
             $data['name'],
             $data['description'] ?? null,
             $data['price'] ?? 0,
-            $data['billing_cycle'] ?? 'monthly',
-            $data['benefits'] ?? null,
-            $outputProductId
+            $durationMonths,
+            $data['benefits'] ?? null
         ]);
+        
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $planId = $result['plan_id'];
         
         // 2. Auto-generer output_products entry
         $stmt = $db->prepare("
