@@ -462,13 +462,7 @@ function displayProducts(products) {
                 ${imgHtml}
                 <div class="card-body">
                     <h6 class="card-title">${product.item_name}</h6>
-                    <p class="text-muted mb-2">${product.price} NOK</p>
-                    <div class="input-group input-group-sm">
-                        <input type="number" class="form-control" id="qty-${product.id}" min="1" value="1" style="max-width: 80px;">
-                        <button class="btn btn-primary" onclick="addToCart('${product.id}')">
-                            <i class="bi bi-cart-plus"></i> Legg til
-                        </button>
-                    </div>
+                    <p class="text-muted mb-0">${product.price} NOK</p>
                 </div>
             </div>
         </div>
