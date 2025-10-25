@@ -459,18 +459,18 @@ function displayProducts(products) {
         const imgUrl = product.img_product || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="200"%3E%3Crect fill="%23f0f0f0" width="400" height="200"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em" font-size="30"%3EIngen bilde%3C/text%3E%3C/svg%3E';
         
         return `
-        <div class="col-md-4 mb-3">
+        <div class="col-md-3 col-sm-4 col-6 mb-2">
             <div class="card h-100 position-relative overflow-hidden" 
-                 style="cursor: pointer;" 
+                 style="cursor: pointer; border-radius: 12px; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" 
                  onclick="addToCart('${product.id}')">
                 <img src="${imgUrl}" 
                      class="card-img" 
-                     style="height: 160px; width: 100%; object-fit: cover;" 
+                     style="height: 120px; width: 100%; object-fit: cover; border-radius: 12px;" 
                      alt="${product.item_name}">
                 <div class="position-absolute bottom-0 start-0 end-0 p-2" 
-                     style="background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 80%, transparent 100%);">
-                    <h6 class="text-white mb-0 fw-bold" style="font-size: 0.9rem;">${product.item_name}</h6>
-                    <p class="text-white mb-0 fw-bold" style="font-size: 1.1rem;">${product.price} NOK</p>
+                     style="background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 70%, transparent 100%); border-radius: 0 0 12px 12px;">
+                    <h6 class="text-white mb-0 fw-bold" style="font-size: 0.75rem; line-height: 1.2;">${product.item_name}</h6>
+                    <p class="text-white mb-0 fw-bold" style="font-size: 0.9rem;">${product.price} NOK</p>
                 </div>
             </div>
         </div>
