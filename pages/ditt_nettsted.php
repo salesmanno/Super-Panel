@@ -155,10 +155,40 @@ if ($db) {
             </div>
         <?php else: ?>
             <?php if ($isUnlockedByPassword): ?>
+                <?php
+                $timeLeft = 1800 - (time() - $_SESSION['website_unlock_time']);
+                if ($timeLeft < 0) $timeLeft = 0;
+                $minutes = floor($timeLeft / 60);
+                $seconds = $timeLeft % 60;
+                ?>
                 <div class="alert alert-success mb-4">
-                    <i class="bi bi-check-circle me-2"></i>
-                    <strong>Låst opp!</strong> Du kan nå redigere nettside-innstillinger. Opplåsingen utløper om 30 minutter.
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-unlock-fill me-2"></i>
+                            <strong>Låst opp!</strong> Du kan nå redigere nettside-innstillinger.
+                        </div>
+                        <div>
+                            <span class="badge bg-success">
+                                <i class="bi bi-clock me-1"></i>
+                                <span id="unlockCountdown"><?= sprintf('%d:%02d', $minutes, $seconds) ?></span>
+                            </span>
+                        </div>
+                    </div>
                 </div>
+                <script>
+                let timeRemaining = <?= $timeLeft ?>;
+                const countdownEl = document.getElementById('unlockCountdown');
+                setInterval(() => {
+                    timeRemaining--;
+                    if (timeRemaining <= 0) {
+                        window.location.reload();
+                        return;
+                    }
+                    const mins = Math.floor(timeRemaining / 60);
+                    const secs = timeRemaining % 60;
+                    countdownEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                }, 1000);
+                </script>
             <?php endif; ?>
             
             <div class="config-card">
@@ -260,7 +290,27 @@ if ($db) {
                         const result = await response.json();
                         
                         if (result.success) {
-                            window.location.reload();
+                            // Show success feedback with continue button
+                            submitBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Låst opp!';
+                            submitBtn.classList.remove('btn-primary-gradient');
+                            submitBtn.classList.add('btn-success');
+                            submitBtn.disabled = true;
+                            
+                            // Show success banner with continue button
+                            unlockError.classList.remove('alert-danger');
+                            unlockError.classList.add('alert-success');
+                            unlockError.innerHTML = `
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="bi bi-check-circle-fill me-2"></i>
+                                        <strong>Låst opp!</strong> Nettside-innstillinger er nå tilgjengelig for redigering i 30 minutter.
+                                    </div>
+                                    <button class="btn btn-success" onclick="window.location.reload()">
+                                        Fortsett til redigering <i class="bi bi-arrow-right ms-1"></i>
+                                    </button>
+                                </div>
+                            `;
+                            unlockError.classList.remove('d-none');
                         } else {
                             unlockError.textContent = result.error || 'Feil passord';
                             unlockError.classList.remove('d-none');

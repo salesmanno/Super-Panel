@@ -107,10 +107,44 @@
                     </div>
                     
                     <?php if ($isFirmadataUnlocked): ?>
+                    <?php
+                    $timeLeft = 1800 - (time() - $_SESSION['website_unlock_time']);
+                    if ($timeLeft < 0) $timeLeft = 0;
+                    $minutes = floor($timeLeft / 60);
+                    $seconds = $timeLeft % 60;
+                    ?>
                     <div class="alert alert-success mb-3">
-                        <i class="bi bi-check-circle me-2"></i>
-                        <strong>Låst opp!</strong> Du kan nå redigere firmadata. Opplåsingen utløper om 30 minutter.
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-unlock-fill me-2"></i>
+                                <strong>Låst opp!</strong> Du kan nå redigere firmadata.
+                            </div>
+                            <div>
+                                <span class="badge bg-success">
+                                    <i class="bi bi-clock me-1"></i>
+                                    <span id="firmadataUnlockCountdown"><?= sprintf('%d:%02d', $minutes, $seconds) ?></span>
+                                </span>
+                            </div>
+                        </div>
                     </div>
+                    <script>
+                    (function() {
+                        let timeRemaining = <?= $timeLeft ?>;
+                        const countdownEl = document.getElementById('firmadataUnlockCountdown');
+                        if (countdownEl) {
+                            setInterval(() => {
+                                timeRemaining--;
+                                if (timeRemaining <= 0) {
+                                    window.location.reload();
+                                    return;
+                                }
+                                const mins = Math.floor(timeRemaining / 60);
+                                const secs = timeRemaining % 60;
+                                countdownEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                            }, 1000);
+                        }
+                    })();
+                    </script>
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-save me-2"></i>Lagre Endringer
                     </button>
@@ -332,7 +366,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 const result = await response.json();
                 
                 if (result.success) {
-                    window.location.reload();
+                    // Show success feedback with continue button
+                    submitBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Låst opp!';
+                    submitBtn.classList.remove('btn-primary');
+                    submitBtn.classList.add('btn-success');
+                    submitBtn.disabled = true;
+                    
+                    // Show success banner with continue button
+                    errorDiv.classList.remove('alert-danger');
+                    errorDiv.classList.add('alert-success');
+                    errorDiv.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-check-circle-fill me-2"></i>
+                                <strong>Låst opp!</strong> Firmadata er nå tilgjengelig for redigering i 30 minutter.
+                            </div>
+                            <button class="btn btn-success btn-sm" onclick="window.location.reload()">
+                                Fortsett til redigering <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    `;
+                    errorDiv.classList.remove('d-none');
                 } else {
                     errorDiv.textContent = result.error || 'Feil passord';
                     errorDiv.classList.remove('d-none');

@@ -11,6 +11,7 @@ The Salesman Superportal System is a comprehensive administration portal designe
 - Modules should be displayed as tabs (faner) instead of cards
 - Only show modules where user has privileges (can_access = true)
 - Each module tab should have sub-tabs with the same name showing current content
+- Unlock feedback must be clear and visible (green button, countdown timer, success message)
 
 ## System Architecture
 The system is built on a PHP 8.2 backend with dual database support (MySQL production, PostgreSQL development/backup), emphasizing modularity and granular access control.
