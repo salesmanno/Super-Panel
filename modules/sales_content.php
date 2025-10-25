@@ -76,6 +76,7 @@
                                     <option value="cash">Kontant</option>
                                     <option value="card">Kort</option>
                                     <option value="online">Nettbank</option>
+                                    <option value="on_arrival">Oppmøte</option>
                                 </select>
                             </div>
                             
@@ -432,6 +433,7 @@
                             <option value="cash">Kontant</option>
                             <option value="card">Kort</option>
                             <option value="online">Nettbank</option>
+                            <option value="on_arrival">Oppmøte</option>
                         </select>
                     </div>
                     
