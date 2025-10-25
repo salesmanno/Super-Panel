@@ -70,9 +70,6 @@
                             <input type="url" class="form-control" value="<?= htmlspecialchars($companyData['logo_url'] ?? '') ?>" readonly>
                         </div>
                     </div>
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle me-2"></i>Kontakt systemadministrator for å endre firmadata
-                    </div>
                 </form>
                 <?php else: ?>
                 <div class="alert alert-warning">
