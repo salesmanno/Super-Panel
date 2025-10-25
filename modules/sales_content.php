@@ -366,9 +366,15 @@
                     <input type="hidden" id="service-type">
                     <input type="hidden" id="service-price-value">
                     
-                    <div class="mb-3">
-                        <label class="form-label">Kundenavn <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="service-customer-name" required>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fornavn <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="service-customer-first-name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Etternavn <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="service-customer-last-name" required>
+                        </div>
                     </div>
                     
                     <div class="mb-3">
@@ -841,7 +847,8 @@ async function processServicePurchase() {
         output_product_id: document.getElementById('service-id').value,
         service_type: document.getElementById('service-type').value,
         quantity: parseInt(document.getElementById('service-quantity').value),
-        customer_name: document.getElementById('service-customer-name').value,
+        customer_first_name: document.getElementById('service-customer-first-name').value,
+        customer_last_name: document.getElementById('service-customer-last-name').value,
         customer_email: document.getElementById('service-customer-email').value,
         customer_phone: document.getElementById('service-customer-phone').value,
         payment_method: document.getElementById('service-payment-method').value,
@@ -858,7 +865,7 @@ async function processServicePurchase() {
         const result = await response.json();
         
         if (result.success) {
-            alert(`✅ Tjeneste solgt!\nKunde: ${purchaseData.customer_name}\nTotalsum: ${result.total} NOK`);
+            alert(`✅ Tjeneste solgt!\nKunde: ${purchaseData.customer_first_name} ${purchaseData.customer_last_name}\nTotalsum: ${result.total} NOK`);
             bootstrap.Modal.getInstance(document.getElementById('servicePurchaseModal')).hide();
             form.reset();
             await loadSalesProducts();

@@ -32,12 +32,13 @@ try {
     $items = $stmt->fetchAll();
     
     $total = array_sum(array_column($items, 'subtotal'));
+    $totalQuantity = array_sum(array_column($items, 'quantity'));
     
     echo json_encode([
         'success' => true,
         'items' => $items,
         'total' => $total,
-        'count' => count($items)
+        'count' => $totalQuantity
     ]);
     
 } catch (Exception $e) {

@@ -18,13 +18,16 @@ $data = json_decode(file_get_contents('php://input'), true);
 $output_product_id = $data['output_product_id'] ?? null;
 $service_type = $data['service_type'] ?? null;
 $quantity = intval($data['quantity'] ?? 1);
-$customer_name = $data['customer_name'] ?? '';
-$customer_email = $data['customer_email'] ?? '';
-$customer_phone = $data['customer_phone'] ?? '';
+$customer_first_name = trim($data['customer_first_name'] ?? '');
+$customer_last_name = trim($data['customer_last_name'] ?? '');
+$customer_email = trim($data['customer_email'] ?? '');
+$customer_phone = trim($data['customer_phone'] ?? '');
 $payment_method = $data['payment_method'] ?? 'cash';
 $notes = $data['notes'] ?? '';
 
-if (!$output_product_id || !$service_type || !$customer_name || !$customer_email) {
+$customer_full_name = trim($customer_first_name . ' ' . $customer_last_name);
+
+if (!$output_product_id || !$service_type || !$customer_first_name || !$customer_last_name || !$customer_email) {
     echo json_encode(['success' => false, 'message' => 'Mangler påkrevd informasjon']);
     exit;
 }
@@ -67,6 +70,35 @@ try {
     
     $total = floatval($service['price']) * $quantity;
     
+    // Check if customer exists in tenant_customers, if not create
+    $customer_id = null;
+    $stmt = $db->prepare("SELECT id FROM tenant_customers WHERE company_id = ? AND email = ? LIMIT 1");
+    $stmt->execute([$company_id, $customer_email]);
+    $existing_customer = $stmt->fetch();
+    
+    if ($existing_customer) {
+        $customer_id = $existing_customer['id'];
+    } else {
+        // Generate customer_code
+        $customer_code = 'CUST-' . time() . '-' . rand(1000, 9999);
+        $customer_id = bin2hex(random_bytes(18));
+        
+        $stmt = $db->prepare("
+            INSERT INTO tenant_customers 
+            (id, company_id, customer_code, first_name, last_name, email, phone, customer_type, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'individual', 'active', NOW(), NOW())
+        ");
+        $stmt->execute([
+            $customer_id,
+            $company_id,
+            $customer_code,
+            $customer_first_name,
+            $customer_last_name,
+            $customer_email,
+            $customer_phone
+        ]);
+    }
+    
     // Create appropriate transaction based on service type
     switch ($service_type) {
         case 'event':
@@ -78,7 +110,7 @@ try {
             ");
             $stmt->execute([
                 $service['product_id'],
-                $customer_name,
+                $customer_full_name,
                 $customer_email,
                 $customer_phone,
                 $payment_method,
@@ -99,7 +131,7 @@ try {
             $stmt->execute([
                 $company_id,
                 $service['product_id'],
-                $customer_name,
+                $customer_full_name,
                 $customer_email,
                 $customer_phone,
                 $quantity,
@@ -120,7 +152,7 @@ try {
             ");
             $stmt->execute([
                 $service['product_id'],
-                $customer_name,
+                $customer_full_name,
                 $customer_email,
                 $customer_phone,
                 $quantity,
@@ -143,7 +175,8 @@ try {
         'success' => true,
         'message' => 'Tjeneste solgt',
         'total' => $total,
-        'customer' => $customer_name,
+        'customer' => $customer_full_name,
+        'customer_id' => $customer_id,
         'service_type' => $service_type
     ]);
     
