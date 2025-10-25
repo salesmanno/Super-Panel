@@ -26,18 +26,81 @@
                 </div>
                 
                 <form id="companyDataForm" onsubmit="return handleSaveCompanyData(event);">
-                    <div class="mb-3">
-                        <label class="form-label">Firmanavn</label>
-                        <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($companyData['name'] ?? '') ?>" required>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Firmanavn</label>
+                            <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($companyData['name'] ?? '') ?>" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Juridisk navn</label>
+                            <input type="text" name="legal_name" class="form-control" value="<?= htmlspecialchars($companyData['legal_name'] ?? '') ?>">
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Nettside URL</label>
-                        <input type="url" name="website" class="form-control" value="<?= htmlspecialchars($companyData['website'] ?? '') ?>" placeholder="https://example.com">
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Organisasjonsnummer</label>
+                            <input type="text" name="org_number" class="form-control" value="<?= htmlspecialchars($companyData['org_number'] ?? '') ?>">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">MVA-nummer</label>
+                            <input type="text" name="tax_id" class="form-control" value="<?= htmlspecialchars($companyData['tax_id'] ?? '') ?>">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Selskapsform</label>
+                            <select name="entity_type" class="form-select">
+                                <option value="">Velg...</option>
+                                <option value="AS" <?= ($companyData['entity_type'] ?? '') === 'AS' ? 'selected' : '' ?>>AS</option>
+                                <option value="ASA" <?= ($companyData['entity_type'] ?? '') === 'ASA' ? 'selected' : '' ?>>ASA</option>
+                                <option value="ENK" <?= ($companyData['entity_type'] ?? '') === 'ENK' ? 'selected' : '' ?>>ENK</option>
+                                <option value="NUF" <?= ($companyData['entity_type'] ?? '') === 'NUF' ? 'selected' : '' ?>>NUF</option>
+                                <option value="DA" <?= ($companyData['entity_type'] ?? '') === 'DA' ? 'selected' : '' ?>>DA</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Logo URL</label>
-                        <input type="url" name="logo_url" class="form-control" value="<?= htmlspecialchars($companyData['logo_url'] ?? '') ?>" placeholder="https://example.com/logo.png">
-                        <small class="text-muted">Direkte lenke til logo-bilde</small>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Telefon</label>
+                            <input type="text" name="contact_phone" class="form-control" value="<?= htmlspecialchars($companyData['contact_phone'] ?? '') ?>">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">E-post</label>
+                            <input type="email" name="contact_email" class="form-control" value="<?= htmlspecialchars($companyData['contact_email'] ?? '') ?>">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Domene</label>
+                            <input type="text" name="domain" class="form-control" value="<?= htmlspecialchars($companyData['domain'] ?? '') ?>" placeholder="dinbedrift.no">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Bransje</label>
+                            <input type="text" name="industry" class="form-control" value="<?= htmlspecialchars($companyData['industry'] ?? '') ?>">
+                        </div>
+                    </div>
+                    
+                    <h6 class="mt-4 mb-3">Adresse</h6>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Gate/vei</label>
+                            <input type="text" name="address_street" class="form-control" value="<?= htmlspecialchars($companyData['address_street'] ?? '') ?>">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Postnummer</label>
+                            <input type="text" name="address_zip" class="form-control" value="<?= htmlspecialchars($companyData['address_zip'] ?? '') ?>">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Poststed</label>
+                            <input type="text" name="address_city" class="form-control" value="<?= htmlspecialchars($companyData['address_city'] ?? '') ?>">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Land</label>
+                            <input type="text" name="address_country" class="form-control" value="<?= htmlspecialchars($companyData['address_country'] ?? 'Norge') ?>">
+                        </div>
                     </div>
                     
                     <button type="submit" class="btn btn-primary">

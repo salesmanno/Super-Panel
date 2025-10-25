@@ -38,7 +38,22 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $input = json_decode(file_get_contents('php://input'), true);
 
 // Kun felter som faktisk finnes i MySQL tenant_companies tabellen
-$allowedFields = ['name', 'website', 'logo_url', 'about_us'];
+$allowedFields = [
+    'name',
+    'legal_name',
+    'entity_type',
+    'domain',
+    'contact_phone',
+    'contact_email',
+    'about_us',
+    'industry',
+    'address_street',
+    'address_city',
+    'address_zip',
+    'address_country',
+    'org_number',
+    'tax_id'
+];
 $updateFields = [];
 $params = [];
 
