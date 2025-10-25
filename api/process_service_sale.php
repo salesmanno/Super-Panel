@@ -116,20 +116,27 @@ try {
     switch ($service_type) {
         case 'event':
             // Record event check-in or registration
+            $checkin_id = bin2hex(random_bytes(16));
             $stmt = $db->prepare("
                 INSERT INTO events_checkin 
-                (event_id, attendee_name, email, phone, payment_method, amount_paid, notes, checked_in_by, checked_in_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                (id, event_id, customer_id, attendee_name, attendee_email, attendee_phone, 
+                 ticket_price, payment_method, payment_status, paid_at, checked_in, 
+                 checked_in_by, notes, created_at, updated_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, NOW(), NOW())
             ");
             $stmt->execute([
+                $checkin_id,
                 $product_id,
+                $customer_id,
                 $customer_full_name,
                 $customer_email,
                 $customer_phone,
-                $payment_method,
                 $total,
-                $notes,
-                $admin_id
+                $payment_method,
+                'paid',
+                false, // not checked in yet
+                $admin_id,
+                $notes
             ]);
             break;
             
