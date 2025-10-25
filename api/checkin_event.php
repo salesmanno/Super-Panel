@@ -57,14 +57,13 @@ try {
             ticket_price,
             payment_status,
             payment_method,
-            paid_at,
             checked_in,
             check_in_time,
             checked_in_by,
             notes,
-            created_by
+            created_at,
+            updated_at
         ) VALUES (
-            ?,
             ?,
             ?,
             ?,
@@ -79,12 +78,12 @@ try {
             NOW(),
             ?,
             ?,
-            ?
+            NOW(),
+            NOW()
         )
     ");
     
     $paymentStatus = ($data['payment_method'] === 'cash' && isset($data['paid'])) ? 'paid' : 'pending';
-    $paidAt = ($paymentStatus === 'paid') ? date('Y-m-d H:i:s') : null;
     
     $stmt->execute([
         $checkinId,
@@ -97,10 +96,8 @@ try {
         $ticketPrice,
         $paymentStatus,
         $data['payment_method'] ?? 'cash',
-        $paidAt,
         $_SESSION['tenant_admin_id'],
-        $data['notes'] ?? null,
-        $_SESSION['tenant_admin_id']
+        $data['notes'] ?? null
     ]);
     
     // Send confirmation email if attendee email is provided

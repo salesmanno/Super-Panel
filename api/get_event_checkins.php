@@ -43,16 +43,16 @@ try {
             c.ticket_price,
             c.payment_status,
             c.payment_method,
-            c.paid_at,
             c.checked_in,
             c.check_in_time,
             c.notes,
+            c.created_at,
             tc.first_name,
             tc.last_name
         FROM events_checkin c
         LEFT JOIN tenant_customers tc ON c.customer_id = tc.id
         WHERE c.event_id = ?
-        ORDER BY c.check_in_time DESC
+        ORDER BY c.created_at DESC, c.check_in_time DESC
     ");
     
     $stmt->execute([$eventId]);
