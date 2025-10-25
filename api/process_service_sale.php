@@ -44,19 +44,19 @@ try {
             CASE 
                 WHEN op.product_type = 'event' THEN e.title
                 WHEN op.product_type = 'membership' THEN mp.name
-                WHEN op.product_type = 'rental' THEN ro.name
+                WHEN op.product_type = 'rental' THEN ro.object_name
                 ELSE NULL
             END as service_name,
             CASE 
                 WHEN op.product_type = 'event' THEN e.ticket_price
                 WHEN op.product_type = 'membership' THEN mp.price
-                WHEN op.product_type = 'rental' THEN ro.rental_price
+                WHEN op.product_type = 'rental' THEN ro.daily_price
                 ELSE 0
             END as price
         FROM output_products op
         LEFT JOIN events_eventdata e ON op.product_type = 'event' AND op.product_id = e.id
         LEFT JOIN membership_plans mp ON op.product_type = 'membership' AND op.product_id = mp.id
-        LEFT JOIN rental_objects ro ON op.product_type = 'rental' AND op.product_id = ro.id
+        LEFT JOIN rental_objects ro ON op.product_type = 'rental' AND op.product_id = ro.object_id
         WHERE op.id = ? AND op.company_id = ? AND op.product_type = ?
     ");
     $stmt->execute([$output_product_id, $company_id, $service_type]);

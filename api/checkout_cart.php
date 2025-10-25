@@ -60,44 +60,42 @@ try {
         $itemCount += $item['quantity'];
     }
     
-    // Create single aggregated sales transaction (CLEAN SCHEMA)
-    $stmt = $db->prepare("
-        INSERT INTO sales_transactions (
-            id,
-            company_id,
-            admin_id,
-            order_id,
-            customer_name,
-            customer_email,
-            items_sold,
-            total_amount,
-            payment_method,
-            payment_status,
-            receipt_sent,
-            notes,
-            transaction_date,
-            created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ");
-    
-    $paymentStatus = $payment_method === 'cash' ? 'completed' : 'pending';
-    
-    $stmt->execute([
-        $transactionId,
-        $company_id,
-        $admin_id,
-        $orderId,
-        $customer_name,
-        $customer_email,
-        $itemCount,
-        $total,
-        $payment_method,
-        $paymentStatus,
-        $send_receipt ? 1 : 0,
-        $notes,
-        $currentTimestamp,
-        $currentTimestamp
-    ]);
+    // Create sales transaction record for each item (current schema)
+    foreach ($items as $item) {
+        $itemTotal = $item['quantity'] * $item['price'];
+        
+        $stmt = $db->prepare("
+            INSERT INTO sales_transactions (
+                id,
+                company_id,
+                product_id,
+                quantity,
+                unit_price,
+                total_amount,
+                customer_name,
+                payment_method,
+                notes,
+                created_by,
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        
+        $itemTransactionId = bin2hex(random_bytes(16));
+        
+        $stmt->execute([
+            $itemTransactionId,
+            $company_id,
+            $item['product_id'],
+            $item['quantity'],
+            $item['price'],
+            $itemTotal,
+            $customer_name ?: 'Walk-in',
+            $payment_method,
+            $notes,
+            $admin_id,
+            $currentTimestamp
+        ]);
+    }
     
     // Clear cart
     $stmt = $db->prepare("DELETE FROM sales_cart WHERE admin_id = ? AND company_id = ?");
