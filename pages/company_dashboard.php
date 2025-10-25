@@ -699,7 +699,7 @@ try {
                             case 'webmail':
                                 include __DIR__ . '/../modules/webmail_content.php';
                                 break;
-                            case 'reservations':
+                            case 'reservation':
                                 include __DIR__ . '/../modules/reservations_content.php';
                                 break;
                             case 'economy':
