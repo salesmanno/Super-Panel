@@ -393,7 +393,7 @@ try {
                     <a class="nav-link" href="#events-checkin">Innsjekking</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#events-expenses">Arrangement resultat</a>
+                    <a class="nav-link" href="#events-results">Arrangement resultat</a>
                 </li>
             </ul>
             
