@@ -301,7 +301,7 @@ try {
     <!-- Navigation -->
     <nav class="navbar navbar-gradient navbar-dark">
         <div class="container-fluid">
-            <a class="navbar-brand d-flex align-items-center" href="#">
+            <a class="navbar-brand d-flex align-items-center" href="#" onclick="navigateToDittNettsted(); return false;" style="cursor: pointer;" title="Klikk for å gå til Ditt nettsted">
                 <?php if ($companyLogo): ?>
                     <img src="<?= htmlspecialchars($companyLogo) ?>" alt="<?= htmlspecialchars($companyName) ?>" class="company-logo">
                 <?php else: ?>
@@ -882,6 +882,18 @@ try {
             if (targetContent) {
                 targetContent.style.display = 'block';
                 targetContent.classList.add('active');
+            }
+        }
+        
+        function navigateToDittNettsted() {
+            // Finn og aktiver "Ditt nettsted" tab-knappen
+            const dittNettstedTab = document.getElementById('tab-ditt_nettsted');
+            if (dittNettstedTab) {
+                // Bruk Bootstrap's tab API for å aktivere
+                const bsTab = new bootstrap.Tab(dittNettstedTab);
+                bsTab.show();
+            } else {
+                console.warn('Ditt nettsted tab ikke funnet');
             }
         }
         
