@@ -505,18 +505,7 @@ try {
                 </li>
             </ul>
             
-            <!-- Deres firma subtabs -->
-            <ul class="nav nav-pills py-2 subtabs" id="subtabs-ditt_nettsted" style="display: none;">
-                <li class="nav-item">
-                    <a class="nav-link active" href="#firma-firmadata">Firmadata</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#firma-about">Om oss</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#firma-staff">Stillinger</a>
-                </li>
-            </ul>
+            <!-- Deres firma subtabs er flyttet inn i modal -->
         </div>
     </div>
     
@@ -813,33 +802,81 @@ try {
         </div>
     </div>
 
-    <!-- Ditt Nettsted Password Modal -->
-    <div class="modal fade" id="dittNettstedPasswordModal" tabindex="-1">
-        <div class="modal-dialog">
+    <!-- Ditt Nettsted Modal (Full Page) -->
+    <div class="modal fade" id="dittNettstedPasswordModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-fullscreen">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                     <h5 class="modal-title">
-                        <i class="bi bi-lock me-2"></i>Tilgang til Firmadetaljer
+                        <i class="bi bi-building me-2"></i>Firmadetaljer
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
-                    <p class="text-muted mb-3">Vennligst skriv inn administratorpassord for å få tilgang til firmadetaljer:</p>
-                    <div class="mb-3">
-                        <label for="dittNettstedPassword" class="form-label">Administratorpassord</label>
-                        <input type="password" 
-                               class="form-control" 
-                               id="dittNettstedPassword" 
-                               placeholder="Skriv inn passord"
-                               onkeypress="if(event.key === 'Enter') unlockDittNettsted()">
+                <div class="modal-body p-0">
+                    <!-- Password form (vises først) -->
+                    <div id="dittNettstedPasswordForm" class="container py-5">
+                        <div class="row justify-content-center">
+                            <div class="col-md-6">
+                                <div class="card shadow">
+                                    <div class="card-body p-4">
+                                        <div class="text-center mb-4">
+                                            <i class="bi bi-lock-fill" style="font-size: 3rem; color: #667eea;"></i>
+                                            <h4 class="mt-3">Passord påkrevd</h4>
+                                            <p class="text-muted">Vennligst skriv inn administratorpassord for å få tilgang</p>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="dittNettstedPassword" class="form-label">Administratorpassord</label>
+                                            <input type="password" 
+                                                   class="form-control form-control-lg" 
+                                                   id="dittNettstedPassword" 
+                                                   placeholder="Skriv inn passord"
+                                                   onkeypress="if(event.key === 'Enter') unlockDittNettsted()">
+                                        </div>
+                                        <div id="dittNettstedPasswordError" class="alert alert-danger" style="display: none;"></div>
+                                        <div class="d-grid gap-2">
+                                            <button type="button" class="btn btn-primary btn-lg" onclick="unlockDittNettsted()">
+                                                <i class="bi bi-unlock me-1"></i>Lås opp
+                                            </button>
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div id="dittNettstedPasswordError" class="alert alert-danger" style="display: none;"></div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
-                    <button type="button" class="btn btn-primary" onclick="unlockDittNettsted()">
-                        <i class="bi bi-unlock me-1"></i>Lås opp
-                    </button>
+                    
+                    <!-- Innhold (vises etter vellykket passord) -->
+                    <div id="dittNettstedModalContent" style="display: none;">
+                        <!-- Subtabs -->
+                        <div class="bg-light border-bottom">
+                            <div class="container">
+                                <ul class="nav nav-pills py-3" id="firmaModalTabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" id="firma-tab-1" data-bs-toggle="tab" data-bs-target="#firma-firmadata" type="button" role="tab">
+                                            <i class="bi bi-building me-2"></i>Firmadata
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="firma-tab-2" data-bs-toggle="tab" data-bs-target="#firma-about" type="button" role="tab">
+                                            <i class="bi bi-info-circle me-2"></i>Om oss
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="firma-tab-3" data-bs-toggle="tab" data-bs-target="#firma-staff" type="button" role="tab">
+                                            <i class="bi bi-people me-2"></i>Stillinger
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <!-- Tab content -->
+                        <div class="container py-4">
+                            <div class="tab-content" id="firmaModalTabContent">
+                                <!-- Innholdet lastes hit dynamisk -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -953,7 +990,7 @@ try {
         function unlockDittNettsted() {
             const password = document.getElementById('dittNettstedPassword').value;
             const errorDiv = document.getElementById('dittNettstedPasswordError');
-            const unlockBtn = document.querySelector('#dittNettstedPasswordModal .btn-primary');
+            const unlockBtn = document.querySelector('#dittNettstedPasswordForm .btn-primary');
             
             if (!password) {
                 errorDiv.textContent = 'Vennligst skriv inn passord';
@@ -978,27 +1015,12 @@ try {
                     return fetch('/api/load_ditt_nettsted_content.php')
                         .then(response => response.text())
                         .then(html => {
-                            // Lukk modal
-                            bootstrap.Modal.getInstance(document.getElementById('dittNettstedPasswordModal')).hide();
+                            // Skjul password-form og vis innhold i modalen
+                            document.getElementById('dittNettstedPasswordForm').style.display = 'none';
+                            document.getElementById('dittNettstedModalContent').style.display = 'block';
                             
-                            // Fjern .active fra alle tabs og tab-panes
-                            document.querySelectorAll('.module-tabs .nav-link').forEach(tab => tab.classList.remove('active'));
-                            document.querySelectorAll('.tab-content .tab-pane').forEach(pane => {
-                                pane.classList.remove('show', 'active');
-                            });
-                            
-                            // Skjul locked-message og vis innholdet
-                            document.getElementById('ditt-nettsted-locked').style.display = 'none';
-                            const contentDiv = document.getElementById('ditt-nettsted-content');
-                            contentDiv.innerHTML = html;
-                            contentDiv.style.display = 'block';
-                            
-                            // Aktiver "Ditt nettsted" tab-pane direkte
-                            const dittNettstedPane = document.getElementById('content-ditt_nettsted');
-                            if (dittNettstedPane) {
-                                dittNettstedPane.classList.add('show', 'active');
-                                showSubTabs('ditt_nettsted');
-                            }
+                            // Last inn innholdet i modal tab-content
+                            document.getElementById('firmaModalTabContent').innerHTML = html;
                             
                             // Nullstill input og knapp
                             document.getElementById('dittNettstedPassword').value = '';
@@ -1021,6 +1043,14 @@ try {
                 unlockBtn.innerHTML = '<i class="bi bi-unlock me-1"></i>Lås opp';
             });
         }
+        
+        // Nullstill modal når den lukkes
+        document.getElementById('dittNettstedPasswordModal').addEventListener('hidden.bs.modal', function() {
+            document.getElementById('dittNettstedPasswordForm').style.display = 'block';
+            document.getElementById('dittNettstedModalContent').style.display = 'none';
+            document.getElementById('dittNettstedPassword').value = '';
+            document.getElementById('dittNettstedPasswordError').style.display = 'none';
+        });
         
         document.addEventListener('DOMContentLoaded', function() {
             // Lytt til Bootstrap's tab shown event
