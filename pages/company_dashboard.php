@@ -531,10 +531,14 @@ try {
         <?php else: ?>
             <div class="tab-content">
                 <?php 
+                // Rendre innhold for ALLE moduler (inkludert skjulte), men kun første synlige skal være aktiv
                 $allModulesForDisplay = array_merge($officialModules, $userModules);
-                foreach ($allModulesForDisplay as $index => $module): 
+                $firstVisibleKey = !empty($visibleModules) ? $visibleModules[0]['module_key'] : '';
+                
+                foreach ($allModulesForDisplay as $module): 
+                    $isActive = ($module['module_key'] === $firstVisibleKey);
                 ?>
-                    <div class="tab-pane fade <?= $index === 0 ? 'show active' : '' ?>" 
+                    <div class="tab-pane fade <?= $isActive ? 'show active' : '' ?>" 
                          id="content-<?= $module['module_key'] ?>" 
                          role="tabpanel">
                         <?php 
