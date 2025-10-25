@@ -37,7 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $input = json_decode(file_get_contents('php://input'), true);
 
-$allowedFields = ['name', 'org_number', 'address', 'postal_code', 'city', 'phone', 'email', 'website', 'logo_url'];
+// Kun felter som faktisk finnes i MySQL tenant_companies tabellen
+$allowedFields = ['name', 'subdomain', 'phone', 'email', 'website', 'logo_url', 'about_us'];
 $updateFields = [];
 $params = [];
 

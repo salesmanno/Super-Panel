@@ -28,24 +28,9 @@
                             <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($companyData['name'] ?? '') ?>">
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Organisasjonsnummer</label>
-                            <input type="text" name="org_number" class="form-control" value="<?= htmlspecialchars($companyData['org_number'] ?? '') ?>">
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Adresse</label>
-                            <input type="text" name="address" class="form-control" value="<?= htmlspecialchars($companyData['address'] ?? '') ?>">
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Postnummer</label>
-                            <input type="text" name="postal_code" class="form-control" value="<?= htmlspecialchars($companyData['postal_code'] ?? '') ?>">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Sted</label>
-                            <input type="text" name="city" class="form-control" value="<?= htmlspecialchars($companyData['city'] ?? '') ?>">
+                            <label class="form-label">Subdomain</label>
+                            <input type="text" name="subdomain" class="form-control" value="<?= htmlspecialchars($companyData['subdomain'] ?? '') ?>" readonly>
+                            <small class="text-muted">Subdomenet kan ikke endres</small>
                         </div>
                     </div>
                     <div class="row">
