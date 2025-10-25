@@ -20,39 +20,24 @@
                 ?>
                 
                 <?php if ($companyData): ?>
+                <div class="alert alert-info mb-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Subdomain:</strong> <?= htmlspecialchars($companyData['subdomain'] ?? 'N/A') ?>.salesman.no
+                </div>
+                
                 <form id="companyDataForm" onsubmit="return handleSaveCompanyData(event);">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Firmanavn</label>
-                            <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($companyData['name'] ?? '') ?>">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Subdomain</label>
-                            <input type="text" class="form-control" value="<?= htmlspecialchars($companyData['subdomain'] ?? '') ?>" readonly disabled>
-                            <small class="text-muted">Subdomenet kan ikke endres</small>
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label">Firmanavn</label>
+                        <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($companyData['name'] ?? '') ?>" required>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Telefon</label>
-                            <input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($companyData['phone'] ?? '') ?>">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">E-post</label>
-                            <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($companyData['email'] ?? '') ?>">
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nettside URL</label>
+                        <input type="url" name="website" class="form-control" value="<?= htmlspecialchars($companyData['website'] ?? '') ?>" placeholder="https://example.com">
                     </div>
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Nettside</label>
-                            <input type="url" name="website" class="form-control" value="<?= htmlspecialchars($companyData['website'] ?? '') ?>">
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Logo URL</label>
-                            <input type="url" name="logo_url" class="form-control" value="<?= htmlspecialchars($companyData['logo_url'] ?? '') ?>">
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label">Logo URL</label>
+                        <input type="url" name="logo_url" class="form-control" value="<?= htmlspecialchars($companyData['logo_url'] ?? '') ?>" placeholder="https://example.com/logo.png">
+                        <small class="text-muted">Direkte lenke til logo-bilde</small>
                     </div>
                     
                     <button type="submit" class="btn btn-primary">
