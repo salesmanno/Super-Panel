@@ -35,6 +35,17 @@ if (empty($name) || $selling_price <= 0) {
 try {
     $db->beginTransaction();
     
+    // Get module_id for sales module
+    $stmt = $db->prepare("SELECT id FROM system_modules WHERE module_key = 'sales' LIMIT 1");
+    $stmt->execute();
+    $salesModule = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$salesModule) {
+        throw new Exception('Sales module not found in system_modules');
+    }
+    
+    $module_id = $salesModule['id'];
+    
     // Auto-generate IDs
     $product_id = bin2hex(random_bytes(18)); // Generate UUID for product
     $sku = 'PRD-' . time() . '-' . rand(1000, 9999);
@@ -72,16 +83,16 @@ try {
     
     $stmt = $db->prepare("
         INSERT INTO output_products 
-        (id, company_id, product_type, product_id, name, price, is_visible, is_public, created_at, updated_at)
-        VALUES (?, ?, 'product', ?, ?, ?, 1, 1, NOW(), NOW())
+        (id, company_id, module_id, product_type, product_id, is_visible, is_public, created_at, updated_at, created_by)
+        VALUES (?, ?, ?, 'product', ?, 1, 1, NOW(), NOW(), ?)
     ");
     
     $stmt->execute([
         $output_product_id,
         $company_id,
+        $module_id,
         $product_id,
-        $name,
-        $selling_price
+        $admin_id
     ]);
     
     // Update sales_products with output_product_id
