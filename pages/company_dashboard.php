@@ -850,23 +850,28 @@ try {
                         <!-- Subtabs -->
                         <div class="bg-light border-bottom">
                             <div class="container">
-                                <ul class="nav nav-pills py-3" id="firmaModalTabs" role="tablist">
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link active" id="firma-tab-1" data-bs-toggle="tab" data-bs-target="#firma-firmadata" type="button" role="tab">
-                                            <i class="bi bi-building me-2"></i>Firmadata
-                                        </button>
-                                    </li>
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link" id="firma-tab-2" data-bs-toggle="tab" data-bs-target="#firma-about" type="button" role="tab">
-                                            <i class="bi bi-info-circle me-2"></i>Om oss
-                                        </button>
-                                    </li>
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link" id="firma-tab-3" data-bs-toggle="tab" data-bs-target="#firma-staff" type="button" role="tab">
-                                            <i class="bi bi-people me-2"></i>Stillinger
-                                        </button>
-                                    </li>
-                                </ul>
+                                <div class="d-flex justify-content-between align-items-center py-3">
+                                    <ul class="nav nav-pills mb-0" id="firmaModalTabs" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active" id="firma-tab-1" data-bs-toggle="tab" data-bs-target="#firma-firmadata" type="button" role="tab">
+                                                <i class="bi bi-building me-2"></i>Firmadata
+                                            </button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="firma-tab-2" data-bs-toggle="tab" data-bs-target="#firma-about" type="button" role="tab">
+                                                <i class="bi bi-info-circle me-2"></i>Om oss
+                                            </button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="firma-tab-3" data-bs-toggle="tab" data-bs-target="#firma-staff" type="button" role="tab">
+                                                <i class="bi bi-people me-2"></i>Stillinger
+                                            </button>
+                                        </li>
+                                    </ul>
+                                    <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">
+                                        <i class="bi bi-x-circle me-2"></i>Lukk vindu
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         
