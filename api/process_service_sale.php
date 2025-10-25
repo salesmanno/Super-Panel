@@ -142,9 +142,9 @@ try {
             $stmt = $db->prepare("
                 INSERT INTO events_checkin 
                 (id, event_id, customer_id, attendee_name, attendee_email, attendee_phone, 
-                 ticket_price, payment_method, payment_status, paid_at, checked_in, 
+                 ticket_price, payment_method, payment_status, checked_in, 
                  checked_in_by, notes, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, NOW(), NOW())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
             ");
             $stmt->execute([
                 $checkin_id,
