@@ -281,17 +281,20 @@
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-6 mb-3">
                             <label class="form-label">Kostpris (NOK)</label>
                             <input type="number" class="form-control" name="cost_price" step="0.01" value="0">
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-6 mb-3">
                             <label class="form-label">Salgspris (NOK) <span class="text-danger">*</span></label>
                             <input type="number" class="form-control" name="selling_price" step="0.01" required>
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Medlemspris (NOK)</label>
-                            <input type="number" class="form-control" name="member_price" step="0.01">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Produktbilde URL</label>
+                            <input type="url" class="form-control" name="img_product" placeholder="https://...">
+                            <small class="text-muted">Legg inn direkte lenke til produktbildet</small>
                         </div>
                     </div>
                     <div class="row">
@@ -313,11 +316,23 @@
                         <label class="form-label">Beskrivelse</label>
                         <textarea class="form-control" name="description" rows="2"></textarea>
                     </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="is_active" id="productActive" checked>
-                        <label class="form-check-label" for="productActive">
-                            Aktiv (tilgjengelig for salg)
-                        </label>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="productActive" checked>
+                                <label class="form-check-label" for="productActive">
+                                    Aktiv (tilgjengelig for salg)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="item_taxable" id="productTaxable" checked>
+                                <label class="form-check-label" for="productTaxable">
+                                    MVA-pliktig produkt
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -434,9 +449,17 @@ function displayProducts(products) {
         return;
     }
     
-    container.innerHTML = products.map(product => `
+    container.innerHTML = products.map(product => {
+        const imgHtml = product.img_product ? 
+            `<img src="${product.img_product}" class="card-img-top" style="height: 180px; object-fit: cover;" alt="${product.item_name}">` : 
+            `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 180px;">
+                <i class="bi bi-image" style="font-size: 3rem; color: #ccc;"></i>
+            </div>`;
+        
+        return `
         <div class="col-md-6 mb-3">
             <div class="card h-100">
+                ${imgHtml}
                 <div class="card-body">
                     <h6 class="card-title">${product.item_name}</h6>
                     <p class="text-muted mb-2">${product.price} NOK</p>
@@ -449,7 +472,8 @@ function displayProducts(products) {
                 </div>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function displayServices(services) {

@@ -20,12 +20,13 @@ $description = trim($data['description'] ?? '');
 $category_id = $data['category_id'] ?? null;
 $cost_price = floatval($data['cost_price'] ?? 0);
 $selling_price = floatval($data['selling_price'] ?? 0);
-$member_price = isset($data['member_price']) && $data['member_price'] !== '' ? floatval($data['member_price']) : null;
+$img_product = trim($data['img_product'] ?? '');
 $currency = $data['currency'] ?? 'NOK';
 $tax_rate = floatval($data['tax_rate'] ?? 25); // Standard MVA 25%
 $unit = $data['unit'] ?? 'stk';
 $reorder_level = intval($data['reorder_level'] ?? 0);
 $is_active = isset($data['is_active']) ? ($data['is_active'] ? 1 : 0) : 1;
+$item_taxable = isset($data['item_taxable']) ? ($data['item_taxable'] ? 1 : 0) : 1;
 
 if (empty($name) || $selling_price <= 0) {
     echo json_encode(['success' => false, 'message' => 'Navn og pris er påkrevd']);
@@ -55,9 +56,9 @@ try {
     $stmt = $db->prepare("
         INSERT INTO sales_products 
         (id, company_id, category_id, sku, name, description, barcode, cost_price, 
-         selling_price, member_price, currency, tax_rate, unit, reorder_level, 
-         is_active, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+         selling_price, img_product, currency, tax_rate, unit, reorder_level, 
+         is_active, item_taxable, created_at, updated_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
     ");
     
     $stmt->execute([
@@ -70,12 +71,13 @@ try {
         $barcode,
         $cost_price,
         $selling_price,
-        $member_price,
+        $img_product,
         $currency,
         $tax_rate,
         $unit,
         $reorder_level,
-        $is_active
+        $is_active,
+        $item_taxable
     ]);
     
     // Auto-generate output_products entry

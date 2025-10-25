@@ -35,7 +35,9 @@ try {
                     ELSE NULL
                 END,
                 op.price
-            ) as price
+            ) as price,
+            sp.img_product,
+            sp.item_taxable
         FROM output_products op
         LEFT JOIN events_eventdata e ON op.product_type = 'event' AND op.product_id = e.id
         LEFT JOIN sales_products sp ON op.product_type = 'product' AND op.product_id = sp.id
