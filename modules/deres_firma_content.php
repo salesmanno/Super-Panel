@@ -1,5 +1,4 @@
-<div class="module-content">
-    <div id="firma-firmadata" class="subtab-content">
+<div class="tab-pane fade show active" id="firma-firmadata" role="tabpanel">
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title"><i class="bi bi-building me-2"></i>Firmadata</h5>
@@ -29,7 +28,7 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Subdomain</label>
-                            <input type="text" name="subdomain" class="form-control" value="<?= htmlspecialchars($companyData['subdomain'] ?? '') ?>" readonly>
+                            <input type="text" class="form-control" value="<?= htmlspecialchars($companyData['subdomain'] ?? '') ?>" readonly disabled>
                             <small class="text-muted">Subdomenet kan ikke endres</small>
                         </div>
                     </div>
@@ -69,7 +68,7 @@
         </div>
     </div>
 
-    <div id="firma-about" class="subtab-content" style="display: none;">
+<div class="tab-pane fade" id="firma-about" role="tabpanel">
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title"><i class="bi bi-info-circle me-2"></i>Om oss</h5>
@@ -116,7 +115,7 @@
         </div>
     </div>
 
-    <div id="firma-staff" class="subtab-content" style="display: none;">
+<div class="tab-pane fade" id="firma-staff" role="tabpanel">
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title"><i class="bi bi-people me-2"></i>Stillinger og ansatte</h5>
@@ -246,6 +245,5 @@
             </div>
         </div>
     </div>
-</div>
 
 <!-- JavaScript functions are now in company_dashboard.php -->
