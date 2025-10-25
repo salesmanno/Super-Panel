@@ -456,21 +456,21 @@ function displayProducts(products) {
     }
     
     container.innerHTML = products.map(product => {
-        const imgUrl = product.img_product || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23f0f0f0" width="400" height="300"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em" font-size="40"%3EIngen bilde%3C/text%3E%3C/svg%3E';
+        const imgUrl = product.img_product || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="200"%3E%3Crect fill="%23f0f0f0" width="400" height="200"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em" font-size="30"%3EIngen bilde%3C/text%3E%3C/svg%3E';
         
         return `
-        <div class="col-md-12 mb-3">
+        <div class="col-md-4 mb-3">
             <div class="card h-100 position-relative overflow-hidden" 
-                 style="cursor: pointer; min-height: 300px;" 
+                 style="cursor: pointer;" 
                  onclick="addToCart('${product.id}')">
                 <img src="${imgUrl}" 
                      class="card-img" 
-                     style="height: 300px; width: 100%; object-fit: cover;" 
+                     style="height: 160px; width: 100%; object-fit: cover;" 
                      alt="${product.item_name}">
-                <div class="position-absolute bottom-0 start-0 end-0 p-3" 
-                     style="background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.6) 70%, transparent 100%);">
-                    <h5 class="text-white mb-1 fw-bold">${product.item_name}</h5>
-                    <p class="text-white mb-0 fs-4 fw-bold">${product.price} NOK</p>
+                <div class="position-absolute bottom-0 start-0 end-0 p-2" 
+                     style="background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 80%, transparent 100%);">
+                    <h6 class="text-white mb-0 fw-bold" style="font-size: 0.9rem;">${product.item_name}</h6>
+                    <p class="text-white mb-0 fw-bold" style="font-size: 1.1rem;">${product.price} NOK</p>
                 </div>
             </div>
         </div>
