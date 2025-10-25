@@ -94,6 +94,40 @@
         </div>
     </div>
 
+    <div id="sales-service" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-gear-fill me-2"></i>Service-salg</h5>
+                <p class="text-muted">Oversikt over tjenestesalg (events, medlemskap, utleie)</p>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Dato</th>
+                                <th>Tjeneste</th>
+                                <th>Type</th>
+                                <th>Kunde</th>
+                                <th>E-post</th>
+                                <th>Beløp</th>
+                                <th>Betalingsmetode</th>
+                            </tr>
+                        </thead>
+                        <tbody id="service-sales-list">
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Laster...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="sales-transactions" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">

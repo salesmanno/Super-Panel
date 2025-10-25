@@ -35,32 +35,45 @@ if (!$output_product_id || !$service_type || !$customer_first_name || !$customer
 try {
     $db->beginTransaction();
     
-    // Get service details with JOIN to source table for price
-    $stmt = $db->prepare("
-        SELECT 
-            op.id,
-            op.product_id,
-            op.product_type,
-            CASE 
-                WHEN op.product_type = 'event' THEN e.title
-                WHEN op.product_type = 'membership' THEN mp.name
-                WHEN op.product_type = 'rental' THEN ro.object_name
-                ELSE NULL
-            END as service_name,
-            CASE 
-                WHEN op.product_type = 'event' THEN e.ticket_price
-                WHEN op.product_type = 'membership' THEN mp.price
-                WHEN op.product_type = 'rental' THEN ro.daily_price
-                ELSE 0
-            END as price
-        FROM output_products op
-        LEFT JOIN events_eventdata e ON op.product_type = 'event' AND op.product_id = e.id
-        LEFT JOIN membership_plans mp ON op.product_type = 'membership' AND op.product_id = mp.id
-        LEFT JOIN rental_objects ro ON op.product_type = 'rental' AND op.product_id = ro.object_id
-        WHERE op.id = ? AND op.company_id = ? AND op.product_type = ?
-    ");
-    $stmt->execute([$output_product_id, $company_id, $service_type]);
-    $service = $stmt->fetch();
+    // Get output_product first
+    $stmt = $db->prepare("SELECT product_id, product_type FROM output_products WHERE id = ? AND company_id = ?");
+    $stmt->execute([$output_product_id, $company_id]);
+    $outputProduct = $stmt->fetch();
+    
+    if (!$outputProduct || $outputProduct['product_type'] !== $service_type) {
+        $db->rollBack();
+        echo json_encode(['success' => false, 'message' => 'Produkt ikke funnet']);
+        exit;
+    }
+    
+    $product_id = $outputProduct['product_id'];
+    $service = null;
+    
+    // Fetch service details based on type (separate queries to avoid column conflicts)
+    switch ($service_type) {
+        case 'event':
+            $stmt = $db->prepare("SELECT id, title as service_name, ticket_price as price FROM events_eventdata WHERE id = ?");
+            $stmt->execute([$product_id]);
+            $service = $stmt->fetch();
+            break;
+            
+        case 'membership':
+            $stmt = $db->prepare("SELECT id, name as service_name, price FROM membership_plans WHERE id = ?");
+            $stmt->execute([$product_id]);
+            $service = $stmt->fetch();
+            break;
+            
+        case 'rental':
+            $stmt = $db->prepare("SELECT object_id as id, object_name as service_name, daily_price as price FROM rental_objects WHERE object_id = ?");
+            $stmt->execute([$product_id]);
+            $service = $stmt->fetch();
+            break;
+            
+        default:
+            $db->rollBack();
+            echo json_encode(['success' => false, 'message' => 'Ukjent tjenestetype']);
+            exit;
+    }
     
     if (!$service || !$service['price']) {
         $db->rollBack();
@@ -109,7 +122,7 @@ try {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ");
             $stmt->execute([
-                $service['product_id'],
+                $product_id,
                 $customer_full_name,
                 $customer_email,
                 $customer_phone,
@@ -130,7 +143,7 @@ try {
             ");
             $stmt->execute([
                 $company_id,
-                $service['product_id'],
+                $product_id,
                 $customer_full_name,
                 $customer_email,
                 $customer_phone,
@@ -151,7 +164,7 @@ try {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ");
             $stmt->execute([
-                $service['product_id'],
+                $product_id,
                 $customer_full_name,
                 $customer_email,
                 $customer_phone,
