@@ -942,7 +942,7 @@ try {
                     },
                     body: JSON.stringify({ 
                         about_us: aboutUsText,
-                        company_id: <?= $_SESSION['company_id'] ?>
+                        company_id: '<?= $_SESSION['company_id'] ?>'
                     })
                 });
                 
