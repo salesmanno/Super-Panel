@@ -130,7 +130,7 @@ try {
     // Create appropriate transaction based on service type
     switch ($service_type) {
         case 'event':
-            // Record event check-in or registration
+            // Record event check-in or registration (customer already created in tenant_customers)
             $checkin_id = bin2hex(random_bytes(16));
             
             // Add member price indicator to notes
