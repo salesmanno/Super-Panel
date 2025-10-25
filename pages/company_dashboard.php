@@ -710,7 +710,17 @@ try {
                                 <?php
                                 break;
                             case 'ditt_nettsted':
-                                include __DIR__ . '/../modules/deres_firma_content.php';
+                                // Innholdet lastes først når passordet er validert
+                                ?>
+                                <div id="ditt-nettsted-locked" class="text-center py-5">
+                                    <i class="bi bi-lock-fill" style="font-size: 4rem; color: #6c757d;"></i>
+                                    <h3 class="mt-3">Passord påkrevd</h3>
+                                    <p class="text-muted">Klikk på firmanavnet for å låse opp firmadetaljer</p>
+                                </div>
+                                <div id="ditt-nettsted-content" style="display: none;">
+                                    <!-- Innhold lastes her dynamisk -->
+                                </div>
+                                <?php
                                 break;
                             case 'email':
                             case 'webmail':
@@ -797,6 +807,38 @@ try {
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
                     <button type="button" class="btn btn-primary" onclick="savePermissions()">
                         <i class="bi bi-check-circle me-1"></i>Lagre
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ditt Nettsted Password Modal -->
+    <div class="modal fade" id="dittNettstedPasswordModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-lock me-2"></i>Tilgang til Firmadetaljer
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">Vennligst skriv inn administratorpassord for å få tilgang til firmadetaljer:</p>
+                    <div class="mb-3">
+                        <label for="dittNettstedPassword" class="form-label">Administratorpassord</label>
+                        <input type="password" 
+                               class="form-control" 
+                               id="dittNettstedPassword" 
+                               placeholder="Skriv inn passord"
+                               onkeypress="if(event.key === 'Enter') unlockDittNettsted()">
+                    </div>
+                    <div id="dittNettstedPasswordError" class="alert alert-danger" style="display: none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                    <button type="button" class="btn btn-primary" onclick="unlockDittNettsted()">
+                        <i class="bi bi-unlock me-1"></i>Lås opp
                     </button>
                 </div>
             </div>
@@ -903,15 +945,81 @@ try {
         }
         
         function navigateToDittNettsted() {
-            // Finn og aktiver "Ditt nettsted" tab-knappen
-            const dittNettstedTab = document.getElementById('tab-ditt_nettsted');
-            if (dittNettstedTab) {
-                // Bruk Bootstrap's tab API for å aktivere
-                const bsTab = new bootstrap.Tab(dittNettstedTab);
-                bsTab.show();
-            } else {
-                console.warn('Ditt nettsted tab ikke funnet');
+            // Vis passord-prompt modal
+            const modal = new bootstrap.Modal(document.getElementById('dittNettstedPasswordModal'));
+            modal.show();
+        }
+        
+        function unlockDittNettsted() {
+            const password = document.getElementById('dittNettstedPassword').value;
+            const errorDiv = document.getElementById('dittNettstedPasswordError');
+            const unlockBtn = document.querySelector('#dittNettstedPasswordModal .btn-primary');
+            
+            if (!password) {
+                errorDiv.textContent = 'Vennligst skriv inn passord';
+                errorDiv.style.display = 'block';
+                return;
             }
+            
+            // Vis laster-indikator
+            unlockBtn.disabled = true;
+            unlockBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Låser opp...';
+            
+            // Send passord til server for validering
+            fetch('/api/unlock_ditt_nettsted.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: password })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Last inn innholdet
+                    return fetch('/api/load_ditt_nettsted_content.php')
+                        .then(response => response.text())
+                        .then(html => {
+                            // Lukk modal
+                            bootstrap.Modal.getInstance(document.getElementById('dittNettstedPasswordModal')).hide();
+                            
+                            // Fjern .active fra alle tabs og tab-panes
+                            document.querySelectorAll('.module-tabs .nav-link').forEach(tab => tab.classList.remove('active'));
+                            document.querySelectorAll('.tab-content .tab-pane').forEach(pane => {
+                                pane.classList.remove('show', 'active');
+                            });
+                            
+                            // Skjul locked-message og vis innholdet
+                            document.getElementById('ditt-nettsted-locked').style.display = 'none';
+                            const contentDiv = document.getElementById('ditt-nettsted-content');
+                            contentDiv.innerHTML = html;
+                            contentDiv.style.display = 'block';
+                            
+                            // Aktiver "Ditt nettsted" tab-pane direkte
+                            const dittNettstedPane = document.getElementById('content-ditt_nettsted');
+                            if (dittNettstedPane) {
+                                dittNettstedPane.classList.add('show', 'active');
+                                showSubTabs('ditt_nettsted');
+                            }
+                            
+                            // Nullstill input og knapp
+                            document.getElementById('dittNettstedPassword').value = '';
+                            errorDiv.style.display = 'none';
+                            unlockBtn.disabled = false;
+                            unlockBtn.innerHTML = '<i class="bi bi-unlock me-1"></i>Lås opp';
+                        });
+                } else {
+                    errorDiv.textContent = data.error || 'Feil passord';
+                    errorDiv.style.display = 'block';
+                    unlockBtn.disabled = false;
+                    unlockBtn.innerHTML = '<i class="bi bi-unlock me-1"></i>Lås opp';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                errorDiv.textContent = 'En feil oppstod';
+                errorDiv.style.display = 'block';
+                unlockBtn.disabled = false;
+                unlockBtn.innerHTML = '<i class="bi bi-unlock me-1"></i>Lås opp';
+            });
         }
         
         document.addEventListener('DOMContentLoaded', function() {
