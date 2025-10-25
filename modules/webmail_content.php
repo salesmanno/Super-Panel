@@ -1,7 +1,7 @@
 <div class="module-content position-relative">
 <?php if (!isset($webmailConfigured) || !$webmailConfigured): ?>
     <!-- Overlay melding for ikke-konfigurert -->
-    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.95); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.95); z-index: 1; display: flex; align-items: center; justify-content: center;">
         <div class="text-center" style="max-width: 600px; padding: 3rem;">
             <i class="bi bi-envelope-x" style="font-size: 5rem; color: #ffc107; margin-bottom: 1.5rem;"></i>
             <h3 class="mb-3">E-postklient må konfigureres</h3>
