@@ -11,19 +11,19 @@
                         <div class="mb-3">
                             <label class="form-label small">Visning</label>
                             <div class="btn-group w-100" role="group">
-                                <input type="radio" class="btn-check" name="viewType" id="viewAgenda" value="agenda" checked>
-                                <label class="btn btn-outline-primary btn-sm" for="viewAgenda">
-                                    <i class="bi bi-list-ul"></i>
+                                <input type="radio" class="btn-check" name="viewType" id="viewCalendar" value="calendar" checked>
+                                <label class="btn btn-outline-primary btn-sm" for="viewCalendar">
+                                    <i class="bi bi-calendar3"></i> Kalender
                                 </label>
                                 
-                                <input type="radio" class="btn-check" name="viewType" id="viewCalendar" value="calendar">
-                                <label class="btn btn-outline-primary btn-sm" for="viewCalendar">
-                                    <i class="bi bi-calendar3"></i>
+                                <input type="radio" class="btn-check" name="viewType" id="viewAgenda" value="agenda">
+                                <label class="btn btn-outline-primary btn-sm" for="viewAgenda">
+                                    <i class="bi bi-list-ul"></i> Liste
                                 </label>
                             </div>
                         </div>
                         
-                        <div class="mb-3" id="daysFilterContainer">
+                        <div class="mb-3" id="daysFilterContainer" style="display: none;">
                             <label class="form-label small">Dager fremover</label>
                             <select class="form-select form-select-sm" id="daysFilter">
                                 <option value="7">7 dager</option>
@@ -80,7 +80,7 @@
                 </div>
                 
                 <!-- Staff Legend for Calendar -->
-                <div class="card mt-3" id="staffLegend" style="display: none;">
+                <div class="card mt-3" id="staffLegend">
                     <div class="card-body p-2">
                         <h6 class="small mb-2">Fargekoder:</h6>
                         <div id="staffLegendContent"></div>
@@ -88,13 +88,21 @@
                 </div>
             </div>
             
-            <!-- Main Area: Agenda or Calendar -->
+            <!-- Main Area: Calendar, Day View, or Agenda -->
             <div class="col-md-9">
                 <div class="card">
                     <div class="card-body">
+                        <!-- Header with navigation -->
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="card-title mb-0"><i class="bi bi-calendar3 me-2"></i>Reservasjoner</h5>
-                            <div id="calendarNav" style="display: none;">
+                            <div>
+                                <button class="btn btn-sm btn-outline-secondary" id="backToCal" style="display: none;" onclick="backToCalendar()">
+                                    <i class="bi bi-arrow-left me-1"></i>Tilbake til kalender
+                                </button>
+                                <h5 class="card-title mb-0 d-inline-block ms-2">
+                                    <i class="bi bi-calendar3 me-2"></i><span id="viewTitle">Reservasjoner</span>
+                                </h5>
+                            </div>
+                            <div id="calendarNav">
                                 <button class="btn btn-sm btn-outline-secondary" onclick="changeMonth(-1)">
                                     <i class="bi bi-chevron-left"></i>
                                 </button>
@@ -108,18 +116,8 @@
                             </div>
                         </div>
                         
-                        <!-- Agenda View -->
-                        <div id="reservationsAgenda">
-                            <div class="text-center text-muted py-4">
-                                <div class="spinner-border spinner-border-sm" role="status">
-                                    <span class="visually-hidden">Laster...</span>
-                                </div>
-                                <p class="mt-2 small">Laster reservasjoner...</p>
-                            </div>
-                        </div>
-                        
                         <!-- Calendar View -->
-                        <div id="reservationsCalendar" style="display: none;">
+                        <div id="reservationsCalendar">
                             <div class="table-responsive">
                                 <table class="table table-bordered" id="calendarGrid">
                                     <thead>
@@ -136,6 +134,32 @@
                                     <tbody id="calendarBody">
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Day View (24 hours) -->
+                        <div id="reservationsDayView" style="display: none;">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered" id="dayViewGrid">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 80px;">Tid</th>
+                                            <th>Reservasjoner</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dayViewBody">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Agenda View -->
+                        <div id="reservationsAgenda" style="display: none;">
+                            <div class="text-center text-muted py-4">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Laster...</span>
+                                </div>
+                                <p class="mt-2 small">Laster reservasjoner...</p>
                             </div>
                         </div>
                     </div>
@@ -200,6 +224,11 @@
     vertical-align: top;
     padding: 0.25rem;
     position: relative;
+    cursor: pointer;
+}
+
+#calendarGrid td:hover {
+    background-color: #f8f9fa;
 }
 
 .calendar-day-header {
@@ -243,10 +272,56 @@
     border-radius: 3px;
     margin-right: 0.5rem;
 }
+
+/* Day View Styles */
+#dayViewGrid td {
+    cursor: default;
+    height: auto;
+    padding: 0.5rem;
+}
+
+.time-slot {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.time-slot-empty {
+    color: #6c757d;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
+.day-view-reservation {
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    border-radius: 5px;
+    border-left: 4px solid;
+    cursor: pointer;
+}
+
+.day-view-reservation:hover {
+    opacity: 0.9;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.day-view-time {
+    font-weight: 600;
+    color: #495057;
+}
+
+.day-view-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.day-view-details {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
 </style>
 
 <script>
 let currentViewDate = new Date();
+let selectedDate = null;
 let allReservations = [];
 let allStaff = [];
 const staffColors = ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545', '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0'];
@@ -348,24 +423,14 @@ async function loadCalendarView() {
     const status = document.getElementById('statusFilter').value;
     
     try {
-        // Get full month range including some overflow for display
         const year = currentViewDate.getFullYear();
         const month = currentViewDate.getMonth();
         
-        // First day of month
         const firstDay = new Date(year, month, 1);
-        
-        // Last day of month
-        const lastDay = new Date(year, month + 1, 0);
-        
-        // Include overflow days from prev/next month for calendar grid
         const firstDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
         const startDate = new Date(year, month, 1 - firstDayOfWeek);
-        
-        // Calculate end with potential overflow
         const endDate = new Date(year, month + 1, 7);
         
-        // Format dates for API (use local timezone, not UTC)
         const startDateStr = formatDateLocal(startDate);
         const endDateStr = formatDateLocal(endDate);
         
@@ -409,7 +474,6 @@ function displayReservationsAgenda(reservations) {
         return;
     }
     
-    // Group by date
     const grouped = {};
     reservations.forEach(res => {
         const date = res.start_datetime.split(' ')[0];
@@ -487,16 +551,13 @@ function renderCalendar() {
     const year = currentViewDate.getFullYear();
     const month = currentViewDate.getMonth();
     
-    // Update month display
     const monthName = currentViewDate.toLocaleDateString('no-NO', { year: 'numeric', month: 'long' });
     document.getElementById('currentMonth').textContent = monthName;
     
-    // Get first day of month and number of days
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
     
-    // Get day of week for first day (0=Sunday, adjust to Monday=0)
     let firstDayOfWeek = firstDay.getDay() - 1;
     if (firstDayOfWeek === -1) firstDayOfWeek = 6;
     
@@ -506,36 +567,28 @@ function renderCalendar() {
     let dayCounter = 1;
     let nextMonthCounter = 1;
     
-    // Calculate days from previous month
     const prevMonthLastDay = new Date(year, month, 0).getDate();
     const prevMonthStart = prevMonthLastDay - firstDayOfWeek + 1;
     
-    // Create calendar rows (6 weeks max)
     for (let week = 0; week < 6; week++) {
         const row = document.createElement('tr');
         
         for (let day = 0; day < 7; day++) {
             const cell = document.createElement('td');
             let currentDate;
-            let isCurrentMonth = true;
             
-            // Previous month days
             if (week === 0 && day < firstDayOfWeek) {
                 const prevMonthDay = prevMonthStart + day;
                 cell.innerHTML = `<div class="calendar-day-header text-muted">${prevMonthDay}</div>`;
                 cell.classList.add('calendar-day-other-month');
-                isCurrentMonth = false;
                 currentDate = new Date(year, month - 1, prevMonthDay);
             }
-            // Next month days
             else if (dayCounter > daysInMonth) {
                 cell.innerHTML = `<div class="calendar-day-header text-muted">${nextMonthCounter}</div>`;
                 cell.classList.add('calendar-day-other-month');
-                isCurrentMonth = false;
                 currentDate = new Date(year, month + 1, nextMonthCounter);
                 nextMonthCounter++;
             }
-            // Current month days
             else {
                 currentDate = new Date(year, month, dayCounter);
                 const isToday = isDateToday(currentDate);
@@ -543,7 +596,6 @@ function renderCalendar() {
                 cell.innerHTML = `<div class="calendar-day-header ${isToday ? 'text-primary' : ''}">${dayCounter}</div>`;
                 if (isToday) cell.classList.add('calendar-day-today');
                 
-                // Add reservations for this day
                 const dayReservations = getReservationsForDate(currentDate);
                 dayReservations.forEach(res => {
                     const staffColor = getStaffColor(res.staff_id);
@@ -553,9 +605,15 @@ function renderCalendar() {
                     resDiv.style.backgroundColor = staffColor;
                     resDiv.style.color = '#fff';
                     resDiv.textContent = `${time} ${res.title}`;
-                    resDiv.onclick = () => viewReservation(res.id);
+                    resDiv.onclick = (e) => {
+                        e.stopPropagation();
+                        viewReservation(res.id);
+                    };
                     cell.appendChild(resDiv);
                 });
+                
+                // Click on date to see day view
+                cell.onclick = () => showDayView(currentDate);
                 
                 dayCounter++;
             }
@@ -565,8 +623,99 @@ function renderCalendar() {
         
         calendarBody.appendChild(row);
         
-        // Stop if we've filled all days
         if (dayCounter > daysInMonth && nextMonthCounter > 7) break;
+    }
+}
+
+function showDayView(date) {
+    selectedDate = date;
+    
+    // Update title
+    const dateStr = date.toLocaleDateString('no-NO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    document.getElementById('viewTitle').textContent = dateStr;
+    
+    // Hide calendar, show day view
+    document.getElementById('reservationsCalendar').style.display = 'none';
+    document.getElementById('reservationsDayView').style.display = 'block';
+    document.getElementById('calendarNav').style.display = 'none';
+    document.getElementById('backToCal').style.display = 'inline-block';
+    
+    // Render 24-hour view
+    renderDayView(date);
+}
+
+function backToCalendar() {
+    selectedDate = null;
+    
+    document.getElementById('viewTitle').textContent = 'Reservasjoner';
+    document.getElementById('reservationsCalendar').style.display = 'block';
+    document.getElementById('reservationsDayView').style.display = 'none';
+    document.getElementById('calendarNav').style.display = 'block';
+    document.getElementById('backToCal').style.display = 'none';
+}
+
+function renderDayView(date) {
+    const dayViewBody = document.getElementById('dayViewBody');
+    dayViewBody.innerHTML = '';
+    
+    const dayReservations = getReservationsForDate(date);
+    
+    // Create 24 hour slots
+    for (let hour = 0; hour < 24; hour++) {
+        const row = document.createElement('tr');
+        row.className = 'time-slot';
+        
+        const timeCell = document.createElement('td');
+        timeCell.className = 'text-center fw-bold';
+        timeCell.textContent = `${hour.toString().padStart(2, '0')}:00`;
+        
+        const reservationCell = document.createElement('td');
+        
+        // Find reservations in this hour
+        const hourReservations = dayReservations.filter(res => {
+            const resStart = new Date(res.start_datetime);
+            const resEnd = new Date(res.end_datetime);
+            const slotStart = new Date(date);
+            slotStart.setHours(hour, 0, 0, 0);
+            const slotEnd = new Date(date);
+            slotEnd.setHours(hour, 59, 59, 999);
+            
+            return (resStart >= slotStart && resStart < slotEnd) || 
+                   (resEnd > slotStart && resEnd <= slotEnd) ||
+                   (resStart < slotStart && resEnd > slotEnd);
+        });
+        
+        if (hourReservations.length === 0) {
+            reservationCell.innerHTML = '<span class="time-slot-empty">Ingen reservasjoner</span>';
+        } else {
+            hourReservations.forEach(res => {
+                const staffColor = getStaffColor(res.staff_id);
+                const startTime = new Date(res.start_datetime).toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' });
+                const endTime = new Date(res.end_datetime).toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' });
+                const statusBadge = getStatusBadge(res.status);
+                
+                const resDiv = document.createElement('div');
+                resDiv.className = 'day-view-reservation';
+                resDiv.style.borderColor = staffColor;
+                resDiv.style.backgroundColor = staffColor + '15';
+                resDiv.innerHTML = `
+                    <div class="day-view-title">${res.title || 'Ingen tittel'}</div>
+                    <div class="day-view-time">${startTime} - ${endTime}</div>
+                    <div class="day-view-details">
+                        <i class="bi bi-person me-1"></i>${res.staff_name || 'Ikke tildelt'}
+                        ${res.guest_count ? `<span class="ms-2"><i class="bi bi-people me-1"></i>${res.guest_count} gjester</span>` : ''}
+                        <span class="ms-2">${(res.total_amount || 0).toLocaleString('no-NO')} kr</span>
+                        <span class="ms-2">${statusBadge}</span>
+                    </div>
+                `;
+                resDiv.onclick = () => viewReservation(res.id);
+                reservationCell.appendChild(resDiv);
+            });
+        }
+        
+        row.appendChild(timeCell);
+        row.appendChild(reservationCell);
+        dayViewBody.appendChild(row);
     }
 }
 
@@ -578,10 +727,19 @@ function formatDateLocal(date) {
 }
 
 function getReservationsForDate(date) {
-    const dateStr = formatDateLocal(date);
+    // Get midnight boundaries for the selected date
+    const dayStart = new Date(date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(date);
+    dayEnd.setHours(23, 59, 59, 999);
+    
     return allReservations.filter(res => {
-        const resDate = res.start_datetime.split(' ')[0];
-        return resDate === dateStr;
+        const resStart = new Date(res.start_datetime);
+        const resEnd = new Date(res.end_datetime);
+        
+        // Reservation overlaps with this day if:
+        // - It starts before day ends AND ends after day starts
+        return resStart <= dayEnd && resEnd >= dayStart;
     });
 }
 
@@ -630,7 +788,7 @@ function cancelReservation(id) {
     }
 }
 
-// View type change handler
+// Initialize
 document.addEventListener('DOMContentLoaded', function() {
     loadStaffFilter();
     
@@ -649,20 +807,28 @@ document.addEventListener('DOMContentLoaded', function() {
             const calendarNav = document.getElementById('calendarNav');
             const daysFilterContainer = document.getElementById('daysFilterContainer');
             const staffLegend = document.getElementById('staffLegend');
+            const dayView = document.getElementById('reservationsDayView');
+            const backBtn = document.getElementById('backToCal');
             
             if (this.value === 'calendar') {
                 agendaView.style.display = 'none';
                 calendarView.style.display = 'block';
+                dayView.style.display = 'none';
                 calendarNav.style.display = 'block';
                 daysFilterContainer.style.display = 'none';
                 staffLegend.style.display = 'block';
+                backBtn.style.display = 'none';
+                document.getElementById('viewTitle').textContent = 'Reservasjoner';
                 loadCalendarView();
             } else {
                 agendaView.style.display = 'block';
                 calendarView.style.display = 'none';
+                dayView.style.display = 'none';
                 calendarNav.style.display = 'none';
                 daysFilterContainer.style.display = 'block';
                 staffLegend.style.display = 'none';
+                backBtn.style.display = 'none';
+                document.getElementById('viewTitle').textContent = 'Reservasjoner';
                 loadReservationsOverview();
             }
         });
