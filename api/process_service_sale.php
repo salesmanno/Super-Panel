@@ -73,7 +73,7 @@ try {
             break;
             
         case 'membership':
-            $stmt = $db->prepare("SELECT plan_id as id, plan_name as service_name, price FROM x_membership_plan WHERE plan_id = ?");
+            $stmt = $db->prepare("SELECT plan_id as id, plan_name as service_name, price FROM membership_plans WHERE plan_id = ?");
             $stmt->execute([$product_id]);
             $service = $stmt->fetch();
             break;

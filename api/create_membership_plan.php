@@ -28,7 +28,7 @@ try {
         
         // 1. Opprett medlemskapsplan (match faktisk PostgreSQL struktur)
         $stmt = $db->prepare("
-            INSERT INTO x_membership_plan (
+            INSERT INTO membership_plans (
                 company_id,
                 plan_name,
                 description,
