@@ -458,8 +458,16 @@
 </div>
 
 <script>
+console.log('=== SALES MODULE SCRIPT LOADED ===');
+console.log('Checking for sales elements:');
+console.log('- #tab-sales exists:', !!document.getElementById('tab-sales'));
+console.log('- #content-sales exists:', !!document.getElementById('content-sales'));
+console.log('- #products-list exists:', !!document.querySelector('#products-list'));
+console.log('- #services-list exists:', !!document.querySelector('#services-list'));
+
 // Load products and services
 async function loadSalesProducts() {
+    console.log('loadSalesProducts() called');
     try {
         const response = await fetch('/api/get_sales_items.php');
         const data = await response.json();
@@ -751,25 +759,44 @@ if (salesModule) {
     });
 }
 
-// Load all sales data when sales tab is shown
-const salesTab = document.getElementById('tab-sales');
-if (salesTab) {
-    salesTab.addEventListener('shown.bs.tab', function(e) {
-        loadAllSalesData();
-    });
+// Initialize when DOM is fully ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded fired in sales module');
     
-    if (salesTab.classList.contains('active')) {
-        loadAllSalesData();
+    const salesTab = document.getElementById('tab-sales');
+    const salesContent = document.getElementById('content-sales');
+    
+    console.log('Sales tab button:', salesTab);
+    console.log('Sales content pane:', salesContent);
+    
+    if (salesTab) {
+        // Listen for tab shown event
+        salesTab.addEventListener('shown.bs.tab', function(e) {
+            console.log('✅ Sales tab shown via event - loading data...');
+            loadAllSalesData();
+        });
+        
+        // Check if already active on page load
+        if (salesTab.classList.contains('active') && salesContent && salesContent.classList.contains('active')) {
+            console.log('✅ Sales is already active tab - loading data immediately...');
+            setTimeout(() => {
+                loadAllSalesData();
+            }, 200);
+        }
+    } else {
+        console.error('❌ #tab-sales button not found!');
     }
-}
+});
 
 // Load all sales data in one function
 async function loadAllSalesData() {
+    console.log('=== loadAllSalesData() called ===');
     await Promise.all([
         loadSalesProducts(),
         loadTransactions(),
         loadProductsWithProfit()
     ]);
+    console.log('=== loadAllSalesData() completed ===');
 }
 
 async function loadProductsWithProfit() {
