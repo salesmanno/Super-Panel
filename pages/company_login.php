@@ -395,7 +395,7 @@ if (isset($_GET['message'])) {
     <div class="login-container">
         <div class="login-section">
             <div class="login-header">
-                <img src="/attached_assets/salesman-removebg-preview_1760299160728.png" alt="Logo">
+                <img src="/attached_assets/EBF96C6D-D9D9-4976-9382-9C21A41822F4_1761452821544.png" alt="Salesman.no Logo">
                 <h1>SuperUser Portal</h1>
                 <p>Bedriftsportal - Logg inn</p>
             </div>

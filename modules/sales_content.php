@@ -470,9 +470,36 @@ async function loadSalesProducts() {
             
             displayProducts(products);
             displayServices(services);
+        } else {
+            // Show error message when API fails
+            displayProducts([]);
+            displayServices([]);
+            
+            const salesModule = document.getElementById('content-sales');
+            if (salesModule) {
+                const productsContainer = salesModule.querySelector('#products-list');
+                const servicesContainer = salesModule.querySelector('#services-list');
+                
+                const errorHtml = '<div class="col-12"><div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>Database ikke tilgjengelig. Produkter kan ikke lastes.</div></div>';
+                
+                if (productsContainer) productsContainer.innerHTML = errorHtml;
+                if (servicesContainer) servicesContainer.innerHTML = errorHtml;
+            }
         }
     } catch (error) {
         console.error('Error loading products:', error);
+        
+        // Show error message when fetch fails
+        const salesModule = document.getElementById('content-sales');
+        if (salesModule) {
+            const productsContainer = salesModule.querySelector('#products-list');
+            const servicesContainer = salesModule.querySelector('#services-list');
+            
+            const errorHtml = '<div class="col-12"><div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>Kunne ikke laste produkter. Sjekk tilkoblingen.</div></div>';
+            
+            if (productsContainer) productsContainer.innerHTML = errorHtml;
+            if (servicesContainer) servicesContainer.innerHTML = errorHtml;
+        }
     }
     
     await loadCart();
