@@ -29,10 +29,12 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **User Profiles**: Stores personal information for automatic email signatures and profile editing.
 - **Ditt Nettsted Module (Website Builder)**: Official module accessible to all admins for viewing website configuration. Displays current website settings from `tenant_website_config` table including publication status, SEO settings, and display information. Features lock mechanism based on `granted_at` timestamp - once configured, settings are locked and require admin password (`tenant_companies.admin_password_hash`) for 30-minute temporary editing access. Password unlock is session-based and expires automatically.
 - **Rental System**: Manages individual rental objects with serial number tracking, condition notes, and integrates with the reservation system for booking, overlap checks, and pricing. Supports contract document uploads.
-- **Reservation Module (Oct 2025)**: Complete reservation management system with dual-view display and three subtabs:
+- **Reservation Module (Oct 2025)**: Complete reservation management system with dual-view display and five subtabs:
     - **Reservasjonsoversikt**: Primary view with toggle between agenda and calendar modes. Agenda shows chronological list with date grouping. Calendar shows monthly grid with color-coded reservations by staff (10 colors). Features include date range filter (agenda: 7-90 days), staff filter, status filter, statistics cards (total, pending, confirmed, value), and month navigation (calendar). Timezone-safe date handling prevents UTC conversion issues.
     - **Reservasjonsmottak**: Incoming/pending reservations awaiting confirmation.
     - **Bekreftede Reservasjoner**: Confirmed reservations with date range search.
+    - **Opprett tjenester** (Oct 2025): Create new reservable services with comprehensive settings (service name, type, description, duration, pricing, capacity, availability schedule, active days). Similar to product creation workflow.
+    - **Aktive tjenester** (Oct 2025): Table view of all active reservable services with edit/delete actions. Shows service details (type, duration, price, capacity, availability, status).
     - Uses `reservations_reservations` table with staff assignments, date/time tracking, guest counts, and status management (pending, confirmed, cancelled, completed).
     - API supports both days-from-now and explicit date range parameters for flexible data fetching.
 - **Sales Module with Shopping Cart (Oct 2025)**: Supports dual purchase flows:

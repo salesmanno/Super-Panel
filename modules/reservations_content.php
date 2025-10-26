@@ -206,6 +206,167 @@
             </div>
         </div>
     </div>
+
+    <!-- Opprett tjenester Tab -->
+    <div id="reservations-create-service" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-plus-circle me-2"></i>Opprett ny tjeneste</h5>
+                <p class="text-muted">Opprett en ny reserverbar tjeneste for dine kunder</p>
+                
+                <form id="create-service-form">
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label">Tjenestenavn *</label>
+                            <input type="text" class="form-control" name="service_name" required>
+                            <small class="text-muted">F.eks: "Bordreservasjon", "Konsultasjon", "Spa-behandling"</small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Type *</label>
+                            <select class="form-select" name="service_type" required>
+                                <option value="">Velg type</option>
+                                <option value="appointment">Timeavtale</option>
+                                <option value="table">Bordreservasjon</option>
+                                <option value="room">Romreservasjon</option>
+                                <option value="facility">Fasilitetsleie</option>
+                                <option value="consultation">Konsultasjon</option>
+                                <option value="other">Annet</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Beskrivelse</label>
+                            <textarea class="form-control" name="description" rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Varighet (minutter) *</label>
+                            <input type="number" class="form-control" name="duration" min="15" step="15" value="60" required>
+                            <small class="text-muted">15, 30, 60, 90, 120, etc.</small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Pris (NOK) *</label>
+                            <input type="number" class="form-control" name="price" min="0" step="0.01" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Maks kapasitet</label>
+                            <input type="number" class="form-control" name="capacity" min="1" value="1">
+                            <small class="text-muted">Antall personer per tidsslot</small>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Tilgjengelig fra (tid)</label>
+                            <input type="time" class="form-control" name="available_from" value="09:00">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Tilgjengelig til (tid)</label>
+                            <input type="time" class="form-control" name="available_to" value="17:00">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Tilgjengelige dager</label>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="available_days[]" value="1" id="day-mon" checked>
+                                <label class="form-check-label" for="day-mon">Man</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="available_days[]" value="2" id="day-tue" checked>
+                                <label class="form-check-label" for="day-tue">Tir</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="available_days[]" value="3" id="day-wed" checked>
+                                <label class="form-check-label" for="day-wed">Ons</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="available_days[]" value="4" id="day-thu" checked>
+                                <label class="form-check-label" for="day-thu">Tor</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="available_days[]" value="5" id="day-fri" checked>
+                                <label class="form-check-label" for="day-fri">Fre</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="available_days[]" value="6" id="day-sat">
+                                <label class="form-check-label" for="day-sat">Lør</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="available_days[]" value="0" id="day-sun">
+                                <label class="form-check-label" for="day-sun">Søn</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="service-active" checked>
+                            <label class="form-check-label" for="service-active">Aktiv (synlig for kunder)</label>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-1"></i>Opprett tjeneste
+                        </button>
+                        <button type="reset" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i>Nullstill
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Aktive tjenester Tab -->
+    <div id="reservations-active-services" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h5 class="card-title mb-1"><i class="bi bi-list-check me-2"></i>Aktive tjenester</h5>
+                        <p class="text-muted mb-0">Oversikt over alle dine reserverbare tjenester</p>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="document.querySelector('[href=\'#reservations-create-service\']').click()">
+                        <i class="bi bi-plus-circle me-1"></i>Opprett ny
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tjeneste</th>
+                                <th>Type</th>
+                                <th>Varighet</th>
+                                <th>Pris</th>
+                                <th>Kapasitet</th>
+                                <th>Tilgjengelighet</th>
+                                <th>Status</th>
+                                <th>Handlinger</th>
+                            </tr>
+                        </thead>
+                        <tbody id="active-services-list">
+                            <tr>
+                                <td colspan="8" class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Laster...</span>
+                                    </div>
+                                    <p class="text-muted mt-2 mb-0">Laster tjenester...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -799,6 +960,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Load active services when the subtab is clicked
+    const activeServicesLink = document.querySelector('[href="#reservations-active-services"]');
+    if (activeServicesLink) {
+        activeServicesLink.addEventListener('click', function() {
+            setTimeout(() => loadActiveServices(), 100);
+        });
+    }
+    
     // View type toggle
     document.querySelectorAll('input[name="viewType"]').forEach(radio => {
         radio.addEventListener('change', function() {
@@ -837,5 +1006,174 @@ document.addEventListener('DOMContentLoaded', function() {
     // Filter changes
     document.getElementById('staffFilter').addEventListener('change', loadReservations);
     document.getElementById('statusFilter').addEventListener('change', loadReservations);
+    
+    // Create Service Form Handler
+    const createServiceForm = document.getElementById('create-service-form');
+    if (createServiceForm) {
+        createServiceForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const data = {
+                service_name: formData.get('service_name'),
+                service_type: formData.get('service_type'),
+                description: formData.get('description'),
+                duration: formData.get('duration'),
+                price: formData.get('price'),
+                capacity: formData.get('capacity'),
+                available_from: formData.get('available_from'),
+                available_to: formData.get('available_to'),
+                available_days: formData.getAll('available_days[]'),
+                is_active: formData.get('is_active') ? 1 : 0
+            };
+            
+            fetch('api/create_reservation_service.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    alert('Tjeneste opprettet!');
+                    createServiceForm.reset();
+                    // Switch to active services tab
+                    document.querySelector('[href="#reservations-active-services"]').click();
+                    loadActiveServices();
+                } else {
+                    alert('Feil: ' + (result.message || 'Kunne ikke opprette tjeneste'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Feil ved opprettelse av tjeneste');
+            });
+        });
+    }
 });
+
+// Load Active Services Function
+function loadActiveServices() {
+    const tbody = document.getElementById('active-services-list');
+    if (!tbody) return;
+    
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="8" class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Laster...</span>
+                </div>
+                <p class="text-muted mt-2 mb-0">Laster tjenester...</p>
+            </td>
+        </tr>
+    `;
+    
+    fetch('api/get_reservation_services.php')
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            <i class="bi bi-exclamation-circle fs-1 d-block mb-2"></i>
+                            <p>${data.error || 'Kunne ikke laste tjenester'}</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            const services = data.services || [];
+            
+            if (services.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            <p>Ingen tjenester opprettet ennå</p>
+                            <button class="btn btn-primary btn-sm mt-2" onclick="document.querySelector('[href=\\'#reservations-create-service\\']').click()">
+                                <i class="bi bi-plus-circle me-1"></i>Opprett din første tjeneste
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = services.map(service => {
+                const typeLabels = {
+                    'appointment': 'Timeavtale',
+                    'table': 'Bordreservasjon',
+                    'room': 'Romreservasjon',
+                    'facility': 'Fasilitetsleie',
+                    'consultation': 'Konsultasjon',
+                    'other': 'Annet'
+                };
+                
+                const statusBadge = service.is_active == 1 
+                    ? '<span class="badge bg-success">Aktiv</span>' 
+                    : '<span class="badge bg-secondary">Inaktiv</span>';
+                
+                return `
+                    <tr>
+                        <td><strong>${service.service_name}</strong></td>
+                        <td>${typeLabels[service.service_type] || service.service_type}</td>
+                        <td>${service.duration} min</td>
+                        <td>${parseFloat(service.price).toFixed(2)} NOK</td>
+                        <td>${service.capacity || 1} pers</td>
+                        <td class="small">${service.available_from} - ${service.available_to}</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="editService('${service.id}')" title="Rediger">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="deleteService('${service.id}')" title="Slett">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        })
+        .catch(error => {
+            console.error('Error loading services:', error);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-4 text-danger">
+                        <i class="bi bi-exclamation-triangle fs-1 d-block mb-2"></i>
+                        <p>Feil ved lasting av tjenester</p>
+                    </td>
+                </tr>
+            `;
+        });
+}
+
+function editService(id) {
+    alert('Rediger tjeneste: ' + id + ' (kommer snart)');
+}
+
+function deleteService(id) {
+    if (confirm('Er du sikker på at du vil slette denne tjenesten?')) {
+        fetch('api/delete_reservation_service.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ service_id: id })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert('Tjeneste slettet');
+                loadActiveServices();
+            } else {
+                alert('Feil: ' + (result.message || 'Kunne ikke slette tjeneste'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Feil ved sletting');
+        });
+    }
+}
 </script>

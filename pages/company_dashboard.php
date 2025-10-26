@@ -437,6 +437,12 @@ try {
                 <li class="nav-item">
                     <a class="nav-link" href="#reservations-confirmed">Bekreftede Reservasjoner</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#reservations-create-service">Opprett tjenester</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#reservations-active-services">Aktive tjenester</a>
+                </li>
             </ul>
             
             <!-- Rental subtabs -->
