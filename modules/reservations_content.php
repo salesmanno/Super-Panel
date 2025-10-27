@@ -355,6 +355,7 @@
                                 <th>Varighet</th>
                                 <th>Pris</th>
                                 <th>Kapasitet</th>
+                                <th>Ansatte</th>
                                 <th>Tilgjengelighet</th>
                                 <th>Status</th>
                                 <th>Handlinger</th>
@@ -362,7 +363,7 @@
                         </thead>
                         <tbody id="active-services-list">
                             <tr>
-                                <td colspan="8" class="text-center py-4">
+                                <td colspan="9" class="text-center py-4">
                                     <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Laster...</span>
                                     </div>
@@ -1107,7 +1108,7 @@ function loadActiveServices() {
     
     tbody.innerHTML = `
         <tr>
-            <td colspan="8" class="text-center py-4">
+            <td colspan="9" class="text-center py-4">
                 <div class="spinner-border text-primary" role="status">
                     <span class="visually-hidden">Laster...</span>
                 </div>
@@ -1122,7 +1123,7 @@ function loadActiveServices() {
             if (!data.success) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="8" class="text-center py-4 text-muted">
+                        <td colspan="9" class="text-center py-4 text-muted">
                             <i class="bi bi-exclamation-circle fs-1 d-block mb-2"></i>
                             <p>${data.error || 'Kunne ikke laste tjenester'}</p>
                         </td>
@@ -1136,7 +1137,7 @@ function loadActiveServices() {
             if (services.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="8" class="text-center py-4 text-muted">
+                        <td colspan="9" class="text-center py-4 text-muted">
                             <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                             <p>Ingen tjenester opprettet ennå</p>
                             <button class="btn btn-primary btn-sm mt-2" onclick="document.querySelector('[href=\\'#reservations-create-service\\']').click()">
@@ -1162,13 +1163,18 @@ function loadActiveServices() {
                     ? '<span class="badge bg-success">Aktiv</span>' 
                     : '<span class="badge bg-secondary">Inaktiv</span>';
                 
+                const staffDisplay = service.assigned_staff_names 
+                    ? `<span class="badge bg-info text-dark" title="${service.assigned_staff_names}">${service.staff_count} ansatt${service.staff_count > 1 ? 'e' : ''}</span>`
+                    : '<span class="text-muted small">Ingen</span>';
+                
                 return `
                     <tr>
                         <td><strong>${service.service_name}</strong></td>
                         <td>${typeLabels[service.service_type] || service.service_type}</td>
-                        <td>${service.duration} min</td>
+                        <td>${service.duration_minutes} min</td>
                         <td>${parseFloat(service.price).toFixed(2)} NOK</td>
                         <td>${service.capacity || 1} pers</td>
+                        <td class="small">${staffDisplay}</td>
                         <td class="small">${service.available_from} - ${service.available_to}</td>
                         <td>${statusBadge}</td>
                         <td>
@@ -1189,7 +1195,7 @@ function loadActiveServices() {
             console.error('Error loading services:', error);
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="text-center py-4 text-danger">
+                    <td colspan="9" class="text-center py-4 text-danger">
                         <i class="bi bi-exclamation-triangle fs-1 d-block mb-2"></i>
                         <p>Feil ved lasting av tjenester</p>
                     </td>
