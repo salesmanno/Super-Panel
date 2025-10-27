@@ -305,6 +305,14 @@
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label">Ansatte som kan utføre denne tjenesten *</label>
+                        <select class="form-select" name="assigned_staff[]" id="assigned-staff-select" multiple size="5">
+                            <option value="" disabled>Laster ansatte...</option>
+                        </select>
+                        <small class="text-muted">Hold Ctrl/Cmd for å velge flere ansatte. Jo flere ansatte, jo flere parallelle bookinger mulig.</small>
+                    </div>
+
+                    <div class="mb-3">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" name="is_active" id="service-active" checked>
                             <label class="form-check-label" for="service-active">Aktiv (synlig for kunder)</label>
