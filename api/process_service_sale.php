@@ -139,6 +139,10 @@ try {
                 $event_notes = "Medlemspris brukt. " . $notes;
             }
             
+            // Payment status for accurate financial tracking
+            // on_arrival means payment not yet received
+            $event_payment_status = ($payment_method === 'on_arrival') ? 'pending' : 'paid';
+            
             $stmt = $db->prepare("
                 INSERT INTO events_checkin 
                 (id, event_id, customer_id, attendee_name, attendee_email, attendee_phone, 
@@ -155,7 +159,7 @@ try {
                 $customer_phone,
                 $total,
                 $payment_method,
-                'paid',
+                $event_payment_status,
                 false, // not checked in yet
                 $admin_id,
                 $event_notes

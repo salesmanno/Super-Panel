@@ -83,7 +83,15 @@ try {
         )
     ");
     
-    $paymentStatus = ($data['payment_method'] === 'cash' && isset($data['paid'])) ? 'paid' : 'pending';
+    // Payment status logic for accurate financial tracking:
+    // - on_arrival: Always pending (payment not received yet)
+    // - cash: Paid only if explicitly confirmed
+    // - other methods: Pending until confirmed
+    if ($data['payment_method'] === 'on_arrival') {
+        $paymentStatus = 'pending';  // Never mark as paid - money not received
+    } else {
+        $paymentStatus = ($data['payment_method'] === 'cash' && isset($data['paid']) && $data['paid']) ? 'paid' : 'pending';
+    }
     
     $stmt->execute([
         $checkinId,
