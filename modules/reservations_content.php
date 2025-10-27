@@ -976,6 +976,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Load staff when create service tab is clicked
+    const createServiceLink = document.querySelector('[href="#reservations-create-service"]');
+    if (createServiceLink) {
+        createServiceLink.addEventListener('click', function() {
+            setTimeout(() => loadStaffForService(), 100);
+        });
+    }
+    
     // View type toggle
     document.querySelectorAll('input[name="viewType"]').forEach(radio => {
         radio.addEventListener('change', function() {
@@ -1032,8 +1040,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 available_from: formData.get('available_from'),
                 available_to: formData.get('available_to'),
                 available_days: formData.getAll('available_days[]'),
+                assigned_staff: formData.getAll('assigned_staff[]'),
                 is_active: formData.get('is_active') ? 1 : 0
             };
+            
+            // Validate staff selection
+            if (!data.assigned_staff || data.assigned_staff.length === 0) {
+                alert('Vennligst velg minst én ansatt som kan utføre denne tjenesten');
+                return;
+            }
             
             fetch('api/create_reservation_service.php', {
                 method: 'POST',
@@ -1059,6 +1074,31 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Load Staff for Service Assignment
+function loadStaffForService() {
+    const select = document.getElementById('assigned-staff-select');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="" disabled>Laster ansatte...</option>';
+    
+    fetch('api/get_staff.php')
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success || !data.staff || data.staff.length === 0) {
+                select.innerHTML = '<option value="" disabled>Ingen ansatte funnet</option>';
+                return;
+            }
+            
+            select.innerHTML = data.staff.map(staff => 
+                `<option value="${staff.id}">${staff.first_name} ${staff.last_name}</option>`
+            ).join('');
+        })
+        .catch(error => {
+            console.error('Error loading staff:', error);
+            select.innerHTML = '<option value="" disabled>Feil ved lasting av ansatte</option>';
+        });
+}
 
 // Load Active Services Function
 function loadActiveServices() {
