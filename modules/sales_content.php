@@ -74,8 +74,7 @@
                                 <label class="form-label small">Betalingsmetode</label>
                                 <select class="form-select form-select-sm" id="checkout-payment-method">
                                     <option value="cash">Kontant</option>
-                                    <option value="card">Kort</option>
-                                    <option value="online">Nettbank</option>
+                                    <option value="online">Vipps</option>
                                     <option value="on_arrival">Oppmøte</option>
                                 </select>
                             </div>
@@ -431,8 +430,7 @@
                         <label class="form-label">Betalingsmetode</label>
                         <select class="form-select" id="service-payment-method">
                             <option value="cash">Kontant</option>
-                            <option value="card">Kort</option>
-                            <option value="online">Nettbank</option>
+                            <option value="online">Vipps</option>
                             <option value="on_arrival">Oppmøte</option>
                         </select>
                     </div>
