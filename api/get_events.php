@@ -66,6 +66,7 @@ try {
     error_log("Error fetching events: " . $e->getMessage());
     echo json_encode([
         'success' => false,
-        'message' => 'Feil ved henting av arrangementer'
+        'message' => 'Database utilgjengelig',
+        'events' => []
     ]);
 }

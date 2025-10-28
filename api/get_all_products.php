@@ -64,6 +64,9 @@ try {
     error_log("Error fetching products: " . $e->getMessage());
     echo json_encode([
         'success' => false,
-        'message' => 'Feil ved henting av produkter'
+        'message' => 'Database utilgjengelig',
+        'products' => [],
+        'grouped' => ['events' => [], 'sales' => [], 'rental' => [], 'membership' => []],
+        'total_count' => 0
     ]);
 }
