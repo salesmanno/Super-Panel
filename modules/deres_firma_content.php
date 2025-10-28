@@ -239,13 +239,24 @@
                                 <th>Avdeling</th>
                                 <th>Modultilgang</th>
                                 <th>Status</th>
+                                <th>Handlinger</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($staff as $employee): ?>
+                            <?php foreach ($staff as $employee): 
+                                // Find admin account for this staff member
+                                $stmt = $db->prepare("SELECT id FROM tenant_admins WHERE tenant_staff_id = ?");
+                                $stmt->execute([$employee['id']]);
+                                $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+                                $adminId = $admin ? $admin['id'] : null;
+                                $isCurrentAdmin = ($adminId == $_SESSION['tenant_admin_id']);
+                            ?>
                             <tr>
                                 <td>
                                     <strong><?= htmlspecialchars($employee['first_name'] . ' ' . $employee['last_name']) ?></strong>
+                                    <?php if ($isCurrentAdmin): ?>
+                                        <span class="badge bg-info ms-2">Du</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td><?= htmlspecialchars($employee['job_title'] ?? 'N/A') ?></td>
                                 <td>
@@ -277,6 +288,17 @@
                                         <span class="badge bg-secondary">Inaktiv</span>
                                     <?php endif; ?>
                                 </td>
+                                <td>
+                                    <?php if ($adminId && !$isCurrentAdmin): ?>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="openModuleAccessModal('<?= $adminId ?>', '<?= htmlspecialchars($employee['first_name'] . ' ' . $employee['last_name']) ?>')">
+                                            <i class="bi bi-gear me-1"></i>Modultilgang
+                                        </button>
+                                    <?php elseif ($isCurrentAdmin): ?>
+                                        <span class="text-muted small">-</span>
+                                    <?php else: ?>
+                                        <span class="text-muted small">Ingen login</span>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -297,5 +319,135 @@
             </div>
         </div>
     </div>
+
+<!-- Module Access Modal -->
+<div class="modal fade" id="moduleAccessModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-gear me-2"></i>Administrer modultilgang
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Velg hvilke moduler <strong id="staff-name-display"></strong> skal ha tilgang til:</p>
+                <p class="text-muted small mb-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Kun moduler som er aktivert for bedriften vises her
+                </p>
+                
+                <div id="modules-loading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Laster...</span>
+                    </div>
+                </div>
+                
+                <div id="modules-list" style="display: none;">
+                    <!-- Modules will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                <button type="button" class="btn btn-primary" onclick="saveModuleAccess()">
+                    <i class="bi bi-save me-1"></i>Lagre endringer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentAdminId = null;
+let availableModules = [];
+
+async function openModuleAccessModal(adminId, staffName) {
+    currentAdminId = adminId;
+    document.getElementById('staff-name-display').textContent = staffName;
+    
+    const modal = new bootstrap.Modal(document.getElementById('moduleAccessModal'));
+    modal.show();
+    
+    // Load available modules and current access
+    await loadModuleAccess(adminId);
+}
+
+async function loadModuleAccess(adminId) {
+    const loadingEl = document.getElementById('modules-loading');
+    const listEl = document.getElementById('modules-list');
+    
+    loadingEl.style.display = 'block';
+    listEl.style.display = 'none';
+    
+    try {
+        const response = await fetch(`../api/get_admin_module_access.php?admin_id=${adminId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            availableModules = result.available_modules || [];
+            const currentAccess = result.current_access || [];
+            
+            // Build checkboxes
+            listEl.innerHTML = availableModules.map(mod => {
+                const hasAccess = currentAccess.includes(mod.id);
+                return `
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" 
+                               value="${mod.id}" 
+                               id="module-${mod.id}"
+                               ${hasAccess ? 'checked' : ''}>
+                        <label class="form-check-label" for="module-${mod.id}">
+                            <strong>${mod.name}</strong>
+                            ${mod.description ? `<br><small class="text-muted">${mod.description}</small>` : ''}
+                        </label>
+                    </div>
+                `;
+            }).join('');
+            
+            loadingEl.style.display = 'none';
+            listEl.style.display = 'block';
+        } else {
+            alert('Feil: ' + (result.message || 'Kunne ikke laste moduler'));
+        }
+    } catch (error) {
+        console.error('Error loading module access:', error);
+        alert('Feil ved lasting av moduler');
+    }
+}
+
+async function saveModuleAccess() {
+    if (!currentAdminId) return;
+    
+    // Get all checked module IDs
+    const checkboxes = document.querySelectorAll('#modules-list input[type="checkbox"]');
+    const selectedModules = Array.from(checkboxes)
+        .filter(cb => cb.checked)
+        .map(cb => cb.value);
+    
+    try {
+        const response = await fetch('../api/update_admin_module_access.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                admin_id: currentAdminId,
+                module_ids: selectedModules
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Modultilgang oppdatert!');
+            bootstrap.Modal.getInstance(document.getElementById('moduleAccessModal')).hide();
+            location.reload(); // Refresh to show updated access
+        } else {
+            alert('❌ Feil: ' + (result.message || 'Kunne ikke oppdatere tilgang'));
+        }
+    } catch (error) {
+        console.error('Error saving module access:', error);
+        alert('❌ Feil ved lagring');
+    }
+}
+</script>
 
 <!-- JavaScript functions are now in company_dashboard.php -->
