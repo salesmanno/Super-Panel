@@ -876,6 +876,11 @@ try {
                                                 <i class="bi bi-people me-2"></i>Stillinger
                                             </button>
                                         </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="firma-tab-4" data-bs-toggle="tab" data-bs-target="#firma-webside" type="button" role="tab">
+                                                <i class="bi bi-palette me-2"></i>Webside
+                                            </button>
+                                        </li>
                                     </ul>
                                     <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">
                                         <i class="bi bi-x-circle me-2"></i>Lukk vindu
