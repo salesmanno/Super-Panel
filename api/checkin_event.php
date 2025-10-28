@@ -22,7 +22,7 @@ try {
     
     // Get event details and pricing
     $stmt = $db->prepare("
-        SELECT title, date_from, time_from, location, ticket_price, member_ticket_price, is_member_exclusive
+        SELECT title, start_date, start_time, end_date, end_time, venue_name, event_address, ticket_price, member_ticket_price, is_member_exclusive, cost_price
         FROM events_eventdata
         WHERE id = ? AND company_id = ?
     ");
@@ -108,6 +108,77 @@ try {
         $data['notes'] ?? null
     ]);
     
+    // Create transaction record for economy module
+    try {
+        $transactionId = bin2hex(random_bytes(16));
+        
+        // Insert into sales_transactions
+        $stmt = $db->prepare("
+            INSERT INTO sales_transactions (
+                id,
+                company_id,
+                transaction_type,
+                service_type,
+                service_id,
+                customer_name,
+                customer_email,
+                customer_phone,
+                total_amount,
+                payment_method,
+                payment_status,
+                created_by,
+                created_at
+            ) VALUES (?, ?, 'service', 'event', ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        ");
+        $stmt->execute([
+            $transactionId,
+            $_SESSION['company_id'],
+            $data['event_id'],
+            $data['attendee_name'] ?? null,
+            $data['attendee_email'] ?? null,
+            $data['attendee_phone'] ?? null,
+            $ticketPrice,
+            $data['payment_method'] ?? 'cash',
+            $paymentStatus,
+            $_SESSION['tenant_admin_id']
+        ]);
+        
+        // Insert into unified_ledger for centralized financial tracking
+        $profitMargin = $ticketPrice - ($event['cost_price'] ?? 0);
+        
+        $stmt = $db->prepare("
+            INSERT INTO unified_ledger (
+                id,
+                company_id,
+                transaction_type,
+                source_module,
+                source_id,
+                description,
+                amount,
+                cost,
+                profit,
+                payment_method,
+                payment_status,
+                transaction_date,
+                created_at
+            ) VALUES (?, ?, 'sale', 'events', ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        ");
+        $stmt->execute([
+            bin2hex(random_bytes(16)),
+            $_SESSION['company_id'],
+            $checkinId,
+            $event['title'] . ' - ' . $ticketType,
+            $ticketPrice,
+            $event['cost_price'] ?? 0,
+            $profitMargin,
+            $data['payment_method'] ?? 'cash',
+            $paymentStatus
+        ]);
+    } catch (Exception $e) {
+        error_log("Transaction creation error: " . $e->getMessage());
+        // Don't fail the check-in if transaction fails
+    }
+    
     // Send confirmation email if attendee email is provided
     $emailSent = false;
     if (!empty($data['attendee_email'])) {
@@ -119,9 +190,9 @@ try {
                 'data' => [
                     'customer_name' => $data['attendee_name'] ?? 'Deltaker',
                     'event_title' => $event['title'],
-                    'event_date' => $event['date_from'],
-                    'event_time' => $event['time_from'],
-                    'event_location' => $event['location'] ?? 'Se arrangementdetaljer',
+                    'event_date' => $event['start_date'],
+                    'event_time' => $event['start_time'],
+                    'event_location' => $event['venue_name'] ?? $event['event_address'] ?? 'Se arrangementdetaljer',
                     'ticket_type' => $ticketType === 'member' ? 'Medlemsbillett' : 'Ordinær billett'
                 ],
                 'module_source' => 'events',
