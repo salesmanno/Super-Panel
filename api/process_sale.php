@@ -81,13 +81,7 @@ try {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         
-        // Payment status for accurate financial tracking
-        // on_arrival means payment not yet received - always pending
-        if ($data['payment_method'] === 'on_arrival') {
-            $paymentStatus = 'pending';
-        } else {
-            $paymentStatus = $data['payment_method'] === 'cash' ? 'completed' : 'pending';
-        }
+        $paymentStatus = $data['payment_method'] === 'cash' ? 'completed' : 'pending';
         
         $stmt->execute([
             $transactionId,

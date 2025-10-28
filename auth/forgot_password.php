@@ -34,7 +34,7 @@ try {
     $stmt = $db->prepare("
         SELECT id, email, mfa_secret 
         FROM tenant_admins 
-        WHERE email = ? AND mfa_secret = ? AND is_active = 1
+        WHERE email = ? AND mfa_secret = ? AND is_active = TRUE
         LIMIT 1
     ");
     $stmt->execute([$email, $secret]);
@@ -46,7 +46,7 @@ try {
         
         $updateStmt = $db->prepare("
             UPDATE tenant_admins 
-            SET password_hash = ?, updated_at = CURRENT_TIMESTAMP 
+            SET password_hash = ?, updated_at = NOW() 
             WHERE id = ?
         ");
         $updateStmt->execute([$newPasswordHash, $admin['id']]);

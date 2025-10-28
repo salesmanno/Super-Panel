@@ -43,10 +43,10 @@ try {
         }
     }
     
-    $enabled = $data['enabled'] ? 1 : 0;
+    $enabled = $data['enabled'] ? 'TRUE' : 'FALSE';
     
-    $stmt = $db->prepare("UPDATE tenant_companies SET cash_payment = ? WHERE id = ?");
-    $stmt->execute([$enabled, $companyId]);
+    $stmt = $db->prepare("UPDATE tenant_companies SET cash_payment = $enabled WHERE id = ?");
+    $stmt->execute([$companyId]);
     
     echo json_encode([
         'success' => true,

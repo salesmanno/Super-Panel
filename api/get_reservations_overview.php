@@ -45,8 +45,8 @@ try {
         $params[] = $endDate;
     } else {
         // Days from now (default)
-        $whereConditions[] = "r.start_datetime >= CURRENT_TIMESTAMP";
-        $whereConditions[] = "r.start_datetime <= DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ? DAY)";
+        $whereConditions[] = "r.start_datetime >= NOW()";
+        $whereConditions[] = "r.start_datetime <= DATE_ADD(NOW(), INTERVAL ? DAY)";
         $params[] = $days;
     }
     

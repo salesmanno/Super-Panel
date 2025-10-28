@@ -58,7 +58,7 @@ try {
         (id, company_id, category_id, sku, name, description, barcode, cost_price, 
          selling_price, img_product, currency, tax_rate, unit, reorder_level, 
          is_active, item_taxable, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
     ");
     
     $stmt->execute([
@@ -86,7 +86,7 @@ try {
     $stmt = $db->prepare("
         INSERT INTO output_products 
         (id, company_id, module_id, product_type, product_id, is_visible, is_public, created_at, updated_at, created_by)
-        VALUES (?, ?, ?, 'product', ?, 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?)
+        VALUES (?, ?, ?, 'product', ?, 1, 1, NOW(), NOW(), ?)
     ");
     
     $stmt->execute([

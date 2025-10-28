@@ -26,13 +26,9 @@ try {
         $outputProductId = bin2hex(random_bytes(16));
         $planCode = 'PLAN-' . strtoupper(substr($planId, 0, 8));
         
-        // 1. Opprett medlemskapsplan
-        $billingCycle = $data['billing_cycle'] ?? 'monthly';
-        $durationMonths = $billingCycle === 'yearly' ? 12 : 1;
-        
+        // 1. Opprett medlemskapsplan (match faktisk PostgreSQL struktur)
         $stmt = $db->prepare("
             INSERT INTO membership_plans (
-                plan_id,
                 company_id,
                 plan_name,
                 description,
@@ -41,11 +37,14 @@ try {
                 features,
                 is_active,
                 created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, 1, NOW())
+            RETURNING plan_id
         ");
         
+        $billingCycle = $data['billing_cycle'] ?? 'monthly';
+        $durationMonths = $billingCycle === 'yearly' ? 12 : 1;
+        
         $stmt->execute([
-            $planId,
             $_SESSION['company_id'],
             $data['name'],
             $data['description'] ?? null,
@@ -53,6 +52,9 @@ try {
             $durationMonths,
             $data['benefits'] ?? null
         ]);
+        
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $planId = $result['plan_id'];
         
         // 2. Auto-generer output_products entry
         $stmt = $db->prepare("
@@ -67,7 +69,7 @@ try {
                 is_marketplace_featured,
                 created_at,
                 created_by
-            ) VALUES (?, ?, 1, 'membership', ?, 1, 1, 0, CURRENT_TIMESTAMP, ?)
+            ) VALUES (?, ?, 1, 'membership', ?, 1, 1, 0, NOW(), ?)
         ");
         
         $stmt->execute([

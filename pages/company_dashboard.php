@@ -109,7 +109,7 @@ $paymentConfigured = false;
 try {
     $db = getDBConnection();
     if ($db) {
-        $stmt = $db->prepare("SELECT COUNT(*) FROM payment_integrations WHERE company_id = ? AND is_active = 1");
+        $stmt = $db->prepare("SELECT COUNT(*) FROM payment_integrations WHERE company_id = ? AND is_active = TRUE");
         $stmt->execute([$_SESSION['company_id']]);
         $paymentConfigured = ($stmt->fetchColumn() > 0);
     }
@@ -1074,7 +1074,9 @@ try {
         }
         
         function navigateToDittNettsted() {
-            window.location.href = '/pages/website_settings.php';
+            // Vis passord-prompt modal
+            const modal = new bootstrap.Modal(document.getElementById('dittNettstedPasswordModal'));
+            modal.show();
         }
         
         function unlockDittNettsted() {

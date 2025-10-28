@@ -23,7 +23,7 @@ try {
     // This preserves output_products and historical data
     $stmt = $db->prepare("
         UPDATE events_eventdata 
-        SET is_active = 0
+        SET is_active = FALSE
         WHERE id = ? AND company_id = ?
     ");
     

@@ -114,7 +114,7 @@ try {
         $stmt = $db->prepare("
             INSERT INTO tenant_customers 
             (id, company_id, customer_code, first_name, last_name, email, phone, customer_type, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'individual', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'individual', 'active', NOW(), NOW())
         ");
         $stmt->execute([
             $customer_id,
@@ -148,7 +148,7 @@ try {
                 (id, event_id, customer_id, attendee_name, attendee_email, attendee_phone, 
                  ticket_price, payment_method, payment_status, checked_in, 
                  checked_in_by, notes, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
             ");
             $stmt->execute([
                 $checkin_id,
@@ -168,15 +168,14 @@ try {
             
         case 'membership':
             // Create member record (active membership)
-            $member_id = bin2hex(random_bytes(16));
             $stmt = $db->prepare("
                 INSERT INTO members 
-                (member_id, company_id, plan_id, first_name, last_name, email, phone, 
+                (company_id, plan_id, first_name, last_name, email, phone, 
                  join_date, expiry_date, status, notes, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 1 MONTH), 'active', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW() + INTERVAL '1 month', 'active', ?, NOW(), NOW())
+                RETURNING member_id
             ");
             $stmt->execute([
-                $member_id,
                 $company_id,
                 $product_id,
                 $customer_first_name,
@@ -189,20 +188,18 @@ try {
             
         case 'rental':
             // Create rental reservation
-            $reservation_id = bin2hex(random_bytes(16));
+            $stmt = $db->prepare("
+                INSERT INTO rental_reservations 
+                (company_id, object_id, customer_name, customer_email, customer_phone, 
+                 start_date, end_date, daily_price, total_price, deposit_paid, status, notes, created_at, updated_at) 
+                VALUES (?, ?, ?, ?, ?, NOW(), NOW() + INTERVAL '1 day', ?, ?, 0, 'confirmed', ?, NOW(), NOW())
+                RETURNING reservation_id
+            ");
             
             // Calculate daily price from total (assuming 1 day rental by default)
             $daily_price = $total / $quantity;
             
-            $stmt = $db->prepare("
-                INSERT INTO rental_reservations 
-                (reservation_id, company_id, object_id, customer_name, customer_email, customer_phone, 
-                 start_date, end_date, daily_price, total_price, deposit_paid, status, notes, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 1 DAY), ?, ?, 0, 'confirmed', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            ");
-            
             $stmt->execute([
-                $reservation_id,
                 $company_id,
                 $product_id,
                 $customer_full_name,

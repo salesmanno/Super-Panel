@@ -45,7 +45,7 @@ try {
         LEFT JOIN tenant_admins ta ON e.created_by = ta.id
         LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
         LEFT JOIN events_checkin ec ON e.id = ec.event_id
-        WHERE e.company_id = ? AND e.is_active = 1
+        WHERE e.company_id = ? AND e.is_active = TRUE
         GROUP BY e.id, e.title, e.description, e.max_attendees, e.min_attendees, e.age_limit, 
                  e.is_member_exclusive, e.event_address, e.event_city, e.event_postal, e.venue_name,
                  e.start_time, e.start_date, e.end_time, e.end_date, e.event_image_url, 
