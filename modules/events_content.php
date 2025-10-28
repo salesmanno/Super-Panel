@@ -256,23 +256,31 @@
     </div>
 
     <div id="events-checkin" class="subtab-content" style="display: none;">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Innsjekking</h5>
-                <p class="text-muted">Sjekk inn deltakere og administrer oppmøte</p>
-                
-                <!-- Event Selector -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <label class="form-label">Velg arrangement</label>
-                        <select class="form-select" id="checkin-event-selector">
-                            <option value="">Laster arrangementer...</option>
-                        </select>
-                    </div>
+        <!-- Event Selection Cards -->
+        <div id="checkin-event-selection">
+            <h5 class="mb-3"><i class="bi bi-calendar-check me-2"></i>Velg arrangement for innsjekking</h5>
+            <div id="checkin-events-grid" class="row g-3 mb-4">
+                <div class="col-12 text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="text-muted mt-2">Laster arrangementer...</p>
                 </div>
+            </div>
+        </div>
 
-                <!-- Check-in Statistics -->
-                <div class="row mb-4" id="checkin-stats" style="display: none;">
+        <!-- Check-in Interface (hidden until event selected) -->
+        <div id="checkin-interface" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h5 class="mb-0" id="checkin-event-title">Arrangementsnavn</h5>
+                    <small class="text-muted" id="checkin-event-date">Dato og tid</small>
+                </div>
+                <button class="btn btn-outline-secondary btn-sm" onclick="backToEventSelection()">
+                    <i class="bi bi-arrow-left me-1"></i>Tilbake til oversikt
+                </button>
+            </div>
+
+            <!-- Check-in Statistics -->
+            <div class="row mb-4" id="checkin-stats">
                     <div class="col-md-3">
                         <div class="card bg-light">
                             <div class="card-body">
@@ -370,28 +378,41 @@
                     </div>
                 </div>
 
-                <!-- Checked-in Attendees List -->
-                <div class="table-responsive" id="checkin-list-container" style="display: none;">
-                    <h6 class="mb-3">Påmeldte deltakere</h6>
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Navn</th>
-                                <th>Kontakt</th>
-                                <th>Billett type</th>
-                                <th>Pris</th>
-                                <th>Betaling</th>
-                                <th>Innsjekket</th>
-                            </tr>
-                        </thead>
-                        <tbody id="checkin-attendees-list">
-                            <tr>
-                                <td colspan="6" class="text-center text-muted py-4">
-                                    Ingen deltakere ennå
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <!-- Checked-in Attendees List with Search and Filter -->
+                <div id="checkin-list-container" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">Påmeldte deltakere</h6>
+                        <div class="d-flex gap-2">
+                            <input type="text" id="attendee-search" class="form-control form-control-sm" placeholder="🔍 Søk navn, epost eller telefon..." style="width: 250px;">
+                            <select id="attendee-filter" class="form-select form-select-sm" style="width: 150px;">
+                                <option value="all">Alle</option>
+                                <option value="paid">Betalt</option>
+                                <option value="pending">Ubetalt</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Navn</th>
+                                    <th>Kontakt</th>
+                                    <th>Billett type</th>
+                                    <th>Pris</th>
+                                    <th>Betaling</th>
+                                    <th>Innsjekket</th>
+                                </tr>
+                            </thead>
+                            <tbody id="checkin-attendees-list">
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        Ingen deltakere ennå
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -498,7 +519,15 @@ document.addEventListener('DOMContentLoaded', function() {
             };
 
             try {
-                const response = await fetch('../api/create_event.php', {
+                // Determine if editing or creating
+                const isEditing = editingEventId !== null;
+                const endpoint = isEditing ? '../api/edit_event.php' : '../api/create_event.php';
+                
+                if (isEditing) {
+                    data.event_id = editingEventId;
+                }
+                
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -509,20 +538,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 const result = await response.json();
 
                 if (result.success) {
-                    alert('✅ Arrangement opprettet!');
+                    alert(isEditing ? '✅ Arrangement oppdatert!' : '✅ Arrangement opprettet!');
                     createEventForm.reset();
+                    editingEventId = null;
+                    
+                    // Reset form title and button
+                    document.querySelector('#events-create .card-title').textContent = 'Opprett nytt arrangement';
+                    document.querySelector('#create-event-form button[type="submit"]').innerHTML = '<i class="bi bi-check-circle me-1"></i>Opprett arrangement';
+                    
                     loadEvents();
                     // Switch to "Dine arrangement" tab
                     document.querySelector('[href="#events-my"]').click();
                 } else {
-                    alert('❌ Feil: ' + (result.message || 'Kunne ikke opprette arrangement'));
+                    alert('❌ Feil: ' + (result.message || 'Kunne ikke lagre arrangement'));
                 }
             } catch (error) {
-                console.error('Error creating event:', error);
-                alert('❌ Feil ved opprettelse av arrangement');
+                console.error('Error saving event:', error);
+                alert('❌ Feil ved lagring av arrangement');
             }
         });
     }
+    
+    // Reset editing mode when switching tabs
+    document.querySelectorAll('[href^="#events-"]').forEach(tab => {
+        tab.addEventListener('click', function() {
+            if (!this.getAttribute('href').includes('events-create')) {
+                editingEventId = null;
+                document.querySelector('#events-create .card-title').textContent = 'Opprett nytt arrangement';
+                document.querySelector('#create-event-form button[type="submit"]').innerHTML = '<i class="bi bi-check-circle me-1"></i>Opprett arrangement';
+                document.getElementById('create-event-form').reset();
+            }
+        });
+    });
 });
 
 async function loadEvents() {
@@ -588,8 +635,8 @@ async function loadEvents() {
                             <div class="event-footer">
                                 <div>${priceDisplay}</div>
                                 <div class="event-actions">
-                                    <button class="btn btn-sm btn-outline-primary" onclick="viewEvent('${event.id}')" title="Vis detaljer">
-                                        <i class="bi bi-eye"></i>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="editEvent('${event.id}')" title="Rediger">
+                                        <i class="bi bi-pencil"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger" onclick="deleteEvent('${event.id}')" title="Slett">
                                         <i class="bi bi-trash"></i>
@@ -625,8 +672,59 @@ async function loadEvents() {
     }
 }
 
-function viewEvent(eventId) {
-    alert('Visning av arrangement: ' + eventId);
+let editingEventId = null;
+
+async function editEvent(eventId) {
+    try {
+        // Fetch event details
+        const response = await fetch('../api/get_events.php');
+        const result = await response.json();
+        
+        if (result.success) {
+            const event = result.events.find(e => e.id == eventId);
+            if (!event) {
+                alert('❌ Fant ikke arrangement');
+                return;
+            }
+            
+            // Store editing ID
+            editingEventId = eventId;
+            
+            // Pre-fill form
+            const form = document.getElementById('create-event-form');
+            form.querySelector('[name="title"]').value = event.title || '';
+            form.querySelector('[name="description"]').value = event.description || '';
+            form.querySelector('[name="start_date"]').value = event.start_date || '';
+            form.querySelector('[name="start_time"]').value = event.start_time || '';
+            form.querySelector('[name="end_date"]').value = event.end_date || '';
+            form.querySelector('[name="end_time"]').value = event.end_time || '';
+            form.querySelector('[name="venue_name"]').value = event.venue_name || '';
+            form.querySelector('[name="event_address"]').value = event.event_address || '';
+            form.querySelector('[name="event_city"]').value = event.event_city || '';
+            form.querySelector('[name="event_postal"]').value = event.event_postal || '';
+            form.querySelector('[name="min_attendees"]').value = event.min_attendees || '';
+            form.querySelector('[name="max_attendees"]').value = event.max_attendees || '';
+            form.querySelector('[name="age_limit"]').value = event.age_limit || '';
+            form.querySelector('[name="ticket_price"]').value = event.ticket_price || '0';
+            form.querySelector('[name="member_ticket_price"]').value = event.member_ticket_price || '';
+            form.querySelector('[name="event_image_url"]').value = event.event_image_url || '';
+            
+            const memberExclusiveCheckbox = form.querySelector('[name="is_member_exclusive"]');
+            if (memberExclusiveCheckbox) {
+                memberExclusiveCheckbox.checked = event.is_member_exclusive == 1;
+            }
+            
+            // Update form title and button
+            document.querySelector('#events-create .card-title').textContent = 'Rediger arrangement';
+            document.querySelector('#create-event-form button[type="submit"]').innerHTML = '<i class="bi bi-check-circle me-1"></i>Oppdater arrangement';
+            
+            // Switch to create/edit tab
+            document.querySelector('[href="#events-create"]').click();
+        }
+    } catch (error) {
+        console.error('Error loading event for editing:', error);
+        alert('❌ Feil ved lasting av arrangement');
+    }
 }
 
 function deleteEvent(eventId) {
@@ -657,27 +755,179 @@ function deleteEvent(eventId) {
 // ========== CHECK-IN FUNCTIONALITY ==========
 
 let selectedEventId = null;
+let selectedEventData = null;
+let allAttendees = []; // Store all attendees for filtering
 
-// Load events into check-in selector
+// Load events into visual card selector
 async function loadCheckinEventSelector() {
     try {
         const response = await fetch('../api/get_events.php');
         const result = await response.json();
         
-        const selector = document.getElementById('checkin-event-selector');
+        const grid = document.getElementById('checkin-events-grid');
         if (result.success && result.events && result.events.length > 0) {
-            selector.innerHTML = '<option value="">-- Velg arrangement --</option>' + 
-                result.events.map(event => `
-                    <option value="${event.id}">
-                        ${event.title} - ${event.start_date} ${event.start_time}
-                    </option>
-                `).join('');
+            grid.innerHTML = result.events.map(event => {
+                const startDate = new Date(event.start_date + ' ' + event.start_time);
+                const dateStr = startDate.toLocaleDateString('no-NO', { day: 'numeric', month: 'short', year: 'numeric' });
+                const timeStr = event.start_time ? event.start_time.substring(0, 5) : '';
+                const imageUrl = event.event_image_url || '';
+                const capacity = event.max_attendees ? `${event.current_attendees || 0}/${event.max_attendees}` : 'Ubegrenset';
+                
+                return `
+                    <div class="col-md-4">
+                        <div class="card h-100 hover-shadow" style="cursor: pointer;" onclick="selectEventForCheckin('${event.id}', '${event.title.replace(/'/g, "\\'")}', '${dateStr} ${timeStr}')">
+                            ${imageUrl ? `
+                                <div style="height: 150px; background: url('${imageUrl}') center/cover; border-radius: 8px 8px 0 0;"></div>
+                            ` : `
+                                <div class="d-flex align-items-center justify-content-center bg-light" style="height: 150px; border-radius: 8px 8px 0 0;">
+                                    <i class="bi bi-calendar-event" style="font-size: 3rem; color: #ccc;"></i>
+                                </div>
+                            `}
+                            <div class="card-body">
+                                <h6 class="card-title mb-2">${event.title}</h6>
+                                <p class="text-muted small mb-2">
+                                    <i class="bi bi-calendar3 me-1"></i>${dateStr} ${timeStr}
+                                </p>
+                                <p class="text-muted small mb-2">
+                                    <i class="bi bi-geo-alt me-1"></i>${event.venue_name || event.event_city || 'Ikke angitt'}
+                                </p>
+                                <p class="text-muted small mb-0">
+                                    <i class="bi bi-people me-1"></i>${capacity} plasser
+                                </p>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <small class="text-primary"><i class="bi bi-box-arrow-in-right me-1"></i>Klikk for innsjekking</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         } else {
-            selector.innerHTML = '<option value="">Ingen arrangementer tilgjengelig</option>';
+            grid.innerHTML = `
+                <div class="col-12 text-center py-5">
+                    <i class="bi bi-calendar-x" style="font-size: 3rem; color: #ccc;"></i>
+                    <p class="text-muted mt-2">Ingen arrangementer tilgjengelig for innsjekking</p>
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Error loading events:', error);
+        document.getElementById('checkin-events-grid').innerHTML = `
+            <div class="col-12 text-center py-5">
+                <i class="bi bi-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+                <p class="text-muted mt-2">Feil ved lasting av arrangementer</p>
+            </div>
+        `;
     }
+}
+
+async function selectEventForCheckin(eventId, eventTitle, eventDate) {
+    selectedEventId = eventId;
+    document.getElementById('checkin-event-title').textContent = eventTitle;
+    document.getElementById('checkin-event-date').textContent = eventDate;
+    
+    // Fetch full event data to get pricing
+    try {
+        const response = await fetch('../api/get_events.php');
+        const result = await response.json();
+        
+        if (result.success) {
+            selectedEventData = result.events.find(e => e.id == eventId);
+            
+            // Update ticket type dropdown with actual prices
+            updateTicketTypeOptions();
+        }
+    } catch (error) {
+        console.error('Error loading event data:', error);
+    }
+    
+    // Hide event selection, show check-in interface
+    document.getElementById('checkin-event-selection').style.display = 'none';
+    document.getElementById('checkin-interface').style.display = 'block';
+    
+    // Load check-ins for this event
+    loadCheckins(eventId);
+}
+
+function updateTicketTypeOptions() {
+    if (!selectedEventData) return;
+    
+    const ticketTypeSelect = document.querySelector('[name="ticket_type"]');
+    if (!ticketTypeSelect) return;
+    
+    let options = [];
+    
+    // Always add regular ticket if there's a price
+    if (selectedEventData.ticket_price > 0) {
+        options.push({
+            value: 'regular',
+            label: `Ordinær (${parseFloat(selectedEventData.ticket_price).toFixed(2)} kr)`,
+            price: selectedEventData.ticket_price
+        });
+    } else {
+        options.push({
+            value: 'regular',
+            label: 'Ordinær (Gratis)',
+            price: 0
+        });
+    }
+    
+    // Add member ticket if different from regular
+    if (selectedEventData.member_ticket_price !== null && 
+        selectedEventData.member_ticket_price !== undefined && 
+        selectedEventData.member_ticket_price != selectedEventData.ticket_price) {
+        options.push({
+            value: 'member',
+            label: `Medlem (${parseFloat(selectedEventData.member_ticket_price).toFixed(2)} kr)`,
+            price: selectedEventData.member_ticket_price
+        });
+    }
+    
+    // Always add VIP and Staff options
+    options.push({
+        value: 'vip',
+        label: 'VIP (Egen pris)',
+        price: selectedEventData.ticket_price
+    });
+    
+    options.push({
+        value: 'staff',
+        label: 'Ansatt (Gratis)',
+        price: 0
+    });
+    
+    // Build dropdown
+    ticketTypeSelect.innerHTML = options.map(opt => 
+        `<option value="${opt.value}" data-price="${opt.price}">${opt.label}</option>`
+    ).join('');
+    
+    // Add change event to update payment visibility
+    ticketTypeSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const price = parseFloat(selectedOption.getAttribute('data-price') || 0);
+        
+        // If staff or free, uncheck payment
+        if (this.value === 'staff' || price === 0) {
+            document.getElementById('isPayingCheckbox').checked = false;
+            document.getElementById('payment-method-container').style.display = 'none';
+        } else {
+            document.getElementById('isPayingCheckbox').checked = true;
+            document.getElementById('payment-method-container').style.display = 'block';
+        }
+    });
+}
+
+function backToEventSelection() {
+    selectedEventId = null;
+    allAttendees = [];
+    document.getElementById('checkin-event-selection').style.display = 'block';
+    document.getElementById('checkin-interface').style.display = 'none';
+    
+    // Clear search and filter
+    const searchInput = document.getElementById('attendee-search');
+    const filterSelect = document.getElementById('attendee-filter');
+    if (searchInput) searchInput.value = '';
+    if (filterSelect) filterSelect.value = 'all';
 }
 
 // Handle payment toggle
@@ -715,21 +965,71 @@ document.querySelector('[name="attendee_email"]')?.addEventListener('blur', asyn
     }
 });
 
-// Handle event selection
-document.getElementById('checkin-event-selector')?.addEventListener('change', function(e) {
-    selectedEventId = e.target.value;
-    
-    if (selectedEventId) {
-        document.getElementById('checkin-stats').style.display = 'block';
-        document.getElementById('checkin-form-container').style.display = 'block';
-        document.getElementById('checkin-list-container').style.display = 'block';
-        loadCheckins(selectedEventId);
-    } else {
-        document.getElementById('checkin-stats').style.display = 'none';
-        document.getElementById('checkin-form-container').style.display = 'none';
-        document.getElementById('checkin-list-container').style.display = 'none';
-    }
+// Search and filter attendees
+document.getElementById('attendee-search')?.addEventListener('input', function(e) {
+    filterAttendees();
 });
+
+document.getElementById('attendee-filter')?.addEventListener('change', function(e) {
+    filterAttendees();
+});
+
+function filterAttendees() {
+    const searchTerm = document.getElementById('attendee-search')?.value.toLowerCase() || '';
+    const filterValue = document.getElementById('attendee-filter')?.value || 'all';
+    
+    let filtered = allAttendees;
+    
+    // Apply payment status filter
+    if (filterValue === 'paid') {
+        filtered = filtered.filter(a => a.payment_status === 'paid');
+    } else if (filterValue === 'pending') {
+        filtered = filtered.filter(a => a.payment_status === 'pending');
+    }
+    
+    // Apply search filter
+    if (searchTerm) {
+        filtered = filtered.filter(a => {
+            const name = (a.attendee_name || '').toLowerCase();
+            const email = (a.attendee_email || '').toLowerCase();
+            const phone = (a.attendee_phone || '').toLowerCase();
+            return name.includes(searchTerm) || email.includes(searchTerm) || phone.includes(searchTerm);
+        });
+    }
+    
+    // Render filtered list
+    renderAttendeeList(filtered);
+}
+
+function renderAttendeeList(attendees) {
+    const tbody = document.getElementById('checkin-attendees-list');
+    if (!attendees || attendees.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Ingen deltakere funnet</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = attendees.map(attendee => {
+        const checkedInDate = new Date(attendee.created_at);
+        const checkedInStr = checkedInDate.toLocaleString('no-NO');
+        const paymentBadge = attendee.payment_status === 'paid' 
+            ? '<span class="badge bg-success">Betalt</span>' 
+            : '<span class="badge bg-warning text-dark">Venter</span>';
+        
+        return `
+            <tr>
+                <td><strong>${attendee.attendee_name}</strong></td>
+                <td>
+                    ${attendee.attendee_email ? `<div><small>${attendee.attendee_email}</small></div>` : ''}
+                    ${attendee.attendee_phone ? `<div><small>${attendee.attendee_phone}</small></div>` : ''}
+                </td>
+                <td><span class="badge bg-secondary">${attendee.ticket_type || 'Ordinær'}</span></td>
+                <td><strong>${parseFloat(attendee.amount_paid || 0).toFixed(2)} kr</strong></td>
+                <td>${paymentBadge}</td>
+                <td><small class="text-muted">${checkedInStr}</small></td>
+            </tr>
+        `;
+    }).join('');
+}
 
 // Check-in form submission
 document.getElementById('checkin-form')?.addEventListener('submit', async function(e) {
@@ -790,38 +1090,15 @@ async function loadCheckins(eventId) {
             document.getElementById('checkin-pending-count').textContent = result.summary.pending_count;
             document.getElementById('checkin-total-revenue').textContent = result.summary.total_revenue.toFixed(2) + ' kr';
             
-            // Update attendee list
-            const list = document.getElementById('checkin-attendees-list');
-            if (result.checkins && result.checkins.length > 0) {
-                list.innerHTML = result.checkins.map(checkin => {
-                    const name = checkin.attendee_name || (checkin.first_name + ' ' + checkin.last_name);
-                    const contact = checkin.attendee_email || checkin.attendee_phone || '-';
-                    const checkinTime = checkin.check_in_time ? new Date(checkin.check_in_time).toLocaleString('no-NO') : '-';
-                    
-                    const paymentBadge = checkin.payment_status === 'paid' 
-                        ? '<span class="badge bg-success">Betalt</span>' 
-                        : '<span class="badge bg-warning">Venter</span>';
-                    
-                    return `
-                        <tr>
-                            <td><strong>${name}</strong></td>
-                            <td>${contact}</td>
-                            <td>${checkin.ticket_type}</td>
-                            <td>${checkin.ticket_price} kr</td>
-                            <td>${paymentBadge}</td>
-                            <td><small>${checkinTime}</small></td>
-                        </tr>
-                    `;
-                }).join('');
-            } else {
-                list.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="text-center text-muted py-4">
-                            Ingen deltakere ennå
-                        </td>
-                    </tr>
-                `;
-            }
+            // Store all attendees for filtering
+            allAttendees = result.checkins || [];
+            
+            // Render initial list
+            renderAttendeeList(allAttendees);
+            
+            // Show containers
+            document.getElementById('checkin-form-container').style.display = 'block';
+            document.getElementById('checkin-list-container').style.display = 'block';
         }
     } catch (error) {
         console.error('Error loading check-ins:', error);
