@@ -9,6 +9,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/EmailService.php';
+require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -107,6 +108,42 @@ try {
         $_SESSION['tenant_admin_id'],
         $data['notes'] ?? null
     ]);
+    
+    // Log to unified_ledger when payment is completed
+    if ($paymentStatus === 'paid') {
+        $ledgerService = new UnifiedLedgerService($db, $_SESSION['company_id']);
+        
+        // Get event cost_price for profit tracking
+        $costStmt = $db->prepare("SELECT cost_price FROM events_eventdata WHERE id = ?");
+        $costStmt->execute([$data['event_id']]);
+        $costResult = $costStmt->fetch(PDO::FETCH_ASSOC);
+        $costPrice = ($costResult && $costResult['cost_price']) ? $costResult['cost_price'] : null;
+        
+        // Generate order ID for this event checkin
+        $orderId = 'EVT-' . date('Ymd') . '-' . strtoupper(substr($checkinId, 0, 6));
+        
+        $ledgerService->logTransaction([
+            'order_id' => $orderId,
+            'module_source' => 'events',
+            'item_type' => 'event',
+            'source_id' => $checkinId,
+            'item_name' => $event['title'],
+            'quantity' => 1,
+            'selling_price' => $ticketPrice,
+            'cost_price' => $costPrice,
+            'customer_name' => $data['attendee_name'] ?? null,
+            'customer_email' => $data['attendee_email'] ?? null,
+            'payment_method' => $data['payment_method'] ?? 'cash',
+            'payment_status' => 'completed',
+            'status' => 'active',
+            'transaction_date' => date('Y-m-d H:i:s'),
+            'metadata' => [
+                'event_id' => $data['event_id'],
+                'ticket_type' => $ticketType,
+                'checkin_id' => $checkinId
+            ]
+        ]);
+    }
     
     // Send confirmation email if attendee email is provided
     $emailSent = false;
