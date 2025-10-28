@@ -32,8 +32,8 @@
                 </ul>
             </div>
             
-            <button class="btn btn-warning btn-lg" onclick="showEmailConfigModal()">
-                <i class="bi bi-gear me-2"></i>Konfigurer e-post nå
+            <button class="btn btn-warning btn-lg" disabled>
+                <i class="bi bi-gear me-2"></i>Konfigurasjon kreves
             </button>
         </div>
     </div>

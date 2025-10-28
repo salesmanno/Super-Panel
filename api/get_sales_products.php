@@ -9,10 +9,10 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     exit;
 }
 
-try {
-    $db = getDBConnection();
-    $company_id = $_SESSION['company_id'];
+$db = getDBConnection();
+$company_id = $_SESSION['company_id'];
 
+try {
     $stmt = $db->prepare("
         SELECT 
             id,
@@ -21,9 +21,8 @@ try {
             description,
             cost_price,
             selling_price,
-            (selling_price - COALESCE(cost_price, 0)) as profit_margin,
-            img_product,
-            item_taxable,
+            (selling_price - IFNULL(cost_price, 0)) as profit_margin,
+            member_price,
             category_id,
             is_active,
             created_at
@@ -44,7 +43,6 @@ try {
     error_log("Get sales products error: " . $e->getMessage());
     echo json_encode([
         'success' => false,
-        'message' => 'Database utilgjengelig',
-        'products' => []
+        'message' => 'Feil ved henting av produkter: ' . $e->getMessage()
     ]);
 }

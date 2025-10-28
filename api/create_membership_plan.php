@@ -26,43 +26,37 @@ try {
         $outputProductId = bin2hex(random_bytes(16));
         $planCode = 'PLAN-' . strtoupper(substr($planId, 0, 8));
         
-        // 1. Opprett medlemskapsplan
+        // 1. Opprett medlemskapsplan (match faktisk PostgreSQL struktur)
         $stmt = $db->prepare("
             INSERT INTO membership_plans (
-                id,
                 company_id,
-                plan_code,
-                name,
+                plan_name,
                 description,
                 price,
-                currency,
-                billing_cycle,
-                benefits,
+                duration_months,
+                features,
                 is_active,
                 created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, 'NOK', ?, ?, TRUE, NOW())
+            ) VALUES (?, ?, ?, ?, ?, ?, 1, NOW())
+            RETURNING plan_id
         ");
         
         $billingCycle = $data['billing_cycle'] ?? 'monthly';
+        $durationMonths = $billingCycle === 'yearly' ? 12 : 1;
         
         $stmt->execute([
-            $planId,
             $_SESSION['company_id'],
-            $planCode,
             $data['name'],
             $data['description'] ?? null,
             $data['price'] ?? 0,
-            $billingCycle,
+            $durationMonths,
             $data['benefits'] ?? null
         ]);
         
-        // 2. Get membership module ID
-        $stmt = $db->prepare("SELECT id FROM system_modules WHERE module_key = 'membership' LIMIT 1");
-        $stmt->execute();
-        $module = $stmt->fetch(PDO::FETCH_ASSOC);
-        $moduleId = $module ? $module['id'] : '5'; // Fallback to 5 if not found
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $planId = $result['plan_id'];
         
-        // 3. Auto-generer output_products entry
+        // 2. Auto-generer output_products entry
         $stmt = $db->prepare("
             INSERT INTO output_products (
                 id,
@@ -70,25 +64,18 @@ try {
                 module_id,
                 product_type,
                 product_id,
-                name,
-                description,
-                price,
                 is_visible,
                 is_public,
                 is_marketplace_featured,
                 created_at,
                 created_by
-            ) VALUES (?, ?, ?, 'membership', ?, ?, ?, ?, TRUE, TRUE, FALSE, NOW(), ?)
+            ) VALUES (?, ?, 1, 'membership', ?, 1, 1, 0, NOW(), ?)
         ");
         
         $stmt->execute([
             $outputProductId,
             $_SESSION['company_id'],
-            $moduleId,
             $planId,
-            $data['name'],
-            $data['description'] ?? '',
-            $data['price'] ?? 0,
             $_SESSION['tenant_admin_id']
         ]);
         

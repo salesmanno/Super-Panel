@@ -106,10 +106,6 @@ try {
     
 } catch (Exception $e) {
     error_log("Get reservations overview error: " . $e->getMessage());
-    echo json_encode([
-        'success' => false,
-        'error' => 'Database utilgjengelig',
-        'reservations' => [],
-        'stats' => ['total' => 0, 'pending' => 0, 'confirmed' => 0, 'cancelled' => 0, 'completed' => 0, 'total_value' => 0]
-    ]);
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Serverfeil: ' . $e->getMessage()]);
 }

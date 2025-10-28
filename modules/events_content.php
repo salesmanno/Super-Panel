@@ -115,7 +115,8 @@
 }
 </style>
 
-<div id="events-my" class="subtab-content">
+<div class="module-content">
+    <div id="events-my" class="subtab-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h4 class="mb-1"><i class="bi bi-calendar-event me-2"></i>Dine arrangement</h4>
@@ -142,11 +143,11 @@
                 <h5 class="card-title">Opprett nytt arrangement</h5>
                 <form id="create-event-form">
                     <div class="row">
-                        <div class="col-md-8 mb-3">
+                        <div class="col-md-<?php echo isset($hasMembershipAccess) && $hasMembershipAccess ? '8' : '12'; ?> mb-3">
                             <label class="form-label">Arrangement navn *</label>
                             <input type="text" class="form-control" name="title" required>
                         </div>
-                        <?php if (isset($GLOBALS['hasMembershipAccess']) && $GLOBALS['hasMembershipAccess']): ?>
+                        <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Kun for medlemmer?</label>
                             <div class="form-check form-switch mt-2">
@@ -225,7 +226,7 @@
                         </div>
                     </div>
 
-                    <?php if (isset($GLOBALS['hasMembershipAccess']) && $GLOBALS['hasMembershipAccess']): ?>
+                    <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Medlemspris (NOK)</label>
@@ -482,6 +483,7 @@
             </div>
         </div>
     </div>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -1110,7 +1112,7 @@ async function loadPendingRegistrations(eventId) {
             container.style.display = 'block';
             
             listEl.innerHTML = result.registrations.map(reg => {
-                const customerName = reg.customer_name || 'Ukjent';
+                const customerName = `${reg.customer_first_name} ${reg.customer_last_name}`;
                 const price = parseFloat(reg.unit_price || 0).toFixed(2);
                 const quantity = reg.quantity || 1;
                 const total = (parseFloat(reg.unit_price || 0) * quantity).toFixed(2);

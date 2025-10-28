@@ -19,8 +19,7 @@ $adminRole = $_SESSION['admin_role'] ?? 'admin';
 // Hent company logo, subdomain og status fra database
 $companyLogo = null;
 $companySubdomain = $_SESSION['subdomain'] ?? null;
-$companyIsActive = true; // Default til true
-$dbAvailable = true;
+$companyIsActive = false;
 try {
     $db = getDBConnection();
     if ($db && isset($_SESSION['subdomain'])) {
@@ -56,18 +55,10 @@ try {
         }
     }
 } catch (Exception $e) {
-    error_log("Failed to load company logo (database unavailable): " . $e->getMessage());
-    $dbAvailable = false;
     $companyLogo = null;
 }
 
-$allUserModules = [];
-try {
-    $allUserModules = getTenantAdminModules($_SESSION['tenant_admin_id']);
-} catch (Exception $e) {
-    error_log("Failed to load user modules (database unavailable): " . $e->getMessage());
-    $dbAvailable = false;
-}
+$allUserModules = getTenantAdminModules($_SESSION['tenant_admin_id']);
 
 // Ditt nettsted skal ikke vises i nav baren, kun tilgjengelig via firma-navnet
 $hiddenModules = ['dashboard', 'ditt_nettsted'];
@@ -82,13 +73,7 @@ $userModules = array_values(array_filter($allUserModules, function($module) use 
 
 // Kun vis moduler som ikke skal skjules i nav baren
 $visibleModules = $userModules;
-$allModules = [];
-try {
-    $allModules = getCompanyModules($_SESSION['company_id']);
-} catch (Exception $e) {
-    error_log("Failed to load company modules (database unavailable): " . $e->getMessage());
-    $dbAvailable = false;
-}
+$allModules = getCompanyModules($_SESSION['company_id']);
 
 // Sjekk om email er konfigurert (med SMTP data)
 $webmailConfigured = false;
@@ -114,8 +99,7 @@ try {
         $webmailConfigured = $smtpConfigured && $hasAccount;
     }
 } catch (Exception $e) {
-    error_log("Failed to check email config (database unavailable): " . $e->getMessage());
-    $dbAvailable = false;
+    // Tabellene eksisterer ikke ennå
     $webmailConfigured = false;
     $smtpConfigured = false;
 }
@@ -130,8 +114,7 @@ try {
         $paymentConfigured = ($stmt->fetchColumn() > 0);
     }
 } catch (Exception $e) {
-    error_log("Failed to check payment config (database unavailable): " . $e->getMessage());
-    $dbAvailable = false;
+    // Tabellen eksisterer ikke ennå
     $paymentConfigured = false;
 }
 ?>
@@ -766,10 +749,10 @@ try {
                                 break;
                             case 'events':
                                 // Check if user has membership module access
-                                $GLOBALS['hasMembershipAccess'] = false;
+                                $hasMembershipAccess = false;
                                 foreach ($allUserModules as $userMod) {
                                     if ($userMod['module_key'] === 'membership') {
-                                        $GLOBALS['hasMembershipAccess'] = true;
+                                        $hasMembershipAccess = true;
                                         break;
                                     }
                                 }
@@ -902,11 +885,6 @@ try {
                                         <li class="nav-item" role="presentation">
                                             <button class="nav-link" id="firma-tab-3" data-bs-toggle="tab" data-bs-target="#firma-staff" type="button" role="tab">
                                                 <i class="bi bi-people me-2"></i>Stillinger
-                                            </button>
-                                        </li>
-                                        <li class="nav-item" role="presentation">
-                                            <button class="nav-link" id="firma-tab-4" data-bs-toggle="tab" data-bs-target="#firma-website" type="button" role="tab">
-                                                <i class="bi bi-globe me-2"></i>Deres nettsted
                                             </button>
                                         </li>
                                     </ul>

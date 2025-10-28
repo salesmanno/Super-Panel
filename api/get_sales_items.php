@@ -79,7 +79,6 @@ try {
     error_log("Error fetching sales items: " . $e->getMessage());
     echo json_encode([
         'success' => false,
-        'message' => 'Database utilgjengelig',
-        'items' => []
+        'message' => 'Feil ved henting av produkter'
     ]);
 }

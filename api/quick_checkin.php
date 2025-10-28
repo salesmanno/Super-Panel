@@ -23,9 +23,10 @@ try {
     
     // Get booking details
     $stmt = $db->prepare("
-        SELECT * 
-        FROM service_bookings
-        WHERE id = ? AND company_id = ?
+        SELECT sb.*, tc.first_name, tc.last_name, tc.email, tc.phone
+        FROM service_bookings sb
+        LEFT JOIN tenant_customers tc ON sb.customer_id = tc.id
+        WHERE sb.id = ? AND sb.company_id = ?
     ");
     $stmt->execute([$bookingId, $_SESSION['company_id']]);
     $booking = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -36,7 +37,7 @@ try {
     }
     
     // Get event details for ticket pricing
-    $stmt = $db->prepare("SELECT title, ticket_price, member_ticket_price, cost_price FROM events_eventdata WHERE id = ?");
+    $stmt = $db->prepare("SELECT ticket_price, member_ticket_price FROM events_eventdata WHERE id = ?");
     $stmt->execute([$eventId]);
     $event = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -46,8 +47,8 @@ try {
     }
     
     // Create check-in record
-    $customerName = $booking['customer_name'] ?? 'Ukjent';
-    $ticketPrice = $booking['selling_price'] ?? $event['ticket_price'];
+    $customerName = trim(($booking['first_name'] ?? '') . ' ' . ($booking['last_name'] ?? ''));
+    $ticketPrice = $booking['unit_price'] ?? $event['ticket_price'];
     
     $sql = "INSERT INTO events_checkin (
         event_id,
@@ -70,94 +71,20 @@ try {
         $eventId,
         $bookingId,
         $customerName,
-        $booking['customer_email'] ?? '',
-        $booking['customer_phone'] ?? '',
+        $booking['email'] ?? '',
+        $booking['phone'] ?? '',
         'regular', // Default to regular ticket
         $ticketPrice,
         $booking['payment_method'] ?? 'online',
         $booking['payment_status'] ?? 'pending',
-        $ticketPrice,
+        $ticketPrice * ($booking['quantity'] ?? 1),
         'Sjekket inn fra påmelding'
     ]);
-    
-    $checkinId = $db->lastInsertId();
-    
-    // Create transaction record for economy module
-    try {
-        $transactionId = bin2hex(random_bytes(16));
-        $totalAmount = $ticketPrice;
-        
-        // Insert into sales_transactions
-        $stmt = $db->prepare("
-            INSERT INTO sales_transactions (
-                id,
-                company_id,
-                transaction_type,
-                service_type,
-                service_id,
-                customer_name,
-                customer_email,
-                customer_phone,
-                total_amount,
-                payment_method,
-                payment_status,
-                created_by,
-                created_at
-            ) VALUES (?, ?, 'service', 'event', ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-        ");
-        $stmt->execute([
-            $transactionId,
-            $_SESSION['company_id'],
-            $eventId,
-            $customerName,
-            $booking['customer_email'] ?? null,
-            $booking['customer_phone'] ?? null,
-            $totalAmount,
-            $booking['payment_method'] ?? 'online',
-            $booking['payment_status'] ?? 'pending',
-            $_SESSION['tenant_admin_id']
-        ]);
-        
-        // Insert into unified_ledger for centralized financial tracking
-        $profitMargin = $totalAmount - ($event['cost_price'] ?? 0);
-        
-        $stmt = $db->prepare("
-            INSERT INTO unified_ledger (
-                id,
-                company_id,
-                transaction_type,
-                source_module,
-                source_id,
-                description,
-                amount,
-                cost,
-                profit,
-                payment_method,
-                payment_status,
-                transaction_date,
-                created_at
-            ) VALUES (?, ?, 'sale', 'events', ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-        ");
-        $stmt->execute([
-            bin2hex(random_bytes(16)),
-            $_SESSION['company_id'],
-            $checkinId,
-            $event['title'] . ' - Quick check-in',
-            $totalAmount,
-            $event['cost_price'] ?? 0,
-            $profitMargin,
-            $booking['payment_method'] ?? 'online',
-            $booking['payment_status'] ?? 'pending'
-        ]);
-    } catch (Exception $e) {
-        error_log("Transaction creation error: " . $e->getMessage());
-        // Don't fail the check-in if transaction fails
-    }
     
     echo json_encode([
         'success' => true,
         'message' => 'Deltaker sjekket inn',
-        'checkin_id' => $checkinId
+        'checkin_id' => $db->lastInsertId()
     ]);
     
 } catch (Exception $e) {

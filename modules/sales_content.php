@@ -1,4 +1,5 @@
-<div id="sales-varesalg" class="subtab-content active">
+<div class="module-content">
+    <div id="sales-varesalg" class="subtab-content active">
         <div class="row">
             <!-- Products with Shopping Cart -->
             <div class="col-md-8">
@@ -452,6 +453,7 @@
             </div>
         </div>
     </div>
+</div>
 
 <script>
 console.log('=== SALES MODULE SCRIPT LOADED ===');
@@ -759,40 +761,29 @@ if (salesModule) {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded fired in sales module');
     
-    // Wait for all elements to be loaded
-    setTimeout(() => {
-        const salesTab = document.getElementById('tab-sales');
-        const salesContent = document.getElementById('content-sales');
+    const salesTab = document.getElementById('tab-sales');
+    const salesContent = document.getElementById('content-sales');
+    
+    console.log('Sales tab button:', salesTab);
+    console.log('Sales content pane:', salesContent);
+    
+    if (salesTab) {
+        // Listen for tab shown event
+        salesTab.addEventListener('shown.bs.tab', function(e) {
+            console.log('✅ Sales tab shown via event - loading data...');
+            loadAllSalesData();
+        });
         
-        console.log('Sales tab button:', salesTab);
-        console.log('Sales content pane:', salesContent);
-        
-        if (salesTab) {
-            // Listen for tab shown event
-            salesTab.addEventListener('shown.bs.tab', function(e) {
-                console.log('✅ Sales tab shown via event - loading data...');
-                loadAllSalesData();
-            });
-            
-            // Check if already active on page load
-            if (salesTab.classList.contains('active') && salesContent && salesContent.classList.contains('active')) {
-                console.log('✅ Sales is already active tab - loading data immediately...');
-                loadAllSalesData();
-            }
-        } else {
-            console.error('❌ #tab-sales button not found! Retrying...');
-            // Retry after a short delay
+        // Check if already active on page load
+        if (salesTab.classList.contains('active') && salesContent && salesContent.classList.contains('active')) {
+            console.log('✅ Sales is already active tab - loading data immediately...');
             setTimeout(() => {
-                const retryTab = document.getElementById('tab-sales');
-                if (retryTab) {
-                    retryTab.addEventListener('shown.bs.tab', function(e) {
-                        console.log('✅ Sales tab shown (retry) - loading data...');
-                        loadAllSalesData();
-                    });
-                }
-            }, 500);
+                loadAllSalesData();
+            }, 200);
         }
-    }, 100);
+    } else {
+        console.error('❌ #tab-sales button not found!');
+    }
 });
 
 // Load all sales data in one function

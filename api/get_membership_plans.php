@@ -15,17 +15,18 @@ try {
     
     $stmt = $db->prepare("
         SELECT 
-            id,
-            name,
+            plan_id as id,
+            plan_name as name,
             description,
             price,
-            currency,
-            billing_cycle,
-            benefits,
+            duration_months,
+            features as benefits,
             is_active,
-            created_at
+            created_at,
+            'NOK' as currency,
+            CASE WHEN duration_months = 12 THEN 'yearly' ELSE 'monthly' END as billing_cycle
         FROM membership_plans
-        WHERE company_id = ? AND is_active = TRUE
+        WHERE company_id = ? AND is_active = true
         ORDER BY created_at DESC
     ");
     
@@ -41,7 +42,6 @@ try {
     error_log("Error fetching membership plans: " . $e->getMessage());
     echo json_encode([
         'success' => false,
-        'error' => 'Database utilgjengelig',
-        'plans' => []
+        'error' => 'Kunne ikke hente medlemskapsplaner'
     ]);
 }
