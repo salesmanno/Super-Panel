@@ -766,10 +766,10 @@ try {
                                 break;
                             case 'events':
                                 // Check if user has membership module access
-                                $hasMembershipAccess = false;
+                                $GLOBALS['hasMembershipAccess'] = false;
                                 foreach ($allUserModules as $userMod) {
                                     if ($userMod['module_key'] === 'membership') {
-                                        $hasMembershipAccess = true;
+                                        $GLOBALS['hasMembershipAccess'] = true;
                                         break;
                                     }
                                 }
