@@ -980,6 +980,57 @@ try {
             
             return false;
         }
+
+        async function handleSaveWebsideData(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const formData = new FormData(form);
+            
+            // Organize data into config and general sections
+            const config = {};
+            const general = {};
+            
+            formData.forEach((value, key) => {
+                if (key.startsWith('config_')) {
+                    const fieldName = key.replace('config_', '');
+                    config[fieldName] = value;
+                } else if (key.startsWith('general_')) {
+                    const fieldName = key.replace('general_', '');
+                    general[fieldName] = value;
+                }
+            });
+            
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Lagrer...';
+            
+            try {
+                const response = await fetch('/api/update_webside_data.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ config, general })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('✅ Websideinnstillinger lagret!');
+                } else {
+                    alert('❌ Feil: ' + (result.error || 'Kunne ikke lagre websideinnstillinger'));
+                }
+            } catch (error) {
+                console.error('Error saving webside data:', error);
+                alert('❌ Feil ved lagring av websideinnstillinger');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-save me-2"></i>Lagre Innstillinger';
+            }
+            
+            return false;
+        }
         
         function refreshSession() {
             fetch('/api/refresh_session.php')
