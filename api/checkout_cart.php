@@ -2,6 +2,7 @@
 session_start();
 require_once '../config/database.php';
 require_once '../includes/EmailService.php';
+require_once '../includes/UnifiedLedgerService.php';
 
 header('Content-Type: application/json');
 
@@ -61,6 +62,9 @@ try {
     }
     
     // Create sales transaction record for each item (current schema)
+    // Also log to unified_ledger for centralized economy tracking
+    $ledgerService = new UnifiedLedgerService($db, $company_id);
+    
     foreach ($items as $item) {
         $itemTotal = $item['quantity'] * $item['price'];
         
@@ -94,6 +98,40 @@ try {
             $notes,
             $admin_id,
             $currentTimestamp
+        ]);
+        
+        // Get cost_price for profit tracking
+        $costPrice = null;
+        if ($item['product_id']) {
+            $costStmt = $db->prepare("SELECT cost_price FROM sales_products WHERE id = ?");
+            $costStmt->execute([$item['product_id']]);
+            $costResult = $costStmt->fetch(PDO::FETCH_ASSOC);
+            if ($costResult) {
+                $costPrice = $costResult['cost_price'] ? ($costResult['cost_price'] * $item['quantity']) : null;
+            }
+        }
+        
+        // Log to unified_ledger
+        $ledgerService->logTransaction([
+            'order_id' => $orderId,
+            'module_source' => 'sales',
+            'item_type' => 'product',
+            'source_id' => $itemTransactionId,
+            'item_name' => $item['product_name'],
+            'quantity' => $item['quantity'],
+            'selling_price' => $itemTotal,
+            'cost_price' => $costPrice,
+            'customer_name' => $customer_name ?: 'Walk-in',
+            'customer_email' => $customer_email ?: null,
+            'payment_method' => $payment_method,
+            'payment_status' => 'completed',
+            'status' => 'active',
+            'transaction_date' => $currentTimestamp,
+            'metadata' => [
+                'product_id' => $item['product_id'],
+                'unit_price' => $item['price'],
+                'notes' => $notes
+            ]
         ]);
     }
     
