@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_POST['site_description'],
             $_POST['primary_color'],
             $_POST['secondary_color'],
-            isset($_POST['hero_enabled']) ? TRUE : FALSE,
+            isset($_POST['hero_enabled']) ? 1 : 0,
             $_POST['hero_title'],
             $_POST['hero_description'],
             $_POST['hero_button_text'],

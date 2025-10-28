@@ -109,7 +109,7 @@ $paymentConfigured = false;
 try {
     $db = getDBConnection();
     if ($db) {
-        $stmt = $db->prepare("SELECT COUNT(*) FROM payment_integrations WHERE company_id = ? AND is_active = TRUE");
+        $stmt = $db->prepare("SELECT COUNT(*) FROM payment_integrations WHERE company_id = ? AND is_active = 1");
         $stmt->execute([$_SESSION['company_id']]);
         $paymentConfigured = ($stmt->fetchColumn() > 0);
     }

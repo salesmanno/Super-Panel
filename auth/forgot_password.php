@@ -34,7 +34,7 @@ try {
     $stmt = $db->prepare("
         SELECT id, email, mfa_secret 
         FROM tenant_admins 
-        WHERE email = ? AND mfa_secret = ? AND is_active = TRUE
+        WHERE email = ? AND mfa_secret = ? AND is_active = 1
         LIMIT 1
     ");
     $stmt->execute([$email, $secret]);
