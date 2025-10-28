@@ -1,8 +1,89 @@
+<style>
+.barcode-scanner-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+}
+
+.barcode-scanner-card .card-body {
+    padding: 2rem;
+}
+
+.barcode-icon {
+    font-size: 4rem;
+    opacity: 0.9;
+}
+
+.barcode-scanner-card h5, 
+.barcode-scanner-card p {
+    color: white;
+}
+
+.barcode-input {
+    background: rgba(255, 255, 255, 0.95);
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: 2px;
+    padding: 1rem 1.5rem;
+    max-width: 500px;
+    margin: 0 auto;
+    transition: all 0.3s ease;
+}
+
+.barcode-input:focus {
+    background: white;
+    border-color: #10b981;
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+    outline: none;
+}
+
+.barcode-scanner-card.scanning {
+    animation: pulse-scan 1s ease-in-out;
+}
+
+@keyframes pulse-scan {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+}
+
+.scan-feedback {
+    min-height: 30px;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.scan-feedback.success {
+    color: #10b981;
+}
+
+.scan-feedback.error {
+    color: #ef4444;
+}
+</style>
+
 <div class="module-content">
     <div id="sales-varesalg" class="subtab-content active">
         <div class="row">
             <!-- Products with Shopping Cart -->
             <div class="col-md-8">
+                <!-- Barcode Scanner Target -->
+                <div class="card mb-3 barcode-scanner-card">
+                    <div class="card-body text-center py-4">
+                        <div class="barcode-scanner-target">
+                            <i class="bi bi-upc-scan barcode-icon"></i>
+                            <h5 class="mt-3 mb-2">Skann strekkode</h5>
+                            <p class="text-muted mb-3">Klikk her og skann produktets strekkode</p>
+                            <input type="text" 
+                                   class="form-control form-control-lg text-center barcode-input" 
+                                   id="barcode-scanner-input" 
+                                   placeholder="Klikk her og skann..."
+                                   autocomplete="off">
+                            <div class="scan-feedback mt-2" id="scan-feedback"></div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="card mb-3">
                     <div class="card-body">
                         <h5 class="card-title"><i class="bi bi-box-seam me-2"></i>Produkter</h5>
@@ -560,6 +641,66 @@ console.log('- #content-sales exists:', !!document.getElementById('content-sales
 console.log('- #products-list exists:', !!document.querySelector('#products-list'));
 console.log('- #services-list exists:', !!document.querySelector('#services-list'));
 
+// Barcode scanner functionality
+let productsCache = [];
+let scanTimeout = null;
+
+function initBarcodeScanner() {
+    const barcodeInput = document.getElementById('barcode-scanner-input');
+    const scannerCard = document.querySelector('.barcode-scanner-card');
+    const scanFeedback = document.getElementById('scan-feedback');
+    
+    if (!barcodeInput) return;
+    
+    barcodeInput.addEventListener('input', function(e) {
+        if (scanTimeout) clearTimeout(scanTimeout);
+        
+        const barcode = e.target.value.trim();
+        
+        if (barcode.length >= 8) {
+            scanTimeout = setTimeout(() => {
+                handleBarcodeScanned(barcode, scannerCard, scanFeedback, barcodeInput);
+            }, 300);
+        }
+    });
+    
+    barcodeInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const barcode = e.target.value.trim();
+            if (barcode) {
+                handleBarcodeScanned(barcode, scannerCard, scanFeedback, barcodeInput);
+            }
+        }
+    });
+}
+
+async function handleBarcodeScanned(barcode, scannerCard, scanFeedback, inputField) {
+    scannerCard.classList.add('scanning');
+    scanFeedback.textContent = 'Søker etter produkt...';
+    scanFeedback.className = 'scan-feedback';
+    
+    const product = productsCache.find(p => p.barcode === barcode || p.id === barcode);
+    
+    if (product) {
+        await addToCart(product.id);
+        scanFeedback.textContent = `✓ ${product.name} lagt til!`;
+        scanFeedback.classList.add('success');
+        inputField.value = '';
+    } else {
+        scanFeedback.textContent = `✗ Ingen produkt funnet med strekkode: ${barcode}`;
+        scanFeedback.classList.add('error');
+    }
+    
+    setTimeout(() => {
+        scannerCard.classList.remove('scanning');
+        if (product) {
+            scanFeedback.textContent = '';
+            scanFeedback.className = 'scan-feedback';
+        }
+    }, 2000);
+}
+
 // Load products and services
 async function loadSalesProducts() {
     console.log('loadSalesProducts() called');
@@ -570,6 +711,8 @@ async function loadSalesProducts() {
         if (data.success && data.items) {
             const products = data.items.filter(item => item.product_type === 'product');
             const services = data.items.filter(item => item.product_type !== 'product');
+            
+            productsCache = products;
             
             displayProducts(products);
             displayServices(services);
@@ -1161,4 +1304,14 @@ async function processServicePurchase() {
         alert('❌ Feil ved salg av tjeneste');
     }
 }
+
+// Initialize barcode scanner when Sales module loads
+document.addEventListener('DOMContentLoaded', function() {
+    initBarcodeScanner();
+});
+
+// Also re-initialize when switching to sales tab
+document.querySelector('[href="#content-sales"]')?.addEventListener('shown.bs.tab', function() {
+    initBarcodeScanner();
+});
 </script>

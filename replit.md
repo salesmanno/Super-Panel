@@ -39,6 +39,7 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
     - API supports both days-from-now and explicit date range parameters for flexible data fetching.
 - **Sales Module with Shopping Cart (Oct 2025)**: Supports dual purchase flows:
     - **Shopping Cart System**: For products (`product_type='product'`) with simplified card display showing product image, name, and price. Cart badge displays total quantity count (sum of all items). Cart persists per admin session.
+    - **Barcode Scanner (Oct 28, 2025)**: Prominent visual target area at top of Varesalg with gradient-styled card. Large centered input field accepts handheld barcode scanner input, searches product cache by barcode or ID, automatically adds matched products to cart with instant visual feedback (success/error messages). Features pulse animation during scan processing.
     - **Service Sales**: Events, memberships, and rentals are sold individually via a dedicated purchase modal requiring customer information (first name, last name, email, phone). Customer data is automatically saved/updated in `tenant_customers` table with proper name splitting.
     - **Product Management**: Products support image URLs (`img_product`) and MVA-taxable flag (`item_taxable`) for tax compliance.
 - **Dynamic Database Status**: Live database connection status indicator in the navigation with visual feedback and graceful degradation upon disconnection.
