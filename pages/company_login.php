@@ -130,7 +130,15 @@ if (isset($_GET['message'])) {
             height: 160px;
             width: auto;
             margin-bottom: 24px;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+            filter: drop-shadow(0 8px 24px rgba(102, 126, 234, 0.4)) 
+                    drop-shadow(0 4px 12px rgba(118, 75, 162, 0.3));
+            transition: all 0.3s ease;
+        }
+        
+        .login-header img:hover {
+            filter: drop-shadow(0 12px 32px rgba(102, 126, 234, 0.5)) 
+                    drop-shadow(0 6px 16px rgba(118, 75, 162, 0.4));
+            transform: translateY(-2px);
         }
         
         .login-header h1 {
