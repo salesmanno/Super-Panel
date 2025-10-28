@@ -18,6 +18,22 @@ try {
     $companyId = $_SESSION['company_id'];
     $adminId = $_SESSION['tenant_admin_id'];
     
+    // Helper function to normalize boolean values
+    function normalizeBool($value) {
+        return (int)filter_var($value, FILTER_VALIDATE_BOOLEAN);
+    }
+    
+    // Helper function to validate and normalize color
+    function normalizeColor($color, $default = '#3366CC') {
+        if (empty($color)) return $default;
+        // Ensure color starts with # and is valid hex
+        $color = trim($color);
+        if (!preg_match('/^#[0-9A-F]{6}$/i', $color)) {
+            return $default;
+        }
+        return strtoupper($color);
+    }
+    
     // Update or insert tenant_website_config
     if (isset($data['config'])) {
         $config = $data['config'];
@@ -40,11 +56,11 @@ try {
                 WHERE company_id = ?
             ");
             $stmt->execute([
-                $config['is_published'] ?? 0,
-                $config['is_enabled'] ?? 0,
-                $config['display_name'] ?? null,
-                $config['seo_title'] ?? null,
-                $config['seo_description'] ?? null,
+                normalizeBool($config['is_published'] ?? 0),
+                normalizeBool($config['is_enabled'] ?? 0),
+                !empty($config['display_name']) ? trim($config['display_name']) : null,
+                !empty($config['seo_title']) ? trim($config['seo_title']) : null,
+                !empty($config['seo_description']) ? trim($config['seo_description']) : null,
                 $companyId
             ]);
         } else {
@@ -58,11 +74,11 @@ try {
             $stmt->execute([
                 $configId,
                 $companyId,
-                $config['is_published'] ?? 0,
-                $config['is_enabled'] ?? 0,
-                $config['display_name'] ?? null,
-                $config['seo_title'] ?? null,
-                $config['seo_description'] ?? null
+                normalizeBool($config['is_published'] ?? 0),
+                normalizeBool($config['is_enabled'] ?? 0),
+                !empty($config['display_name']) ? trim($config['display_name']) : null,
+                !empty($config['seo_title']) ? trim($config['seo_title']) : null,
+                !empty($config['seo_description']) ? trim($config['seo_description']) : null
             ]);
         }
     }
@@ -103,24 +119,24 @@ try {
                 WHERE company_id = ?
             ");
             $stmt->execute([
-                $general['site_title'] ?? null,
-                $general['site_description'] ?? null,
-                $general['primary_color'] ?? '#3366CC',
-                $general['secondary_color'] ?? '#666666',
-                $general['navigation_style'] ?? 'top',
-                $general['header_layout'] ?? 'standard',
-                $general['footer_layout'] ?? 'standard',
-                $general['hero_enabled'] ?? 1,
-                $general['hero_title'] ?? null,
-                $general['hero_description'] ?? null,
-                $general['hero_button_text'] ?? null,
-                $general['contact_email'] ?? null,
-                $general['contact_phone'] ?? null,
-                $general['contact_address'] ?? null,
-                $general['google_analytics_id'] ?? null,
-                $general['is_active'] ?? 1,
-                $general['maintenance_mode'] ?? 0,
-                $general['maintenance_message'] ?? null,
+                !empty($general['site_title']) ? trim($general['site_title']) : null,
+                !empty($general['site_description']) ? trim($general['site_description']) : null,
+                normalizeColor($general['primary_color'] ?? '#3366CC', '#3366CC'),
+                normalizeColor($general['secondary_color'] ?? '#666666', '#666666'),
+                in_array($general['navigation_style'] ?? 'top', ['top', 'side']) ? $general['navigation_style'] : 'top',
+                in_array($general['header_layout'] ?? 'standard', ['standard', 'centered', 'minimal']) ? $general['header_layout'] : 'standard',
+                in_array($general['footer_layout'] ?? 'standard', ['standard', 'minimal', 'extended']) ? $general['footer_layout'] : 'standard',
+                normalizeBool($general['hero_enabled'] ?? 1),
+                !empty($general['hero_title']) ? trim($general['hero_title']) : null,
+                !empty($general['hero_description']) ? trim($general['hero_description']) : null,
+                !empty($general['hero_button_text']) ? trim($general['hero_button_text']) : null,
+                !empty($general['contact_email']) ? filter_var(trim($general['contact_email']), FILTER_VALIDATE_EMAIL) : null,
+                !empty($general['contact_phone']) ? trim($general['contact_phone']) : null,
+                !empty($general['contact_address']) ? trim($general['contact_address']) : null,
+                !empty($general['google_analytics_id']) ? trim($general['google_analytics_id']) : null,
+                normalizeBool($general['is_active'] ?? 1),
+                normalizeBool($general['maintenance_mode'] ?? 0),
+                !empty($general['maintenance_message']) ? trim($general['maintenance_message']) : null,
                 $adminId,
                 $companyId
             ]);
@@ -139,24 +155,24 @@ try {
             $stmt->execute([
                 $generalId,
                 $companyId,
-                $general['site_title'] ?? null,
-                $general['site_description'] ?? null,
-                $general['primary_color'] ?? '#3366CC',
-                $general['secondary_color'] ?? '#666666',
-                $general['navigation_style'] ?? 'top',
-                $general['header_layout'] ?? 'standard',
-                $general['footer_layout'] ?? 'standard',
-                $general['hero_enabled'] ?? 1,
-                $general['hero_title'] ?? null,
-                $general['hero_description'] ?? null,
-                $general['hero_button_text'] ?? null,
-                $general['contact_email'] ?? null,
-                $general['contact_phone'] ?? null,
-                $general['contact_address'] ?? null,
-                $general['google_analytics_id'] ?? null,
-                $general['is_active'] ?? 1,
-                $general['maintenance_mode'] ?? 0,
-                $general['maintenance_message'] ?? null,
+                !empty($general['site_title']) ? trim($general['site_title']) : null,
+                !empty($general['site_description']) ? trim($general['site_description']) : null,
+                normalizeColor($general['primary_color'] ?? '#3366CC', '#3366CC'),
+                normalizeColor($general['secondary_color'] ?? '#666666', '#666666'),
+                in_array($general['navigation_style'] ?? 'top', ['top', 'side']) ? $general['navigation_style'] : 'top',
+                in_array($general['header_layout'] ?? 'standard', ['standard', 'centered', 'minimal']) ? $general['header_layout'] : 'standard',
+                in_array($general['footer_layout'] ?? 'standard', ['standard', 'minimal', 'extended']) ? $general['footer_layout'] : 'standard',
+                normalizeBool($general['hero_enabled'] ?? 1),
+                !empty($general['hero_title']) ? trim($general['hero_title']) : null,
+                !empty($general['hero_description']) ? trim($general['hero_description']) : null,
+                !empty($general['hero_button_text']) ? trim($general['hero_button_text']) : null,
+                !empty($general['contact_email']) ? filter_var(trim($general['contact_email']), FILTER_VALIDATE_EMAIL) : null,
+                !empty($general['contact_phone']) ? trim($general['contact_phone']) : null,
+                !empty($general['contact_address']) ? trim($general['contact_address']) : null,
+                !empty($general['google_analytics_id']) ? trim($general['google_analytics_id']) : null,
+                normalizeBool($general['is_active'] ?? 1),
+                normalizeBool($general['maintenance_mode'] ?? 0),
+                !empty($general['maintenance_message']) ? trim($general['maintenance_message']) : null,
                 $adminId,
                 $adminId
             ]);
