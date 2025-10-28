@@ -256,31 +256,23 @@
     </div>
 
     <div id="events-checkin" class="subtab-content" style="display: none;">
-        <!-- Event Selection Cards -->
-        <div id="checkin-event-selection">
-            <h5 class="mb-3"><i class="bi bi-calendar-check me-2"></i>Velg arrangement for innsjekking</h5>
-            <div id="checkin-events-grid" class="row g-3 mb-4">
-                <div class="col-12 text-center py-5">
-                    <div class="spinner-border text-primary" role="status"></div>
-                    <p class="text-muted mt-2">Laster arrangementer...</p>
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Innsjekking</h5>
+                <p class="text-muted">Sjekk inn deltakere og administrer oppmøte</p>
+                
+                <!-- Event Selector -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label">Velg arrangement</label>
+                        <select class="form-select" id="checkin-event-selector">
+                            <option value="">Laster arrangementer...</option>
+                        </select>
+                    </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Check-in Interface (hidden until event selected) -->
-        <div id="checkin-interface" style="display: none;">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                    <h5 class="mb-0" id="checkin-event-title">Arrangementsnavn</h5>
-                    <small class="text-muted" id="checkin-event-date">Dato og tid</small>
-                </div>
-                <button class="btn btn-outline-secondary btn-sm" onclick="backToEventSelection()">
-                    <i class="bi bi-arrow-left me-1"></i>Tilbake til oversikt
-                </button>
-            </div>
-
-            <!-- Check-in Statistics -->
-            <div class="row mb-4" id="checkin-stats">
+                <!-- Check-in Statistics -->
+                <div class="row mb-4" id="checkin-stats" style="display: none;">
                     <div class="col-md-3">
                         <div class="card bg-light">
                             <div class="card-body">
@@ -315,22 +307,10 @@
                     </div>
                 </div>
 
-                <!-- Existing Registrations (Not Yet Checked In) -->
-                <div class="card mb-4" id="pending-registrations-container" style="display: none;">
-                    <div class="card-header bg-info text-white">
-                        <h6 class="mb-0"><i class="bi bi-people me-2"></i>Påmeldte (venter på innsjekking)</h6>
-                    </div>
-                    <div class="card-body">
-                        <div id="pending-registrations-list">
-                            <p class="text-muted">Ingen påmeldte ennå</p>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Check-in Form -->
                 <div class="card mb-4" id="checkin-form-container" style="display: none;">
                     <div class="card-header bg-primary text-white">
-                        <h6 class="mb-0"><i class="bi bi-person-plus me-2"></i>Manuell innsjekking (ny deltaker)</h6>
+                        <h6 class="mb-0"><i class="bi bi-person-plus me-2"></i>Ny innsjekking</h6>
                     </div>
                     <div class="card-body">
                         <form id="checkin-form">
@@ -349,21 +329,32 @@
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
                                     <label class="form-label">Billett type</label>
-                                    <select class="form-select" name="ticket_type" id="ticket-type-select">
-                                        <option value="">Laster...</option>
+                                    <select class="form-select" name="ticket_type">
+                                        <option value="regular">Ordinær</option>
+                                        <option value="member">Medlem</option>
+                                        <option value="vip">VIP</option>
+                                        <option value="staff">Ansatt</option>
                                     </select>
                                 </div>
-                                <div class="col-md-4 mb-3" id="payment-method-container">
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Skal betale?</label>
+                                    <div class="form-check form-switch mt-2">
+                                        <input class="form-check-input" type="checkbox" name="is_paying" id="isPayingCheckbox" checked>
+                                        <label class="form-check-label" for="isPayingCheckbox">Betaler</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-3" id="payment-method-container">
                                     <label class="form-label">Betalingsmetode</label>
                                     <select class="form-select" name="payment_method">
                                         <option value="cash">Kontant</option>
+                                        <option value="card">Kort</option>
                                         <option value="vipps">Vipps</option>
-                                        <option value="on_arrival">Oppmøte</option>
+                                        <option value="online">Online</option>
                                     </select>
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
                                     <label class="form-label">Notater</label>
                                     <input type="text" class="form-control" name="notes">
                                 </div>
@@ -379,41 +370,28 @@
                     </div>
                 </div>
 
-                <!-- Checked-in Attendees List with Search and Filter -->
-                <div id="checkin-list-container" style="display: none;">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="mb-0">Påmeldte deltakere</h6>
-                        <div class="d-flex gap-2">
-                            <input type="text" id="attendee-search" class="form-control form-control-sm" placeholder="🔍 Søk navn, epost eller telefon..." style="width: 250px;">
-                            <select id="attendee-filter" class="form-select form-select-sm" style="width: 150px;">
-                                <option value="all">Alle</option>
-                                <option value="paid">Betalt</option>
-                                <option value="pending">Ubetalt</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Navn</th>
-                                    <th>Kontakt</th>
-                                    <th>Billett type</th>
-                                    <th>Pris</th>
-                                    <th>Betaling</th>
-                                    <th>Innsjekket</th>
-                                </tr>
-                            </thead>
-                            <tbody id="checkin-attendees-list">
-                                <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">
-                                        Ingen deltakere ennå
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                <!-- Checked-in Attendees List -->
+                <div class="table-responsive" id="checkin-list-container" style="display: none;">
+                    <h6 class="mb-3">Påmeldte deltakere</h6>
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Navn</th>
+                                <th>Kontakt</th>
+                                <th>Billett type</th>
+                                <th>Pris</th>
+                                <th>Betaling</th>
+                                <th>Innsjekket</th>
+                            </tr>
+                        </thead>
+                        <tbody id="checkin-attendees-list">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    Ingen deltakere ennå
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -520,15 +498,7 @@ document.addEventListener('DOMContentLoaded', function() {
             };
 
             try {
-                // Determine if editing or creating
-                const isEditing = editingEventId !== null;
-                const endpoint = isEditing ? '../api/edit_event.php' : '../api/create_event.php';
-                
-                if (isEditing) {
-                    data.event_id = editingEventId;
-                }
-                
-                const response = await fetch(endpoint, {
+                const response = await fetch('../api/create_event.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -539,38 +509,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 const result = await response.json();
 
                 if (result.success) {
-                    alert(isEditing ? '✅ Arrangement oppdatert!' : '✅ Arrangement opprettet!');
+                    alert('✅ Arrangement opprettet!');
                     createEventForm.reset();
-                    editingEventId = null;
-                    
-                    // Reset form title and button
-                    document.querySelector('#events-create .card-title').textContent = 'Opprett nytt arrangement';
-                    document.querySelector('#create-event-form button[type="submit"]').innerHTML = '<i class="bi bi-check-circle me-1"></i>Opprett arrangement';
-                    
                     loadEvents();
                     // Switch to "Dine arrangement" tab
                     document.querySelector('[href="#events-my"]').click();
                 } else {
-                    alert('❌ Feil: ' + (result.message || 'Kunne ikke lagre arrangement'));
+                    alert('❌ Feil: ' + (result.message || 'Kunne ikke opprette arrangement'));
                 }
             } catch (error) {
-                console.error('Error saving event:', error);
-                alert('❌ Feil ved lagring av arrangement');
+                console.error('Error creating event:', error);
+                alert('❌ Feil ved opprettelse av arrangement');
             }
         });
     }
-    
-    // Reset editing mode when switching tabs
-    document.querySelectorAll('[href^="#events-"]').forEach(tab => {
-        tab.addEventListener('click', function() {
-            if (!this.getAttribute('href').includes('events-create')) {
-                editingEventId = null;
-                document.querySelector('#events-create .card-title').textContent = 'Opprett nytt arrangement';
-                document.querySelector('#create-event-form button[type="submit"]').innerHTML = '<i class="bi bi-check-circle me-1"></i>Opprett arrangement';
-                document.getElementById('create-event-form').reset();
-            }
-        });
-    });
 });
 
 async function loadEvents() {
@@ -636,8 +588,8 @@ async function loadEvents() {
                             <div class="event-footer">
                                 <div>${priceDisplay}</div>
                                 <div class="event-actions">
-                                    <button class="btn btn-sm btn-outline-primary" onclick="editEvent('${event.id}')" title="Rediger">
-                                        <i class="bi bi-pencil"></i>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="viewEvent('${event.id}')" title="Vis detaljer">
+                                        <i class="bi bi-eye"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger" onclick="deleteEvent('${event.id}')" title="Slett">
                                         <i class="bi bi-trash"></i>
@@ -673,59 +625,8 @@ async function loadEvents() {
     }
 }
 
-let editingEventId = null;
-
-async function editEvent(eventId) {
-    try {
-        // Fetch event details
-        const response = await fetch('../api/get_events.php');
-        const result = await response.json();
-        
-        if (result.success) {
-            const event = result.events.find(e => e.id == eventId);
-            if (!event) {
-                alert('❌ Fant ikke arrangement');
-                return;
-            }
-            
-            // Store editing ID
-            editingEventId = eventId;
-            
-            // Pre-fill form
-            const form = document.getElementById('create-event-form');
-            form.querySelector('[name="title"]').value = event.title || '';
-            form.querySelector('[name="description"]').value = event.description || '';
-            form.querySelector('[name="start_date"]').value = event.start_date || '';
-            form.querySelector('[name="start_time"]').value = event.start_time || '';
-            form.querySelector('[name="end_date"]').value = event.end_date || '';
-            form.querySelector('[name="end_time"]').value = event.end_time || '';
-            form.querySelector('[name="venue_name"]').value = event.venue_name || '';
-            form.querySelector('[name="event_address"]').value = event.event_address || '';
-            form.querySelector('[name="event_city"]').value = event.event_city || '';
-            form.querySelector('[name="event_postal"]').value = event.event_postal || '';
-            form.querySelector('[name="min_attendees"]').value = event.min_attendees || '';
-            form.querySelector('[name="max_attendees"]').value = event.max_attendees || '';
-            form.querySelector('[name="age_limit"]').value = event.age_limit || '';
-            form.querySelector('[name="ticket_price"]').value = event.ticket_price || '0';
-            form.querySelector('[name="member_ticket_price"]').value = event.member_ticket_price || '';
-            form.querySelector('[name="event_image_url"]').value = event.event_image_url || '';
-            
-            const memberExclusiveCheckbox = form.querySelector('[name="is_member_exclusive"]');
-            if (memberExclusiveCheckbox) {
-                memberExclusiveCheckbox.checked = event.is_member_exclusive == 1;
-            }
-            
-            // Update form title and button
-            document.querySelector('#events-create .card-title').textContent = 'Rediger arrangement';
-            document.querySelector('#create-event-form button[type="submit"]').innerHTML = '<i class="bi bi-check-circle me-1"></i>Oppdater arrangement';
-            
-            // Switch to create/edit tab
-            document.querySelector('[href="#events-create"]').click();
-        }
-    } catch (error) {
-        console.error('Error loading event for editing:', error);
-        alert('❌ Feil ved lasting av arrangement');
-    }
+function viewEvent(eventId) {
+    alert('Visning av arrangement: ' + eventId);
 }
 
 function deleteEvent(eventId) {
@@ -756,186 +657,42 @@ function deleteEvent(eventId) {
 // ========== CHECK-IN FUNCTIONALITY ==========
 
 let selectedEventId = null;
-let selectedEventData = null;
-let allAttendees = []; // Store all attendees for filtering
 
-// Load events into visual card selector
+// Load events into check-in selector
 async function loadCheckinEventSelector() {
     try {
         const response = await fetch('../api/get_events.php');
         const result = await response.json();
         
-        const grid = document.getElementById('checkin-events-grid');
+        const selector = document.getElementById('checkin-event-selector');
         if (result.success && result.events && result.events.length > 0) {
-            grid.innerHTML = result.events.map(event => {
-                const startDate = new Date(event.start_date + ' ' + event.start_time);
-                const dateStr = startDate.toLocaleDateString('no-NO', { day: 'numeric', month: 'short', year: 'numeric' });
-                const timeStr = event.start_time ? event.start_time.substring(0, 5) : '';
-                const imageUrl = event.event_image_url || '';
-                const capacity = event.max_attendees ? `${event.current_attendees || 0}/${event.max_attendees}` : 'Ubegrenset';
-                
-                return `
-                    <div class="col-md-4">
-                        <div class="card h-100 hover-shadow" style="cursor: pointer;" onclick="selectEventForCheckin('${event.id}', '${event.title.replace(/'/g, "\\'")}', '${dateStr} ${timeStr}')">
-                            ${imageUrl ? `
-                                <div style="height: 150px; background: url('${imageUrl}') center/cover; border-radius: 8px 8px 0 0;"></div>
-                            ` : `
-                                <div class="d-flex align-items-center justify-content-center bg-light" style="height: 150px; border-radius: 8px 8px 0 0;">
-                                    <i class="bi bi-calendar-event" style="font-size: 3rem; color: #ccc;"></i>
-                                </div>
-                            `}
-                            <div class="card-body">
-                                <h6 class="card-title mb-2">${event.title}</h6>
-                                <p class="text-muted small mb-2">
-                                    <i class="bi bi-calendar3 me-1"></i>${dateStr} ${timeStr}
-                                </p>
-                                <p class="text-muted small mb-2">
-                                    <i class="bi bi-geo-alt me-1"></i>${event.venue_name || event.event_city || 'Ikke angitt'}
-                                </p>
-                                <p class="text-muted small mb-0">
-                                    <i class="bi bi-people me-1"></i>${capacity} plasser
-                                </p>
-                            </div>
-                            <div class="card-footer bg-transparent">
-                                <small class="text-primary"><i class="bi bi-box-arrow-in-right me-1"></i>Klikk for innsjekking</small>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+            selector.innerHTML = '<option value="">-- Velg arrangement --</option>' + 
+                result.events.map(event => `
+                    <option value="${event.id}">
+                        ${event.title} - ${event.start_date} ${event.start_time}
+                    </option>
+                `).join('');
         } else {
-            grid.innerHTML = `
-                <div class="col-12 text-center py-5">
-                    <i class="bi bi-calendar-x" style="font-size: 3rem; color: #ccc;"></i>
-                    <p class="text-muted mt-2">Ingen arrangementer tilgjengelig for innsjekking</p>
-                </div>
-            `;
+            selector.innerHTML = '<option value="">Ingen arrangementer tilgjengelig</option>';
         }
     } catch (error) {
         console.error('Error loading events:', error);
-        document.getElementById('checkin-events-grid').innerHTML = `
-            <div class="col-12 text-center py-5">
-                <i class="bi bi-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
-                <p class="text-muted mt-2">Feil ved lasting av arrangementer</p>
-            </div>
-        `;
     }
 }
 
-async function selectEventForCheckin(eventId, eventTitle, eventDate) {
-    selectedEventId = eventId;
-    document.getElementById('checkin-event-title').textContent = eventTitle;
-    document.getElementById('checkin-event-date').textContent = eventDate;
+// Handle payment toggle
+document.getElementById('isPayingCheckbox')?.addEventListener('change', function(e) {
+    const paymentContainer = document.getElementById('payment-method-container');
+    const paymentSelect = document.querySelector('[name="payment_method"]');
     
-    // Fetch full event data to get pricing
-    try {
-        const response = await fetch('../api/get_events.php');
-        const result = await response.json();
-        
-        if (result.success) {
-            selectedEventData = result.events.find(e => e.id == eventId);
-            
-            // Update ticket type dropdown with actual prices
-            updateTicketTypeOptions();
-        }
-    } catch (error) {
-        console.error('Error loading event data:', error);
-    }
-    
-    // Hide event selection, show check-in interface
-    document.getElementById('checkin-event-selection').style.display = 'none';
-    document.getElementById('checkin-interface').style.display = 'block';
-    
-    // Load check-ins for this event
-    loadCheckins(eventId);
-}
-
-function updateTicketTypeOptions() {
-    if (!selectedEventData) return;
-    
-    const ticketTypeSelect = document.getElementById('ticket-type-select');
-    if (!ticketTypeSelect) return;
-    
-    let options = [];
-    
-    // Always add regular ticket if there's a price
-    if (selectedEventData.ticket_price > 0) {
-        options.push({
-            value: 'regular',
-            label: `Ordinær (${parseFloat(selectedEventData.ticket_price).toFixed(2)} kr)`,
-            price: selectedEventData.ticket_price
-        });
+    if (e.target.checked) {
+        paymentContainer.style.display = 'block';
+        paymentSelect.required = true;
     } else {
-        options.push({
-            value: 'regular',
-            label: 'Ordinær (Gratis)',
-            price: 0
-        });
+        paymentContainer.style.display = 'none';
+        paymentSelect.required = false;
     }
-    
-    // Add member ticket if different from regular
-    if (selectedEventData.member_ticket_price !== null && 
-        selectedEventData.member_ticket_price !== undefined && 
-        selectedEventData.member_ticket_price != selectedEventData.ticket_price) {
-        options.push({
-            value: 'member',
-            label: `Medlem (${parseFloat(selectedEventData.member_ticket_price).toFixed(2)} kr)`,
-            price: selectedEventData.member_ticket_price
-        });
-    }
-    
-    // Always add VIP and Staff options
-    options.push({
-        value: 'vip',
-        label: 'VIP (Egen pris)',
-        price: selectedEventData.ticket_price
-    });
-    
-    options.push({
-        value: 'staff',
-        label: 'Ansatt (Gratis)',
-        price: 0
-    });
-    
-    // Build dropdown
-    ticketTypeSelect.innerHTML = options.map(opt => 
-        `<option value="${opt.value}" data-price="${opt.price}">${opt.label}</option>`
-    ).join('');
-    
-    // Remove old event listeners to prevent duplicates
-    const newSelect = ticketTypeSelect.cloneNode(true);
-    ticketTypeSelect.parentNode.replaceChild(newSelect, ticketTypeSelect);
-    
-    // Add change event to update payment method based on ticket type
-    newSelect.addEventListener('change', function() {
-        const selectedOption = this.options[this.selectedIndex];
-        const price = parseFloat(selectedOption.getAttribute('data-price') || 0);
-        const paymentSelect = document.querySelector('[name="payment_method"]');
-        
-        // If staff or free event, default to "Gratis" or hide payment method
-        if (this.value === 'staff' || price === 0) {
-            // Free - payment method not needed but keep visible for consistency
-            if (paymentSelect) {
-                paymentSelect.value = 'on_arrival'; // Default to "Oppmøte" for free
-            }
-        }
-    });
-}
-
-function backToEventSelection() {
-    selectedEventId = null;
-    allAttendees = [];
-    document.getElementById('checkin-event-selection').style.display = 'block';
-    document.getElementById('checkin-interface').style.display = 'none';
-    
-    // Clear search and filter
-    const searchInput = document.getElementById('attendee-search');
-    const filterSelect = document.getElementById('attendee-filter');
-    if (searchInput) searchInput.value = '';
-    if (filterSelect) filterSelect.value = 'all';
-}
-
-// Payment method is always visible now (no toggle needed)
+});
 
 // Check if email matches staff member
 document.querySelector('[name="attendee_email"]')?.addEventListener('blur', async function(e) {
@@ -958,71 +715,21 @@ document.querySelector('[name="attendee_email"]')?.addEventListener('blur', asyn
     }
 });
 
-// Search and filter attendees
-document.getElementById('attendee-search')?.addEventListener('input', function(e) {
-    filterAttendees();
+// Handle event selection
+document.getElementById('checkin-event-selector')?.addEventListener('change', function(e) {
+    selectedEventId = e.target.value;
+    
+    if (selectedEventId) {
+        document.getElementById('checkin-stats').style.display = 'block';
+        document.getElementById('checkin-form-container').style.display = 'block';
+        document.getElementById('checkin-list-container').style.display = 'block';
+        loadCheckins(selectedEventId);
+    } else {
+        document.getElementById('checkin-stats').style.display = 'none';
+        document.getElementById('checkin-form-container').style.display = 'none';
+        document.getElementById('checkin-list-container').style.display = 'none';
+    }
 });
-
-document.getElementById('attendee-filter')?.addEventListener('change', function(e) {
-    filterAttendees();
-});
-
-function filterAttendees() {
-    const searchTerm = document.getElementById('attendee-search')?.value.toLowerCase() || '';
-    const filterValue = document.getElementById('attendee-filter')?.value || 'all';
-    
-    let filtered = allAttendees;
-    
-    // Apply payment status filter
-    if (filterValue === 'paid') {
-        filtered = filtered.filter(a => a.payment_status === 'paid');
-    } else if (filterValue === 'pending') {
-        filtered = filtered.filter(a => a.payment_status === 'pending');
-    }
-    
-    // Apply search filter
-    if (searchTerm) {
-        filtered = filtered.filter(a => {
-            const name = (a.attendee_name || '').toLowerCase();
-            const email = (a.attendee_email || '').toLowerCase();
-            const phone = (a.attendee_phone || '').toLowerCase();
-            return name.includes(searchTerm) || email.includes(searchTerm) || phone.includes(searchTerm);
-        });
-    }
-    
-    // Render filtered list
-    renderAttendeeList(filtered);
-}
-
-function renderAttendeeList(attendees) {
-    const tbody = document.getElementById('checkin-attendees-list');
-    if (!attendees || attendees.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Ingen deltakere funnet</td></tr>';
-        return;
-    }
-    
-    tbody.innerHTML = attendees.map(attendee => {
-        const checkedInDate = new Date(attendee.created_at);
-        const checkedInStr = checkedInDate.toLocaleString('no-NO');
-        const paymentBadge = attendee.payment_status === 'paid' 
-            ? '<span class="badge bg-success">Betalt</span>' 
-            : '<span class="badge bg-warning text-dark">Venter</span>';
-        
-        return `
-            <tr>
-                <td><strong>${attendee.attendee_name}</strong></td>
-                <td>
-                    ${attendee.attendee_email ? `<div><small>${attendee.attendee_email}</small></div>` : ''}
-                    ${attendee.attendee_phone ? `<div><small>${attendee.attendee_phone}</small></div>` : ''}
-                </td>
-                <td><span class="badge bg-secondary">${attendee.ticket_type || 'Ordinær'}</span></td>
-                <td><strong>${parseFloat(attendee.amount_paid || 0).toFixed(2)} kr</strong></td>
-                <td>${paymentBadge}</td>
-                <td><small class="text-muted">${checkedInStr}</small></td>
-            </tr>
-        `;
-    }).join('');
-}
 
 // Check-in form submission
 document.getElementById('checkin-form')?.addEventListener('submit', async function(e) {
@@ -1034,13 +741,15 @@ document.getElementById('checkin-form')?.addEventListener('submit', async functi
     }
     
     const formData = new FormData(this);
+    const isPaying = document.getElementById('isPayingCheckbox').checked;
     const data = {
         event_id: selectedEventId,
         attendee_name: formData.get('attendee_name'),
         attendee_email: formData.get('attendee_email'),
         attendee_phone: formData.get('attendee_phone'),
         ticket_type: formData.get('ticket_type'),
-        payment_method: formData.get('payment_method'),
+        payment_method: isPaying ? formData.get('payment_method') : 'free',
+        is_paying: isPaying,
         notes: formData.get('notes')
     };
     
@@ -1081,98 +790,41 @@ async function loadCheckins(eventId) {
             document.getElementById('checkin-pending-count').textContent = result.summary.pending_count;
             document.getElementById('checkin-total-revenue').textContent = result.summary.total_revenue.toFixed(2) + ' kr';
             
-            // Store all attendees for filtering
-            allAttendees = result.checkins || [];
-            
-            // Render initial list
-            renderAttendeeList(allAttendees);
-            
-            // Show containers
-            document.getElementById('checkin-form-container').style.display = 'block';
-            document.getElementById('checkin-list-container').style.display = 'block';
+            // Update attendee list
+            const list = document.getElementById('checkin-attendees-list');
+            if (result.checkins && result.checkins.length > 0) {
+                list.innerHTML = result.checkins.map(checkin => {
+                    const name = checkin.attendee_name || (checkin.first_name + ' ' + checkin.last_name);
+                    const contact = checkin.attendee_email || checkin.attendee_phone || '-';
+                    const checkinTime = checkin.check_in_time ? new Date(checkin.check_in_time).toLocaleString('no-NO') : '-';
+                    
+                    const paymentBadge = checkin.payment_status === 'paid' 
+                        ? '<span class="badge bg-success">Betalt</span>' 
+                        : '<span class="badge bg-warning">Venter</span>';
+                    
+                    return `
+                        <tr>
+                            <td><strong>${name}</strong></td>
+                            <td>${contact}</td>
+                            <td>${checkin.ticket_type}</td>
+                            <td>${checkin.ticket_price} kr</td>
+                            <td>${paymentBadge}</td>
+                            <td><small>${checkinTime}</small></td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                list.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            Ingen deltakere ennå
+                        </td>
+                    </tr>
+                `;
+            }
         }
     } catch (error) {
         console.error('Error loading check-ins:', error);
-    }
-    
-    // Load pending registrations (service bookings not yet checked in)
-    loadPendingRegistrations(eventId);
-}
-
-// Load pending registrations for event
-async function loadPendingRegistrations(eventId) {
-    try {
-        const response = await fetch(`../api/get_pending_registrations.php?event_id=${eventId}`);
-        const result = await response.json();
-        
-        const container = document.getElementById('pending-registrations-container');
-        const listEl = document.getElementById('pending-registrations-list');
-        
-        if (result.success && result.registrations && result.registrations.length > 0) {
-            container.style.display = 'block';
-            
-            listEl.innerHTML = result.registrations.map(reg => {
-                const customerName = `${reg.customer_first_name} ${reg.customer_last_name}`;
-                const price = parseFloat(reg.unit_price || 0).toFixed(2);
-                const quantity = reg.quantity || 1;
-                const total = (parseFloat(reg.unit_price || 0) * quantity).toFixed(2);
-                const paymentBadge = reg.payment_status === 'paid' 
-                    ? '<span class="badge bg-success">Betalt</span>' 
-                    : '<span class="badge bg-warning text-dark">Ubetalt</span>';
-                
-                return `
-                    <div class="d-flex align-items-center justify-content-between p-3 mb-2 border rounded hover-shadow" style="cursor: pointer;" onclick="quickCheckin('${reg.booking_id}', '${customerName.replace(/'/g, "\\'")}', '${price}', '${reg.payment_status}')">
-                        <div>
-                            <h6 class="mb-1"><i class="bi bi-person me-2"></i>${customerName}</h6>
-                            <small class="text-muted">
-                                ${reg.customer_email ? `<i class="bi bi-envelope me-1"></i>${reg.customer_email}` : ''}
-                                ${reg.customer_phone ? `<i class="bi bi-phone ms-2 me-1"></i>${reg.customer_phone}` : ''}
-                            </small>
-                        </div>
-                        <div class="text-end">
-                            <div><strong>${total} kr</strong> ${paymentBadge}</div>
-                            <button class="btn btn-sm btn-success mt-1" onclick="event.stopPropagation(); quickCheckin('${reg.booking_id}', '${customerName.replace(/'/g, "\\'")}', '${price}', '${reg.payment_status}')">
-                                <i class="bi bi-check-circle me-1"></i>Sjekk inn
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        } else {
-            container.style.display = 'none';
-        }
-    } catch (error) {
-        console.error('Error loading pending registrations:', error);
-    }
-}
-
-// Quick check-in for existing registration
-async function quickCheckin(bookingId, customerName, price, paymentStatus) {
-    if (!confirm(`Sjekk inn ${customerName}?`)) {
-        return;
-    }
-    
-    try {
-        const response = await fetch('../api/quick_checkin.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                booking_id: bookingId,
-                event_id: selectedEventId
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            alert(`✅ ${customerName} sjekket inn!`);
-            loadCheckins(selectedEventId); // Refresh both lists
-        } else {
-            alert('❌ Feil: ' + (result.message || 'Kunne ikke sjekke inn'));
-        }
-    } catch (error) {
-        console.error('Error during quick check-in:', error);
-        alert('❌ Feil ved innsjekking');
     }
 }
 

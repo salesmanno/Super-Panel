@@ -303,17 +303,6 @@ try {
             background-color: #fee2e2;
             color: #991b1b;
         }
-        
-        .hover-shadow {
-            transition: all 0.3s ease;
-            border: 1px solid #e5e7eb !important;
-        }
-        
-        .hover-shadow:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important;
-            border-color: var(--primary-start) !important;
-        }
     </style>
 </head>
 <body>
@@ -763,10 +752,6 @@ try {
                                 break;
                             case 'sales':
                                 include __DIR__ . '/../modules/sales_content.php';
-                                break;
-                            case 'company':
-                            case 'deres_firma':
-                                include __DIR__ . '/../modules/deres_firma_content.php';
                                 break;
                             default:
                                 echo '<div class="alert alert-warning">Modul under utvikling</div>';

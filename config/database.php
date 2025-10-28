@@ -1,6 +1,5 @@
 <?php
 
-// Production MySQL configuration
 define('DB_HOST', 'salesmanno04.mysql.domeneshop.no');
 define('DB_NAME', 'salesmanno04');
 define('DB_USER', 'salesmanno04');
@@ -12,31 +11,18 @@ function getDBConnection() {
     
     if ($conn === null) {
         try {
-            // Auto-detect database type: PostgreSQL for development (DATABASE_URL), MySQL for production
-            $databaseUrl = getenv('DATABASE_URL');
+            $dsn = "mysql:host=" . DB_HOST . ";port=3306;dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
+            $options = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_TIMEOUT => 10,
+                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+            ];
             
-            if ($databaseUrl) {
-                // Development: PostgreSQL (Replit environment)
-                $conn = new PDO($databaseUrl, null, null, [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false
-                ]);
-            } else {
-                // Production: MySQL (Domeneshop)
-                $dsn = "mysql:host=" . DB_HOST . ";port=3306;dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
-                $options = [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false,
-                    PDO::ATTR_TIMEOUT => 10,
-                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
-                ];
-                
-                $conn = new PDO($dsn, DB_USER, DB_PASS, $options);
-            }
+            $conn = new PDO($dsn, DB_USER, DB_PASS, $options);
         } catch (PDOException $e) {
-            error_log("Database connection failed: " . $e->getMessage());
+            error_log("MySQL connection failed: " . $e->getMessage());
             throw new Exception("Database connection failed");
         }
     }
@@ -45,7 +31,7 @@ function getDBConnection() {
 }
 
 function getDBType() {
-    return getenv('DATABASE_URL') ? 'postgresql' : 'mysql';
+    return 'mysql';
 }
 
 function dbBool($value) {
