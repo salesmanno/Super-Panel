@@ -56,7 +56,13 @@ try {
             $data['benefits'] ?? null
         ]);
         
-        // 2. Auto-generer output_products entry
+        // 2. Get membership module ID
+        $stmt = $db->prepare("SELECT id FROM system_modules WHERE module_key = 'membership' LIMIT 1");
+        $stmt->execute();
+        $module = $stmt->fetch(PDO::FETCH_ASSOC);
+        $moduleId = $module ? $module['id'] : '5'; // Fallback to 5 if not found
+        
+        // 3. Auto-generer output_products entry
         $stmt = $db->prepare("
             INSERT INTO output_products (
                 id,
@@ -64,18 +70,25 @@ try {
                 module_id,
                 product_type,
                 product_id,
+                name,
+                description,
+                price,
                 is_visible,
                 is_public,
                 is_marketplace_featured,
                 created_at,
                 created_by
-            ) VALUES (?, ?, 1, 'membership', ?, 1, 1, 0, NOW(), ?)
+            ) VALUES (?, ?, ?, 'membership', ?, ?, ?, ?, TRUE, TRUE, FALSE, NOW(), ?)
         ");
         
         $stmt->execute([
             $outputProductId,
             $_SESSION['company_id'],
+            $moduleId,
             $planId,
+            $data['name'],
+            $data['description'] ?? '',
+            $data['price'] ?? 0,
             $_SESSION['tenant_admin_id']
         ]);
         
