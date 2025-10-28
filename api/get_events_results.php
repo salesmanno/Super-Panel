@@ -63,8 +63,8 @@ try {
     // Hent kommende arrangementer
     $dbType = getDBType();
     $nowComparison = $dbType === 'pgsql' 
-        ? "(e.start_date || ' ' || e.start_time)::timestamp > NOW()"
-        : "CONCAT(e.start_date, ' ', e.start_time) > NOW()";
+        ? "(e.start_date || ' ' || e.start_time)::timestamp > CURRENT_TIMESTAMP"
+        : "CONCAT(e.start_date, ' ', e.start_time) > CURRENT_TIMESTAMP";
     
     $stmt = $db->prepare("
         SELECT COUNT(*) as upcoming
@@ -78,15 +78,15 @@ try {
     // Hent detaljert liste over arrangementer med statistikk
     $statusCase = $dbType === 'pgsql' 
         ? "CASE 
-            WHEN (e.start_date || ' ' || e.start_time)::timestamp > NOW() THEN 'Kommende'
-            WHEN (e.start_date || ' ' || e.start_time)::timestamp <= NOW() AND 
-                 (e.end_date IS NULL OR (e.end_date || ' ' || COALESCE(e.end_time, '23:59:59'))::timestamp >= NOW()) THEN 'Pågår'
+            WHEN (e.start_date || ' ' || e.start_time)::timestamp > CURRENT_TIMESTAMP THEN 'Kommende'
+            WHEN (e.start_date || ' ' || e.start_time)::timestamp <= CURRENT_TIMESTAMP AND 
+                 (e.end_date IS NULL OR (e.end_date || ' ' || COALESCE(e.end_time, '23:59:59'))::timestamp >= CURRENT_TIMESTAMP) THEN 'Pågår'
             ELSE 'Avsluttet'
         END"
         : "CASE 
-            WHEN CONCAT(e.start_date, ' ', e.start_time) > NOW() THEN 'Kommende'
-            WHEN CONCAT(e.start_date, ' ', e.start_time) <= NOW() AND 
-                 (e.end_date IS NULL OR CONCAT(e.end_date, ' ', COALESCE(e.end_time, '23:59:59')) >= NOW()) THEN 'Pågår'
+            WHEN CONCAT(e.start_date, ' ', e.start_time) > CURRENT_TIMESTAMP THEN 'Kommende'
+            WHEN CONCAT(e.start_date, ' ', e.start_time) <= CURRENT_TIMESTAMP AND 
+                 (e.end_date IS NULL OR CONCAT(e.end_date, ' ', COALESCE(e.end_time, '23:59:59')) >= CURRENT_TIMESTAMP) THEN 'Pågår'
             ELSE 'Avsluttet'
         END";
     

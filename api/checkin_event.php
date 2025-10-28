@@ -75,11 +75,11 @@ try {
             ?,
             ?,
             1,
-            NOW(),
+            CURRENT_TIMESTAMP,
             ?,
             ?,
-            NOW(),
-            NOW()
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
         )
     ");
     

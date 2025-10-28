@@ -40,7 +40,7 @@ function updateTenantAdminLastLogin($adminId) {
     if (!$db) {
         return false;
     }
-    $stmt = $db->prepare("UPDATE tenant_admins SET last_login = NOW() WHERE id = ?");
+    $stmt = $db->prepare("UPDATE tenant_admins SET last_login = CURRENT_TIMESTAMP WHERE id = ?");
     return $stmt->execute([$adminId]);
 }
 
@@ -85,8 +85,8 @@ function getLatestNews($limit = 5) {
     $stmt = $db->prepare("
         SELECT * FROM core_sys_news 
         WHERE is_published = 1 
-        AND (expire_at IS NULL OR expire_at > NOW())
-        AND publish_at <= NOW()
+        AND (expire_at IS NULL OR expire_at > CURRENT_TIMESTAMP)
+        AND publish_at <= CURRENT_TIMESTAMP
         ORDER BY publish_at DESC 
         LIMIT " . $limit
     );
@@ -133,7 +133,7 @@ function createTenantAdminSession($tenantAdminId, $sessionId) {
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
             SET is_active = 0, 
-                logout_at = NOW()
+                logout_at = CURRENT_TIMESTAMP
             WHERE tenant_admin_id = ? 
             AND is_active = 1
         ");
@@ -143,7 +143,7 @@ function createTenantAdminSession($tenantAdminId, $sessionId) {
         $stmt = $db->prepare("
             INSERT INTO tenant_admin_sessions 
             (tenant_admin_id, session_id, ip_address, user_agent, login_at, last_activity, is_active)
-            VALUES (?, ?, ?, ?, NOW(), NOW(), 1)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)
         ");
         return $stmt->execute([(int)$tenantAdminId, $sessionId, $ipAddress, $userAgent]);
     } catch (PDOException $e) {
@@ -159,7 +159,7 @@ function updateSessionActivity($sessionId) {
     try {
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
-            SET last_activity = NOW() 
+            SET last_activity = CURRENT_TIMESTAMP 
             WHERE session_id = ? AND is_active = 1
         ");
         return $stmt->execute([$sessionId]);
@@ -176,7 +176,7 @@ function endTenantAdminSession($sessionId) {
     try {
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
-            SET logout_at = NOW(), is_active = 0 
+            SET logout_at = CURRENT_TIMESTAMP, is_active = 0 
             WHERE session_id = ? AND is_active = 1
         ");
         return $stmt->execute([$sessionId]);
@@ -263,9 +263,9 @@ function endInactiveSessions($inactiveMinutes = 30) {
         $intervalSQL = dbInterval($inactiveMinutes);
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
-            SET is_active = 0, logout_at = NOW() 
+            SET is_active = 0, logout_at = CURRENT_TIMESTAMP 
             WHERE is_active = 1 
-            AND last_activity < NOW() - {$intervalSQL}
+            AND last_activity < CURRENT_TIMESTAMP - {$intervalSQL}
         ");
         return $stmt->execute();
     } catch (PDOException $e) {

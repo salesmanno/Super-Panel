@@ -46,7 +46,7 @@ try {
         
         $updateStmt = $db->prepare("
             UPDATE tenant_admins 
-            SET password_hash = ?, updated_at = NOW() 
+            SET password_hash = ?, updated_at = CURRENT_TIMESTAMP 
             WHERE id = ?
         ");
         $updateStmt->execute([$newPasswordHash, $admin['id']]);

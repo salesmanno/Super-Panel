@@ -77,7 +77,7 @@ try {
     }
     
     $params[] = $_SESSION['company_id'];
-    $sql = "UPDATE tenant_companies SET " . implode(', ', $updateFields) . ", updated_at = NOW() WHERE id = ?";
+    $sql = "UPDATE tenant_companies SET " . implode(', ', $updateFields) . ", updated_at = CURRENT_TIMESTAMP WHERE id = ?";
     
     $stmt = $db->prepare($sql);
     $stmt->execute($params);

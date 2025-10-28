@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 contact_phone = ?,
                 contact_address = ?,
                 footer_text = ?,
-                updated_at = NOW()
+                updated_at = CURRENT_TIMESTAMP
             WHERE company_id = ?
         ");
         $stmt->execute([

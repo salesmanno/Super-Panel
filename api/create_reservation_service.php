@@ -44,7 +44,7 @@ try {
                 id, company_id, output_product_id, service_name, description,
                 price, duration_minutes, service_type, available_from, available_to,
                 assigned_staff_ids, capacity, is_active, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ");
         
         $stmt->execute([
@@ -69,7 +69,7 @@ try {
                 id, company_id, module_id, product_type, product_id,
                 is_visible, is_public, is_marketplace_featured,
                 created_at, created_by
-            ) VALUES (?, ?, 5, 'service', ?, 1, 1, 0, NOW(), ?)
+            ) VALUES (?, ?, 5, 'service', ?, 1, 1, 0, CURRENT_TIMESTAMP, ?)
         ");
         
         $stmt->execute([

@@ -41,7 +41,7 @@ try {
                 features,
                 is_active,
                 created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW())
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
         ");
         
         $stmt->execute([
@@ -67,7 +67,7 @@ try {
                 is_marketplace_featured,
                 created_at,
                 created_by
-            ) VALUES (?, ?, 1, 'membership', ?, 1, 1, 0, NOW(), ?)
+            ) VALUES (?, ?, 1, 'membership', ?, 1, 1, 0, CURRENT_TIMESTAMP, ?)
         ");
         
         $stmt->execute([
