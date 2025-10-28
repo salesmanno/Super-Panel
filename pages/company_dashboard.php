@@ -19,7 +19,8 @@ $adminRole = $_SESSION['admin_role'] ?? 'admin';
 // Hent company logo, subdomain og status fra database
 $companyLogo = null;
 $companySubdomain = $_SESSION['subdomain'] ?? null;
-$companyIsActive = false;
+$companyIsActive = true; // Default til true
+$dbAvailable = true;
 try {
     $db = getDBConnection();
     if ($db && isset($_SESSION['subdomain'])) {
@@ -55,10 +56,18 @@ try {
         }
     }
 } catch (Exception $e) {
+    error_log("Failed to load company logo (database unavailable): " . $e->getMessage());
+    $dbAvailable = false;
     $companyLogo = null;
 }
 
-$allUserModules = getTenantAdminModules($_SESSION['tenant_admin_id']);
+$allUserModules = [];
+try {
+    $allUserModules = getTenantAdminModules($_SESSION['tenant_admin_id']);
+} catch (Exception $e) {
+    error_log("Failed to load user modules (database unavailable): " . $e->getMessage());
+    $dbAvailable = false;
+}
 
 // Ditt nettsted skal ikke vises i nav baren, kun tilgjengelig via firma-navnet
 $hiddenModules = ['dashboard', 'ditt_nettsted'];
@@ -73,7 +82,13 @@ $userModules = array_values(array_filter($allUserModules, function($module) use 
 
 // Kun vis moduler som ikke skal skjules i nav baren
 $visibleModules = $userModules;
-$allModules = getCompanyModules($_SESSION['company_id']);
+$allModules = [];
+try {
+    $allModules = getCompanyModules($_SESSION['company_id']);
+} catch (Exception $e) {
+    error_log("Failed to load company modules (database unavailable): " . $e->getMessage());
+    $dbAvailable = false;
+}
 
 // Sjekk om email er konfigurert (med SMTP data)
 $webmailConfigured = false;
@@ -99,7 +114,8 @@ try {
         $webmailConfigured = $smtpConfigured && $hasAccount;
     }
 } catch (Exception $e) {
-    // Tabellene eksisterer ikke ennå
+    error_log("Failed to check email config (database unavailable): " . $e->getMessage());
+    $dbAvailable = false;
     $webmailConfigured = false;
     $smtpConfigured = false;
 }
@@ -114,7 +130,8 @@ try {
         $paymentConfigured = ($stmt->fetchColumn() > 0);
     }
 } catch (Exception $e) {
-    // Tabellen eksisterer ikke ennå
+    error_log("Failed to check payment config (database unavailable): " . $e->getMessage());
+    $dbAvailable = false;
     $paymentConfigured = false;
 }
 ?>
