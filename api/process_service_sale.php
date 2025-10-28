@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/database.php';
+require_once '../includes/UnifiedLedgerService.php';
 
 header('Content-Type: application/json');
 
@@ -98,6 +99,11 @@ try {
     
     $total = floatval($service['price']) * $quantity;
     
+    // Initialize unified ledger service
+    $ledgerService = new UnifiedLedgerService($db, $company_id);
+    $orderId = strtoupper($service_type) . '-' . date('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
+    $transactionId = null;
+    
     // Check if customer exists in tenant_customers, if not create
     $customer_id = null;
     $stmt = $db->prepare("SELECT id FROM tenant_customers WHERE company_id = ? AND email = ? LIMIT 1");
@@ -132,6 +138,7 @@ try {
         case 'event':
             // Record event check-in or registration (customer already created in tenant_customers)
             $checkin_id = bin2hex(random_bytes(16));
+            $transactionId = $checkin_id;
             
             // Add member price indicator to notes
             $event_notes = $notes;
@@ -164,6 +171,36 @@ try {
                 $admin_id,
                 $event_notes
             ]);
+            
+            // Log to unified_ledger when payment is completed
+            if ($event_payment_status === 'paid') {
+                // Get event cost_price
+                $costStmt = $db->prepare("SELECT cost_price FROM events_eventdata WHERE id = ?");
+                $costStmt->execute([$product_id]);
+                $costResult = $costStmt->fetch(PDO::FETCH_ASSOC);
+                $costPrice = ($costResult && $costResult['cost_price']) ? ($costResult['cost_price'] * $quantity) : null;
+                
+                $ledgerService->logTransaction([
+                    'order_id' => $orderId,
+                    'module_source' => 'events',
+                    'item_type' => 'event',
+                    'source_id' => $checkin_id,
+                    'item_name' => $service['service_name'],
+                    'quantity' => $quantity,
+                    'selling_price' => $total,
+                    'cost_price' => $costPrice,
+                    'customer_name' => $customer_full_name,
+                    'customer_email' => $customer_email,
+                    'payment_method' => $payment_method,
+                    'payment_status' => 'completed',
+                    'status' => 'active',
+                    'transaction_date' => date('Y-m-d H:i:s'),
+                    'metadata' => [
+                        'event_id' => $product_id,
+                        'is_member_price' => $is_member_price
+                    ]
+                ]);
+            }
             break;
             
         case 'membership':
@@ -183,6 +220,35 @@ try {
                 $customer_email,
                 $customer_phone,
                 "Kjøpt via varesalg - Betalt: {$total} NOK ({$payment_method}). " . $notes
+            ]);
+            $memberResult = $stmt->fetch(PDO::FETCH_ASSOC);
+            $transactionId = $memberResult['member_id'] ?? bin2hex(random_bytes(16));
+            
+            // Log to unified_ledger
+            // Get membership cost_price if available
+            $costStmt = $db->prepare("SELECT cost_price FROM membership_plans WHERE plan_id = ?");
+            $costStmt->execute([$product_id]);
+            $costResult = $costStmt->fetch(PDO::FETCH_ASSOC);
+            $costPrice = ($costResult && $costResult['cost_price']) ? ($costResult['cost_price'] * $quantity) : null;
+            
+            $ledgerService->logTransaction([
+                'order_id' => $orderId,
+                'module_source' => 'membership',
+                'item_type' => 'membership',
+                'source_id' => $transactionId,
+                'item_name' => $service['service_name'],
+                'quantity' => $quantity,
+                'selling_price' => $total,
+                'cost_price' => $costPrice,
+                'customer_name' => $customer_full_name,
+                'customer_email' => $customer_email,
+                'payment_method' => $payment_method,
+                'payment_status' => 'completed',
+                'status' => 'active',
+                'transaction_date' => date('Y-m-d H:i:s'),
+                'metadata' => [
+                    'plan_id' => $product_id
+                ]
             ]);
             break;
             
@@ -208,6 +274,36 @@ try {
                 $daily_price,
                 $total,
                 "Kjøpt via varesalg - Betalingsmetode: {$payment_method}. " . $notes
+            ]);
+            $rentalResult = $stmt->fetch(PDO::FETCH_ASSOC);
+            $transactionId = $rentalResult['reservation_id'] ?? bin2hex(random_bytes(16));
+            
+            // Log to unified_ledger
+            // Get rental object cost_price if available
+            $costStmt = $db->prepare("SELECT cost_price FROM rental_objects WHERE object_id = ?");
+            $costStmt->execute([$product_id]);
+            $costResult = $costStmt->fetch(PDO::FETCH_ASSOC);
+            $costPrice = ($costResult && $costResult['cost_price']) ? ($costResult['cost_price'] * $quantity) : null;
+            
+            $ledgerService->logTransaction([
+                'order_id' => $orderId,
+                'module_source' => 'rental',
+                'item_type' => 'rental',
+                'source_id' => $transactionId,
+                'item_name' => $service['service_name'],
+                'quantity' => $quantity,
+                'selling_price' => $total,
+                'cost_price' => $costPrice,
+                'customer_name' => $customer_full_name,
+                'customer_email' => $customer_email,
+                'payment_method' => $payment_method,
+                'payment_status' => 'completed',
+                'status' => 'active',
+                'transaction_date' => date('Y-m-d H:i:s'),
+                'metadata' => [
+                    'object_id' => $product_id,
+                    'daily_price' => $daily_price
+                ]
             ]);
             break;
             
