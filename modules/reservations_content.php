@@ -1,6 +1,5 @@
-<div class="module-content">
-    <!-- Reservasjonsoversikt Tab -->
-    <div id="reservations-overview" class="subtab-content">
+<!-- Reservasjonsoversikt Tab -->
+<div id="reservations-overview" class="subtab-content">
         <div class="row">
             <!-- Left Sidebar: Filters & Stats -->
             <div class="col-md-3">

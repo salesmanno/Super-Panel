@@ -21,18 +21,29 @@ if (!$bookingId || !$eventId) {
 try {
     $db = getDBConnection();
     
-    // Get booking details
+    // Get booking details and verify it's for this event
     $stmt = $db->prepare("
         SELECT sb.*, tc.first_name, tc.last_name, tc.email, tc.phone
         FROM service_bookings sb
         LEFT JOIN tenant_customers tc ON sb.customer_id = tc.id
-        WHERE sb.id = ? AND sb.company_id = ?
+        WHERE sb.id = ? 
+        AND sb.company_id = ?
+        AND sb.service_type = 'event'
+        AND sb.service_id = ?
     ");
-    $stmt->execute([$bookingId, $_SESSION['company_id']]);
+    $stmt->execute([$bookingId, $_SESSION['company_id'], $eventId]);
     $booking = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$booking) {
-        echo json_encode(['success' => false, 'message' => 'Påmelding ikke funnet']);
+        echo json_encode(['success' => false, 'message' => 'Påmelding ikke funnet eller matcher ikke arrangement']);
+        exit;
+    }
+    
+    // Check if already checked in
+    $stmt = $db->prepare("SELECT id FROM events_checkin WHERE booking_id = ? AND event_id = ?");
+    $stmt->execute([$bookingId, $eventId]);
+    if ($stmt->fetch()) {
+        echo json_encode(['success' => false, 'message' => 'Denne påmeldingen er allerede sjekket inn']);
         exit;
     }
     

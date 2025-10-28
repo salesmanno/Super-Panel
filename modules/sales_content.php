@@ -1,5 +1,4 @@
-<div class="module-content">
-    <div id="sales-varesalg" class="subtab-content active">
+<div id="sales-varesalg" class="subtab-content active">
         <div class="row">
             <!-- Products with Shopping Cart -->
             <div class="col-md-8">
