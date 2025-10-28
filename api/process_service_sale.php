@@ -168,14 +168,15 @@ try {
             
         case 'membership':
             // Create member record (active membership)
+            $member_id = bin2hex(random_bytes(16));
             $stmt = $db->prepare("
                 INSERT INTO members 
-                (company_id, plan_id, first_name, last_name, email, phone, 
+                (member_id, company_id, plan_id, first_name, last_name, email, phone, 
                  join_date, expiry_date, status, notes, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW() + INTERVAL '1 month', 'active', ?, NOW(), NOW())
-                RETURNING member_id
+                VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 1 MONTH), 'active', ?, NOW(), NOW())
             ");
             $stmt->execute([
+                $member_id,
                 $company_id,
                 $product_id,
                 $customer_first_name,
@@ -188,18 +189,20 @@ try {
             
         case 'rental':
             // Create rental reservation
-            $stmt = $db->prepare("
-                INSERT INTO rental_reservations 
-                (company_id, object_id, customer_name, customer_email, customer_phone, 
-                 start_date, end_date, daily_price, total_price, deposit_paid, status, notes, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?, NOW(), NOW() + INTERVAL '1 day', ?, ?, 0, 'confirmed', ?, NOW(), NOW())
-                RETURNING reservation_id
-            ");
+            $reservation_id = bin2hex(random_bytes(16));
             
             // Calculate daily price from total (assuming 1 day rental by default)
             $daily_price = $total / $quantity;
             
+            $stmt = $db->prepare("
+                INSERT INTO rental_reservations 
+                (reservation_id, company_id, object_id, customer_name, customer_email, customer_phone, 
+                 start_date, end_date, daily_price, total_price, deposit_paid, status, notes, created_at, updated_at) 
+                VALUES (?, ?, ?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), ?, ?, 0, 'confirmed', ?, NOW(), NOW())
+            ");
+            
             $stmt->execute([
+                $reservation_id,
                 $company_id,
                 $product_id,
                 $customer_full_name,
