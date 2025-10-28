@@ -764,6 +764,10 @@ try {
                             case 'sales':
                                 include __DIR__ . '/../modules/sales_content.php';
                                 break;
+                            case 'company':
+                            case 'deres_firma':
+                                include __DIR__ . '/../modules/deres_firma_content.php';
+                                break;
                             default:
                                 echo '<div class="alert alert-warning">Modul under utvikling</div>';
                         }
