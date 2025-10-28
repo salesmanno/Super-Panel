@@ -761,29 +761,40 @@ if (salesModule) {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded fired in sales module');
     
-    const salesTab = document.getElementById('tab-sales');
-    const salesContent = document.getElementById('content-sales');
-    
-    console.log('Sales tab button:', salesTab);
-    console.log('Sales content pane:', salesContent);
-    
-    if (salesTab) {
-        // Listen for tab shown event
-        salesTab.addEventListener('shown.bs.tab', function(e) {
-            console.log('✅ Sales tab shown via event - loading data...');
-            loadAllSalesData();
-        });
+    // Wait for all elements to be loaded
+    setTimeout(() => {
+        const salesTab = document.getElementById('tab-sales');
+        const salesContent = document.getElementById('content-sales');
         
-        // Check if already active on page load
-        if (salesTab.classList.contains('active') && salesContent && salesContent.classList.contains('active')) {
-            console.log('✅ Sales is already active tab - loading data immediately...');
-            setTimeout(() => {
+        console.log('Sales tab button:', salesTab);
+        console.log('Sales content pane:', salesContent);
+        
+        if (salesTab) {
+            // Listen for tab shown event
+            salesTab.addEventListener('shown.bs.tab', function(e) {
+                console.log('✅ Sales tab shown via event - loading data...');
                 loadAllSalesData();
-            }, 200);
+            });
+            
+            // Check if already active on page load
+            if (salesTab.classList.contains('active') && salesContent && salesContent.classList.contains('active')) {
+                console.log('✅ Sales is already active tab - loading data immediately...');
+                loadAllSalesData();
+            }
+        } else {
+            console.error('❌ #tab-sales button not found! Retrying...');
+            // Retry after a short delay
+            setTimeout(() => {
+                const retryTab = document.getElementById('tab-sales');
+                if (retryTab) {
+                    retryTab.addEventListener('shown.bs.tab', function(e) {
+                        console.log('✅ Sales tab shown (retry) - loading data...');
+                        loadAllSalesData();
+                    });
+                }
+            }, 500);
         }
-    } else {
-        console.error('❌ #tab-sales button not found!');
-    }
+    }, 100);
 });
 
 // Load all sales data in one function
