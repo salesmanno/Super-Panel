@@ -381,6 +381,101 @@
     </div>
 </div>
 
+<!-- Edit Sales Item Modal -->
+<div class="modal fade" id="editSalesItemModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil me-2"></i>Rediger produkt
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editSalesItemForm">
+                    <input type="hidden" name="id" id="edit-product-id">
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label">Produktnavn <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="name" id="edit-name" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Enhet</label>
+                            <select class="form-select" name="unit" id="edit-unit">
+                                <option value="stk">Stk</option>
+                                <option value="kg">Kg</option>
+                                <option value="liter">Liter</option>
+                                <option value="meter">Meter</option>
+                                <option value="pakke">Pakke</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Kostpris (NOK)</label>
+                            <input type="number" class="form-control" name="cost_price" id="edit-cost-price" step="0.01" value="0">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Salgspris (NOK) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="selling_price" id="edit-selling-price" step="0.01" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Produktbilde URL</label>
+                            <input type="url" class="form-control" name="img_product" id="edit-img-product" placeholder="https://...">
+                            <small class="text-muted">Legg inn direkte lenke til produktbildet</small>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">MVA-sats (%)</label>
+                            <select class="form-select" name="tax_rate" id="edit-tax-rate">
+                                <option value="25">25% (Standard)</option>
+                                <option value="15">15% (Mat)</option>
+                                <option value="12">12% (Transport, kino)</option>
+                                <option value="0">0% (Fritatt)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Bestillingspunkt (reorder)</label>
+                            <input type="number" class="form-control" name="reorder_level" id="edit-reorder-level" value="0">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Beskrivelse</label>
+                        <textarea class="form-control" name="description" id="edit-description" rows="2"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="edit-is-active">
+                                <label class="form-check-label" for="edit-is-active">
+                                    Aktiv (tilgjengelig for salg)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="item_taxable" id="edit-item-taxable">
+                                <label class="form-check-label" for="edit-item-taxable">
+                                    MVA-pliktig produkt
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditProduct()">
+                    <i class="bi bi-save me-1"></i>Oppdater produkt
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Service Purchase Modal -->
 <div class="modal fade" id="servicePurchaseModal" tabindex="-1">
     <div class="modal-dialog">
@@ -850,8 +945,76 @@ function displayProductsWithProfit(products) {
     }).join('');
 }
 
-function editProduct(productId) {
-    alert('Redigering kommer snart for produkt: ' + productId);
+async function editProduct(productId) {
+    try {
+        const response = await fetch(`/api/get_single_product.php?id=${productId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const p = result.product;
+            
+            document.getElementById('edit-product-id').value = p.id;
+            document.getElementById('edit-name').value = p.name || '';
+            document.getElementById('edit-unit').value = p.unit || 'stk';
+            document.getElementById('edit-cost-price').value = p.cost_price || 0;
+            document.getElementById('edit-selling-price').value = p.selling_price || 0;
+            document.getElementById('edit-img-product').value = p.img_product || '';
+            document.getElementById('edit-tax-rate').value = p.tax_rate || 25;
+            document.getElementById('edit-reorder-level').value = p.reorder_level || 0;
+            document.getElementById('edit-description').value = p.description || '';
+            document.getElementById('edit-is-active').checked = p.is_active == 1;
+            document.getElementById('edit-item-taxable').checked = p.item_taxable == 1;
+            
+            const editModal = new bootstrap.Modal(document.getElementById('editSalesItemModal'));
+            editModal.show();
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (error) {
+        console.error('Load product error:', error);
+        alert('❌ Feil ved henting av produktdata');
+    }
+}
+
+async function submitEditProduct() {
+    const form = document.getElementById('editSalesItemForm');
+    const formData = new FormData(form);
+    
+    const data = {
+        id: formData.get('id'),
+        name: formData.get('name'),
+        unit: formData.get('unit'),
+        cost_price: parseFloat(formData.get('cost_price')) || 0,
+        selling_price: parseFloat(formData.get('selling_price')),
+        img_product: formData.get('img_product'),
+        tax_rate: parseFloat(formData.get('tax_rate')),
+        reorder_level: parseInt(formData.get('reorder_level')) || 0,
+        description: formData.get('description'),
+        is_active: form.querySelector('[name="is_active"]').checked,
+        item_taxable: form.querySelector('[name="item_taxable"]').checked
+    };
+    
+    try {
+        const response = await fetch('/api/update_sales_product.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Produktet ble oppdatert');
+            bootstrap.Modal.getInstance(document.getElementById('editSalesItemModal')).hide();
+            await loadSalesProducts();
+            await loadAllSalesData();
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (error) {
+        console.error('Update product error:', error);
+        alert('❌ Feil ved oppdatering av produkt');
+    }
 }
 
 function deleteProduct(productId) {
