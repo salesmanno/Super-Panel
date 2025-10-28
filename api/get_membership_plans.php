@@ -15,16 +15,16 @@ try {
     
     $stmt = $db->prepare("
         SELECT 
-            plan_id as id,
-            plan_name as name,
+            id,
+            name,
+            plan_code,
             description,
             price,
-            duration_months,
-            features as benefits,
+            billing_cycle,
+            benefits,
             is_active,
             created_at,
-            'NOK' as currency,
-            CASE WHEN duration_months = 12 THEN 'yearly' ELSE 'monthly' END as billing_cycle
+            currency
         FROM membership_plans
         WHERE company_id = ? AND is_active = true
         ORDER BY created_at DESC

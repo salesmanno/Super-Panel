@@ -38,12 +38,13 @@ try {
                 category_id,
                 selling_price,
                 cost_price,
-                member_price,
+                img_product,
+                item_taxable,
                 tax_rate,
                 unit,
                 reorder_level,
                 is_active
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         
         $stmt->execute([
@@ -55,7 +56,8 @@ try {
             $data['category'] ?? $data['category_id'] ?? null,
             $data['price'] ?? $data['selling_price'] ?? 0,
             $data['cost_price'] ?? 0,
-            $data['member_price'] ?? null,
+            $data['img_product'] ?? null,
+            $data['item_taxable'] ?? 1,
             $data['tax_rate'] ?? 0,
             $data['unit'] ?? 'stk',
             $data['reorder_level'] ?? $data['low_stock_threshold'] ?? 5,
