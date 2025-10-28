@@ -15,7 +15,7 @@
                         $companyData = $stmt->fetch(PDO::FETCH_ASSOC);
                     }
                 } catch (Exception $e) {
-                    echo '<div class="alert alert-danger">Kunne ikke laste firmadata: ' . htmlspecialchars($e->getMessage()) . '</div>';
+                    error_log("Failed to load company data: " . $e->getMessage());
                 }
                 ?>
                 
