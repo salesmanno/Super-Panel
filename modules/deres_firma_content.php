@@ -520,3 +520,325 @@ async function saveModuleAccess() {
 </script>
 
 <!-- JavaScript functions are now in company_dashboard.php -->
+</div>
+
+<div class="tab-pane fade" id="firma-website" role="tabpanel">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-globe me-2"></i>Nettstedsinnstillinger</h5>
+                <p class="text-muted">Generelle innstillinger for bedriftens nettsted</p>
+                
+                <?php
+                // Hent nettstedsinnstillinger fra tenant_website_general
+                $websiteGeneral = null;
+                $websiteModules = [];
+                
+                try {
+                    $db = getDBConnection();
+                    if ($db) {
+                        // Hent generelle nettstedsinnstillinger
+                        $stmt = $db->prepare("SELECT * FROM tenant_website_general WHERE company_id = ? LIMIT 1");
+                        $stmt->execute([$_SESSION['company_id']]);
+                        $websiteGeneral = $stmt->fetch(PDO::FETCH_ASSOC);
+                        
+                        // Hent modul-spesifikke innstillinger
+                        $stmt = $db->prepare("
+                            SELECT twc.*, sm.name as module_name, sm.icon
+                            FROM tenant_website_config twc
+                            LEFT JOIN system_modules sm ON twc.module_id = sm.id
+                            WHERE twc.company_id = ?
+                            ORDER BY twc.display_order, sm.name
+                        ");
+                        $stmt->execute([$_SESSION['company_id']]);
+                        $websiteModules = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    }
+                } catch (Exception $e) {
+                    error_log("Website settings error: " . $e->getMessage());
+                    echo '<div class="alert alert-danger">Kunne ikke laste nettstedsinnstillinger: ' . htmlspecialchars($e->getMessage()) . '</div>';
+                }
+                ?>
+                
+                <?php if ($websiteGeneral): ?>
+                <!-- Generelle innstillinger -->
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Nettstedtittel</label>
+                        <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['site_title'] ?? 'Ikke satt') ?></p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Status</label>
+                        <p class="form-control-plaintext">
+                            <?php if ($websiteGeneral['is_active'] ?? false): ?>
+                                <span class="badge bg-success">Aktiv</span>
+                            <?php else: ?>
+                                <span class="badge bg-secondary">Inaktiv</span>
+                            <?php endif; ?>
+                            
+                            <?php if ($websiteGeneral['maintenance_mode'] ?? false): ?>
+                                <span class="badge bg-warning ms-2">Vedlikeholdsmodus</span>
+                            <?php endif; ?>
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label fw-bold">Beskrivelse</label>
+                        <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['site_description'] ?? 'Ingen beskrivelse') ?></p>
+                    </div>
+                </div>
+                
+                <hr class="my-4">
+                <h6 class="mb-3"><i class="bi bi-palette me-2"></i>Design & Layout</h6>
+                
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Primærfarge</label>
+                        <p class="form-control-plaintext">
+                            <span class="badge" style="background-color: <?= htmlspecialchars($websiteGeneral['primary_color'] ?? '#3366CC') ?>;">
+                                <?= htmlspecialchars($websiteGeneral['primary_color'] ?? '#3366CC') ?>
+                            </span>
+                        </p>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Sekundærfarge</label>
+                        <p class="form-control-plaintext">
+                            <span class="badge" style="background-color: <?= htmlspecialchars($websiteGeneral['secondary_color'] ?? '#666666') ?>;">
+                                <?= htmlspecialchars($websiteGeneral['secondary_color'] ?? '#666666') ?>
+                            </span>
+                        </p>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Navigasjonsstil</label>
+                        <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['navigation_style'] ?? 'top') ?></p>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Header layout</label>
+                        <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['header_layout'] ?? 'standard') ?></p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Footer layout</label>
+                        <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['footer_layout'] ?? 'standard') ?></p>
+                    </div>
+                </div>
+                
+                <hr class="my-4">
+                <h6 class="mb-3"><i class="bi bi-image me-2"></i>Hero-seksjon</h6>
+                
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label fw-bold">Hero aktivert</label>
+                        <p class="form-control-plaintext">
+                            <?php if ($websiteGeneral['hero_enabled'] ?? false): ?>
+                                <span class="badge bg-success">Ja</span>
+                            <?php else: ?>
+                                <span class="badge bg-secondary">Nei</span>
+                            <?php endif; ?>
+                        </p>
+                    </div>
+                </div>
+                
+                <?php if ($websiteGeneral['hero_enabled'] ?? false): ?>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Hero tittel</label>
+                        <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['hero_title'] ?? 'Ikke satt') ?></p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Hero knapptekst</label>
+                        <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['hero_button_text'] ?? 'Ikke satt') ?></p>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label fw-bold">Hero beskrivelse</label>
+                        <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['hero_description'] ?? 'Ingen beskrivelse') ?></p>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Hero bilde URL</label>
+                        <p class="form-control-plaintext text-truncate" title="<?= htmlspecialchars($websiteGeneral['hero_image_url'] ?? '') ?>">
+                            <?= $websiteGeneral['hero_image_url'] ? '<a href="' . htmlspecialchars($websiteGeneral['hero_image_url']) . '" target="_blank">' . htmlspecialchars($websiteGeneral['hero_image_url']) . '</a>' : 'Ikke satt' ?>
+                        </p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Hero knapp URL</label>
+                        <p class="form-control-plaintext text-truncate" title="<?= htmlspecialchars($websiteGeneral['hero_button_url'] ?? '') ?>">
+                            <?= $websiteGeneral['hero_button_url'] ? '<a href="' . htmlspecialchars($websiteGeneral['hero_button_url']) . '" target="_blank">' . htmlspecialchars($websiteGeneral['hero_button_url']) . '</a>' : 'Ikke satt' ?>
+                        </p>
+                    </div>
+                </div>
+                <?php endif; ?>
+                
+                <hr class="my-4">
+                <h6 class="mb-3"><i class="bi bi-telephone me-2"></i>Kontaktinformasjon</h6>
+                
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Kontakt e-post</label>
+                        <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['contact_email'] ?? 'Ikke satt') ?></p>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Kontakt telefon</label>
+                        <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['contact_phone'] ?? 'Ikke satt') ?></p>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Google Analytics ID</label>
+                        <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['google_analytics_id'] ?? 'Ikke satt') ?></p>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label fw-bold">Kontaktadresse</label>
+                        <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['contact_address'] ?? 'Ikke satt') ?></p>
+                    </div>
+                </div>
+                
+                <hr class="my-4">
+                <h6 class="mb-3"><i class="bi bi-clock-history me-2"></i>Metadata & Oppetid</h6>
+                
+                <?php
+                // Beregn oppetid (uptime)
+                $uptime = '';
+                $uptimeDays = 0;
+                if (isset($websiteGeneral['created_at'])) {
+                    $createdAt = new DateTime($websiteGeneral['created_at']);
+                    $now = new DateTime();
+                    $interval = $createdAt->diff($now);
+                    $uptimeDays = $interval->days;
+                    
+                    $years = $interval->y;
+                    $months = $interval->m;
+                    $days = $interval->d;
+                    
+                    $parts = [];
+                    if ($years > 0) $parts[] = $years . ' år';
+                    if ($months > 0) $parts[] = $months . ' måneder';
+                    if ($days > 0) $parts[] = $days . ' dager';
+                    
+                    $uptime = implode(', ', $parts);
+                    if (empty($uptime)) $uptime = 'Under 1 dag';
+                }
+                ?>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Opprettet</label>
+                        <p class="form-control-plaintext">
+                            <?= isset($websiteGeneral['created_at']) ? date('d.m.Y H:i', strtotime($websiteGeneral['created_at'])) : 'N/A' ?>
+                        </p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Sist oppdatert</label>
+                        <p class="form-control-plaintext">
+                            <?= isset($websiteGeneral['updated_at']) ? date('d.m.Y H:i', strtotime($websiteGeneral['updated_at'])) : 'N/A' ?>
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label fw-bold"><i class="bi bi-clock me-2"></i>Oppetid (Uptime)</label>
+                        <p class="form-control-plaintext">
+                            <?php if ($uptime): ?>
+                                <span class="badge bg-success fs-6">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    <?= htmlspecialchars($uptime) ?>
+                                </span>
+                                <small class="text-muted ms-2">(<?= number_format($uptimeDays) ?> dager totalt)</small>
+                            <?php else: ?>
+                                <span class="text-muted">Ikke tilgjengelig</span>
+                            <?php endif; ?>
+                        </p>
+                    </div>
+                </div>
+                
+                <?php else: ?>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Ingen nettstedsinnstillinger er konfigurert ennå.
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        
+        <!-- Modulkonfigurasjon -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-puzzle me-2"></i>Modulkonfigurasjon</h5>
+                <p class="text-muted">Oversikt over modulinnstillinger for nettstedet</p>
+                
+                <?php if (!empty($websiteModules)): ?>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Modul</th>
+                                <th>Visningsnavn</th>
+                                <th>Rekkefølge</th>
+                                <th>Status</th>
+                                <th>Synlig i nav</th>
+                                <th>Publisert</th>
+                                <th>SEO tittel</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($websiteModules as $module): ?>
+                            <tr>
+                                <td>
+                                    <?php if ($module['icon']): ?>
+                                        <i class="bi bi-<?= htmlspecialchars(str_replace('bi-', '', $module['icon'])) ?> me-2"></i>
+                                    <?php endif; ?>
+                                    <?= htmlspecialchars($module['module_name'] ?? 'Ukjent') ?>
+                                </td>
+                                <td><?= htmlspecialchars($module['display_name'] ?? '-') ?></td>
+                                <td><?= htmlspecialchars($module['display_order'] ?? '0') ?></td>
+                                <td>
+                                    <?php if ($module['is_enabled'] ?? false): ?>
+                                        <span class="badge bg-success">Aktivert</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-secondary">Deaktivert</span>
+                                    <?php endif; ?>
+                                    
+                                    <?php if ($module['is_public'] ?? false): ?>
+                                        <span class="badge bg-info">Offentlig</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($module['show_in_navigation'] ?? false): ?>
+                                        <i class="bi bi-check-circle text-success"></i>
+                                    <?php else: ?>
+                                        <i class="bi bi-x-circle text-muted"></i>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($module['is_published'] ?? false): ?>
+                                        <span class="badge bg-success">Publisert</span>
+                                        <?php if ($module['published_at']): ?>
+                                            <br><small class="text-muted"><?= date('d.m.Y', strtotime($module['published_at'])) ?></small>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <span class="badge bg-secondary">Upublisert</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?= htmlspecialchars($module['seo_title'] ?? '-') ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php else: ?>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Ingen moduler er konfigurert for nettstedet.
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
