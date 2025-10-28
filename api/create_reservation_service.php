@@ -63,19 +63,32 @@ try {
             $data['is_active'] ?? 1
         ]);
         
+        // Get reservations module_id (UUID from system_modules)
+        $moduleStmt = $db->prepare("SELECT id FROM system_modules WHERE module_key = 'reservations' LIMIT 1");
+        $moduleStmt->execute();
+        $reservationsModuleId = $moduleStmt->fetchColumn();
+        
+        if (!$reservationsModuleId) {
+            throw new Exception("Reservations module not found in system_modules");
+        }
+        
         // Auto-generate output_products entry for compatibility
         $stmt = $db->prepare("
             INSERT INTO output_products (
-                id, company_id, module_id, product_type, product_id,
+                id, company_id, module_id, product_type, product_id, name, description, price,
                 is_visible, is_public, is_marketplace_featured,
                 created_at, created_by
-            ) VALUES (?, ?, 5, 'service', ?, 1, 1, 0, NOW(), ?)
+            ) VALUES (?, ?, ?, 'service', ?, ?, ?, ?, 1, 1, 0, NOW(), ?)
         ");
         
         $stmt->execute([
             $outputProductId,
             $_SESSION['company_id'],
+            $reservationsModuleId,
             $serviceId,
+            $data['service_name'],
+            $data['description'] ?? null,
+            $data['price'] ?? 0,
             $_SESSION['tenant_admin_id']
         ]);
         

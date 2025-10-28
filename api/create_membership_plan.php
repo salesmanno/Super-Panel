@@ -54,7 +54,16 @@ try {
             $data['benefits'] ?? null
         ]);
         
-        // 2. Auto-generer output_products entry (module_id=5 for membership)
+        // 2. Get membership module_id (UUID from system_modules)
+        $moduleStmt = $db->prepare("SELECT id FROM system_modules WHERE module_key = 'membership' LIMIT 1");
+        $moduleStmt->execute();
+        $membershipModuleId = $moduleStmt->fetchColumn();
+        
+        if (!$membershipModuleId) {
+            throw new Exception("Membership module not found in system_modules");
+        }
+        
+        // 3. Auto-generer output_products entry
         $stmt = $db->prepare("
             INSERT INTO output_products (
                 id,
@@ -70,12 +79,13 @@ try {
                 is_marketplace_featured,
                 created_at,
                 created_by
-            ) VALUES (?, ?, 5, 'membership', ?, ?, ?, ?, 1, 1, 0, NOW(), ?)
+            ) VALUES (?, ?, ?, 'membership', ?, ?, ?, ?, 1, 1, 0, NOW(), ?)
         ");
         
         $stmt->execute([
             $outputProductId,
             $_SESSION['company_id'],
+            $membershipModuleId,
             $planId,
             $data['name'],
             $data['description'] ?? null,
