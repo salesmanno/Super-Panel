@@ -1112,7 +1112,7 @@ async function loadPendingRegistrations(eventId) {
             container.style.display = 'block';
             
             listEl.innerHTML = result.registrations.map(reg => {
-                const customerName = `${reg.customer_first_name} ${reg.customer_last_name}`;
+                const customerName = reg.customer_name || 'Ukjent';
                 const price = parseFloat(reg.unit_price || 0).toFixed(2);
                 const quantity = reg.quantity || 1;
                 const total = (parseFloat(reg.unit_price || 0) * quantity).toFixed(2);

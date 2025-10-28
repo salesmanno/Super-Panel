@@ -20,22 +20,19 @@ try {
     $db = getDBConnection();
     
     // Get registrations (service bookings) that haven't been checked in yet
+    // Note: service_bookings stores customer data directly (no customer_id foreign key)
     $sql = "SELECT 
                 sb.id as booking_id,
-                sb.customer_id,
-                sb.quantity,
-                sb.unit_price,
+                sb.customer_name,
+                sb.customer_email,
+                sb.customer_phone,
+                sb.selling_price as unit_price,
+                1 as quantity,
                 sb.payment_method,
                 sb.payment_status,
-                sb.created_at,
-                tc.first_name as customer_first_name,
-                tc.last_name as customer_last_name,
-                tc.email as customer_email,
-                tc.phone as customer_phone
+                sb.created_at
             FROM service_bookings sb
-            LEFT JOIN tenant_customers tc ON sb.customer_id = tc.id
-            WHERE sb.service_type = 'event'
-            AND sb.service_id = ?
+            WHERE sb.service_name LIKE CONCAT('%', (SELECT title FROM events_eventdata WHERE id = ?), '%')
             AND sb.company_id = ?
             AND sb.id NOT IN (
                 SELECT booking_id 

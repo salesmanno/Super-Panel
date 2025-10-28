@@ -220,11 +220,13 @@
                                 }
                                 
                                 // Hent aktiv sesjon for denne adminen
+                                $activeValue = dbBool(true);
                                 $stmt = $db->prepare("
                                     SELECT last_activity, ip_address, user_agent
                                     FROM tenant_admin_sessions
                                     WHERE tenant_admin_id = ? 
-                                    AND status = 'active'
+                                    AND is_active = $activeValue
+                                    AND logout_at IS NULL
                                     ORDER BY last_activity DESC
                                     LIMIT 1
                                 ");
