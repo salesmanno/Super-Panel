@@ -2,33 +2,16 @@
 session_start();
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['admin_id']) || !isset($_SESSION['company_id'])) {
+if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     echo json_encode(['success' => false, 'message' => 'Ikke autorisert']);
     exit;
 }
 
-// Detect database type
-$isDev = getenv('DATABASE_URL') !== false;
+require_once __DIR__ . '/../config/database.php';
 
 try {
-    if ($isDev) {
-        // PostgreSQL (Development)
-        $dbUrl = parse_url(getenv('DATABASE_URL'));
-        $pdo = new PDO(
-            "pgsql:host={$dbUrl['host']};port={$dbUrl['port']};dbname=" . ltrim($dbUrl['path'], '/'),
-            $dbUrl['user'],
-            $dbUrl['pass']
-        );
-    } else {
-        // MySQL (Production)
-        $pdo = new PDO(
-            'mysql:host=salesmanno04.mysql.domeneshop.no;dbname=salesmanno04;charset=utf8mb4',
-            'salesmanno04',
-            'hSb6qagz'
-        );
-    }
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
+    $db = getDBConnection();
+} catch (Exception $e) {
     echo json_encode(['success' => false, 'message' => 'Database tilkobling feilet']);
     exit;
 }
@@ -61,7 +44,7 @@ if (!$eventId || !$title || !$startDate || !$startTime) {
 
 try {
     // Verify event belongs to this company
-    $stmt = $pdo->prepare("SELECT company_id FROM events_eventdata WHERE id = ?");
+    $stmt = $db->prepare("SELECT company_id FROM events_eventdata WHERE id = ?");
     $stmt->execute([$eventId]);
     $event = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -91,7 +74,7 @@ try {
             is_member_exclusive = ?
             WHERE id = ? AND company_id = ?";
     
-    $stmt = $pdo->prepare($sql);
+    $stmt = $db->prepare($sql);
     $stmt->execute([
         $title,
         $description,
@@ -120,7 +103,7 @@ try {
         'event_id' => $eventId
     ]);
     
-} catch (PDOException $e) {
+} catch (Exception $e) {
     error_log("Edit event error: " . $e->getMessage());
     echo json_encode(['success' => false, 'message' => 'Database feil']);
 }

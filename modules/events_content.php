@@ -337,32 +337,21 @@
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col-md-3 mb-3">
+                                <div class="col-md-4 mb-3">
                                     <label class="form-label">Billett type</label>
-                                    <select class="form-select" name="ticket_type">
-                                        <option value="regular">Ordinær</option>
-                                        <option value="member">Medlem</option>
-                                        <option value="vip">VIP</option>
-                                        <option value="staff">Ansatt</option>
+                                    <select class="form-select" name="ticket_type" id="ticket-type-select">
+                                        <option value="">Laster...</option>
                                     </select>
                                 </div>
-                                <div class="col-md-3 mb-3">
-                                    <label class="form-label">Skal betale?</label>
-                                    <div class="form-check form-switch mt-2">
-                                        <input class="form-check-input" type="checkbox" name="is_paying" id="isPayingCheckbox" checked>
-                                        <label class="form-check-label" for="isPayingCheckbox">Betaler</label>
-                                    </div>
-                                </div>
-                                <div class="col-md-3 mb-3" id="payment-method-container">
+                                <div class="col-md-4 mb-3" id="payment-method-container">
                                     <label class="form-label">Betalingsmetode</label>
                                     <select class="form-select" name="payment_method">
                                         <option value="cash">Kontant</option>
-                                        <option value="card">Kort</option>
                                         <option value="vipps">Vipps</option>
-                                        <option value="online">Online</option>
+                                        <option value="on_arrival">Oppmøte</option>
                                     </select>
                                 </div>
-                                <div class="col-md-3 mb-3">
+                                <div class="col-md-4 mb-3">
                                     <label class="form-label">Notater</label>
                                     <input type="text" class="form-control" name="notes">
                                 </div>
@@ -852,7 +841,7 @@ async function selectEventForCheckin(eventId, eventTitle, eventDate) {
 function updateTicketTypeOptions() {
     if (!selectedEventData) return;
     
-    const ticketTypeSelect = document.querySelector('[name="ticket_type"]');
+    const ticketTypeSelect = document.getElementById('ticket-type-select');
     if (!ticketTypeSelect) return;
     
     let options = [];
@@ -901,18 +890,22 @@ function updateTicketTypeOptions() {
         `<option value="${opt.value}" data-price="${opt.price}">${opt.label}</option>`
     ).join('');
     
-    // Add change event to update payment visibility
-    ticketTypeSelect.addEventListener('change', function() {
+    // Remove old event listeners to prevent duplicates
+    const newSelect = ticketTypeSelect.cloneNode(true);
+    ticketTypeSelect.parentNode.replaceChild(newSelect, ticketTypeSelect);
+    
+    // Add change event to update payment method based on ticket type
+    newSelect.addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
         const price = parseFloat(selectedOption.getAttribute('data-price') || 0);
+        const paymentSelect = document.querySelector('[name="payment_method"]');
         
-        // If staff or free, uncheck payment
+        // If staff or free event, default to "Gratis" or hide payment method
         if (this.value === 'staff' || price === 0) {
-            document.getElementById('isPayingCheckbox').checked = false;
-            document.getElementById('payment-method-container').style.display = 'none';
-        } else {
-            document.getElementById('isPayingCheckbox').checked = true;
-            document.getElementById('payment-method-container').style.display = 'block';
+            // Free - payment method not needed but keep visible for consistency
+            if (paymentSelect) {
+                paymentSelect.value = 'on_arrival'; // Default to "Oppmøte" for free
+            }
         }
     });
 }
@@ -930,19 +923,7 @@ function backToEventSelection() {
     if (filterSelect) filterSelect.value = 'all';
 }
 
-// Handle payment toggle
-document.getElementById('isPayingCheckbox')?.addEventListener('change', function(e) {
-    const paymentContainer = document.getElementById('payment-method-container');
-    const paymentSelect = document.querySelector('[name="payment_method"]');
-    
-    if (e.target.checked) {
-        paymentContainer.style.display = 'block';
-        paymentSelect.required = true;
-    } else {
-        paymentContainer.style.display = 'none';
-        paymentSelect.required = false;
-    }
-});
+// Payment method is always visible now (no toggle needed)
 
 // Check if email matches staff member
 document.querySelector('[name="attendee_email"]')?.addEventListener('blur', async function(e) {
@@ -1041,15 +1022,13 @@ document.getElementById('checkin-form')?.addEventListener('submit', async functi
     }
     
     const formData = new FormData(this);
-    const isPaying = document.getElementById('isPayingCheckbox').checked;
     const data = {
         event_id: selectedEventId,
         attendee_name: formData.get('attendee_name'),
         attendee_email: formData.get('attendee_email'),
         attendee_phone: formData.get('attendee_phone'),
         ticket_type: formData.get('ticket_type'),
-        payment_method: isPaying ? formData.get('payment_method') : 'free',
-        is_paying: isPaying,
+        payment_method: formData.get('payment_method'),
         notes: formData.get('notes')
     };
     
