@@ -124,15 +124,18 @@ if (isset($_GET['message'])) {
         .login-header {
             text-align: center;
             margin-bottom: 40px;
+            background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%);
+            padding: 40px 20px 20px 20px;
+            margin: -60px -50px 40px -50px;
+            border-radius: 20px 20px 0 0;
         }
         
         .login-header img {
             height: 160px;
             width: auto;
             margin-bottom: 24px;
-            opacity: 0.15;
-            mix-blend-mode: multiply;
-            filter: none;
+            filter: drop-shadow(3px 3px 4px rgba(0, 0, 0, 0.4)) 
+                    drop-shadow(-1px -1px 2px rgba(255, 255, 255, 0.2));
         }
         
         .login-header h1 {
