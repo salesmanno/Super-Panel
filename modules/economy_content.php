@@ -328,3 +328,165 @@
     </div>
 </div>
 
+<script>
+// Load economy data when module is active
+document.addEventListener('DOMContentLoaded', function() {
+    loadEconomyOverview();
+});
+
+function loadEconomyOverview() {
+    fetch('/api/get_economy_data.php?view=overview')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateOverviewData(data.data);
+            }
+        })
+        .catch(error => console.error('Error loading economy data:', error));
+}
+
+function loadEconomyIncome(startDate = null, endDate = null) {
+    let url = '/api/get_economy_data.php?view=income';
+    if (startDate && endDate) {
+        url += `&start_date=${startDate}&end_date=${endDate}`;
+    }
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateIncomeData(data.data);
+            }
+        })
+        .catch(error => console.error('Error loading income data:', error));
+}
+
+function updateOverviewData(data) {
+    // Update overview cards
+    document.querySelector('#economy-results .bg-success h4').textContent = 
+        formatCurrency(data.total_income);
+    document.querySelector('#economy-results .bg-danger h4').textContent = 
+        formatCurrency(data.total_cost);
+    document.querySelector('#economy-results .bg-primary h4').textContent = 
+        formatCurrency(data.total_profit);
+    document.querySelector('#economy-results .bg-info h4').textContent = 
+        formatCurrency(data.month_income);
+    
+    // Update recent transactions table
+    const tbody = document.querySelector('#economy-results tbody');
+    if (data.recent_transactions && data.recent_transactions.length > 0) {
+        tbody.innerHTML = data.recent_transactions.map(tx => `
+            <tr>
+                <td>${formatDate(tx.transaction_date)}</td>
+                <td>${tx.item_name}</td>
+                <td><span class="badge bg-secondary">${translateModule(tx.module_source)}</span></td>
+                <td>${formatCurrency(tx.selling_price)}</td>
+                <td><span class="badge bg-success">Inntekt</span></td>
+            </tr>
+        `).join('');
+    } else {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Ingen transaksjoner funnet</td></tr>';
+    }
+    
+    // Update income tab data
+    updateIncomeTabData(data);
+}
+
+function updateIncomeTabData(data) {
+    // Update income cards
+    const incomeCards = document.querySelectorAll('#economy-income .card h4');
+    if (incomeCards.length >= 4) {
+        incomeCards[0].textContent = formatCurrency(data.total_income);
+        incomeCards[1].textContent = formatCurrency(data.month_income);
+        incomeCards[2].textContent = formatCurrency(data.year_income);
+        
+        // Calculate average per month (year income / 12)
+        const avgPerMonth = data.year_income / 12;
+        incomeCards[3].textContent = formatCurrency(avgPerMonth);
+    }
+    
+    // Update income transactions table
+    const tbody = document.querySelector('#economy-income tbody');
+    if (data.recent_transactions && data.recent_transactions.length > 0) {
+        tbody.innerHTML = data.recent_transactions.map(tx => `
+            <tr>
+                <td>${formatDate(tx.transaction_date)}</td>
+                <td>${tx.item_name}</td>
+                <td><span class="badge bg-secondary">${translateModule(tx.module_source)}</span></td>
+                <td>${tx.customer_name || 'Walk-in'}</td>
+                <td class="text-end">${formatCurrency(tx.selling_price)}</td>
+            </tr>
+        `).join('');
+    } else {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Ingen inntekter registrert</td></tr>';
+    }
+}
+
+function updateIncomeData(data) {
+    // Update income summary cards
+    const incomeCards = document.querySelectorAll('#economy-income .card h4');
+    if (incomeCards.length >= 1) {
+        incomeCards[0].textContent = formatCurrency(data.total);
+    }
+    
+    // Update transactions table
+    const tbody = document.querySelector('#economy-income tbody');
+    if (data.transactions && data.transactions.length > 0) {
+        tbody.innerHTML = data.transactions.map(tx => `
+            <tr>
+                <td>${formatDate(tx.transaction_date)}</td>
+                <td>${tx.item_name}</td>
+                <td><span class="badge bg-secondary">${translateModule(tx.category)}</span></td>
+                <td>${tx.customer_name || 'Walk-in'}</td>
+                <td class="text-end">${formatCurrency(tx.selling_price)}</td>
+            </tr>
+        `).join('');
+    } else {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Ingen inntekter funnet for valgt periode</td></tr>';
+    }
+}
+
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('nb-NO', {
+        style: 'decimal',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(amount) + ' NOK';
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('nb-NO', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(date);
+}
+
+function translateModule(moduleName) {
+    const translations = {
+        'sales': 'Salg',
+        'events': 'Arrangement',
+        'membership': 'Medlemskap',
+        'rental': 'Utleie',
+        'reservations': 'Reservasjoner'
+    };
+    return translations[moduleName] || moduleName;
+}
+
+// Date range filters for income tab
+document.querySelectorAll('#economy-income input[type="date"]').forEach(input => {
+    input.addEventListener('change', function() {
+        const dateInputs = document.querySelectorAll('#economy-income input[type="date"]');
+        const startDate = dateInputs[0].value;
+        const endDate = dateInputs[1].value;
+        
+        if (startDate && endDate) {
+            loadEconomyIncome(startDate, endDate);
+        }
+    });
+});
+</script>
+
