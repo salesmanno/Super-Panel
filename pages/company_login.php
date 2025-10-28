@@ -474,9 +474,9 @@ if (isset($_GET['message'])) {
         
         document.addEventListener('DOMContentLoaded', function() {
             connectToNewsStream();
-            checkDatabaseStatus();
-            // Check database status every 10 seconds
-            dbCheckInterval = setInterval(checkDatabaseStatus, 10000);
+            // Database check disabled for faster page load
+            // checkDatabaseStatus();
+            // dbCheckInterval = setInterval(checkDatabaseStatus, 10000);
             
             // Toggle between login and forgot password mode
             document.getElementById('toggle-mode').addEventListener('click', toggleMode);
