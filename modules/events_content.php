@@ -315,10 +315,22 @@
                     </div>
                 </div>
 
+                <!-- Existing Registrations (Not Yet Checked In) -->
+                <div class="card mb-4" id="pending-registrations-container" style="display: none;">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0"><i class="bi bi-people me-2"></i>Påmeldte (venter på innsjekking)</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="pending-registrations-list">
+                            <p class="text-muted">Ingen påmeldte ennå</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Check-in Form -->
                 <div class="card mb-4" id="checkin-form-container" style="display: none;">
                     <div class="card-header bg-primary text-white">
-                        <h6 class="mb-0"><i class="bi bi-person-plus me-2"></i>Ny innsjekking</h6>
+                        <h6 class="mb-0"><i class="bi bi-person-plus me-2"></i>Manuell innsjekking (ny deltaker)</h6>
                     </div>
                     <div class="card-body">
                         <form id="checkin-form">
@@ -1081,6 +1093,86 @@ async function loadCheckins(eventId) {
         }
     } catch (error) {
         console.error('Error loading check-ins:', error);
+    }
+    
+    // Load pending registrations (service bookings not yet checked in)
+    loadPendingRegistrations(eventId);
+}
+
+// Load pending registrations for event
+async function loadPendingRegistrations(eventId) {
+    try {
+        const response = await fetch(`../api/get_pending_registrations.php?event_id=${eventId}`);
+        const result = await response.json();
+        
+        const container = document.getElementById('pending-registrations-container');
+        const listEl = document.getElementById('pending-registrations-list');
+        
+        if (result.success && result.registrations && result.registrations.length > 0) {
+            container.style.display = 'block';
+            
+            listEl.innerHTML = result.registrations.map(reg => {
+                const customerName = `${reg.customer_first_name} ${reg.customer_last_name}`;
+                const price = parseFloat(reg.unit_price || 0).toFixed(2);
+                const quantity = reg.quantity || 1;
+                const total = (parseFloat(reg.unit_price || 0) * quantity).toFixed(2);
+                const paymentBadge = reg.payment_status === 'paid' 
+                    ? '<span class="badge bg-success">Betalt</span>' 
+                    : '<span class="badge bg-warning text-dark">Ubetalt</span>';
+                
+                return `
+                    <div class="d-flex align-items-center justify-content-between p-3 mb-2 border rounded hover-shadow" style="cursor: pointer;" onclick="quickCheckin('${reg.booking_id}', '${customerName.replace(/'/g, "\\'")}', '${price}', '${reg.payment_status}')">
+                        <div>
+                            <h6 class="mb-1"><i class="bi bi-person me-2"></i>${customerName}</h6>
+                            <small class="text-muted">
+                                ${reg.customer_email ? `<i class="bi bi-envelope me-1"></i>${reg.customer_email}` : ''}
+                                ${reg.customer_phone ? `<i class="bi bi-phone ms-2 me-1"></i>${reg.customer_phone}` : ''}
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            <div><strong>${total} kr</strong> ${paymentBadge}</div>
+                            <button class="btn btn-sm btn-success mt-1" onclick="event.stopPropagation(); quickCheckin('${reg.booking_id}', '${customerName.replace(/'/g, "\\'")}', '${price}', '${reg.payment_status}')">
+                                <i class="bi bi-check-circle me-1"></i>Sjekk inn
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            container.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error loading pending registrations:', error);
+    }
+}
+
+// Quick check-in for existing registration
+async function quickCheckin(bookingId, customerName, price, paymentStatus) {
+    if (!confirm(`Sjekk inn ${customerName}?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('../api/quick_checkin.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                booking_id: bookingId,
+                event_id: selectedEventId
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`✅ ${customerName} sjekket inn!`);
+            loadCheckins(selectedEventId); // Refresh both lists
+        } else {
+            alert('❌ Feil: ' + (result.message || 'Kunne ikke sjekke inn'));
+        }
+    } catch (error) {
+        console.error('Error during quick check-in:', error);
+        alert('❌ Feil ved innsjekking');
     }
 }
 
