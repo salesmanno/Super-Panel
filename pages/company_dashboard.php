@@ -1074,9 +1074,7 @@ try {
         }
         
         function navigateToDittNettsted() {
-            // Vis passord-prompt modal
-            const modal = new bootstrap.Modal(document.getElementById('dittNettstedPasswordModal'));
-            modal.show();
+            window.location.href = '/pages/website_settings.php';
         }
         
         function unlockDittNettsted() {
