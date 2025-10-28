@@ -177,6 +177,7 @@
                 // Hent ansatte fra tenant_staff
                 $staff = [];
                 $staffModules = [];
+                $staffSessions = [];
                 $totalModules = 0;
                 
                 try {
@@ -193,7 +194,7 @@
                         $stmt->execute();
                         $totalModules = $stmt->fetchColumn();
                         
-                        // Hent modultilgang for hver ansatt
+                        // Hent modultilgang og aktive sesjoner for hver ansatt
                         foreach ($staff as $employee) {
                             // Finn tenant_admin basert på staff_id
                             $stmt = $db->prepare("SELECT id FROM tenant_admins WHERE tenant_staff_id = ?");
@@ -216,6 +217,30 @@
                                     $staffModules[$employee['id']] = 'ALLE';
                                 } else {
                                     $staffModules[$employee['id']] = implode(', ', $modules);
+                                }
+                                
+                                // Hent aktiv sesjon for denne adminen
+                                $stmt = $db->prepare("
+                                    SELECT last_activity, ip_address, user_agent
+                                    FROM tenant_admin_sessions
+                                    WHERE tenant_admin_id = ? 
+                                    AND status = 'active'
+                                    ORDER BY last_activity DESC
+                                    LIMIT 1
+                                ");
+                                $stmt->execute([$admin['id']]);
+                                $session = $stmt->fetch(PDO::FETCH_ASSOC);
+                                
+                                if ($session) {
+                                    $lastActivity = strtotime($session['last_activity']);
+                                    $minutesAgo = floor((time() - $lastActivity) / 60);
+                                    
+                                    $staffSessions[$employee['id']] = [
+                                        'active' => $minutesAgo < 5, // Active if less than 5 minutes
+                                        'minutes_ago' => $minutesAgo,
+                                        'ip_address' => $session['ip_address'],
+                                        'user_agent' => $session['user_agent']
+                                    ];
                                 }
                             } else {
                                 $staffModules[$employee['id']] = 'Ingen tilgang';
@@ -250,12 +275,26 @@
                                 $admin = $stmt->fetch(PDO::FETCH_ASSOC);
                                 $adminId = $admin ? $admin['id'] : null;
                                 $isCurrentAdmin = ($adminId == $_SESSION['tenant_admin_id']);
+                                
+                                // Get session info
+                                $sessionInfo = $staffSessions[$employee['id']] ?? null;
+                                $isActive = $sessionInfo && $sessionInfo['active'];
+                                $rowClass = $isActive ? 'table-success' : '';
                             ?>
-                            <tr>
+                            <tr class="<?= $rowClass ?>">
                                 <td>
                                     <strong><?= htmlspecialchars($employee['first_name'] . ' ' . $employee['last_name']) ?></strong>
                                     <?php if ($isCurrentAdmin): ?>
                                         <span class="badge bg-info ms-2">Du</span>
+                                    <?php endif; ?>
+                                    <?php if ($isActive && !$isCurrentAdmin): ?>
+                                        <span class="badge bg-success ms-2">
+                                            <i class="bi bi-circle-fill" style="font-size: 0.5em;"></i> Aktiv nå
+                                        </span>
+                                    <?php elseif ($sessionInfo && !$isCurrentAdmin): ?>
+                                        <span class="badge bg-secondary ms-2">
+                                            Aktiv for <?= $sessionInfo['minutes_ago'] ?> min siden
+                                        </span>
                                     <?php endif; ?>
                                 </td>
                                 <td><?= htmlspecialchars($employee['job_title'] ?? 'N/A') ?></td>
@@ -293,6 +332,13 @@
                                         <button class="btn btn-sm btn-outline-primary" onclick="openModuleAccessModal('<?= $adminId ?>', '<?= htmlspecialchars($employee['first_name'] . ' ' . $employee['last_name']) ?>')">
                                             <i class="bi bi-gear me-1"></i>Modultilgang
                                         </button>
+                                        <?php if ($sessionInfo): ?>
+                                            <button class="btn btn-sm btn-outline-info ms-1" 
+                                                    onclick="showSessionInfo('<?= htmlspecialchars($employee['first_name'] . ' ' . $employee['last_name']) ?>', '<?= htmlspecialchars($sessionInfo['ip_address'] ?? '') ?>', '<?= htmlspecialchars(substr($sessionInfo['user_agent'] ?? '', 0, 100)) ?>', <?= $sessionInfo['minutes_ago'] ?>)"
+                                                    title="Se sesjonsinfo">
+                                                <i class="bi bi-info-circle"></i>
+                                            </button>
+                                        <?php endif; ?>
                                     <?php elseif ($isCurrentAdmin): ?>
                                         <span class="text-muted small">-</span>
                                     <?php else: ?>
@@ -360,6 +406,27 @@
 <script>
 let currentAdminId = null;
 let availableModules = [];
+
+function showSessionInfo(name, ip, userAgent, minutesAgo) {
+    const timeText = minutesAgo < 1 ? 'Aktiv nå' : `Aktiv for ${minutesAgo} minutter siden`;
+    
+    // Parse user agent for better display
+    let browser = 'Ukjent nettleser';
+    if (userAgent.includes('Chrome')) browser = 'Chrome';
+    else if (userAgent.includes('Firefox')) browser = 'Firefox';
+    else if (userAgent.includes('Safari')) browser = 'Safari';
+    else if (userAgent.includes('Edge')) browser = 'Edge';
+    
+    let device = 'Desktop';
+    if (userAgent.includes('Mobile')) device = 'Mobil';
+    else if (userAgent.includes('Tablet')) device = 'Nettbrett';
+    
+    alert(`${name} - Økt informasjon\n\n` +
+          `Status: ${timeText}\n` +
+          `IP-adresse: ${ip}\n` +
+          `Enhet: ${device}\n` +
+          `Nettleser: ${browser}`);
+}
 
 async function openModuleAccessModal(adminId, staffName) {
     currentAdminId = adminId;
