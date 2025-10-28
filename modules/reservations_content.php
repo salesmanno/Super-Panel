@@ -253,9 +253,12 @@
                             <input type="number" class="form-control" name="price" min="0" step="0.01" required>
                         </div>
                         <div class="col-md-4 mb-3">
-                            <label class="form-label">Maks kapasitet</label>
-                            <input type="number" class="form-control" name="capacity" min="1" value="1">
-                            <small class="text-muted">Antall personer per tidsslot</small>
+                            <label class="form-label">Maks kapasitet per ansatt</label>
+                            <input type="number" class="form-control" name="capacity" id="capacity-input" min="1" value="1">
+                            <small class="text-muted">Antall personer per ansatt per tidsslot</small>
+                            <div id="total-capacity-display" class="mt-2" style="display: none;">
+                                <span class="badge bg-info">Total kapasitet: <span id="total-capacity-value">1</span> personer</span>
+                            </div>
                         </div>
                     </div>
 
@@ -1094,12 +1097,44 @@ function loadStaffForService() {
             select.innerHTML = data.staff.map(staff => 
                 `<option value="${staff.id}">${staff.first_name} ${staff.last_name}</option>`
             ).join('');
+            
+            // Add event listener to update total capacity when staff selection changes
+            select.addEventListener('change', updateTotalCapacity);
         })
         .catch(error => {
             console.error('Error loading staff:', error);
             select.innerHTML = '<option value="" disabled>Feil ved lasting av ansatte</option>';
         });
 }
+
+// Update total capacity calculation
+function updateTotalCapacity() {
+    const staffSelect = document.getElementById('assigned-staff-select');
+    const capacityInput = document.getElementById('capacity-input');
+    const totalCapacityDisplay = document.getElementById('total-capacity-display');
+    const totalCapacityValue = document.getElementById('total-capacity-value');
+    
+    if (!staffSelect || !capacityInput || !totalCapacityDisplay || !totalCapacityValue) return;
+    
+    const selectedStaffCount = staffSelect.selectedOptions.length;
+    const capacityPerStaff = parseInt(capacityInput.value) || 1;
+    const totalCapacity = selectedStaffCount * capacityPerStaff;
+    
+    if (selectedStaffCount > 0) {
+        totalCapacityValue.textContent = totalCapacity;
+        totalCapacityDisplay.style.display = 'block';
+    } else {
+        totalCapacityDisplay.style.display = 'none';
+    }
+}
+
+// Add event listener for capacity input
+document.addEventListener('DOMContentLoaded', function() {
+    const capacityInput = document.getElementById('capacity-input');
+    if (capacityInput) {
+        capacityInput.addEventListener('input', updateTotalCapacity);
+    }
+});
 
 // Load Active Services Function
 function loadActiveServices() {
@@ -1167,13 +1202,19 @@ function loadActiveServices() {
                     ? `<span class="badge bg-info text-dark" title="${service.assigned_staff_names}">${service.staff_count} ansatt${service.staff_count > 1 ? 'e' : ''}</span>`
                     : '<span class="text-muted small">Ingen</span>';
                 
+                const capacityPerStaff = service.capacity || 1;
+                const totalCapacity = capacityPerStaff * (service.staff_count || 1);
+                const capacityDisplay = service.staff_count > 1 
+                    ? `${capacityPerStaff} × ${service.staff_count} = <strong>${totalCapacity}</strong> pers`
+                    : `${capacityPerStaff} pers`;
+                
                 return `
                     <tr>
                         <td><strong>${service.service_name}</strong></td>
                         <td>${typeLabels[service.service_type] || service.service_type}</td>
                         <td>${service.duration_minutes} min</td>
                         <td>${parseFloat(service.price).toFixed(2)} NOK</td>
-                        <td>${service.capacity || 1} pers</td>
+                        <td class="small">${capacityDisplay}</td>
                         <td class="small">${staffDisplay}</td>
                         <td class="small">${service.available_from} - ${service.available_to}</td>
                         <td>${statusBadge}</td>
