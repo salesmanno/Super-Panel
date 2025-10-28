@@ -73,7 +73,7 @@ try {
             break;
             
         case 'membership':
-            $stmt = $db->prepare("SELECT plan_id as id, plan_name as service_name, price FROM membership_plans WHERE plan_id = ?");
+            $stmt = $db->prepare("SELECT id, name as service_name, price FROM membership_plans WHERE id = ?");
             $stmt->execute([$product_id]);
             $service = $stmt->fetch();
             break;
@@ -168,21 +168,21 @@ try {
             
         case 'membership':
             // Create member record (active membership)
+            $booking_id = bin2hex(random_bytes(16));
+            $member_code = 'MEM-' . strtoupper(substr($booking_id, 0, 8));
+            
             $stmt = $db->prepare("
-                INSERT INTO members 
-                (company_id, plan_id, first_name, last_name, email, phone, 
-                 join_date, expiry_date, status, notes, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW() + INTERVAL '1 month', 'active', ?, NOW(), NOW())
-                RETURNING member_id
+                INSERT INTO membership_members 
+                (id, company_id, customer_id, membership_plan_id, member_code,
+                 status, join_date, expiration_date, auto_renew, created_at) 
+                VALUES (?, ?, ?, ?, ?, 'active', NOW(), NOW() + INTERVAL '1 month', TRUE, NOW())
             ");
             $stmt->execute([
+                $booking_id,
                 $company_id,
+                $customer_id,
                 $product_id,
-                $customer_first_name,
-                $customer_last_name,
-                $customer_email,
-                $customer_phone,
-                "Kjøpt via varesalg - Betalt: {$total} NOK ({$payment_method}). " . $notes
+                $member_code
             ]);
             break;
             

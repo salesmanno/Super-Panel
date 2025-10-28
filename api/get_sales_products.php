@@ -21,8 +21,9 @@ try {
             description,
             cost_price,
             selling_price,
-            (selling_price - IFNULL(cost_price, 0)) as profit_margin,
-            member_price,
+            (selling_price - COALESCE(cost_price, 0)) as profit_margin,
+            img_product,
+            item_taxable,
             category_id,
             is_active,
             created_at
