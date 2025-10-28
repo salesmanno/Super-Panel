@@ -535,8 +535,8 @@ function displayProducts(products) {
                  style="cursor: pointer; border-radius: 12px; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" 
                  onclick="addToCart('${product.id}')">
                 <img src="${imgUrl}" 
-                     class="card-img" 
-                     style="height: 120px; width: 100%; object-fit: cover; border-radius: 12px;" 
+                     class="card-img-top" 
+                     style="height: 150px; width: 100%; object-fit: cover; border-radius: 12px 12px 0 0;" 
                      alt="${product.item_name}">
                 <div class="position-absolute bottom-0 start-0 end-0 p-2" 
                      style="background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 70%, transparent 100%); border-radius: 0 0 12px 12px;">
