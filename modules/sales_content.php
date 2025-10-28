@@ -1005,7 +1005,22 @@ async function submitEditProduct() {
         
         if (result.success) {
             alert('✅ Produktet ble oppdatert');
-            bootstrap.Modal.getInstance(document.getElementById('editSalesItemModal')).hide();
+            
+            // Properly close modal and remove backdrop
+            const modalElement = document.getElementById('editSalesItemModal');
+            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+            
+            // Remove backdrop manually as fallback
+            setTimeout(() => {
+                document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('padding-right');
+                document.body.style.removeProperty('overflow');
+            }, 300);
+            
             await loadSalesProducts();
             await loadAllSalesData();
         } else {
