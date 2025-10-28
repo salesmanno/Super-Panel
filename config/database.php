@@ -16,21 +16,43 @@ function getDBConnection() {
     
     if ($conn === null) {
         try {
-            ini_set('mysql.connect_timeout', '2');
             ini_set('default_socket_timeout', '2');
             
-            $dsn = "mysql:host=" . DB_HOST . ";port=3306;dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
-            $options = [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
-                PDO::ATTR_TIMEOUT => 2,
-                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
-            ];
+            $databaseUrl = getenv('DATABASE_URL');
             
-            $conn = new PDO($dsn, DB_USER, DB_PASS, $options);
+            if ($databaseUrl && strpos($databaseUrl, 'postgresql') !== false) {
+                $dbConfig = parse_url($databaseUrl);
+                $dsn = sprintf(
+                    "pgsql:host=%s;port=%s;dbname=%s;sslmode=require",
+                    $dbConfig['host'],
+                    $dbConfig['port'] ?? 5432,
+                    ltrim($dbConfig['path'], '/')
+                );
+                
+                $options = [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                    PDO::ATTR_TIMEOUT => 2
+                ];
+                
+                $conn = new PDO($dsn, $dbConfig['user'], $dbConfig['pass'], $options);
+            } else {
+                ini_set('mysql.connect_timeout', '2');
+                
+                $dsn = "mysql:host=" . DB_HOST . ";port=3306;dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
+                $options = [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                    PDO::ATTR_TIMEOUT => 2,
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+                ];
+                
+                $conn = new PDO($dsn, DB_USER, DB_PASS, $options);
+            }
         } catch (PDOException $e) {
-            error_log("MySQL connection failed: " . $e->getMessage());
+            error_log("Database connection failed: " . $e->getMessage());
             $failed = true;
             return null;
         }
@@ -40,15 +62,27 @@ function getDBConnection() {
 }
 
 function getDBType() {
+    $databaseUrl = getenv('DATABASE_URL');
+    if ($databaseUrl && strpos($databaseUrl, 'postgresql') !== false) {
+        return 'postgresql';
+    }
     return 'mysql';
 }
 
 function dbBool($value) {
-    return $value ? '1' : '0';
+    $dbType = getDBType();
+    if ($dbType === 'postgresql') {
+        return $value ? 'TRUE' : 'FALSE';
+    }
+    return $value ? 1 : 0;
 }
 
 function dbInterval($amount, $unit = 'MINUTE') {
-    return "INTERVAL ? {$unit}";
+    $dbType = getDBType();
+    if ($dbType === 'postgresql') {
+        return "INTERVAL '{$amount} {$unit}'";
+    }
+    return "INTERVAL {$amount} {$unit}";
 }
 
 function closeDBConnection() {
