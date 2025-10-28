@@ -16,6 +16,7 @@ $companyName = $_SESSION['company_name'] ?? 'Firma';
 $db = getDBConnection();
 
 $currentSettings = null;
+$websiteGeneral = null;
 $isLocked = false;
 $privilegeGrantedAt = null;
 
@@ -36,6 +37,11 @@ if ($db) {
     $stmt = $db->prepare("SELECT * FROM tenant_website_config WHERE company_id = ?");
     $stmt->execute([$companyId]);
     $currentSettings = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    // Check if website general settings exist
+    $stmt = $db->prepare("SELECT * FROM tenant_website_general WHERE company_id = ?");
+    $stmt->execute([$companyId]);
+    $websiteGeneral = $stmt->fetch(PDO::FETCH_ASSOC);
     
     $stmt = $db->prepare("
         SELECT tam.granted_at 
@@ -191,8 +197,26 @@ if ($db) {
                 </script>
             <?php endif; ?>
             
-            <div class="config-card">
-                <h4 class="mb-4"><i class="bi bi-gear me-2"></i>Nettside Innstillinger</h4>
+            <!-- Tab Navigation -->
+            <ul class="nav nav-tabs mb-4" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="nettsted-tab" data-bs-toggle="tab" data-bs-target="#nettsted" type="button" role="tab">
+                        <i class="bi bi-gear me-2"></i>Nettsted
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="webside-tab" data-bs-toggle="tab" data-bs-target="#webside" type="button" role="tab">
+                        <i class="bi bi-palette me-2"></i>Webside
+                    </button>
+                </li>
+            </ul>
+            
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- Nettsted Tab -->
+                <div class="tab-pane fade show active" id="nettsted" role="tabpanel">
+                    <div class="config-card">
+                        <h4 class="mb-4"><i class="bi bi-gear me-2"></i>Nettsted Innstillinger</h4>
                 
                 <?php if ($currentSettings): ?>
                     <div class="alert alert-info mb-4">
@@ -249,12 +273,157 @@ if ($db) {
                             <?= $currentSettings['updated_at'] ? date('d.m.Y H:i', strtotime($currentSettings['updated_at'])) : 'Ikke tilgjengelig' ?>
                         </p>
                     </div>
-                <?php else: ?>
-                    <div class="alert alert-warning">
-                        <i class="bi bi-info-circle me-2"></i>
-                        <strong>Ingen nettside konfigurert ennå.</strong> Kontakt systemadministrator for å sette opp nettside for din bedrift.
+                        <?php else: ?>
+                            <div class="alert alert-warning">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Ingen nettside konfigurert ennå.</strong> Kontakt systemadministrator for å sette opp nettside for din bedrift.
+                            </div>
+                        <?php endif; ?>
                     </div>
-                <?php endif; ?>
+                </div>
+                
+                <!-- Webside Tab -->
+                <div class="tab-pane fade" id="webside" role="tabpanel">
+                    <div class="config-card">
+                        <h4 class="mb-4"><i class="bi bi-palette me-2"></i>Webside Innstillinger</h4>
+                        
+                        <?php if ($websiteGeneral): ?>
+                            <!-- General Settings -->
+                            <h5 class="mb-3"><i class="bi bi-info-circle me-2"></i>Generelt</h5>
+                            <div class="row mb-4">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label"><strong>Nettstedstittel</strong></label>
+                                    <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['site_title'] ?? '-') ?></p>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label"><strong>Status</strong></label>
+                                    <div>
+                                        <?php if ($websiteGeneral['is_active']): ?>
+                                            <span class="badge bg-success">Aktiv</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-secondary">Inaktiv</span>
+                                        <?php endif; ?>
+                                        
+                                        <?php if ($websiteGeneral['maintenance_mode']): ?>
+                                            <span class="badge bg-warning ms-2">Vedlikeholdsmodus</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <?php if (!empty($websiteGeneral['site_description'])): ?>
+                            <div class="mb-4">
+                                <label class="form-label"><strong>Beskrivelse</strong></label>
+                                <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['site_description']) ?></p>
+                            </div>
+                            <?php endif; ?>
+                            
+                            <!-- Design Settings -->
+                            <h5 class="mb-3 mt-4"><i class="bi bi-palette-fill me-2"></i>Design</h5>
+                            <div class="row mb-4">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label"><strong>Primærfarge</strong></label>
+                                    <div class="d-flex align-items-center">
+                                        <div style="width: 30px; height: 30px; background-color: <?= htmlspecialchars($websiteGeneral['primary_color'] ?? '#3366CC') ?>; border: 1px solid #dee2e6; border-radius: 4px;" class="me-2"></div>
+                                        <span class="text-muted"><?= htmlspecialchars($websiteGeneral['primary_color'] ?? '#3366CC') ?></span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label"><strong>Sekundærfarge</strong></label>
+                                    <div class="d-flex align-items-center">
+                                        <div style="width: 30px; height: 30px; background-color: <?= htmlspecialchars($websiteGeneral['secondary_color'] ?? '#666666') ?>; border: 1px solid #dee2e6; border-radius: 4px;" class="me-2"></div>
+                                        <span class="text-muted"><?= htmlspecialchars($websiteGeneral['secondary_color'] ?? '#666666') ?></span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label"><strong>Navigasjonsstil</strong></label>
+                                    <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['navigation_style'] ?? 'top') ?></p>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-4">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label"><strong>Header layout</strong></label>
+                                    <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['header_layout'] ?? 'standard') ?></p>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label"><strong>Footer layout</strong></label>
+                                    <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['footer_layout'] ?? 'standard') ?></p>
+                                </div>
+                            </div>
+                            
+                            <!-- Hero Section -->
+                            <?php if ($websiteGeneral['hero_enabled']): ?>
+                            <h5 class="mb-3 mt-4"><i class="bi bi-image me-2"></i>Hero-seksjon</h5>
+                            <div class="mb-4">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label"><strong>Hero-tittel</strong></label>
+                                        <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['hero_title'] ?? '-') ?></p>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label"><strong>Knappetekst</strong></label>
+                                        <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['hero_button_text'] ?? '-') ?></p>
+                                    </div>
+                                </div>
+                                <?php if (!empty($websiteGeneral['hero_description'])): ?>
+                                <div class="mb-3">
+                                    <label class="form-label"><strong>Hero-beskrivelse</strong></label>
+                                    <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['hero_description']) ?></p>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                            <?php endif; ?>
+                            
+                            <!-- Contact Information -->
+                            <h5 class="mb-3 mt-4"><i class="bi bi-envelope me-2"></i>Kontaktinformasjon</h5>
+                            <div class="row mb-4">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label"><strong>E-post</strong></label>
+                                    <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['contact_email'] ?? '-') ?></p>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label"><strong>Telefon</strong></label>
+                                    <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['contact_phone'] ?? '-') ?></p>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label"><strong>Adresse</strong></label>
+                                    <p class="form-control-plaintext"><?= htmlspecialchars($websiteGeneral['contact_address'] ?? '-') ?></p>
+                                </div>
+                            </div>
+                            
+                            <!-- Advanced Settings -->
+                            <h5 class="mb-3 mt-4"><i class="bi bi-code-square me-2"></i>Avansert</h5>
+                            <div class="row mb-4">
+                                <?php if (!empty($websiteGeneral['google_analytics_id'])): ?>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label"><strong>Google Analytics ID</strong></label>
+                                    <p class="form-control-plaintext"><code><?= htmlspecialchars($websiteGeneral['google_analytics_id']) ?></code></p>
+                                </div>
+                                <?php endif; ?>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label"><strong>Sist oppdatert</strong></label>
+                                    <p class="form-control-plaintext">
+                                        <?= $websiteGeneral['updated_at'] ? date('d.m.Y H:i', strtotime($websiteGeneral['updated_at'])) : '-' ?>
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <?php if ($websiteGeneral['maintenance_mode'] && !empty($websiteGeneral['maintenance_message'])): ?>
+                            <div class="alert alert-warning mt-3">
+                                <strong><i class="bi bi-exclamation-triangle me-2"></i>Vedlikeholdsmelding:</strong><br>
+                                <?= htmlspecialchars($websiteGeneral['maintenance_message']) ?>
+                            </div>
+                            <?php endif; ?>
+                            
+                        <?php else: ?>
+                            <div class="alert alert-warning">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Ingen websideinnstillinger funnet.</strong> Kontakt systemadministrator for å sette opp webside for din bedrift.
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
         <?php endif; ?>
     </div>
