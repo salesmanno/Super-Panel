@@ -54,7 +54,7 @@ try {
             $data['benefits'] ?? null
         ]);
         
-        // 2. Auto-generer output_products entry
+        // 2. Auto-generer output_products entry (module_id=5 for membership)
         $stmt = $db->prepare("
             INSERT INTO output_products (
                 id,
@@ -62,18 +62,24 @@ try {
                 module_id,
                 product_type,
                 product_id,
+                name,
+                description,
+                price,
                 is_visible,
                 is_public,
                 is_marketplace_featured,
                 created_at,
                 created_by
-            ) VALUES (?, ?, 1, 'membership', ?, 1, 1, 0, NOW(), ?)
+            ) VALUES (?, ?, 5, 'membership', ?, ?, ?, ?, 1, 1, 0, NOW(), ?)
         ");
         
         $stmt->execute([
             $outputProductId,
             $_SESSION['company_id'],
             $planId,
+            $data['name'],
+            $data['description'] ?? null,
+            $data['price'] ?? 0,
             $_SESSION['tenant_admin_id']
         ]);
         
