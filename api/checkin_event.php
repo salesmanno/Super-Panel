@@ -53,6 +53,7 @@ try {
             customer_id,
             attendee_name,
             attendee_email,
+            attendee_phone,
             attendee_street,
             attendee_zip,
             attendee_city,
@@ -68,6 +69,7 @@ try {
             created_at,
             updated_at
         ) VALUES (
+            ?,
             ?,
             ?,
             ?,
@@ -112,6 +114,7 @@ try {
         $data['customer_id'] ?? null,
         $data['attendee_name'] ?? null,
         $data['attendee_email'] ?? null,
+        $data['attendee_phone'] ?? null,
         $street,
         $zip,
         $city,
