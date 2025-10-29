@@ -834,12 +834,16 @@ function displayServices(services) {
         const color = colors[service.product_type] || 'secondary';
         const durationMonths = service.duration_months || (service.billing_cycle ? 
             (service.billing_cycle === 'monthly' ? 1 : service.billing_cycle === 'quarterly' ? 3 : 12) : null);
+        
+        // Escape single quotes in name to prevent JavaScript errors
+        const safeName = (service.item_name || '').replace(/'/g, "\\'");
+        
         return `
             <div class="badge bg-${color} p-2 text-start" 
                  style="cursor: pointer; min-width: 180px; max-width: 250px;"
                  data-bs-toggle="modal" 
                  data-bs-target="#servicePurchaseModal" 
-                 onclick="setServiceData('${service.id}', '${service.product_type}', '${service.item_name}', ${service.price}, ${durationMonths})">
+                 onclick="setServiceData('${service.id}', '${service.product_type}', '${safeName}', ${service.price}, ${durationMonths})">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="flex-grow-1">
                         <div style="font-size: 0.9rem; font-weight: 600;">${service.item_name}</div>
@@ -1272,6 +1276,8 @@ async function submitSalesItem() {
 
 // Service purchase functions
 function setServiceData(id, type, name, price, planDuration = null) {
+    console.log('setServiceData called:', {id, type, name, price, planDuration});
+    
     document.getElementById('service-id').value = id;
     document.getElementById('service-type').value = type;
     document.getElementById('service-price-value').value = price;
