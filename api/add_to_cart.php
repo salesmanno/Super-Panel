@@ -9,10 +9,6 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     exit;
 }
 
-$db = getDBConnection();
-$admin_id = $_SESSION['tenant_admin_id'];
-$company_id = $_SESSION['company_id'];
-
 $data = json_decode(file_get_contents('php://input'), true);
 $output_product_id = $data['output_product_id'] ?? null;
 $quantity = intval($data['quantity'] ?? 1);
@@ -23,6 +19,9 @@ if (!$output_product_id || $quantity < 1) {
 }
 
 try {
+    $db = getDBConnection();
+    $admin_id = $_SESSION['tenant_admin_id'];
+    $company_id = $_SESSION['company_id'];
     // Verify product exists and is a sales product
     $stmt = $db->prepare("
         SELECT id, product_type 

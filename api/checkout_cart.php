@@ -11,10 +11,6 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     exit;
 }
 
-$db = getDBConnection();
-$admin_id = $_SESSION['tenant_admin_id'];
-$company_id = $_SESSION['company_id'];
-
 $data = json_decode(file_get_contents('php://input'), true);
 $payment_method = $data['payment_method'] ?? 'cash';
 $customer_name = $data['customer_name'] ?? '';
@@ -23,6 +19,9 @@ $send_receipt = $data['send_receipt'] ?? false;
 $notes = $data['notes'] ?? '';
 
 try {
+    $db = getDBConnection();
+    $admin_id = $_SESSION['tenant_admin_id'];
+    $company_id = $_SESSION['company_id'];
     $db->beginTransaction();
     
     // Get cart items (cart only contains products, with fallback pricing)

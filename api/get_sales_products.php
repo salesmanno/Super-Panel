@@ -9,10 +9,9 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     exit;
 }
 
-$db = getDBConnection();
-$company_id = $_SESSION['company_id'];
-
 try {
+    $db = getDBConnection();
+    $company_id = $_SESSION['company_id'];
     $stmt = $db->prepare("
         SELECT 
             id,

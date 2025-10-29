@@ -9,11 +9,10 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     exit;
 }
 
-$db = getDBConnection();
-$admin_id = $_SESSION['tenant_admin_id'];
-$company_id = $_SESSION['company_id'];
-
 try {
+    $db = getDBConnection();
+    $admin_id = $_SESSION['tenant_admin_id'];
+    $company_id = $_SESSION['company_id'];
     $stmt = $db->prepare("
         SELECT 
             sc.id as cart_id,
