@@ -24,7 +24,12 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Tab Navigation System**: Utilizes Bootstrap 5's native tab component for proper content display.
 - **Module & Privilege Management**: Granular access control via `tenant_admin_modules` and `tenant_company_modules` tables.
 - **Email Module**: Integrated email client with SMTP configuration validation and `EmailService.php` for cross-module automated notifications, using PHP's `mail()` and `email_templates`.
-- **Events Module**: Comprehensive CRUD for event management with `output_products` integration. Features include configurable registration fields stored in `event_registration_fields` and scanner-based check-in using `search_attendee.php` API.
+- **Events Module**: Comprehensive CRUD for event management with `output_products` integration. Features include:
+  - **Standard Registration Fields**: All events automatically include fornavn, etternavn, and e-postadresse as required fields
+  - **Optional Registration Fields**: Phone, street address, zip code, city, postal box, and age can be added per event
+  - **Min Participants Deadline**: When min_attendees is set, a deadline date (before event start) must be specified
+  - **Registration Fields Storage**: Configurable fields stored in `event_registration_fields`
+  - **Scanner-based Check-in**: Uses `search_attendee.php` API for fast attendee lookup and check-in
 - **Ditt Nettsted Module**: Manages website configuration from `tenant_website_config`, with a lock mechanism requiring admin password for temporary editing access.
 - **Reservation Module**: Complete reservation management with agenda/calendar views, filtering, statistics, and subtabs for incoming, confirmed, and active services. New reservable services can be created with comprehensive settings.
 - **Sales Module with Shopping Cart**: Supports dual purchase flows: a shopping cart for products and individual service sales (events, memberships, rentals) via a dedicated modal. Includes a full-width barcode scanner header for product lookup and addition to cart. Customer data is saved/updated in `tenant_customers`. Membership sales include customizable join_date, expiry_date, and auto_renew settings.

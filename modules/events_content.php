@@ -212,15 +212,20 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">Min. deltakere</label>
-                            <input type="number" class="form-control" name="min_attendees">
+                            <input type="number" class="form-control" name="min_attendees" id="min_attendees">
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3" id="min_attendees_deadline_container" style="display: none;">
+                            <label class="form-label">Frist for min. deltakere *</label>
+                            <input type="date" class="form-control" name="min_attendees_deadline" id="min_attendees_deadline">
+                            <small class="form-text text-muted">Må være før startdato</small>
+                        </div>
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">Maks. deltakere</label>
                             <input type="number" class="form-control" name="max_attendees">
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">Billettpris (NOK)</label>
                             <input type="number" step="0.01" class="form-control" name="ticket_price">
                         </div>
@@ -244,43 +249,73 @@
 
                     <hr class="my-4">
 
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">
-                            <i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt
-                        </label>
-                        <p class="text-muted small mb-3">Velg hvilke felt som skal vises ved påmelding til arrangementet</p>
-                        
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_street" id="field_street">
-                                    <label class="form-check-label" for="field_street">
-                                        🏠 Gateadresse
-                                    </label>
+                    <div class="card border-primary mb-3">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">Konfigurer hvilke opplysninger som skal samles inn ved påmelding</p>
+                            
+                            <div class="alert alert-info mb-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Standard felt (alltid inkludert):</strong><br>
+                                <small>✓ Fornavn &nbsp; ✓ Etternavn &nbsp; ✓ E-postadresse</small>
+                            </div>
+                            
+                            <h6 class="mb-3">Valgfrie tilleggsfelt:</h6>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="field_phone" id="field_phone">
+                                        <label class="form-check-label" for="field_phone">
+                                            <i class="bi bi-telephone text-primary me-1"></i> Telefonnummer
+                                        </label>
+                                    </div>
                                 </div>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_zip" id="field_zip">
-                                    <label class="form-check-label" for="field_zip">
-                                        📮 Postnummer
-                                    </label>
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="field_street" id="field_street">
+                                        <label class="form-check-label" for="field_street">
+                                            <i class="bi bi-house text-primary me-1"></i> Gateadresse
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="field_zip" id="field_zip">
+                                        <label class="form-check-label" for="field_zip">
+                                            <i class="bi bi-mailbox text-primary me-1"></i> Postnummer
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_city" id="field_city">
-                                    <label class="form-check-label" for="field_city">
-                                        🏙️ Poststed
-                                    </label>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="field_city" id="field_city">
+                                        <label class="form-check-label" for="field_city">
+                                            <i class="bi bi-geo-alt text-primary me-1"></i> Poststed
+                                        </label>
+                                    </div>
                                 </div>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_postal" id="field_postal">
-                                    <label class="form-check-label" for="field_postal">
-                                        📦 Postboks
-                                    </label>
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="field_postal" id="field_postal">
+                                        <label class="form-check-label" for="field_postal">
+                                            <i class="bi bi-box text-primary me-1"></i> Postboks
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="field_age" id="field_age">
+                                        <label class="form-check-label" for="field_age">
+                                            <i class="bi bi-person-badge text-primary me-1"></i> Alder
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <small class="text-muted">Navn og e-post er alltid påkrevd og vises automatisk</small>
                     </div>
 
                     <div class="d-flex gap-2">
@@ -530,6 +565,24 @@ document.addEventListener('DOMContentLoaded', function() {
         loadEvents();
     }
 
+    // Handle min_attendees field - show/hide deadline
+    const minAttendeesInput = document.getElementById('min_attendees');
+    const deadlineContainer = document.getElementById('min_attendees_deadline_container');
+    const deadlineInput = document.getElementById('min_attendees_deadline');
+    
+    if (minAttendeesInput && deadlineContainer) {
+        minAttendeesInput.addEventListener('input', function() {
+            if (this.value && parseInt(this.value) > 0) {
+                deadlineContainer.style.display = 'block';
+                deadlineInput.required = true;
+            } else {
+                deadlineContainer.style.display = 'none';
+                deadlineInput.required = false;
+                deadlineInput.value = '';
+            }
+        });
+    }
+
     // Create event form submission
     const createEventForm = document.getElementById('create-event-form');
     if (createEventForm) {
@@ -537,10 +590,26 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             
             const formData = new FormData(this);
+            
+            // Validate min_attendees deadline
+            const minAttendees = formData.get('min_attendees');
+            const minAttendeesDeadline = formData.get('min_attendees_deadline');
+            const startDate = formData.get('start_date');
+            
+            if (minAttendees && !minAttendeesDeadline) {
+                alert('❌ Du må velge en frist for minimum deltakere');
+                return;
+            }
+            
+            if (minAttendeesDeadline && startDate && minAttendeesDeadline >= startDate) {
+                alert('❌ Frist for min. deltakere må være før startdato');
+                return;
+            }
+            
             const data = {
                 title: formData.get('title'),
                 description: formData.get('description'),
-                start_date: formData.get('start_date'),
+                start_date: startDate,
                 start_time: formData.get('start_time'),
                 end_date: formData.get('end_date') || null,
                 end_time: formData.get('end_time') || null,
@@ -548,13 +617,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 event_address: formData.get('event_address'),
                 event_city: formData.get('event_city'),
                 event_postal: formData.get('event_postal'),
-                min_attendees: formData.get('min_attendees') || null,
+                min_attendees: minAttendees || null,
+                min_attendees_deadline: minAttendeesDeadline || null,
                 max_attendees: formData.get('max_attendees') || null,
                 age_limit: formData.get('age_limit') || null,
                 ticket_price: formData.get('ticket_price') || 0,
                 member_ticket_price: formData.get('member_ticket_price') || null,
                 event_image_url: formData.get('event_image_url') || null,
-                is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0
+                is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
+                // Registration fields
+                field_phone: formData.get('field_phone') ? 1 : 0,
+                field_street: formData.get('field_street') ? 1 : 0,
+                field_zip: formData.get('field_zip') ? 1 : 0,
+                field_city: formData.get('field_city') ? 1 : 0,
+                field_postal: formData.get('field_postal') ? 1 : 0,
+                field_age: formData.get('field_age') ? 1 : 0
             };
 
             try {

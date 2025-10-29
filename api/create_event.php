@@ -20,10 +20,30 @@ try {
     }
 
     $db = getDBConnection();
+    
+    // 1. Ensure min_attendees_deadline column exists (outside transaction)
+    try {
+        $db->exec("ALTER TABLE events_eventdata ADD COLUMN min_attendees_deadline DATE DEFAULT NULL");
+    } catch (Exception $e) {
+        // Column already exists, ignore
+    }
+    
+    // 2. Server-side validation for min_attendees_deadline
+    if (!empty($data['min_attendees']) && intval($data['min_attendees']) > 0) {
+        if (empty($data['min_attendees_deadline'])) {
+            echo json_encode(['success' => false, 'message' => 'Frist for min. deltakere er påkrevd når min. deltakere er satt']);
+            exit;
+        }
+        if ($data['min_attendees_deadline'] >= $data['start_date']) {
+            echo json_encode(['success' => false, 'message' => 'Frist for min. deltakere må være før startdato']);
+            exit;
+        }
+    }
+    
     $db->beginTransaction();
     
     try {
-        // 1. Create the event in events_eventdata
+        // 3. Create the event in events_eventdata
         $eventId = bin2hex(random_bytes(16));
         
         $stmt = $db->prepare("
@@ -34,6 +54,7 @@ try {
                 description,
                 max_attendees,
                 min_attendees,
+                min_attendees_deadline,
                 age_limit,
                 is_member_exclusive,
                 event_address,
@@ -68,6 +89,7 @@ try {
                 ?,
                 ?,
                 ?,
+                ?,
                 ?
             )
         ");
@@ -79,6 +101,7 @@ try {
             $data['description'] ?? null,
             $data['max_attendees'] ?? null,
             $data['min_attendees'] ?? null,
+            $data['min_attendees_deadline'] ?? null,
             $data['age_limit'] ?? null,
             $data['is_member_exclusive'] ?? 0,
             $data['event_address'] ?? null,
@@ -96,15 +119,45 @@ try {
         ]);
         
         // 2. Save registration fields config
-        $registrationFields = [
-            'street' => ['label' => 'Gateadresse', 'type' => 'text'],
-            'zip' => ['label' => 'Postnummer', 'type' => 'text'],
-            'city' => ['label' => 'Poststed', 'type' => 'text'],
-            'postal' => ['label' => 'Postboks', 'type' => 'text']
+        // Always add standard fields first (first_name, last_name, email)
+        $standardFields = [
+            'first_name' => ['label' => 'Fornavn', 'type' => 'text', 'required' => true],
+            'last_name' => ['label' => 'Etternavn', 'type' => 'text', 'required' => true],
+            'email' => ['label' => 'E-postadresse', 'type' => 'email', 'required' => true]
         ];
         
         $displayOrder = 1;
-        foreach ($registrationFields as $fieldName => $fieldConfig) {
+        foreach ($standardFields as $fieldName => $fieldConfig) {
+            $fieldId = bin2hex(random_bytes(16));
+            $stmt = $db->prepare("
+                INSERT INTO event_registration_fields (
+                    id, event_id, field_name, field_label, field_type,
+                    is_required, is_visible, display_order
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $fieldId,
+                $eventId,
+                $fieldName,
+                $fieldConfig['label'],
+                $fieldConfig['type'],
+                $fieldConfig['required'],
+                true,
+                $displayOrder++
+            ]);
+        }
+        
+        // Then add optional fields if selected
+        $optionalFields = [
+            'phone' => ['label' => 'Telefonnummer', 'type' => 'tel'],
+            'street' => ['label' => 'Gateadresse', 'type' => 'text'],
+            'zip' => ['label' => 'Postnummer', 'type' => 'text'],
+            'city' => ['label' => 'Poststed', 'type' => 'text'],
+            'postal' => ['label' => 'Postboks', 'type' => 'text'],
+            'age' => ['label' => 'Alder', 'type' => 'number']
+        ];
+        
+        foreach ($optionalFields as $fieldName => $fieldConfig) {
             if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
                 $fieldId = bin2hex(random_bytes(16));
                 $stmt = $db->prepare("
@@ -119,7 +172,7 @@ try {
                     $fieldName,
                     $fieldConfig['label'],
                     $fieldConfig['type'],
-                    true,
+                    false,
                     true,
                     $displayOrder++
                 ]);
