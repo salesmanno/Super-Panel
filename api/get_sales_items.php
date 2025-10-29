@@ -13,6 +13,8 @@ try {
     $db = getDBConnection();
     $company_id = $_SESSION['company_id'];
     
+    $dbType = getDBType();
+    
     $stmt = $db->prepare("
         SELECT 
             op.id,
@@ -22,7 +24,7 @@ try {
                 CASE 
                     WHEN op.product_type = 'event' THEN e.title
                     WHEN op.product_type = 'product' THEN sp.name
-                    WHEN op.product_type = 'membership' THEN mp.name
+                    WHEN op.product_type = 'membership' THEN " . ($dbType === 'mysql' ? "mp.name" : "mp.plan_name") . "
                     ELSE NULL
                 END,
                 op.name
@@ -40,12 +42,16 @@ try {
                 WHEN op.product_type = 'event' THEN e.member_ticket_price
                 ELSE NULL
             END as member_price,
+            CASE 
+                WHEN op.product_type = 'membership' THEN " . ($dbType === 'mysql' ? "mp.billing_cycle" : "mp.duration_months") . "
+                ELSE NULL
+            END as duration_months,
             sp.img_product,
             sp.item_taxable
         FROM output_products op
         LEFT JOIN events_eventdata e ON op.product_type = 'event' AND op.product_id = e.id
         LEFT JOIN sales_products sp ON op.product_type = 'product' AND op.product_id = sp.id
-        LEFT JOIN membership_plans mp ON op.product_type = 'membership' AND op.product_id = mp.id
+        LEFT JOIN " . ($dbType === 'mysql' ? "membership_plans" : "x_membership_plan") . " mp ON op.product_type = 'membership' AND op.product_id = " . ($dbType === 'mysql' ? "mp.id" : "mp.plan_id") . "
         WHERE op.company_id = ? AND op.is_visible = 1
         ORDER BY item_name ASC
     ");
