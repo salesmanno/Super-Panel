@@ -43,9 +43,18 @@ try {
                 ELSE NULL
             END as member_price,
             CASE 
-                WHEN op.product_type = 'membership' THEN " . ($dbType === 'mysql' ? "mp.billing_cycle" : "mp.duration_months") . "
+                WHEN op.product_type = 'membership' AND " . ($dbType === 'mysql' ? "mp.billing_cycle IS NOT NULL" : "mp.duration_months IS NOT NULL") . " THEN 
+                    " . ($dbType === 'mysql' ? 
+                        "CASE mp.billing_cycle 
+                            WHEN 'monthly' THEN 1 
+                            WHEN 'quarterly' THEN 3 
+                            WHEN 'yearly' THEN 12 
+                            ELSE 12 
+                        END" : 
+                        "mp.duration_months") . "
                 ELSE NULL
             END as duration_months,
+            " . ($dbType === 'mysql' ? "mp.billing_cycle" : "NULL") . " as billing_cycle,
             sp.img_product,
             sp.item_taxable
         FROM output_products op
