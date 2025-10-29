@@ -219,4 +219,138 @@ class ProductCatalogService {
             'is_marketplace_featured' => false
         ]);
     }
+    
+    /**
+     * Sync product data from source tables to output_products
+     * Updates name and price fields to match current source data
+     * 
+     * @param string|null $companyId - If provided, only sync for this company
+     * @param string|null $productType - If provided, only sync this product type
+     * @return array - Statistics about synced records
+     */
+    public function syncProductData($companyId = null, $productType = null) {
+        $stats = ['updated' => 0, 'errors' => 0];
+        
+        try {
+            // Build query to get output_products
+            $query = "SELECT id, product_type, product_id FROM output_products WHERE 1=1";
+            $params = [];
+            
+            if ($companyId) {
+                $query .= " AND company_id = ?";
+                $params[] = $companyId;
+            }
+            
+            if ($productType) {
+                $query .= " AND product_type = ?";
+                $params[] = $productType;
+            }
+            
+            $stmt = $this->db->prepare($query);
+            $stmt->execute($params);
+            $outputProducts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Sync each product
+            foreach ($outputProducts as $op) {
+                try {
+                    $sourceData = $this->getSourceProductData($op['product_type'], $op['product_id']);
+                    
+                    if ($sourceData) {
+                        $updateStmt = $this->db->prepare("
+                            UPDATE output_products 
+                            SET name = ?, 
+                                price = ?,
+                                updated_at = CURRENT_TIMESTAMP
+                            WHERE id = ?
+                        ");
+                        
+                        $updateStmt->execute([
+                            $sourceData['name'],
+                            $sourceData['price'],
+                            $op['id']
+                        ]);
+                        
+                        $stats['updated']++;
+                    }
+                } catch (Exception $e) {
+                    error_log("Error syncing product {$op['id']}: " . $e->getMessage());
+                    $stats['errors']++;
+                }
+            }
+            
+        } catch (Exception $e) {
+            error_log("ProductCatalogService syncProductData error: " . $e->getMessage());
+            throw $e;
+        }
+        
+        return $stats;
+    }
+    
+    /**
+     * Get name and price from source product table
+     * 
+     * @param string $productType
+     * @param string $productId
+     * @return array|null - ['name' => string, 'price' => float] or null
+     */
+    private function getSourceProductData($productType, $productId) {
+        try {
+            switch ($productType) {
+                case 'event':
+                    $stmt = $this->db->prepare("
+                        SELECT title as name, ticket_price as price 
+                        FROM events_eventdata 
+                        WHERE id = ?
+                    ");
+                    break;
+                    
+                case 'product':
+                case 'sales_item':
+                    $stmt = $this->db->prepare("
+                        SELECT name, selling_price as price 
+                        FROM sales_products 
+                        WHERE id = ?
+                    ");
+                    break;
+                    
+                case 'membership':
+                    // Support both MySQL (membership_plans) and PostgreSQL (x_membership_plan)
+                    $dbType = getDBType();
+                    if ($dbType === 'mysql') {
+                        $stmt = $this->db->prepare("
+                            SELECT name, price 
+                            FROM membership_plans 
+                            WHERE id = ?
+                        ");
+                    } else {
+                        $stmt = $this->db->prepare("
+                            SELECT plan_name as name, price 
+                            FROM x_membership_plan 
+                            WHERE plan_id = ?
+                        ");
+                    }
+                    break;
+                    
+                case 'rental':
+                    $stmt = $this->db->prepare("
+                        SELECT name, daily_rate as price 
+                        FROM rental_objects 
+                        WHERE id = ?
+                    ");
+                    break;
+                    
+                default:
+                    return null;
+            }
+            
+            $stmt->execute([$productId]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            return $result ?: null;
+            
+        } catch (Exception $e) {
+            error_log("Error fetching source product data: " . $e->getMessage());
+            return null;
+        }
+    }
 }

@@ -8,6 +8,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/ProductCatalogService.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -88,12 +89,26 @@ try {
             $planId = $stmt->fetchColumn();
         }
         
+        // Automatically create output_products entry
+        $catalogService = new ProductCatalogService($db);
+        $outputProductId = $catalogService->createProductEntry(
+            $_SESSION['company_id'],
+            'membership',
+            $planId,
+            ['is_visible' => true, 'is_public' => true],
+            $_SESSION['tenant_admin_id']
+        );
+        
+        // Sync the newly created product to ensure name and price are set
+        $catalogService->syncProductData($_SESSION['company_id'], 'membership');
+        
         $db->commit();
         
         echo json_encode([
             'success' => true,
             'message' => 'Medlemskapsplan opprettet',
-            'plan_id' => $planId
+            'plan_id' => $planId,
+            'output_product_id' => $outputProductId
         ]);
         
     } catch (Exception $e) {
