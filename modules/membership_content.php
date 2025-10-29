@@ -246,7 +246,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Medlemskapsplan</label>
-                        <select class="form-select" name="plan_id" id="member-plan-select">
+                        <select class="form-select" name="membership_plan_id" id="member-plan-select">
                             <option value="">Ingen plan valgt</option>
                         </select>
                     </div>
@@ -416,7 +416,7 @@ async function submitMember() {
         address: formData.get('address'),
         poststed: formData.get('poststed'),
         dateofbirth: formData.get('dateofbirth'),
-        plan_id: formData.get('plan_id') || null,
+        membership_plan_id: formData.get('membership_plan_id') || null,
         notes: formData.get('notes')
     };
     

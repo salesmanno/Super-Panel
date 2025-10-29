@@ -29,7 +29,7 @@ try {
     
     // Beregn utløpsdato basert på plan
     $expiryDate = null;
-    if (!empty($data['plan_id'])) {
+    if (!empty($data['membership_plan_id'])) {
         $dbType = getDBType();
         
         if ($dbType === 'mysql') {
@@ -37,7 +37,7 @@ try {
         } else {
             $planStmt = $db->prepare("SELECT duration_months FROM x_membership_plan WHERE plan_id = ? AND company_id = ?");
         }
-        $planStmt->execute([$data['plan_id'], $_SESSION['company_id']]);
+        $planStmt->execute([$data['membership_plan_id'], $_SESSION['company_id']]);
         $plan = $planStmt->fetch(PDO::FETCH_ASSOC);
         
         if ($plan) {
@@ -61,7 +61,7 @@ try {
     $stmt = $db->prepare("
         INSERT INTO membership_members (
             company_id,
-            plan_id,
+            membership_plan_id,
             first_name,
             last_name,
             email,
@@ -79,7 +79,7 @@ try {
     
     $stmt->execute([
         $_SESSION['company_id'],
-        !empty($data['plan_id']) ? $data['plan_id'] : null,
+        !empty($data['membership_plan_id']) ? $data['membership_plan_id'] : null,
         $data['first_name'],
         $data['last_name'],
         $data['email'],
