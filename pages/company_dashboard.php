@@ -386,6 +386,19 @@ try {
                         </button>
                     </li>
                 <?php endforeach; ?>
+                
+                <!-- Announcements Tab (always visible for all admins) -->
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" 
+                            id="tab-announcements" 
+                            data-bs-toggle="tab" 
+                            data-bs-target="#content-announcements" 
+                            type="button" 
+                            role="tab">
+                        <i class="bi bi-megaphone me-2"></i>
+                        Kunngjøringer
+                    </button>
+                </li>
             </ul>
         </div>
     </div>
@@ -756,6 +769,13 @@ try {
                         ?>
                     </div>
                 <?php endforeach; ?>
+                
+                <!-- Announcements Tab Content (always available for all admins) -->
+                <div class="tab-pane fade" 
+                     id="content-announcements" 
+                     role="tabpanel">
+                    <?php include __DIR__ . '/../modules/announcements_content.php'; ?>
+                </div>
             </div>
         <?php endif; ?>
     </div>
