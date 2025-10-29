@@ -23,7 +23,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="card-title mb-0">Medlemsoversikt</h5>
-                    <button class="btn btn-primary btn-sm">
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createMemberModal">
                         <i class="bi bi-plus-circle me-1"></i>Legg til medlem
                     </button>
                 </div>
@@ -65,7 +65,7 @@
                                 <th>Handling</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="members-table-body">
                             <tr>
                                 <td colspan="11" class="text-center text-muted py-4">
                                     Ingen medlemmer funnet
@@ -200,6 +200,72 @@
     </div>
 </div>
 
+<!-- Modal for legg til medlem -->
+<div class="modal fade" id="createMemberModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Legg til nytt medlem</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="create-member-form">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fornavn *</label>
+                            <input type="text" class="form-control" name="first_name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Etternavn *</label>
+                            <input type="text" class="form-control" name="last_name" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">E-post *</label>
+                            <input type="email" class="form-control" name="email" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Telefon</label>
+                            <input type="tel" class="form-control" name="phone">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Adresse</label>
+                        <input type="text" class="form-control" name="address">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Poststed</label>
+                            <input type="text" class="form-control" name="poststed">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fødselsdato</label>
+                            <input type="date" class="form-control" name="dateofbirth">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Medlemskapsplan</label>
+                        <select class="form-select" name="plan_id" id="member-plan-select">
+                            <option value="">Ingen plan valgt</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notater</label>
+                        <textarea class="form-control" name="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                <button type="button" class="btn btn-primary" onclick="submitMember()">
+                    <i class="bi bi-check-circle me-1"></i>Legg til medlem
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal for opprett medlemskapsplan -->
 <div class="modal fade" id="createPlanModal" tabindex="-1">
     <div class="modal-dialog">
@@ -291,19 +357,27 @@ async function loadMembershipPlans() {
         const plansList = document.getElementById('membership-plans-list');
         
         if (result.success && result.plans && result.plans.length > 0) {
-            plansList.innerHTML = result.plans.map(plan => `
-                <div class="col-md-4 mb-3">
-                    <div class="card border">
-                        <div class="card-body">
-                            <h6>${plan.name}</h6>
-                            <p class="text-muted small">${plan.billing_cycle === 'monthly' ? 'Månedlig' : plan.billing_cycle === 'yearly' ? 'Årlig' : 'Kvartalsvis'}</p>
-                            <h4 class="text-primary">${plan.price} NOK</h4>
-                            ${plan.benefits ? '<div class="small text-muted mt-2">' + plan.benefits.split('\n').slice(0, 2).join('<br>') + '</div>' : ''}
-                            <button class="btn btn-outline-primary btn-sm w-100 mt-2">Rediger</button>
+            plansList.innerHTML = result.plans.map(plan => {
+                const durationMonths = plan.duration_months || 12;
+                const billingLabel = durationMonths === 1 ? 'Månedlig' : 
+                                    durationMonths === 3 ? 'Kvartalsvis' : 
+                                    durationMonths === 12 ? 'Årlig' : 
+                                    `${durationMonths} måneder`;
+                
+                return `
+                    <div class="col-md-4 mb-3">
+                        <div class="card border">
+                            <div class="card-body">
+                                <h6>${plan.name}</h6>
+                                <p class="text-muted small">${billingLabel}</p>
+                                <h4 class="text-primary">${plan.price} NOK</h4>
+                                ${plan.benefits ? '<div class="small text-muted mt-2">' + plan.benefits.split('\n').slice(0, 2).join('<br>') + '</div>' : ''}
+                                <button class="btn btn-outline-primary btn-sm w-100 mt-2">Rediger</button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         } else {
             plansList.innerHTML = `
                 <div class="col-12 text-center text-muted py-4">
@@ -319,5 +393,130 @@ async function loadMembershipPlans() {
 
 // Last inn planer når medlemskap-tab vises
 document.getElementById('tab-membership')?.addEventListener('shown.bs.tab', loadMembershipPlans);
+
+async function submitMember() {
+    const form = document.getElementById('create-member-form');
+    const formData = new FormData(form);
+    
+    const memberData = {
+        first_name: formData.get('first_name'),
+        last_name: formData.get('last_name'),
+        email: formData.get('email'),
+        phone: formData.get('phone'),
+        address: formData.get('address'),
+        poststed: formData.get('poststed'),
+        dateofbirth: formData.get('dateofbirth'),
+        plan_id: formData.get('plan_id') || null,
+        notes: formData.get('notes')
+    };
+    
+    if (!memberData.first_name || !memberData.last_name || !memberData.email) {
+        alert('⚠️ Vennligst fyll ut alle obligatoriske felt (fornavn, etternavn, e-post)');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/create_member.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(memberData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Medlem lagt til!');
+            bootstrap.Modal.getInstance(document.getElementById('createMemberModal')).hide();
+            form.reset();
+            loadMembers();
+        } else {
+            alert('❌ Feil: ' + (result.message || 'Kunne ikke legge til medlem'));
+        }
+    } catch (error) {
+        console.error('Error creating member:', error);
+        alert('❌ Feil ved opprettelse av medlem');
+    }
+}
+
+async function loadMembers() {
+    try {
+        const response = await fetch('/api/get_members.php');
+        const result = await response.json();
+        
+        const tableBody = document.getElementById('members-table-body');
+        
+        if (result.success && result.members && result.members.length > 0) {
+            tableBody.innerHTML = result.members.map(member => {
+                const statusBadge = member.status === 'active' ? 'bg-success' : 
+                                   member.status === 'expired' ? 'bg-danger' : 'bg-warning';
+                const statusText = member.status === 'active' ? 'Aktiv' : 
+                                  member.status === 'expired' ? 'Utløpt' : 'Venter';
+                
+                return `
+                    <tr>
+                        <td>${member.member_id}</td>
+                        <td>${member.first_name}</td>
+                        <td>${member.last_name}</td>
+                        <td>${member.email}</td>
+                        <td>${member.phone || '-'}</td>
+                        <td>${member.address ? (member.address + ', ' + (member.poststed || '')) : '-'}</td>
+                        <td>${member.membership_type || '-'}</td>
+                        <td><span class="badge ${statusBadge}">${statusText}</span></td>
+                        <td>${member.join_date || '-'}</td>
+                        <td>${member.expiry_date || '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="editMember(${member.member_id})">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="11" class="text-center text-muted py-4">
+                        Ingen medlemmer funnet
+                    </td>
+                </tr>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading members:', error);
+    }
+}
+
+async function loadPlansForSelect() {
+    try {
+        const response = await fetch('/api/get_membership_plans.php');
+        const result = await response.json();
+        
+        const select = document.getElementById('member-plan-select');
+        
+        if (result.success && result.plans && result.plans.length > 0) {
+            const options = result.plans.map(plan => 
+                `<option value="${plan.plan_id}">${plan.name || plan.plan_name} - ${plan.price} NOK</option>`
+            ).join('');
+            select.innerHTML = '<option value="">Ingen plan valgt</option>' + options;
+        }
+    } catch (error) {
+        console.error('Error loading plans for select:', error);
+    }
+}
+
+function editMember(memberId) {
+    alert('Redigering av medlem kommer snart!');
+}
+
+// Last inn medlemmer når medlemmer-tab vises
+const memberTab = document.querySelector('[data-subtab="membership-members"]');
+if (memberTab) {
+    memberTab.addEventListener('click', function() {
+        loadMembers();
+    });
+}
+
+// Last inn planer for dropdown når modal åpnes
+document.getElementById('createMemberModal')?.addEventListener('show.bs.modal', loadPlansForSelect);
 </script>
 

@@ -15,17 +15,14 @@ try {
     
     $stmt = $db->prepare("
         SELECT 
-            id,
-            name,
-            plan_code,
+            plan_id,
+            plan_name as name,
             description,
             price,
-            billing_cycle,
-            benefits,
-            is_active,
-            created_at,
-            currency
-        FROM membership_plans
+            duration_months,
+            features as benefits,
+            is_active
+        FROM x_membership_plan
         WHERE company_id = ? AND is_active = true
         ORDER BY created_at DESC
     ");

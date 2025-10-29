@@ -21,85 +21,46 @@ try {
     $db->beginTransaction();
     
     try {
-        // Generer ID-er
-        $planId = bin2hex(random_bytes(16));
-        $outputProductId = bin2hex(random_bytes(16));
-        $planCode = 'PLAN-' . strtoupper(substr($planId, 0, 8));
+        // Beregn duration_months fra billing_cycle
+        $billingCycle = $data['billing_cycle'] ?? 'yearly';
+        $durationMonths = match($billingCycle) {
+            'monthly' => 1,
+            'quarterly' => 3,
+            'yearly' => 12,
+            default => 12
+        };
         
-        // 1. Opprett medlemskapsplan (match MySQL structure from salesmanno04)
+        // 1. Opprett medlemskapsplan i x_membership_plan tabell
         $stmt = $db->prepare("
-            INSERT INTO membership_plans (
-                id,
+            INSERT INTO x_membership_plan (
                 company_id,
-                plan_code,
-                name,
+                plan_name,
                 description,
                 price,
-                billing_cycle,
-                benefits,
+                duration_months,
+                features,
                 is_active
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+            ) VALUES (?, ?, ?, ?, ?, ?, true)
+            RETURNING plan_id
         ");
         
-        $billingCycle = $data['billing_cycle'] ?? 'monthly';
-        
         $stmt->execute([
-            $planId,
             $_SESSION['company_id'],
-            $planCode,
             $data['name'],
             $data['description'] ?? null,
             $data['price'] ?? 0,
-            $billingCycle,
+            $durationMonths,
             $data['benefits'] ?? null
         ]);
         
-        // 2. Get membership module_id (UUID from system_modules)
-        $moduleStmt = $db->prepare("SELECT id FROM system_modules WHERE module_key = 'membership' LIMIT 1");
-        $moduleStmt->execute();
-        $membershipModuleId = $moduleStmt->fetchColumn();
-        
-        if (!$membershipModuleId) {
-            throw new Exception("Membership module not found in system_modules");
-        }
-        
-        // 3. Auto-generer output_products entry
-        $stmt = $db->prepare("
-            INSERT INTO output_products (
-                id,
-                company_id,
-                module_id,
-                product_type,
-                product_id,
-                name,
-                description,
-                price,
-                is_visible,
-                is_public,
-                is_marketplace_featured,
-                created_at,
-                created_by
-            ) VALUES (?, ?, ?, 'membership', ?, ?, ?, ?, 1, 1, 0, NOW(), ?)
-        ");
-        
-        $stmt->execute([
-            $outputProductId,
-            $_SESSION['company_id'],
-            $membershipModuleId,
-            $planId,
-            $data['name'],
-            $data['description'] ?? null,
-            $data['price'] ?? 0,
-            $_SESSION['tenant_admin_id']
-        ]);
+        $planId = $stmt->fetchColumn();
         
         $db->commit();
         
         echo json_encode([
             'success' => true,
             'message' => 'Medlemskapsplan opprettet',
-            'plan_id' => $planId,
-            'output_product_id' => $outputProductId
+            'plan_id' => $planId
         ]);
         
     } catch (Exception $e) {
