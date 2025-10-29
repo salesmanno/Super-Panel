@@ -70,41 +70,35 @@ try {
         
         $stmt = $db->prepare("
             INSERT INTO sales_transactions (
-                id,
                 company_id,
-                admin_id,
-                order_id,
+                sales_product_id,
+                quantity,
+                total_price,
+                payment_method,
                 customer_name,
                 customer_email,
-                items_sold,
-                total_amount,
-                payment_method,
-                payment_status,
-                receipt_sent,
+                send_receipt,
                 notes,
-                transaction_date,
+                created_by,
                 created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         
-        $itemTransactionId = bin2hex(random_bytes(16));
-        
         $stmt->execute([
-            $itemTransactionId,
             $company_id,
-            $admin_id,
-            $orderId,
-            $customer_name ?: 'Walk-in',
-            $customer_email ?: null,
+            $item['product_id'],
             $item['quantity'],
             $itemTotal,
             $payment_method,
-            'completed',
-            false,
+            $customer_name ?: 'Walk-in',
+            $customer_email ?: null,
+            $send_receipt ? 1 : 0,
             $notes,
-            $currentTimestamp,
+            $admin_id,
             $currentTimestamp
         ]);
+        
+        $itemTransactionId = $db->lastInsertId();
         
         // Get cost_price for profit tracking
         $costPrice = null;
