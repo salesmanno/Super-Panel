@@ -27,7 +27,7 @@ try {
             m.status,
             m.notes,
             p.plan_name as membership_type
-        FROM members m
+        FROM membership_members m
         LEFT JOIN x_membership_plan p ON m.plan_id = p.plan_id
         WHERE m.company_id = ?
         ORDER BY m.created_at DESC

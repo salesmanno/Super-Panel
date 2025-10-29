@@ -20,7 +20,7 @@ try {
     $db = getDBConnection();
     
     // Sjekk om e-post allerede eksisterer
-    $checkStmt = $db->prepare("SELECT member_id FROM members WHERE company_id = ? AND email = ?");
+    $checkStmt = $db->prepare("SELECT member_id FROM membership_members WHERE company_id = ? AND email = ?");
     $checkStmt->execute([$_SESSION['company_id'], $data['email']]);
     if ($checkStmt->fetch()) {
         echo json_encode(['success' => false, 'message' => 'Et medlem med denne e-postadressen eksisterer allerede']);
@@ -59,7 +59,7 @@ try {
     
     // Opprett medlem
     $stmt = $db->prepare("
-        INSERT INTO members (
+        INSERT INTO membership_members (
             company_id,
             plan_id,
             first_name,

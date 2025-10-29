@@ -226,7 +226,7 @@ try {
             
             if ($dbType === 'mysql') {
                 $stmt = $db->prepare("
-                    INSERT INTO members 
+                    INSERT INTO membership_members 
                     (company_id, plan_id, first_name, last_name, email, phone, 
                      join_date, expiry_date, status, notes, created_at, updated_at) 
                     VALUES (?, ?, ?, ?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL ? MONTH), 'active', ?, NOW(), NOW())
@@ -245,7 +245,7 @@ try {
                 $transactionId = $db->lastInsertId();
             } else {
                 $stmt = $db->prepare("
-                    INSERT INTO members 
+                    INSERT INTO membership_members 
                     (company_id, plan_id, first_name, last_name, email, phone, 
                      join_date, expiry_date, status, notes, created_at, updated_at) 
                     VALUES (?, ?, ?, ?, ?, ?, CURRENT_DATE, CURRENT_DATE + INTERVAL '{$durationMonths} months', 'active', ?, NOW(), NOW())

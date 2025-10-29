@@ -37,7 +37,7 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Modularity**: Core system features are organized into distinct modules.
 - **Staff-First Architecture**: `tenant_staff` (employees) are created independently, with `tenant_admins` (login accounts) optionally linked.
 - **Clean Database Architecture**: Modular database design eliminating duplicates and redundancy, standardizing tables, adding cost price tracking, and introducing `service_bookings` and `unified_ledger` tables.
-- **Database Structure**: Key tables include `tenant_admin_sessions`, `tenant_admins`, `tenant_companies`, `tenant_staff`, `tenant_customers`, `events_eventdata`, `sales_products`, `sales_transactions`, `unified_ledger`, `email_templates`, `email_logs`, and `output_products`.
+- **Database Structure**: Key tables include `tenant_admin_sessions`, `tenant_admins`, `tenant_companies`, `tenant_staff`, `tenant_customers`, `membership_members`, `events_eventdata`, `sales_products`, `sales_transactions`, `unified_ledger`, `email_templates`, `email_logs`, and `output_products`.
 
 ## External Dependencies
 - **Database**: Dual database support with PDO:
