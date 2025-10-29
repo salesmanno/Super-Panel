@@ -1258,11 +1258,13 @@ async function submitSalesItem() {
         description: formData.get('description'),
         cost_price: parseFloat(formData.get('cost_price')) || 0,
         selling_price: parseFloat(formData.get('selling_price')),
+        img_product: formData.get('img_product') || '',
         member_price: formData.get('member_price') ? parseFloat(formData.get('member_price')) : null,
         tax_rate: parseFloat(formData.get('tax_rate')),
         unit: formData.get('unit'),
         reorder_level: parseInt(formData.get('reorder_level')) || 0,
-        is_active: formData.get('is_active') ? true : false
+        is_active: formData.get('is_active') ? true : false,
+        item_taxable: formData.get('item_taxable') ? true : false
     };
     
     try {
