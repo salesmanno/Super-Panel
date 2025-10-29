@@ -843,6 +843,63 @@ async function loadEventRegistrationFields(eventId) {
     }
 }
 
+// Attendee scanner functionality
+let scannerTimeout;
+document.getElementById('attendee-scanner-input')?.addEventListener('input', function(e) {
+    const scanInput = e.target.value.trim();
+    
+    // Clear previous timeout
+    clearTimeout(scannerTimeout);
+    
+    // Only search if 3+ characters
+    if (scanInput.length < 3) {
+        return;
+    }
+    
+    // Add visual feedback
+    this.style.borderColor = '#ffc107';
+    this.style.boxShadow = '0 0 0 0.2rem rgba(255, 193, 7, 0.25)';
+    
+    // Debounce search
+    scannerTimeout = setTimeout(async () => {
+        try {
+            const response = await fetch(`../api/search_attendee.php?query=${encodeURIComponent(scanInput)}&company_id=<?= $_SESSION['company_id'] ?>`);
+            const result = await response.json();
+            
+            if (result.success && result.attendee) {
+                // Fill form with attendee data
+                document.querySelector('[name="attendee_name"]').value = result.attendee.name || '';
+                document.querySelector('[name="attendee_email"]').value = result.attendee.email || '';
+                document.querySelector('[name="attendee_phone"]').value = result.attendee.phone || '';
+                
+                // Success feedback
+                e.target.style.borderColor = '#28a745';
+                e.target.style.boxShadow = '0 0 0 0.2rem rgba(40, 167, 69, 0.25)';
+                
+                // Clear scanner after 1 second
+                setTimeout(() => {
+                    e.target.value = '';
+                    e.target.style.borderColor = '';
+                    e.target.style.boxShadow = '';
+                }, 1000);
+            } else {
+                // Not found feedback
+                e.target.style.borderColor = '#dc3545';
+                e.target.style.boxShadow = '0 0 0 0.2rem rgba(220, 53, 69, 0.25)';
+                
+                setTimeout(() => {
+                    e.target.style.borderColor = '';
+                    e.target.style.boxShadow = '';
+                }, 2000);
+            }
+        } catch (error) {
+            console.error('Error searching attendee:', error);
+            e.target.style.borderColor = '#dc3545';
+            e.target.style.boxShadow = '0 0 0 0.2rem rgba(220, 53, 69, 0.25)';
+        }
+    }, 300);
+});
+
 // Check-in form submission
 document.getElementById('checkin-form')?.addEventListener('submit', async function(e) {
     e.preventDefault();
