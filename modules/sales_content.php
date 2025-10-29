@@ -167,6 +167,14 @@
                                 <textarea class="form-control form-control-sm" id="checkout-notes" rows="2"></textarea>
                             </div>
                             
+                            <div class="mb-3">
+                                <label class="form-label small">Knytt til arrangement (valgfri)</label>
+                                <select class="form-select form-select-sm" id="checkout-linked-event">
+                                    <option value="">Ingen arrangement</option>
+                                </select>
+                                <small class="text-muted d-block mt-1">Salget vises i arrangementets resultat</small>
+                            </div>
+                            
                             <button id="checkout-btn" class="btn btn-success w-100" disabled>
                                 <i class="bi bi-check-circle me-2"></i>Gjennomfør salg
                             </button>
@@ -958,6 +966,7 @@ if (salesModule) {
         const sendReceipt = salesModule.querySelector('#send-receipt-checkbox').checked;
         const paymentMethod = salesModule.querySelector('#checkout-payment-method').value;
         const notes = salesModule.querySelector('#checkout-notes').value;
+        const linkedEvent = salesModule.querySelector('#checkout-linked-event').value;
     
     try {
         const response = await fetch('/api/checkout_cart.php', {
@@ -967,6 +976,7 @@ if (salesModule) {
                 customer_name: customerName, 
                 customer_email: customerEmail,
                 send_receipt: sendReceipt,
+                event_id: linkedEvent || null,
                 payment_method: paymentMethod, 
                 notes: notes
             })
@@ -984,7 +994,9 @@ if (salesModule) {
             salesModule.querySelector('#checkout-customer-email').value = '';
             salesModule.querySelector('#send-receipt-checkbox').checked = false;
             salesModule.querySelector('#checkout-notes').value = '';
+            salesModule.querySelector('#checkout-linked-event').value = '';
             await loadCart();
+            await loadAllSalesData(); // Refresh transactions and products
         } else {
             alert('❌ ' + result.message);
         }
@@ -1024,13 +1036,36 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// Load events for linking sales to events
+async function loadEventsForLinking() {
+    try {
+        const response = await fetch('/api/get_events.php');
+        const result = await response.json();
+        
+        if (result.success && result.events) {
+            const eventSelect = document.getElementById('checkout-linked-event');
+            if (eventSelect) {
+                const eventOptions = result.events
+                    .filter(event => new Date(event.start_date) >= new Date()) // Only future events
+                    .map(event => `<option value="${event.id}">${event.title} - ${new Date(event.start_date).toLocaleDateString('nb-NO')}</option>`)
+                    .join('');
+                
+                eventSelect.innerHTML = '<option value="">Ingen arrangement</option>' + eventOptions;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading events for linking:', error);
+    }
+}
+
 // Load all sales data in one function
 async function loadAllSalesData() {
     console.log('=== loadAllSalesData() called ===');
     await Promise.all([
         loadSalesProducts(),
         loadTransactions(),
-        loadProductsWithProfit()
+        loadProductsWithProfit(),
+        loadEventsForLinking()
     ]);
     console.log('=== loadAllSalesData() completed ===');
 }
@@ -1280,7 +1315,7 @@ async function submitSalesItem() {
             alert(`✅ Produkt opprettet!\nProdukt ID: ${result.product_id}`);
             bootstrap.Modal.getInstance(document.getElementById('addSalesItemModal')).hide();
             form.reset();
-            await loadSalesProducts(); // Reload products
+            await loadAllSalesData(); // Reload all sales data
         } else {
             alert('❌ ' + result.message);
         }

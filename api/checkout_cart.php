@@ -17,6 +17,7 @@ $customer_name = $data['customer_name'] ?? '';
 $customer_email = $data['customer_email'] ?? '';
 $send_receipt = $data['send_receipt'] ?? false;
 $notes = $data['notes'] ?? '';
+$event_id = $data['event_id'] ?? null;
 
 try {
     $db = getDBConnection();
@@ -111,6 +112,17 @@ try {
         }
         
         // Log to unified_ledger
+        $metadata = [
+            'product_id' => $item['product_id'],
+            'unit_price' => $item['price'],
+            'notes' => $notes
+        ];
+        
+        // Add event_id to metadata if sale is linked to an event
+        if ($event_id) {
+            $metadata['event_id'] = $event_id;
+        }
+        
         $ledgerService->logTransaction([
             'order_id' => $orderId,
             'module_source' => 'sales',
@@ -126,11 +138,7 @@ try {
             'payment_status' => 'completed',
             'status' => 'active',
             'transaction_date' => $currentTimestamp,
-            'metadata' => [
-                'product_id' => $item['product_id'],
-                'unit_price' => $item['price'],
-                'notes' => $notes
-            ]
+            'metadata' => $metadata
         ]);
     }
     
