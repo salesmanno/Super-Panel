@@ -362,19 +362,18 @@
                     <div class="card-body">
                         <form id="checkin-form">
                             <div class="row">
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-6 mb-3">
                                     <label class="form-label">Navn *</label>
                                     <input type="text" class="form-control" name="attendee_name" required>
                                 </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">E-post</label>
-                                    <input type="email" class="form-control" name="attendee_email">
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">Telefon</label>
-                                    <input type="tel" class="form-control" name="attendee_phone">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">E-post *</label>
+                                    <input type="email" class="form-control" name="attendee_email" required>
                                 </div>
                             </div>
+                            
+                            <!-- Dynamic Registration Fields -->
+                            <div id="dynamic-registration-fields"></div>
                             <div class="row">
                                 <div class="col-md-3 mb-3">
                                     <label class="form-label">Billett type</label>
@@ -763,13 +762,15 @@ document.querySelector('[name="attendee_email"]')?.addEventListener('blur', asyn
 });
 
 // Handle event selection
-document.getElementById('checkin-event-selector')?.addEventListener('change', function(e) {
+document.getElementById('checkin-event-selector')?.addEventListener('change', async function(e) {
     selectedEventId = e.target.value;
     
     if (selectedEventId) {
         document.getElementById('checkin-stats').style.display = 'block';
         document.getElementById('checkin-form-container').style.display = 'block';
         document.getElementById('checkin-list-container').style.display = 'block';
+        
+        await loadEventRegistrationFields(selectedEventId);
         loadCheckins(selectedEventId);
     } else {
         document.getElementById('checkin-stats').style.display = 'none';
@@ -777,6 +778,54 @@ document.getElementById('checkin-event-selector')?.addEventListener('change', fu
         document.getElementById('checkin-list-container').style.display = 'none';
     }
 });
+
+// Load and display dynamic registration fields
+async function loadEventRegistrationFields(eventId) {
+    try {
+        const response = await fetch(`/api/get_event_fields.php?event_id=${eventId}`);
+        const result = await response.json();
+        
+        const container = document.getElementById('dynamic-registration-fields');
+        container.innerHTML = '';
+        
+        if (result.success && result.fields && result.fields.length > 0) {
+            const row = document.createElement('div');
+            row.className = 'row';
+            
+            result.fields.forEach(field => {
+                const colDiv = document.createElement('div');
+                colDiv.className = 'col-md-6 mb-3';
+                
+                const label = document.createElement('label');
+                label.className = 'form-label';
+                label.textContent = field.field_label + (field.is_required ? ' *' : '');
+                
+                let input;
+                if (field.field_type === 'textarea') {
+                    input = document.createElement('textarea');
+                    input.rows = 2;
+                } else {
+                    input = document.createElement('input');
+                    input.type = field.field_type || 'text';
+                }
+                
+                input.className = 'form-control';
+                input.name = 'field_' + field.field_name;
+                if (field.is_required) {
+                    input.required = true;
+                }
+                
+                colDiv.appendChild(label);
+                colDiv.appendChild(input);
+                row.appendChild(colDiv);
+            });
+            
+            container.appendChild(row);
+        }
+    } catch (error) {
+        console.error('Error loading event fields:', error);
+    }
+}
 
 // Check-in form submission
 document.getElementById('checkin-form')?.addEventListener('submit', async function(e) {
