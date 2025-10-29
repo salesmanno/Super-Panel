@@ -74,7 +74,7 @@ try {
             break;
             
         case 'membership':
-            $stmt = $db->prepare("SELECT plan_id as id, plan_name as service_name, price FROM membership_plans WHERE plan_id = ?");
+            $stmt = $db->prepare("SELECT plan_id as id, plan_name as service_name, price, duration_months FROM x_membership_plan WHERE plan_id = ?");
             $stmt->execute([$product_id]);
             $service = $stmt->fetch();
             break;
@@ -205,11 +205,14 @@ try {
             
         case 'membership':
             // Create member record (active membership)
+            // Calculate expiry_date based on plan duration_months
+            $durationMonths = $service['duration_months'] ?? 12;
+            
             $stmt = $db->prepare("
                 INSERT INTO members 
                 (company_id, plan_id, first_name, last_name, email, phone, 
                  join_date, expiry_date, status, notes, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW() + INTERVAL '1 month', 'active', ?, NOW(), NOW())
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_DATE, CURRENT_DATE + INTERVAL '{$durationMonths} months', 'active', ?, NOW(), NOW())
                 RETURNING member_id
             ");
             $stmt->execute([
@@ -224,12 +227,8 @@ try {
             $memberResult = $stmt->fetch(PDO::FETCH_ASSOC);
             $transactionId = $memberResult['member_id'] ?? bin2hex(random_bytes(16));
             
-            // Log to unified_ledger
-            // Get membership cost_price if available
-            $costStmt = $db->prepare("SELECT cost_price FROM membership_plans WHERE plan_id = ?");
-            $costStmt->execute([$product_id]);
-            $costResult = $costStmt->fetch(PDO::FETCH_ASSOC);
-            $costPrice = ($costResult && $costResult['cost_price']) ? ($costResult['cost_price'] * $quantity) : null;
+            // x_membership_plan doesn't have cost_price field
+            $costPrice = null;
             
             $ledgerService->logTransaction([
                 'order_id' => $orderId,
