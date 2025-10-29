@@ -177,40 +177,6 @@
         </div>
     </div>
 
-    <div id="sales-service" class="subtab-content" style="display: none;">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title"><i class="bi bi-gear-fill me-2"></i>Service-salg</h5>
-                <p class="text-muted">Oversikt over tjenestesalg (events, medlemskap, utleie)</p>
-                
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Dato</th>
-                                <th>Tjeneste</th>
-                                <th>Type</th>
-                                <th>Kunde</th>
-                                <th>E-post</th>
-                                <th>Beløp</th>
-                                <th>Betalingsmetode</th>
-                            </tr>
-                        </thead>
-                        <tbody id="service-sales-list">
-                            <tr>
-                                <td colspan="7" class="text-center text-muted py-4">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Laster...</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div id="sales-transactions" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">
@@ -1220,14 +1186,62 @@ async function loadTransactions() {
     const container = salesModule.querySelector('#transactions-list');
     if (!container) return;
     
-    // TODO: Replace with real API when ready
-    container.innerHTML = `
-        <tr>
-            <td colspan="7" class="text-center text-muted py-4">
-                Ingen transaksjoner funnet
-            </td>
-        </tr>
-    `;
+    try {
+        const response = await fetch('/api/get_transactions.php');
+        const data = await response.json();
+        
+        if (data.success && data.transactions) {
+            if (data.transactions.length === 0) {
+                container.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            Ingen transaksjoner funnet
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            container.innerHTML = data.transactions.map(tx => `
+                <tr>
+                    <td><code>#${tx.transaction_id}</code></td>
+                    <td>${new Date(tx.created_at).toLocaleString('nb-NO')}</td>
+                    <td>${tx.customer_name || '-'}</td>
+                    <td><small>${tx.products || '-'}</small></td>
+                    <td><span class="badge bg-secondary">${getPaymentMethodName(tx.payment_method)}</span></td>
+                    <td><strong>${parseFloat(tx.total_amount).toFixed(2)} NOK</strong></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewTransactionDetails(${tx.transaction_id})">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading transactions:', error);
+        container.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center text-danger py-4">
+                    Feil ved lasting av transaksjoner
+                </td>
+            </tr>
+        `;
+    }
+}
+
+function getPaymentMethodName(method) {
+    const methods = {
+        'cash': 'Kontant',
+        'card': 'Kort',
+        'online': 'Nettbank',
+        'on_arrival': 'Oppmøte'
+    };
+    return methods[method] || method;
+}
+
+function viewTransactionDetails(transactionId) {
+    alert('Detaljer for transaksjon #' + transactionId + ' kommer snart');
 }
 
 async function submitSalesItem() {

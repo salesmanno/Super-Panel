@@ -498,9 +498,6 @@ try {
                     <a class="nav-link active" href="#sales-varesalg">Varesalg</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#sales-service">Service</a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link" href="#sales-transactions">Transaksjoner</a>
                 </li>
                 <li class="nav-item">
