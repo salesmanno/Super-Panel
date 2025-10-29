@@ -253,35 +253,29 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_phone" id="field_phone" checked>
-                                    <label class="form-check-label" for="field_phone">
-                                        📱 Telefonnummer
+                                    <input class="form-check-input" type="checkbox" name="field_street" id="field_street">
+                                    <label class="form-check-label" for="field_street">
+                                        🏠 Gateadresse
                                     </label>
                                 </div>
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_birthdate" id="field_birthdate">
-                                    <label class="form-check-label" for="field_birthdate">
-                                        📅 Fødselsdato
-                                    </label>
-                                </div>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_address" id="field_address">
-                                    <label class="form-check-label" for="field_address">
-                                        🏠 Adresse
+                                    <input class="form-check-input" type="checkbox" name="field_zip" id="field_zip">
+                                    <label class="form-check-label" for="field_zip">
+                                        📮 Postnummer
                                     </label>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_allergies" id="field_allergies">
-                                    <label class="form-check-label" for="field_allergies">
-                                        🥜 Allergier/Diett
+                                    <input class="form-check-input" type="checkbox" name="field_city" id="field_city">
+                                    <label class="form-check-label" for="field_city">
+                                        🏙️ Poststed
                                     </label>
                                 </div>
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_emergency_contact" id="field_emergency_contact">
-                                    <label class="form-check-label" for="field_emergency_contact">
-                                        🚨 Nødkontakt
+                                    <input class="form-check-input" type="checkbox" name="field_postal" id="field_postal">
+                                    <label class="form-check-label" for="field_postal">
+                                        📦 Postboks
                                     </label>
                                 </div>
                             </div>
