@@ -95,7 +95,39 @@ try {
             $_SESSION['tenant_admin_id']
         ]);
         
-        // 2. Auto-generate output_products entry using service
+        // 2. Save registration fields config
+        $registrationFields = [
+            'phone' => ['label' => 'Telefonnummer', 'type' => 'tel'],
+            'birthdate' => ['label' => 'Fødselsdato', 'type' => 'date'],
+            'address' => ['label' => 'Adresse', 'type' => 'text'],
+            'allergies' => ['label' => 'Allergier/Diett', 'type' => 'textarea'],
+            'emergency_contact' => ['label' => 'Nødkontakt', 'type' => 'text']
+        ];
+        
+        $displayOrder = 1;
+        foreach ($registrationFields as $fieldName => $fieldConfig) {
+            if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
+                $fieldId = bin2hex(random_bytes(16));
+                $stmt = $db->prepare("
+                    INSERT INTO event_registration_fields (
+                        id, event_id, field_name, field_label, field_type,
+                        is_required, is_visible, display_order
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+                $stmt->execute([
+                    $fieldId,
+                    $eventId,
+                    $fieldName,
+                    $fieldConfig['label'],
+                    $fieldConfig['type'],
+                    true,
+                    true,
+                    $displayOrder++
+                ]);
+            }
+        }
+        
+        // 3. Auto-generate output_products entry using service
         $catalogService = new ProductCatalogService($db);
         $outputProductId = $catalogService->createProductEntry(
             $_SESSION['company_id'],
