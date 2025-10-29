@@ -156,10 +156,16 @@
                                 <label class="form-label small">Betalingsmetode</label>
                                 <select class="form-select form-select-sm" id="checkout-payment-method">
                                     <option value="cash">Kontant</option>
-                                    <option value="card">Kort</option>
-                                    <option value="online">Nettbank</option>
+                                    <option value="vipps">Vipps (ukonfigurert)</option>
                                     <option value="on_arrival">Oppmøte</option>
                                 </select>
+                            </div>
+                            
+                            <!-- Cash payment calculator -->
+                            <div class="mb-3" id="cash-payment-calculator" style="display: none;">
+                                <label class="form-label small">Mottatt beløp</label>
+                                <input type="number" class="form-control form-control-sm" id="cash-received" placeholder="0.00" step="0.01" min="0">
+                                <div id="cash-change-display" class="mt-2"></div>
                             </div>
                             
                             <div class="mb-3">
@@ -575,6 +581,9 @@
                     
                     <!-- Membership-specific fields -->
                     <div id="membership-specific-fields" style="display: none;">
+                        <hr class="my-3">
+                        <h6 class="text-primary mb-3"><i class="bi bi-person-badge me-2"></i>Medlemskapsinformasjon</h6>
+                        
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Startdato</label>
@@ -586,6 +595,28 @@
                             </div>
                         </div>
                         <input type="hidden" id="service-plan-duration" value="">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Fødselsdato (valgfri)</label>
+                            <input type="date" class="form-control" id="service-customer-birth-date">
+                            <small class="text-muted">Brukes for aldersbaserte tilbud og statistikk</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Adresse (valgfri)</label>
+                            <input type="text" class="form-control" id="service-customer-address" placeholder="Gateadresse">
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Postnummer</label>
+                                <input type="text" class="form-control" id="service-customer-postal-code" placeholder="0000">
+                            </div>
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label">Poststed</label>
+                                <input type="text" class="form-control" id="service-customer-city" placeholder="By">
+                            </div>
+                        </div>
                         
                         <div class="mb-3">
                             <div class="form-check">
@@ -607,10 +638,16 @@
                         <label class="form-label">Betalingsmetode</label>
                         <select class="form-select" id="service-payment-method">
                             <option value="cash">Kontant</option>
-                            <option value="card">Kort</option>
-                            <option value="online">Nettbank</option>
+                            <option value="vipps">Vipps (ukonfigurert)</option>
                             <option value="on_arrival">Oppmøte</option>
                         </select>
+                    </div>
+                    
+                    <!-- Cash payment calculator for services -->
+                    <div class="mb-3" id="service-cash-calculator" style="display: none;">
+                        <label class="form-label">Mottatt beløp</label>
+                        <input type="number" class="form-control" id="service-cash-received" placeholder="0.00" step="0.01" min="0">
+                        <div id="service-cash-change" class="mt-2"></div>
                     </div>
                     
                     <div class="mb-3">
@@ -1067,6 +1104,11 @@ async function loadAllSalesData() {
         loadProductsWithProfit(),
         loadEventsForLinking()
     ]);
+    
+    // Setup cash calculators after data loads
+    setupCashCalculator();
+    setupServiceCashCalculator();
+    
     console.log('=== loadAllSalesData() completed ===');
 }
 
@@ -1268,11 +1310,84 @@ async function loadTransactions() {
 function getPaymentMethodName(method) {
     const methods = {
         'cash': 'Kontant',
+        'vipps': 'Vipps',
+        'on_arrival': 'Oppmøte',
         'card': 'Kort',
-        'online': 'Nettbank',
-        'on_arrival': 'Oppmøte'
+        'online': 'Nettbank'
     };
     return methods[method] || method;
+}
+
+// Cash calculator for checkout
+function setupCashCalculator() {
+    const paymentSelect = document.getElementById('checkout-payment-method');
+    const cashCalculator = document.getElementById('cash-payment-calculator');
+    const cashReceivedInput = document.getElementById('cash-received');
+    const changeDisplay = document.getElementById('cash-change-display');
+    
+    if (!paymentSelect || !cashCalculator) return;
+    
+    paymentSelect.addEventListener('change', function() {
+        if (this.value === 'cash') {
+            cashCalculator.style.display = 'block';
+        } else {
+            cashCalculator.style.display = 'none';
+            cashReceivedInput.value = '';
+            changeDisplay.innerHTML = '';
+        }
+    });
+    
+    cashReceivedInput.addEventListener('input', function() {
+        const total = parseFloat(document.getElementById('checkout-total')?.textContent || 0);
+        const received = parseFloat(this.value || 0);
+        const change = received - total;
+        
+        if (received === 0) {
+            changeDisplay.innerHTML = '';
+        } else if (change < 0) {
+            changeDisplay.innerHTML = `<div class="alert alert-danger py-1 px-2 mb-0 small"><i class="bi bi-exclamation-triangle me-1"></i><strong>Mangler:</strong> ${Math.abs(change).toFixed(2)} NOK</div>`;
+        } else if (change === 0) {
+            changeDisplay.innerHTML = `<div class="alert alert-success py-1 px-2 mb-0 small"><i class="bi bi-check-circle me-1"></i><strong>Passe penger</strong></div>`;
+        } else {
+            changeDisplay.innerHTML = `<div class="alert alert-info py-1 px-2 mb-0 small"><i class="bi bi-cash-coin me-1"></i><strong>Retur:</strong> ${change.toFixed(2)} NOK</div>`;
+        }
+    });
+}
+
+// Cash calculator for service sales
+function setupServiceCashCalculator() {
+    const paymentSelect = document.getElementById('service-payment-method');
+    const cashCalculator = document.getElementById('service-cash-calculator');
+    const cashReceivedInput = document.getElementById('service-cash-received');
+    const changeDisplay = document.getElementById('service-cash-change');
+    
+    if (!paymentSelect || !cashCalculator) return;
+    
+    paymentSelect.addEventListener('change', function() {
+        if (this.value === 'cash') {
+            cashCalculator.style.display = 'block';
+        } else {
+            cashCalculator.style.display = 'none';
+            cashReceivedInput.value = '';
+            changeDisplay.innerHTML = '';
+        }
+    });
+    
+    cashReceivedInput.addEventListener('input', function() {
+        const total = parseFloat(document.getElementById('service-total')?.textContent || 0);
+        const received = parseFloat(this.value || 0);
+        const change = received - total;
+        
+        if (received === 0) {
+            changeDisplay.innerHTML = '';
+        } else if (change < 0) {
+            changeDisplay.innerHTML = `<div class="alert alert-danger py-2 mb-0"><i class="bi bi-exclamation-triangle me-1"></i><strong>Mangler:</strong> ${Math.abs(change).toFixed(2)} NOK</div>`;
+        } else if (change === 0) {
+            changeDisplay.innerHTML = `<div class="alert alert-success py-2 mb-0"><i class="bi bi-check-circle me-1"></i><strong>Passe penger</strong></div>`;
+        } else {
+            changeDisplay.innerHTML = `<div class="alert alert-info py-2 mb-0"><i class="bi bi-cash-coin me-1"></i><strong>Retur:</strong> ${change.toFixed(2)} NOK</div>`;
+        }
+    });
 }
 
 function viewTransactionDetails(transactionId) {
@@ -1409,6 +1524,10 @@ async function processServicePurchase() {
         purchaseData.join_date = document.getElementById('service-join-date').value;
         purchaseData.expiry_date = document.getElementById('service-expiry-date').value;
         purchaseData.auto_renew = document.getElementById('service-auto-renew').checked;
+        purchaseData.customer_birth_date = document.getElementById('service-customer-birth-date').value;
+        purchaseData.customer_address = document.getElementById('service-customer-address').value;
+        purchaseData.customer_postal_code = document.getElementById('service-customer-postal-code').value;
+        purchaseData.customer_city = document.getElementById('service-customer-city').value;
     }
     
     try {

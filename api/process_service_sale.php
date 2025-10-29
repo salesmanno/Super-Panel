@@ -236,49 +236,74 @@ try {
                 $finalExpiryDate = date('Y-m-d', strtotime("+{$durationMonths} months", strtotime($finalJoinDate)));
             }
             
+            // Generate member_code
+            $member_code = 'MEM-' . date('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
+            
+            // Update customer record with is_member flag and additional info
+            $updateCustomerStmt = $db->prepare("
+                UPDATE tenant_customers 
+                SET is_member = 1,
+                    date_of_birth = COALESCE(date_of_birth, ?),
+                    address_street = COALESCE(address_street, ?),
+                    address_zip = COALESCE(address_zip, ?),
+                    address_city = COALESCE(address_city, ?),
+                    notes = CASE 
+                        WHEN notes IS NULL OR notes = '' THEN ? 
+                        ELSE CONCAT(notes, '\n', ?) 
+                    END,
+                    updated_at = NOW()
+                WHERE id = ?
+            ");
+            
+            $membershipNote = "Medlemskap kjøpt " . date('Y-m-d') . " - Plan: " . $service['service_name'] . " - Betalt: {$total} NOK ({$payment_method})";
+            
+            $updateCustomerStmt->execute([
+                $data['customer_birth_date'] ?? null,
+                $data['customer_address'] ?? null,
+                $data['customer_postal_code'] ?? null,
+                $data['customer_city'] ?? null,
+                $membershipNote,
+                $membershipNote,
+                $customer_id
+            ]);
+            
+            // Insert membership record with correct column names
             if ($dbType === 'mysql') {
                 $stmt = $db->prepare("
                     INSERT INTO membership_members 
-                    (company_id, membership_plan_id, first_name, last_name, email, phone, 
-                     join_date, expiry_date, auto_renew, status, notes, created_at, updated_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, NOW(), NOW())
+                    (company_id, customer_id, membership_plan_id, member_code, 
+                     join_date, expiration_date, auto_renew, status, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())
                 ");
                 $stmt->execute([
                     $company_id,
+                    $customer_id,
                     $product_id,
-                    $customer_first_name,
-                    $customer_last_name,
-                    $customer_email,
-                    $customer_phone,
+                    $member_code,
                     $finalJoinDate,
                     $finalExpiryDate,
-                    $auto_renew ? 1 : 0,
-                    "Kjøpt via varesalg - Betalt: {$total} NOK ({$payment_method}). " . $notes
+                    $auto_renew ? 1 : 0
                 ]);
-                // MySQL doesn't support RETURNING, get last insert ID
                 $transactionId = $db->lastInsertId();
             } else {
                 $stmt = $db->prepare("
                     INSERT INTO membership_members 
-                    (company_id, membership_plan_id, first_name, last_name, email, phone, 
-                     join_date, expiry_date, auto_renew, status, notes, created_at, updated_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, NOW(), NOW())
-                    RETURNING member_id
+                    (company_id, customer_id, membership_plan_id, member_code, 
+                     join_date, expiration_date, auto_renew, status, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+                    RETURNING id
                 ");
                 $stmt->execute([
                     $company_id,
+                    $customer_id,
                     $product_id,
-                    $customer_first_name,
-                    $customer_last_name,
-                    $customer_email,
-                    $customer_phone,
+                    $member_code,
                     $finalJoinDate,
                     $finalExpiryDate,
-                    $auto_renew,
-                    "Kjøpt via varesalg - Betalt: {$total} NOK ({$payment_method}). " . $notes
+                    $auto_renew
                 ]);
                 $memberResult = $stmt->fetch(PDO::FETCH_ASSOC);
-                $transactionId = $memberResult['member_id'] ?? bin2hex(random_bytes(16));
+                $transactionId = $memberResult['id'] ?? bin2hex(random_bytes(16));
             }
             
             // x_membership_plan doesn't have cost_price field
