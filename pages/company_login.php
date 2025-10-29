@@ -130,7 +130,6 @@ if (isset($_GET['message'])) {
             height: 160px;
             width: auto;
             margin-bottom: 24px;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
         }
         
         .login-header h1 {
@@ -395,7 +394,16 @@ if (isset($_GET['message'])) {
     <div class="login-container">
         <div class="login-section">
             <div class="login-header">
-                <img src="/attached_assets/EBF96C6D-D9D9-4976-9382-9C21A41822F4_1761452821544.png" alt="Salesman.no Logo">
+                <svg width="300" height="160" viewBox="0 0 300 160" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <text x="150" y="80" font-family="Arial, sans-serif" font-size="48" font-weight="bold" text-anchor="middle" fill="url(#logoGradient)">Salesman.no</text>
+                    <text x="150" y="120" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" fill="#6b7280">SuperUser Portal</text>
+                </svg>
                 <h1>SuperUser Portal</h1>
                 <p>Bedriftsportal - Logg inn</p>
             </div>
