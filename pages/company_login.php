@@ -129,7 +129,9 @@ if (isset($_GET['message'])) {
         .login-header img {
             height: 160px;
             width: auto;
-            margin-bottom: 24px;
+            margin-bottom: -10px;
+            position: relative;
+            z-index: 1;
         }
         
         .login-header h1 {
