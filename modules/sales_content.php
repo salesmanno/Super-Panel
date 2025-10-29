@@ -604,13 +604,14 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Startdato</label>
-                                <input type="date" class="form-control" id="service-join-date" value="<?= date('Y-m-d') ?>">
+                                <input type="date" class="form-control" id="service-join-date" value="<?= date('Y-m-d') ?>" onchange="updateExpiryDate()">
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Utløpsdato</label>
-                                <input type="date" class="form-control" id="service-expiry-date">
+                                <label class="form-label">Utløpsdato (beregnes automatisk)</label>
+                                <input type="date" class="form-control" id="service-expiry-date" readonly style="background-color: #f0f0f0;">
                             </div>
                         </div>
+                        <input type="hidden" id="service-plan-duration" value="">
                         
                         <div class="mb-3">
                             <div class="form-check">
@@ -831,12 +832,14 @@ function displayServices(services) {
     
     container.innerHTML = '<div class="d-flex flex-wrap gap-2">' + services.map(service => {
         const color = colors[service.product_type] || 'secondary';
+        const durationMonths = service.duration_months || (service.billing_cycle ? 
+            (service.billing_cycle === 'monthly' ? 1 : service.billing_cycle === 'quarterly' ? 3 : 12) : null);
         return `
             <div class="badge bg-${color} p-2 text-start" 
                  style="cursor: pointer; min-width: 180px; max-width: 250px;"
                  data-bs-toggle="modal" 
                  data-bs-target="#servicePurchaseModal" 
-                 onclick="setServiceData('${service.id}', '${service.product_type}', '${service.item_name}', ${service.price})">
+                 onclick="setServiceData('${service.id}', '${service.product_type}', '${service.item_name}', ${service.price}, ${durationMonths})">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="flex-grow-1">
                         <div style="font-size: 0.9rem; font-weight: 600;">${service.item_name}</div>
@@ -1284,22 +1287,33 @@ function setServiceData(id, type, name, price, planDuration = null) {
         membershipFields.style.display = 'block';
         quantityField.style.display = 'none';
         
+        // Store plan duration
+        document.getElementById('service-plan-duration').value = planDuration || 12;
+        
         // Set default join date to today
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('service-join-date').value = today;
         
-        // Calculate expiry date based on plan duration (stored in name or separate field)
-        if (planDuration) {
-            const expiryDate = new Date();
-            expiryDate.setMonth(expiryDate.getMonth() + planDuration);
-            document.getElementById('service-expiry-date').value = expiryDate.toISOString().split('T')[0];
-        }
+        // Calculate expiry date automatically
+        updateExpiryDate();
     } else {
         membershipFields.style.display = 'none';
         quantityField.style.display = 'block';
     }
     
     updateServiceTotal();
+}
+
+function updateExpiryDate() {
+    const joinDateStr = document.getElementById('service-join-date').value;
+    const planDuration = parseInt(document.getElementById('service-plan-duration').value) || 12;
+    
+    if (joinDateStr) {
+        const joinDate = new Date(joinDateStr);
+        const expiryDate = new Date(joinDate);
+        expiryDate.setMonth(expiryDate.getMonth() + planDuration);
+        document.getElementById('service-expiry-date').value = expiryDate.toISOString().split('T')[0];
+    }
 }
 
 document.getElementById('service-quantity')?.addEventListener('input', updateServiceTotal);
