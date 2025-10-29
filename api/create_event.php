@@ -23,24 +23,18 @@ try {
     
     // 1. Ensure columns exist (outside transaction)
     try {
-        $db->exec("ALTER TABLE events_eventdata ADD COLUMN min_attendees_deadline DATE DEFAULT NULL");
-    } catch (Exception $e) {
-        // Column already exists, ignore
-    }
-    
-    try {
         $db->exec("ALTER TABLE events_eventdata ADD COLUMN default_payment_method VARCHAR(50) DEFAULT NULL");
     } catch (Exception $e) {
         // Column already exists, ignore
     }
     
-    // 2. Server-side validation for min_attendees_deadline
+    // 2. Server-side validation for registration_deadline
     if (!empty($data['min_attendees']) && intval($data['min_attendees']) > 0) {
-        if (empty($data['min_attendees_deadline'])) {
+        if (empty($data['registration_deadline'])) {
             echo json_encode(['success' => false, 'message' => 'Frist for min. deltakere er påkrevd når min. deltakere er satt']);
             exit;
         }
-        if ($data['min_attendees_deadline'] >= $data['start_date']) {
+        if ($data['registration_deadline'] >= $data['start_date']) {
             echo json_encode(['success' => false, 'message' => 'Frist for min. deltakere må være før startdato']);
             exit;
         }
@@ -60,7 +54,7 @@ try {
                 description,
                 max_attendees,
                 min_attendees,
-                min_attendees_deadline,
+                registration_deadline,
                 age_limit,
                 is_member_exclusive,
                 event_address,
@@ -109,7 +103,7 @@ try {
             $data['description'] ?? null,
             $data['max_attendees'] ?? null,
             $data['min_attendees'] ?? null,
-            $data['min_attendees_deadline'] ?? null,
+            $data['registration_deadline'] ?? null,
             $data['age_limit'] ?? null,
             $data['is_member_exclusive'] ?? 0,
             $data['event_address'] ?? null,

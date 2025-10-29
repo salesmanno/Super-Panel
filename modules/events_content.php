@@ -229,9 +229,9 @@ try {
                             <label class="form-label">Min. deltakere</label>
                             <input type="number" class="form-control" name="min_attendees" id="min_attendees">
                         </div>
-                        <div class="col-md-3 mb-3" id="min_attendees_deadline_container" style="display: none;">
+                        <div class="col-md-3 mb-3" id="registration_deadline_container" style="display: none;">
                             <label class="form-label">Frist for min. deltakere *</label>
-                            <input type="date" class="form-control" name="min_attendees_deadline" id="min_attendees_deadline">
+                            <input type="date" class="form-control" name="registration_deadline" id="registration_deadline">
                             <small class="form-text text-muted">Må være før startdato</small>
                         </div>
                         <div class="col-md-3 mb-3">
@@ -596,8 +596,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle min_attendees field - show/hide deadline
     const minAttendeesInput = document.getElementById('min_attendees');
-    const deadlineContainer = document.getElementById('min_attendees_deadline_container');
-    const deadlineInput = document.getElementById('min_attendees_deadline');
+    const deadlineContainer = document.getElementById('registration_deadline_container');
+    const deadlineInput = document.getElementById('registration_deadline');
     
     if (minAttendeesInput && deadlineContainer) {
         minAttendeesInput.addEventListener('input', function() {
@@ -620,17 +620,17 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const formData = new FormData(this);
             
-            // Validate min_attendees deadline
+            // Validate registration deadline
             const minAttendees = formData.get('min_attendees');
-            const minAttendeesDeadline = formData.get('min_attendees_deadline');
+            const registrationDeadline = formData.get('registration_deadline');
             const startDate = formData.get('start_date');
             
-            if (minAttendees && !minAttendeesDeadline) {
+            if (minAttendees && !registrationDeadline) {
                 alert('❌ Du må velge en frist for minimum deltakere');
                 return;
             }
             
-            if (minAttendeesDeadline && startDate && minAttendeesDeadline >= startDate) {
+            if (registrationDeadline && startDate && registrationDeadline >= startDate) {
                 alert('❌ Frist for min. deltakere må være før startdato');
                 return;
             }
@@ -647,7 +647,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 event_city: formData.get('event_city'),
                 event_postal: formData.get('event_postal'),
                 min_attendees: minAttendees || null,
-                min_attendees_deadline: minAttendeesDeadline || null,
+                registration_deadline: registrationDeadline || null,
                 max_attendees: formData.get('max_attendees') || null,
                 age_limit: formData.get('age_limit') || null,
                 ticket_price: formData.get('ticket_price') || 0,
