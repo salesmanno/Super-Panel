@@ -72,16 +72,19 @@ try {
             INSERT INTO sales_transactions (
                 id,
                 company_id,
-                product_id,
-                quantity,
-                unit_price,
-                total_amount,
+                admin_id,
+                order_id,
                 customer_name,
+                customer_email,
+                items_sold,
+                total_amount,
                 payment_method,
+                payment_status,
+                receipt_sent,
                 notes,
-                created_by,
+                transaction_date,
                 created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         
         $itemTransactionId = bin2hex(random_bytes(16));
@@ -89,14 +92,17 @@ try {
         $stmt->execute([
             $itemTransactionId,
             $company_id,
-            $item['product_id'],
-            $item['quantity'],
-            $item['price'],
-            $itemTotal,
-            $customer_name ?: 'Walk-in',
-            $payment_method,
-            $notes,
             $admin_id,
+            $orderId,
+            $customer_name ?: 'Walk-in',
+            $customer_email ?: null,
+            $item['quantity'],
+            $itemTotal,
+            $payment_method,
+            'completed',
+            false,
+            $notes,
+            $currentTimestamp,
             $currentTimestamp
         ]);
         
