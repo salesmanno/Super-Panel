@@ -625,14 +625,19 @@ document.addEventListener('DOMContentLoaded', function() {
             const registrationDeadline = formData.get('registration_deadline');
             const startDate = formData.get('start_date');
             
-            if (minAttendees && !registrationDeadline) {
+            if (minAttendees && parseInt(minAttendees) > 0 && !registrationDeadline) {
                 alert('❌ Du må velge en frist for minimum deltakere');
                 return;
             }
             
-            if (registrationDeadline && startDate && registrationDeadline >= startDate) {
-                alert('❌ Frist for min. deltakere må være før startdato');
-                return;
+            if (registrationDeadline && startDate) {
+                const deadlineDate = new Date(registrationDeadline);
+                const eventStartDate = new Date(startDate);
+                
+                if (deadlineDate >= eventStartDate) {
+                    alert('❌ Frist for min. deltakere må være før startdato');
+                    return;
+                }
             }
             
             const data = {
