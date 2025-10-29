@@ -12,20 +12,38 @@ require_once __DIR__ . '/../config/database.php';
 try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
+    $dbType = getDBType();
     
-    $stmt = $db->prepare("
-        SELECT 
-            plan_id,
-            plan_name as name,
-            description,
-            price,
-            duration_months,
-            features as benefits,
-            is_active
-        FROM x_membership_plan
-        WHERE company_id = ? AND is_active = true
-        ORDER BY created_at DESC
-    ");
+    // Dual database support: MySQL uses membership_plans, PostgreSQL uses x_membership_plan
+    if ($dbType === 'mysql') {
+        $stmt = $db->prepare("
+            SELECT 
+                id as plan_id,
+                name,
+                description,
+                price,
+                billing_cycle,
+                benefits,
+                is_active
+            FROM membership_plans
+            WHERE company_id = ? AND is_active = 1
+            ORDER BY created_at DESC
+        ");
+    } else {
+        $stmt = $db->prepare("
+            SELECT 
+                plan_id,
+                plan_name as name,
+                description,
+                price,
+                duration_months,
+                features as benefits,
+                is_active
+            FROM x_membership_plan
+            WHERE company_id = ? AND is_active = true
+            ORDER BY created_at DESC
+        ");
+    }
     
     $stmt->execute([$companyId]);
     $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);

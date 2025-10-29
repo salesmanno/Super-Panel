@@ -74,7 +74,12 @@ try {
             break;
             
         case 'membership':
-            $stmt = $db->prepare("SELECT plan_id as id, plan_name as service_name, price, duration_months FROM x_membership_plan WHERE plan_id = ?");
+            $dbType = getDBType();
+            if ($dbType === 'mysql') {
+                $stmt = $db->prepare("SELECT id as plan_id, name as service_name, price, billing_cycle FROM membership_plans WHERE id = ?");
+            } else {
+                $stmt = $db->prepare("SELECT plan_id, plan_name as service_name, price, duration_months FROM x_membership_plan WHERE plan_id = ?");
+            }
             $stmt->execute([$product_id]);
             $service = $stmt->fetch();
             break;
@@ -205,27 +210,59 @@ try {
             
         case 'membership':
             // Create member record (active membership)
-            // Calculate expiry_date based on plan duration_months
-            $durationMonths = $service['duration_months'] ?? 12;
+            // Calculate expiry_date based on plan duration (from billing_cycle or duration_months)
+            if (isset($service['duration_months'])) {
+                $durationMonths = $service['duration_months'];
+            } elseif (isset($service['billing_cycle'])) {
+                $durationMonths = match($service['billing_cycle']) {
+                    'monthly' => 1,
+                    'quarterly' => 3,
+                    'yearly' => 12,
+                    default => 12
+                };
+            } else {
+                $durationMonths = 12;
+            }
             
-            $stmt = $db->prepare("
-                INSERT INTO members 
-                (company_id, plan_id, first_name, last_name, email, phone, 
-                 join_date, expiry_date, status, notes, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, CURRENT_DATE, CURRENT_DATE + INTERVAL '{$durationMonths} months', 'active', ?, NOW(), NOW())
-                RETURNING member_id
-            ");
-            $stmt->execute([
-                $company_id,
-                $product_id,
-                $customer_first_name,
-                $customer_last_name,
-                $customer_email,
-                $customer_phone,
-                "Kjøpt via varesalg - Betalt: {$total} NOK ({$payment_method}). " . $notes
-            ]);
-            $memberResult = $stmt->fetch(PDO::FETCH_ASSOC);
-            $transactionId = $memberResult['member_id'] ?? bin2hex(random_bytes(16));
+            if ($dbType === 'mysql') {
+                $stmt = $db->prepare("
+                    INSERT INTO members 
+                    (company_id, plan_id, first_name, last_name, email, phone, 
+                     join_date, expiry_date, status, notes, created_at, updated_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL ? MONTH), 'active', ?, NOW(), NOW())
+                ");
+                $stmt->execute([
+                    $company_id,
+                    $product_id,
+                    $customer_first_name,
+                    $customer_last_name,
+                    $customer_email,
+                    $customer_phone,
+                    $durationMonths,
+                    "Kjøpt via varesalg - Betalt: {$total} NOK ({$payment_method}). " . $notes
+                ]);
+                // MySQL doesn't support RETURNING, get last insert ID
+                $transactionId = $db->lastInsertId();
+            } else {
+                $stmt = $db->prepare("
+                    INSERT INTO members 
+                    (company_id, plan_id, first_name, last_name, email, phone, 
+                     join_date, expiry_date, status, notes, created_at, updated_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, CURRENT_DATE, CURRENT_DATE + INTERVAL '{$durationMonths} months', 'active', ?, NOW(), NOW())
+                    RETURNING member_id
+                ");
+                $stmt->execute([
+                    $company_id,
+                    $product_id,
+                    $customer_first_name,
+                    $customer_last_name,
+                    $customer_email,
+                    $customer_phone,
+                    "Kjøpt via varesalg - Betalt: {$total} NOK ({$payment_method}). " . $notes
+                ]);
+                $memberResult = $stmt->fetch(PDO::FETCH_ASSOC);
+                $transactionId = $memberResult['member_id'] ?? bin2hex(random_bytes(16));
+            }
             
             // x_membership_plan doesn't have cost_price field
             $costPrice = null;

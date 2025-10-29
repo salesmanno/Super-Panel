@@ -30,12 +30,29 @@ try {
     // Beregn utløpsdato basert på plan
     $expiryDate = null;
     if (!empty($data['plan_id'])) {
-        $planStmt = $db->prepare("SELECT duration_months FROM x_membership_plan WHERE plan_id = ? AND company_id = ?");
+        $dbType = getDBType();
+        
+        if ($dbType === 'mysql') {
+            $planStmt = $db->prepare("SELECT billing_cycle FROM membership_plans WHERE id = ? AND company_id = ?");
+        } else {
+            $planStmt = $db->prepare("SELECT duration_months FROM x_membership_plan WHERE plan_id = ? AND company_id = ?");
+        }
         $planStmt->execute([$data['plan_id'], $_SESSION['company_id']]);
         $plan = $planStmt->fetch(PDO::FETCH_ASSOC);
         
         if ($plan) {
-            $durationMonths = $plan['duration_months'] ?? 12;
+            if (isset($plan['duration_months'])) {
+                $durationMonths = $plan['duration_months'];
+            } elseif (isset($plan['billing_cycle'])) {
+                $durationMonths = match($plan['billing_cycle']) {
+                    'monthly' => 1,
+                    'quarterly' => 3,
+                    'yearly' => 12,
+                    default => 12
+                };
+            } else {
+                $durationMonths = 12;
+            }
             $expiryDate = date('Y-m-d', strtotime("+{$durationMonths} months"));
         }
     }

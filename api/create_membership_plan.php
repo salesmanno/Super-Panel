@@ -19,41 +19,74 @@ try {
 
     $db = getDBConnection();
     $db->beginTransaction();
+    $dbType = getDBType();
     
     try {
-        // Beregn duration_months fra billing_cycle
         $billingCycle = $data['billing_cycle'] ?? 'yearly';
-        $durationMonths = match($billingCycle) {
-            'monthly' => 1,
-            'quarterly' => 3,
-            'yearly' => 12,
-            default => 12
-        };
         
-        // 1. Opprett medlemskapsplan i x_membership_plan tabell
-        $stmt = $db->prepare("
-            INSERT INTO x_membership_plan (
-                company_id,
-                plan_name,
-                description,
-                price,
-                duration_months,
-                features,
-                is_active
-            ) VALUES (?, ?, ?, ?, ?, ?, true)
-            RETURNING plan_id
-        ");
-        
-        $stmt->execute([
-            $_SESSION['company_id'],
-            $data['name'],
-            $data['description'] ?? null,
-            $data['price'] ?? 0,
-            $durationMonths,
-            $data['benefits'] ?? null
-        ]);
-        
-        $planId = $stmt->fetchColumn();
+        // Dual database support: MySQL uses membership_plans, PostgreSQL uses x_membership_plan
+        if ($dbType === 'mysql') {
+            // MySQL: membership_plans table
+            $planId = bin2hex(random_bytes(16));
+            $planCode = 'PLAN-' . strtoupper(substr($planId, 0, 8));
+            
+            $stmt = $db->prepare("
+                INSERT INTO membership_plans (
+                    id,
+                    company_id,
+                    plan_code,
+                    name,
+                    description,
+                    price,
+                    billing_cycle,
+                    benefits,
+                    is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+            ");
+            
+            $stmt->execute([
+                $planId,
+                $_SESSION['company_id'],
+                $planCode,
+                $data['name'],
+                $data['description'] ?? null,
+                $data['price'] ?? 0,
+                $billingCycle,
+                $data['benefits'] ?? null
+            ]);
+        } else {
+            // PostgreSQL: x_membership_plan table
+            $durationMonths = match($billingCycle) {
+                'monthly' => 1,
+                'quarterly' => 3,
+                'yearly' => 12,
+                default => 12
+            };
+            
+            $stmt = $db->prepare("
+                INSERT INTO x_membership_plan (
+                    company_id,
+                    plan_name,
+                    description,
+                    price,
+                    duration_months,
+                    features,
+                    is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, true)
+                RETURNING plan_id
+            ");
+            
+            $stmt->execute([
+                $_SESSION['company_id'],
+                $data['name'],
+                $data['description'] ?? null,
+                $data['price'] ?? 0,
+                $durationMonths,
+                $data['benefits'] ?? null
+            ]);
+            
+            $planId = $stmt->fetchColumn();
+        }
         
         $db->commit();
         
