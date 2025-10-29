@@ -53,11 +53,10 @@ try {
             customer_id,
             attendee_name,
             attendee_email,
-            attendee_phone,
-            attendee_birthdate,
-            attendee_address,
-            attendee_allergies,
-            attendee_emergency_contact,
+            attendee_street,
+            attendee_zip,
+            attendee_city,
+            attendee_postal,
             ticket_type,
             ticket_price,
             payment_status,
@@ -69,7 +68,6 @@ try {
             created_at,
             updated_at
         ) VALUES (
-            ?,
             ?,
             ?,
             ?,
@@ -102,12 +100,11 @@ try {
         $paymentStatus = ($data['payment_method'] === 'cash' && isset($data['paid']) && $data['paid']) ? 'paid' : 'pending';
     }
     
-    // Normalize dynamic fields (blank-to-null for DATE fields, backwards compatibility)
-    $phone = $data['field_phone'] ?? $data['attendee_phone'] ?? null;
-    $birthdate = (!empty($data['field_birthdate'])) ? $data['field_birthdate'] : null;
-    $address = $data['field_address'] ?? null;
-    $allergies = $data['field_allergies'] ?? null;
-    $emergencyContact = $data['field_emergency_contact'] ?? null;
+    // Normalize dynamic fields (blank-to-null for consistency)
+    $street = $data['field_street'] ?? null;
+    $zip = $data['field_zip'] ?? null;
+    $city = $data['field_city'] ?? null;
+    $postal = $data['field_postal'] ?? null;
     
     $stmt->execute([
         $checkinId,
@@ -115,11 +112,10 @@ try {
         $data['customer_id'] ?? null,
         $data['attendee_name'] ?? null,
         $data['attendee_email'] ?? null,
-        $phone,
-        $birthdate,
-        $address,
-        $allergies,
-        $emergencyContact,
+        $street,
+        $zip,
+        $city,
+        $postal,
         $ticketType,
         $ticketPrice,
         $paymentStatus,
