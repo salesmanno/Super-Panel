@@ -355,20 +355,18 @@
                     </div>
                     <div class="card-body">
                         <!-- Scanner Field -->
-                        <div class="card mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                            <div class="card-body text-center py-4">
-                                <h6 class="text-white mb-3">
-                                    <i class="bi bi-upc-scan fs-3 d-block mb-2"></i>
-                                    Skann deltaker
-                                </h6>
-                                <input 
-                                    type="text" 
-                                    class="form-control form-control-lg text-center" 
-                                    id="attendee-scanner-input"
-                                    placeholder="Skann strekkode eller skriv deltaker-ID..."
-                                    autocomplete="off"
-                                    style="font-size: 1.25rem; letter-spacing: 2px;">
-                                <small class="text-white-50 d-block mt-2">Skann eller skriv minst 3 tegn for å søke</small>
+                        <div class="card mb-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <div class="card-body py-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-upc-scan text-white fs-5"></i>
+                                    <input 
+                                        type="text" 
+                                        class="form-control form-control-sm" 
+                                        id="attendee-scanner-input"
+                                        placeholder="Skann eller søk etter deltaker (navn, e-post, telefon)..."
+                                        autocomplete="off"
+                                        style="flex: 1;">
+                                </div>
                             </div>
                         </div>
 
