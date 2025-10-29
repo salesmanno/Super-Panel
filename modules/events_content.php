@@ -242,6 +242,53 @@
                         <small class="form-text text-muted">Valgfri: URL til arrangementsbilde</small>
                     </div>
 
+                    <hr class="my-4">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt
+                        </label>
+                        <p class="text-muted small mb-3">Velg hvilke felt som skal vises ved påmelding til arrangementet</p>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="field_phone" id="field_phone" checked>
+                                    <label class="form-check-label" for="field_phone">
+                                        📱 Telefonnummer
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="field_birthdate" id="field_birthdate">
+                                    <label class="form-check-label" for="field_birthdate">
+                                        📅 Fødselsdato
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="field_address" id="field_address">
+                                    <label class="form-check-label" for="field_address">
+                                        🏠 Adresse
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="field_allergies" id="field_allergies">
+                                    <label class="form-check-label" for="field_allergies">
+                                        🥜 Allergier/Diett
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="field_emergency_contact" id="field_emergency_contact">
+                                    <label class="form-check-label" for="field_emergency_contact">
+                                        🚨 Nødkontakt
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <small class="text-muted">Navn og e-post er alltid påkrevd og vises automatisk</small>
+                    </div>
+
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-check-circle me-1"></i>Opprett arrangement
