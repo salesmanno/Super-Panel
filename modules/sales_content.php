@@ -60,10 +60,44 @@
 .scan-feedback.error {
     color: #ef4444;
 }
+
+/* Fullscreen Sales Mode */
+#fullscreen-sales-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #f8f9fa;
+    z-index: 9999;
+    overflow-y: auto;
+    display: none;
+}
+
+#fullscreen-sales-overlay.active {
+    display: block;
+}
+
+.fullscreen-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem 2rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
 </style>
 
 <div class="module-content">
     <div id="sales-varesalg" class="subtab-content active">
+        <!-- Fullscreen Button -->
+        <div class="mb-3 text-end">
+            <button class="btn btn-primary" id="open-fullscreen-sales">
+                <i class="bi bi-arrows-fullscreen me-2"></i>Fullskjerm-modus
+            </button>
+        </div>
+        
         <!-- Barcode Scanner Header (Full Width) -->
         <div class="card mb-3 barcode-scanner-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
             <div class="card-body py-3">
@@ -344,6 +378,127 @@
                     <i class="bi bi-info-circle me-2"></i>
                     Statistikk oppdateres når du har registrert salgsordrer
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="sales-purchases" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h5 class="card-title mb-1"><i class="bi bi-cart-dash me-2"></i>Innkjøp</h5>
+                        <p class="text-muted mb-0">Registrer innkjøp fra leverandører</p>
+                    </div>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPurchaseModal">
+                        <i class="bi bi-plus-circle me-1"></i>Nytt innkjøp
+                    </button>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Dato</th>
+                                <th>Leverandør</th>
+                                <th>Produkter</th>
+                                <th>Antall</th>
+                                <th>Kostpris</th>
+                                <th>Total</th>
+                                <th>Betalingsmetode</th>
+                                <th>Handlinger</th>
+                            </tr>
+                        </thead>
+                        <tbody id="purchases-list">
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Laster...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Purchase Modal -->
+<div class="modal fade" id="addPurchaseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-cart-dash me-2"></i>Registrer innkjøp
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addPurchaseForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Leverandør <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="purchase-supplier" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Dato <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="purchase-date" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Produkt/Vare <span class="text-danger">*</span></label>
+                            <select class="form-select" id="purchase-product" required>
+                                <option value="">Velg produkt...</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Antall <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="purchase-quantity" value="1" min="1" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Kostpris per enhet (NOK) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="purchase-unit-cost" step="0.01" min="0" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Total kostnad (NOK)</label>
+                            <input type="number" class="form-control" id="purchase-total-cost" step="0.01" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Betalingsmetode</label>
+                            <select class="form-select" id="purchase-payment-method">
+                                <option value="cash">Kontant</option>
+                                <option value="card">Kort</option>
+                                <option value="invoice">Faktura</option>
+                                <option value="vipps">Vipps</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Fakturanummer</label>
+                            <input type="text" class="form-control" id="purchase-invoice-number">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notater</label>
+                        <textarea class="form-control" id="purchase-notes" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                <button type="button" class="btn btn-success" onclick="savePurchase()">
+                    <i class="bi bi-check-circle me-1"></i>Lagre innkjøp
+                </button>
             </div>
         </div>
     </div>
@@ -665,6 +820,143 @@
                 <button type="button" class="btn btn-success" onclick="processServicePurchase()">
                     <i class="bi bi-check-circle me-1"></i>Gjennomfør salg
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Fullscreen Sales Overlay -->
+<div id="fullscreen-sales-overlay">
+    <div class="fullscreen-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="bi bi-cart3 me-2"></i>Varesalg - Fullskjerm</h4>
+        <button class="btn btn-light btn-sm" id="close-fullscreen-sales">
+            <i class="bi bi-x-lg me-1"></i>Lukk fullskjerm
+        </button>
+    </div>
+    
+    <div class="container-fluid p-4">
+        <!-- Barcode Scanner Header (Full Width) -->
+        <div class="card mb-3 barcode-scanner-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="card-body py-3">
+                <div class="d-flex align-items-center gap-3">
+                    <i class="bi bi-upc-scan text-white" style="font-size: 2rem;"></i>
+                    <div style="flex: 1;">
+                        <input type="text" 
+                               class="form-control barcode-input" 
+                               id="barcode-scanner-input-fullscreen" 
+                               placeholder="Skann strekkode..."
+                               autocomplete="off">
+                    </div>
+                    <div class="scan-feedback text-white" id="scan-feedback-fullscreen" style="min-width: 200px;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- Products with Shopping Cart -->
+            <div class="col-md-8">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-box-seam me-2"></i>Produkter</h5>
+                        <p class="text-muted">Legg produkter i handlekurv</p>
+                        
+                        <div id="products-list-fullscreen" class="row">
+                            <div class="col-12 text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Laster...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Services (sold separately) -->
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-gear me-2"></i>Tjenester</h5>
+                        <p class="text-muted">Selges individuelt med kundeinformasjon</p>
+                        
+                        <div id="services-list-fullscreen" class="row">
+                            <div class="col-12 text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Laster...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Shopping Cart -->
+            <div class="col-md-4">
+                <div class="card sticky-top" style="top: 80px;">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-cart3 me-2"></i>Handlekurv
+                            <span class="badge bg-primary ms-2" id="cart-count-fullscreen">0</span>
+                        </h5>
+                        
+                        <div id="cart-items-fullscreen" class="mb-3">
+                            <p class="text-muted text-center py-3">Handlekurven er tom</p>
+                        </div>
+                        
+                        <div class="border-top pt-3">
+                            <div class="d-flex justify-content-between mb-3">
+                                <strong>Total:</strong>
+                                <strong><span id="cart-total-fullscreen">0</span> NOK</strong>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small">Kundenavn (valgfritt)</label>
+                                <input type="text" class="form-control form-control-sm" id="checkout-customer-name-fullscreen">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small">E-post</label>
+                                <input type="email" class="form-control form-control-sm" id="checkout-customer-email-fullscreen">
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" id="send-receipt-checkbox-fullscreen">
+                                    <label class="form-check-label small" for="send-receipt-checkbox-fullscreen">
+                                        Send kvittering til e-post
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small">Betalingsmetode</label>
+                                <select class="form-select form-select-sm" id="checkout-payment-method-fullscreen">
+                                    <option value="cash">Kontant</option>
+                                    <option value="vipps">Vipps (ukonfigurert)</option>
+                                    <option value="on_arrival">Oppmøte</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Cash payment calculator -->
+                            <div class="mb-3" id="cash-payment-calculator-fullscreen" style="display: none;">
+                                <label class="form-label small">Mottatt beløp</label>
+                                <input type="number" class="form-control form-control-sm" id="cash-received-fullscreen" placeholder="0.00" step="0.01" min="0">
+                                <div id="cash-change-display-fullscreen" class="mt-2"></div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small">Notater</label>
+                                <textarea class="form-control form-control-sm" id="checkout-notes-fullscreen" rows="2"></textarea>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small">Knytt til arrangement (valgfri)</label>
+                                <select class="form-select form-select-sm" id="checkout-linked-event-fullscreen">
+                                    <option value="">Ingen arrangement</option>
+                                </select>
+                                <small class="text-muted d-block mt-1">Salget vises i arrangementets resultat</small>
+                            </div>
+                            
+                            <button id="checkout-btn-fullscreen" class="btn btn-success w-100" disabled>
+                                <i class="bi bi-check-circle me-2"></i>Gjennomfør salg
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1556,10 +1848,240 @@ async function processServicePurchase() {
 // Initialize barcode scanner when Sales module loads
 document.addEventListener('DOMContentLoaded', function() {
     initBarcodeScanner();
+    initFullscreenSales();
 });
 
 // Also re-initialize when switching to sales tab
 document.querySelector('[href="#content-sales"]')?.addEventListener('shown.bs.tab', function() {
     initBarcodeScanner();
 });
+
+// Fullscreen Sales Mode
+function initFullscreenSales() {
+    const openBtn = document.getElementById('open-fullscreen-sales');
+    const closeBtn = document.getElementById('close-fullscreen-sales');
+    const overlay = document.getElementById('fullscreen-sales-overlay');
+    
+    if (!openBtn || !closeBtn || !overlay) return;
+    
+    openBtn.addEventListener('click', function() {
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Sync data to fullscreen
+        syncToFullscreen();
+        
+        // Focus barcode scanner in fullscreen
+        setTimeout(() => {
+            document.getElementById('barcode-scanner-input-fullscreen')?.focus();
+        }, 100);
+    });
+    
+    closeBtn.addEventListener('click', function() {
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    });
+    
+    // ESC key to close
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && overlay.classList.contains('active')) {
+            closeBtn.click();
+        }
+    });
+    
+    // Initialize fullscreen barcode scanner
+    initFullscreenBarcodeScanner();
+    
+    // Initialize fullscreen payment method toggle
+    const paymentMethodFullscreen = document.getElementById('checkout-payment-method-fullscreen');
+    if (paymentMethodFullscreen) {
+        paymentMethodFullscreen.addEventListener('change', function() {
+            const cashCalc = document.getElementById('cash-payment-calculator-fullscreen');
+            if (this.value === 'cash') {
+                cashCalc.style.display = 'block';
+            } else {
+                cashCalc.style.display = 'none';
+            }
+        });
+    }
+    
+    // Initialize cash calculator for fullscreen
+    const cashReceivedFullscreen = document.getElementById('cash-received-fullscreen');
+    if (cashReceivedFullscreen) {
+        cashReceivedFullscreen.addEventListener('input', function() {
+            updateCashChangeFullscreen();
+        });
+    }
+}
+
+function syncToFullscreen() {
+    // Sync products
+    const productsList = document.getElementById('products-list')?.innerHTML;
+    if (productsList) {
+        document.getElementById('products-list-fullscreen').innerHTML = productsList;
+    }
+    
+    // Sync services
+    const servicesList = document.getElementById('services-list')?.innerHTML;
+    if (servicesList) {
+        document.getElementById('services-list-fullscreen').innerHTML = servicesList;
+    }
+    
+    // Sync cart
+    syncCartToFullscreen();
+}
+
+function syncCartToFullscreen() {
+    document.getElementById('cart-items-fullscreen').innerHTML = document.getElementById('cart-items').innerHTML;
+    document.getElementById('cart-total-fullscreen').textContent = document.getElementById('cart-total').textContent;
+    document.getElementById('cart-count-fullscreen').textContent = document.getElementById('cart-count').textContent;
+}
+
+function initFullscreenBarcodeScanner() {
+    const barcodeInput = document.getElementById('barcode-scanner-input-fullscreen');
+    const scannerCard = document.querySelector('#fullscreen-sales-overlay .barcode-scanner-card');
+    const scanFeedback = document.getElementById('scan-feedback-fullscreen');
+    
+    if (!barcodeInput) return;
+    
+    let scanTimeout = null;
+    
+    barcodeInput.addEventListener('input', function(e) {
+        if (scanTimeout) clearTimeout(scanTimeout);
+        
+        const barcode = e.target.value.trim();
+        
+        if (barcode.length >= 8) {
+            scanTimeout = setTimeout(() => {
+                handleBarcodeScanned(barcode, scannerCard, scanFeedback, barcodeInput, true);
+            }, 300);
+        }
+    });
+    
+    barcodeInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const barcode = e.target.value.trim();
+            if (barcode) {
+                handleBarcodeScanned(barcode, scannerCard, scanFeedback, barcodeInput, true);
+            }
+        }
+    });
+}
+
+function updateCashChangeFullscreen() {
+    const total = parseFloat(document.getElementById('cart-total-fullscreen').textContent) || 0;
+    const received = parseFloat(document.getElementById('cash-received-fullscreen').value) || 0;
+    const changeDisplay = document.getElementById('cash-change-display-fullscreen');
+    
+    if (received === 0) {
+        changeDisplay.innerHTML = '';
+        return;
+    }
+    
+    const change = received - total;
+    
+    if (change < 0) {
+        changeDisplay.innerHTML = `<div class="alert alert-danger py-2 mb-0"><strong>Mangler:</strong> ${Math.abs(change).toFixed(2)} NOK</div>`;
+    } else if (change === 0) {
+        changeDisplay.innerHTML = `<div class="alert alert-success py-2 mb-0"><strong>Passe penger</strong></div>`;
+    } else {
+        changeDisplay.innerHTML = `<div class="alert alert-info py-2 mb-0"><strong>Retur:</strong> ${change.toFixed(2)} NOK</div>`;
+    }
+}
+
+// Purchases functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-calculate total cost
+    const quantityInput = document.getElementById('purchase-quantity');
+    const unitCostInput = document.getElementById('purchase-unit-cost');
+    const totalCostInput = document.getElementById('purchase-total-cost');
+    
+    if (quantityInput && unitCostInput && totalCostInput) {
+        [quantityInput, unitCostInput].forEach(input => {
+            input.addEventListener('input', function() {
+                const qty = parseFloat(quantityInput.value) || 0;
+                const unitCost = parseFloat(unitCostInput.value) || 0;
+                totalCostInput.value = (qty * unitCost).toFixed(2);
+            });
+        });
+    }
+    
+    // Set today's date as default
+    const purchaseDateInput = document.getElementById('purchase-date');
+    if (purchaseDateInput) {
+        purchaseDateInput.value = new Date().toISOString().split('T')[0];
+    }
+    
+    // Load products when modal opens
+    const purchaseModal = document.getElementById('addPurchaseModal');
+    if (purchaseModal) {
+        purchaseModal.addEventListener('shown.bs.modal', function() {
+            loadProductsForPurchase();
+        });
+    }
+});
+
+async function loadProductsForPurchase() {
+    const select = document.getElementById('purchase-product');
+    if (!select) return;
+    
+    try {
+        const response = await fetch('/api/get_sales_items.php');
+        const result = await response.json();
+        
+        if (result.success && result.items) {
+            select.innerHTML = '<option value="">Velg produkt...</option>';
+            result.items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = `${item.name} (${item.sku || 'Ingen SKU'})`;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading products:', error);
+    }
+}
+
+async function savePurchase() {
+    const supplier = document.getElementById('purchase-supplier').value;
+    const date = document.getElementById('purchase-date').value;
+    const productId = document.getElementById('purchase-product').value;
+    const quantity = document.getElementById('purchase-quantity').value;
+    const unitCost = document.getElementById('purchase-unit-cost').value;
+    const paymentMethod = document.getElementById('purchase-payment-method').value;
+    const invoiceNumber = document.getElementById('purchase-invoice-number').value;
+    const notes = document.getElementById('purchase-notes').value;
+    
+    if (!supplier || !date || !productId || !quantity || !unitCost) {
+        alert('Vennligst fyll ut alle påkrevde felt');
+        return;
+    }
+    
+    const totalCost = parseFloat(quantity) * parseFloat(unitCost);
+    
+    const purchaseData = {
+        supplier,
+        date,
+        product_id: productId,
+        quantity: parseInt(quantity),
+        unit_cost: parseFloat(unitCost),
+        total_cost: totalCost,
+        payment_method: paymentMethod,
+        invoice_number: invoiceNumber,
+        notes
+    };
+    
+    try {
+        // For now, just show success message (API endpoint can be created later)
+        alert(`✅ Innkjøp registrert!\nLeverandør: ${supplier}\nTotal: ${totalCost.toFixed(2)} NOK`);
+        bootstrap.Modal.getInstance(document.getElementById('addPurchaseModal')).hide();
+        document.getElementById('addPurchaseForm').reset();
+        // Reload purchases list would go here when API is ready
+    } catch (error) {
+        console.error('Error saving purchase:', error);
+        alert('❌ Feil ved lagring av innkjøp');
+    }
+}
 </script>

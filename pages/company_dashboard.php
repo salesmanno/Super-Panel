@@ -514,6 +514,9 @@ try {
                     <a class="nav-link" href="#sales-transactions">Transaksjoner</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="#sales-purchases">Innkjøp</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="#sales-items">Produkter</a>
                 </li>
                 <li class="nav-item">

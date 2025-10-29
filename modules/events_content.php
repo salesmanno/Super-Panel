@@ -1,8 +1,9 @@
 <?php
+// Note: $db is available from parent context (company_dashboard.php)
 // Fetch company payment settings
 $companyData = [];
 try {
-    if (isset($_SESSION['company_id'])) {
+    if (isset($_SESSION['company_id']) && isset($db)) {
         $stmt = $db->prepare("SELECT Cash_payment FROM tenant_companies WHERE id = ?");
         $stmt->execute([$_SESSION['company_id']]);
         $companyData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -108,6 +109,48 @@ try {
 .event-actions {
     display: flex;
     gap: 0.5rem;
+}
+
+.event-results-collapse {
+    border-top: 2px solid #667eea;
+    background: #f8f9fa;
+}
+
+.event-results-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+}
+
+.event-results-body {
+    padding: 1.5rem;
+}
+
+.event-finance-list {
+    background: white;
+    border-radius: 8px;
+    padding: 0.75rem;
+    min-height: 60px;
+}
+
+.event-finance-item {
+    display: flex;
+    justify-content-between;
+    align-items-center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.event-finance-item:last-child {
+    border-bottom: none;
+}
+
+.event-results-summary {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
 }
 
 .loading-events {
@@ -736,7 +779,7 @@ async function loadEvents() {
                         <div class="event-card">
                             ${imageHtml}
                             ${memberBadge}
-                            <div class="event-body">
+                            <div class="event-body" onclick="toggleEventResults('${event.id}')" style="cursor: pointer;">
                                 <h5 class="event-title">${event.title}</h5>
                                 <div class="event-meta">
                                     <div class="event-meta-item">
@@ -760,12 +803,62 @@ async function loadEvents() {
                             <div class="event-footer">
                                 <div>${priceDisplay}</div>
                                 <div class="event-actions">
-                                    <button class="btn btn-sm btn-outline-primary" onclick="viewEvent('${event.id}')" title="Vis detaljer">
+                                    <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); viewEvent('${event.id}')" title="Vis detaljer">
                                         <i class="bi bi-eye"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteEvent('${event.id}')" title="Slett">
+                                    <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteEvent('${event.id}')" title="Slett">
                                         <i class="bi bi-trash"></i>
                                     </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Event Results Collapse -->
+                            <div id="event-results-${event.id}" class="event-results-collapse" style="display: none;">
+                                <div class="event-results-header">
+                                    <i class="bi bi-graph-up me-2"></i>Arrangement Resultat
+                                </div>
+                                <div class="event-results-body">
+                                    <!-- Income Section -->
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <strong class="text-success"><i class="bi bi-arrow-down-circle me-1"></i>Inntekter</strong>
+                                            <button class="btn btn-sm btn-success" onclick="event.stopPropagation(); addEventIncome('${event.id}')">
+                                                <i class="bi bi-plus-circle me-1"></i>Legg til
+                                            </button>
+                                        </div>
+                                        <div id="event-income-${event.id}" class="event-finance-list">
+                                            <small class="text-muted">Ingen inntekter registrert</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Expense Section -->
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <strong class="text-danger"><i class="bi bi-arrow-up-circle me-1"></i>Utgifter</strong>
+                                            <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); addEventExpense('${event.id}')">
+                                                <i class="bi bi-plus-circle me-1"></i>Legg til
+                                            </button>
+                                        </div>
+                                        <div id="event-expense-${event.id}" class="event-finance-list">
+                                            <small class="text-muted">Ingen utgifter registrert</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Summary -->
+                                    <div class="event-results-summary">
+                                        <div class="d-flex justify-content-between">
+                                            <span>Total inntekt:</span>
+                                            <span class="text-success fw-bold" id="event-total-income-${event.id}">0 NOK</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Total utgift:</span>
+                                            <span class="text-danger fw-bold" id="event-total-expense-${event.id}">0 NOK</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between border-top pt-2 mt-2">
+                                            <strong>Netto resultat:</strong>
+                                            <strong id="event-net-result-${event.id}">0 NOK</strong>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1171,4 +1264,97 @@ async function loadEventsResults() {
 document.querySelector('[href="#events-results"]')?.addEventListener('shown.bs.tab', function() {
     loadEventsResults();
 });
+
+// Toggle event results dropdown
+function toggleEventResults(eventId) {
+    const resultsDiv = document.getElementById(`event-results-${eventId}`);
+    if (resultsDiv) {
+        resultsDiv.style.display = resultsDiv.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+// Add event income
+function addEventIncome(eventId) {
+    const description = prompt('Beskrivelse av inntekt:');
+    if (!description) return;
+    
+    const amount = parseFloat(prompt('Beløp (NOK):'));
+    if (!amount || amount <= 0) {
+        alert('Ugyldig beløp');
+        return;
+    }
+    
+    // Add to list
+    const incomeList = document.getElementById(`event-income-${eventId}`);
+    if (incomeList.querySelector('small')) {
+        incomeList.innerHTML = '';
+    }
+    
+    const incomeItem = document.createElement('div');
+    incomeItem.className = 'event-finance-item';
+    incomeItem.innerHTML = `
+        <span>${description}</span>
+        <strong class="text-success">+${amount.toFixed(2)} NOK</strong>
+    `;
+    incomeList.appendChild(incomeItem);
+    
+    updateEventSummary(eventId);
+}
+
+// Add event expense
+function addEventExpense(eventId) {
+    const description = prompt('Beskrivelse av utgift:');
+    if (!description) return;
+    
+    const amount = parseFloat(prompt('Beløp (NOK):'));
+    if (!amount || amount <= 0) {
+        alert('Ugyldig beløp');
+        return;
+    }
+    
+    // Add to list
+    const expenseList = document.getElementById(`event-expense-${eventId}`);
+    if (expenseList.querySelector('small')) {
+        expenseList.innerHTML = '';
+    }
+    
+    const expenseItem = document.createElement('div');
+    expenseItem.className = 'event-finance-item';
+    expenseItem.innerHTML = `
+        <span>${description}</span>
+        <strong class="text-danger">-${amount.toFixed(2)} NOK</strong>
+    `;
+    expenseList.appendChild(expenseItem);
+    
+    updateEventSummary(eventId);
+}
+
+// Update event summary
+function updateEventSummary(eventId) {
+    let totalIncome = 0;
+    let totalExpense = 0;
+    
+    // Calculate total income
+    const incomeList = document.getElementById(`event-income-${eventId}`);
+    incomeList.querySelectorAll('.event-finance-item strong').forEach(el => {
+        const amount = parseFloat(el.textContent.replace(/[^\d.-]/g, ''));
+        totalIncome += amount;
+    });
+    
+    // Calculate total expense
+    const expenseList = document.getElementById(`event-expense-${eventId}`);
+    expenseList.querySelectorAll('.event-finance-item strong').forEach(el => {
+        const amount = parseFloat(el.textContent.replace(/[^\d.-]/g, ''));
+        totalExpense += Math.abs(amount);
+    });
+    
+    // Update summary
+    document.getElementById(`event-total-income-${eventId}`).textContent = `${totalIncome.toFixed(2)} NOK`;
+    document.getElementById(`event-total-expense-${eventId}`).textContent = `${totalExpense.toFixed(2)} NOK`;
+    
+    const netResult = totalIncome - totalExpense;
+    const netResultEl = document.getElementById(`event-net-result-${eventId}`);
+    netResultEl.textContent = `${netResult.toFixed(2)} NOK`;
+    netResultEl.className = netResult >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold';
+}
 </script>
