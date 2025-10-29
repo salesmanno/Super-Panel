@@ -21,9 +21,15 @@ try {
 
     $db = getDBConnection();
     
-    // 1. Ensure min_attendees_deadline column exists (outside transaction)
+    // 1. Ensure columns exist (outside transaction)
     try {
         $db->exec("ALTER TABLE events_eventdata ADD COLUMN min_attendees_deadline DATE DEFAULT NULL");
+    } catch (Exception $e) {
+        // Column already exists, ignore
+    }
+    
+    try {
+        $db->exec("ALTER TABLE events_eventdata ADD COLUMN default_payment_method VARCHAR(50) DEFAULT NULL");
     } catch (Exception $e) {
         // Column already exists, ignore
     }
@@ -68,8 +74,10 @@ try {
                 event_image_url,
                 ticket_price,
                 member_ticket_price,
+                default_payment_method,
                 created_by
             ) VALUES (
+                ?,
                 ?,
                 ?,
                 ?,
@@ -115,6 +123,7 @@ try {
             $data['event_image_url'] ?? null,
             $data['ticket_price'] ?? 0,
             $data['member_ticket_price'] ?? null,
+            $data['default_payment_method'] ?? null,
             $_SESSION['tenant_admin_id']
         ]);
         

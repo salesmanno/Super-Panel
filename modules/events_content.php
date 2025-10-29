@@ -1,3 +1,16 @@
+<?php
+// Fetch company payment settings
+$companyData = [];
+try {
+    if (isset($_SESSION['company_id'])) {
+        $stmt = $db->prepare("SELECT Cash_payment FROM tenant_companies WHERE id = ?");
+        $stmt->execute([$_SESSION['company_id']]);
+        $companyData = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+} catch (Exception $e) {
+    error_log("Error fetching company data: " . $e->getMessage());
+}
+?>
 <style>
 .event-card {
     border: 1px solid #e5e7eb;
@@ -241,10 +254,26 @@
                     </div>
                     <?php endif; ?>
 
-                    <div class="mb-3">
-                        <label class="form-label">Bilde-URL</label>
-                        <input type="url" class="form-control" name="event_image_url">
-                        <small class="form-text text-muted">Valgfri: URL til arrangementsbilde</small>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Standard betalingsmetode</label>
+                            <select class="form-select" name="default_payment_method">
+                                <option value="">Velg betalingsmetode</option>
+                                <?php if (!empty($companyData['Cash_payment'])): ?>
+                                <option value="cash" selected>Kontant</option>
+                                <?php endif; ?>
+                                <option value="card">Kort</option>
+                                <option value="vipps">Vipps</option>
+                                <option value="online">Online</option>
+                                <option value="invoice">Faktura</option>
+                            </select>
+                            <small class="form-text text-muted">Denne metoden vil være forhåndsvalgt ved påmelding</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Bilde-URL</label>
+                            <input type="url" class="form-control" name="event_image_url">
+                            <small class="form-text text-muted">Valgfri: URL til arrangementsbilde</small>
+                        </div>
                     </div>
 
                     <hr class="my-4">
@@ -266,7 +295,7 @@
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_phone" id="field_phone">
+                                        <input class="form-check-input" type="checkbox" name="field_phone" id="field_phone" checked>
                                         <label class="form-check-label" for="field_phone">
                                             <i class="bi bi-telephone text-primary me-1"></i> Telefonnummer
                                         </label>
@@ -274,7 +303,7 @@
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_street" id="field_street">
+                                        <input class="form-check-input" type="checkbox" name="field_street" id="field_street" checked>
                                         <label class="form-check-label" for="field_street">
                                             <i class="bi bi-house text-primary me-1"></i> Gateadresse
                                         </label>
@@ -282,7 +311,7 @@
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_zip" id="field_zip">
+                                        <input class="form-check-input" type="checkbox" name="field_zip" id="field_zip" checked>
                                         <label class="form-check-label" for="field_zip">
                                             <i class="bi bi-mailbox text-primary me-1"></i> Postnummer
                                         </label>
@@ -292,7 +321,7 @@
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_city" id="field_city">
+                                        <input class="form-check-input" type="checkbox" name="field_city" id="field_city" checked>
                                         <label class="form-check-label" for="field_city">
                                             <i class="bi bi-geo-alt text-primary me-1"></i> Poststed
                                         </label>
@@ -300,7 +329,7 @@
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_postal" id="field_postal">
+                                        <input class="form-check-input" type="checkbox" name="field_postal" id="field_postal" checked>
                                         <label class="form-check-label" for="field_postal">
                                             <i class="bi bi-box text-primary me-1"></i> Postboks
                                         </label>
@@ -308,7 +337,7 @@
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_age" id="field_age">
+                                        <input class="form-check-input" type="checkbox" name="field_age" id="field_age" checked>
                                         <label class="form-check-label" for="field_age">
                                             <i class="bi bi-person-badge text-primary me-1"></i> Alder
                                         </label>
@@ -624,6 +653,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 ticket_price: formData.get('ticket_price') || 0,
                 member_ticket_price: formData.get('member_ticket_price') || null,
                 event_image_url: formData.get('event_image_url') || null,
+                default_payment_method: formData.get('default_payment_method') || null,
                 is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
                 // Registration fields
                 field_phone: formData.get('field_phone') ? 1 : 0,
