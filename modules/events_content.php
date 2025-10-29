@@ -354,15 +354,37 @@
                         <h6 class="mb-0"><i class="bi bi-person-plus me-2"></i>Ny innsjekking</h6>
                     </div>
                     <div class="card-body">
+                        <!-- Scanner Field -->
+                        <div class="card mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <div class="card-body text-center py-4">
+                                <h6 class="text-white mb-3">
+                                    <i class="bi bi-upc-scan fs-3 d-block mb-2"></i>
+                                    Skann deltaker
+                                </h6>
+                                <input 
+                                    type="text" 
+                                    class="form-control form-control-lg text-center" 
+                                    id="attendee-scanner-input"
+                                    placeholder="Skann strekkode eller skriv deltaker-ID..."
+                                    autocomplete="off"
+                                    style="font-size: 1.25rem; letter-spacing: 2px;">
+                                <small class="text-white-50 d-block mt-2">Skann eller skriv minst 3 tegn for å søke</small>
+                            </div>
+                        </div>
+
                         <form id="checkin-form">
                             <div class="row">
-                                <div class="col-md-6 mb-3">
+                                <div class="col-md-4 mb-3">
                                     <label class="form-label">Navn *</label>
                                     <input type="text" class="form-control" name="attendee_name" required>
                                 </div>
-                                <div class="col-md-6 mb-3">
+                                <div class="col-md-4 mb-3">
                                     <label class="form-label">E-post *</label>
                                     <input type="email" class="form-control" name="attendee_email" required>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Telefon</label>
+                                    <input type="tel" class="form-control" name="attendee_phone">
                                 </div>
                             </div>
                             
