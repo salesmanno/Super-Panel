@@ -67,23 +67,6 @@
         <div class="row">
             <!-- Products with Shopping Cart -->
             <div class="col-md-8">
-                <!-- Barcode Scanner Target -->
-                <div class="card mb-3 barcode-scanner-card">
-                    <div class="card-body text-center py-4">
-                        <div class="barcode-scanner-target">
-                            <i class="bi bi-upc-scan barcode-icon"></i>
-                            <h5 class="mt-3 mb-2">Skann strekkode</h5>
-                            <p class="text-muted mb-3">Klikk her og skann produktets strekkode</p>
-                            <input type="text" 
-                                   class="form-control form-control-lg text-center barcode-input" 
-                                   id="barcode-scanner-input" 
-                                   placeholder="Klikk her og skann..."
-                                   autocomplete="off">
-                            <div class="scan-feedback mt-2" id="scan-feedback"></div>
-                        </div>
-                    </div>
-                </div>
-                
                 <div class="card mb-3">
                     <div class="card-body">
                         <h5 class="card-title"><i class="bi bi-box-seam me-2"></i>Produkter</h5>
@@ -118,6 +101,22 @@
             
             <!-- Shopping Cart -->
             <div class="col-md-4">
+                <!-- Barcode Scanner (Compact) -->
+                <div class="card mb-3 barcode-scanner-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="card-body py-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-upc-scan text-white fs-5"></i>
+                            <input type="text" 
+                                   class="form-control form-control-sm barcode-input" 
+                                   id="barcode-scanner-input" 
+                                   placeholder="Skann strekkode..."
+                                   autocomplete="off"
+                                   style="flex: 1;">
+                            <div class="scan-feedback" id="scan-feedback" style="display: none;"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="card sticky-top" style="top: 20px;">
                     <div class="card-body">
                         <h5 class="card-title">
