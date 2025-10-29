@@ -842,12 +842,18 @@ document.getElementById('checkin-form')?.addEventListener('submit', async functi
         event_id: selectedEventId,
         attendee_name: formData.get('attendee_name'),
         attendee_email: formData.get('attendee_email'),
-        attendee_phone: formData.get('attendee_phone'),
         ticket_type: formData.get('ticket_type'),
         payment_method: isPaying ? formData.get('payment_method') : 'free',
         is_paying: isPaying,
         notes: formData.get('notes')
     };
+    
+    // Include all dynamic field values
+    for (const [key, value] of formData.entries()) {
+        if (key.startsWith('field_')) {
+            data[key] = value;
+        }
+    }
     
     try {
         const response = await fetch('../api/checkin_event.php', {
