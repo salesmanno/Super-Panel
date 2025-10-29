@@ -64,6 +64,23 @@
 
 <div class="module-content">
     <div id="sales-varesalg" class="subtab-content active">
+        <!-- Barcode Scanner Header (Full Width) -->
+        <div class="card mb-3 barcode-scanner-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="card-body py-3">
+                <div class="d-flex align-items-center gap-3">
+                    <i class="bi bi-upc-scan text-white" style="font-size: 2rem;"></i>
+                    <div style="flex: 1;">
+                        <input type="text" 
+                               class="form-control barcode-input" 
+                               id="barcode-scanner-input" 
+                               placeholder="Skann strekkode..."
+                               autocomplete="off">
+                    </div>
+                    <div class="scan-feedback text-white" id="scan-feedback" style="min-width: 200px;"></div>
+                </div>
+            </div>
+        </div>
+        
         <div class="row">
             <!-- Products with Shopping Cart -->
             <div class="col-md-8">
@@ -101,21 +118,6 @@
             
             <!-- Shopping Cart -->
             <div class="col-md-4">
-                <!-- Barcode Scanner (Compact) -->
-                <div class="card mb-3 barcode-scanner-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                    <div class="card-body py-2">
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-upc-scan text-white fs-5"></i>
-                            <input type="text" 
-                                   class="form-control form-control-sm barcode-input" 
-                                   id="barcode-scanner-input" 
-                                   placeholder="Skann strekkode..."
-                                   autocomplete="off"
-                                   style="flex: 1;">
-                            <div class="scan-feedback" id="scan-feedback" style="display: none;"></div>
-                        </div>
-                    </div>
-                </div>
 
                 <div class="card sticky-top" style="top: 20px;">
                     <div class="card-body">
