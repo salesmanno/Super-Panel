@@ -97,11 +97,10 @@ try {
         
         // 2. Save registration fields config
         $registrationFields = [
-            'phone' => ['label' => 'Telefonnummer', 'type' => 'tel'],
-            'birthdate' => ['label' => 'Fødselsdato', 'type' => 'date'],
-            'address' => ['label' => 'Adresse', 'type' => 'text'],
-            'allergies' => ['label' => 'Allergier/Diett', 'type' => 'textarea'],
-            'emergency_contact' => ['label' => 'Nødkontakt', 'type' => 'text']
+            'street' => ['label' => 'Gateadresse', 'type' => 'text'],
+            'zip' => ['label' => 'Postnummer', 'type' => 'text'],
+            'city' => ['label' => 'Poststed', 'type' => 'text'],
+            'postal' => ['label' => 'Postboks', 'type' => 'text']
         ];
         
         $displayOrder = 1;
