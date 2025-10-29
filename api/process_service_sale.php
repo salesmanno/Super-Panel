@@ -26,6 +26,11 @@ $customer_phone = trim($data['customer_phone'] ?? '');
 $payment_method = $data['payment_method'] ?? 'cash';
 $notes = $data['notes'] ?? '';
 
+// Membership-specific fields
+$join_date = $data['join_date'] ?? null;
+$expiry_date = $data['expiry_date'] ?? null;
+$auto_renew = isset($data['auto_renew']) ? (bool)$data['auto_renew'] : false;
+
 $customer_full_name = trim($customer_first_name . ' ' . $customer_last_name);
 
 if (!$output_product_id || !$service_type || !$customer_first_name || !$customer_last_name || !$customer_email) {
@@ -210,26 +215,33 @@ try {
             
         case 'membership':
             // Create member record (active membership)
-            // Calculate expiry_date based on plan duration (from billing_cycle or duration_months)
-            if (isset($service['duration_months'])) {
-                $durationMonths = $service['duration_months'];
-            } elseif (isset($service['billing_cycle'])) {
-                $durationMonths = match($service['billing_cycle']) {
-                    'monthly' => 1,
-                    'quarterly' => 3,
-                    'yearly' => 12,
-                    default => 12
-                };
-            } else {
-                $durationMonths = 12;
+            // Use provided dates or calculate from plan duration
+            $finalJoinDate = $join_date ?: date('Y-m-d');
+            $finalExpiryDate = $expiry_date;
+            
+            // If no expiry date provided, calculate it from plan duration
+            if (!$finalExpiryDate) {
+                if (isset($service['duration_months'])) {
+                    $durationMonths = $service['duration_months'];
+                } elseif (isset($service['billing_cycle'])) {
+                    $durationMonths = match($service['billing_cycle']) {
+                        'monthly' => 1,
+                        'quarterly' => 3,
+                        'yearly' => 12,
+                        default => 12
+                    };
+                } else {
+                    $durationMonths = 12;
+                }
+                $finalExpiryDate = date('Y-m-d', strtotime("+{$durationMonths} months", strtotime($finalJoinDate)));
             }
             
             if ($dbType === 'mysql') {
                 $stmt = $db->prepare("
                     INSERT INTO membership_members 
                     (company_id, membership_plan_id, first_name, last_name, email, phone, 
-                     join_date, expiry_date, status, notes, created_at, updated_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL ? MONTH), 'active', ?, NOW(), NOW())
+                     join_date, expiry_date, auto_renew, status, notes, created_at, updated_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, NOW(), NOW())
                 ");
                 $stmt->execute([
                     $company_id,
@@ -238,7 +250,9 @@ try {
                     $customer_last_name,
                     $customer_email,
                     $customer_phone,
-                    $durationMonths,
+                    $finalJoinDate,
+                    $finalExpiryDate,
+                    $auto_renew ? 1 : 0,
                     "Kjøpt via varesalg - Betalt: {$total} NOK ({$payment_method}). " . $notes
                 ]);
                 // MySQL doesn't support RETURNING, get last insert ID
@@ -247,8 +261,8 @@ try {
                 $stmt = $db->prepare("
                     INSERT INTO membership_members 
                     (company_id, membership_plan_id, first_name, last_name, email, phone, 
-                     join_date, expiry_date, status, notes, created_at, updated_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, CURRENT_DATE, CURRENT_DATE + INTERVAL '{$durationMonths} months', 'active', ?, NOW(), NOW())
+                     join_date, expiry_date, auto_renew, status, notes, created_at, updated_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, NOW(), NOW())
                     RETURNING member_id
                 ");
                 $stmt->execute([
@@ -258,6 +272,9 @@ try {
                     $customer_last_name,
                     $customer_email,
                     $customer_phone,
+                    $finalJoinDate,
+                    $finalExpiryDate,
+                    $auto_renew,
                     "Kjøpt via varesalg - Betalt: {$total} NOK ({$payment_method}). " . $notes
                 ]);
                 $memberResult = $stmt->fetch(PDO::FETCH_ASSOC);

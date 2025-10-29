@@ -599,7 +599,31 @@
                         <input type="tel" class="form-control" id="service-customer-phone">
                     </div>
                     
-                    <div class="mb-3">
+                    <!-- Membership-specific fields -->
+                    <div id="membership-specific-fields" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Startdato</label>
+                                <input type="date" class="form-control" id="service-join-date" value="<?= date('Y-m-d') ?>">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Utløpsdato</label>
+                                <input type="date" class="form-control" id="service-expiry-date">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="service-auto-renew">
+                                <label class="form-check-label" for="service-auto-renew">
+                                    Skal fornyes automatisk
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Non-membership quantity field -->
+                    <div class="mb-3" id="service-quantity-field">
                         <label class="form-label">Antall <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" id="service-quantity" min="1" value="1" required>
                     </div>
@@ -1244,13 +1268,37 @@ async function submitSalesItem() {
 }
 
 // Service purchase functions
-function setServiceData(id, type, name, price) {
+function setServiceData(id, type, name, price, planDuration = null) {
     document.getElementById('service-id').value = id;
     document.getElementById('service-type').value = type;
     document.getElementById('service-price-value').value = price;
     document.getElementById('service-modal-name').textContent = name;
     document.getElementById('service-modal-type').textContent = getServiceTypeName(type);
     document.getElementById('service-modal-price').textContent = price;
+    
+    // Show/hide membership-specific fields
+    const membershipFields = document.getElementById('membership-specific-fields');
+    const quantityField = document.getElementById('service-quantity-field');
+    
+    if (type === 'membership') {
+        membershipFields.style.display = 'block';
+        quantityField.style.display = 'none';
+        
+        // Set default join date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('service-join-date').value = today;
+        
+        // Calculate expiry date based on plan duration (stored in name or separate field)
+        if (planDuration) {
+            const expiryDate = new Date();
+            expiryDate.setMonth(expiryDate.getMonth() + planDuration);
+            document.getElementById('service-expiry-date').value = expiryDate.toISOString().split('T')[0];
+        }
+    } else {
+        membershipFields.style.display = 'none';
+        quantityField.style.display = 'block';
+    }
+    
     updateServiceTotal();
 }
 
@@ -1271,10 +1319,12 @@ async function processServicePurchase() {
         return;
     }
     
+    const serviceType = document.getElementById('service-type').value;
+    
     const purchaseData = {
         output_product_id: document.getElementById('service-id').value,
-        service_type: document.getElementById('service-type').value,
-        quantity: parseInt(document.getElementById('service-quantity').value),
+        service_type: serviceType,
+        quantity: serviceType === 'membership' ? 1 : parseInt(document.getElementById('service-quantity').value),
         customer_first_name: document.getElementById('service-customer-first-name').value,
         customer_last_name: document.getElementById('service-customer-last-name').value,
         customer_email: document.getElementById('service-customer-email').value,
@@ -1282,6 +1332,13 @@ async function processServicePurchase() {
         payment_method: document.getElementById('service-payment-method').value,
         notes: document.getElementById('service-notes').value
     };
+    
+    // Add membership-specific fields
+    if (serviceType === 'membership') {
+        purchaseData.join_date = document.getElementById('service-join-date').value;
+        purchaseData.expiry_date = document.getElementById('service-expiry-date').value;
+        purchaseData.auto_renew = document.getElementById('service-auto-renew').checked;
+    }
     
     try {
         const response = await fetch('/api/process_service_sale.php', {
