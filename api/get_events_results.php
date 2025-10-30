@@ -143,10 +143,13 @@ try {
             WHERE company_id = ?
             AND status = 'active'
             AND selling_price < 0
-            AND $jsonEventCheck = ?
+            AND (
+                $jsonEventCheck = ?
+                OR (module_source = 'events' AND source_id = ?)
+            )
         ";
         $expenseStmt = $db->prepare($expenseQuery);
-        $expenseStmt->execute([$company_id, $event['id']]);
+        $expenseStmt->execute([$company_id, $event['id'], $event['id']]);
         $expense = $expenseStmt->fetchColumn();
         
         // Get attendee count (if events_checkin exists)
