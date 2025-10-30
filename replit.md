@@ -53,11 +53,10 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database Fallback**: Automatic PostgreSQL fallback when MySQL unavailable in `config/database.php`
 - **Schema Fixes**: Added `name`, `description`, `price` columns to `output_products` in PostgreSQL
 - **Type Compatibility**: Fixed module_id type mismatch between `system_modules.id` (INTEGER in PostgreSQL, UUID in MySQL) and `output_products.module_id` (VARCHAR) using string casting
-- **PENDING MySQL Migration**: Run `migrations/mysql_output_products_schema_fix.sql` when MySQL is available to sync schema
 
 ## External Dependencies
 - **Database**: Dual database support with PDO:
-    - Production: MySQL (Domeneshop) - requires schema migration for output_products
+    - Production: MySQL (Domeneshop)
     - Development/Testing: PostgreSQL (auto-fallback when MySQL unavailable)
 - **UI Framework**: Bootstrap 5.
 - **Email Protocols**: SMTP and IMAP for webmail.
