@@ -1431,7 +1431,7 @@ document.querySelector('[href="#events-checkin"]')?.addEventListener('click', fu
 // Load events results
 async function loadEventsResults() {
     try {
-        const response = await fetch('/api/get_events_results.php');
+        const response = await fetch('../api/get_events_results.php');
         const result = await response.json();
         
         if (result.success) {
