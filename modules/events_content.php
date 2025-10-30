@@ -630,6 +630,220 @@ try {
     </div>
 </div>
 
+<!-- Edit Event Modal -->
+<div class="modal fade" id="editEventModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Rediger arrangement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-event-form">
+                    <input type="hidden" name="event_id" id="edit-event-id">
+                    
+                    <div class="row">
+                        <div class="col-md-<?php echo isset($hasMembershipAccess) && $hasMembershipAccess ? '8' : '12'; ?> mb-3">
+                            <label class="form-label">Arrangement navn *</label>
+                            <input type="text" class="form-control" name="title" id="edit-title" required>
+                        </div>
+                        <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Kun for medlemmer?</label>
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" name="is_member_exclusive" id="edit-member-exclusive">
+                                <label class="form-check-label" for="edit-member-exclusive">Kun medlemmer</label>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Beskrivelse</label>
+                        <textarea class="form-control" name="description" id="edit-description" rows="3"></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Startdato *</label>
+                            <input type="date" class="form-control" name="start_date" id="edit-start-date" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Starttid *</label>
+                            <input type="time" class="form-control" name="start_time" id="edit-start-time" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Sluttdato</label>
+                            <input type="date" class="form-control" name="end_date" id="edit-end-date">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Sluttid</label>
+                            <input type="time" class="form-control" name="end_time" id="edit-end-time">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Aldersgrense</label>
+                            <input type="number" class="form-control" name="age_limit" id="edit-age-limit">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Stedsnavn</label>
+                            <input type="text" class="form-control" name="venue_name" id="edit-venue-name">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Adresse</label>
+                            <input type="text" class="form-control" name="event_address" id="edit-event-address">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">By</label>
+                            <input type="text" class="form-control" name="event_city" id="edit-event-city">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Postnummer</label>
+                            <input type="text" class="form-control" name="event_postal" id="edit-event-postal">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Min. deltakere</label>
+                            <input type="number" class="form-control" name="min_attendees" id="edit-min-attendees">
+                        </div>
+                        <div class="col-md-3 mb-3" id="edit-registration-deadline-container" style="display: none;">
+                            <label class="form-label">Frist for min. deltakere *</label>
+                            <input type="date" class="form-control" name="registration_deadline" id="edit-registration-deadline">
+                            <small class="form-text text-muted">Må være før startdato</small>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Maks. deltakere</label>
+                            <input type="number" class="form-control" name="max_attendees" id="edit-max-attendees">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Billettpris (NOK)</label>
+                            <input type="number" step="0.01" class="form-control" name="ticket_price" id="edit-ticket-price">
+                        </div>
+                    </div>
+
+                    <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Medlemspris (NOK)</label>
+                            <input type="number" step="0.01" class="form-control" name="member_ticket_price" id="edit-member-ticket-price">
+                            <small class="form-text text-muted">La stå tom hvis samme pris som ordinær billett</small>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Standard betalingsmetode</label>
+                            <select class="form-select" name="default_payment_method" id="edit-default-payment-method">
+                                <option value="">Velg betalingsmetode</option>
+                                <?php if (!empty($companyData['Cash_payment'])): ?>
+                                <option value="cash">Kontant</option>
+                                <?php endif; ?>
+                                <option value="card">Kort</option>
+                                <option value="vipps">Vipps</option>
+                                <option value="online">Online</option>
+                                <option value="invoice">Faktura</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Bilde-URL</label>
+                            <input type="url" class="form-control" name="event_image_url" id="edit-event-image-url">
+                            <small class="form-text text-muted">Valgfri: URL til arrangementsbilde</small>
+                        </div>
+                    </div>
+
+                    <hr class="my-3">
+
+                    <div class="card border-primary mb-3">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">Konfigurer hvilke opplysninger som skal samles inn ved påmelding</p>
+                            
+                            <div class="alert alert-info mb-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Standard felt (alltid inkludert):</strong><br>
+                                <small>✓ Fornavn &nbsp; ✓ Etternavn &nbsp; ✓ E-postadresse</small>
+                            </div>
+                            
+                            <h6 class="mb-3">Valgfrie tilleggsfelt:</h6>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="field_phone" id="edit-field-phone">
+                                        <label class="form-check-label" for="edit-field-phone">
+                                            <i class="bi bi-telephone text-primary me-1"></i> Telefonnummer
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="field_street" id="edit-field-street">
+                                        <label class="form-check-label" for="edit-field-street">
+                                            <i class="bi bi-house text-primary me-1"></i> Gateadresse
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="field_zip" id="edit-field-zip">
+                                        <label class="form-check-label" for="edit-field-zip">
+                                            <i class="bi bi-mailbox text-primary me-1"></i> Postnummer
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="field_city" id="edit-field-city">
+                                        <label class="form-check-label" for="edit-field-city">
+                                            <i class="bi bi-geo-alt text-primary me-1"></i> Poststed
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="field_postal" id="edit-field-postal">
+                                        <label class="form-check-label" for="edit-field-postal">
+                                            <i class="bi bi-box text-primary me-1"></i> Postboks
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="field_age" id="edit-field-age">
+                                        <label class="form-check-label" for="edit-field-age">
+                                            <i class="bi bi-person-badge text-primary me-1"></i> Alder
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                <button type="button" class="btn btn-primary" onclick="saveEventChanges()">
+                    <i class="bi bi-check-circle me-1"></i>Lagre endringer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Load events when module is active
@@ -805,6 +1019,9 @@ async function loadEvents() {
                                 <div class="event-actions">
                                     <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); viewEvent('${event.id}')" title="Vis detaljer">
                                         <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-warning" onclick="event.stopPropagation(); editEvent('${event.id}')" title="Rediger">
+                                        <i class="bi bi-pencil"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteEvent('${event.id}')" title="Slett">
                                         <i class="bi bi-trash"></i>
@@ -1356,5 +1573,186 @@ function updateEventSummary(eventId) {
     const netResultEl = document.getElementById(`event-net-result-${eventId}`);
     netResultEl.textContent = `${netResult.toFixed(2)} NOK`;
     netResultEl.className = netResult >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold';
+}
+
+// Edit event function
+async function editEvent(eventId) {
+    try {
+        // Fetch event details
+        const response = await fetch(`../api/get_events.php`);
+        const result = await response.json();
+        
+        if (!result.success) {
+            alert('Kunne ikke laste arrangement');
+            return;
+        }
+        
+        const event = result.events.find(e => e.id === eventId);
+        if (!event) {
+            alert('Arrangement ikke funnet');
+            return;
+        }
+        
+        // Populate form fields
+        document.getElementById('edit-event-id').value = event.id;
+        document.getElementById('edit-title').value = event.title || '';
+        document.getElementById('edit-description').value = event.description || '';
+        document.getElementById('edit-start-date').value = event.start_date || '';
+        document.getElementById('edit-start-time').value = event.start_time || '';
+        document.getElementById('edit-end-date').value = event.end_date || '';
+        document.getElementById('edit-end-time').value = event.end_time || '';
+        document.getElementById('edit-age-limit').value = event.age_limit || '';
+        document.getElementById('edit-venue-name').value = event.venue_name || '';
+        document.getElementById('edit-event-address').value = event.event_address || '';
+        document.getElementById('edit-event-city').value = event.event_city || '';
+        document.getElementById('edit-event-postal').value = event.event_postal || '';
+        document.getElementById('edit-min-attendees').value = event.min_attendees || '';
+        document.getElementById('edit-registration-deadline').value = event.registration_deadline || '';
+        document.getElementById('edit-max-attendees').value = event.max_attendees || '';
+        document.getElementById('edit-ticket-price').value = event.ticket_price || 0;
+        document.getElementById('edit-member-ticket-price').value = event.member_ticket_price || '';
+        document.getElementById('edit-default-payment-method').value = event.default_payment_method || '';
+        document.getElementById('edit-event-image-url').value = event.event_image_url || '';
+        
+        // Set checkbox
+        const memberExclusiveCheckbox = document.getElementById('edit-member-exclusive');
+        if (memberExclusiveCheckbox) {
+            memberExclusiveCheckbox.checked = event.is_member_exclusive == 1;
+        }
+        
+        // Show/hide registration deadline if min_attendees is set
+        const editDeadlineContainer = document.getElementById('edit-registration-deadline-container');
+        if (event.min_attendees && parseInt(event.min_attendees) > 0) {
+            editDeadlineContainer.style.display = 'block';
+        } else {
+            editDeadlineContainer.style.display = 'none';
+        }
+        
+        // Fetch and set registration fields
+        const fieldsResponse = await fetch(`../api/get_event_registration_fields.php?event_id=${eventId}`);
+        const fieldsResult = await fieldsResponse.json();
+        
+        // Reset all optional field checkboxes
+        document.getElementById('edit-field-phone').checked = false;
+        document.getElementById('edit-field-street').checked = false;
+        document.getElementById('edit-field-zip').checked = false;
+        document.getElementById('edit-field-city').checked = false;
+        document.getElementById('edit-field-postal').checked = false;
+        document.getElementById('edit-field-age').checked = false;
+        
+        if (fieldsResult.success && fieldsResult.fields) {
+            fieldsResult.fields.forEach(field => {
+                const checkbox = document.getElementById(`edit-field-${field.field_name}`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+        }
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('editEventModal'));
+        modal.show();
+        
+    } catch (error) {
+        console.error('Error loading event for edit:', error);
+        alert('Feil ved lasting av arrangement');
+    }
+}
+
+// Handle min_attendees field in edit modal
+const editMinAttendeesInput = document.getElementById('edit-min-attendees');
+const editDeadlineContainer = document.getElementById('edit-registration-deadline-container');
+const editDeadlineInput = document.getElementById('edit-registration-deadline');
+
+if (editMinAttendeesInput && editDeadlineContainer) {
+    editMinAttendeesInput.addEventListener('input', function() {
+        if (this.value && parseInt(this.value) > 0) {
+            editDeadlineContainer.style.display = 'block';
+            editDeadlineInput.required = true;
+        } else {
+            editDeadlineContainer.style.display = 'none';
+            editDeadlineInput.required = false;
+            editDeadlineInput.value = '';
+        }
+    });
+}
+
+// Save event changes
+async function saveEventChanges() {
+    const form = document.getElementById('edit-event-form');
+    const formData = new FormData(form);
+    
+    // Validate registration deadline
+    const minAttendees = formData.get('min_attendees');
+    const registrationDeadline = formData.get('registration_deadline');
+    const startDate = formData.get('start_date');
+    
+    if (minAttendees && parseInt(minAttendees) > 0 && !registrationDeadline) {
+        alert('❌ Du må velge en frist for minimum deltakere');
+        return;
+    }
+    
+    if (registrationDeadline && startDate) {
+        const deadlineDate = new Date(registrationDeadline);
+        const eventStartDate = new Date(startDate);
+        
+        if (deadlineDate >= eventStartDate) {
+            alert('❌ Frist for min. deltakere må være før startdato');
+            return;
+        }
+    }
+    
+    const data = {
+        event_id: formData.get('event_id'),
+        title: formData.get('title'),
+        description: formData.get('description'),
+        start_date: startDate,
+        start_time: formData.get('start_time'),
+        end_date: formData.get('end_date') || null,
+        end_time: formData.get('end_time') || null,
+        venue_name: formData.get('venue_name'),
+        event_address: formData.get('event_address'),
+        event_city: formData.get('event_city'),
+        event_postal: formData.get('event_postal'),
+        min_attendees: minAttendees || null,
+        registration_deadline: registrationDeadline || null,
+        max_attendees: formData.get('max_attendees') || null,
+        age_limit: formData.get('age_limit') || null,
+        ticket_price: formData.get('ticket_price') || 0,
+        member_ticket_price: formData.get('member_ticket_price') || null,
+        event_image_url: formData.get('event_image_url') || null,
+        default_payment_method: formData.get('default_payment_method') || null,
+        is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
+        // Registration fields
+        field_phone: formData.get('field_phone') ? 1 : 0,
+        field_street: formData.get('field_street') ? 1 : 0,
+        field_zip: formData.get('field_zip') ? 1 : 0,
+        field_city: formData.get('field_city') ? 1 : 0,
+        field_postal: formData.get('field_postal') ? 1 : 0,
+        field_age: formData.get('field_age') ? 1 : 0
+    };
+
+    try {
+        const response = await fetch('../api/update_event.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('✅ Arrangement oppdatert!');
+            bootstrap.Modal.getInstance(document.getElementById('editEventModal')).hide();
+            loadEvents();
+        } else {
+            alert('❌ Feil: ' + (result.message || 'Kunne ikke oppdatere arrangement'));
+        }
+    } catch (error) {
+        console.error('Error updating event:', error);
+        alert('❌ Feil ved oppdatering av arrangement');
+    }
 }
 </script>
