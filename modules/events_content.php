@@ -538,12 +538,14 @@ try {
                                 <th>Dato</th>
                                 <th>Påmeldte</th>
                                 <th>Inntekt</th>
+                                <th>Utgift</th>
+                                <th>Netto</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody id="events-results-list">
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-4">
+                                <td colspan="7" class="text-center text-muted py-4">
                                     Ingen resultater tilgjengelig
                                 </td>
                             </tr>
@@ -1354,7 +1356,7 @@ document.querySelector('[href="#events-checkin"]')?.addEventListener('click', fu
 // Load events results
 async function loadEventsResults() {
     try {
-        const response = await fetch('../api/get_events_results.php');
+        const response = await fetch('/api/get_events_results.php');
         const result = await response.json();
         
         if (result.success) {
@@ -1375,12 +1377,16 @@ async function loadEventsResults() {
                         ? '<span class="badge bg-success">Pågår</span>'
                         : '<span class="badge bg-secondary">Avsluttet</span>';
                     
+                    const netColor = event.net_result >= 0 ? 'text-success' : 'text-danger';
+                    
                     return `
                         <tr>
                             <td><strong>${event.title}</strong></td>
                             <td>${event.start_date} ${event.start_time}</td>
                             <td>${event.attendee_count}</td>
-                            <td>${parseFloat(event.event_revenue).toFixed(2)} kr</td>
+                            <td class="text-success">${parseFloat(event.income).toFixed(2)} kr</td>
+                            <td class="text-danger">${parseFloat(event.expense).toFixed(2)} kr</td>
+                            <td class="${netColor}"><strong>${parseFloat(event.net_result).toFixed(2)} kr</strong></td>
                             <td>${statusBadge}</td>
                         </tr>
                     `;
@@ -1388,7 +1394,7 @@ async function loadEventsResults() {
             } else {
                 resultsList.innerHTML = `
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-4">
+                        <td colspan="7" class="text-center text-muted py-4">
                             Ingen resultater tilgjengelig
                         </td>
                     </tr>
