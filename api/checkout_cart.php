@@ -65,6 +65,35 @@ try {
     // Also log to unified_ledger for centralized economy tracking
     $ledgerService = new UnifiedLedgerService($db, $company_id);
     
+    // First, check stock availability for all items
+    foreach ($items as $item) {
+        if ($item['product_id']) {
+            $stockCheckStmt = $db->prepare("
+                SELECT stock_quantity, name 
+                FROM sales_products 
+                WHERE id = ? AND company_id = ?
+                FOR UPDATE
+            ");
+            $stockCheckStmt->execute([$item['product_id'], $company_id]);
+            $stockInfo = $stockCheckStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($stockInfo && $stockInfo['stock_quantity'] !== null) {
+                $availableStock = (int)$stockInfo['stock_quantity'];
+                $requestedQty = (int)$item['quantity'];
+                
+                if ($availableStock < $requestedQty) {
+                    $db->rollBack();
+                    echo json_encode([
+                        'success' => false,
+                        'message' => "Ikke nok på lager for '{$stockInfo['name']}'. Tilgjengelig: {$availableStock}, ønsket: {$requestedQty}"
+                    ]);
+                    exit;
+                }
+            }
+        }
+    }
+    
+    // Process each item (stock is validated)
     foreach ($items as $item) {
         $itemTotal = $item['quantity'] * $item['price'];
         
@@ -100,14 +129,24 @@ try {
         
         $itemTransactionId = $db->lastInsertId();
         
-        // Get cost_price for profit tracking
+        // Get cost_price for profit tracking and reduce stock
         $costPrice = null;
         if ($item['product_id']) {
-            $costStmt = $db->prepare("SELECT cost_price FROM sales_products WHERE id = ?");
+            $costStmt = $db->prepare("SELECT cost_price, stock_quantity FROM sales_products WHERE id = ?");
             $costStmt->execute([$item['product_id']]);
             $costResult = $costStmt->fetch(PDO::FETCH_ASSOC);
             if ($costResult) {
                 $costPrice = $costResult['cost_price'] ? ($costResult['cost_price'] * $item['quantity']) : null;
+                
+                // Reduce stock quantity (already validated above)
+                if ($costResult['stock_quantity'] !== null) {
+                    $updateStockStmt = $db->prepare("
+                        UPDATE sales_products 
+                        SET stock_quantity = stock_quantity - ? 
+                        WHERE id = ?
+                    ");
+                    $updateStockStmt->execute([$item['quantity'], $item['product_id']]);
+                }
             }
         }
         

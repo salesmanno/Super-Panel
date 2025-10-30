@@ -25,6 +25,8 @@ try {
             item_taxable,
             category_id,
             is_active,
+            stock_quantity,
+            low_stock_threshold,
             created_at
         FROM sales_products 
         WHERE company_id = ?

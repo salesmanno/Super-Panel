@@ -1,0 +1,54 @@
+CREATE TABLE `events_results` (
+  `id` char(36) NOT NULL DEFAULT uuid(),
+  `event_id` char(36) NOT NULL,
+  `company_id` char(36) NOT NULL,
+  `date_start` datetime NOT NULL,
+  `date_end` datetime NOT NULL,
+  
+  -- Billettpriser
+  `ticketprice_member` decimal(10,2) DEFAULT 0.00,
+  `ticketprice_normal` decimal(10,2) DEFAULT 0.00,
+  
+  -- Billettinntekter
+  `member_amount` decimal(10,2) DEFAULT 0.00,
+  `guest_amount` decimal(10,2) DEFAULT 0.00,
+  `total_ticket_sales` decimal(10,2) DEFAULT 0.00,
+  
+  -- Mat og drikke inntekter
+  `food_sales` decimal(10,2) DEFAULT 0.00,
+  `drink_sales` decimal(10,2) DEFAULT 0.00,
+  `other_sales` decimal(10,2) DEFAULT 0.00,
+  `total_food_drink_sales` decimal(10,2) DEFAULT 0.00,
+  
+  -- Totalt
+  `total_revenue` decimal(10,2) DEFAULT 0.00,
+  
+  -- Kostnader
+  `purchase_cost` decimal(10,2) DEFAULT 0.00,
+  `food_drink_cost` decimal(10,2) DEFAULT 0.00,
+  `total_costs` decimal(10,2) DEFAULT 0.00,
+  
+  -- Resultat
+  `profit_loss` decimal(10,2) DEFAULT 0.00,
+  
+  -- Deltakerstatistikk
+  `event_cancelled` tinyint(1) DEFAULT 0,
+  `guest_checkins` int(11) DEFAULT 0,
+  `member_checkins` int(11) DEFAULT 0,
+  `total_checkins` int(11) DEFAULT 0,
+  `amount_checkins` decimal(10,2) DEFAULT 0.00,  -- Totalt beløp fra checkins
+  
+  -- Mat/drikke kvantitet (antall solgte enheter)
+  `food_units_sold` int(11) DEFAULT 0,
+  `drink_units_sold` int(11) DEFAULT 0,
+  
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_event_result` (`event_id`),
+  KEY `idx_events_results_company` (`company_id`),
+  KEY `idx_events_results_dates` (`date_start`,`date_end`),
+  CONSTRAINT `fk_events_results_event` FOREIGN KEY (`event_id`) REFERENCES `events_eventdata` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_events_results_company` FOREIGN KEY (`company_id`) REFERENCES `tenant_companies` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

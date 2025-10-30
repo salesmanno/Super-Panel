@@ -282,13 +282,14 @@
                                 <th>Kostpris</th>
                                 <th>Salgspris</th>
                                 <th>Profitt</th>
+                                <th>Lager</th>
                                 <th>Status</th>
                                 <th>Handlinger</th>
                             </tr>
                         </thead>
                         <tbody id="sales-items-list">
                             <tr>
-                                <td colspan="8" class="text-center text-muted py-4">
+                                <td colspan="9" class="text-center text-muted py-4">
                                     <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Laster...</span>
                                     </div>
@@ -1422,7 +1423,7 @@ function displayProductsWithProfit(products) {
     if (!container) return;
     
     if (products.length === 0) {
-        container.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Ingen produkter registrert</td></tr>';
+        container.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">Ingen produkter registrert</td></tr>';
         return;
     }
     
@@ -1433,6 +1434,21 @@ function displayProductsWithProfit(products) {
             ? '<span class="badge bg-success">Aktiv</span>' 
             : '<span class="badge bg-secondary">Inaktiv</span>';
         
+        // Stock status with color indicators
+        let stockBadge = '<span class="badge bg-secondary">-</span>';
+        if (product.stock_quantity !== null) {
+            const stock = parseInt(product.stock_quantity);
+            const threshold = parseInt(product.low_stock_threshold || 5);
+            
+            if (stock <= 0) {
+                stockBadge = `<span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Tom (${stock})</span>`;
+            } else if (stock <= threshold) {
+                stockBadge = `<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>Lavt (${stock})</span>`;
+            } else {
+                stockBadge = `<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>${stock} stk</span>`;
+            }
+        }
+        
         return `
             <tr>
                 <td>${product.name}</td>
@@ -1441,6 +1457,7 @@ function displayProductsWithProfit(products) {
                 <td>${parseFloat(product.cost_price || 0).toFixed(2)} NOK</td>
                 <td>${parseFloat(product.selling_price).toFixed(2)} NOK</td>
                 <td class="${profitClass}"><strong>${profit.toFixed(2)} NOK</strong></td>
+                <td>${stockBadge}</td>
                 <td>${statusBadge}</td>
                 <td>
                     <button class="btn btn-sm btn-outline-primary" onclick="editProduct('${product.id}')">
@@ -2074,11 +2091,23 @@ async function savePurchase() {
     };
     
     try {
-        // For now, just show success message (API endpoint can be created later)
-        alert(`✅ Innkjøp registrert!\nLeverandør: ${supplier}\nTotal: ${totalCost.toFixed(2)} NOK`);
-        bootstrap.Modal.getInstance(document.getElementById('addPurchaseModal')).hide();
-        document.getElementById('addPurchaseForm').reset();
-        // Reload purchases list would go here when API is ready
+        const response = await fetch('api/register_purchase.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(purchaseData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`✅ Innkjøp registrert!\nLeverandør: ${supplier}\nTotal: ${totalCost.toFixed(2)} NOK\nNytt lagernivå: ${result.new_stock}`);
+            bootstrap.Modal.getInstance(document.getElementById('addPurchaseModal')).hide();
+            document.getElementById('addPurchaseForm').reset();
+            loadPurchases(); // Reload purchases list
+            loadProducts(); // Reload products to show updated stock
+        } else {
+            alert('❌ ' + (result.message || 'Feil ved registrering av innkjøp'));
+        }
     } catch (error) {
         console.error('Error saving purchase:', error);
         alert('❌ Feil ved lagring av innkjøp');
