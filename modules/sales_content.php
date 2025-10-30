@@ -192,6 +192,7 @@
                                     <option value="cash">Kontant</option>
                                     <option value="vipps">Vipps (ukonfigurert)</option>
                                     <option value="on_arrival">Oppmøte</option>
+                                    <option value="sponsored">Spons</option>
                                 </select>
                             </div>
                             
@@ -481,6 +482,7 @@
                                 <option value="card">Kort</option>
                                 <option value="invoice">Faktura</option>
                                 <option value="vipps">Vipps</option>
+                                <option value="sponsored">Spons</option>
                             </select>
                         </div>
                         <div class="col-md-6">
@@ -855,6 +857,7 @@
                             <option value="cash">Kontant</option>
                             <option value="vipps">Vipps (ukonfigurert)</option>
                             <option value="on_arrival">Oppmøte</option>
+                            <option value="sponsored">Spons</option>
                         </select>
                     </div>
                     
@@ -988,6 +991,7 @@
                                     <option value="cash">Kontant</option>
                                     <option value="vipps">Vipps (ukonfigurert)</option>
                                     <option value="on_arrival">Oppmøte</option>
+                                    <option value="sponsored">Spons</option>
                                 </select>
                             </div>
                             
