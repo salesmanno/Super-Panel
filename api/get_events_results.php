@@ -1,22 +1,29 @@
 <?php
 session_start();
+require_once '../config/database.php';
+
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['tenant_admin_id'])) {
-    echo json_encode(['success' => false, 'error' => 'Ikke autentisert']);
+if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
+    echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
     exit;
 }
 
-require_once __DIR__ . '/../config/database.php';
-
 try {
     $db = getDBConnection();
-    $companyId = $_SESSION['company_id'];
+    $company_id = $_SESSION['company_id'];
+    $dbType = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
     
-    // Sjekk om deleted_at kolonnen eksisterer
+    // Build JSON query based on database type
+    if ($dbType === 'pgsql') {
+        $jsonEventCheck = "metadata::jsonb->>'event_id'";
+    } else {
+        $jsonEventCheck = "JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.event_id'))";
+    }
+    
+    // Check if deleted_at column exists
     $hasDeletedAt = false;
     try {
-        $dbType = getDBType();
         if ($dbType === 'mysql') {
             $stmt = $db->query("SHOW COLUMNS FROM events_eventdata LIKE 'deleted_at'");
             $hasDeletedAt = $stmt->rowCount() > 0;
@@ -30,38 +37,43 @@ try {
     
     $deletedFilter = $hasDeletedAt ? " AND e.deleted_at IS NULL" : "";
     
-    // Hent totalt antall arrangementer
+    // Get total number of events
     $stmt = $db->prepare("
         SELECT COUNT(*) as total 
         FROM events_eventdata e
         WHERE e.company_id = ?" . $deletedFilter . "
     ");
-    $stmt->execute([$companyId]);
+    $stmt->execute([$company_id]);
     $totalEvents = $stmt->fetchColumn();
     
-    // Hent total inntekt fra events_checkin
+    // Get total revenue from unified_ledger
     $stmt = $db->prepare("
-        SELECT COALESCE(SUM(ec.ticket_price), 0) as revenue
-        FROM events_checkin ec
-        INNER JOIN events_eventdata e ON ec.event_id = e.id
-        WHERE e.company_id = ?" . $deletedFilter . "
-        AND ec.payment_status = 'paid'
+        SELECT COALESCE(SUM(selling_price), 0) as revenue
+        FROM unified_ledger
+        WHERE company_id = ?
+        AND status = 'active'
+        AND selling_price > 0
+        AND (module_source = 'events' OR $jsonEventCheck IS NOT NULL)
     ");
-    $stmt->execute([$companyId]);
+    $stmt->execute([$company_id]);
     $totalRevenue = $stmt->fetchColumn();
     
-    // Hent totale påmeldinger
-    $stmt = $db->prepare("
-        SELECT COUNT(*) as total
-        FROM events_checkin ec
-        INNER JOIN events_eventdata e ON ec.event_id = e.id
-        WHERE e.company_id = ?" . $deletedFilter . "
-    ");
-    $stmt->execute([$companyId]);
-    $totalAttendees = $stmt->fetchColumn();
+    // Get total attendees from events_checkin (if exists)
+    $totalAttendees = 0;
+    try {
+        $stmt = $db->prepare("
+            SELECT COUNT(*) as total
+            FROM events_checkin ec
+            INNER JOIN events_eventdata e ON ec.event_id = e.id
+            WHERE e.company_id = ?" . $deletedFilter . "
+        ");
+        $stmt->execute([$company_id]);
+        $totalAttendees = $stmt->fetchColumn();
+    } catch (Exception $e) {
+        // events_checkin might not exist
+    }
     
-    // Hent kommende arrangementer
-    $dbType = getDBType();
+    // Get upcoming events
     $nowComparison = $dbType === 'pgsql' 
         ? "(e.start_date || ' ' || e.start_time)::timestamp > NOW()"
         : "CONCAT(e.start_date, ' ', e.start_time) > NOW()";
@@ -72,10 +84,10 @@ try {
         WHERE e.company_id = ?" . $deletedFilter . "
         AND " . $nowComparison . "
     ");
-    $stmt->execute([$companyId]);
+    $stmt->execute([$company_id]);
     $upcomingEvents = $stmt->fetchColumn();
     
-    // Hent detaljert liste over arrangementer med statistikk
+    // Get detailed list of events with financial data from unified_ledger
     $statusCase = $dbType === 'pgsql' 
         ? "CASE 
             WHEN (e.start_date || ' ' || e.start_time)::timestamp > NOW() THEN 'Kommende'
@@ -90,24 +102,80 @@ try {
             ELSE 'Avsluttet'
         END";
     
+    // First get all events
     $stmt = $db->prepare("
         SELECT 
             e.id,
             e.title,
             e.start_date,
             e.start_time,
-            e.ticket_price,
-            COUNT(ec.id) as attendee_count,
-            COALESCE(SUM(CASE WHEN ec.payment_status = 'paid' THEN ec.ticket_price ELSE 0 END), 0) as event_revenue,
             " . $statusCase . " as status
         FROM events_eventdata e
-        LEFT JOIN events_checkin ec ON e.id = ec.event_id
         WHERE e.company_id = ?" . $deletedFilter . "
-        GROUP BY e.id, e.title, e.start_date, e.start_time, e.ticket_price
         ORDER BY e.start_date DESC, e.start_time DESC
     ");
-    $stmt->execute([$companyId]);
-    $eventsList = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->execute([$company_id]);
+    $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // For each event, get financial data from unified_ledger
+    $eventsList = [];
+    foreach ($events as $event) {
+        // Get income for this event
+        $incomeQuery = "
+            SELECT COALESCE(SUM(selling_price), 0) as income
+            FROM unified_ledger
+            WHERE company_id = ?
+            AND status = 'active'
+            AND selling_price > 0
+            AND (
+                $jsonEventCheck = ?
+                OR (module_source = 'events' AND source_id = ?)
+            )
+        ";
+        $incomeStmt = $db->prepare($incomeQuery);
+        $incomeStmt->execute([$company_id, $event['id'], $event['id']]);
+        $income = $incomeStmt->fetchColumn();
+        
+        // Get expenses for this event
+        $expenseQuery = "
+            SELECT COALESCE(SUM(ABS(selling_price)), 0) as expense
+            FROM unified_ledger
+            WHERE company_id = ?
+            AND status = 'active'
+            AND selling_price < 0
+            AND $jsonEventCheck = ?
+        ";
+        $expenseStmt = $db->prepare($expenseQuery);
+        $expenseStmt->execute([$company_id, $event['id']]);
+        $expense = $expenseStmt->fetchColumn();
+        
+        // Get attendee count (if events_checkin exists)
+        $attendeeCount = 0;
+        try {
+            $attendeeStmt = $db->prepare("
+                SELECT COUNT(*) FROM events_checkin WHERE event_id = ?
+            ");
+            $attendeeStmt->execute([$event['id']]);
+            $attendeeCount = $attendeeStmt->fetchColumn();
+        } catch (Exception $e) {
+            // events_checkin might not exist
+        }
+        
+        // Calculate net result
+        $netResult = $income - $expense;
+        
+        $eventsList[] = [
+            'id' => $event['id'],
+            'title' => $event['title'],
+            'start_date' => $event['start_date'],
+            'start_time' => $event['start_time'],
+            'attendee_count' => $attendeeCount,
+            'income' => $income,
+            'expense' => $expense,
+            'net_result' => $netResult,
+            'status' => $event['status']
+        ];
+    }
     
     echo json_encode([
         'success' => true,
@@ -124,6 +192,6 @@ try {
     error_log("Error fetching events results: " . $e->getMessage());
     echo json_encode([
         'success' => false,
-        'error' => 'Kunne ikke hente arrangement resultat'
+        'message' => 'Kunne ikke hente arrangement resultat: ' . $e->getMessage()
     ]);
 }
