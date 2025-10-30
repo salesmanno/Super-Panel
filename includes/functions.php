@@ -8,6 +8,7 @@ function getTenantAdminByUsername($username) {
         return false;
     }
     
+    $activeValue = dbBool(true);
     $stmt = $db->prepare("
         SELECT ta.id, ta.company_id, ta.tenant_staff_id, ta.email, ta.password_hash, ta.username, ta.is_active,
                tc.name as company_name, tc.subdomain, tc.is_active as company_active,
@@ -15,7 +16,7 @@ function getTenantAdminByUsername($username) {
         FROM tenant_admins ta
         INNER JOIN tenant_companies tc ON ta.company_id = tc.id
         LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
-        WHERE ta.username = ? AND ta.is_active = 1
+        WHERE ta.username = ? AND ta.is_active = $activeValue
     ");
     $stmt->execute([$username]);
     $admin = $stmt->fetch();
@@ -113,9 +114,10 @@ function sanitizeInput($data) {
 
 function getCompanyBySubdomain($subdomain) {
     $db = getDBConnection();
+    $activeValue = dbBool(true);
     $stmt = $db->prepare("
         SELECT * FROM tenant_companies 
-        WHERE subdomain = ? AND is_active = 1
+        WHERE subdomain = ? AND is_active = $activeValue
     ");
     $stmt->execute([$subdomain]);
     return $stmt->fetch();
@@ -269,7 +271,7 @@ function endInactiveSessions($inactiveMinutes = 30) {
             WHERE is_active = " . dbBool(true) . " 
             AND last_activity < NOW() - {$intervalSQL}
         ");
-        return $stmt->execute([$inactiveMinutes]);
+        return $stmt->execute();
     } catch (PDOException $e) {
         error_log("Error ending inactive sessions: " . $e->getMessage());
         return false;

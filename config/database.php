@@ -82,11 +82,19 @@ function getDBType() {
 }
 
 function dbBool($value) {
+    $dbType = getDBType();
+    if ($dbType === 'postgresql') {
+        return $value ? 'TRUE' : 'FALSE';
+    }
     return $value ? '1' : '0';
 }
 
 function dbInterval($amount, $unit = 'MINUTE') {
-    return "INTERVAL ? {$unit}";
+    $dbType = getDBType();
+    if ($dbType === 'postgresql') {
+        return "INTERVAL '{$amount} {$unit}'";
+    }
+    return "INTERVAL {$amount} {$unit}";
 }
 
 function closeDBConnection() {
