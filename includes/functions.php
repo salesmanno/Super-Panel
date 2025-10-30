@@ -161,10 +161,11 @@ function updateSessionActivity($sessionId) {
     if (!$db) return false;
     
     try {
+        $activeValue = dbBool(true);
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
             SET last_activity = NOW() 
-            WHERE session_id = ? AND is_active = TRUE
+            WHERE session_id = ? AND is_active = $activeValue
         ");
         return $stmt->execute([$sessionId]);
     } catch (PDOException $e) {
@@ -178,10 +179,12 @@ function endTenantAdminSession($sessionId) {
     if (!$db) return false;
     
     try {
+        $activeValue = dbBool(true);
+        $inactiveValue = dbBool(false);
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
-            SET logout_at = NOW(), is_active = FALSE 
-            WHERE session_id = ? AND is_active = TRUE
+            SET logout_at = NOW(), is_active = $inactiveValue 
+            WHERE session_id = ? AND is_active = $activeValue
         ");
         return $stmt->execute([$sessionId]);
     } catch (PDOException $e) {
@@ -195,9 +198,10 @@ function getTenantAdminActiveSessions($tenantAdminId) {
     if (!$db) return [];
     
     try {
+        $activeValue = dbBool(true);
         $stmt = $db->prepare("
             SELECT * FROM tenant_admin_sessions 
-            WHERE tenant_admin_id = ? AND is_active = TRUE
+            WHERE tenant_admin_id = ? AND is_active = $activeValue
             ORDER BY last_activity DESC
         ");
         $stmt->execute([$tenantAdminId]);
@@ -233,12 +237,13 @@ function getAllActiveSessions($companyId = null) {
     if (!$db) return [];
     
     try {
+        $activeValue = dbBool(true);
         if ($companyId) {
             $stmt = $db->prepare("
                 SELECT tas.*, ta.username, ta.name, ta.email
                 FROM tenant_admin_sessions tas
                 INNER JOIN tenant_admins ta ON tas.tenant_admin_id = ta.id
-                WHERE ta.company_id = ? AND tas.is_active = TRUE
+                WHERE ta.company_id = ? AND tas.is_active = $activeValue
                 ORDER BY tas.last_activity DESC
             ");
             $stmt->execute([$companyId]);
@@ -248,7 +253,7 @@ function getAllActiveSessions($companyId = null) {
                 FROM tenant_admin_sessions tas
                 INNER JOIN tenant_admins ta ON tas.tenant_admin_id = ta.id
                 INNER JOIN tenant_companies tc ON ta.company_id = tc.id
-                WHERE tas.is_active = TRUE
+                WHERE tas.is_active = $activeValue
                 ORDER BY tas.last_activity DESC
             ");
         }
