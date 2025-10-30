@@ -519,11 +519,16 @@ function editMember(memberId) {
 }
 
 // Last inn medlemmer når medlemmer-tab vises
-const memberTab = document.querySelector('[data-subtab="membership-members"]');
-if (memberTab) {
-    memberTab.addEventListener('click', function() {
-        loadMembers();
+const memberTabLink = document.querySelector('a[href="#membership-members"]');
+if (memberTabLink) {
+    memberTabLink.addEventListener('click', function() {
+        setTimeout(() => loadMembers(), 100); // Small delay to ensure tab is visible
     });
+}
+
+// Also load on initial page load if members tab is active
+if (window.location.hash === '#membership-members') {
+    loadMembers();
 }
 
 // Last inn planer for dropdown når modal åpnes
