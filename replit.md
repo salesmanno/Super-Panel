@@ -53,6 +53,8 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database Fallback**: Automatic PostgreSQL fallback when MySQL unavailable in `config/database.php`
 - **Schema Fixes**: Added `name`, `description`, `price` columns to `output_products` in PostgreSQL
 - **Type Compatibility**: Fixed module_id type mismatch between `system_modules.id` (INTEGER in PostgreSQL, UUID in MySQL) and `output_products.module_id` (VARCHAR) using string casting
+- **Payment Status Handling**: "Oppmøte" (on_arrival) payment method now correctly sets `payment_status='pending'` across all transaction types (products, events, memberships, rentals) in unified_ledger
+- **Auto-Checkout on Cash Payment**: Cash denomination buttons (50-1000 NOK) now automatically complete checkout when sufficient amount is received, calculating change and showing success message in both normal and fullscreen modes
 
 ## External Dependencies
 - **Database**: Dual database support with PDO:
