@@ -1367,7 +1367,7 @@ async function removeFromCart(cartId) {
 let cashReceived = 0;
 let cartTotal = 0;
 
-function applyCashPayment(amount) {
+async function applyCashPayment(amount) {
     const salesModule = document.getElementById('content-sales');
     if (!salesModule) return;
     
@@ -1394,28 +1394,63 @@ function applyCashPayment(amount) {
         paymentStatusText.innerHTML = `
             <div><strong>Mottatt:</strong> ${cashReceived.toFixed(2)} NOK 💵</div>
             <div class="text-danger"><strong>Restbeløp:</strong> ${remaining.toFixed(2)} NOK</div>
-            <small class="text-muted">Velg Kontant eller Vipps for resterende beløp</small>
+            <small class="text-muted">Trykk en annen pengeknapp eller fullfør manuelt</small>
         `;
         paymentMethodSelect.disabled = false;
-    } else if (remaining < 0) {
-        // Give change
-        const change = Math.abs(remaining);
-        paymentStatus.className = 'alert alert-success mb-3';
-        paymentStatusText.innerHTML = `
-            <div><strong>Mottatt:</strong> ${cashReceived.toFixed(2)} NOK 💵</div>
-            <div class="text-success fs-5"><strong>Vekslepenger:</strong> ${change.toFixed(2)} NOK 💰</div>
-        `;
-        paymentMethodSelect.value = 'cash';
-        paymentMethodSelect.disabled = true;
     } else {
-        // Exact amount
+        // Enough money received - auto-complete transaction
+        const change = remaining < 0 ? Math.abs(remaining) : 0;
         paymentStatus.className = 'alert alert-success mb-3';
         paymentStatusText.innerHTML = `
             <div><strong>Mottatt:</strong> ${cashReceived.toFixed(2)} NOK 💵</div>
-            <div class="text-success">✅ Eksakt beløp betalt</div>
+            ${change > 0 ? `<div class="text-success fs-5"><strong>Vekslepenger:</strong> ${change.toFixed(2)} NOK 💰</div>` : '<div class="text-success">✅ Eksakt beløp betalt</div>'}
+            <div class="mt-2"><small class="text-muted">Gjennomfører salg...</small></div>
         `;
         paymentMethodSelect.value = 'cash';
         paymentMethodSelect.disabled = true;
+        
+        // Auto-complete checkout
+        await performCheckout(salesModule, change);
+    }
+}
+
+async function performCheckout(salesModule, change = 0) {
+    const paymentMethod = salesModule.querySelector('#checkout-payment-method').value;
+    const notes = salesModule.querySelector('#checkout-notes').value;
+    const linkedEvent = salesModule.querySelector('#checkout-linked-event').value;
+    
+    try {
+        const response = await fetch('/api/checkout_cart.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                event_id: linkedEvent || null,
+                payment_method: paymentMethod, 
+                notes: notes
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            let message = `✅ Salg gjennomført!\nAntall varer: ${result.items_sold}\nTotalsum: ${result.total.toFixed(2)} NOK`;
+            
+            if (change > 0) {
+                message += `\n💰 Vekslepenger: ${change.toFixed(2)} NOK`;
+            }
+            
+            alert(message);
+            salesModule.querySelector('#checkout-notes').value = '';
+            salesModule.querySelector('#checkout-linked-event').value = '';
+            resetPayment();
+            await loadCart();
+            await loadAllSalesData();
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (error) {
+        console.error('Checkout error:', error);
+        alert('❌ Feil ved betaling');
     }
 }
 
@@ -1435,7 +1470,7 @@ function resetPayment() {
 let cashReceivedFullscreen = 0;
 let cartTotalFullscreen = 0;
 
-function applyCashPaymentFullscreen(amount) {
+async function applyCashPaymentFullscreen(amount) {
     const totalElement = document.getElementById('cart-total-fullscreen');
     cartTotalFullscreen = parseFloat(totalElement.textContent) || 0;
     
@@ -1459,28 +1494,64 @@ function applyCashPaymentFullscreen(amount) {
         paymentStatusText.innerHTML = `
             <div><strong>Mottatt:</strong> ${cashReceivedFullscreen.toFixed(2)} NOK 💵</div>
             <div class="text-danger"><strong>Restbeløp:</strong> ${remaining.toFixed(2)} NOK</div>
-            <small class="text-muted">Velg Kontant eller Vipps for resterende beløp</small>
+            <small class="text-muted">Trykk en annen pengeknapp eller fullfør manuelt</small>
         `;
         paymentMethodSelect.disabled = false;
-    } else if (remaining < 0) {
-        // Give change
-        const change = Math.abs(remaining);
-        paymentStatus.className = 'alert alert-success mb-3';
-        paymentStatusText.innerHTML = `
-            <div><strong>Mottatt:</strong> ${cashReceivedFullscreen.toFixed(2)} NOK 💵</div>
-            <div class="text-success fs-5"><strong>Vekslepenger:</strong> ${change.toFixed(2)} NOK 💰</div>
-        `;
-        paymentMethodSelect.value = 'cash';
-        paymentMethodSelect.disabled = true;
     } else {
-        // Exact amount
+        // Enough money received - auto-complete transaction
+        const change = remaining < 0 ? Math.abs(remaining) : 0;
         paymentStatus.className = 'alert alert-success mb-3';
         paymentStatusText.innerHTML = `
             <div><strong>Mottatt:</strong> ${cashReceivedFullscreen.toFixed(2)} NOK 💵</div>
-            <div class="text-success">✅ Eksakt beløp betalt</div>
+            ${change > 0 ? `<div class="text-success fs-5"><strong>Vekslepenger:</strong> ${change.toFixed(2)} NOK 💰</div>` : '<div class="text-success">✅ Eksakt beløp betalt</div>'}
+            <div class="mt-2"><small class="text-muted">Gjennomfører salg...</small></div>
         `;
         paymentMethodSelect.value = 'cash';
         paymentMethodSelect.disabled = true;
+        
+        // Auto-complete checkout
+        await performCheckoutFullscreen(change);
+    }
+}
+
+async function performCheckoutFullscreen(change = 0) {
+    const paymentMethod = document.getElementById('checkout-payment-method-fullscreen').value;
+    const notes = document.getElementById('checkout-notes-fullscreen').value;
+    const linkedEvent = document.getElementById('checkout-linked-event-fullscreen').value;
+    
+    try {
+        const response = await fetch('/api/checkout_cart.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                event_id: linkedEvent || null,
+                payment_method: paymentMethod, 
+                notes: notes
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            let message = `✅ Salg gjennomført!\nAntall varer: ${result.items_sold}\nTotalsum: ${result.total.toFixed(2)} NOK`;
+            
+            if (change > 0) {
+                message += `\n💰 Vekslepenger: ${change.toFixed(2)} NOK`;
+            }
+            
+            alert(message);
+            document.getElementById('checkout-notes-fullscreen').value = '';
+            document.getElementById('checkout-linked-event-fullscreen').value = '';
+            resetPaymentFullscreen();
+            await loadCart();
+            await loadCartFullscreen();
+            await loadAllSalesData();
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (error) {
+        console.error('Checkout error:', error);
+        alert('❌ Feil ved betaling');
     }
 }
 
