@@ -419,7 +419,7 @@ try {
                 </div>
 
                 <!-- Quick Stats -->
-                <div id="checkin-stats" class="card mb-3" style="display: none;">
+                <div id="checkin-stats" class="card" style="display: none;">
                     <div class="card-body p-2">
                         <div class="row g-2 text-center small">
                             <div class="col-6">
@@ -447,22 +447,6 @@ try {
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Scanner -->
-                <div class="card" id="checkin-form-container" style="display: none;">
-                    <div class="card-header bg-primary text-white">
-                        <h6 class="mb-0"><i class="bi bi-upc-scan me-2"></i>Skanner</h6>
-                    </div>
-                    <div class="card-body">
-                        <input 
-                            type="text" 
-                            class="form-control" 
-                            id="attendee-scanner-input"
-                            placeholder="Søk: navn, e-post, telefon..."
-                            autocomplete="off">
-                        <small class="text-muted">Trykk Enter for å søke</small>
                     </div>
                 </div>
             </div>
@@ -1144,15 +1128,12 @@ document.getElementById('checkin-event-selector')?.addEventListener('change', as
     
     if (selectedEventId) {
         document.getElementById('checkin-stats').style.display = 'block';
-        document.getElementById('checkin-form-container').style.display = 'block';
         document.getElementById('checkin-list-container').style.display = 'block';
         document.getElementById('checkin-empty-state').style.display = 'none';
         
-        await loadEventRegistrationFields(selectedEventId);
         loadCheckins(selectedEventId);
     } else {
         document.getElementById('checkin-stats').style.display = 'none';
-        document.getElementById('checkin-form-container').style.display = 'none';
         document.getElementById('checkin-list-container').style.display = 'none';
     }
 });
