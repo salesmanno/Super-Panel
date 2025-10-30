@@ -533,44 +533,9 @@ try {
     <div id="events-results" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">Arrangement resultat</h5>
-                <p class="text-muted">Økonomisk oversikt for arrangementer</p>
+                <h5 class="card-title">Arrangement Resultat</h5>
+                <p class="text-muted">Se og administrer inntekter og utgifter for arrangementer</p>
                 
-                <div class="row mb-4">
-                    <div class="col-md-3">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <h6 class="text-muted mb-2">Totale arrangementer</h6>
-                                <h3 class="mb-0" id="total-events">0</h3>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <h6 class="text-muted mb-2">Total inntekt</h6>
-                                <h3 class="mb-0" id="total-revenue">0 kr</h3>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <h6 class="text-muted mb-2">Totale påmeldinger</h6>
-                                <h3 class="mb-0" id="total-attendees">0</h3>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <h6 class="text-muted mb-2">Kommende</h6>
-                                <h3 class="mb-0" id="upcoming-events">0</h3>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
@@ -581,13 +546,14 @@ try {
                                 <th>Inntekt</th>
                                 <th>Utgift</th>
                                 <th>Netto</th>
-                                <th>Status</th>
+                                <th>Handling</th>
                             </tr>
                         </thead>
                         <tbody id="events-results-list">
                             <tr>
                                 <td colspan="7" class="text-center text-muted py-4">
-                                    Ingen resultater tilgjengelig
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    Laster arrangementer...
                                 </td>
                             </tr>
                         </tbody>
@@ -807,6 +773,175 @@ try {
                 <button type="button" class="btn btn-primary" onclick="saveEventChanges()">
                     <i class="bi bi-check-circle me-1"></i>Lagre endringer
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Income Modal -->
+<div class="modal fade" id="addIncomeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Legg til inntekt</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-income-form">
+                    <input type="hidden" id="income-event-id" name="event_id">
+                    <div class="mb-3">
+                        <label class="form-label">Beskrivelse *</label>
+                        <input type="text" class="form-control" name="description" required placeholder="F.eks. sponsorstøtte, salg av varer, etc.">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Beløp (NOK) *</label>
+                        <input type="number" class="form-control" name="amount" required min="0" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dato *</label>
+                        <input type="date" class="form-control" name="date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notater</label>
+                        <textarea class="form-control" name="notes" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                <button type="button" class="btn btn-success" onclick="saveIncome()">
+                    <i class="bi bi-check-circle me-1"></i>Legg til
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Expense Modal -->
+<div class="modal fade" id="addExpenseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-dash-circle me-2"></i>Legg til utgift</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-expense-form">
+                    <input type="hidden" id="expense-event-id" name="event_id">
+                    <div class="mb-3">
+                        <label class="form-label">Beskrivelse *</label>
+                        <input type="text" class="form-control" name="description" required placeholder="F.eks. lokale, catering, utstyr, etc.">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Beløp (NOK) *</label>
+                        <input type="number" class="form-control" name="amount" required min="0" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dato *</label>
+                        <input type="date" class="form-control" name="date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Kategori</label>
+                        <select class="form-select" name="category">
+                            <option value="">Velg kategori</option>
+                            <option value="venue">Lokale</option>
+                            <option value="catering">Catering</option>
+                            <option value="equipment">Utstyr</option>
+                            <option value="marketing">Markedsføring</option>
+                            <option value="staff">Personal</option>
+                            <option value="other">Annet</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notater</label>
+                        <textarea class="form-control" name="notes" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                <button type="button" class="btn btn-danger" onclick="saveExpense()">
+                    <i class="bi bi-check-circle me-1"></i>Legg til
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View Event Details Modal -->
+<div class="modal fade" id="viewEventDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-graph-up me-2"></i><span id="details-event-title">Arrangement Resultat</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="details-event-id">
+                
+                <!-- Summary Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card bg-success bg-opacity-10">
+                            <div class="card-body">
+                                <small class="text-muted">Total inntekt</small>
+                                <h4 class="mb-0 text-success" id="details-total-income">0 NOK</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-danger bg-opacity-10">
+                            <div class="card-body">
+                                <small class="text-muted">Total utgift</small>
+                                <h4 class="mb-0 text-danger" id="details-total-expense">0 NOK</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-primary bg-opacity-10">
+                            <div class="card-body">
+                                <small class="text-muted">Netto resultat</small>
+                                <h4 class="mb-0 text-primary" id="details-net-result">0 NOK</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="btn-group mb-3 w-100" role="group">
+                    <button type="button" class="btn btn-success" onclick="openAddIncomeModal()">
+                        <i class="bi bi-plus-circle me-1"></i>Legg til inntekt
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="openAddExpenseModal()">
+                        <i class="bi bi-dash-circle me-1"></i>Legg til utgift
+                    </button>
+                </div>
+
+                <!-- Transactions List -->
+                <h6 class="mb-3">Transaksjoner</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Dato</th>
+                                <th>Type</th>
+                                <th>Beskrivelse</th>
+                                <th>Beløp</th>
+                                <th>Handling</th>
+                            </tr>
+                        </thead>
+                        <tbody id="details-transactions-list">
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">
+                                    Ingen transaksjoner ennå
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Lukk</button>
             </div>
         </div>
     </div>
@@ -1469,34 +1604,26 @@ async function loadEventsResults() {
         const result = await response.json();
         
         if (result.success) {
-            // Oppdater sammendragskort
-            document.getElementById('total-events').textContent = result.summary.total_events;
-            document.getElementById('total-revenue').textContent = result.summary.total_revenue + ' kr';
-            document.getElementById('total-attendees').textContent = result.summary.total_attendees;
-            document.getElementById('upcoming-events').textContent = result.summary.upcoming_events;
-            
             // Oppdater arrangement liste
             const resultsList = document.getElementById('events-results-list');
             
             if (result.events && result.events.length > 0) {
                 resultsList.innerHTML = result.events.map(event => {
-                    const statusBadge = event.status === 'Kommende' 
-                        ? '<span class="badge bg-primary">Kommende</span>'
-                        : event.status === 'Pågår'
-                        ? '<span class="badge bg-success">Pågår</span>'
-                        : '<span class="badge bg-secondary">Avsluttet</span>';
-                    
                     const netColor = event.net_result >= 0 ? 'text-success' : 'text-danger';
                     
                     return `
                         <tr>
                             <td><strong>${event.title}</strong></td>
-                            <td>${event.start_date} ${event.start_time}</td>
-                            <td>${event.attendee_count}</td>
-                            <td class="text-success">${parseFloat(event.income).toFixed(2)} kr</td>
-                            <td class="text-danger">${parseFloat(event.expense).toFixed(2)} kr</td>
-                            <td class="${netColor}"><strong>${parseFloat(event.net_result).toFixed(2)} kr</strong></td>
-                            <td>${statusBadge}</td>
+                            <td>${event.start_date} ${event.start_time || ''}</td>
+                            <td>${event.attendee_count || 0}</td>
+                            <td class="text-success">${parseFloat(event.income || 0).toFixed(2)} NOK</td>
+                            <td class="text-danger">${parseFloat(event.expense || 0).toFixed(2)} NOK</td>
+                            <td class="${netColor}"><strong>${parseFloat(event.net_result || 0).toFixed(2)} NOK</strong></td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick="viewEventDetails(${event.id}, '${event.title.replace(/'/g, "\\'")}')">
+                                    <i class="bi bi-eye me-1"></i>Detaljer
+                                </button>
+                            </td>
                         </tr>
                     `;
                 }).join('');
@@ -1512,6 +1639,13 @@ async function loadEventsResults() {
         }
     } catch (error) {
         console.error('Error loading events results:', error);
+        document.getElementById('events-results-list').innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center text-danger py-4">
+                    Feil ved lasting av resultater
+                </td>
+            </tr>
+        `;
     }
 }
 
