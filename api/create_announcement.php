@@ -1,8 +1,13 @@
 <?php
-require_once '../config/database.php';
-require_once '../includes/auth_check.php';
-
+session_start();
 header('Content-Type: application/json');
+
+if (!isset($_SESSION['tenant_admin_id'])) {
+    echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
+    exit;
+}
+
+require_once '../config/database.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);

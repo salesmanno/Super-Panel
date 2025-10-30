@@ -1051,7 +1051,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            fetch('api/create_reservation_service.php', {
+            fetch('../api/create_reservation_service.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)
@@ -1083,7 +1083,7 @@ function loadStaffForService() {
     
     select.innerHTML = '<option value="" disabled>Laster ansatte...</option>';
     
-    fetch('api/get_staff.php')
+    fetch('../api/get_staff.php')
         .then(response => response.json())
         .then(data => {
             if (!data.success || !data.staff || data.staff.length === 0) {
@@ -1117,7 +1117,7 @@ function loadActiveServices() {
         </tr>
     `;
     
-    fetch('api/get_reservation_services.php')
+    fetch('../api/get_reservation_services.php')
         .then(response => response.json())
         .then(data => {
             if (!data.success) {
@@ -1210,7 +1210,7 @@ function editService(id) {
 
 function deleteService(id) {
     if (confirm('Er du sikker på at du vil slette denne tjenesten?')) {
-        fetch('api/delete_reservation_service.php', {
+        fetch('../api/delete_reservation_service.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ service_id: id })
