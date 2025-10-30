@@ -29,10 +29,20 @@ function getDBConnection() {
             
             // Fallback to PostgreSQL (development/backup)
             try {
-                $pgDsn = getenv('DATABASE_URL');
-                if (!$pgDsn) {
+                $pgUrl = getenv('DATABASE_URL');
+                if (!$pgUrl) {
                     throw new Exception("No PostgreSQL connection available");
                 }
+                
+                // Parse PostgreSQL URL to PDO DSN format
+                $parts = parse_url($pgUrl);
+                $pgHost = $parts['host'] ?? 'localhost';
+                $pgPort = $parts['port'] ?? 5432;
+                $pgDb = ltrim($parts['path'] ?? '', '/');
+                $pgUser = $parts['user'] ?? '';
+                $pgPass = $parts['pass'] ?? '';
+                
+                $pgDsn = "pgsql:host={$pgHost};port={$pgPort};dbname={$pgDb};sslmode=require";
                 
                 $options = [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -40,7 +50,7 @@ function getDBConnection() {
                     PDO::ATTR_EMULATE_PREPARES => false,
                 ];
                 
-                $conn = new PDO($pgDsn, null, null, $options);
+                $conn = new PDO($pgDsn, $pgUser, $pgPass, $options);
                 $dbType = 'postgresql';
                 error_log("Using PostgreSQL fallback connection");
             } catch (PDOException $pgE) {
