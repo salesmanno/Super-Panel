@@ -419,7 +419,7 @@ try {
                 </div>
 
                 <!-- Quick Stats -->
-                <div id="checkin-stats" class="card" style="display: none;">
+                <div id="checkin-stats" class="card mb-3" style="display: none;">
                     <div class="card-body p-2">
                         <div class="row g-2 text-center small">
                             <div class="col-6">
@@ -447,6 +447,47 @@ try {
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Quick Guest Registration -->
+                <div id="quick-guest-registration" class="card" style="display: none;">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="bi bi-person-plus me-2"></i>Registrer gjest</h6>
+                    </div>
+                    <div class="card-body">
+                        <form id="quick-guest-form">
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Fornavn</label>
+                                <input type="text" class="form-control form-control-sm" id="guest-fornavn" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Etternavn</label>
+                                <input type="text" class="form-control form-control-sm" id="guest-etternavn" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Pris (kr)</label>
+                                <input type="number" class="form-control form-control-sm" id="guest-price" min="0" step="0.01" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Betalingsmetode</label>
+                                <select class="form-select form-select-sm" id="guest-payment-method" required>
+                                    <option value="cash">Kontant</option>
+                                    <option value="card">Kort</option>
+                                    <option value="vipps">Vipps</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small mb-1">Status</label>
+                                <select class="form-select form-select-sm" id="guest-payment-status" required>
+                                    <option value="paid">Betalt</option>
+                                    <option value="pending">Venter betaling</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-success btn-sm w-100">
+                                <i class="bi bi-check-circle me-1"></i>Registrer
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -1130,13 +1171,81 @@ document.getElementById('checkin-event-selector')?.addEventListener('change', as
     
     if (selectedEventId) {
         document.getElementById('checkin-stats').style.display = 'block';
+        document.getElementById('quick-guest-registration').style.display = 'block';
         document.getElementById('checkin-list-container').style.display = 'block';
         document.getElementById('checkin-empty-state').style.display = 'none';
+        
+        // Load event price to pre-fill guest form
+        try {
+            const response = await fetch(`/api/get_event.php?id=${selectedEventId}`);
+            const result = await response.json();
+            if (result.success && result.event) {
+                document.getElementById('guest-price').value = result.event.ticket_price || 0;
+            }
+        } catch (error) {
+            console.error('Error loading event price:', error);
+        }
         
         loadCheckins(selectedEventId);
     } else {
         document.getElementById('checkin-stats').style.display = 'none';
+        document.getElementById('quick-guest-registration').style.display = 'none';
         document.getElementById('checkin-list-container').style.display = 'none';
+    }
+});
+
+// Handle quick guest registration
+document.getElementById('quick-guest-form')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (!selectedEventId) {
+        alert('Velg et arrangement først');
+        return;
+    }
+    
+    const formData = {
+        event_id: selectedEventId,
+        fornavn: document.getElementById('guest-fornavn').value.trim(),
+        etternavn: document.getElementById('guest-etternavn').value.trim(),
+        ticket_price: parseFloat(document.getElementById('guest-price').value),
+        payment_method: document.getElementById('guest-payment-method').value,
+        payment_status: document.getElementById('guest-payment-status').value
+    };
+    
+    try {
+        const response = await fetch('/api/register_guest.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Reset form
+            document.getElementById('quick-guest-form').reset();
+            
+            // Reload event price
+            try {
+                const eventResponse = await fetch(`/api/get_event.php?id=${selectedEventId}`);
+                const eventResult = await eventResponse.json();
+                if (eventResult.success && eventResult.event) {
+                    document.getElementById('guest-price').value = eventResult.event.ticket_price || 0;
+                }
+            } catch (error) {
+                console.error('Error reloading event price:', error);
+            }
+            
+            // Reload checkins
+            await loadCheckins(selectedEventId);
+            
+            alert('Gjest registrert!');
+        } else {
+            alert('Feil: ' + (result.message || 'Kunne ikke registrere gjest'));
+        }
+    } catch (error) {
+        console.error('Error registering guest:', error);
+        alert('Kunne ikke registrere gjest');
     }
 });
 
