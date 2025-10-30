@@ -8,32 +8,37 @@ function getTenantAdminByUsername($username) {
         return false;
     }
     
-    $activeValue = dbBool(true);
-    $stmt = $db->prepare("
-        SELECT ta.id, ta.company_id, ta.tenant_staff_id, ta.email, ta.password_hash, ta.username, ta.is_active,
-               tc.name as company_name, tc.subdomain, tc.is_active as company_active,
-               ts.first_name, ts.last_name, ts.email as staff_email, ts.phone, ts.job_title
-        FROM tenant_admins ta
-        INNER JOIN tenant_companies tc ON ta.company_id = tc.id
-        LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
-        WHERE ta.username = ? AND ta.is_active = $activeValue
-    ");
-    $stmt->execute([$username]);
-    $admin = $stmt->fetch();
-    
-    if ($admin) {
-        if (empty($admin['first_name'])) {
-            $admin['first_name'] = '';
+    try {
+        $activeValue = dbBool(true);
+        $stmt = $db->prepare("
+            SELECT ta.id, ta.company_id, ta.tenant_staff_id, ta.email, ta.password_hash, ta.username, ta.is_active,
+                   tc.name as company_name, tc.subdomain, tc.is_active as company_active,
+                   ts.first_name, ts.last_name, ts.email as staff_email, ts.phone, ts.job_title
+            FROM tenant_admins ta
+            INNER JOIN tenant_companies tc ON ta.company_id = tc.id
+            LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
+            WHERE ta.username = ? AND ta.is_active = $activeValue
+        ");
+        $stmt->execute([$username]);
+        $admin = $stmt->fetch();
+        
+        if ($admin) {
+            if (empty($admin['first_name'])) {
+                $admin['first_name'] = '';
+            }
+            if (empty($admin['last_name'])) {
+                $admin['last_name'] = '';
+            }
+            if (empty($admin['staff_email'])) {
+                $admin['staff_email'] = $admin['email'];
+            }
         }
-        if (empty($admin['last_name'])) {
-            $admin['last_name'] = '';
-        }
-        if (empty($admin['staff_email'])) {
-            $admin['staff_email'] = $admin['email'];
-        }
+        
+        return $admin;
+    } catch (PDOException $e) {
+        error_log("Error getting tenant admin by username: " . $e->getMessage());
+        return false;
     }
-    
-    return $admin;
 }
 
 function updateTenantAdminLastLogin($adminId) {
@@ -50,16 +55,22 @@ function getTenantAdminModules($adminId) {
     if (!$db) {
         return [];
     }
-    $activeValue = dbBool(true);
-    $stmt = $db->prepare("
-        SELECT sm.id, sm.name, sm.module_key, sm.description, sm.icon, sm.is_active, sm.created_at
-        FROM system_modules sm
-        INNER JOIN tenant_admin_modules tam ON sm.id = tam.module_id
-        WHERE tam.tenant_admin_id = ? AND sm.is_active = $activeValue
-        ORDER BY sm.name
-    ");
-    $stmt->execute([$adminId]);
-    return $stmt->fetchAll();
+    
+    try {
+        $activeValue = dbBool(true);
+        $stmt = $db->prepare("
+            SELECT sm.id, sm.name, sm.module_key, sm.description, sm.icon, sm.is_active, sm.created_at
+            FROM system_modules sm
+            INNER JOIN tenant_admin_modules tam ON sm.id = tam.module_id
+            WHERE tam.tenant_admin_id = ? AND sm.is_active = $activeValue
+            ORDER BY sm.name
+        ");
+        $stmt->execute([$adminId]);
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        error_log("Error getting tenant admin modules: " . $e->getMessage());
+        return [];
+    }
 }
 
 function getCompanyModules($companyId) {
@@ -67,16 +78,22 @@ function getCompanyModules($companyId) {
     if (!$db) {
         return [];
     }
-    $activeValue = dbBool(true);
-    $stmt = $db->prepare("
-        SELECT sm.id, sm.name, sm.module_key, sm.description, sm.icon, sm.is_active, sm.created_at
-        FROM system_modules sm
-        INNER JOIN tenant_company_modules tcm ON sm.id = tcm.module_id
-        WHERE tcm.company_id = ? AND tcm.is_active = $activeValue AND sm.is_active = $activeValue
-        ORDER BY sm.name
-    ");
-    $stmt->execute([$companyId]);
-    return $stmt->fetchAll();
+    
+    try {
+        $activeValue = dbBool(true);
+        $stmt = $db->prepare("
+            SELECT sm.id, sm.name, sm.module_key, sm.description, sm.icon, sm.is_active, sm.created_at
+            FROM system_modules sm
+            INNER JOIN tenant_company_modules tcm ON sm.id = tcm.module_id
+            WHERE tcm.company_id = ? AND tcm.is_active = $activeValue AND sm.is_active = $activeValue
+            ORDER BY sm.name
+        ");
+        $stmt->execute([$companyId]);
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        error_log("Error getting company modules: " . $e->getMessage());
+        return [];
+    }
 }
 
 function getLatestNews($limit = 5) {
