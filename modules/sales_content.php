@@ -686,6 +686,9 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                <button type="button" class="btn btn-info" onclick="openInventoryAdjustment()">
+                    <i class="bi bi-box-seam me-1"></i>Inventar
+                </button>
                 <button type="button" class="btn btn-primary" onclick="submitEditProduct()">
                     <i class="bi bi-save me-1"></i>Oppdater produkt
                 </button>
