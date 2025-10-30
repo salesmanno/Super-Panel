@@ -391,15 +391,20 @@ function updateOverviewData(data) {
     // Update recent transactions table
     const tbody = document.querySelector('#economy-results tbody');
     if (data.recent_transactions && data.recent_transactions.length > 0) {
-        tbody.innerHTML = data.recent_transactions.map(tx => `
-            <tr>
-                <td>${formatDate(tx.transaction_date)}</td>
-                <td>${tx.item_name}</td>
-                <td><span class="badge bg-secondary">${translateModule(tx.module_source)}</span></td>
-                <td>${formatCurrency(tx.selling_price)}</td>
-                <td><span class="badge bg-success">Inntekt</span></td>
-            </tr>
-        `).join('');
+        tbody.innerHTML = data.recent_transactions.map(tx => {
+            const isExpense = tx.selling_price < 0;
+            const amount = isExpense ? Math.abs(tx.selling_price) : tx.selling_price;
+            const badge = isExpense ? '<span class="badge bg-danger">Utgift</span>' : '<span class="badge bg-success">Inntekt</span>';
+            return `
+                <tr>
+                    <td>${formatDate(tx.transaction_date)}</td>
+                    <td>${tx.item_name}</td>
+                    <td><span class="badge bg-secondary">${translateModule(tx.module_source)}</span></td>
+                    <td>${formatCurrency(amount)}</td>
+                    <td>${badge}</td>
+                </tr>
+            `;
+        }).join('');
     } else {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Ingen transaksjoner funnet</td></tr>';
     }
@@ -427,6 +432,12 @@ function updateIncomeTabData(data) {
         expenseCards[0].textContent = formatCurrency(data.total_expenses);
         expenseCards[1].textContent = formatCurrency(data.month_expenses);
         expenseCards[2].textContent = formatCurrency(data.year_expenses);
+        
+        // Calculate average per month (year expenses / 12) if there's a 4th card
+        if (expenseCards.length >= 4) {
+            const avgExpensePerMonth = data.year_expenses / 12;
+            expenseCards[3].textContent = formatCurrency(avgExpensePerMonth);
+        }
     }
     
     // Update income transactions table
