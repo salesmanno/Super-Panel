@@ -47,26 +47,52 @@ try {
             $cost = $stmt->fetch(PDO::FETCH_ASSOC);
             
             // Get this month's income
-            $stmt = $db->prepare("
-                SELECT COALESCE(SUM(selling_price), 0) as month_income
-                FROM unified_ledger 
-                WHERE company_id = ? 
-                  AND status = 'active'
-                  AND payment_status = 'completed'
-                  AND DATE_TRUNC('month', transaction_date) = DATE_TRUNC('month', CURRENT_DATE)
-            ");
+            $dbType = getDBType();
+            if ($dbType === 'postgresql') {
+                $monthQuery = "
+                    SELECT COALESCE(SUM(selling_price), 0) as month_income
+                    FROM unified_ledger 
+                    WHERE company_id = ? 
+                      AND status = 'active'
+                      AND payment_status = 'completed'
+                      AND DATE_TRUNC('month', transaction_date) = DATE_TRUNC('month', CURRENT_DATE)
+                ";
+            } else {
+                $monthQuery = "
+                    SELECT COALESCE(SUM(selling_price), 0) as month_income
+                    FROM unified_ledger 
+                    WHERE company_id = ? 
+                      AND status = 'active'
+                      AND payment_status = 'completed'
+                      AND YEAR(transaction_date) = YEAR(CURRENT_DATE)
+                      AND MONTH(transaction_date) = MONTH(CURRENT_DATE)
+                ";
+            }
+            $stmt = $db->prepare($monthQuery);
             $stmt->execute([$company_id]);
             $monthData = $stmt->fetch(PDO::FETCH_ASSOC);
             
             // Get this year's income
-            $stmt = $db->prepare("
-                SELECT COALESCE(SUM(selling_price), 0) as year_income
-                FROM unified_ledger 
-                WHERE company_id = ? 
-                  AND status = 'active'
-                  AND payment_status = 'completed'
-                  AND DATE_TRUNC('year', transaction_date) = DATE_TRUNC('year', CURRENT_DATE)
-            ");
+            if ($dbType === 'postgresql') {
+                $yearQuery = "
+                    SELECT COALESCE(SUM(selling_price), 0) as year_income
+                    FROM unified_ledger 
+                    WHERE company_id = ? 
+                      AND status = 'active'
+                      AND payment_status = 'completed'
+                      AND DATE_TRUNC('year', transaction_date) = DATE_TRUNC('year', CURRENT_DATE)
+                ";
+            } else {
+                $yearQuery = "
+                    SELECT COALESCE(SUM(selling_price), 0) as year_income
+                    FROM unified_ledger 
+                    WHERE company_id = ? 
+                      AND status = 'active'
+                      AND payment_status = 'completed'
+                      AND YEAR(transaction_date) = YEAR(CURRENT_DATE)
+                ";
+            }
+            $stmt = $db->prepare($yearQuery);
             $stmt->execute([$company_id]);
             $yearData = $stmt->fetch(PDO::FETCH_ASSOC);
             
