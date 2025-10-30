@@ -58,9 +58,13 @@ function getPriorityText($severity) {
     return $priorities[$severity] ?? 'Normal';
 }
 
+// Send news once
 streamNews();
 
-while (true) {
-    sleep(30);
-    streamNews();
+// Disable infinite loop on PHP built-in server (single-threaded)
+if (php_sapi_name() !== 'cli-server') {
+    while (true) {
+        sleep(30);
+        streamNews();
+    }
 }
