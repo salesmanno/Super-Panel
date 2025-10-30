@@ -697,6 +697,62 @@
     </div>
 </div>
 
+<!-- Inventory Adjustment Modal -->
+<div class="modal fade" id="inventoryAdjustmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-box-seam me-2"></i>Juster inventar
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="inventory-product-id">
+                
+                <div class="alert alert-light border mb-3">
+                    <strong id="inventory-product-name"></strong><br>
+                    <small class="text-muted">Nåværende lagerbeholdning: <span id="inventory-current-stock" class="fw-bold"></span></small>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Justering</label>
+                    <div class="btn-group w-100 mb-2" role="group">
+                        <button type="button" class="btn btn-outline-success" onclick="setAdjustmentType('add')">
+                            <i class="bi bi-plus-circle me-1"></i>Legg til
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" onclick="setAdjustmentType('remove')">
+                            <i class="bi bi-dash-circle me-1"></i>Fjern
+                        </button>
+                    </div>
+                    <input type="hidden" id="adjustment-type" value="add">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Antall</label>
+                    <input type="number" class="form-control form-control-lg" id="adjustment-quantity" min="1" value="1" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Kommentar (valgfritt)</label>
+                    <textarea class="form-control" id="adjustment-comment" rows="2" placeholder="F.eks: 'Tellfeil', 'Skadet vare', 'Mottatt levering'"></textarea>
+                </div>
+                
+                <div class="alert alert-warning small">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Ny lagerbeholdning: <strong><span id="inventory-preview-stock"></span></strong>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                <button type="button" class="btn btn-success" onclick="submitInventoryAdjustment()">
+                    <i class="bi bi-check-circle me-1"></i>Bekreft justering
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Service Purchase Modal -->
 <div class="modal fade" id="servicePurchaseModal" tabindex="-1">
     <div class="modal-dialog">
@@ -1565,6 +1621,122 @@ async function submitEditProduct() {
 function deleteProduct(productId) {
     if (confirm('Er du sikker på at du vil slette dette produktet?')) {
         alert('Sletting kommer snart for produkt: ' + productId);
+    }
+}
+
+async function openInventoryAdjustment() {
+    const productId = document.getElementById('edit-product-id').value;
+    const productName = document.getElementById('edit-name').value;
+    
+    try {
+        const response = await fetch(`/api/get_sales_product.php?id=${productId}`);
+        const result = await response.json();
+        
+        if (result.success && result.product) {
+            const currentStock = result.product.stock_quantity || 0;
+            
+            document.getElementById('inventory-product-id').value = productId;
+            document.getElementById('inventory-product-name').textContent = productName;
+            document.getElementById('inventory-current-stock').textContent = currentStock;
+            document.getElementById('adjustment-quantity').value = 1;
+            document.getElementById('adjustment-comment').value = '';
+            document.getElementById('adjustment-type').value = 'add';
+            
+            setAdjustmentType('add');
+            updateInventoryPreview();
+            
+            const inventoryModal = new bootstrap.Modal(document.getElementById('inventoryAdjustmentModal'));
+            inventoryModal.show();
+        }
+    } catch (error) {
+        console.error('Error opening inventory adjustment:', error);
+        alert('❌ Feil ved henting av lagerdata');
+    }
+}
+
+function setAdjustmentType(type) {
+    document.getElementById('adjustment-type').value = type;
+    
+    const addBtn = document.querySelector('.btn-outline-success');
+    const removeBtn = document.querySelector('.btn-outline-danger');
+    
+    if (type === 'add') {
+        addBtn.classList.remove('btn-outline-success');
+        addBtn.classList.add('btn-success');
+        removeBtn.classList.remove('btn-danger');
+        removeBtn.classList.add('btn-outline-danger');
+    } else {
+        removeBtn.classList.remove('btn-outline-danger');
+        removeBtn.classList.add('btn-danger');
+        addBtn.classList.remove('btn-success');
+        addBtn.classList.add('btn-outline-success');
+    }
+    
+    updateInventoryPreview();
+}
+
+function updateInventoryPreview() {
+    const currentStock = parseInt(document.getElementById('inventory-current-stock').textContent) || 0;
+    const quantity = parseInt(document.getElementById('adjustment-quantity').value) || 0;
+    const type = document.getElementById('adjustment-type').value;
+    
+    const newStock = type === 'add' ? currentStock + quantity : currentStock - quantity;
+    document.getElementById('inventory-preview-stock').textContent = newStock;
+}
+
+document.getElementById('adjustment-quantity')?.addEventListener('input', updateInventoryPreview);
+
+async function submitInventoryAdjustment() {
+    const productId = document.getElementById('inventory-product-id').value;
+    const quantity = parseInt(document.getElementById('adjustment-quantity').value) || 0;
+    const type = document.getElementById('adjustment-type').value;
+    const comment = document.getElementById('adjustment-comment').value;
+    
+    if (quantity <= 0) {
+        alert('❌ Antall må være større enn 0');
+        return;
+    }
+    
+    const data = {
+        product_id: productId,
+        adjustment_type: type,
+        quantity: quantity,
+        comment: comment
+    };
+    
+    try {
+        const response = await fetch('/api/adjust_inventory.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`✅ Lager oppdatert! Ny beholdning: ${result.new_stock}`);
+            
+            const modalElement = document.getElementById('inventoryAdjustmentModal');
+            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+            
+            setTimeout(() => {
+                document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('padding-right');
+                document.body.style.removeProperty('overflow');
+            }, 300);
+            
+            await loadSalesProducts();
+            await loadAllSalesData();
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (error) {
+        console.error('Inventory adjustment error:', error);
+        alert('❌ Feil ved justering av lager');
     }
 }
 
