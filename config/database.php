@@ -64,11 +64,19 @@ function getDBType() {
 }
 
 function dbBool($value) {
+    $dbType = getDBType();
+    if ($dbType === 'postgresql') {
+        return $value ? 'true' : 'false';
+    }
     return $value ? '1' : '0';
 }
 
 function dbInterval($amount, $unit = 'MINUTE') {
-    return "INTERVAL ? {$unit}";
+    $dbType = getDBType();
+    if ($dbType === 'postgresql') {
+        return "INTERVAL '" . intval($amount) . " " . strtoupper($unit) . "'";
+    }
+    return "INTERVAL " . intval($amount) . " {$unit}";
 }
 
 function closeDBConnection() {
