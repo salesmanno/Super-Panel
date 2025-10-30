@@ -66,17 +66,22 @@ class UnifiedLedgerService {
             $status = $params['status'] ?? 'active';
             $transactionDate = $params['transaction_date'] ?? date('Y-m-d H:i:s');
             
+            // Calculate profit
+            $profit = $costPrice !== null 
+                ? $params['selling_price'] - $costPrice 
+                : null;
+            
             // Insert into unified_ledger
             $stmt = $this->db->prepare("
                 INSERT INTO unified_ledger (
                     id, order_id, company_id,
                     module_source, item_type, source_id,
                     item_name, quantity,
-                    selling_price, cost_price,
+                    selling_price, cost_price, profit,
                     customer_name, customer_email,
                     payment_method, payment_status,
                     status, transaction_date, metadata
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             
             $result = $stmt->execute([
@@ -90,6 +95,7 @@ class UnifiedLedgerService {
                 $quantity,
                 $params['selling_price'],
                 $costPrice,
+                $profit,
                 $params['customer_name'] ?? null,
                 $params['customer_email'] ?? null,
                 $params['payment_method'] ?? null,
