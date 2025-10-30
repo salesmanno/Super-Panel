@@ -453,9 +453,12 @@ async function loadMembers() {
         const response = await fetch('/api/get_members.php');
         const result = await response.json();
         
+        console.log('Members API response:', result);
+        
         const tableBody = document.getElementById('members-table-body');
         
         if (result.success && result.members && result.members.length > 0) {
+            console.log(`✅ Loading ${result.members.length} members`);
             tableBody.innerHTML = result.members.map(member => {
                 const statusBadge = member.status === 'active' ? 'bg-success' : 
                                    member.status === 'expired' ? 'bg-danger' : 'bg-warning';
@@ -483,6 +486,7 @@ async function loadMembers() {
                 `;
             }).join('');
         } else {
+            console.log('No members found or error:', result);
             tableBody.innerHTML = `
                 <tr>
                     <td colspan="11" class="text-center text-muted py-4">
@@ -493,6 +497,14 @@ async function loadMembers() {
         }
     } catch (error) {
         console.error('Error loading members:', error);
+        const tableBody = document.getElementById('members-table-body');
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="11" class="text-center text-danger py-4">
+                    Feil ved lasting av medlemmer
+                </td>
+            </tr>
+        `;
     }
 }
 
