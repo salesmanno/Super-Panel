@@ -29,7 +29,14 @@ function getDBConnection() {
             
             // Fallback to PostgreSQL (development/backup)
             try {
-                $pgUrl = getenv('DATABASE_URL');
+                // Check /tmp/replitdb first (for deployed apps), then environment variable
+                $pgUrl = null;
+                if (file_exists('/tmp/replitdb')) {
+                    $pgUrl = trim(file_get_contents('/tmp/replitdb'));
+                }
+                if (!$pgUrl) {
+                    $pgUrl = getenv('DATABASE_URL');
+                }
                 if (!$pgUrl) {
                     throw new Exception("No PostgreSQL connection available");
                 }
