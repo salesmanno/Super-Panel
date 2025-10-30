@@ -404,161 +404,102 @@ try {
     </div>
 
     <div id="events-checkin" class="subtab-content" style="display: none;">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Innsjekking</h5>
-                <p class="text-muted">Sjekk inn deltakere og administrer oppmøte</p>
-                
-                <!-- Event Selector -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <label class="form-label">Velg arrangement</label>
+        <div class="row g-3">
+            <!-- Left Column: Event Selection & Scanner -->
+            <div class="col-md-4">
+                <div class="card mb-3">
+                    <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <h6 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Velg arrangement</h6>
+                    </div>
+                    <div class="card-body">
                         <select class="form-select" id="checkin-event-selector">
-                            <option value="">Laster arrangementer...</option>
+                            <option value="">Laster...</option>
                         </select>
                     </div>
                 </div>
 
-                <!-- Check-in Statistics -->
-                <div class="row mb-4" id="checkin-stats" style="display: none;">
-                    <div class="col-md-3">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <h6 class="text-muted mb-2">Totalt påmeldte</h6>
-                                <h3 class="mb-0" id="checkin-total-attendees">0</h3>
+                <!-- Quick Stats -->
+                <div id="checkin-stats" class="card mb-3" style="display: none;">
+                    <div class="card-body p-2">
+                        <div class="row g-2 text-center small">
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded">
+                                    <div class="text-muted">Påmeldte</div>
+                                    <div class="fs-5 fw-bold" id="checkin-total-attendees">0</div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-success text-white">
-                            <div class="card-body">
-                                <h6 class="mb-2">Betalt</h6>
-                                <h3 class="mb-0" id="checkin-paid-count">0</h3>
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded">
+                                    <div class="text-muted">Betalt</div>
+                                    <div class="fs-5 fw-bold text-success" id="checkin-paid-count">0</div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-warning text-white">
-                            <div class="card-body">
-                                <h6 class="mb-2">Venter</h6>
-                                <h3 class="mb-0" id="checkin-pending-count">0</h3>
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded">
+                                    <div class="text-muted">Venter</div>
+                                    <div class="fs-5 fw-bold text-warning" id="checkin-pending-count">0</div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-primary text-white">
-                            <div class="card-body">
-                                <h6 class="mb-2">Total inntekt</h6>
-                                <h3 class="mb-0" id="checkin-total-revenue">0 kr</h3>
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded">
+                                    <div class="text-muted">Inntekt</div>
+                                    <div class="fs-5 fw-bold text-primary" id="checkin-total-revenue">0 kr</div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Check-in Form -->
-                <div class="card mb-4" id="checkin-form-container" style="display: none;">
+                <!-- Scanner -->
+                <div class="card" id="checkin-form-container" style="display: none;">
                     <div class="card-header bg-primary text-white">
-                        <h6 class="mb-0"><i class="bi bi-person-plus me-2"></i>Ny innsjekking</h6>
+                        <h6 class="mb-0"><i class="bi bi-upc-scan me-2"></i>Skanner</h6>
                     </div>
                     <div class="card-body">
-                        <!-- Scanner Field -->
-                        <div class="card mb-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                            <div class="card-body py-2">
-                                <div class="d-flex align-items-center gap-2">
-                                    <i class="bi bi-upc-scan text-white fs-5"></i>
-                                    <input 
-                                        type="text" 
-                                        class="form-control form-control-sm" 
-                                        id="attendee-scanner-input"
-                                        placeholder="Skann eller søk etter deltaker (navn, e-post, telefon)..."
-                                        autocomplete="off"
-                                        style="flex: 1;">
-                                </div>
-                            </div>
-                        </div>
-
-                        <form id="checkin-form">
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">Navn *</label>
-                                    <input type="text" class="form-control" name="attendee_name" required>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">E-post *</label>
-                                    <input type="email" class="form-control" name="attendee_email" required>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">Telefon</label>
-                                    <input type="tel" class="form-control" name="attendee_phone">
-                                </div>
-                            </div>
-                            
-                            <!-- Dynamic Registration Fields -->
-                            <div id="dynamic-registration-fields"></div>
-                            <div class="row">
-                                <div class="col-md-3 mb-3">
-                                    <label class="form-label">Billett type</label>
-                                    <select class="form-select" name="ticket_type">
-                                        <option value="regular">Ordinær</option>
-                                        <option value="member">Medlem</option>
-                                        <option value="vip">VIP</option>
-                                        <option value="staff">Ansatt</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    <label class="form-label">Skal betale?</label>
-                                    <div class="form-check form-switch mt-2">
-                                        <input class="form-check-input" type="checkbox" name="is_paying" id="isPayingCheckbox" checked>
-                                        <label class="form-check-label" for="isPayingCheckbox">Betaler</label>
-                                    </div>
-                                </div>
-                                <div class="col-md-3 mb-3" id="payment-method-container">
-                                    <label class="form-label">Betalingsmetode</label>
-                                    <select class="form-select" name="payment_method">
-                                        <option value="cash">Kontant</option>
-                                        <option value="card">Kort</option>
-                                        <option value="vipps">Vipps</option>
-                                        <option value="online">Online</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    <label class="form-label">Notater</label>
-                                    <input type="text" class="form-control" name="notes">
-                                </div>
-                            </div>
-                            <div class="alert alert-info" id="staff-info" style="display: none;">
-                                <i class="bi bi-info-circle me-2"></i>
-                                <span id="staff-info-text">Deltakeren er registrert som ansatt</span>
-                            </div>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-circle me-1"></i>Sjekk inn
-                            </button>
-                        </form>
+                        <input 
+                            type="text" 
+                            class="form-control" 
+                            id="attendee-scanner-input"
+                            placeholder="Søk: navn, e-post, telefon..."
+                            autocomplete="off">
+                        <small class="text-muted">Trykk Enter for å søke</small>
                     </div>
                 </div>
+            </div>
 
-                <!-- Checked-in Attendees List -->
-                <div class="table-responsive" id="checkin-list-container" style="display: none;">
-                    <h6 class="mb-3">Påmeldte deltakere</h6>
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Navn</th>
-                                <th>Kontakt</th>
-                                <th>Billett type</th>
-                                <th>Pris</th>
-                                <th>Betaling</th>
-                                <th>Innsjekket</th>
-                            </tr>
-                        </thead>
-                        <tbody id="checkin-attendees-list">
-                            <tr>
-                                <td colspan="6" class="text-center text-muted py-4">
-                                    Ingen deltakere ennå
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <!-- Right Column: Attendee List -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-people me-2"></i>Påmeldte deltakere</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive" id="checkin-list-container" style="display: none;">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Navn</th>
+                                        <th>Kontakt</th>
+                                        <th>Type</th>
+                                        <th>Pris</th>
+                                        <th>Status</th>
+                                        <th>Tid</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="checkin-attendees-list">
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-4">
+                                            Ingen deltakere ennå
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-center text-muted py-5" id="checkin-empty-state">
+                            <i class="bi bi-people fs-1"></i>
+                            <p class="mt-2">Velg et arrangement for å se deltakere</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1483,15 +1424,80 @@ document.querySelector('[href="#events-results"]')?.addEventListener('shown.bs.t
 });
 
 // Toggle event results dropdown
-function toggleEventResults(eventId) {
+async function toggleEventResults(eventId) {
     const resultsDiv = document.getElementById(`event-results-${eventId}`);
     if (resultsDiv) {
-        resultsDiv.style.display = resultsDiv.style.display === 'none' ? 'block' : 'none';
+        const isHidden = resultsDiv.style.display === 'none';
+        resultsDiv.style.display = isHidden ? 'block' : 'none';
+        
+        // Load finances when opening
+        if (isHidden) {
+            await loadEventFinances(eventId);
+        }
+    }
+}
+
+// Load event finances from unified_ledger
+async function loadEventFinances(eventId) {
+    try {
+        const response = await fetch(`/api/get_event_finances.php?event_id=${eventId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const incomeList = document.getElementById(`event-income-${eventId}`);
+            const expenseList = document.getElementById(`event-expense-${eventId}`);
+            
+            // Display income
+            if (result.income && result.income.length > 0) {
+                incomeList.innerHTML = result.income.map(item => {
+                    const date = new Date(item.transaction_date).toLocaleDateString('no-NO');
+                    return `
+                        <div class="event-finance-item">
+                            <div>
+                                <span>${item.item_name}</span>
+                                <small class="text-muted d-block">${date} - ${item.payment_method || 'Kontant'}</small>
+                            </div>
+                            <strong class="text-success">+${parseFloat(item.selling_price).toFixed(2)} NOK</strong>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                incomeList.innerHTML = '<small class="text-muted">Ingen inntekter registrert</small>';
+            }
+            
+            // Display expenses
+            if (result.expenses && result.expenses.length > 0) {
+                expenseList.innerHTML = result.expenses.map(item => {
+                    const date = new Date(item.transaction_date).toLocaleDateString('no-NO');
+                    return `
+                        <div class="event-finance-item">
+                            <div>
+                                <span>${item.item_name}</span>
+                                <small class="text-muted d-block">${date} - ${item.payment_method || 'Kontant'}</small>
+                            </div>
+                            <strong class="text-danger">-${Math.abs(parseFloat(item.selling_price)).toFixed(2)} NOK</strong>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                expenseList.innerHTML = '<small class="text-muted">Ingen utgifter registrert</small>';
+            }
+            
+            // Update summary
+            document.getElementById(`event-total-income-${eventId}`).textContent = `${result.summary.total_income.toFixed(2)} NOK`;
+            document.getElementById(`event-total-expense-${eventId}`).textContent = `${result.summary.total_expense.toFixed(2)} NOK`;
+            
+            const netResultEl = document.getElementById(`event-net-result-${eventId}`);
+            netResultEl.textContent = `${result.summary.net_result.toFixed(2)} NOK`;
+            netResultEl.className = result.summary.net_result >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold';
+        }
+    } catch (error) {
+        console.error('Error loading event finances:', error);
     }
 }
 
 // Add event income
-function addEventIncome(eventId) {
+async function addEventIncome(eventId) {
     const description = prompt('Beskrivelse av inntekt:');
     if (!description) return;
     
@@ -1501,25 +1507,35 @@ function addEventIncome(eventId) {
         return;
     }
     
-    // Add to list
-    const incomeList = document.getElementById(`event-income-${eventId}`);
-    if (incomeList.querySelector('small')) {
-        incomeList.innerHTML = '';
+    try {
+        const response = await fetch('/api/add_event_finance.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                event_id: eventId,
+                type: 'income',
+                item_name: description,
+                amount: amount,
+                payment_method: 'cash'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Inntekt lagt til');
+            await loadEventFinances(eventId);
+        } else {
+            alert('❌ Feil: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error adding income:', error);
+        alert('❌ Feil ved lagring av inntekt');
     }
-    
-    const incomeItem = document.createElement('div');
-    incomeItem.className = 'event-finance-item';
-    incomeItem.innerHTML = `
-        <span>${description}</span>
-        <strong class="text-success">+${amount.toFixed(2)} NOK</strong>
-    `;
-    incomeList.appendChild(incomeItem);
-    
-    updateEventSummary(eventId);
 }
 
 // Add event expense
-function addEventExpense(eventId) {
+async function addEventExpense(eventId) {
     const description = prompt('Beskrivelse av utgift:');
     if (!description) return;
     
@@ -1529,50 +1545,31 @@ function addEventExpense(eventId) {
         return;
     }
     
-    // Add to list
-    const expenseList = document.getElementById(`event-expense-${eventId}`);
-    if (expenseList.querySelector('small')) {
-        expenseList.innerHTML = '';
+    try {
+        const response = await fetch('/api/add_event_finance.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                event_id: eventId,
+                type: 'expense',
+                item_name: description,
+                amount: amount,
+                payment_method: 'cash'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Utgift lagt til');
+            await loadEventFinances(eventId);
+        } else {
+            alert('❌ Feil: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error adding expense:', error);
+        alert('❌ Feil ved lagring av utgift');
     }
-    
-    const expenseItem = document.createElement('div');
-    expenseItem.className = 'event-finance-item';
-    expenseItem.innerHTML = `
-        <span>${description}</span>
-        <strong class="text-danger">-${amount.toFixed(2)} NOK</strong>
-    `;
-    expenseList.appendChild(expenseItem);
-    
-    updateEventSummary(eventId);
-}
-
-// Update event summary
-function updateEventSummary(eventId) {
-    let totalIncome = 0;
-    let totalExpense = 0;
-    
-    // Calculate total income
-    const incomeList = document.getElementById(`event-income-${eventId}`);
-    incomeList.querySelectorAll('.event-finance-item strong').forEach(el => {
-        const amount = parseFloat(el.textContent.replace(/[^\d.-]/g, ''));
-        totalIncome += amount;
-    });
-    
-    // Calculate total expense
-    const expenseList = document.getElementById(`event-expense-${eventId}`);
-    expenseList.querySelectorAll('.event-finance-item strong').forEach(el => {
-        const amount = parseFloat(el.textContent.replace(/[^\d.-]/g, ''));
-        totalExpense += Math.abs(amount);
-    });
-    
-    // Update summary
-    document.getElementById(`event-total-income-${eventId}`).textContent = `${totalIncome.toFixed(2)} NOK`;
-    document.getElementById(`event-total-expense-${eventId}`).textContent = `${totalExpense.toFixed(2)} NOK`;
-    
-    const netResult = totalIncome - totalExpense;
-    const netResultEl = document.getElementById(`event-net-result-${eventId}`);
-    netResultEl.textContent = `${netResult.toFixed(2)} NOK`;
-    netResultEl.className = netResult >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold';
 }
 
 // Edit event function
