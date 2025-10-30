@@ -38,10 +38,8 @@ try {
                 a.related_module,
                 a.metadata,
                 a.created_at,
-                a.updated_at,
-                CONCAT(ta.first_name, ' ', ta.last_name) as author_name
+                a.updated_at
             FROM {$tableName} a
-            LEFT JOIN tenant_admins ta ON a.author_id = ta.id
             WHERE a.company_id = :company_id";
     
     // Apply filters

@@ -29,18 +29,15 @@
                 </div>
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <input type="text" class="form-control" placeholder="Søk etter fornavn, etternavn, e-post eller telefon...">
+                        <input type="text" class="form-control" id="member-search-input" placeholder="Søk etter fornavn, etternavn, e-post eller telefon...">
                     </div>
                     <div class="col-md-3">
-                        <select class="form-select">
+                        <select class="form-select" id="member-plan-filter">
                             <option value="">Alle medlemstyper</option>
-                            <option value="standard">Standardmedlemskap</option>
-                            <option value="premium">Premium</option>
-                            <option value="student">Student</option>
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <select class="form-select">
+                        <select class="form-select" id="member-status-filter">
                             <option value="">Alle statuser</option>
                             <option value="active">Aktiv</option>
                             <option value="expired">Utløpt</option>
@@ -351,7 +348,7 @@ async function submitMembershipPlan() {
 
 async function loadMembershipPlans() {
     try {
-        const response = await fetch('/api/get_membership_plans.php');
+        const response = await fetch('../api/get_membership_plans.php');
         const result = await response.json();
         
         const plansList = document.getElementById('membership-plans-list');
@@ -426,7 +423,7 @@ async function submitMember() {
     }
     
     try {
-        const response = await fetch('/api/create_member.php', {
+        const response = await fetch('../api/create_member.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(memberData)
@@ -450,50 +447,19 @@ async function submitMember() {
 
 async function loadMembers() {
     try {
-        const response = await fetch('/api/get_members.php');
+        const response = await fetch('../api/get_members.php');
         const result = await response.json();
         
         console.log('Members API response:', result);
         
-        const tableBody = document.getElementById('members-table-body');
-        
-        if (result.success && result.members && result.members.length > 0) {
+        if (result.success && result.members) {
             console.log(`✅ Loading ${result.members.length} members`);
-            tableBody.innerHTML = result.members.map(member => {
-                const statusBadge = member.status === 'active' ? 'bg-success' : 
-                                   member.status === 'expired' ? 'bg-danger' : 'bg-warning';
-                const statusText = member.status === 'active' ? 'Aktiv' : 
-                                  member.status === 'expired' ? 'Utløpt' : 'Venter';
-                
-                return `
-                    <tr>
-                        <td>${member.member_id}</td>
-                        <td>${member.first_name}</td>
-                        <td>${member.last_name}</td>
-                        <td>${member.email}</td>
-                        <td>${member.phone || '-'}</td>
-                        <td>${member.address ? (member.address + ', ' + (member.poststed || '')) : '-'}</td>
-                        <td>${member.membership_type || '-'}</td>
-                        <td><span class="badge ${statusBadge}">${statusText}</span></td>
-                        <td>${member.join_date || '-'}</td>
-                        <td>${member.expiry_date || '-'}</td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary" onclick="editMember(${member.member_id})">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+            allMembers = result.members;
+            renderMembersTable(allMembers);
         } else {
             console.log('No members found or error:', result);
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="11" class="text-center text-muted py-4">
-                        Ingen medlemmer funnet
-                    </td>
-                </tr>
-            `;
+            allMembers = [];
+            renderMembersTable([]);
         }
     } catch (error) {
         console.error('Error loading members:', error);
@@ -510,7 +476,7 @@ async function loadMembers() {
 
 async function loadPlansForSelect() {
     try {
-        const response = await fetch('/api/get_membership_plans.php');
+        const response = await fetch('../api/get_membership_plans.php');
         const result = await response.json();
         
         const select = document.getElementById('member-plan-select');
@@ -530,18 +496,115 @@ function editMember(memberId) {
     alert('Redigering av medlem kommer snart!');
 }
 
+// Load membership plans into filter dropdown
+async function loadPlansForFilter() {
+    try {
+        const response = await fetch('../api/get_membership_plans.php');
+        const result = await response.json();
+        
+        const select = document.getElementById('member-plan-filter');
+        
+        if (result.success && result.plans && result.plans.length > 0) {
+            const options = result.plans.map(plan => 
+                `<option value="${plan.plan_id || plan.id}">${plan.name || plan.plan_name}</option>`
+            ).join('');
+            select.innerHTML = '<option value="">Alle medlemstyper</option>' + options;
+        }
+    } catch (error) {
+        console.error('Error loading plans for filter:', error);
+    }
+}
+
+// Filter members based on search, plan, and status
+let allMembers = [];
+
+function applyMemberFilters() {
+    const searchTerm = document.getElementById('member-search-input').value.toLowerCase();
+    const planFilter = document.getElementById('member-plan-filter').value;
+    const statusFilter = document.getElementById('member-status-filter').value;
+    
+    let filtered = allMembers.filter(member => {
+        // Search filter
+        const matchesSearch = !searchTerm || 
+            (member.first_name?.toLowerCase().includes(searchTerm)) ||
+            (member.last_name?.toLowerCase().includes(searchTerm)) ||
+            (member.email?.toLowerCase().includes(searchTerm)) ||
+            (member.phone?.includes(searchTerm));
+        
+        // Plan filter
+        const matchesPlan = !planFilter || member.membership_plan_id == planFilter;
+        
+        // Status filter
+        const matchesStatus = !statusFilter || member.status === statusFilter;
+        
+        return matchesSearch && matchesPlan && matchesStatus;
+    });
+    
+    renderMembersTable(filtered);
+}
+
+function renderMembersTable(members) {
+    const tableBody = document.getElementById('members-table-body');
+    
+    if (members && members.length > 0) {
+        tableBody.innerHTML = members.map(member => {
+            const statusBadge = member.status === 'active' ? 'bg-success' : 
+                               member.status === 'expired' ? 'bg-danger' : 'bg-warning';
+            const statusText = member.status === 'active' ? 'Aktiv' : 
+                              member.status === 'expired' ? 'Utløpt' : 'Venter';
+            
+            return `
+                <tr>
+                    <td>${member.member_id}</td>
+                    <td>${member.first_name}</td>
+                    <td>${member.last_name}</td>
+                    <td>${member.email}</td>
+                    <td>${member.phone || '-'}</td>
+                    <td>${member.address ? (member.address + ', ' + (member.poststed || '')) : '-'}</td>
+                    <td>${member.membership_type || '-'}</td>
+                    <td><span class="badge ${statusBadge}">${statusText}</span></td>
+                    <td>${member.join_date || '-'}</td>
+                    <td>${member.expiry_date || '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editMember(${member.member_id})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } else {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="11" class="text-center text-muted py-4">
+                    Ingen medlemmer funnet
+                </td>
+            </tr>
+        `;
+    }
+}
+
 // Last inn medlemmer når medlemmer-tab vises
 const memberTabLink = document.querySelector('a[href="#membership-members"]');
 if (memberTabLink) {
     memberTabLink.addEventListener('click', function() {
-        setTimeout(() => loadMembers(), 100); // Small delay to ensure tab is visible
+        setTimeout(() => {
+            loadMembers();
+            loadPlansForFilter();
+        }, 100);
     });
 }
 
 // Also load on initial page load if members tab is active
 if (window.location.hash === '#membership-members') {
     loadMembers();
+    loadPlansForFilter();
 }
+
+// Add filter event listeners
+document.getElementById('member-search-input')?.addEventListener('input', applyMemberFilters);
+document.getElementById('member-plan-filter')?.addEventListener('change', applyMemberFilters);
+document.getElementById('member-status-filter')?.addEventListener('change', applyMemberFilters);
 
 // Last inn planer for dropdown når modal åpnes
 document.getElementById('createMemberModal')?.addEventListener('show.bs.modal', loadPlansForSelect);
