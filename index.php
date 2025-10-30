@@ -1,20 +1,17 @@
 <?php
-require_once __DIR__ . '/config/paths.php';
-
-// Let API and auth requests pass through if their files exist
-$request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$request_file = __DIR__ . $request_uri;
-
-if ((strpos($request_uri, '/api/') !== false || strpos($request_uri, '/auth/') !== false) && file_exists($request_file)) {
-    // This is an API/auth request with an existing file, don't intercept it
-    return false;
+// Don't intercept API requests
+$request_uri = $_SERVER['REQUEST_URI'];
+if (strpos($request_uri, '/api/') !== false) {
+    // This is an API request, don't handle it here
+    http_response_code(404);
+    exit;
 }
 
 session_start();
 
 // If already logged in, redirect to dashboard
 if (isset($_SESSION['tenant_admin_id']) && isset($_SESSION['company_id'])) {
-    header('Location: ' . url('pages/company_dashboard.php'));
+    header('Location: pages/company_dashboard.php');
     exit;
 }
 

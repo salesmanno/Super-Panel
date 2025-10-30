@@ -8,37 +8,31 @@ function getTenantAdminByUsername($username) {
         return false;
     }
     
-    try {
-        $activeValue = dbBool(true);
-        $stmt = $db->prepare("
-            SELECT ta.id, ta.company_id, ta.tenant_staff_id, ta.email, ta.password_hash, ta.username, ta.is_active,
-                   tc.name as company_name, tc.subdomain, tc.is_active as company_active,
-                   ts.first_name, ts.last_name, ts.email as staff_email, ts.phone, ts.job_title
-            FROM tenant_admins ta
-            INNER JOIN tenant_companies tc ON ta.company_id = tc.id
-            LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
-            WHERE ta.username = ? AND ta.is_active = $activeValue
-        ");
-        $stmt->execute([$username]);
-        $admin = $stmt->fetch();
-        
-        if ($admin) {
-            if (empty($admin['first_name'])) {
-                $admin['first_name'] = '';
-            }
-            if (empty($admin['last_name'])) {
-                $admin['last_name'] = '';
-            }
-            if (empty($admin['staff_email'])) {
-                $admin['staff_email'] = $admin['email'];
-            }
+    $stmt = $db->prepare("
+        SELECT ta.id, ta.company_id, ta.tenant_staff_id, ta.email, ta.password_hash, ta.username, ta.is_active,
+               tc.name as company_name, tc.subdomain, tc.is_active as company_active,
+               ts.first_name, ts.last_name, ts.email as staff_email, ts.phone, ts.job_title
+        FROM tenant_admins ta
+        INNER JOIN tenant_companies tc ON ta.company_id = tc.id
+        LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
+        WHERE ta.username = ? AND ta.is_active = 1
+    ");
+    $stmt->execute([$username]);
+    $admin = $stmt->fetch();
+    
+    if ($admin) {
+        if (empty($admin['first_name'])) {
+            $admin['first_name'] = '';
         }
-        
-        return $admin;
-    } catch (PDOException $e) {
-        error_log("Error getting tenant admin by username: " . $e->getMessage());
-        return false;
+        if (empty($admin['last_name'])) {
+            $admin['last_name'] = '';
+        }
+        if (empty($admin['staff_email'])) {
+            $admin['staff_email'] = $admin['email'];
+        }
     }
+    
+    return $admin;
 }
 
 function updateTenantAdminLastLogin($adminId) {
@@ -55,22 +49,16 @@ function getTenantAdminModules($adminId) {
     if (!$db) {
         return [];
     }
-    
-    try {
-        $activeValue = dbBool(true);
-        $stmt = $db->prepare("
-            SELECT sm.id, sm.name, sm.module_key, sm.description, sm.icon, sm.is_active, sm.created_at
-            FROM system_modules sm
-            INNER JOIN tenant_admin_modules tam ON sm.id = tam.module_id
-            WHERE tam.tenant_admin_id = ? AND sm.is_active = $activeValue
-            ORDER BY sm.name
-        ");
-        $stmt->execute([$adminId]);
-        return $stmt->fetchAll();
-    } catch (PDOException $e) {
-        error_log("Error getting tenant admin modules: " . $e->getMessage());
-        return [];
-    }
+    $activeValue = dbBool(true);
+    $stmt = $db->prepare("
+        SELECT sm.id, sm.name, sm.module_key, sm.description, sm.icon, sm.is_active, sm.created_at
+        FROM system_modules sm
+        INNER JOIN tenant_admin_modules tam ON sm.id = tam.module_id
+        WHERE tam.tenant_admin_id = ? AND sm.is_active = $activeValue
+        ORDER BY sm.name
+    ");
+    $stmt->execute([$adminId]);
+    return $stmt->fetchAll();
 }
 
 function getCompanyModules($companyId) {
@@ -78,46 +66,34 @@ function getCompanyModules($companyId) {
     if (!$db) {
         return [];
     }
-    
-    try {
-        $activeValue = dbBool(true);
-        $stmt = $db->prepare("
-            SELECT sm.id, sm.name, sm.module_key, sm.description, sm.icon, sm.is_active, sm.created_at
-            FROM system_modules sm
-            INNER JOIN tenant_company_modules tcm ON sm.id = tcm.module_id
-            WHERE tcm.company_id = ? AND tcm.is_active = $activeValue AND sm.is_active = $activeValue
-            ORDER BY sm.name
-        ");
-        $stmt->execute([$companyId]);
-        return $stmt->fetchAll();
-    } catch (PDOException $e) {
-        error_log("Error getting company modules: " . $e->getMessage());
-        return [];
-    }
+    $activeValue = dbBool(true);
+    $stmt = $db->prepare("
+        SELECT sm.id, sm.name, sm.module_key, sm.description, sm.icon, sm.is_active, sm.created_at
+        FROM system_modules sm
+        INNER JOIN tenant_company_modules tcm ON sm.id = tcm.module_id
+        WHERE tcm.company_id = ? AND tcm.is_active = $activeValue AND sm.is_active = $activeValue
+        ORDER BY sm.name
+    ");
+    $stmt->execute([$companyId]);
+    return $stmt->fetchAll();
 }
 
 function getLatestNews($limit = 5) {
-    try {
-        $db = getDBConnection();
-        if (!$db) {
-            return [];
-        }
-        $limit = (int)$limit;
-        $publishedValue = dbBool(true);
-        $stmt = $db->prepare("
-            SELECT * FROM core_sys_news 
-            WHERE is_published = $publishedValue 
-            AND (expire_at IS NULL OR expire_at > NOW())
-            AND publish_at <= NOW()
-            ORDER BY publish_at DESC 
-            LIMIT " . $limit
-        );
-        $stmt->execute();
-        return $stmt->fetchAll();
-    } catch (Exception $e) {
-        error_log("Error getting latest news: " . $e->getMessage());
+    $db = getDBConnection();
+    if (!$db) {
         return [];
     }
+    $limit = (int)$limit;
+    $stmt = $db->prepare("
+        SELECT * FROM core_sys_news 
+        WHERE is_published = 1 
+        AND (expire_at IS NULL OR expire_at > NOW())
+        AND publish_at <= NOW()
+        ORDER BY publish_at DESC 
+        LIMIT " . $limit
+    );
+    $stmt->execute();
+    return $stmt->fetchAll();
 }
 
 function verifyPassword($password, $hash) {
@@ -137,10 +113,9 @@ function sanitizeInput($data) {
 
 function getCompanyBySubdomain($subdomain) {
     $db = getDBConnection();
-    $activeValue = dbBool(true);
     $stmt = $db->prepare("
         SELECT * FROM tenant_companies 
-        WHERE subdomain = ? AND is_active = $activeValue
+        WHERE subdomain = ? AND is_active = 1
     ");
     $stmt->execute([$subdomain]);
     return $stmt->fetch();
@@ -184,20 +159,12 @@ function updateSessionActivity($sessionId) {
     if (!$db) return false;
     
     try {
-        $activeValue = dbBool(true);
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
             SET last_activity = NOW() 
-            WHERE session_id = ? AND is_active = $activeValue
+            WHERE session_id = ? AND is_active = TRUE
         ");
-        $stmt->execute([$sessionId]);
-        
-        if ($stmt->rowCount() === 0) {
-            error_log("Session not found or inactive: " . $sessionId);
-            return false;
-        }
-        
-        return true;
+        return $stmt->execute([$sessionId]);
     } catch (PDOException $e) {
         error_log("Error updating session activity: " . $e->getMessage());
         return false;
@@ -302,7 +269,7 @@ function endInactiveSessions($inactiveMinutes = 30) {
             WHERE is_active = " . dbBool(true) . " 
             AND last_activity < NOW() - {$intervalSQL}
         ");
-        return $stmt->execute();
+        return $stmt->execute([$inactiveMinutes]);
     } catch (PDOException $e) {
         error_log("Error ending inactive sessions: " . $e->getMessage());
         return false;
