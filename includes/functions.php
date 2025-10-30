@@ -97,22 +97,27 @@ function getCompanyModules($companyId) {
 }
 
 function getLatestNews($limit = 5) {
-    $db = getDBConnection();
-    if (!$db) {
+    try {
+        $db = getDBConnection();
+        if (!$db) {
+            return [];
+        }
+        $limit = (int)$limit;
+        $publishedValue = dbBool(true);
+        $stmt = $db->prepare("
+            SELECT * FROM core_sys_news 
+            WHERE is_published = $publishedValue 
+            AND (expire_at IS NULL OR expire_at > NOW())
+            AND publish_at <= NOW()
+            ORDER BY publish_at DESC 
+            LIMIT " . $limit
+        );
+        $stmt->execute();
+        return $stmt->fetchAll();
+    } catch (Exception $e) {
+        error_log("Error getting latest news: " . $e->getMessage());
         return [];
     }
-    $limit = (int)$limit;
-    $publishedValue = dbBool(true);
-    $stmt = $db->prepare("
-        SELECT * FROM core_sys_news 
-        WHERE is_published = $publishedValue 
-        AND (expire_at IS NULL OR expire_at > NOW())
-        AND publish_at <= NOW()
-        ORDER BY publish_at DESC 
-        LIMIT " . $limit
-    );
-    $stmt->execute();
-    return $stmt->fetchAll();
 }
 
 function verifyPassword($password, $hash) {
