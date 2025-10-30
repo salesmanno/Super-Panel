@@ -187,6 +187,10 @@ try {
             $metadata['event_id'] = $event_id;
         }
         
+        // Set payment_status based on payment_method
+        // "on_arrival" (Oppmøte) means payment will be confirmed later at check-in
+        $payment_status = ($payment_method === 'on_arrival') ? 'pending' : 'completed';
+        
         $ledgerService->logTransaction([
             'order_id' => $orderId,
             'module_source' => 'sales',
@@ -199,7 +203,7 @@ try {
             'customer_name' => $customer_name ?: 'Walk-in',
             'customer_email' => $customer_email ?: null,
             'payment_method' => $payment_method,
-            'payment_status' => 'completed',
+            'payment_status' => $payment_status,
             'status' => 'active',
             'transaction_date' => $currentTimestamp,
             'metadata' => $metadata
