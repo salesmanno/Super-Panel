@@ -38,7 +38,36 @@ try {
         // Convert assigned staff array to JSON
         $assignedStaffJson = json_encode($data['assigned_staff']);
         
-        // Insert reservation service
+        // Get reservations module_id (UUID from system_modules)
+        $moduleStmt = $db->prepare("SELECT id FROM system_modules WHERE module_key = 'reservations' LIMIT 1");
+        $moduleStmt->execute();
+        $reservationsModuleId = $moduleStmt->fetchColumn();
+        
+        if (!$reservationsModuleId) {
+            throw new Exception("Reservations module not found in system_modules");
+        }
+        
+        // FIRST: Insert into output_products (parent table)
+        $stmt = $db->prepare("
+            INSERT INTO output_products (
+                id, company_id, module_id, product_type, product_id, name, description, price,
+                is_visible, is_public, is_marketplace_featured,
+                created_at, created_by
+            ) VALUES (?, ?, ?, 'service', ?, ?, ?, ?, 1, 1, 0, NOW(), ?)
+        ");
+        
+        $stmt->execute([
+            $outputProductId,
+            $_SESSION['company_id'],
+            $reservationsModuleId,
+            $serviceId,
+            $data['service_name'],
+            $data['description'] ?? null,
+            $data['price'] ?? 0,
+            $_SESSION['tenant_admin_id']
+        ]);
+        
+        // THEN: Insert reservation service (child table with foreign key)
         $stmt = $db->prepare("
             INSERT INTO reservation_services (
                 id, company_id, output_product_id, service_name, description,
@@ -61,35 +90,6 @@ try {
             $assignedStaffJson,
             $data['capacity'] ?? 1,
             $data['is_active'] ?? 1
-        ]);
-        
-        // Get reservations module_id (UUID from system_modules)
-        $moduleStmt = $db->prepare("SELECT id FROM system_modules WHERE module_key = 'reservations' LIMIT 1");
-        $moduleStmt->execute();
-        $reservationsModuleId = $moduleStmt->fetchColumn();
-        
-        if (!$reservationsModuleId) {
-            throw new Exception("Reservations module not found in system_modules");
-        }
-        
-        // Auto-generate output_products entry for compatibility
-        $stmt = $db->prepare("
-            INSERT INTO output_products (
-                id, company_id, module_id, product_type, product_id, name, description, price,
-                is_visible, is_public, is_marketplace_featured,
-                created_at, created_by
-            ) VALUES (?, ?, ?, 'service', ?, ?, ?, ?, 1, 1, 0, NOW(), ?)
-        ");
-        
-        $stmt->execute([
-            $outputProductId,
-            $_SESSION['company_id'],
-            $reservationsModuleId,
-            $serviceId,
-            $data['service_name'],
-            $data['description'] ?? null,
-            $data['price'] ?? 0,
-            $_SESSION['tenant_admin_id']
         ]);
         
         $db->commit();
