@@ -39,10 +39,23 @@ try {
     
     $db->beginTransaction();
     
-    // Get product details
-    $stmt = $db->prepare("SELECT name, stock_quantity FROM sales_products WHERE id = ? AND company_id = ?");
-    $stmt->execute([$productId, $company_id]);
-    $product = $stmt->fetch(PDO::FETCH_ASSOC);
+    // Get product details (try with stock first, fallback if column doesn't exist)
+    $product = null;
+    $hasStockTracking = true;
+    try {
+        $stmt = $db->prepare("SELECT name, stock_quantity FROM sales_products WHERE id = ? AND company_id = ?");
+        $stmt->execute([$productId, $company_id]);
+        $product = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'Unknown column') !== false || strpos($e->getMessage(), 'Column not found') !== false) {
+            $hasStockTracking = false;
+            $stmt = $db->prepare("SELECT name FROM sales_products WHERE id = ? AND company_id = ?");
+            $stmt->execute([$productId, $company_id]);
+            $product = $stmt->fetch(PDO::FETCH_ASSOC);
+        } else {
+            throw $e;
+        }
+    }
     
     if (!$product) {
         $db->rollBack();
@@ -54,19 +67,29 @@ try {
     $transactionId = bin2hex(random_bytes(16));
     $orderId = 'PUR-' . date('Ymd') . '-' . strtoupper(substr($transactionId, 0, 6));
     
-    // Increase stock quantity (initialize to 0 if NULL)
-    $updateStockStmt = $db->prepare("
-        UPDATE sales_products 
-        SET stock_quantity = COALESCE(stock_quantity, 0) + ? 
-        WHERE id = ?
-    ");
-    $updateStockStmt->execute([$quantity, $productId]);
-    
-    // Fetch updated stock
-    $newStockStmt = $db->prepare("SELECT stock_quantity FROM sales_products WHERE id = ?");
-    $newStockStmt->execute([$productId]);
-    $updatedProduct = $newStockStmt->fetch(PDO::FETCH_ASSOC);
-    $newStock = $updatedProduct['stock_quantity'] ?? null;
+    // Increase stock quantity only if stock tracking exists
+    $newStock = null;
+    if ($hasStockTracking) {
+        try {
+            $updateStockStmt = $db->prepare("
+                UPDATE sales_products 
+                SET stock_quantity = COALESCE(stock_quantity, 0) + ? 
+                WHERE id = ?
+            ");
+            $updateStockStmt->execute([$quantity, $productId]);
+            
+            // Fetch updated stock
+            $newStockStmt = $db->prepare("SELECT stock_quantity FROM sales_products WHERE id = ?");
+            $newStockStmt->execute([$productId]);
+            $updatedProduct = $newStockStmt->fetch(PDO::FETCH_ASSOC);
+            $newStock = $updatedProduct['stock_quantity'] ?? null;
+        } catch (PDOException $e) {
+            // Ignore stock update errors if column doesn't exist
+            if (strpos($e->getMessage(), 'Unknown column') === false && strpos($e->getMessage(), 'Column not found') === false) {
+                throw $e;
+            }
+        }
+    }
     
     // Log to unified_ledger as expense
     $ledgerService = new UnifiedLedgerService($db, $company_id);

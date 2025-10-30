@@ -65,29 +65,40 @@ try {
     // Also log to unified_ledger for centralized economy tracking
     $ledgerService = new UnifiedLedgerService($db, $company_id);
     
-    // First, check stock availability for all items
+    // First, check stock availability for all items (if stock tracking exists)
+    $hasStockTracking = true;
     foreach ($items as $item) {
         if ($item['product_id']) {
-            $stockCheckStmt = $db->prepare("
-                SELECT stock_quantity, name 
-                FROM sales_products 
-                WHERE id = ? AND company_id = ?
-                FOR UPDATE
-            ");
-            $stockCheckStmt->execute([$item['product_id'], $company_id]);
-            $stockInfo = $stockCheckStmt->fetch(PDO::FETCH_ASSOC);
-            
-            if ($stockInfo && $stockInfo['stock_quantity'] !== null) {
-                $availableStock = (int)$stockInfo['stock_quantity'];
-                $requestedQty = (int)$item['quantity'];
+            try {
+                $stockCheckStmt = $db->prepare("
+                    SELECT stock_quantity, name 
+                    FROM sales_products 
+                    WHERE id = ? AND company_id = ?
+                    FOR UPDATE
+                ");
+                $stockCheckStmt->execute([$item['product_id'], $company_id]);
+                $stockInfo = $stockCheckStmt->fetch(PDO::FETCH_ASSOC);
                 
-                if ($availableStock < $requestedQty) {
-                    $db->rollBack();
-                    echo json_encode([
-                        'success' => false,
-                        'message' => "Ikke nok på lager for '{$stockInfo['name']}'. Tilgjengelig: {$availableStock}, ønsket: {$requestedQty}"
-                    ]);
-                    exit;
+                if ($stockInfo && $stockInfo['stock_quantity'] !== null) {
+                    $availableStock = (int)$stockInfo['stock_quantity'];
+                    $requestedQty = (int)$item['quantity'];
+                    
+                    if ($availableStock < $requestedQty) {
+                        $db->rollBack();
+                        echo json_encode([
+                            'success' => false,
+                            'message' => "Ikke nok på lager for '{$stockInfo['name']}'. Tilgjengelig: {$availableStock}, ønsket: {$requestedQty}"
+                        ]);
+                        exit;
+                    }
+                }
+            } catch (PDOException $e) {
+                // If stock_quantity column doesn't exist, skip stock validation
+                if (strpos($e->getMessage(), 'Unknown column') !== false || strpos($e->getMessage(), 'Column not found') !== false) {
+                    $hasStockTracking = false;
+                    break;
+                } else {
+                    throw $e;
                 }
             }
         }
@@ -129,23 +140,37 @@ try {
         
         $itemTransactionId = $db->lastInsertId();
         
-        // Get cost_price for profit tracking and reduce stock
+        // Get cost_price for profit tracking and reduce stock (if tracking exists)
         $costPrice = null;
         if ($item['product_id']) {
-            $costStmt = $db->prepare("SELECT cost_price, stock_quantity FROM sales_products WHERE id = ?");
-            $costStmt->execute([$item['product_id']]);
-            $costResult = $costStmt->fetch(PDO::FETCH_ASSOC);
-            if ($costResult) {
-                $costPrice = $costResult['cost_price'] ? ($costResult['cost_price'] * $item['quantity']) : null;
-                
-                // Reduce stock quantity (already validated above)
-                if ($costResult['stock_quantity'] !== null) {
-                    $updateStockStmt = $db->prepare("
-                        UPDATE sales_products 
-                        SET stock_quantity = stock_quantity - ? 
-                        WHERE id = ?
-                    ");
-                    $updateStockStmt->execute([$item['quantity'], $item['product_id']]);
+            try {
+                $costStmt = $db->prepare("SELECT cost_price, stock_quantity FROM sales_products WHERE id = ?");
+                $costStmt->execute([$item['product_id']]);
+                $costResult = $costStmt->fetch(PDO::FETCH_ASSOC);
+                if ($costResult) {
+                    $costPrice = $costResult['cost_price'] ? ($costResult['cost_price'] * $item['quantity']) : null;
+                    
+                    // Reduce stock quantity (already validated above, only if tracking exists)
+                    if ($hasStockTracking && $costResult['stock_quantity'] !== null) {
+                        $updateStockStmt = $db->prepare("
+                            UPDATE sales_products 
+                            SET stock_quantity = stock_quantity - ? 
+                            WHERE id = ?
+                        ");
+                        $updateStockStmt->execute([$item['quantity'], $item['product_id']]);
+                    }
+                }
+            } catch (PDOException $e) {
+                // If stock_quantity column doesn't exist, just get cost_price
+                if (strpos($e->getMessage(), 'Unknown column') !== false || strpos($e->getMessage(), 'Column not found') !== false) {
+                    $costStmt = $db->prepare("SELECT cost_price FROM sales_products WHERE id = ?");
+                    $costStmt->execute([$item['product_id']]);
+                    $costResult = $costStmt->fetch(PDO::FETCH_ASSOC);
+                    if ($costResult) {
+                        $costPrice = $costResult['cost_price'] ? ($costResult['cost_price'] * $item['quantity']) : null;
+                    }
+                } else {
+                    throw $e;
                 }
             }
         }
