@@ -28,8 +28,8 @@ try {
         // PostgreSQL: Use JSONB operators
         $jsonEventCheck = "metadata::jsonb->>'event_id' = ?";
     } else {
-        // MySQL: Use JSON_EXTRACT
-        $jsonEventCheck = "JSON_EXTRACT(metadata, '$.event_id') = ?";
+        // MySQL: Use JSON_UNQUOTE to remove quotes from JSON string
+        $jsonEventCheck = "JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.event_id')) = ?";
     }
     
     // Get all income from unified_ledger for this event
