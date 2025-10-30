@@ -85,9 +85,10 @@ function getLatestNews($limit = 5) {
         return [];
     }
     $limit = (int)$limit;
+    $publishedValue = dbBool(true);
     $stmt = $db->prepare("
         SELECT * FROM core_sys_news 
-        WHERE is_published = 1 
+        WHERE is_published = $publishedValue 
         AND (expire_at IS NULL OR expire_at > NOW())
         AND publish_at <= NOW()
         ORDER BY publish_at DESC 

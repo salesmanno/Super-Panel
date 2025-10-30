@@ -11,59 +11,42 @@ function getDBConnection() {
     static $dbType = null;
     
     if ($conn === null) {
-        // Try MySQL first (production)
+        // Use PostgreSQL directly (faster for development)
         try {
-            $dsn = "mysql:host=" . DB_HOST . ";port=3306;dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
+            // Check /tmp/replitdb first (for deployed apps), then environment variable
+            $pgUrl = null;
+            if (file_exists('/tmp/replitdb')) {
+                $pgUrl = trim(file_get_contents('/tmp/replitdb'));
+            }
+            if (!$pgUrl) {
+                $pgUrl = getenv('DATABASE_URL');
+            }
+            if (!$pgUrl) {
+                throw new Exception("No PostgreSQL connection available");
+            }
+            
+            // Parse PostgreSQL URL to PDO DSN format
+            $parts = parse_url($pgUrl);
+            $pgHost = $parts['host'] ?? 'localhost';
+            $pgPort = $parts['port'] ?? 5432;
+            $pgDb = ltrim($parts['path'] ?? '', '/');
+            $pgUser = $parts['user'] ?? '';
+            $pgPass = $parts['pass'] ?? '';
+            
+            $pgDsn = "pgsql:host={$pgHost};port={$pgPort};dbname={$pgDb};sslmode=require";
+            
             $options = [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
-                PDO::ATTR_TIMEOUT => 5,
-                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
             ];
             
-            $conn = new PDO($dsn, DB_USER, DB_PASS, $options);
-            $dbType = 'mysql';
+            $conn = new PDO($pgDsn, $pgUser, $pgPass, $options);
+            $dbType = 'postgresql';
+            error_log("Using PostgreSQL connection");
         } catch (PDOException $e) {
-            error_log("MySQL connection failed: " . $e->getMessage());
-            
-            // Fallback to PostgreSQL (development/backup)
-            try {
-                // Check /tmp/replitdb first (for deployed apps), then environment variable
-                $pgUrl = null;
-                if (file_exists('/tmp/replitdb')) {
-                    $pgUrl = trim(file_get_contents('/tmp/replitdb'));
-                }
-                if (!$pgUrl) {
-                    $pgUrl = getenv('DATABASE_URL');
-                }
-                if (!$pgUrl) {
-                    throw new Exception("No PostgreSQL connection available");
-                }
-                
-                // Parse PostgreSQL URL to PDO DSN format
-                $parts = parse_url($pgUrl);
-                $pgHost = $parts['host'] ?? 'localhost';
-                $pgPort = $parts['port'] ?? 5432;
-                $pgDb = ltrim($parts['path'] ?? '', '/');
-                $pgUser = $parts['user'] ?? '';
-                $pgPass = $parts['pass'] ?? '';
-                
-                $pgDsn = "pgsql:host={$pgHost};port={$pgPort};dbname={$pgDb};sslmode=require";
-                
-                $options = [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false,
-                ];
-                
-                $conn = new PDO($pgDsn, $pgUser, $pgPass, $options);
-                $dbType = 'postgresql';
-                error_log("Using PostgreSQL fallback connection");
-            } catch (PDOException $pgE) {
-                error_log("PostgreSQL connection also failed: " . $pgE->getMessage());
-                throw new Exception("Database connection failed");
-            }
+            error_log("PostgreSQL connection failed: " . $e->getMessage());
+            throw new Exception("Database connection failed");
         }
     }
     
