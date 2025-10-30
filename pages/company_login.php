@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/../config/paths.php';
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -396,7 +398,7 @@ if (isset($_GET['message'])) {
     <div class="login-container">
         <div class="login-section">
             <div class="login-header">
-                <img src="/attached_assets/salesman-removebg-preview_1761762992662.png" alt="Salesman.no Logo">
+                <img src="<?= asset('attached_assets/salesman-removebg-preview_1761762992662.png') ?>" alt="Salesman.no Logo">
                 <h1>SuperUser Portal</h1>
                 <p>Bedriftsportal - Logg inn</p>
             </div>
