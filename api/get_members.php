@@ -39,11 +39,14 @@ try {
         $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
     } catch (PDOException $e) {
-        // If x_membership_plan doesn't exist, try MySQL table name (membership_plans)
-        if (strpos($e->getMessage(), 'doesn\'t exist') !== false || strpos($e->getMessage(), 'does not exist') !== false) {
+        // If x_membership_plan doesn't exist or column names differ, try MySQL fallback
+        if (strpos($e->getMessage(), 'doesn\'t exist') !== false || 
+            strpos($e->getMessage(), 'does not exist') !== false ||
+            strpos($e->getMessage(), 'Unknown column') !== false ||
+            strpos($e->getMessage(), 'Column not found') !== false) {
             $stmt = $db->prepare("
                 SELECT 
-                    m.member_id,
+                    m.id as member_id,
                     m.first_name,
                     m.last_name,
                     m.email,
