@@ -20,9 +20,21 @@ try {
     $db = getDBConnection();
     $company_id = $_SESSION['company_id'];
     
+    // Get database type for JSON querying
+    $dbType = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
+    
+    // Build JSON query based on database type
+    if ($dbType === 'pgsql') {
+        // PostgreSQL: Use JSONB operators
+        $jsonEventCheck = "metadata::jsonb->>'event_id' = ?";
+    } else {
+        // MySQL: Use JSON_EXTRACT
+        $jsonEventCheck = "JSON_EXTRACT(metadata, '$.event_id') = ?";
+    }
+    
     // Get all income from unified_ledger for this event
     // Income = positive selling_price values where metadata contains event_id
-    $incomeStmt = $db->prepare("
+    $incomeQuery = "
         SELECT 
             id,
             item_name,
@@ -35,17 +47,18 @@ try {
         AND status = 'active'
         AND selling_price > 0
         AND (
-            JSON_EXTRACT(metadata, '$.event_id') = ?
-            OR module_source = 'events' AND source_id = ?
+            $jsonEventCheck
+            OR (module_source = 'events' AND source_id = ?)
         )
         ORDER BY transaction_date DESC
-    ");
+    ";
+    $incomeStmt = $db->prepare($incomeQuery);
     $incomeStmt->execute([$company_id, $event_id, $event_id]);
     $income = $incomeStmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Get all expenses for this event
     // Expenses = negative selling_price values where metadata contains event_id
-    $expenseStmt = $db->prepare("
+    $expenseQuery = "
         SELECT 
             id,
             item_name,
@@ -57,9 +70,10 @@ try {
         WHERE company_id = ? 
         AND status = 'active'
         AND selling_price < 0
-        AND JSON_EXTRACT(metadata, '$.event_id') = ?
+        AND $jsonEventCheck
         ORDER BY transaction_date DESC
-    ");
+    ";
+    $expenseStmt = $db->prepare($expenseQuery);
     $expenseStmt->execute([$company_id, $event_id]);
     $expenses = $expenseStmt->fetchAll(PDO::FETCH_ASSOC);
     

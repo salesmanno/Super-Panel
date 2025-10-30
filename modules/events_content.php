@@ -1084,7 +1084,7 @@ let selectedEventId = null;
 // Load events into check-in selector
 async function loadCheckinEventSelector() {
     try {
-        const response = await fetch('../api/get_events.php');
+        const response = await fetch('/api/get_events.php');
         const result = await response.json();
         
         const selector = document.getElementById('checkin-event-selector');
@@ -1146,6 +1146,7 @@ document.getElementById('checkin-event-selector')?.addEventListener('change', as
         document.getElementById('checkin-stats').style.display = 'block';
         document.getElementById('checkin-form-container').style.display = 'block';
         document.getElementById('checkin-list-container').style.display = 'block';
+        document.getElementById('checkin-empty-state').style.display = 'none';
         
         await loadEventRegistrationFields(selectedEventId);
         loadCheckins(selectedEventId);
@@ -1316,7 +1317,7 @@ document.getElementById('checkin-form')?.addEventListener('submit', async functi
 // Load check-ins for selected event
 async function loadCheckins(eventId) {
     try {
-        const response = await fetch(`../api/get_event_checkins.php?event_id=${eventId}`);
+        const response = await fetch(`/api/get_event_checkins.php?event_id=${eventId}`);
         const result = await response.json();
         
         if (result.success) {
@@ -1332,7 +1333,7 @@ async function loadCheckins(eventId) {
                 list.innerHTML = result.checkins.map(checkin => {
                     const name = checkin.attendee_name || (checkin.first_name + ' ' + checkin.last_name);
                     const contact = checkin.attendee_email || checkin.attendee_phone || '-';
-                    const checkinTime = checkin.check_in_time ? new Date(checkin.check_in_time).toLocaleString('no-NO') : '-';
+                    const checkinTime = checkin.check_in_time ? new Date(checkin.check_in_time).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) : '-';
                     
                     const paymentBadge = checkin.payment_status === 'paid' 
                         ? '<span class="badge bg-success">Betalt</span>' 
@@ -1340,12 +1341,12 @@ async function loadCheckins(eventId) {
                     
                     return `
                         <tr>
-                            <td><strong>${name}</strong></td>
-                            <td>${contact}</td>
-                            <td>${checkin.ticket_type}</td>
+                            <td>${name}</td>
+                            <td><small>${contact}</small></td>
+                            <td><small>${checkin.ticket_type}</small></td>
                             <td>${checkin.ticket_price} kr</td>
                             <td>${paymentBadge}</td>
-                            <td><small>${checkinTime}</small></td>
+                            <td><small class="text-muted">${checkinTime}</small></td>
                         </tr>
                     `;
                 }).join('');
