@@ -1579,7 +1579,7 @@ function updateEventSummary(eventId) {
 async function editEvent(eventId) {
     try {
         // Fetch event details
-        const response = await fetch(`../api/get_events.php`);
+        const response = await fetch(`/api/get_events.php`);
         const result = await response.json();
         
         if (!result.success) {
@@ -1629,7 +1629,7 @@ async function editEvent(eventId) {
         }
         
         // Fetch and set registration fields
-        const fieldsResponse = await fetch(`../api/get_event_registration_fields.php?event_id=${eventId}`);
+        const fieldsResponse = await fetch(`/api/get_event_registration_fields.php?event_id=${eventId}`);
         const fieldsResult = await fieldsResponse.json();
         
         // Reset all optional field checkboxes
