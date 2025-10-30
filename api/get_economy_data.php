@@ -243,13 +243,13 @@ try {
             break;
             
         case 'by_module':
-            // Get income breakdown by module
+            // Get income and expense breakdown by module
             $stmt = $db->prepare("
                 SELECT 
                     module_source,
-                    COALESCE(SUM(selling_price), 0) as total_income,
-                    COALESCE(SUM(cost_price), 0) as total_cost,
-                    COALESCE(SUM(profit), 0) as total_profit,
+                    COALESCE(SUM(CASE WHEN selling_price > 0 THEN selling_price ELSE 0 END), 0) as total_income,
+                    COALESCE(SUM(CASE WHEN selling_price < 0 THEN ABS(selling_price) ELSE 0 END), 0) as total_expenses,
+                    COALESCE(SUM(selling_price), 0) as total_profit,
                     COUNT(*) as transaction_count
                 FROM unified_ledger 
                 WHERE company_id = ? 
