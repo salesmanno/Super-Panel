@@ -8,6 +8,60 @@ class ProductCatalogService {
     }
     
     /**
+     * Get or create a module in system_modules
+     * @param string $moduleKey
+     * @return string module_id
+     */
+    private function getOrCreateModule($moduleKey) {
+        $stmt = $this->db->prepare("SELECT id FROM system_modules WHERE module_key = ?");
+        $stmt->execute([$moduleKey]);
+        $moduleId = $stmt->fetchColumn();
+        
+        if ($moduleId) {
+            return $moduleId;
+        }
+        
+        // Module doesn't exist - create it
+        $dbType = getDBType();
+        
+        // Module metadata
+        $moduleMetadata = [
+            'events' => ['name' => 'Arrangementer', 'description' => 'Arrangementsmodul', 'icon' => 'calendar-event'],
+            'sales' => ['name' => 'Salg', 'description' => 'Salgsmodul', 'icon' => 'cart'],
+            'rental' => ['name' => 'Utleie', 'description' => 'Utleiemodul', 'icon' => 'key'],
+            'membership' => ['name' => 'Medlemskap', 'description' => 'Medlemskapsmodul', 'icon' => 'people'],
+            'reservations' => ['name' => 'Reservasjoner', 'description' => 'Reservasjonssystem', 'icon' => 'calendar-check']
+        ];
+        
+        $meta = $moduleMetadata[$moduleKey] ?? ['name' => ucfirst($moduleKey), 'description' => ucfirst($moduleKey), 'icon' => 'circle'];
+        
+        if ($dbType === 'mysql') {
+            $insertStmt = $this->db->prepare("
+                INSERT INTO system_modules (id, module_key, name, description, icon, is_active, created_at) 
+                VALUES (UUID(), ?, ?, ?, ?, 1, NOW())
+            ");
+        } else {
+            $insertStmt = $this->db->prepare("
+                INSERT INTO system_modules (module_key, name, description, icon, is_active, created_at) 
+                VALUES (?, ?, ?, ?, true, NOW())
+                RETURNING id
+            ");
+        }
+        
+        $insertStmt->execute([$moduleKey, $meta['name'], $meta['description'], $meta['icon']]);
+        
+        // Fetch the newly created module ID
+        $stmt->execute([$moduleKey]);
+        $moduleId = $stmt->fetchColumn();
+        
+        if (!$moduleId) {
+            throw new Exception("Failed to create module '$moduleKey'");
+        }
+        
+        return $moduleId;
+    }
+    
+    /**
      * Auto-generate output_products entry for any product
      * 
      * @param string $companyId
@@ -19,14 +73,8 @@ class ProductCatalogService {
      */
     public function createProductEntry($companyId, $moduleKey, $productId, $options = [], $createdBy = null) {
         try {
-            // Get module_id from system_modules
-            $stmt = $this->db->prepare("SELECT id FROM system_modules WHERE module_key = ?");
-            $stmt->execute([$moduleKey]);
-            $moduleId = $stmt->fetchColumn();
-            
-            if (!$moduleId) {
-                throw new Exception("Module '$moduleKey' not found");
-            }
+            // Get or create module
+            $moduleId = $this->getOrCreateModule($moduleKey);
             
             // Map module_key to product_type (CLEAN: updated mapping)
             $productTypeMap = [

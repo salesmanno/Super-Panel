@@ -36,13 +36,39 @@ if (empty($name) || $selling_price <= 0) {
 try {
     $db->beginTransaction();
     
-    // Get module_id for sales module
+    // Get module_id for sales module, create if missing
     $stmt = $db->prepare("SELECT id FROM system_modules WHERE module_key = 'sales' LIMIT 1");
     $stmt->execute();
     $salesModule = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$salesModule) {
-        throw new Exception('Sales module not found in system_modules');
+        // Module doesn't exist - create it
+        $dbType = getDBType();
+        
+        if ($dbType === 'mysql') {
+            // MySQL uses UUID
+            $insertModuleStmt = $db->prepare("
+                INSERT INTO system_modules (id, module_key, name, description, icon, is_active, created_at) 
+                VALUES (UUID(), 'sales', 'Salg', 'Salgsmodul', 'cart', 1, NOW())
+            ");
+        } else {
+            // PostgreSQL uses auto-increment
+            $insertModuleStmt = $db->prepare("
+                INSERT INTO system_modules (module_key, name, description, icon, is_active, created_at) 
+                VALUES ('sales', 'Salg', 'Salgsmodul', 'cart', true, NOW())
+                RETURNING id
+            ");
+        }
+        
+        $insertModuleStmt->execute();
+        
+        // Fetch the newly created module ID
+        $stmt->execute();
+        $salesModule = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$salesModule) {
+            throw new Exception('Failed to create sales module');
+        }
     }
     
     $module_id = $salesModule['id'];
