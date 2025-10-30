@@ -33,14 +33,34 @@ try {
     
     $db->beginTransaction();
     
-    // Get current product and stock
-    $stmt = $db->prepare("SELECT name, stock_quantity FROM sales_products WHERE id = ? AND company_id = ?");
-    $stmt->execute([$productId, $company_id]);
-    $product = $stmt->fetch(PDO::FETCH_ASSOC);
+    // Get current product and stock (with schema compatibility check)
+    $product = null;
+    $hasStockTracking = true;
+    try {
+        $stmt = $db->prepare("SELECT name, stock_quantity FROM sales_products WHERE id = ? AND company_id = ?");
+        $stmt->execute([$productId, $company_id]);
+        $product = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'Unknown column') !== false || strpos($e->getMessage(), 'Column not found') !== false) {
+            $hasStockTracking = false;
+            $stmt = $db->prepare("SELECT name FROM sales_products WHERE id = ? AND company_id = ?");
+            $stmt->execute([$productId, $company_id]);
+            $product = $stmt->fetch(PDO::FETCH_ASSOC);
+        } else {
+            throw $e;
+        }
+    }
     
     if (!$product) {
         $db->rollBack();
         echo json_encode(['success' => false, 'message' => 'Produkt ikke funnet']);
+        exit;
+    }
+    
+    // Check if stock tracking is available
+    if (!$hasStockTracking) {
+        $db->rollBack();
+        echo json_encode(['success' => false, 'message' => 'Lagerstyring er ikke aktivert for dette produktet']);
         exit;
     }
     
@@ -60,9 +80,15 @@ try {
         }
     }
     
-    // Update stock
-    $updateStmt = $db->prepare("UPDATE sales_products SET stock_quantity = ? WHERE id = ?");
-    $updateStmt->execute([$newStock, $productId]);
+    // Update stock (with schema compatibility)
+    try {
+        $updateStmt = $db->prepare("UPDATE sales_products SET stock_quantity = ? WHERE id = ?");
+        $updateStmt->execute([$newStock, $productId]);
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'Unknown column') === false && strpos($e->getMessage(), 'Column not found') === false) {
+            throw $e;
+        }
+    }
     
     $db->commit();
     
