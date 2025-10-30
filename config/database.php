@@ -8,22 +8,45 @@ define('DB_CHARSET', 'utf8mb4');
 
 function getDBConnection() {
     static $conn = null;
+    static $dbType = null;
     
     if ($conn === null) {
+        // Try MySQL first (production)
         try {
             $dsn = "mysql:host=" . DB_HOST . ";port=3306;dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
             $options = [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
-                PDO::ATTR_TIMEOUT => 10,
+                PDO::ATTR_TIMEOUT => 5,
                 PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
             ];
             
             $conn = new PDO($dsn, DB_USER, DB_PASS, $options);
+            $dbType = 'mysql';
         } catch (PDOException $e) {
             error_log("MySQL connection failed: " . $e->getMessage());
-            throw new Exception("Database connection failed");
+            
+            // Fallback to PostgreSQL (development/backup)
+            try {
+                $pgDsn = getenv('DATABASE_URL');
+                if (!$pgDsn) {
+                    throw new Exception("No PostgreSQL connection available");
+                }
+                
+                $options = [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                ];
+                
+                $conn = new PDO($pgDsn, null, null, $options);
+                $dbType = 'postgresql';
+                error_log("Using PostgreSQL fallback connection");
+            } catch (PDOException $pgE) {
+                error_log("PostgreSQL connection also failed: " . $pgE->getMessage());
+                throw new Exception("Database connection failed");
+            }
         }
     }
     
@@ -31,7 +54,21 @@ function getDBConnection() {
 }
 
 function getDBType() {
-    return 'mysql';
+    static $dbType = null;
+    
+    if ($dbType === null) {
+        // Trigger connection to set dbType
+        getDBConnection();
+    }
+    
+    // Check actual connection driver
+    try {
+        $conn = getDBConnection();
+        $driver = $conn->getAttribute(PDO::ATTR_DRIVER_NAME);
+        return $driver === 'pgsql' ? 'postgresql' : 'mysql';
+    } catch (Exception $e) {
+        return 'mysql'; // Default
+    }
 }
 
 function dbBool($value) {
