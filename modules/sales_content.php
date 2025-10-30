@@ -170,19 +170,33 @@
                                 <strong><span id="cart-total">0</span> NOK</strong>
                             </div>
                             
+                            <!-- Quick Cash Buttons -->
                             <div class="mb-3">
-                                <label class="form-label small">Kundenavn (valgfritt)</label>
-                                <input type="text" class="form-control form-control-sm" id="checkout-customer-name">
+                                <label class="form-label small">Kontant betaling</label>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPayment(50)" style="position: relative; overflow: hidden;">
+                                        <span style="font-size: 1.2em;">💵</span><br><small>50</small>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPayment(100)" style="position: relative; overflow: hidden;">
+                                        <span style="font-size: 1.2em;">💵</span><br><small>100</small>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPayment(200)" style="position: relative; overflow: hidden;">
+                                        <span style="font-size: 1.2em;">💵</span><br><small>200</small>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPayment(500)" style="position: relative; overflow: hidden;">
+                                        <span style="font-size: 1.3em;">💶</span><br><small>500</small>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPayment(1000)" style="position: relative; overflow: hidden;">
+                                        <span style="font-size: 1.4em;">💷</span><br><small>1000</small>
+                                    </button>
+                                </div>
                             </div>
                             
-                            <div class="mb-3">
-                                <label class="form-label small">E-post</label>
-                                <input type="email" class="form-control form-control-sm" id="checkout-customer-email">
-                                <div class="form-check mt-2">
-                                    <input class="form-check-input" type="checkbox" id="send-receipt-checkbox">
-                                    <label class="form-check-label small" for="send-receipt-checkbox">
-                                        Send kvittering til e-post
-                                    </label>
+                            <!-- Payment Status Display -->
+                            <div id="payment-status" class="alert alert-info mb-3" style="display: none;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span id="payment-status-text"></span>
+                                    <button type="button" class="btn-close btn-close-sm" onclick="resetPayment()"></button>
                                 </div>
                             </div>
                             
@@ -194,13 +208,6 @@
                                     <option value="on_arrival">Oppmøte</option>
                                     <option value="sponsored">Spons</option>
                                 </select>
-                            </div>
-                            
-                            <!-- Cash payment calculator -->
-                            <div class="mb-3" id="cash-payment-calculator" style="display: none;">
-                                <label class="form-label small">Mottatt beløp</label>
-                                <input type="number" class="form-control form-control-sm" id="cash-received" placeholder="0.00" step="0.01" min="0">
-                                <div id="cash-change-display" class="mt-2"></div>
                             </div>
                             
                             <div class="mb-3">
