@@ -179,12 +179,20 @@ function updateSessionActivity($sessionId) {
     if (!$db) return false;
     
     try {
+        $activeValue = dbBool(true);
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
             SET last_activity = NOW() 
-            WHERE session_id = ? AND is_active = TRUE
+            WHERE session_id = ? AND is_active = $activeValue
         ");
-        return $stmt->execute([$sessionId]);
+        $stmt->execute([$sessionId]);
+        
+        if ($stmt->rowCount() === 0) {
+            error_log("Session not found or inactive: " . $sessionId);
+            return false;
+        }
+        
+        return true;
     } catch (PDOException $e) {
         error_log("Error updating session activity: " . $e->getMessage());
         return false;
