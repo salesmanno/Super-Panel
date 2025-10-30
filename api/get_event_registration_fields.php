@@ -1,8 +1,13 @@
 <?php
-require_once '../config/db.php';
-require_once '../auth/check_auth.php';
-
+session_start();
 header('Content-Type: application/json');
+
+if (!isset($_SESSION['tenant_admin_id'])) {
+    echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
+    exit;
+}
+
+require_once __DIR__ . '/../config/database.php';
 
 // Get event_id from query parameter
 $eventId = $_GET['event_id'] ?? null;
@@ -13,8 +18,10 @@ if (!$eventId) {
 }
 
 try {
+    $db = getDBConnection();
+    
     // Fetch registration fields for the event
-    $stmt = $pdo->prepare("
+    $stmt = $db->prepare("
         SELECT 
             field_name,
             is_required
