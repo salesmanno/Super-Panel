@@ -21,7 +21,7 @@ try {
     
     switch ($view) {
         case 'overview':
-            // Get total income
+            // Get total income (positive selling_price only)
             $stmt = $db->prepare("
                 SELECT 
                     COALESCE(SUM(selling_price), 0) as total_income,
@@ -30,27 +30,30 @@ try {
                 WHERE company_id = ? 
                   AND status = 'active'
                   AND payment_status = 'completed'
+                  AND selling_price > 0
             ");
             $stmt->execute([$company_id]);
             $income = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            // Get total cost (for profit calculation)
+            // Get total expenses (absolute value of negative selling_price)
             $stmt = $db->prepare("
-                SELECT COALESCE(SUM(cost_price), 0) as total_cost
+                SELECT COALESCE(SUM(ABS(selling_price)), 0) as total_expenses
                 FROM unified_ledger 
                 WHERE company_id = ? 
                   AND status = 'active'
                   AND payment_status = 'completed'
-                  AND cost_price IS NOT NULL
+                  AND selling_price < 0
             ");
             $stmt->execute([$company_id]);
-            $cost = $stmt->fetch(PDO::FETCH_ASSOC);
+            $expenses = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            // Get this month's income
+            // Get this month's income and expenses
             $dbType = getDBType();
             if ($dbType === 'postgresql') {
                 $monthQuery = "
-                    SELECT COALESCE(SUM(selling_price), 0) as month_income
+                    SELECT 
+                        COALESCE(SUM(CASE WHEN selling_price > 0 THEN selling_price ELSE 0 END), 0) as month_income,
+                        COALESCE(SUM(CASE WHEN selling_price < 0 THEN ABS(selling_price) ELSE 0 END), 0) as month_expenses
                     FROM unified_ledger 
                     WHERE company_id = ? 
                       AND status = 'active'
@@ -59,7 +62,9 @@ try {
                 ";
             } else {
                 $monthQuery = "
-                    SELECT COALESCE(SUM(selling_price), 0) as month_income
+                    SELECT 
+                        COALESCE(SUM(CASE WHEN selling_price > 0 THEN selling_price ELSE 0 END), 0) as month_income,
+                        COALESCE(SUM(CASE WHEN selling_price < 0 THEN ABS(selling_price) ELSE 0 END), 0) as month_expenses
                     FROM unified_ledger 
                     WHERE company_id = ? 
                       AND status = 'active'
@@ -72,10 +77,12 @@ try {
             $stmt->execute([$company_id]);
             $monthData = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            // Get this year's income
+            // Get this year's income and expenses
             if ($dbType === 'postgresql') {
                 $yearQuery = "
-                    SELECT COALESCE(SUM(selling_price), 0) as year_income
+                    SELECT 
+                        COALESCE(SUM(CASE WHEN selling_price > 0 THEN selling_price ELSE 0 END), 0) as year_income,
+                        COALESCE(SUM(CASE WHEN selling_price < 0 THEN ABS(selling_price) ELSE 0 END), 0) as year_expenses
                     FROM unified_ledger 
                     WHERE company_id = ? 
                       AND status = 'active'
@@ -84,7 +91,9 @@ try {
                 ";
             } else {
                 $yearQuery = "
-                    SELECT COALESCE(SUM(selling_price), 0) as year_income
+                    SELECT 
+                        COALESCE(SUM(CASE WHEN selling_price > 0 THEN selling_price ELSE 0 END), 0) as year_income,
+                        COALESCE(SUM(CASE WHEN selling_price < 0 THEN ABS(selling_price) ELSE 0 END), 0) as year_expenses
                     FROM unified_ledger 
                     WHERE company_id = ? 
                       AND status = 'active'
@@ -116,10 +125,12 @@ try {
             
             $response['data'] = [
                 'total_income' => floatval($income['total_income']),
-                'total_cost' => floatval($cost['total_cost']),
-                'total_profit' => floatval($income['total_income']) - floatval($cost['total_cost']),
+                'total_expenses' => floatval($expenses['total_expenses']),
+                'total_profit' => floatval($income['total_income']) - floatval($expenses['total_expenses']),
                 'month_income' => floatval($monthData['month_income']),
+                'month_expenses' => floatval($monthData['month_expenses']),
                 'year_income' => floatval($yearData['year_income']),
+                'year_expenses' => floatval($yearData['year_expenses']),
                 'transaction_count' => intval($income['transaction_count']),
                 'recent_transactions' => $recentTransactions
             ];
@@ -135,7 +146,7 @@ try {
                 $params[] = $end_date . ' 23:59:59';
             }
             
-            // Get all income transactions
+            // Get all income transactions (positive selling_price only)
             $stmt = $db->prepare("
                 SELECT 
                     transaction_date,
@@ -148,6 +159,7 @@ try {
                 WHERE company_id = ? 
                   AND status = 'active'
                   AND payment_status = 'completed'
+                  AND selling_price > 0
                   {$dateFilter}
                 ORDER BY transaction_date DESC
             ");
@@ -163,6 +175,60 @@ try {
                 WHERE company_id = ? 
                   AND status = 'active'
                   AND payment_status = 'completed'
+                  AND selling_price > 0
+                  {$dateFilter}
+            ");
+            $stmt->execute($params);
+            $stats = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            $response['data'] = [
+                'transactions' => $transactions,
+                'total' => floatval($stats['total']),
+                'average' => floatval($stats['average']),
+                'count' => count($transactions)
+            ];
+            break;
+            
+        case 'expense':
+            $dateFilter = '';
+            $params = [$company_id];
+            
+            if ($start_date && $end_date) {
+                $dateFilter = " AND transaction_date BETWEEN ? AND ?";
+                $params[] = $start_date;
+                $params[] = $end_date . ' 23:59:59';
+            }
+            
+            // Get all expense transactions (negative selling_price)
+            $stmt = $db->prepare("
+                SELECT 
+                    transaction_date,
+                    item_name,
+                    module_source as category,
+                    customer_name as supplier,
+                    ABS(selling_price) as amount,
+                    payment_method
+                FROM unified_ledger 
+                WHERE company_id = ? 
+                  AND status = 'active'
+                  AND payment_status = 'completed'
+                  AND selling_price < 0
+                  {$dateFilter}
+                ORDER BY transaction_date DESC
+            ");
+            $stmt->execute($params);
+            $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Get summary stats
+            $stmt = $db->prepare("
+                SELECT 
+                    COALESCE(SUM(ABS(selling_price)), 0) as total,
+                    COALESCE(AVG(ABS(selling_price)), 0) as average
+                FROM unified_ledger 
+                WHERE company_id = ? 
+                  AND status = 'active'
+                  AND payment_status = 'completed'
+                  AND selling_price < 0
                   {$dateFilter}
             ");
             $stmt->execute($params);

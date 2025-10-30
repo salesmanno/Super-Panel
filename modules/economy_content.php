@@ -361,12 +361,28 @@ function loadEconomyIncome(startDate = null, endDate = null) {
         .catch(error => console.error('Error loading income data:', error));
 }
 
+function loadEconomyExpense(startDate = null, endDate = null) {
+    let url = '/api/get_economy_data.php?view=expense';
+    if (startDate && endDate) {
+        url += `&start_date=${startDate}&end_date=${endDate}`;
+    }
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateExpenseData(data.data);
+            }
+        })
+        .catch(error => console.error('Error loading expense data:', error));
+}
+
 function updateOverviewData(data) {
     // Update overview cards
     document.querySelector('#economy-results .bg-success h4').textContent = 
         formatCurrency(data.total_income);
     document.querySelector('#economy-results .bg-danger h4').textContent = 
-        formatCurrency(data.total_cost);
+        formatCurrency(data.total_expenses);
     document.querySelector('#economy-results .bg-primary h4').textContent = 
         formatCurrency(data.total_profit);
     document.querySelector('#economy-results .bg-info h4').textContent = 
@@ -405,20 +421,54 @@ function updateIncomeTabData(data) {
         incomeCards[3].textContent = formatCurrency(avgPerMonth);
     }
     
+    // Update expense cards
+    const expenseCards = document.querySelectorAll('#economy-expense .card h4');
+    if (expenseCards.length >= 3) {
+        expenseCards[0].textContent = formatCurrency(data.total_expenses);
+        expenseCards[1].textContent = formatCurrency(data.month_expenses);
+        expenseCards[2].textContent = formatCurrency(data.year_expenses);
+    }
+    
     // Update income transactions table
     const tbody = document.querySelector('#economy-income tbody');
     if (data.recent_transactions && data.recent_transactions.length > 0) {
-        tbody.innerHTML = data.recent_transactions.map(tx => `
-            <tr>
-                <td>${formatDate(tx.transaction_date)}</td>
-                <td>${tx.item_name}</td>
-                <td><span class="badge bg-secondary">${translateModule(tx.module_source)}</span></td>
-                <td>${tx.customer_name || 'Walk-in'}</td>
-                <td class="text-end">${formatCurrency(tx.selling_price)}</td>
-            </tr>
-        `).join('');
+        const incomeTransactions = data.recent_transactions.filter(tx => tx.selling_price > 0);
+        if (incomeTransactions.length > 0) {
+            tbody.innerHTML = incomeTransactions.map(tx => `
+                <tr>
+                    <td>${formatDate(tx.transaction_date)}</td>
+                    <td>${tx.item_name}</td>
+                    <td><span class="badge bg-secondary">${translateModule(tx.module_source)}</span></td>
+                    <td>${tx.customer_name || 'Walk-in'}</td>
+                    <td class="text-end">${formatCurrency(tx.selling_price)}</td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Ingen inntekter registrert</td></tr>';
+        }
     } else {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Ingen inntekter registrert</td></tr>';
+    }
+    
+    // Update expense transactions table
+    const expenseTbody = document.querySelector('#economy-expense tbody');
+    if (data.recent_transactions && data.recent_transactions.length > 0) {
+        const expenseTransactions = data.recent_transactions.filter(tx => tx.selling_price < 0);
+        if (expenseTransactions.length > 0) {
+            expenseTbody.innerHTML = expenseTransactions.map(tx => `
+                <tr>
+                    <td>${formatDate(tx.transaction_date)}</td>
+                    <td>${tx.item_name}</td>
+                    <td><span class="badge bg-secondary">${translateModule(tx.module_source)}</span></td>
+                    <td>${tx.customer_name || 'Ukjent'}</td>
+                    <td class="text-end">${formatCurrency(Math.abs(tx.selling_price))}</td>
+                </tr>
+            `).join('');
+        } else {
+            expenseTbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Ingen utgifter registrert</td></tr>';
+        }
+    } else {
+        expenseTbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Ingen utgifter registrert</td></tr>';
     }
 }
 
@@ -443,6 +493,30 @@ function updateIncomeData(data) {
         `).join('');
     } else {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Ingen inntekter funnet for valgt periode</td></tr>';
+    }
+}
+
+function updateExpenseData(data) {
+    // Update expense summary cards
+    const expenseCards = document.querySelectorAll('#economy-expense .card h4');
+    if (expenseCards.length >= 1) {
+        expenseCards[0].textContent = formatCurrency(data.total);
+    }
+    
+    // Update transactions table
+    const tbody = document.querySelector('#economy-expense tbody');
+    if (data.transactions && data.transactions.length > 0) {
+        tbody.innerHTML = data.transactions.map(tx => `
+            <tr>
+                <td>${formatDate(tx.transaction_date)}</td>
+                <td>${tx.item_name}</td>
+                <td><span class="badge bg-secondary">${translateModule(tx.category)}</span></td>
+                <td>${tx.supplier || 'Ukjent'}</td>
+                <td class="text-end">${formatCurrency(tx.amount)}</td>
+            </tr>
+        `).join('');
+    } else {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Ingen utgifter funnet for valgt periode</td></tr>';
     }
 }
 
