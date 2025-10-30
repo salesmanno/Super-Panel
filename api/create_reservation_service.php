@@ -38,7 +38,7 @@ try {
         // Convert assigned staff array to JSON
         $assignedStaffJson = json_encode($data['assigned_staff']);
         
-        // Get reservations module_id (UUID from system_modules)
+        // Get reservations module_id from system_modules
         $moduleStmt = $db->prepare("SELECT id FROM system_modules WHERE module_key = 'reservations' LIMIT 1");
         $moduleStmt->execute();
         $reservationsModuleId = $moduleStmt->fetchColumn();
@@ -46,6 +46,9 @@ try {
         if (!$reservationsModuleId) {
             throw new Exception("Reservations module not found in system_modules");
         }
+        
+        // Cast module_id to string for VARCHAR compatibility (handles both UUID and INTEGER)
+        $moduleIdStr = (string)$reservationsModuleId;
         
         // FIRST: Insert into output_products (parent table)
         $stmt = $db->prepare("
@@ -59,7 +62,7 @@ try {
         $stmt->execute([
             $outputProductId,
             $_SESSION['company_id'],
-            $reservationsModuleId,
+            $moduleIdStr,
             $serviceId,
             $data['service_name'],
             $data['description'] ?? null,
