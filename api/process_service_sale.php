@@ -182,35 +182,36 @@ try {
                 $event_notes
             ]);
             
-            // Log to unified_ledger when payment is completed
-            if ($event_payment_status === 'paid') {
-                // Get event cost_price
-                $costStmt = $db->prepare("SELECT cost_price FROM events_eventdata WHERE id = ?");
-                $costStmt->execute([$product_id]);
-                $costResult = $costStmt->fetch(PDO::FETCH_ASSOC);
-                $costPrice = ($costResult && $costResult['cost_price']) ? ($costResult['cost_price'] * $quantity) : null;
-                
-                $ledgerService->logTransaction([
-                    'order_id' => $orderId,
-                    'module_source' => 'events',
-                    'item_type' => 'event',
-                    'source_id' => $checkin_id,
-                    'item_name' => $service['service_name'],
-                    'quantity' => $quantity,
-                    'selling_price' => $total,
-                    'cost_price' => $costPrice,
-                    'customer_name' => $customer_full_name,
-                    'customer_email' => $customer_email,
-                    'payment_method' => $payment_method,
-                    'payment_status' => 'completed',
-                    'status' => 'active',
-                    'transaction_date' => date('Y-m-d H:i:s'),
-                    'metadata' => [
-                        'event_id' => $product_id,
-                        'is_member_price' => $is_member_price
-                    ]
-                ]);
-            }
+            // Log to unified_ledger (always, even for pending payments)
+            // Get event cost_price
+            $costStmt = $db->prepare("SELECT cost_price FROM events_eventdata WHERE id = ?");
+            $costStmt->execute([$product_id]);
+            $costResult = $costStmt->fetch(PDO::FETCH_ASSOC);
+            $costPrice = ($costResult && $costResult['cost_price']) ? ($costResult['cost_price'] * $quantity) : null;
+            
+            // Set ledger payment_status based on payment_method
+            $ledger_payment_status = ($payment_method === 'on_arrival') ? 'pending' : 'completed';
+            
+            $ledgerService->logTransaction([
+                'order_id' => $orderId,
+                'module_source' => 'events',
+                'item_type' => 'event',
+                'source_id' => $checkin_id,
+                'item_name' => $service['service_name'],
+                'quantity' => $quantity,
+                'selling_price' => $total,
+                'cost_price' => $costPrice,
+                'customer_name' => $customer_full_name,
+                'customer_email' => $customer_email,
+                'payment_method' => $payment_method,
+                'payment_status' => $ledger_payment_status,
+                'status' => 'active',
+                'transaction_date' => date('Y-m-d H:i:s'),
+                'metadata' => [
+                    'event_id' => $product_id,
+                    'is_member_price' => $is_member_price
+                ]
+            ]);
             break;
             
         case 'membership':
@@ -309,6 +310,9 @@ try {
             // x_membership_plan doesn't have cost_price field
             $costPrice = null;
             
+            // Set ledger payment_status based on payment_method
+            $ledger_payment_status = ($payment_method === 'on_arrival') ? 'pending' : 'completed';
+            
             $ledgerService->logTransaction([
                 'order_id' => $orderId,
                 'module_source' => 'membership',
@@ -321,7 +325,7 @@ try {
                 'customer_name' => $customer_full_name,
                 'customer_email' => $customer_email,
                 'payment_method' => $payment_method,
-                'payment_status' => 'completed',
+                'payment_status' => $ledger_payment_status,
                 'status' => 'active',
                 'transaction_date' => date('Y-m-d H:i:s'),
                 'metadata' => [
@@ -363,6 +367,9 @@ try {
             $costResult = $costStmt->fetch(PDO::FETCH_ASSOC);
             $costPrice = ($costResult && $costResult['cost_price']) ? ($costResult['cost_price'] * $quantity) : null;
             
+            // Set ledger payment_status based on payment_method
+            $ledger_payment_status = ($payment_method === 'on_arrival') ? 'pending' : 'completed';
+            
             $ledgerService->logTransaction([
                 'order_id' => $orderId,
                 'module_source' => 'rental',
@@ -375,7 +382,7 @@ try {
                 'customer_name' => $customer_full_name,
                 'customer_email' => $customer_email,
                 'payment_method' => $payment_method,
-                'payment_status' => 'completed',
+                'payment_status' => $ledger_payment_status,
                 'status' => 'active',
                 'transaction_date' => date('Y-m-d H:i:s'),
                 'metadata' => [
