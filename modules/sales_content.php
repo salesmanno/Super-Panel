@@ -1431,6 +1431,68 @@ function resetPayment() {
     paymentMethodSelect.disabled = false;
 }
 
+// Fullscreen cash payment tracking
+let cashReceivedFullscreen = 0;
+let cartTotalFullscreen = 0;
+
+function applyCashPaymentFullscreen(amount) {
+    const totalElement = document.getElementById('cart-total-fullscreen');
+    cartTotalFullscreen = parseFloat(totalElement.textContent) || 0;
+    
+    if (cartTotalFullscreen === 0) {
+        alert('❌ Handlekurven er tom');
+        return;
+    }
+    
+    cashReceivedFullscreen += amount;
+    
+    const remaining = cartTotalFullscreen - cashReceivedFullscreen;
+    const paymentStatus = document.getElementById('payment-status-fullscreen');
+    const paymentStatusText = document.getElementById('payment-status-text-fullscreen');
+    const paymentMethodSelect = document.getElementById('checkout-payment-method-fullscreen');
+    
+    paymentStatus.style.display = 'block';
+    
+    if (remaining > 0) {
+        // Still need more money
+        paymentStatus.className = 'alert alert-warning mb-3';
+        paymentStatusText.innerHTML = `
+            <div><strong>Mottatt:</strong> ${cashReceivedFullscreen.toFixed(2)} NOK 💵</div>
+            <div class="text-danger"><strong>Restbeløp:</strong> ${remaining.toFixed(2)} NOK</div>
+            <small class="text-muted">Velg Kontant eller Vipps for resterende beløp</small>
+        `;
+        paymentMethodSelect.disabled = false;
+    } else if (remaining < 0) {
+        // Give change
+        const change = Math.abs(remaining);
+        paymentStatus.className = 'alert alert-success mb-3';
+        paymentStatusText.innerHTML = `
+            <div><strong>Mottatt:</strong> ${cashReceivedFullscreen.toFixed(2)} NOK 💵</div>
+            <div class="text-success fs-5"><strong>Vekslepenger:</strong> ${change.toFixed(2)} NOK 💰</div>
+        `;
+        paymentMethodSelect.value = 'cash';
+        paymentMethodSelect.disabled = true;
+    } else {
+        // Exact amount
+        paymentStatus.className = 'alert alert-success mb-3';
+        paymentStatusText.innerHTML = `
+            <div><strong>Mottatt:</strong> ${cashReceivedFullscreen.toFixed(2)} NOK 💵</div>
+            <div class="text-success">✅ Eksakt beløp betalt</div>
+        `;
+        paymentMethodSelect.value = 'cash';
+        paymentMethodSelect.disabled = true;
+    }
+}
+
+function resetPaymentFullscreen() {
+    cashReceivedFullscreen = 0;
+    const paymentStatus = document.getElementById('payment-status-fullscreen');
+    const paymentMethodSelect = document.getElementById('checkout-payment-method-fullscreen');
+    
+    paymentStatus.style.display = 'none';
+    paymentMethodSelect.disabled = false;
+}
+
 // Scope checkout button to sales module
 const salesModule = document.getElementById('content-sales');
 if (salesModule) {
@@ -2168,24 +2230,52 @@ function initFullscreenSales() {
     // Initialize fullscreen barcode scanner
     initFullscreenBarcodeScanner();
     
-    // Initialize fullscreen payment method toggle
-    const paymentMethodFullscreen = document.getElementById('checkout-payment-method-fullscreen');
-    if (paymentMethodFullscreen) {
-        paymentMethodFullscreen.addEventListener('change', function() {
-            const cashCalc = document.getElementById('cash-payment-calculator-fullscreen');
-            if (this.value === 'cash') {
-                cashCalc.style.display = 'block';
-            } else {
-                cashCalc.style.display = 'none';
+    // Initialize fullscreen checkout button
+    const checkoutBtnFullscreen = document.getElementById('checkout-btn-fullscreen');
+    if (checkoutBtnFullscreen) {
+        checkoutBtnFullscreen.addEventListener('click', async function() {
+            const paymentMethod = document.getElementById('checkout-payment-method-fullscreen').value;
+            const notes = document.getElementById('checkout-notes-fullscreen').value;
+            const linkedEvent = document.getElementById('checkout-linked-event-fullscreen').value;
+            
+            try {
+                const response = await fetch('/api/checkout_cart.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        event_id: linkedEvent || null,
+                        payment_method: paymentMethod, 
+                        notes: notes
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    let message = `✅ Salg gjennomført!\nAntall varer: ${result.items_sold}\nTotalsum: ${result.total.toFixed(2)} NOK`;
+                    
+                    // Show change if cash payment was used
+                    if (cashReceivedFullscreen > 0) {
+                        const change = cashReceivedFullscreen - result.total;
+                        if (change > 0) {
+                            message += `\n💰 Vekslepenger: ${change.toFixed(2)} NOK`;
+                        }
+                    }
+                    
+                    alert(message);
+                    document.getElementById('checkout-notes-fullscreen').value = '';
+                    document.getElementById('checkout-linked-event-fullscreen').value = '';
+                    resetPaymentFullscreen();
+                    await loadCart();
+                    await loadAllSalesData();
+                    syncCartToFullscreen();
+                } else {
+                    alert('❌ ' + result.message);
+                }
+            } catch (error) {
+                console.error('Checkout error:', error);
+                alert('❌ Feil ved betaling');
             }
-        });
-    }
-    
-    // Initialize cash calculator for fullscreen
-    const cashReceivedFullscreen = document.getElementById('cash-received-fullscreen');
-    if (cashReceivedFullscreen) {
-        cashReceivedFullscreen.addEventListener('input', function() {
-            updateCashChangeFullscreen();
         });
     }
 }
