@@ -976,19 +976,33 @@
                                 <strong><span id="cart-total-fullscreen">0</span> NOK</strong>
                             </div>
                             
+                            <!-- Quick Cash Buttons -->
                             <div class="mb-3">
-                                <label class="form-label small">Kundenavn (valgfritt)</label>
-                                <input type="text" class="form-control form-control-sm" id="checkout-customer-name-fullscreen">
+                                <label class="form-label small">Kontant betaling</label>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPaymentFullscreen(50)" style="position: relative; overflow: hidden;">
+                                        <span style="font-size: 1.2em;">💵</span><br><small>50</small>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPaymentFullscreen(100)" style="position: relative; overflow: hidden;">
+                                        <span style="font-size: 1.2em;">💵</span><br><small>100</small>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPaymentFullscreen(200)" style="position: relative; overflow: hidden;">
+                                        <span style="font-size: 1.2em;">💵</span><br><small>200</small>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPaymentFullscreen(500)" style="position: relative; overflow: hidden;">
+                                        <span style="font-size: 1.3em;">💶</span><br><small>500</small>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPaymentFullscreen(1000)" style="position: relative; overflow: hidden;">
+                                        <span style="font-size: 1.4em;">💷</span><br><small>1000</small>
+                                    </button>
+                                </div>
                             </div>
                             
-                            <div class="mb-3">
-                                <label class="form-label small">E-post</label>
-                                <input type="email" class="form-control form-control-sm" id="checkout-customer-email-fullscreen">
-                                <div class="form-check mt-2">
-                                    <input class="form-check-input" type="checkbox" id="send-receipt-checkbox-fullscreen">
-                                    <label class="form-check-label small" for="send-receipt-checkbox-fullscreen">
-                                        Send kvittering til e-post
-                                    </label>
+                            <!-- Payment Status Display -->
+                            <div id="payment-status-fullscreen" class="alert alert-info mb-3" style="display: none;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span id="payment-status-text-fullscreen"></span>
+                                    <button type="button" class="btn-close btn-close-sm" onclick="resetPaymentFullscreen()"></button>
                                 </div>
                             </div>
                             
@@ -1000,13 +1014,6 @@
                                     <option value="on_arrival">Oppmøte</option>
                                     <option value="sponsored">Spons</option>
                                 </select>
-                            </div>
-                            
-                            <!-- Cash payment calculator -->
-                            <div class="mb-3" id="cash-payment-calculator-fullscreen" style="display: none;">
-                                <label class="form-label small">Mottatt beløp</label>
-                                <input type="number" class="form-control form-control-sm" id="cash-received-fullscreen" placeholder="0.00" step="0.01" min="0">
-                                <div id="cash-change-display-fullscreen" class="mt-2"></div>
                             </div>
                             
                             <div class="mb-3">
@@ -1356,14 +1363,79 @@ async function removeFromCart(cartId) {
     }
 }
 
+// Cash payment tracking
+let cashReceived = 0;
+let cartTotal = 0;
+
+function applyCashPayment(amount) {
+    const salesModule = document.getElementById('content-sales');
+    if (!salesModule) return;
+    
+    const totalElement = salesModule.querySelector('#cart-total');
+    cartTotal = parseFloat(totalElement.textContent) || 0;
+    
+    if (cartTotal === 0) {
+        alert('❌ Handlekurven er tom');
+        return;
+    }
+    
+    cashReceived += amount;
+    
+    const remaining = cartTotal - cashReceived;
+    const paymentStatus = salesModule.querySelector('#payment-status');
+    const paymentStatusText = salesModule.querySelector('#payment-status-text');
+    const paymentMethodSelect = salesModule.querySelector('#checkout-payment-method');
+    
+    paymentStatus.style.display = 'block';
+    
+    if (remaining > 0) {
+        // Still need more money
+        paymentStatus.className = 'alert alert-warning mb-3';
+        paymentStatusText.innerHTML = `
+            <div><strong>Mottatt:</strong> ${cashReceived.toFixed(2)} NOK 💵</div>
+            <div class="text-danger"><strong>Restbeløp:</strong> ${remaining.toFixed(2)} NOK</div>
+            <small class="text-muted">Velg Kontant eller Vipps for resterende beløp</small>
+        `;
+        paymentMethodSelect.disabled = false;
+    } else if (remaining < 0) {
+        // Give change
+        const change = Math.abs(remaining);
+        paymentStatus.className = 'alert alert-success mb-3';
+        paymentStatusText.innerHTML = `
+            <div><strong>Mottatt:</strong> ${cashReceived.toFixed(2)} NOK 💵</div>
+            <div class="text-success fs-5"><strong>Vekslepenger:</strong> ${change.toFixed(2)} NOK 💰</div>
+        `;
+        paymentMethodSelect.value = 'cash';
+        paymentMethodSelect.disabled = true;
+    } else {
+        // Exact amount
+        paymentStatus.className = 'alert alert-success mb-3';
+        paymentStatusText.innerHTML = `
+            <div><strong>Mottatt:</strong> ${cashReceived.toFixed(2)} NOK 💵</div>
+            <div class="text-success">✅ Eksakt beløp betalt</div>
+        `;
+        paymentMethodSelect.value = 'cash';
+        paymentMethodSelect.disabled = true;
+    }
+}
+
+function resetPayment() {
+    cashReceived = 0;
+    const salesModule = document.getElementById('content-sales');
+    if (!salesModule) return;
+    
+    const paymentStatus = salesModule.querySelector('#payment-status');
+    const paymentMethodSelect = salesModule.querySelector('#checkout-payment-method');
+    
+    paymentStatus.style.display = 'none';
+    paymentMethodSelect.disabled = false;
+}
+
 // Scope checkout button to sales module
 const salesModule = document.getElementById('content-sales');
 if (salesModule) {
     const checkoutBtn = salesModule.querySelector('#checkout-btn');
     checkoutBtn?.addEventListener('click', async function() {
-        const customerName = salesModule.querySelector('#checkout-customer-name').value;
-        const customerEmail = salesModule.querySelector('#checkout-customer-email').value;
-        const sendReceipt = salesModule.querySelector('#send-receipt-checkbox').checked;
         const paymentMethod = salesModule.querySelector('#checkout-payment-method').value;
         const notes = salesModule.querySelector('#checkout-notes').value;
         const linkedEvent = salesModule.querySelector('#checkout-linked-event').value;
@@ -1373,9 +1445,6 @@ if (salesModule) {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                customer_name: customerName, 
-                customer_email: customerEmail,
-                send_receipt: sendReceipt,
                 event_id: linkedEvent || null,
                 payment_method: paymentMethod, 
                 notes: notes
@@ -1386,15 +1455,19 @@ if (salesModule) {
         
         if (result.success) {
             let message = `✅ Salg gjennomført!\nAntall varer: ${result.items_sold}\nTotalsum: ${result.total.toFixed(2)} NOK`;
-            if (sendReceipt && customerEmail) {
-                message += `\n📧 Kvittering sendt til ${customerEmail}`;
+            
+            // Show change if cash payment was used
+            if (cashReceived > 0) {
+                const change = cashReceived - result.total;
+                if (change > 0) {
+                    message += `\n💰 Vekslepenger: ${change.toFixed(2)} NOK`;
+                }
             }
+            
             alert(message);
-            salesModule.querySelector('#checkout-customer-name').value = '';
-            salesModule.querySelector('#checkout-customer-email').value = '';
-            salesModule.querySelector('#send-receipt-checkbox').checked = false;
             salesModule.querySelector('#checkout-notes').value = '';
             salesModule.querySelector('#checkout-linked-event').value = '';
+            resetPayment();
             await loadCart();
             await loadAllSalesData(); // Refresh transactions and products
         } else {
