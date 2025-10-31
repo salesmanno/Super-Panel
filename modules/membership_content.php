@@ -584,11 +584,20 @@ function renderMembersTable(members) {
     }
 }
 
-// Last inn medlemmer når medlemmer-tab vises
+// Auto-load members when Membership tab is shown
+document.getElementById('tab-membership')?.addEventListener('shown.bs.tab', function() {
+    console.log('Membership tab shown - loading members and plans');
+    loadMembers();
+    loadPlansForFilter();
+    loadPlansForSelect();
+});
+
+// Last inn medlemmer når medlemmer-subtab vises
 const memberTabLink = document.querySelector('a[href="#membership-members"]');
 if (memberTabLink) {
     memberTabLink.addEventListener('click', function() {
         setTimeout(() => {
+            console.log('Members subtab clicked - loading data');
             loadMembers();
             loadPlansForFilter();
         }, 100);
@@ -597,6 +606,7 @@ if (memberTabLink) {
 
 // Also load on initial page load if members tab is active
 if (window.location.hash === '#membership-members') {
+    console.log('Initial load - members subtab active');
     loadMembers();
     loadPlansForFilter();
 }
@@ -608,5 +618,16 @@ document.getElementById('member-status-filter')?.addEventListener('change', appl
 
 // Last inn planer for dropdown når modal åpnes
 document.getElementById('createMemberModal')?.addEventListener('show.bs.modal', loadPlansForSelect);
+
+// Auto-load membership overview data on page load
+setTimeout(() => {
+    const membershipTab = document.getElementById('content-membership');
+    if (membershipTab && membershipTab.classList.contains('active')) {
+        console.log('Membership module active - auto-loading all data');
+        loadMembershipPlans();
+        loadMembers();
+        loadPlansForFilter();
+    }
+}, 500);
 </script>
 

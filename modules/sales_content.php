@@ -1712,6 +1712,7 @@ function displayProductsWithProfit(products) {
         
         // Stock status with color indicators
         let stockBadge = '<span class="badge bg-secondary">-</span>';
+        let stockValue = product.stock_quantity !== null ? parseInt(product.stock_quantity) : 0;
         if (product.stock_quantity !== null) {
             const stock = parseInt(product.stock_quantity);
             const threshold = parseInt(product.low_stock_threshold || 5);
@@ -1726,14 +1727,14 @@ function displayProductsWithProfit(products) {
         }
         
         return `
-            <tr>
-                <td>${product.name}</td>
+            <tr data-product-id="${product.id}">
+                <td class="editable-cell" data-field="name" style="cursor:pointer;" title="Klikk for å redigere">${product.name}</td>
                 <td><code>${product.sku || '-'}</code></td>
                 <td>${product.category_id || '-'}</td>
-                <td>${parseFloat(product.cost_price || 0).toFixed(2)} NOK</td>
-                <td>${parseFloat(product.selling_price).toFixed(2)} NOK</td>
+                <td class="editable-cell" data-field="cost_price" style="cursor:pointer;" title="Klikk for å redigere">${parseFloat(product.cost_price || 0).toFixed(2)} NOK</td>
+                <td class="editable-cell" data-field="selling_price" style="cursor:pointer;" title="Klikk for å redigere">${parseFloat(product.selling_price).toFixed(2)} NOK</td>
                 <td class="${profitClass}"><strong>${profit.toFixed(2)} NOK</strong></td>
-                <td>${stockBadge}</td>
+                <td class="editable-stock-cell" data-field="stock_quantity" data-current-stock="${stockValue}" style="cursor:pointer;" title="Klikk for å justere lager">${stockBadge}</td>
                 <td>${statusBadge}</td>
                 <td>
                     <button class="btn btn-sm btn-outline-primary" onclick="editProduct('${product.id}')">
@@ -2533,4 +2534,163 @@ async function savePurchase() {
         alert('❌ Feil ved lagring av innkjøp');
     }
 }
+
+// Inline editing for products - using event delegation for dynamic content
+document.addEventListener('DOMContentLoaded', function() {
+    const salesItemsList = document.getElementById('sales-items-list');
+    if (!salesItemsList) return;
+    
+    // Event delegation for editable cells
+    salesItemsList.addEventListener('click', async function(e) {
+        const cell = e.target.closest('.editable-cell');
+        if (!cell || cell.querySelector('input')) return; // Already editing
+        
+        const row = cell.closest('tr');
+        const productId = row.dataset.productId;
+        const field = cell.dataset.field;
+        const currentValue = cell.textContent.replace(' NOK', '').trim();
+        
+        // Create input
+        const input = document.createElement('input');
+        input.type = field.includes('price') ? 'number' : 'text';
+        input.className = 'form-control form-control-sm';
+        input.value = currentValue;
+        input.style.width = '100%';
+        if (field.includes('price')) {
+            input.step = '0.01';
+        }
+        
+        // Replace content
+        const originalHTML = cell.innerHTML;
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        input.focus();
+        input.select();
+        
+        // Save function
+        const saveEdit = async () => {
+            const newValue = input.value;
+            if (newValue !== currentValue && newValue) {
+                const updateData = {
+                    id: productId,
+                    [field]: field.includes('price') ? parseFloat(newValue) : newValue
+                };
+                
+                try {
+                    const response = await fetch('/api/update_sales_product.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        await loadProductsWithProfit();
+                    } else {
+                        cell.innerHTML = originalHTML;
+                        alert('❌ Feil ved oppdatering');
+                    }
+                } catch (error) {
+                    cell.innerHTML = originalHTML;
+                    console.error('Update error:', error);
+                }
+            } else {
+                cell.innerHTML = originalHTML;
+            }
+        };
+        
+        input.addEventListener('blur', saveEdit);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveEdit();
+            } else if (e.key === 'Escape') {
+                cell.innerHTML = originalHTML;
+            }
+        });
+    });
+    
+    // Event delegation for stock cells
+    salesItemsList.addEventListener('click', function(e) {
+        const cell = e.target.closest('.editable-stock-cell');
+        if (!cell || cell.querySelector('input')) return; // Already editing
+        
+        const row = cell.closest('tr');
+        const productId = row.dataset.productId;
+        const currentStock = parseInt(cell.dataset.currentStock) || 0;
+        
+        // Create inline adjuster
+        const adjuster = document.createElement('div');
+        adjuster.className = 'd-flex align-items-center gap-1';
+        adjuster.innerHTML = `
+            <button class="btn btn-sm btn-success" data-action="inc">
+                <i class="bi bi-plus"></i>
+            </button>
+            <input type="number" class="form-control form-control-sm stock-input" value="${currentStock}" style="width:60px;">
+            <button class="btn btn-sm btn-danger" data-action="dec">
+                <i class="bi bi-dash"></i>
+            </button>
+            <button class="btn btn-sm btn-primary" data-action="save">
+                <i class="bi bi-check"></i>
+            </button>
+        `;
+        
+        const originalHTML = cell.innerHTML;
+        cell.innerHTML = '';
+        cell.appendChild(adjuster);
+        
+        const input = adjuster.querySelector('.stock-input');
+        input.focus();
+        
+        // Handle button clicks
+        adjuster.addEventListener('click', async (e) => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+            
+            const action = btn.dataset.action;
+            
+            if (action === 'inc') {
+                input.value = Math.max(0, parseInt(input.value) + 1);
+            } else if (action === 'dec') {
+                input.value = Math.max(0, parseInt(input.value) - 1);
+            } else if (action === 'save') {
+                const newStock = parseInt(input.value);
+                const difference = newStock - currentStock;
+                
+                if (difference === 0) {
+                    cell.innerHTML = originalHTML;
+                    return;
+                }
+                
+                const adjustmentType = difference > 0 ? 'add' : 'remove';
+                const quantity = Math.abs(difference);
+                
+                try {
+                    const response = await fetch('/api/adjust_inventory.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            product_id: productId,
+                            adjustment_type: adjustmentType,
+                            quantity: quantity,
+                            comment: `Inline justering: ${currentStock} → ${newStock}`
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        await loadProductsWithProfit();
+                    } else {
+                        cell.innerHTML = originalHTML;
+                        alert('❌ ' + (result.message || 'Feil ved lagerjustering'));
+                    }
+                } catch (error) {
+                    cell.innerHTML = originalHTML;
+                    console.error('Stock adjustment error:', error);
+                    alert('❌ Feil ved lagerjustering');
+                }
+            }
+        });
+    });
+});
 </script>
