@@ -11,57 +11,21 @@ function getDBConnection() {
     static $dbType = null;
     
     if ($conn === null) {
-        // Try MySQL first (Domeneshop production)
+        // ONLY MySQL - NO PostgreSQL fallback
         try {
             $mysqlDsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET;
             $options = [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
-                PDO::ATTR_TIMEOUT => 3,
+                PDO::ATTR_TIMEOUT => 5,
             ];
             
             $conn = new PDO($mysqlDsn, DB_USER, DB_PASS, $options);
             $dbType = 'mysql';
-            return $conn;
         } catch (PDOException $e) {
             error_log("MySQL connection failed: " . $e->getMessage());
-            
-            // Fallback to PostgreSQL
-            $pgUrl = null;
-            if (file_exists('/tmp/replitdb')) {
-                $pgUrl = trim(file_get_contents('/tmp/replitdb'));
-            }
-            if (!$pgUrl) {
-                $pgUrl = getenv('DATABASE_URL');
-            }
-            
-            if ($pgUrl) {
-                try {
-                    $parts = parse_url($pgUrl);
-                    $pgHost = $parts['host'] ?? 'localhost';
-                    $pgPort = $parts['port'] ?? 5432;
-                    $pgDb = ltrim($parts['path'] ?? '', '/');
-                    $pgUser = $parts['user'] ?? '';
-                    $pgPass = $parts['pass'] ?? '';
-                    
-                    $pgDsn = "pgsql:host={$pgHost};port={$pgPort};dbname={$pgDb};sslmode=require";
-                    
-                    $options = [
-                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                        PDO::ATTR_EMULATE_PREPARES => false,
-                    ];
-                    
-                    $conn = new PDO($pgDsn, $pgUser, $pgPass, $options);
-                    $dbType = 'postgresql';
-                } catch (PDOException $e) {
-                    error_log("PostgreSQL connection failed: " . $e->getMessage());
-                    throw new Exception("Database connection failed");
-                }
-            } else {
-                throw new Exception("No database connection available");
-            }
+            throw new Exception("KRITISK FEIL: Kan ikke koble til MySQL database (Domeneshop). Feilmelding: " . $e->getMessage());
         }
     }
     
