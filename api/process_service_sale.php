@@ -95,6 +95,12 @@ try {
             $service = $stmt->fetch();
             break;
             
+        case 'service':
+            $stmt = $db->prepare("SELECT id, service_name, price FROM reservation_services WHERE id = ?");
+            $stmt->execute([$product_id]);
+            $service = $stmt->fetch();
+            break;
+            
         default:
             $db->rollBack();
             echo json_encode(['success' => false, 'message' => 'Ukjent tjenestetype']);
@@ -388,6 +394,159 @@ try {
                 'metadata' => [
                     'object_id' => $product_id,
                     'daily_price' => $daily_price
+                ]
+            ]);
+            break;
+            
+        case 'service':
+            // Handle reservation service booking
+            if (!isset($data['is_reservation']) || !$data['is_reservation']) {
+                $db->rollBack();
+                echo json_encode(['success' => false, 'message' => 'Ugyldig tjenestedata']);
+                exit;
+            }
+            
+            $reservation_date = $data['reservation_date'] ?? null;
+            $reservation_time = $data['reservation_time'] ?? null;
+            $reservation_staff_id = $data['reservation_staff_id'] ?? null;
+            
+            if (!$reservation_date || !$reservation_time || !$reservation_staff_id) {
+                $db->rollBack();
+                echo json_encode(['success' => false, 'message' => 'Mangler booking-informasjon']);
+                exit;
+            }
+            
+            // SECURITY: Validate that product_id matches the reservation service and get authoritative data
+            // Never trust client-supplied duration or service_id - fetch from database
+            $stmt = $db->prepare("
+                SELECT id, service_name, price, cost_price, duration_minutes, assigned_staff_ids 
+                FROM reservation_services 
+                WHERE id = ? AND company_id = ?
+            ");
+            $stmt->execute([$product_id, $company_id]);
+            $service = $stmt->fetch();
+            
+            if (!$service) {
+                $db->rollBack();
+                echo json_encode(['success' => false, 'message' => 'Reserverbar tjeneste ikke funnet']);
+                exit;
+            }
+            
+            // Use authoritative duration from database, not client input
+            $reservation_duration = intval($service['duration_minutes']);
+            $reservation_service_id = $service['id'];
+            
+            // Validate that selected staff is assigned to this service
+            $assigned_staff_array = json_decode($service['assigned_staff_ids'], true) ?? [];
+            if (!in_array($reservation_staff_id, $assigned_staff_array)) {
+                $db->rollBack();
+                echo json_encode(['success' => false, 'message' => 'Valgt ansatt er ikke tilgjengelig for denne tjenesten']);
+                exit;
+            }
+            
+            $total = floatval($service['price']);
+            
+            // Calculate end date and time
+            $startDateTime = new DateTime($reservation_date . ' ' . $reservation_time);
+            $endDateTime = clone $startDateTime;
+            $endDateTime->add(new DateInterval('PT' . $reservation_duration . 'M'));
+            
+            // Check if time slot is still available
+            $checkStmt = $db->prepare("
+                SELECT COUNT(*) as count
+                FROM service_bookings
+                WHERE company_id = ?
+                AND assigned_staff_id = ?
+                AND date_from = ?
+                AND status NOT IN ('cancelled', 'completed')
+                AND (
+                    (time_from < ? AND time_to > ?) OR
+                    (time_from >= ? AND time_from < ?) OR
+                    (time_to > ? AND time_to <= ?)
+                )
+            ");
+            
+            $startTime = $startDateTime->format('H:i:s');
+            $endTime = $endDateTime->format('H:i:s');
+            
+            $checkStmt->execute([
+                $company_id,
+                $reservation_staff_id,
+                $reservation_date,
+                $endTime, $startTime,
+                $startTime, $endTime,
+                $startTime, $endTime
+            ]);
+            
+            $availabilityResult = $checkStmt->fetch(PDO::FETCH_ASSOC);
+            if ($availabilityResult['count'] > 0) {
+                $db->rollBack();
+                echo json_encode(['success' => false, 'message' => 'Valgt tidspunkt er ikke lenger ledig']);
+                exit;
+            }
+            
+            // Create service booking
+            $booking_id = bin2hex(random_bytes(16));
+            $transactionId = $booking_id;
+            
+            $booking_payment_status = ($payment_method === 'on_arrival') ? 'pending' : 'confirmed';
+            
+            $stmt = $db->prepare("
+                INSERT INTO service_bookings (
+                    id, company_id, tenant_admin_id,
+                    service_name, service_description, selling_price, cost_price,
+                    duration, date_from, time_from, date_to, time_to,
+                    assigned_staff_id, customer_name, customer_email, customer_phone,
+                    status, payment_method, notes, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+            ");
+            
+            $stmt->execute([
+                $booking_id,
+                $company_id,
+                $admin_id,
+                $service['service_name'],
+                $notes,
+                $total,
+                $service['cost_price'] ?? null,
+                $reservation_duration,
+                $reservation_date,
+                $startTime,
+                $endDateTime->format('Y-m-d'),
+                $endTime,
+                $reservation_staff_id,
+                $customer_full_name,
+                $customer_email,
+                $customer_phone,
+                $booking_payment_status,
+                $payment_method,
+                $notes
+            ]);
+            
+            // Log to unified_ledger
+            $ledger_payment_status = ($payment_method === 'on_arrival') ? 'pending' : 'completed';
+            
+            $ledgerService->logTransaction([
+                'order_id' => $orderId,
+                'module_source' => 'reservations',
+                'item_type' => 'service',
+                'source_id' => $booking_id,
+                'item_name' => $service['service_name'],
+                'quantity' => 1,
+                'selling_price' => $total,
+                'cost_price' => $service['cost_price'] ?? null,
+                'customer_name' => $customer_full_name,
+                'customer_email' => $customer_email,
+                'payment_method' => $payment_method,
+                'payment_status' => $ledger_payment_status,
+                'status' => 'active',
+                'transaction_date' => date('Y-m-d H:i:s'),
+                'metadata' => [
+                    'reservation_service_id' => $reservation_service_id,
+                    'booking_date' => $reservation_date,
+                    'booking_time' => $reservation_time,
+                    'staff_id' => $reservation_staff_id,
+                    'duration_minutes' => $reservation_duration
                 ]
             ]);
             break;

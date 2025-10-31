@@ -803,6 +803,47 @@
                         <input type="tel" class="form-control" id="service-customer-phone">
                     </div>
                     
+                    <!-- Reservation-specific fields -->
+                    <div id="reservation-specific-fields" style="display: none;">
+                        <hr class="my-3">
+                        <h6 class="text-primary mb-3"><i class="bi bi-calendar-check me-2"></i>Booking-informasjon</h6>
+                        
+                        <input type="hidden" id="reservation-service-id">
+                        <input type="hidden" id="reservation-duration">
+                        <input type="hidden" id="reservation-assigned-staff">
+                        
+                        <div class="alert alert-info small mb-3">
+                            <i class="bi bi-clock me-1"></i>Varighet: <strong id="reservation-duration-display">-</strong> minutter<br>
+                            <i class="bi bi-people me-1"></i>Tilgjengelige: <span id="reservation-staff-names">-</span>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Dato <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="reservation-date" onchange="checkAvailability()" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Tidspunkt <span class="text-danger">*</span></label>
+                                <input type="time" class="form-control" id="reservation-time" onchange="checkAvailability()" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Velg ansatt <span class="text-danger">*</span></label>
+                            <select class="form-select" id="reservation-staff-select" required>
+                                <option value="">-- Velg ansatt --</option>
+                            </select>
+                            <div id="availability-status" class="mt-2"></div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-sm btn-outline-success" onclick="findFirstAvailable()">
+                                <i class="bi bi-lightning-charge me-1"></i>Første ledige tidspunkt
+                            </button>
+                            <div id="first-available-result" class="mt-2"></div>
+                        </div>
+                    </div>
+                    
                     <!-- Membership-specific fields -->
                     <div id="membership-specific-fields" style="display: none;">
                         <hr class="my-3">
@@ -2143,8 +2184,8 @@ async function submitSalesItem() {
 }
 
 // Service purchase functions
-function setServiceData(id, type, name, price, planDuration = null) {
-    console.log('setServiceData called:', {id, type, name, price, planDuration});
+async function setServiceData(id, type, name, price, planDuration = null, reservationData = null) {
+    console.log('setServiceData called:', {id, type, name, price, planDuration, reservationData});
     
     document.getElementById('service-id').value = id;
     document.getElementById('service-type').value = type;
@@ -2153,9 +2194,15 @@ function setServiceData(id, type, name, price, planDuration = null) {
     document.getElementById('service-modal-type').textContent = getServiceTypeName(type);
     document.getElementById('service-modal-price').textContent = price;
     
-    // Show/hide membership-specific fields
+    // Get references to field sections
     const membershipFields = document.getElementById('membership-specific-fields');
+    const reservationFields = document.getElementById('reservation-specific-fields');
     const quantityField = document.getElementById('service-quantity-field');
+    
+    // Hide all special fields first
+    membershipFields.style.display = 'none';
+    reservationFields.style.display = 'none';
+    quantityField.style.display = 'block';
     
     if (type === 'membership') {
         membershipFields.style.display = 'block';
@@ -2170,9 +2217,35 @@ function setServiceData(id, type, name, price, planDuration = null) {
         
         // Calculate expiry date automatically
         updateExpiryDate();
-    } else {
-        membershipFields.style.display = 'none';
-        quantityField.style.display = 'block';
+    } else if (type === 'service' && reservationData) {
+        // This is a reservable service - show reservation fields
+        reservationFields.style.display = 'block';
+        quantityField.style.display = 'none';
+        
+        // Store reservation data
+        document.getElementById('reservation-service-id').value = reservationData.service_id;
+        document.getElementById('reservation-duration').value = reservationData.duration_minutes;
+        document.getElementById('reservation-assigned-staff').value = JSON.stringify(reservationData.assigned_staff_ids);
+        document.getElementById('reservation-duration-display').textContent = reservationData.duration_minutes;
+        document.getElementById('reservation-staff-names').textContent = reservationData.staff_names || 'Ingen valgt';
+        
+        // Set default date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('reservation-date').value = today;
+        
+        // Populate staff dropdown
+        const staffSelect = document.getElementById('reservation-staff-select');
+        staffSelect.innerHTML = '<option value="">-- Velg ansatt --</option>';
+        
+        if (reservationData.assigned_staff_ids && Array.isArray(reservationData.assigned_staff_ids)) {
+            for (let staffId of reservationData.assigned_staff_ids) {
+                const staffName = reservationData.staff_map?.[staffId] || staffId;
+                const option = document.createElement('option');
+                option.value = staffId;
+                option.textContent = staffName;
+                staffSelect.appendChild(option);
+            }
+        }
     }
     
     updateServiceTotal();
@@ -2188,6 +2261,101 @@ function updateExpiryDate() {
         expiryDate.setMonth(expiryDate.getMonth() + planDuration);
         document.getElementById('service-expiry-date').value = expiryDate.toISOString().split('T')[0];
     }
+}
+
+// Reservation functions
+async function checkAvailability() {
+    const serviceId = document.getElementById('reservation-service-id').value;
+    const date = document.getElementById('reservation-date').value;
+    const time = document.getElementById('reservation-time').value;
+    const staffId = document.getElementById('reservation-staff-select').value;
+    const duration = parseInt(document.getElementById('reservation-duration').value);
+    
+    const statusDiv = document.getElementById('availability-status');
+    
+    if (!serviceId || !date || !time || !staffId || !duration) {
+        statusDiv.innerHTML = '';
+        return;
+    }
+    
+    statusDiv.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Sjekker...';
+    
+    try {
+        const response = await fetch('/api/check_reservation_availability.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                service_id: serviceId,
+                date: date,
+                time: time,
+                staff_id: staffId,
+                duration: duration
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            if (result.available) {
+                statusDiv.innerHTML = '<div class="alert alert-success alert-sm mb-0 py-1 px-2"><i class="bi bi-check-circle me-1"></i>Ledig</div>';
+            } else {
+                statusDiv.innerHTML = `<div class="alert alert-warning alert-sm mb-0 py-1 px-2"><i class="bi bi-exclamation-triangle me-1"></i>Opptatt - ${result.message || 'Velg annet tidspunkt'}</div>`;
+            }
+        } else {
+            statusDiv.innerHTML = `<div class="alert alert-danger alert-sm mb-0 py-1 px-2">Feil: ${result.message}</div>`;
+        }
+    } catch (error) {
+        console.error('Availability check error:', error);
+        statusDiv.innerHTML = '<div class="alert alert-danger alert-sm mb-0 py-1 px-2">Feil ved sjekk</div>';
+    }
+}
+
+async function findFirstAvailable() {
+    const serviceId = document.getElementById('reservation-service-id').value;
+    const duration = parseInt(document.getElementById('reservation-duration').value);
+    const assignedStaff = JSON.parse(document.getElementById('reservation-assigned-staff').value || '[]');
+    
+    const resultDiv = document.getElementById('first-available-result');
+    resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Søker...';
+    
+    try {
+        const response = await fetch('/api/find_first_available.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                service_id: serviceId,
+                duration: duration,
+                assigned_staff_ids: assignedStaff,
+                days_ahead: 14
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.slot) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success alert-sm mb-0 py-1 px-2">
+                    <strong>Funnet:</strong> ${result.slot.date} kl. ${result.slot.time} med ${result.slot.staff_name}
+                    <button type="button" class="btn btn-sm btn-success ms-2" onclick="applyFirstAvailable('${result.slot.date}', '${result.slot.time}', '${result.slot.staff_id}')">
+                        <i class="bi bi-check me-1"></i>Bruk
+                    </button>
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-warning alert-sm mb-0 py-1 px-2">${result.message || 'Ingen ledige tider funnet de neste 14 dagene'}</div>`;
+        }
+    } catch (error) {
+        console.error('First available error:', error);
+        resultDiv.innerHTML = '<div class="alert alert-danger alert-sm mb-0 py-1 px-2">Feil ved søk</div>';
+    }
+}
+
+function applyFirstAvailable(date, time, staffId) {
+    document.getElementById('reservation-date').value = date;
+    document.getElementById('reservation-time').value = time;
+    document.getElementById('reservation-staff-select').value = staffId;
+    document.getElementById('first-available-result').innerHTML = '';
+    checkAvailability();
 }
 
 document.getElementById('service-quantity')?.addEventListener('input', updateServiceTotal);
@@ -2208,11 +2376,13 @@ async function processServicePurchase() {
     }
     
     const serviceType = document.getElementById('service-type').value;
+    const reservationFields = document.getElementById('reservation-specific-fields');
+    const isReservation = reservationFields && reservationFields.style.display !== 'none';
     
     const purchaseData = {
         output_product_id: document.getElementById('service-id').value,
         service_type: serviceType,
-        quantity: serviceType === 'membership' ? 1 : parseInt(document.getElementById('service-quantity').value),
+        quantity: (serviceType === 'membership' || isReservation) ? 1 : parseInt(document.getElementById('service-quantity').value),
         customer_first_name: document.getElementById('service-customer-first-name').value,
         customer_last_name: document.getElementById('service-customer-last-name').value,
         customer_email: document.getElementById('service-customer-email').value,
@@ -2232,6 +2402,22 @@ async function processServicePurchase() {
         purchaseData.customer_city = document.getElementById('service-customer-city').value;
     }
     
+    // Add reservation-specific fields
+    if (isReservation) {
+        purchaseData.is_reservation = true;
+        purchaseData.reservation_service_id = document.getElementById('reservation-service-id').value;
+        purchaseData.reservation_date = document.getElementById('reservation-date').value;
+        purchaseData.reservation_time = document.getElementById('reservation-time').value;
+        purchaseData.reservation_staff_id = document.getElementById('reservation-staff-select').value;
+        purchaseData.reservation_duration = parseInt(document.getElementById('reservation-duration').value);
+        
+        // Validate reservation fields
+        if (!purchaseData.reservation_date || !purchaseData.reservation_time || !purchaseData.reservation_staff_id) {
+            alert('⚠️ Vennligst fyll ut alle booking-felter');
+            return;
+        }
+    }
+    
     try {
         const response = await fetch('/api/process_service_sale.php', {
             method: 'POST',
@@ -2242,7 +2428,12 @@ async function processServicePurchase() {
         const result = await response.json();
         
         if (result.success) {
-            alert(`✅ Tjeneste solgt!\nKunde: ${purchaseData.customer_first_name} ${purchaseData.customer_last_name}\nTotalsum: ${result.total} NOK`);
+            let message = `✅ ${isReservation ? 'Reservasjon booket' : 'Tjeneste solgt'}!\nKunde: ${purchaseData.customer_first_name} ${purchaseData.customer_last_name}`;
+            if (isReservation) {
+                message += `\nDato: ${purchaseData.reservation_date} kl. ${purchaseData.reservation_time}`;
+            }
+            message += `\nTotalsum: ${result.total} NOK`;
+            alert(message);
             bootstrap.Modal.getInstance(document.getElementById('servicePurchaseModal')).hide();
             form.reset();
             await loadSalesProducts();
