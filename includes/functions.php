@@ -10,7 +10,7 @@ function getTenantAdminByUsername($username) {
     
     $activeValue = dbBool(true);
     $stmt = $db->prepare("
-        SELECT ta.id, ta.company_id, ta.tenant_staff_id, ta.email, ta.password_hash, ta.username, ta.is_active,
+        SELECT ta.id, ta.company_id, ta.tenant_staff_id, ta.password_hash, ta.username, ta.is_active,
                tc.name as company_name, tc.subdomain, tc.is_active as company_active,
                ts.first_name, ts.last_name, ts.email as staff_email, ts.phone, ts.job_title
         FROM tenant_admins ta
@@ -29,7 +29,7 @@ function getTenantAdminByUsername($username) {
             $admin['last_name'] = '';
         }
         if (empty($admin['staff_email'])) {
-            $admin['staff_email'] = $admin['email'];
+            $admin['staff_email'] = '';
         }
     }
     
