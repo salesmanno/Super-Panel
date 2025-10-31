@@ -49,6 +49,22 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Clean Database Architecture**: Modular database design eliminating duplicates and redundancy, standardizing tables, adding cost price tracking, and introducing `service_bookings` and `unified_ledger` tables.
 - **Database Structure**: Key tables include `tenant_admin_sessions`, `tenant_admins`, `tenant_companies`, `tenant_staff`, `tenant_customers`, `membership_members`, `events_eventdata`, `sales_products`, `sales_transactions`, `unified_ledger`, `email_templates`, `email_logs`, and `output_products`.
 
+## Recent Changes (October 31, 2025)
+- **Reservation Sales Integration**: Complete integration of reservable services into sales module with intelligent booking system:
+  - **Booking Modal**: servicePurchaseModal extended with date/time picker, staff selector, and real-time availability checking
+  - **Smart Availability**: `check_reservation_availability.php` API validates time slots against existing bookings with overlap detection
+  - **First Available**: `find_first_available.php` searches 14 days ahead (30-min slots, 09:00-17:00, excludes weekends) for next open appointment
+  - **Secure Booking**: process_service_sale.php enforces server-side validation - uses authoritative service data (duration, price, assigned staff) from database to prevent tampering
+  - **Unified Ledger**: All reservation bookings logged to unified_ledger with complete metadata (booking date/time, staff, duration)
+  - **Service Bookings Table**: Creates entries in service_bookings with status management (pending/confirmed/completed/cancelled)
+- **Member Management Enhancements**:
+  - **Inline Editing**: Click-to-edit functionality for member data (first name, last name, email, phone) with auto-save
+  - **Status Tracking**: Expired memberships show "Manglende betaling" status with red badge
+  - **Compact IDs**: Member IDs displayed as first 8 characters in `<code>` format
+  - **Renewal System**: Green renewal button with date prompt, auto-calculates new expiry based on plan, logs to unified_ledger
+  - **API Support**: update_member.php and renew_membership.php with dual-database compatibility
+- **News Module**: Renamed from "Kunngjøringer" to "News" with full image support (image_url field in forms, display with object-fit cover, max 300px height)
+
 ## Recent Changes (October 30, 2025)
 - **Database Fallback**: Automatic PostgreSQL fallback when MySQL unavailable in `config/database.php`
 - **Schema Fixes**: Added `name`, `description`, `price` columns to `output_products` in PostgreSQL
