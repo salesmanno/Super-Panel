@@ -72,6 +72,12 @@
                         <textarea class="form-control" id="announcement-content" rows="5" required></textarea>
                     </div>
 
+                    <div class="mb-3">
+                        <label class="form-label">Bilde (valgfri)</label>
+                        <input type="text" class="form-control" id="announcement-image-url" placeholder="Lim inn bilde-URL">
+                        <small class="text-muted">Eksempel: https://example.com/image.jpg</small>
+                    </div>
+
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
                             <label class="form-label">Type</label>
@@ -203,9 +209,11 @@ function displayAnnouncements(announcements) {
         const typeIcon = typeIcons[announcement.announcement_type] || 'megaphone text-muted';
         const priorityBadge = priorityBadges[announcement.priority] || 'secondary';
         const isExpired = announcement.expire_at && new Date(announcement.expire_at) < new Date();
+        const hasImage = announcement.image_url && announcement.image_url.trim();
 
         return `
             <div class="card shadow-sm mb-3 ${isExpired ? 'opacity-50' : ''}">
+                ${hasImage ? `<img src="${announcement.image_url}" class="card-img-top" alt="${announcement.title}" style="max-height: 300px; object-fit: cover;">` : ''}
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="flex-grow-1">
@@ -275,6 +283,7 @@ function editAnnouncement(id) {
     document.getElementById('announcement-id').value = announcement.id;
     document.getElementById('announcement-title').value = announcement.title;
     document.getElementById('announcement-content').value = announcement.content;
+    document.getElementById('announcement-image-url').value = announcement.image_url || '';
     document.getElementById('announcement-type').value = announcement.announcement_type;
     document.getElementById('announcement-priority').value = announcement.priority;
     document.getElementById('announcement-audience').value = announcement.target_audience;
@@ -309,6 +318,7 @@ async function saveAnnouncement() {
     const data = {
         title: title,
         content: content,
+        image_url: document.getElementById('announcement-image-url').value.trim() || null,
         announcement_type: document.getElementById('announcement-type').value,
         priority: document.getElementById('announcement-priority').value,
         target_audience: document.getElementById('announcement-audience').value,

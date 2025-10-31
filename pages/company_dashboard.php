@@ -396,7 +396,7 @@ try {
                             type="button" 
                             role="tab">
                         <i class="bi bi-megaphone me-2"></i>
-                        Kunngjøringer
+                        News
                     </button>
                 </li>
             </ul>

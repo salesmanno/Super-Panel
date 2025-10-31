@@ -32,6 +32,7 @@ try {
     $sql = "UPDATE {$tableName} SET
                 title = :title,
                 content = :content,
+                image_url = :image_url,
                 announcement_type = :announcement_type,
                 priority = :priority,
                 target_audience = :target_audience,
@@ -51,6 +52,7 @@ try {
     $stmt->bindValue(':company_id', $companyId);
     $stmt->bindValue(':title', $data['title']);
     $stmt->bindValue(':content', $data['content']);
+    $stmt->bindValue(':image_url', $data['image_url'] ?? null);
     $stmt->bindValue(':announcement_type', $data['announcement_type'] ?? 'info');
     $stmt->bindValue(':priority', $data['priority'] ?? 'normal');
     $stmt->bindValue(':target_audience', $data['target_audience'] ?? 'all');

@@ -38,6 +38,7 @@ try {
                 author_id,
                 title,
                 content,
+                image_url,
                 announcement_type,
                 priority,
                 target_audience,
@@ -54,6 +55,7 @@ try {
                 :author_id,
                 :title,
                 :content,
+                :image_url,
                 :announcement_type,
                 :priority,
                 :target_audience,
@@ -76,6 +78,7 @@ try {
     $stmt->bindValue(':author_id', $authorId);
     $stmt->bindValue(':title', $data['title']);
     $stmt->bindValue(':content', $data['content']);
+    $stmt->bindValue(':image_url', $data['image_url'] ?? null);
     $stmt->bindValue(':announcement_type', $data['announcement_type'] ?? 'info');
     $stmt->bindValue(':priority', $data['priority'] ?? 'normal');
     $stmt->bindValue(':target_audience', $data['target_audience'] ?? 'all');

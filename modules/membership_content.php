@@ -548,24 +548,35 @@ function renderMembersTable(members) {
     
     if (members && members.length > 0) {
         tableBody.innerHTML = members.map(member => {
-            const statusBadge = member.status === 'active' ? 'bg-success' : 
-                               member.status === 'expired' ? 'bg-danger' : 'bg-warning';
-            const statusText = member.status === 'active' ? 'Aktiv' : 
-                              member.status === 'expired' ? 'Utløpt' : 'Venter';
+            // Check if membership is expired based on expiry_date
+            const today = new Date();
+            const expiryDate = member.expiry_date ? new Date(member.expiry_date) : null;
+            const isExpired = expiryDate && expiryDate < today;
+            
+            const statusBadge = member.status === 'active' && !isExpired ? 'bg-success' : 
+                               isExpired ? 'bg-danger' : 'bg-warning';
+            const statusText = member.status === 'active' && !isExpired ? 'Aktiv' : 
+                              isExpired ? 'Manglende betaling' : 'Venter';
+            
+            // Generate shorter member reference (last 6 chars of member_id)
+            const shortRef = member.member_id ? String(member.member_id).substring(0, 8).toUpperCase() : '-';
             
             return `
-                <tr>
-                    <td>${member.member_id}</td>
-                    <td>${member.first_name}</td>
-                    <td>${member.last_name}</td>
-                    <td>${member.email}</td>
-                    <td>${member.phone || '-'}</td>
+                <tr data-member-id="${member.member_id}">
+                    <td><code>${shortRef}</code></td>
+                    <td class="editable-member-cell" data-field="first_name">${member.first_name}</td>
+                    <td class="editable-member-cell" data-field="last_name">${member.last_name}</td>
+                    <td class="editable-member-cell" data-field="email">${member.email}</td>
+                    <td class="editable-member-cell" data-field="phone">${member.phone || '-'}</td>
                     <td>${member.address ? (member.address + ', ' + (member.poststed || '')) : '-'}</td>
                     <td>${member.membership_type || '-'}</td>
                     <td><span class="badge ${statusBadge}">${statusText}</span></td>
                     <td>${member.join_date || '-'}</td>
                     <td>${member.expiry_date || '-'}</td>
                     <td>
+                        <button class="btn btn-sm btn-success" onclick="renewMembership('${member.member_id}')" title="Forny medlemskap">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
                         <button class="btn btn-sm btn-outline-primary" onclick="editMember(${member.member_id})">
                             <i class="bi bi-pencil"></i>
                         </button>
@@ -629,5 +640,112 @@ setTimeout(() => {
         loadPlansForFilter();
     }
 }, 500);
+
+// Inline editing for member fields using event delegation
+document.addEventListener('DOMContentLoaded', function() {
+    const membersTableBody = document.getElementById('members-table-body');
+    if (!membersTableBody) return;
+    
+    membersTableBody.addEventListener('click', async function(e) {
+        const cell = e.target.closest('.editable-member-cell');
+        if (!cell || cell.querySelector('input')) return; // Already editing
+        
+        const row = cell.closest('tr');
+        const memberId = row.dataset.memberId;
+        const field = cell.dataset.field;
+        const currentValue = cell.textContent.trim() === '-' ? '' : cell.textContent.trim();
+        
+        // Create input
+        const input = document.createElement('input');
+        input.type = field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text';
+        input.className = 'form-control form-control-sm';
+        input.value = currentValue;
+        input.style.width = '100%';
+        
+        // Replace content
+        const originalHTML = cell.innerHTML;
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        input.focus();
+        input.select();
+        
+        // Save function
+        const saveEdit = async () => {
+            const newValue = input.value.trim();
+            if (newValue !== currentValue) {
+                const updateData = {
+                    member_id: memberId,
+                    [field]: newValue
+                };
+                
+                try {
+                    const response = await fetch('/api/update_member.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        await loadMembers();
+                    } else {
+                        cell.innerHTML = originalHTML;
+                        alert('❌ Feil ved oppdatering: ' + result.message);
+                    }
+                } catch (error) {
+                    cell.innerHTML = originalHTML;
+                    console.error('Update error:', error);
+                    alert('❌ Feil ved oppdatering av medlem');
+                }
+            } else {
+                cell.innerHTML = originalHTML;
+            }
+        };
+        
+        input.addEventListener('blur', saveEdit);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveEdit();
+            } else if (e.key === 'Escape') {
+                cell.innerHTML = originalHTML;
+            }
+        });
+    });
+});
+
+// Renew membership function
+async function renewMembership(memberId) {
+    const member = allMembers.find(m => m.member_id == memberId);
+    if (!member) {
+        alert('❌ Medlem ikke funnet');
+        return;
+    }
+    
+    const startDate = prompt('Fornyingsdato (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+    if (!startDate) return;
+    
+    try {
+        const response = await fetch('/api/renew_membership.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                member_id: memberId,
+                renewal_date: startDate
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('✅ Medlemskap fornyet! Ny utløpsdato: ' + result.new_expiry_date);
+            await loadMembers();
+        } else {
+            alert('❌ Feil: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Renewal error:', error);
+        alert('❌ Feil ved fornyelse av medlemskap');
+    }
+}
 </script>
 
