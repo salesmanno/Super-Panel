@@ -157,29 +157,29 @@
     <div id="membership-income" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">Medlemsinntekter</h5>
+                <h5 class="card-title"><i class="bi bi-cash-stack me-2 text-success"></i>Medlemsinntekter</h5>
                 <div class="row mb-4">
                     <div class="col-md-3">
-                        <div class="card bg-light">
+                        <div class="card bg-success text-white">
                             <div class="card-body">
-                                <small class="text-muted">Total omsetning</small>
-                                <h4 class="mb-0">0 NOK</h4>
+                                <small>Total omsetning</small>
+                                <h4 class="mb-0" id="income-total">0 NOK</h4>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card bg-light">
+                        <div class="card bg-primary text-white">
                             <div class="card-body">
-                                <small class="text-muted">Aktive medlemmer</small>
-                                <h4 class="mb-0">0</h4>
+                                <small>Aktive medlemmer</small>
+                                <h4 class="mb-0" id="income-active-members">0</h4>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card bg-light">
+                        <div class="card bg-info text-white">
                             <div class="card-body">
-                                <small class="text-muted">Denne måneden</small>
-                                <h4 class="mb-0">0 NOK</h4>
+                                <small>Denne måneden</small>
+                                <h4 class="mb-0" id="income-month">0 NOK</h4>
                             </div>
                         </div>
                     </div>
@@ -187,7 +187,52 @@
                         <div class="card bg-light">
                             <div class="card-body">
                                 <small class="text-muted">I år</small>
-                                <h4 class="mb-0">0 NOK</h4>
+                                <h4 class="mb-0" id="income-year">0 NOK</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-list-ul me-2"></i>Siste medlemstransaksjoner</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Dato</th>
+                                                <th>Kunde</th>
+                                                <th>Medlemskap</th>
+                                                <th>Type</th>
+                                                <th class="text-end">Beløp</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="income-transactions-list">
+                                            <tr>
+                                                <td colspan="6" class="text-center text-muted py-3">
+                                                    <i class="bi bi-hourglass-split me-2"></i>Laster...
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Inntekt per plan</h6>
+                            </div>
+                            <div class="card-body" id="income-by-plan">
+                                <div class="text-center text-muted py-3">
+                                    <i class="bi bi-hourglass-split me-2"></i>Laster...
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -746,6 +791,95 @@ async function renewMembership(memberId) {
         console.error('Renewal error:', error);
         alert('❌ Feil ved fornyelse av medlemskap');
     }
+}
+
+// Load membership income statistics
+async function loadMembershipIncome() {
+    try {
+        const response = await fetch('/api/get_membership_income.php');
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update statistics cards
+            document.getElementById('income-total').textContent = data.stats.total_income.toLocaleString('nb-NO') + ' NOK';
+            document.getElementById('income-active-members').textContent = data.stats.active_members;
+            document.getElementById('income-month').textContent = data.stats.month_income.toLocaleString('nb-NO') + ' NOK';
+            document.getElementById('income-year').textContent = data.stats.year_income.toLocaleString('nb-NO') + ' NOK';
+            
+            // Render transactions table
+            const transactionsList = document.getElementById('income-transactions-list');
+            if (data.transactions && data.transactions.length > 0) {
+                transactionsList.innerHTML = data.transactions.map(t => {
+                    const date = new Date(t.transaction_date).toLocaleDateString('nb-NO');
+                    const statusBadge = t.payment_status === 'completed' ? 'bg-success' : 
+                                       t.payment_status === 'pending' ? 'bg-warning' : 'bg-secondary';
+                    const statusText = t.payment_status === 'completed' ? 'Betalt' : 
+                                      t.payment_status === 'pending' ? 'Venter' : t.payment_status;
+                    const typeText = t.item_type === 'membership_renewal' ? 'Fornyelse' : 
+                                    t.item_type === 'membership' ? 'Nytt' : t.item_type;
+                    
+                    return `
+                        <tr>
+                            <td>${date}</td>
+                            <td>${t.customer_name || '-'}</td>
+                            <td><small>${t.item_name}</small></td>
+                            <td><span class="badge bg-info">${typeText}</span></td>
+                            <td class="text-end"><strong>${parseFloat(t.total).toLocaleString('nb-NO')} NOK</strong></td>
+                            <td><span class="badge ${statusBadge}">${statusText}</span></td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                transactionsList.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-3">
+                            <i class="bi bi-inbox me-2"></i>Ingen medlemstransaksjoner registrert
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            // Render income by plan
+            const incomeByPlanContainer = document.getElementById('income-by-plan');
+            if (data.income_by_plan && data.income_by_plan.length > 0) {
+                incomeByPlanContainer.innerHTML = data.income_by_plan.map(plan => `
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small class="text-muted">${plan.item_name}</small>
+                            <strong>${parseFloat(plan.plan_income).toLocaleString('nb-NO')} NOK</strong>
+                        </div>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: ${(plan.plan_income / data.stats.total_income * 100)}%">
+                                ${plan.sales_count} salg
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                incomeByPlanContainer.innerHTML = `
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-inbox me-2"></i>Ingen data tilgjengelig
+                    </div>
+                `;
+            }
+        } else {
+            console.error('Error loading membership income:', data.message);
+        }
+    } catch (error) {
+        console.error('Error loading membership income:', error);
+    }
+}
+
+// Load income when income subtab is shown
+const incomeTabLink = document.querySelector('a[href="#membership-income"]');
+if (incomeTabLink) {
+    incomeTabLink.addEventListener('click', function() {
+        setTimeout(() => {
+            console.log('Income subtab clicked - loading data');
+            loadMembershipIncome();
+        }, 100);
+    });
 }
 </script>
 

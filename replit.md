@@ -57,6 +57,12 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
   - **Product ID Display**: Success message shows product_id and SKU for tracking
   - **Metadata Flag**: Unified ledger includes 'non_registered_item' = true for reporting
   - **Use Case**: For office supplies, consumables, and other expense items that won't be sold
+- **Membership Income Overview**: Complete membership revenue tracking and reporting system:
+  - **Statistics Dashboard**: Real-time display of total omsetning, aktive medlemmer, månedlig inntekt, årlig inntekt
+  - **Transaction History**: Detailed table showing date, customer, membership type, sale type (nytt/fornyelse), amount, and payment status
+  - **Income by Plan**: Visual progress bars showing revenue breakdown per membership plan with sales count
+  - **API**: `get_membership_income.php` aggregates data from unified_ledger where module_source='membership'
+  - **Auto-load**: Data refreshes automatically when "Inntekter" subtab is clicked
 
 ## Recent Changes (October 31, 2025)
 - **Reservation Sales Integration**: Complete integration of reservable services into sales module with intelligent booking system:
