@@ -49,6 +49,15 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Clean Database Architecture**: Modular database design eliminating duplicates and redundancy, standardizing tables, adding cost price tracking, and introducing `service_bookings` and `unified_ledger` tables.
 - **Database Structure**: Key tables include `tenant_admin_sessions`, `tenant_admins`, `tenant_companies`, `tenant_staff`, `tenant_customers`, `membership_members`, `events_eventdata`, `sales_products`, `sales_transactions`, `unified_ledger`, `email_templates`, `email_logs`, and `output_products`.
 
+## Recent Changes (November 1, 2025)
+- **Non-Registered Items Purchase Flow**: Redesigned purchase form for ikke-registrerte varer (items not for resale):
+  - **Removed Fields**: Strekkode (barcode) and Salgspris (selling price) fields removed from UI
+  - **Auto-Generated SKU**: System automatically generates SKU with "NR-" prefix (e.g., NR-A3F2D1E8)
+  - **Fixed Selling Price**: Backend sets selling_price = 0 automatically (not intended for resale)
+  - **Product ID Display**: Success message shows product_id and SKU for tracking
+  - **Metadata Flag**: Unified ledger includes 'non_registered_item' = true for reporting
+  - **Use Case**: For office supplies, consumables, and other expense items that won't be sold
+
 ## Recent Changes (October 31, 2025)
 - **Reservation Sales Integration**: Complete integration of reservable services into sales module with intelligent booking system:
   - **Booking Modal**: servicePurchaseModal extended with date/time picker, staff selector, and real-time availability checking
