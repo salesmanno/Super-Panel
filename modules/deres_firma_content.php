@@ -308,7 +308,7 @@
                 <div class="col-md-4">
                     <div class="card">
                         <div class="card-header">
-                            <h6 class="mb-0"><i class="bi bi-person-check me-2"></i>Velg ansatt</h6>
+                            <h6 class="mb-0"><i class="bi bi-person-check me-2"></i>Velg bruker</h6>
                         </div>
                         <div class="card-body">
                             <div id="admin-list" class="list-group">
@@ -328,7 +328,7 @@
                         <div class="card-body" id="module-access-panel">
                             <div class="alert alert-info">
                                 <i class="bi bi-info-circle me-2"></i>
-                                Velg en ansatt fra listen til venstre for å administrere modulene deres
+                                Velg en bruker fra listen til venstre for å administrere modulene deres
                             </div>
                         </div>
                     </div>
@@ -542,8 +542,11 @@
                 <?php else: ?>
                     <div class="alert alert-warning">
                         <i class="bi bi-info-circle me-2"></i>
-                        <strong>Ingen websideinnstillinger funnet.</strong> Kontakt systemadministrator for å sette opp webside for din bedrift.
+                        <strong>Ingen websideinnstillinger funnet.</strong>
                     </div>
+                    <button type="button" class="btn btn-primary" onclick="createWebsiteSettings()">
+                        <i class="bi bi-plus-circle me-2"></i>Opprett websideinnstillinger
+                    </button>
                 <?php endif; ?>
                 </form>
             </div>

@@ -322,10 +322,6 @@ try {
                     <i class="bi bi-person-circle me-1"></i>
                     <span class="d-none d-sm-inline"><?= htmlspecialchars($adminName) ?></span>
                 </span>
-                <button class="btn btn-nav btn-sm" data-bs-toggle="modal" data-bs-target="#permissionsModal">
-                    <i class="bi bi-shield-check me-1"></i>
-                    <span class="d-none d-sm-inline">Permissions</span>
-                </button>
                 <a href="admin_sessions.php" class="btn btn-nav btn-sm">
                     <i class="bi bi-clock-history me-1"></i>
                     <span class="d-none d-sm-inline">Sessions</span>
@@ -1057,6 +1053,33 @@ try {
             return false;
         }
         
+        async function createWebsiteSettings() {
+            if (!confirm('Vil du opprette standard websideinnstillinger?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/create_website_settings.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('✅ ' + result.message);
+                    location.reload();
+                } else {
+                    alert('❌ Feil: ' + (result.message || 'Kunne ikke opprette websideinnstillinger'));
+                }
+            } catch (error) {
+                console.error('Error creating website settings:', error);
+                alert('❌ Feil ved opprettelse av websideinnstillinger');
+            }
+        }
+        
         function refreshSession() {
             fetch('/api/refresh_session.php')
                 .then(response => response.json())
@@ -1309,7 +1332,7 @@ try {
             } else {
                 adminList.innerHTML = `
                     <div class="text-center text-muted py-3">
-                        <i class="bi bi-inbox me-2"></i>Ingen ansatte funnet
+                        <i class="bi bi-inbox me-2"></i>Ingen brukere funnet
                     </div>
                 `;
             }
@@ -1358,7 +1381,7 @@ try {
             panel.innerHTML = `
                 <div class="alert alert-info">
                     <i class="bi bi-person-check me-2"></i>
-                    <strong>Ansatt:</strong> ${fullName}
+                    <strong>Bruker:</strong> ${fullName}
                 </div>
                 
                 <h6 class="mb-3">Velg moduler:</h6>
