@@ -33,6 +33,19 @@ try {
     ]);
     
     if ($stmt->rowCount() > 0) {
+        // Also hide the product from output_products catalog
+        $hideStmt = $db->prepare("
+            UPDATE output_products 
+            SET is_visible = FALSE, is_public = FALSE
+            WHERE product_id = ? 
+            AND product_type = 'event'
+            AND company_id = ?
+        ");
+        $hideStmt->execute([
+            $data['event_id'],
+            $_SESSION['company_id']
+        ]);
+        
         echo json_encode([
             'success' => true,
             'message' => 'Arrangement slettet'

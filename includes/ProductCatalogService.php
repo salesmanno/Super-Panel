@@ -170,9 +170,16 @@ class ProductCatalogService {
         
         $outputProducts = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Fetch details from source tables
+        // Fetch details from source tables and filter out deleted products
         foreach ($outputProducts as $op) {
             $productDetails = $this->getProductDetails($op['product_type'], $op['product_id']);
+            
+            // Skip products that no longer exist in source table
+            if ($productDetails === null) {
+                // Log and optionally clean up orphaned output_products entries
+                error_log("Orphaned output_product found: {$op['id']} (type: {$op['product_type']}, source_id: {$op['product_id']})");
+                continue;
+            }
             
             $products[] = array_merge($op, [
                 'details' => $productDetails
@@ -189,7 +196,7 @@ class ProductCatalogService {
         try {
             switch ($productType) {
                 case 'event':
-                    $stmt = $this->db->prepare("SELECT * FROM events_eventdata WHERE id = ?");
+                    $stmt = $this->db->prepare("SELECT * FROM events_eventdata WHERE id = ? AND is_active = " . dbBool(true));
                     break;
                 case 'product':
                 case 'sales_item': // Legacy support

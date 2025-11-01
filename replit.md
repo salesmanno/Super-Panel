@@ -50,6 +50,11 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database Structure**: Key tables include `tenant_admin_sessions`, `tenant_admins`, `tenant_companies`, `tenant_staff`, `tenant_customers`, `membership_members`, `events_eventdata`, `sales_products`, `sales_transactions`, `unified_ledger`, `email_templates`, `email_logs`, and `output_products`.
 
 ## Recent Changes (November 1, 2025)
+- **Fix for slettede produkter i varesalg**: Produktkataloget filtrerer nå ut slettede arrangementer:
+  - **Filtrering**: getAllProducts() hopper over produkter der kildedata er null (slettet fra kildetabell)
+  - **Cascade update**: Når arrangementer slettes, settes is_visible=FALSE i output_products
+  - **Aktiv-sjekk**: getProductDetails() henter kun aktive arrangementer (is_active=TRUE)
+  - **Logging**: Orphaned output_products entries logges for debugging
 - **Single-Session Enforcement**: Streng håndhevelse av én sesjon per bruker:
   - **Blokkerer ny innlogging**: Hvis brukeren allerede er innlogget, blokkeres nye innloggingsforsøk
   - **Klar feilmelding**: "Brukeren er allerede innlogget. Uautorisert bruk? Ta kontakt med 404 69 364."
