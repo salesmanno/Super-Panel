@@ -24,7 +24,7 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Tab Navigation System**: Utilizes Bootstrap 5's native tab component for content display.
 - **Module & Privilege Management**: Granular access control via `tenant_admin_modules` and `tenant_company_modules` tables, with a dedicated interface for staff module access management.
 - **Email Module**: Integrated email client with SMTP configuration validation and `EmailService.php` for cross-module automated notifications.
-- **Events Module**: Comprehensive CRUD for event management with `output_products` integration, including configurable registration fields, scanner-based check-in, and income/expense tracking.
+- **Events Module**: Comprehensive CRUD for event management with `output_products` integration, including configurable registration fields via `event_registration_fields` table (standard fields: first_name, last_name, email; optional: phone, street, zip, city, postal, age), scanner-based check-in, and income/expense tracking.
 - **Ditt Nettsted Module**: Manages website configuration from `tenant_website_config` with an admin password-protected lock mechanism.
 - **Reservation Module**: Complete reservation management with agenda/calendar views, filtering, statistics, and subtabs for service types. Includes visual calendar-based booking with staff availability.
 - **Sales Module with Shopping Cart**: Supports dual purchase flows (shopping cart for products, individual service sales), barcode scanner integration, customer data management, and event linking. Includes hardcoded payment methods (Kontant, Vipps, Oppmøte) and a fullscreen mode. Features purchasing for registered and non-registered items with automatic stock tracking and weighted average cost calculation.
@@ -37,6 +37,11 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Modularity**: Core system features are organized into distinct modules.
 - **Staff-First Architecture**: `tenant_staff` (employees) are created independently, with `tenant_admins` (login accounts) optionally linked.
 - **Clean Database Architecture**: Modular database design eliminating duplicates and redundancy, standardizing tables, adding cost price tracking, and introducing `service_bookings` and `unified_ledger` tables.
+
+## Recent Changes
+- **2025-11-01**: Added `event_registration_fields` table for configurable event registration fields. Migration: Run `api/migrate_event_registration_fields.php` or use `docs/migration_add_event_registration_fields.sql`
+- **2025-11-01**: Fixed event creation to properly handle registration field boolean values for SMALLINT columns
+- **2025-11-01**: Added `image_url` column to `x_tenant_announcements` for news/announcement image support
 
 ## External Dependencies
 - **Database**: Dual database support with PDO:

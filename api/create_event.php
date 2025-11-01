@@ -144,8 +144,8 @@ try {
                 $fieldName,
                 $fieldConfig['label'],
                 $fieldConfig['type'],
-                $fieldConfig['required'],
-                true,
+                (int)$fieldConfig['required'],
+                1,
                 $displayOrder++
             ]);
         }
@@ -175,8 +175,8 @@ try {
                     $fieldName,
                     $fieldConfig['label'],
                     $fieldConfig['type'],
-                    false,
-                    true,
+                    0,
+                    1,
                     $displayOrder++
                 ]);
             }
