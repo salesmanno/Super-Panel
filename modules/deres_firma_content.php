@@ -298,6 +298,46 @@
         </div>
     </div>
 
+<div class="tab-pane fade" id="firma-modules" role="tabpanel">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title"><i class="bi bi-grid-3x3-gap me-2"></i>Moduladministrasjon</h5>
+            <p class="text-muted">Styr hvilke moduler ansatte har tilgang til</p>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-person-check me-2"></i>Velg ansatt</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="admin-list" class="list-group">
+                                <div class="text-center text-muted py-3">
+                                    <i class="bi bi-hourglass-split me-2"></i>Laster...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-toggles me-2"></i>Modultilgang</h6>
+                        </div>
+                        <div class="card-body" id="module-access-panel">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Velg en ansatt fra listen til venstre for å administrere modulene deres
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="tab-pane fade" id="firma-webside" role="tabpanel">
         <div class="card">
             <div class="card-body">

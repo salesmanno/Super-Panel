@@ -897,6 +897,11 @@ try {
                                             </button>
                                         </li>
                                         <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="firma-tab-modules" data-bs-toggle="tab" data-bs-target="#firma-modules" type="button" role="tab">
+                                                <i class="bi bi-grid-3x3-gap me-2"></i>Moduler
+                                            </button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
                                             <button class="nav-link" id="firma-tab-4" data-bs-toggle="tab" data-bs-target="#firma-webside" type="button" role="tab">
                                                 <i class="bi bi-palette me-2"></i>Webside
                                             </button>
@@ -1252,6 +1257,159 @@ try {
                 showSubTabs('<?= $userModules[0]['module_key'] ?? '' ?>');
             <?php endif; ?>
         });
+        
+        // Module administration functions
+        let staffModulesData = null;
+        let selectedAdminId = null;
+        
+        // Load staff and modules when modules tab is shown
+        const modulesTabButton = document.getElementById('firma-tab-modules');
+        if (modulesTabButton) {
+            modulesTabButton.addEventListener('shown.bs.tab', loadStaffModules);
+        }
+        
+        async function loadStaffModules() {
+            try {
+                const response = await fetch('/api/get_staff_modules.php');
+                const data = await response.json();
+                
+                if (data.success) {
+                    staffModulesData = data;
+                    renderAdminList(data.admins);
+                } else {
+                    console.error('Error loading staff modules:', data.message);
+                }
+            } catch (error) {
+                console.error('Error loading staff modules:', error);
+            }
+        }
+        
+        function renderAdminList(admins) {
+            const adminList = document.getElementById('admin-list');
+            
+            if (admins && admins.length > 0) {
+                adminList.innerHTML = admins.map(admin => {
+                    const fullName = admin.first_name && admin.last_name 
+                        ? `${admin.first_name} ${admin.last_name}` 
+                        : admin.username;
+                    const position = admin.position ? `<small class="text-muted">${admin.position}</small>` : '';
+                    const statusBadge = admin.is_active 
+                        ? '<span class="badge bg-success ms-2">Aktiv</span>' 
+                        : '<span class="badge bg-secondary ms-2">Inaktiv</span>';
+                    
+                    return `
+                        <a href="#" class="list-group-item list-group-item-action" onclick="selectAdmin(${admin.admin_id}); return false;">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">${fullName}${statusBadge}</h6>
+                            </div>
+                            ${position}
+                        </a>
+                    `;
+                }).join('');
+            } else {
+                adminList.innerHTML = `
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-inbox me-2"></i>Ingen ansatte funnet
+                    </div>
+                `;
+            }
+        }
+        
+        function selectAdmin(adminId) {
+            selectedAdminId = adminId;
+            
+            // Update selected state in list
+            document.querySelectorAll('#admin-list .list-group-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.closest('.list-group-item').classList.add('active');
+            
+            // Find admin data
+            const admin = staffModulesData.admins.find(a => a.admin_id === adminId);
+            if (!admin) return;
+            
+            // Render module checkboxes
+            renderModuleAccess(admin);
+        }
+        
+        function renderModuleAccess(admin) {
+            const panel = document.getElementById('module-access-panel');
+            const fullName = admin.first_name && admin.last_name 
+                ? `${admin.first_name} ${admin.last_name}` 
+                : admin.username;
+            
+            const moduleCheckboxes = staffModulesData.available_modules.map(module => {
+                const isChecked = admin.modules[module.id] === true || admin.modules[module.id] === 1;
+                const icon = module.icon || 'bi-box';
+                
+                return `
+                    <div class="form-check">
+                        <input class="form-check-input module-checkbox" type="checkbox" 
+                               value="${module.id}" id="module-${module.id}" 
+                               ${isChecked ? 'checked' : ''}>
+                        <label class="form-check-label" for="module-${module.id}">
+                            <i class="bi ${icon} me-2"></i>${module.name}
+                            ${module.description ? `<br><small class="text-muted">${module.description}</small>` : ''}
+                        </label>
+                    </div>
+                `;
+            }).join('');
+            
+            panel.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="bi bi-person-check me-2"></i>
+                    <strong>Ansatt:</strong> ${fullName}
+                </div>
+                
+                <h6 class="mb-3">Velg moduler:</h6>
+                <div class="mb-4">
+                    ${moduleCheckboxes}
+                </div>
+                
+                <button type="button" class="btn btn-success" onclick="saveModuleAccess()">
+                    <i class="bi bi-save me-2"></i>Lagre endringer
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="loadStaffModules()">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Avbryt
+                </button>
+            `;
+        }
+        
+        async function saveModuleAccess() {
+            if (!selectedAdminId) {
+                alert('❌ Ingen ansatt valgt');
+                return;
+            }
+            
+            // Get selected modules
+            const selectedModules = [];
+            document.querySelectorAll('.module-checkbox:checked').forEach(checkbox => {
+                selectedModules.push(parseInt(checkbox.value));
+            });
+            
+            try {
+                const response = await fetch('/api/update_staff_modules.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        admin_id: selectedAdminId,
+                        modules: selectedModules
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Modulrettigheter oppdatert!\n\n${result.modules_granted} moduler tildelt.`);
+                    loadStaffModules(); // Reload data
+                } else {
+                    alert('❌ Feil: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error saving module access:', error);
+                alert('❌ Feil ved lagring av modulrettigheter');
+            }
+        }
     </script>
 </body>
 </html>

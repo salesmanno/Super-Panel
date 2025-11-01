@@ -63,6 +63,13 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
   - **Income by Plan**: Visual progress bars showing revenue breakdown per membership plan with sales count
   - **API**: `get_membership_income.php` aggregates data from unified_ledger where module_source='membership'
   - **Auto-load**: Data refreshes automatically when "Inntekter" subtab is clicked
+- **Module Administration for Staff**: Complete system for managing employee module access:
+  - **New Tab in Deres Firma**: "Moduler" tab between "Stillinger" and "Webside" for centralized management
+  - **Staff Selection**: List all employees, click to select and manage their module access
+  - **Module Checkboxes**: Visual interface showing all available modules with current access status
+  - **API**: `get_staff_modules.php` retrieves staff and module data, `update_staff_modules.php` updates permissions
+  - **Database**: Uses existing `tenant_admin_modules` table with granted_by and granted_at tracking
+  - **Security**: All operations scoped to company_id, validates admin ownership before updates
 
 ## Recent Changes (October 31, 2025)
 - **Reservation Sales Integration**: Complete integration of reservable services into sales module with intelligent booking system:
