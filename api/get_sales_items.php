@@ -25,6 +25,7 @@ try {
                     WHEN op.product_type = 'event' THEN e.title
                     WHEN op.product_type = 'product' THEN sp.name
                     WHEN op.product_type = 'membership' THEN " . ($dbType === 'mysql' ? "mp.name" : "mp.plan_name") . "
+                    WHEN op.product_type = 'service' THEN rs.service_name
                     ELSE NULL
                 END,
                 op.name
@@ -34,6 +35,7 @@ try {
                     WHEN op.product_type = 'event' THEN e.ticket_price
                     WHEN op.product_type = 'product' THEN sp.selling_price
                     WHEN op.product_type = 'membership' THEN mp.price
+                    WHEN op.product_type = 'service' THEN rs.price
                     ELSE NULL
                 END,
                 op.price
@@ -56,11 +58,14 @@ try {
             END as duration_months,
             " . ($dbType === 'mysql' ? "mp.billing_cycle" : "NULL") . " as billing_cycle,
             sp.img_product,
-            sp.item_taxable
+            sp.item_taxable,
+            rs.duration_minutes as service_duration,
+            rs.assigned_staff_ids as service_staff_ids
         FROM output_products op
         LEFT JOIN events_eventdata e ON op.product_type = 'event' AND op.product_id = e.id
         LEFT JOIN sales_products sp ON op.product_type = 'product' AND op.product_id = sp.id
         LEFT JOIN " . ($dbType === 'mysql' ? "membership_plans" : "x_membership_plan") . " mp ON op.product_type = 'membership' AND op.product_id = " . ($dbType === 'mysql' ? "mp.id" : "mp.plan_id") . "
+        LEFT JOIN reservation_services rs ON op.product_type = 'service' AND op.product_id = rs.id
         WHERE op.company_id = ? AND op.is_visible = 1
         ORDER BY item_name ASC
     ");

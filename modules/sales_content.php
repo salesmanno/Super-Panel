@@ -1264,7 +1264,7 @@ async function loadSalesProducts() {
             productsCache = products;
             
             displayProducts(products);
-            displayServices(services);
+            await displayServices(services);
         } else {
             // Show error message when API fails
             displayProducts([]);
@@ -1336,7 +1336,7 @@ function displayProducts(products) {
     }).join('');
 }
 
-function displayServices(services) {
+async function displayServices(services) {
     const salesModule = document.getElementById('content-sales');
     if (!salesModule) return;
     
@@ -1350,8 +1350,23 @@ function displayServices(services) {
     const colors = {
         'event': 'primary',
         'membership': 'success',
-        'rental': 'warning'
+        'rental': 'warning',
+        'service': 'info'
     };
+    
+    // Fetch staff data for services
+    let staffMap = {};
+    try {
+        const response = await fetch('/api/get_staff.php');
+        const data = await response.json();
+        if (data.success && data.staff) {
+            data.staff.forEach(staff => {
+                staffMap[staff.id] = `${staff.first_name} ${staff.last_name}`;
+            });
+        }
+    } catch (e) {
+        console.error('Failed to load staff data:', e);
+    }
     
     container.innerHTML = '<div class="d-flex flex-wrap gap-2">' + services.map(service => {
         const color = colors[service.product_type] || 'secondary';
@@ -1361,12 +1376,31 @@ function displayServices(services) {
         // Escape single quotes in name to prevent JavaScript errors
         const safeName = (service.item_name || '').replace(/'/g, "\\'");
         
+        // Build reservation data for services
+        let reservationDataStr = 'null';
+        if (service.product_type === 'service' && service.service_duration && service.service_staff_ids) {
+            try {
+                const staffIds = JSON.parse(service.service_staff_ids || '[]');
+                const staffNames = staffIds.map(id => staffMap[id] || 'Ukjent').join(', ');
+                const reservationData = {
+                    service_id: service.product_id,
+                    duration_minutes: service.service_duration,
+                    assigned_staff_ids: staffIds,
+                    staff_names: staffNames,
+                    staff_map: staffMap
+                };
+                reservationDataStr = JSON.stringify(reservationData).replace(/'/g, "\\'");
+            } catch (e) {
+                console.error('Error building reservation data:', e);
+            }
+        }
+        
         return `
             <div class="badge bg-${color} p-2 text-start" 
                  style="cursor: pointer; min-width: 180px; max-width: 250px;"
                  data-bs-toggle="modal" 
                  data-bs-target="#servicePurchaseModal" 
-                 onclick="setServiceData('${service.id}', '${service.product_type}', '${safeName}', ${service.price}, ${durationMonths})">
+                 onclick="setServiceData('${service.id}', '${service.product_type}', '${safeName}', ${service.price}, ${durationMonths}, ${reservationDataStr === 'null' ? 'null' : "JSON.parse('" + reservationDataStr + "')"})">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="flex-grow-1">
                         <div style="font-size: 0.9rem; font-weight: 600;">${service.item_name}</div>
@@ -1384,6 +1418,7 @@ function getServiceTypeName(type) {
         'event': 'Arrangement',
         'membership': 'Medlemskap',
         'rental': 'Utleie',
+        'service': 'Tjeneste',
         'reservation': 'Reservasjon'
     };
     return types[type] || type;
@@ -2185,15 +2220,14 @@ async function setServiceData(id, type, name, price, planDuration = null, reserv
     const reservationFields = document.getElementById('reservation-specific-fields');
     const quantityField = document.getElementById('service-quantity-field');
     
-    // Hide all special fields first
+    // Hide all special fields first and set quantity to 1 (services always have quantity=1)
     membershipFields.style.display = 'none';
     reservationFields.style.display = 'none';
-    quantityField.style.display = 'block';
+    quantityField.style.display = 'none';
+    document.getElementById('service-quantity').value = 1;
     
     if (type === 'membership') {
         membershipFields.style.display = 'block';
-        quantityField.style.display = 'none';
-        document.getElementById('service-quantity').value = 1;
         
         // Store plan duration
         document.getElementById('service-plan-duration').value = planDuration || 12;
@@ -2204,15 +2238,9 @@ async function setServiceData(id, type, name, price, planDuration = null, reserv
         
         // Calculate expiry date automatically
         updateExpiryDate();
-    } else if (type === 'event') {
-        // Event tickets always have quantity = 1
-        quantityField.style.display = 'none';
-        document.getElementById('service-quantity').value = 1;
     } else if (type === 'service' && reservationData) {
         // This is a reservable service - show reservation fields
         reservationFields.style.display = 'block';
-        quantityField.style.display = 'none';
-        document.getElementById('service-quantity').value = 1;
         
         // Store reservation data globally for calendar
         window.currentReservationData = reservationData;
@@ -2632,7 +2660,7 @@ async function processServicePurchase() {
     const purchaseData = {
         output_product_id: document.getElementById('service-id').value,
         service_type: serviceType,
-        quantity: (serviceType === 'membership' || isReservation) ? 1 : parseInt(document.getElementById('service-quantity').value),
+        quantity: 1, // All services have quantity = 1
         customer_first_name: document.getElementById('service-customer-first-name').value,
         customer_last_name: document.getElementById('service-customer-last-name').value,
         customer_email: document.getElementById('service-customer-email').value,

@@ -27,6 +27,7 @@ try {
                 a.author_id,
                 a.title,
                 a.content,
+                a.image_url,
                 a.announcement_type,
                 a.priority,
                 a.target_audience,
