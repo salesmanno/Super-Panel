@@ -878,36 +878,70 @@
                         <input type="hidden" id="reservation-service-id">
                         <input type="hidden" id="reservation-duration">
                         <input type="hidden" id="reservation-assigned-staff">
+                        <input type="hidden" id="reservation-date">
+                        <input type="hidden" id="reservation-time">
+                        <select class="form-select" id="reservation-staff-select" required style="display: none;"></select>
                         
                         <div class="alert alert-info small mb-3">
                             <i class="bi bi-clock me-1"></i>Varighet: <strong id="reservation-duration-display">-</strong> minutter<br>
-                            <i class="bi bi-people me-1"></i>Tilgjengelige: <span id="reservation-staff-names">-</span>
+                            <i class="bi bi-people me-1"></i>Tilgjengelige ansatte: <span id="reservation-staff-names">-</span>
                         </div>
                         
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Dato <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control" id="reservation-date" onchange="checkAvailability()" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Tidspunkt <span class="text-danger">*</span></label>
-                                <input type="time" class="form-control" id="reservation-time" onchange="checkAvailability()" required>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label">Velg ansatt <span class="text-danger">*</span></label>
-                            <select class="form-select" id="reservation-staff-select" required>
-                                <option value="">-- Velg ansatt --</option>
-                            </select>
-                            <div id="availability-status" class="mt-2"></div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <button type="button" class="btn btn-sm btn-outline-success" onclick="findFirstAvailable()">
-                                <i class="bi bi-lightning-charge me-1"></i>Første ledige tidspunkt
+                        <!-- Calendar Navigation -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="changeCalendarWeek(-1)">
+                                <i class="bi bi-chevron-left"></i> Forrige uke
                             </button>
-                            <div id="first-available-result" class="mt-2"></div>
+                            <h6 class="mb-0" id="calendar-week-label">Velg dato og tidspunkt</h6>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="changeCalendarWeek(1)">
+                                Neste uke <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleManualTimeInput()">
+                                <i class="bi bi-clock-history me-1"></i>Velg annen tid (utenfor 06:00-22:00)
+                            </button>
+                        </div>
+                        
+                        <!-- Manual time input (for times outside calendar range) -->
+                        <div id="manual-time-input" class="card mb-3" style="display: none;">
+                            <div class="card-body">
+                                <h6 class="card-title">Manuell tidsvalg</h6>
+                                <div class="row">
+                                    <div class="col-md-4 mb-2">
+                                        <label class="form-label small">Dato</label>
+                                        <input type="date" class="form-control form-control-sm" id="manual-date">
+                                    </div>
+                                    <div class="col-md-3 mb-2">
+                                        <label class="form-label small">Tid</label>
+                                        <input type="time" class="form-control form-control-sm" id="manual-time">
+                                    </div>
+                                    <div class="col-md-5 mb-2">
+                                        <label class="form-label small">Ansatt</label>
+                                        <select class="form-select form-select-sm" id="manual-staff"></select>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-success" onclick="applyManualTime()">
+                                    <i class="bi bi-check me-1"></i>Bruk denne tiden
+                                </button>
+                                <button type="button" class="btn btn-sm btn-secondary" onclick="toggleManualTimeInput()">
+                                    Avbryt
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Calendar Grid -->
+                        <div id="reservation-calendar" class="mb-3" style="max-height: 400px; overflow-y: auto;">
+                            <div class="text-center text-muted py-3">
+                                <i class="bi bi-hourglass-split me-2"></i>Laster tilgjengelige tider...
+                            </div>
+                        </div>
+                        
+                        <!-- Selected slot display -->
+                        <div id="selected-slot-display" class="alert alert-success" style="display: none;">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <strong>Valgt tid:</strong> <span id="selected-slot-text"></span>
                         </div>
                     </div>
                     
@@ -2159,6 +2193,7 @@ async function setServiceData(id, type, name, price, planDuration = null, reserv
     if (type === 'membership') {
         membershipFields.style.display = 'block';
         quantityField.style.display = 'none';
+        document.getElementById('service-quantity').value = 1;
         
         // Store plan duration
         document.getElementById('service-plan-duration').value = planDuration || 12;
@@ -2169,35 +2204,28 @@ async function setServiceData(id, type, name, price, planDuration = null, reserv
         
         // Calculate expiry date automatically
         updateExpiryDate();
+    } else if (type === 'event') {
+        // Event tickets always have quantity = 1
+        quantityField.style.display = 'none';
+        document.getElementById('service-quantity').value = 1;
     } else if (type === 'service' && reservationData) {
         // This is a reservable service - show reservation fields
         reservationFields.style.display = 'block';
         quantityField.style.display = 'none';
+        document.getElementById('service-quantity').value = 1;
         
-        // Store reservation data
+        // Store reservation data globally for calendar
+        window.currentReservationData = reservationData;
+        window.currentCalendarWeekOffset = 0;
+        
         document.getElementById('reservation-service-id').value = reservationData.service_id;
         document.getElementById('reservation-duration').value = reservationData.duration_minutes;
         document.getElementById('reservation-assigned-staff').value = JSON.stringify(reservationData.assigned_staff_ids);
         document.getElementById('reservation-duration-display').textContent = reservationData.duration_minutes;
         document.getElementById('reservation-staff-names').textContent = reservationData.staff_names || 'Ingen valgt';
         
-        // Set default date to today
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('reservation-date').value = today;
-        
-        // Populate staff dropdown
-        const staffSelect = document.getElementById('reservation-staff-select');
-        staffSelect.innerHTML = '<option value="">-- Velg ansatt --</option>';
-        
-        if (reservationData.assigned_staff_ids && Array.isArray(reservationData.assigned_staff_ids)) {
-            for (let staffId of reservationData.assigned_staff_ids) {
-                const staffName = reservationData.staff_map?.[staffId] || staffId;
-                const option = document.createElement('option');
-                option.value = staffId;
-                option.textContent = staffName;
-                staffSelect.appendChild(option);
-            }
-        }
+        // Load calendar
+        loadReservationCalendar();
     }
     
     updateServiceTotal();
@@ -2308,6 +2336,276 @@ function applyFirstAvailable(date, time, staffId) {
     document.getElementById('reservation-staff-select').value = staffId;
     document.getElementById('first-available-result').innerHTML = '';
     checkAvailability();
+}
+
+// New calendar-based reservation system
+async function loadReservationCalendar() {
+    const reservationData = window.currentReservationData;
+    if (!reservationData) return;
+    
+    const weekOffset = window.currentCalendarWeekOffset || 0;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() + (weekOffset * 7));
+    
+    // Update week label
+    const weekLabel = document.getElementById('calendar-week-label');
+    if (weekOffset === 0) {
+        weekLabel.textContent = 'Denne uken';
+    } else if (weekOffset === 1) {
+        weekLabel.textContent = 'Neste uke';
+    } else {
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 6);
+        weekLabel.textContent = `${formatDate(startDate)} - ${formatDate(endDate)}`;
+    }
+    
+    // Generate calendar for the week
+    const calendar = document.getElementById('reservation-calendar');
+    calendar.innerHTML = '<div class="text-center text-muted py-3"><i class="bi bi-hourglass-split me-2"></i>Laster...</div>';
+    
+    try {
+        const slotsData = await generateWeekSlots(startDate, reservationData);
+        renderCalendar(slotsData, reservationData);
+    } catch (error) {
+        console.error('Error loading calendar:', error);
+        calendar.innerHTML = '<div class="alert alert-danger">Feil ved lasting av kalender</div>';
+    }
+}
+
+async function generateWeekSlots(startDate, reservationData) {
+    const duration = reservationData.duration_minutes;
+    const staffIds = reservationData.assigned_staff_ids || [];
+    const staffMap = reservationData.staff_map || {};
+    
+    // Calculate end date (7 days from start)
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 6);
+    
+    try {
+        // Fetch all availability data in ONE API call
+        const response = await fetch('/api/get_week_availability.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                start_date: startDate.toISOString().split('T')[0],
+                end_date: endDate.toISOString().split('T')[0],
+                staff_ids: staffIds,
+                duration: duration,
+                start_hour: 6,
+                end_hour: 22,
+                include_weekends: true
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+            console.error('Error fetching availability:', result.message);
+            return {};
+        }
+        
+        // Transform API response into slots format
+        const slots = {};
+        const availabilityData = result.availability;
+        
+        for (const date in availabilityData) {
+            slots[date] = {};
+            
+            for (const staffId in availabilityData[date]) {
+                slots[date][staffId] = {
+                    staffName: staffMap[staffId] || staffId,
+                    slots: []
+                };
+                
+                // Convert time -> availability map to slots array
+                const staffAvailability = availabilityData[date][staffId];
+                for (const time in staffAvailability) {
+                    slots[date][staffId].slots.push({
+                        time: time.substring(0, 5), // Remove seconds (HH:MM:SS -> HH:MM)
+                        available: staffAvailability[time]
+                    });
+                }
+            }
+        }
+        
+        return slots;
+    } catch (error) {
+        console.error('Error generating week slots:', error);
+        return {};
+    }
+}
+
+function renderCalendar(slotsData, reservationData) {
+    const calendar = document.getElementById('reservation-calendar');
+    const dates = Object.keys(slotsData).sort();
+    
+    if (dates.length === 0) {
+        calendar.innerHTML = '<div class="alert alert-info">Ingen tilgjengelige dager denne uken (kun hverdager)</div>';
+        return;
+    }
+    
+    let html = '<div class="table-responsive">';
+    html += '<table class="table table-sm table-bordered">';
+    
+    // Header row with dates
+    html += '<thead><tr><th style="width: 80px;">Tid</th>';
+    dates.forEach(date => {
+        const dateObj = new Date(date);
+        const dayName = ['Søn', 'Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør'][dateObj.getDay()];
+        const dayMonth = `${dateObj.getDate()}/${dateObj.getMonth() + 1}`;
+        html += `<th class="text-center">${dayName}<br><small>${dayMonth}</small></th>`;
+    });
+    html += '</tr></thead><tbody>';
+    
+    // Get all unique times
+    const allTimes = new Set();
+    dates.forEach(date => {
+        Object.values(slotsData[date]).forEach(staff => {
+            staff.slots.forEach(slot => allTimes.add(slot.time));
+        });
+    });
+    const sortedTimes = Array.from(allTimes).sort();
+    
+    // For each time slot
+    sortedTimes.forEach(time => {
+        html += `<tr><td class="fw-bold">${time}</td>`;
+        
+        dates.forEach(date => {
+            html += '<td class="p-1">';
+            
+            const staffData = slotsData[date];
+            const staffIds = Object.keys(staffData);
+            
+            // Show each staff member's slot
+            staffIds.forEach((staffId, index) => {
+                const staff = staffData[staffId];
+                const slot = staff.slots.find(s => s.time === time);
+                
+                if (slot) {
+                    const btnClass = slot.available ? 'btn-outline-success' : 'btn-outline-secondary';
+                    const disabled = !slot.available ? 'disabled' : '';
+                    const icon = slot.available ? '✓' : '✗';
+                    
+                    html += `
+                        <button type="button" class="btn ${btnClass} btn-sm w-100 mb-1" 
+                                ${disabled}
+                                onclick="selectTimeSlot('${date}', '${time}', '${staffId}', '${staff.staffName}')"
+                                title="${staff.staffName} - ${slot.available ? 'Ledig' : 'Opptatt'}">
+                            <small>${icon} ${staff.staffName}</small>
+                        </button>
+                    `;
+                }
+            });
+            
+            html += '</td>';
+        });
+        
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table></div>';
+    calendar.innerHTML = html;
+}
+
+function selectTimeSlot(date, time, staffId, staffName) {
+    // Store selected values
+    document.getElementById('reservation-date').value = date;
+    document.getElementById('reservation-time').value = time;
+    document.getElementById('reservation-staff-select').value = staffId;
+    
+    // Show confirmation
+    const display = document.getElementById('selected-slot-display');
+    const text = document.getElementById('selected-slot-text');
+    const dateObj = new Date(date);
+    const dayName = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag'][dateObj.getDay()];
+    
+    text.textContent = `${dayName} ${formatDate(dateObj)} kl. ${time} med ${staffName}`;
+    display.style.display = 'block';
+}
+
+function changeCalendarWeek(offset) {
+    window.currentCalendarWeekOffset = (window.currentCalendarWeekOffset || 0) + offset;
+    
+    // Don't allow going back more than current week
+    if (window.currentCalendarWeekOffset < 0) {
+        window.currentCalendarWeekOffset = 0;
+        return;
+    }
+    
+    loadReservationCalendar();
+}
+
+function formatDate(date) {
+    const d = new Date(date);
+    const day = d.getDate();
+    const month = d.getMonth() + 1;
+    return `${day}.${month}`;
+}
+
+function toggleManualTimeInput() {
+    const manualInput = document.getElementById('manual-time-input');
+    const isVisible = manualInput.style.display !== 'none';
+    
+    if (!isVisible) {
+        // Show manual input
+        manualInput.style.display = 'block';
+        
+        // Set default date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('manual-date').value = today;
+        
+        // Populate staff dropdown
+        const reservationData = window.currentReservationData;
+        if (reservationData) {
+            const manualStaff = document.getElementById('manual-staff');
+            manualStaff.innerHTML = '<option value="">-- Velg ansatt --</option>';
+            
+            if (reservationData.assigned_staff_ids && Array.isArray(reservationData.assigned_staff_ids)) {
+                for (let staffId of reservationData.assigned_staff_ids) {
+                    const staffName = reservationData.staff_map?.[staffId] || staffId;
+                    const option = document.createElement('option');
+                    option.value = staffId;
+                    option.textContent = staffName;
+                    manualStaff.appendChild(option);
+                }
+            }
+        }
+    } else {
+        // Hide manual input
+        manualInput.style.display = 'none';
+    }
+}
+
+function applyManualTime() {
+    const date = document.getElementById('manual-date').value;
+    const time = document.getElementById('manual-time').value;
+    const staffId = document.getElementById('manual-staff').value;
+    
+    if (!date || !time || !staffId) {
+        alert('❌ Vennligst fyll ut alle felt');
+        return;
+    }
+    
+    // Get staff name
+    const staffSelect = document.getElementById('manual-staff');
+    const staffName = staffSelect.options[staffSelect.selectedIndex].text;
+    
+    // Store selected values (same as calendar selection)
+    document.getElementById('reservation-date').value = date;
+    document.getElementById('reservation-time').value = time;
+    document.getElementById('reservation-staff-select').value = staffId;
+    
+    // Show confirmation
+    const display = document.getElementById('selected-slot-display');
+    const text = document.getElementById('selected-slot-text');
+    const dateObj = new Date(date);
+    const dayName = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag'][dateObj.getDay()];
+    
+    text.textContent = `${dayName} ${formatDate(dateObj)} kl. ${time} med ${staffName} (Manuelt valgt)`;
+    display.style.display = 'block';
+    
+    // Hide manual input
+    toggleManualTimeInput();
 }
 
 document.getElementById('service-quantity')?.addEventListener('input', updateServiceTotal);

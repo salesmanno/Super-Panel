@@ -46,6 +46,34 @@ try {
         exit;
     }
     
+    // SINGLE SESSION ENFORCEMENT: Check if user has an active session with recent activity (within 30 min)
+    // First, clean up stale sessions (inactive for more than 30 minutes)
+    $stmt = $db->prepare("
+        UPDATE tenant_admin_sessions 
+        SET is_active = " . dbBool(false) . ", 
+            logout_at = NOW()
+        WHERE tenant_admin_id = ? 
+        AND is_active = " . dbBool(true) . "
+        AND last_activity < DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+    ");
+    $stmt->execute([$admin['id']]);
+    
+    // Now check for truly active sessions
+    $stmt = $db->prepare("
+        SELECT COUNT(*) as active_sessions 
+        FROM tenant_admin_sessions 
+        WHERE tenant_admin_id = ? 
+        AND is_active = " . dbBool(true) . "
+        AND last_activity >= DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+    ");
+    $stmt->execute([$admin['id']]);
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($result['active_sessions'] > 0) {
+        header('Location: ../index.php?error=already_logged_in');
+        exit;
+    }
+    
     updateTenantAdminLastLogin($admin['id']);
     
     session_regenerate_id(true);

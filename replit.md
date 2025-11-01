@@ -50,6 +50,24 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database Structure**: Key tables include `tenant_admin_sessions`, `tenant_admins`, `tenant_companies`, `tenant_staff`, `tenant_customers`, `membership_members`, `events_eventdata`, `sales_products`, `sales_transactions`, `unified_ledger`, `email_templates`, `email_logs`, and `output_products`.
 
 ## Recent Changes (November 1, 2025)
+- **Single-Session Enforcement**: Streng håndhevelse av én sesjon per bruker:
+  - **Blokkerer ny innlogging**: Hvis brukeren allerede er innlogget, blokkeres nye innloggingsforsøk
+  - **Klar feilmelding**: "Brukeren er allerede innlogget. Uautorisert bruk? Ta kontakt med 404 69 364."
+  - **Ingen automatisk utlogging**: Eksisterende sesjon må logges ut manuelt før ny innlogging
+  - **Sikkerhet**: Forhindrer uautorisert tilgang ved å kreve eksplisitt utlogging
+- **Servicesalg med kalendervisning**: Redesignet reservasjonsbooking med visuell kalender:
+  - **Visuell kalender**: Erstatter enkle dato/tid-inputs med ukeskalender som viser alle tilgjengelige timeslots
+  - **Per-ansatt visning**: Hver timeslot viser knapper for alle tilgjengelige ansatte (grønn ✓ = ledig, grå ✗ = opptatt)
+  - **Ukesnavigering**: Bla gjennom uker med Forrige/Neste-knapper
+  - **Batch-API**: `get_week_availability.php` laster all tilgjengelighet for en uke i ett kall (reduserer fra 400+ til 1 API-kall)
+  - **Fleksible åpningstider**: Konfigurerbare timer (standard 06:00-22:00, inkluderer helger)
+  - **Visuell bekreftelse**: Valgt tidspunkt vises tydelig med dag, dato, tid og ansatt
+- **Antall-felt fjernet for medlemskap og events**: 
+  - Medlemskap og arrangementbilletter selges alltid med antall = 1
+  - Antall-input skjules automatisk for disse produkttypene
+  - Forenkler salgsprosessen og forhindrer feil
+
+## Recent Changes (November 1, 2025 - Previous)
 - **Non-Registered Items Purchase Flow**: Redesigned purchase form for ikke-registrerte varer (items not for resale):
   - **Removed Fields**: Strekkode (barcode) and Salgspris (selling price) fields removed from UI
   - **Auto-Generated SKU**: System automatically generates SKU with "NR-" prefix (e.g., NR-A3F2D1E8)

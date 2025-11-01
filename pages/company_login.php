@@ -23,6 +23,9 @@ if (isset($_GET['error'])) {
         case 'database_unavailable':
             $error_message = 'Databasen er ikke tilgjengelig. Vennligst prøv igjen senere.';
             break;
+        case 'already_logged_in':
+            $error_message = 'Brukeren er allerede innlogget. Uautorisert bruk? Ta kontakt med 404 69 364.';
+            break;
         default:
             $error_message = 'En feil oppstod. Vennligst prøv igjen.';
     }

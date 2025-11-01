@@ -134,17 +134,7 @@ function createTenantAdminSession($tenantAdminId, $sessionId) {
     $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
     
     try {
-        // SINGLE SESSION ENFORCEMENT: Logout any active sessions for this user
-        $stmt = $db->prepare("
-            UPDATE tenant_admin_sessions 
-            SET is_active = " . dbBool(false) . ", 
-                logout_at = NOW()
-            WHERE tenant_admin_id = ? 
-            AND is_active = " . dbBool(true) . "
-        ");
-        $stmt->execute([$tenantAdminId]);
-        
-        // Create new session
+        // Create new session (existing sessions are now blocked in auth/company_auth.php)
         $stmt = $db->prepare("
             INSERT INTO tenant_admin_sessions 
             (tenant_admin_id, session_id, ip_address, user_agent, login_at, last_activity, is_active)
