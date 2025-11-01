@@ -24,14 +24,12 @@ try {
     $data = json_decode(file_get_contents('php://input'), true);
     
     $product_name = $data['product_name'] ?? null;
-    $sku = $data['sku'] ?? null;
     $category = $data['category'] ?? null;
     $supplier = $data['supplier'] ?? null;
     $quantity = intval($data['quantity'] ?? 0);
     $total_cost = floatval($data['total_cost'] ?? 0);
-    $selling_price = floatval($data['selling_price'] ?? 0);
     
-    if (!$product_name || $quantity <= 0 || $total_cost <= 0 || $selling_price <= 0) {
+    if (!$product_name || $quantity <= 0 || $total_cost <= 0) {
         echo json_encode(['success' => false, 'message' => 'Mangler påkrevde felt']);
         exit;
     }
@@ -39,18 +37,19 @@ try {
     // SECURITY: Calculate unit cost server-side, never trust client input
     $unit_cost = round($total_cost / $quantity, 2);
     
+    // Default selling price set to 0 for non-registered items (not intended for resale)
+    $selling_price = 0;
+    
     $db = getDB();
     $db->beginTransaction();
     
     // Generate product ID
     $product_id = generateUUID();
     
-    // Generate SKU if not provided
-    if (!$sku) {
-        $sku = 'SKU-' . strtoupper(substr(md5($product_name . time()), 0, 8));
-    }
+    // Generate SKU automatically for non-registered items
+    $sku = 'NR-' . strtoupper(substr(md5($product_name . time()), 0, 8));
     
-    // Create new product
+    // Create new product (no barcode field)
     $stmt = $db->prepare("
         INSERT INTO sales_products 
         (id, company_id, sku, name, category_id, cost_price, selling_price, stock_quantity, is_active, unit)
@@ -102,9 +101,9 @@ try {
             'supplier' => $supplier,
             'quantity' => $quantity,
             'unit_cost' => $unit_cost,
-            'selling_price' => $selling_price,
             'sku' => $sku,
-            'new_product' => true
+            'new_product' => true,
+            'non_registered_item' => true
         ])
     ]);
     

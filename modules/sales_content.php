@@ -517,13 +517,9 @@
                     </div>
                     <form id="purchaseNewForm">
                         <div class="row">
-                            <div class="col-md-8 mb-3">
+                            <div class="col-md-12 mb-3">
                                 <label class="form-label">Produktnavn <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="new-product-name" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">Strekkode</label>
-                                <input type="text" class="form-control" id="new-product-sku">
                             </div>
                         </div>
                         <div class="row">
@@ -537,21 +533,17 @@
                             </div>
                         </div>
                         <div class="row">
-                            <div class="col-md-3 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Antall <span class="text-danger">*</span></label>
                                 <input type="number" class="form-control" id="new-quantity" min="1" value="1" required>
                             </div>
-                            <div class="col-md-3 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Total innkjøpspris (NOK) <span class="text-danger">*</span></label>
                                 <input type="number" class="form-control" id="new-total-cost" step="0.01" min="0" required>
                             </div>
-                            <div class="col-md-3 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Stykkpris (auto)</label>
                                 <input type="text" class="form-control" id="new-unit-cost" readonly>
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <label class="form-label">Salgspris (NOK) <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="new-selling-price" step="0.01" min="0" required>
                             </div>
                         </div>
                         <div class="alert alert-success small">
@@ -2841,14 +2833,12 @@ document.getElementById('purchaseNewForm')?.addEventListener('submit', async fun
     e.preventDefault();
     
     const productName = document.getElementById('new-product-name').value;
-    const sku = document.getElementById('new-product-sku').value;
     const category = document.getElementById('new-product-category').value;
     const supplier = document.getElementById('new-supplier').value;
     const quantity = parseInt(document.getElementById('new-quantity').value);
     const totalCost = parseFloat(document.getElementById('new-total-cost').value);
-    const sellingPrice = parseFloat(document.getElementById('new-selling-price').value);
     
-    if (!productName || !quantity || !totalCost || !sellingPrice) {
+    if (!productName || !quantity || !totalCost) {
         alert('❌ Vennligst fyll ut alle påkrevde felt');
         return;
     }
@@ -2861,20 +2851,19 @@ document.getElementById('purchaseNewForm')?.addEventListener('submit', async fun
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 product_name: productName,
-                sku: sku,
                 category: category,
                 supplier: supplier,
                 quantity: quantity,
-                total_cost: totalCost,
-                unit_cost: unitCost,
-                selling_price: sellingPrice
+                total_cost: totalCost
             })
         });
         
         const result = await response.json();
         
         if (result.success) {
-            alert(`✅ Produkt opprettet og innkjøp registrert!\n\nProdukt: ${productName}\nLagerbeholdning: ${quantity}\nKostpris: ${unitCost.toFixed(2)} NOK`);
+            const productId = result.product_id || 'Ukjent';
+            const sku = result.sku || 'Ukjent';
+            alert(`✅ Produkt opprettet og innkjøp registrert!\n\nProdukt-ID: ${productId}\nSKU: ${sku}\nProdukt: ${productName}\nLagerbeholdning: ${quantity}\nKostpris: ${unitCost.toFixed(2)} NOK`);
             this.reset();
             resetPurchaseView();
             await loadSalesProducts();
