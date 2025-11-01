@@ -695,67 +695,8 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
-                <button type="button" class="btn btn-info" onclick="openInventoryAdjustment()">
-                    <i class="bi bi-box-seam me-1"></i>Inventar
-                </button>
                 <button type="button" class="btn btn-primary" onclick="submitEditProduct()">
                     <i class="bi bi-save me-1"></i>Oppdater produkt
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Inventory Adjustment Modal -->
-<div class="modal fade" id="inventoryAdjustmentModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-box-seam me-2"></i>Juster inventar
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="inventory-product-id">
-                
-                <div class="alert alert-light border mb-3">
-                    <strong id="inventory-product-name"></strong><br>
-                    <small class="text-muted">Nåværende lagerbeholdning: <span id="inventory-current-stock" class="fw-bold"></span></small>
-                </div>
-                
-                <div class="mb-3">
-                    <label class="form-label">Justering</label>
-                    <div class="btn-group w-100 mb-2" role="group">
-                        <button type="button" class="btn btn-outline-success" onclick="setAdjustmentType('add')">
-                            <i class="bi bi-plus-circle me-1"></i>Legg til
-                        </button>
-                        <button type="button" class="btn btn-outline-danger" onclick="setAdjustmentType('remove')">
-                            <i class="bi bi-dash-circle me-1"></i>Fjern
-                        </button>
-                    </div>
-                    <input type="hidden" id="adjustment-type" value="add">
-                </div>
-                
-                <div class="mb-3">
-                    <label class="form-label">Antall</label>
-                    <input type="number" class="form-control form-control-lg" id="adjustment-quantity" min="1" value="1" required>
-                </div>
-                
-                <div class="mb-3">
-                    <label class="form-label">Kommentar (valgfritt)</label>
-                    <textarea class="form-control" id="adjustment-comment" rows="2" placeholder="F.eks: 'Tellfeil', 'Skadet vare', 'Mottatt levering'"></textarea>
-                </div>
-                
-                <div class="alert alert-warning small">
-                    <i class="bi bi-info-circle me-1"></i>
-                    Ny lagerbeholdning: <strong><span id="inventory-preview-stock"></span></strong>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
-                <button type="button" class="btn btn-success" onclick="submitInventoryAdjustment()">
-                    <i class="bi bi-check-circle me-1"></i>Bekreft justering
                 </button>
             </div>
         </div>
@@ -1775,7 +1716,7 @@ function displayProductsWithProfit(products) {
                 <td class="editable-cell" data-field="cost_price" style="cursor:pointer;" title="Klikk for å redigere">${parseFloat(product.cost_price || 0).toFixed(2)} NOK</td>
                 <td class="editable-cell" data-field="selling_price" style="cursor:pointer;" title="Klikk for å redigere">${parseFloat(product.selling_price).toFixed(2)} NOK</td>
                 <td class="${profitClass}"><strong>${profit.toFixed(2)} NOK</strong></td>
-                <td class="editable-stock-cell" data-field="stock_quantity" data-current-stock="${stockValue}" style="cursor:pointer;" title="Klikk for å justere lager">${stockBadge}</td>
+                <td>${stockBadge}</td>
                 <td>${statusBadge}</td>
                 <td>
                     <button class="btn btn-sm btn-outline-primary" onclick="editProduct('${product.id}')">
@@ -1883,121 +1824,6 @@ function deleteProduct(productId) {
     }
 }
 
-async function openInventoryAdjustment() {
-    const productId = document.getElementById('edit-product-id').value;
-    const productName = document.getElementById('edit-name').value;
-    
-    try {
-        const response = await fetch(`/api/get_sales_product.php?id=${productId}`);
-        const result = await response.json();
-        
-        if (result.success && result.product) {
-            const currentStock = result.product.stock_quantity || 0;
-            
-            document.getElementById('inventory-product-id').value = productId;
-            document.getElementById('inventory-product-name').textContent = productName;
-            document.getElementById('inventory-current-stock').textContent = currentStock;
-            document.getElementById('adjustment-quantity').value = 1;
-            document.getElementById('adjustment-comment').value = '';
-            document.getElementById('adjustment-type').value = 'add';
-            
-            setAdjustmentType('add');
-            updateInventoryPreview();
-            
-            const inventoryModal = new bootstrap.Modal(document.getElementById('inventoryAdjustmentModal'));
-            inventoryModal.show();
-        }
-    } catch (error) {
-        console.error('Error opening inventory adjustment:', error);
-        alert('❌ Feil ved henting av lagerdata');
-    }
-}
-
-function setAdjustmentType(type) {
-    document.getElementById('adjustment-type').value = type;
-    
-    const addBtn = document.querySelector('.btn-outline-success');
-    const removeBtn = document.querySelector('.btn-outline-danger');
-    
-    if (type === 'add') {
-        addBtn.classList.remove('btn-outline-success');
-        addBtn.classList.add('btn-success');
-        removeBtn.classList.remove('btn-danger');
-        removeBtn.classList.add('btn-outline-danger');
-    } else {
-        removeBtn.classList.remove('btn-outline-danger');
-        removeBtn.classList.add('btn-danger');
-        addBtn.classList.remove('btn-success');
-        addBtn.classList.add('btn-outline-success');
-    }
-    
-    updateInventoryPreview();
-}
-
-function updateInventoryPreview() {
-    const currentStock = parseInt(document.getElementById('inventory-current-stock').textContent) || 0;
-    const quantity = parseInt(document.getElementById('adjustment-quantity').value) || 0;
-    const type = document.getElementById('adjustment-type').value;
-    
-    const newStock = type === 'add' ? currentStock + quantity : currentStock - quantity;
-    document.getElementById('inventory-preview-stock').textContent = newStock;
-}
-
-document.getElementById('adjustment-quantity')?.addEventListener('input', updateInventoryPreview);
-
-async function submitInventoryAdjustment() {
-    const productId = document.getElementById('inventory-product-id').value;
-    const quantity = parseInt(document.getElementById('adjustment-quantity').value) || 0;
-    const type = document.getElementById('adjustment-type').value;
-    const comment = document.getElementById('adjustment-comment').value;
-    
-    if (quantity <= 0) {
-        alert('❌ Antall må være større enn 0');
-        return;
-    }
-    
-    const data = {
-        product_id: productId,
-        adjustment_type: type,
-        quantity: quantity,
-        comment: comment
-    };
-    
-    try {
-        const response = await fetch('/api/adjust_inventory.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            alert(`✅ Lager oppdatert! Ny beholdning: ${result.new_stock}`);
-            
-            const modalElement = document.getElementById('inventoryAdjustmentModal');
-            const modalInstance = bootstrap.Modal.getInstance(modalElement);
-            if (modalInstance) {
-                modalInstance.hide();
-            }
-            
-            setTimeout(() => {
-                document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
-                document.body.classList.remove('modal-open');
-                document.body.style.removeProperty('padding-right');
-                document.body.style.removeProperty('overflow');
-            }, 300);
-            
-            await loadSalesProducts();
-            await loadAllSalesData();
-        } else {
-            alert('❌ ' + result.message);
-        }
-    } catch (error) {
-        console.error('Inventory adjustment error:', error);
-        alert('❌ Feil ved justering av lager');
-    }
-}
 
 async function loadTransactions() {
     const salesModule = document.getElementById('content-sales');
@@ -2797,89 +2623,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 saveEdit();
             } else if (e.key === 'Escape') {
                 cell.innerHTML = originalHTML;
-            }
-        });
-    });
-    
-    // Event delegation for stock cells
-    salesItemsList.addEventListener('click', function(e) {
-        const cell = e.target.closest('.editable-stock-cell');
-        if (!cell || cell.querySelector('input')) return; // Already editing
-        
-        const row = cell.closest('tr');
-        const productId = row.dataset.productId;
-        const currentStock = parseInt(cell.dataset.currentStock) || 0;
-        
-        // Create inline adjuster
-        const adjuster = document.createElement('div');
-        adjuster.className = 'd-flex align-items-center gap-1';
-        adjuster.innerHTML = `
-            <button class="btn btn-sm btn-success" data-action="inc">
-                <i class="bi bi-plus"></i>
-            </button>
-            <input type="number" class="form-control form-control-sm stock-input" value="${currentStock}" style="width:60px;">
-            <button class="btn btn-sm btn-danger" data-action="dec">
-                <i class="bi bi-dash"></i>
-            </button>
-            <button class="btn btn-sm btn-primary" data-action="save">
-                <i class="bi bi-check"></i>
-            </button>
-        `;
-        
-        const originalHTML = cell.innerHTML;
-        cell.innerHTML = '';
-        cell.appendChild(adjuster);
-        
-        const input = adjuster.querySelector('.stock-input');
-        input.focus();
-        
-        // Handle button clicks
-        adjuster.addEventListener('click', async (e) => {
-            const btn = e.target.closest('button');
-            if (!btn) return;
-            
-            const action = btn.dataset.action;
-            
-            if (action === 'inc') {
-                input.value = Math.max(0, parseInt(input.value) + 1);
-            } else if (action === 'dec') {
-                input.value = Math.max(0, parseInt(input.value) - 1);
-            } else if (action === 'save') {
-                const newStock = parseInt(input.value);
-                const difference = newStock - currentStock;
-                
-                if (difference === 0) {
-                    cell.innerHTML = originalHTML;
-                    return;
-                }
-                
-                const adjustmentType = difference > 0 ? 'add' : 'remove';
-                const quantity = Math.abs(difference);
-                
-                try {
-                    const response = await fetch('/api/adjust_inventory.php', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            product_id: productId,
-                            adjustment_type: adjustmentType,
-                            quantity: quantity,
-                            comment: `Inline justering: ${currentStock} → ${newStock}`
-                        })
-                    });
-                    
-                    const result = await response.json();
-                    if (result.success) {
-                        await loadProductsWithProfit();
-                    } else {
-                        cell.innerHTML = originalHTML;
-                        alert('❌ ' + (result.message || 'Feil ved lagerjustering'));
-                    }
-                } catch (error) {
-                    cell.innerHTML = originalHTML;
-                    console.error('Stock adjustment error:', error);
-                    alert('❌ Feil ved lagerjustering');
-                }
             }
         });
     });
