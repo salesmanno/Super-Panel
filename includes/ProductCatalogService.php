@@ -200,16 +200,16 @@ class ProductCatalogService {
                     break;
                 case 'product':
                 case 'sales_item': // Legacy support
-                    $stmt = $this->db->prepare("SELECT * FROM sales_products WHERE id = ?");
+                    $stmt = $this->db->prepare("SELECT * FROM sales_items WHERE id = ? AND is_active = " . dbBool(true));
                     break;
                 case 'rental':
-                    $stmt = $this->db->prepare("SELECT * FROM rental_objects WHERE id = ?");
+                    $stmt = $this->db->prepare("SELECT * FROM rental_objects WHERE object_id = ? AND is_available = " . dbBool(true));
                     break;
                 case 'membership':
-                    $stmt = $this->db->prepare("SELECT * FROM membership_plans WHERE id = ?");
+                    $stmt = $this->db->prepare("SELECT * FROM x_membership_plan WHERE plan_id = ? AND is_active = " . dbBool(true));
                     break;
                 case 'service':
-                    $stmt = $this->db->prepare("SELECT * FROM service_bookings WHERE id = ?");
+                    $stmt = $this->db->prepare("SELECT * FROM reservation_services WHERE id = ?");
                     break;
                 default:
                     return null;
