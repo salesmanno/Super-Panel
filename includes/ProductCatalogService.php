@@ -194,23 +194,42 @@ class ProductCatalogService {
      */
     private function getProductDetails($productType, $productId) {
         try {
+            $dbType = getDBType();
+            
             switch ($productType) {
                 case 'event':
                     $stmt = $this->db->prepare("SELECT * FROM events_eventdata WHERE id = ? AND is_active = " . dbBool(true));
                     break;
+                    
                 case 'product':
                 case 'sales_item': // Legacy support
-                    $stmt = $this->db->prepare("SELECT * FROM sales_items WHERE id = ? AND is_active = " . dbBool(true));
+                    if ($dbType === 'mysql') {
+                        $stmt = $this->db->prepare("SELECT * FROM sales_products WHERE id = ? AND is_active = " . dbBool(true));
+                    } else {
+                        $stmt = $this->db->prepare("SELECT * FROM sales_items WHERE id = ? AND is_active = " . dbBool(true));
+                    }
                     break;
+                    
                 case 'rental':
-                    $stmt = $this->db->prepare("SELECT * FROM rental_objects WHERE object_id = ? AND is_available = " . dbBool(true));
+                    if ($dbType === 'mysql') {
+                        $stmt = $this->db->prepare("SELECT * FROM rental_objects WHERE id = ? AND is_available = " . dbBool(true));
+                    } else {
+                        $stmt = $this->db->prepare("SELECT * FROM rental_objects WHERE object_id = ? AND is_available = " . dbBool(true));
+                    }
                     break;
+                    
                 case 'membership':
-                    $stmt = $this->db->prepare("SELECT * FROM x_membership_plan WHERE plan_id = ? AND is_active = " . dbBool(true));
+                    if ($dbType === 'mysql') {
+                        $stmt = $this->db->prepare("SELECT * FROM membership_plans WHERE id = ? AND is_active = " . dbBool(true));
+                    } else {
+                        $stmt = $this->db->prepare("SELECT * FROM x_membership_plan WHERE plan_id = ? AND is_active = " . dbBool(true));
+                    }
                     break;
+                    
                 case 'service':
                     $stmt = $this->db->prepare("SELECT * FROM reservation_services WHERE id = ?");
                     break;
+                    
                 default:
                     return null;
             }
@@ -361,11 +380,21 @@ class ProductCatalogService {
                     
                 case 'product':
                 case 'sales_item':
-                    $stmt = $this->db->prepare("
-                        SELECT name, selling_price as price 
-                        FROM sales_products 
-                        WHERE id = ?
-                    ");
+                    // Support both MySQL (sales_products) and PostgreSQL (sales_items)
+                    $dbType = getDBType();
+                    if ($dbType === 'mysql') {
+                        $stmt = $this->db->prepare("
+                            SELECT name, selling_price as price 
+                            FROM sales_products 
+                            WHERE id = ?
+                        ");
+                    } else {
+                        $stmt = $this->db->prepare("
+                            SELECT item_name as name, price 
+                            FROM sales_items 
+                            WHERE id = ?
+                        ");
+                    }
                     break;
                     
                 case 'membership':
@@ -387,11 +416,21 @@ class ProductCatalogService {
                     break;
                     
                 case 'rental':
-                    $stmt = $this->db->prepare("
-                        SELECT name, daily_rate as price 
-                        FROM rental_objects 
-                        WHERE id = ?
-                    ");
+                    // Support both MySQL (rental_objects with id) and PostgreSQL (rental_objects with object_id)
+                    $dbType = getDBType();
+                    if ($dbType === 'mysql') {
+                        $stmt = $this->db->prepare("
+                            SELECT name, daily_rate as price 
+                            FROM rental_objects 
+                            WHERE id = ?
+                        ");
+                    } else {
+                        $stmt = $this->db->prepare("
+                            SELECT object_name as name, daily_price as price 
+                            FROM rental_objects 
+                            WHERE object_id = ?
+                        ");
+                    }
                     break;
                     
                 default:

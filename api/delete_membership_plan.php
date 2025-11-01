@@ -21,11 +21,20 @@ try {
     
     // Soft delete: mark as inactive instead of deleting
     // This preserves output_products and historical data
-    $stmt = $db->prepare("
-        UPDATE x_membership_plan 
-        SET is_active = " . dbBool(false) . "
-        WHERE plan_id = ? AND company_id = ?
-    ");
+    $dbType = getDBType();
+    if ($dbType === 'mysql') {
+        $stmt = $db->prepare("
+            UPDATE membership_plans 
+            SET is_active = " . dbBool(false) . "
+            WHERE id = ? AND company_id = ?
+        ");
+    } else {
+        $stmt = $db->prepare("
+            UPDATE x_membership_plan 
+            SET is_active = " . dbBool(false) . "
+            WHERE plan_id = ? AND company_id = ?
+        ");
+    }
     
     $stmt->execute([
         $data['plan_id'],

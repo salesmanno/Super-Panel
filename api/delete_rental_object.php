@@ -21,11 +21,20 @@ try {
     
     // Soft delete: mark as unavailable instead of deleting
     // This preserves output_products and historical data
-    $stmt = $db->prepare("
-        UPDATE rental_objects 
-        SET is_available = " . dbBool(false) . "
-        WHERE object_id = ? AND company_id = ?
-    ");
+    $dbType = getDBType();
+    if ($dbType === 'mysql') {
+        $stmt = $db->prepare("
+            UPDATE rental_objects 
+            SET is_available = " . dbBool(false) . "
+            WHERE id = ? AND company_id = ?
+        ");
+    } else {
+        $stmt = $db->prepare("
+            UPDATE rental_objects 
+            SET is_available = " . dbBool(false) . "
+            WHERE object_id = ? AND company_id = ?
+        ");
+    }
     
     $stmt->execute([
         $data['object_id'],
