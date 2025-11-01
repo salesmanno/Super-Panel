@@ -53,6 +53,16 @@
     font-size: 0.95rem;
 }
 
+.purchase-option-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.purchase-option-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
 .scan-feedback.success {
     color: #10b981;
 }
@@ -394,40 +404,164 @@
     <div id="sales-purchases" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div>
-                        <h5 class="card-title mb-1"><i class="bi bi-cart-dash me-2"></i>Innkjøp</h5>
-                        <p class="text-muted mb-0">Registrer innkjøp fra leverandører</p>
+                <h5 class="card-title mb-3"><i class="bi bi-cart-dash me-2"></i>Innkjøp</h5>
+                
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="card h-100 border-primary cursor-pointer purchase-option-card" onclick="showPurchaseHistory()">
+                            <div class="card-body text-center">
+                                <i class="bi bi-clock-history display-4 text-primary mb-3"></i>
+                                <h6 class="card-title">Se innkjøpshistorikk</h6>
+                                <p class="text-muted small mb-0">Vis alle tidligere innkjøp</p>
+                            </div>
+                        </div>
                     </div>
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPurchaseModal">
-                        <i class="bi bi-plus-circle me-1"></i>Nytt innkjøp
-                    </button>
+                    <div class="col-md-4">
+                        <div class="card h-100 border-success cursor-pointer purchase-option-card" onclick="showPurchaseExisting()">
+                            <div class="card-body text-center">
+                                <i class="bi bi-box-seam display-4 text-success mb-3"></i>
+                                <h6 class="card-title">Gjør innkjøp på eksisterende produkt</h6>
+                                <p class="text-muted small mb-0">Fyll på lager av registrerte varer</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100 border-info cursor-pointer purchase-option-card" onclick="showPurchaseNew()">
+                            <div class="card-body text-center">
+                                <i class="bi bi-plus-circle display-4 text-info mb-3"></i>
+                                <h6 class="card-title">Gjør innkjøp av ikke-registrerte varer</h6>
+                                <p class="text-muted small mb-0">Registrer nye produkter eller andre utgifter</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Dato</th>
-                                <th>Leverandør</th>
-                                <th>Produkter</th>
-                                <th>Antall</th>
-                                <th>Kostpris</th>
-                                <th>Total</th>
-                                <th>Betalingsmetode</th>
-                                <th>Handlinger</th>
-                            </tr>
-                        </thead>
-                        <tbody id="purchases-list">
-                            <tr>
-                                <td colspan="8" class="text-center text-muted py-4">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Laster...</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div id="purchase-history-view" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6><i class="bi bi-clock-history me-2"></i>Innkjøpshistorikk</h6>
+                        <button class="btn btn-sm btn-secondary" onclick="resetPurchaseView()">
+                            <i class="bi bi-arrow-left me-1"></i>Tilbake
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Dato</th>
+                                    <th>Leverandør</th>
+                                    <th>Produkt</th>
+                                    <th>Antall</th>
+                                    <th>Enhetspris</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="purchase-history-list">
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-3">Laster...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div id="purchase-existing-view" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6><i class="bi bi-box-seam me-2"></i>Innkjøp på eksisterende produkt</h6>
+                        <button class="btn btn-sm btn-secondary" onclick="resetPurchaseView()">
+                            <i class="bi bi-arrow-left me-1"></i>Tilbake
+                        </button>
+                    </div>
+                    <form id="purchaseExistingForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Velg produkt <span class="text-danger">*</span></label>
+                                <select class="form-select" id="existing-product-select" required>
+                                    <option value="">Velg produkt...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Leverandør</label>
+                                <input type="text" class="form-control" id="existing-supplier" placeholder="Leverandørnavn">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Antall <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="existing-quantity" min="1" value="1" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Total innkjøpspris (NOK) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="existing-total-cost" step="0.01" min="0" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Stykkpris (auto)</label>
+                                <input type="text" class="form-control" id="existing-unit-cost" readonly>
+                            </div>
+                        </div>
+                        <div class="alert alert-info small">
+                            <i class="bi bi-info-circle me-1"></i>
+                            <strong>Vektet gjennomsnitt:</strong> Kostprisen vil bli oppdatert basert på eksisterende lager og ny innkjøpspris.
+                        </div>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle me-1"></i>Registrer innkjøp
+                        </button>
+                    </form>
+                </div>
+                
+                <div id="purchase-new-view" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6><i class="bi bi-plus-circle me-2"></i>Innkjøp av ikke-registrerte varer</h6>
+                        <button class="btn btn-sm btn-secondary" onclick="resetPurchaseView()">
+                            <i class="bi bi-arrow-left me-1"></i>Tilbake
+                        </button>
+                    </div>
+                    <form id="purchaseNewForm">
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label">Produktnavn <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="new-product-name" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Strekkode</label>
+                                <input type="text" class="form-control" id="new-product-sku">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Kategori</label>
+                                <input type="text" class="form-control" id="new-product-category" placeholder="F.eks: Elektronikk, Mat, etc.">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Leverandør</label>
+                                <input type="text" class="form-control" id="new-supplier" placeholder="Leverandørnavn">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Antall <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="new-quantity" min="1" value="1" required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Total innkjøpspris (NOK) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="new-total-cost" step="0.01" min="0" required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Stykkpris (auto)</label>
+                                <input type="text" class="form-control" id="new-unit-cost" readonly>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Salgspris (NOK) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="new-selling-price" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                        <div class="alert alert-success small">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Dette produktet vil bli opprettet i systemet og lagt til lageret.
+                        </div>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle me-1"></i>Opprett produkt og registrer innkjøp
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -2551,6 +2685,207 @@ async function savePurchase() {
         alert('❌ Feil ved lagring av innkjøp');
     }
 }
+
+// Purchase view management
+function showPurchaseHistory() {
+    document.getElementById('purchase-history-view').style.display = 'block';
+    document.getElementById('purchase-existing-view').style.display = 'none';
+    document.getElementById('purchase-new-view').style.display = 'none';
+    document.querySelector('.row.g-3.mb-4').style.display = 'none';
+    loadPurchaseHistory();
+}
+
+function showPurchaseExisting() {
+    document.getElementById('purchase-history-view').style.display = 'none';
+    document.getElementById('purchase-existing-view').style.display = 'block';
+    document.getElementById('purchase-new-view').style.display = 'none';
+    document.querySelector('.row.g-3.mb-4').style.display = 'none';
+    loadProductsForPurchaseExisting();
+}
+
+function showPurchaseNew() {
+    document.getElementById('purchase-history-view').style.display = 'none';
+    document.getElementById('purchase-existing-view').style.display = 'none';
+    document.getElementById('purchase-new-view').style.display = 'block';
+    document.querySelector('.row.g-3.mb-4').style.display = 'none';
+}
+
+function resetPurchaseView() {
+    document.getElementById('purchase-history-view').style.display = 'none';
+    document.getElementById('purchase-existing-view').style.display = 'none';
+    document.getElementById('purchase-new-view').style.display = 'none';
+    document.querySelector('.row.g-3.mb-4').style.display = 'flex';
+}
+
+// Auto-calculate unit cost for existing products
+document.getElementById('existing-quantity')?.addEventListener('input', calculateExistingUnitCost);
+document.getElementById('existing-total-cost')?.addEventListener('input', calculateExistingUnitCost);
+
+function calculateExistingUnitCost() {
+    const quantity = parseFloat(document.getElementById('existing-quantity').value) || 0;
+    const totalCost = parseFloat(document.getElementById('existing-total-cost').value) || 0;
+    const unitCost = quantity > 0 ? (totalCost / quantity).toFixed(2) : '0.00';
+    document.getElementById('existing-unit-cost').value = unitCost + ' NOK';
+}
+
+// Auto-calculate unit cost for new products
+document.getElementById('new-quantity')?.addEventListener('input', calculateNewUnitCost);
+document.getElementById('new-total-cost')?.addEventListener('input', calculateNewUnitCost);
+
+function calculateNewUnitCost() {
+    const quantity = parseFloat(document.getElementById('new-quantity').value) || 0;
+    const totalCost = parseFloat(document.getElementById('new-total-cost').value) || 0;
+    const unitCost = quantity > 0 ? (totalCost / quantity).toFixed(2) : '0.00';
+    document.getElementById('new-unit-cost').value = unitCost + ' NOK';
+}
+
+async function loadProductsForPurchaseExisting() {
+    const select = document.getElementById('existing-product-select');
+    if (!select) return;
+    
+    try {
+        const response = await fetch('/api/get_sales_items.php');
+        const result = await response.json();
+        
+        if (result.success && result.items) {
+            select.innerHTML = '<option value="">Velg produkt...</option>';
+            result.items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = `${item.name} - ${item.sku || 'Ingen SKU'} (Lager: ${item.stock_quantity || 0})`;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading products:', error);
+    }
+}
+
+async function loadPurchaseHistory() {
+    const tbody = document.getElementById('purchase-history-list');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/get_purchase_history.php');
+        const result = await response.json();
+        
+        if (result.success && result.purchases) {
+            if (result.purchases.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Ingen innkjøp registrert ennå</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = result.purchases.map(p => `
+                <tr>
+                    <td>${new Date(p.purchase_date).toLocaleDateString('nb-NO')}</td>
+                    <td>${p.supplier || '-'}</td>
+                    <td>${p.product_name}</td>
+                    <td>${p.quantity}</td>
+                    <td>${parseFloat(p.unit_cost).toFixed(2)} NOK</td>
+                    <td><strong>${parseFloat(p.total_cost).toFixed(2)} NOK</strong></td>
+                </tr>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading purchase history:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Feil ved lasting av innkjøpshistorikk</td></tr>';
+    }
+}
+
+// Form submit handlers
+document.getElementById('purchaseExistingForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const productId = document.getElementById('existing-product-select').value;
+    const supplier = document.getElementById('existing-supplier').value;
+    const quantity = parseInt(document.getElementById('existing-quantity').value);
+    const totalCost = parseFloat(document.getElementById('existing-total-cost').value);
+    
+    if (!productId || !quantity || !totalCost) {
+        alert('❌ Vennligst fyll ut alle påkrevde felt');
+        return;
+    }
+    
+    const unitCost = totalCost / quantity;
+    
+    try {
+        const response = await fetch('/api/purchase_existing_product.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                product_id: productId,
+                supplier: supplier,
+                quantity: quantity,
+                total_cost: totalCost,
+                unit_cost: unitCost
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`✅ Innkjøp registrert!\n\nNy beholdning: ${result.new_stock}\nNy kostpris: ${result.new_cost_price} NOK (vektet gjennomsnitt)`);
+            this.reset();
+            resetPurchaseView();
+            await loadSalesProducts();
+        } else {
+            alert('❌ ' + (result.message || 'Feil ved registrering av innkjøp'));
+        }
+    } catch (error) {
+        console.error('Error purchasing existing product:', error);
+        alert('❌ Feil ved registrering av innkjøp');
+    }
+});
+
+document.getElementById('purchaseNewForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const productName = document.getElementById('new-product-name').value;
+    const sku = document.getElementById('new-product-sku').value;
+    const category = document.getElementById('new-product-category').value;
+    const supplier = document.getElementById('new-supplier').value;
+    const quantity = parseInt(document.getElementById('new-quantity').value);
+    const totalCost = parseFloat(document.getElementById('new-total-cost').value);
+    const sellingPrice = parseFloat(document.getElementById('new-selling-price').value);
+    
+    if (!productName || !quantity || !totalCost || !sellingPrice) {
+        alert('❌ Vennligst fyll ut alle påkrevde felt');
+        return;
+    }
+    
+    const unitCost = totalCost / quantity;
+    
+    try {
+        const response = await fetch('/api/purchase_new_product.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                product_name: productName,
+                sku: sku,
+                category: category,
+                supplier: supplier,
+                quantity: quantity,
+                total_cost: totalCost,
+                unit_cost: unitCost,
+                selling_price: sellingPrice
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`✅ Produkt opprettet og innkjøp registrert!\n\nProdukt: ${productName}\nLagerbeholdning: ${quantity}\nKostpris: ${unitCost.toFixed(2)} NOK`);
+            this.reset();
+            resetPurchaseView();
+            await loadSalesProducts();
+        } else {
+            alert('❌ ' + (result.message || 'Feil ved opprettelse av produkt'));
+        }
+    } catch (error) {
+        console.error('Error purchasing new product:', error);
+        alert('❌ Feil ved opprettelse av produkt');
+    }
+});
 
 // Inline editing for products - using event delegation for dynamic content
 document.addEventListener('DOMContentLoaded', function() {
