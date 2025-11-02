@@ -3106,15 +3106,15 @@ async function loadProductsForPurchaseExisting() {
     if (!select) return;
     
     try {
-        const response = await fetch('/api/get_sales_items.php');
+        const response = await fetch('/api/get_sales_products.php');
         const result = await response.json();
         
-        if (result.success && result.items) {
+        if (result.success && result.products) {
             select.innerHTML = '<option value="">Velg produkt...</option>';
-            result.items.forEach(item => {
+            result.products.forEach(product => {
                 const option = document.createElement('option');
-                option.value = item.id;
-                option.textContent = `${item.name} - ${item.sku || 'Ingen SKU'} (Lager: ${item.stock_quantity || 0})`;
+                option.value = product.id;
+                option.textContent = `${product.name} - ${product.sku || 'Ingen SKU'} (Lager: ${product.stock_quantity || 0})`;
                 select.appendChild(option);
             });
         }
