@@ -485,17 +485,31 @@
                             </div>
                         </div>
                         <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">Antall <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="existing-quantity" min="1" value="1" required>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Antall pakker <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="existing-packages" min="1" value="1" required>
                             </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">Total innkjøpspris (NOK) <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="existing-total-cost" step="0.01" min="0" required>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Antall i pakke <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="existing-items-per-package" min="1" value="1" required>
                             </div>
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Påfylt antall varer</label>
+                                <input type="text" class="form-control" id="existing-total-items" readonly>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Pris per pakke (NOK) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="existing-price-per-package" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
                                 <label class="form-label">Stykkpris (auto)</label>
                                 <input type="text" class="form-control" id="existing-unit-cost" readonly>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Total innkjøpspris (auto)</label>
+                                <input type="text" class="form-control" id="existing-total-cost-display" readonly>
                             </div>
                         </div>
                         <div class="alert alert-info small">
@@ -533,17 +547,31 @@
                             </div>
                         </div>
                         <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">Antall <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="new-quantity" min="1" value="1" required>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Antall pakker <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="new-packages" min="1" value="1" required>
                             </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">Total innkjøpspris (NOK) <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="new-total-cost" step="0.01" min="0" required>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Antall i pakke <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="new-items-per-package" min="1" value="1" required>
                             </div>
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Påfylt antall varer</label>
+                                <input type="text" class="form-control" id="new-total-items" readonly>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Pris per pakke (NOK) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="new-price-per-package" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
                                 <label class="form-label">Stykkpris (auto)</label>
                                 <input type="text" class="form-control" id="new-unit-cost" readonly>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Total innkjøpspris (auto)</label>
+                                <input type="text" class="form-control" id="new-total-cost-display" readonly>
                             </div>
                         </div>
                         <div class="alert alert-success small">
@@ -3035,26 +3063,42 @@ function resetPurchaseView() {
     document.querySelector('.row.g-3.mb-4').style.display = 'flex';
 }
 
-// Auto-calculate unit cost for existing products
-document.getElementById('existing-quantity')?.addEventListener('input', calculateExistingUnitCost);
-document.getElementById('existing-total-cost')?.addEventListener('input', calculateExistingUnitCost);
+// Auto-calculate for existing products
+document.getElementById('existing-packages')?.addEventListener('input', calculateExistingCosts);
+document.getElementById('existing-items-per-package')?.addEventListener('input', calculateExistingCosts);
+document.getElementById('existing-price-per-package')?.addEventListener('input', calculateExistingCosts);
 
-function calculateExistingUnitCost() {
-    const quantity = parseFloat(document.getElementById('existing-quantity').value) || 0;
-    const totalCost = parseFloat(document.getElementById('existing-total-cost').value) || 0;
-    const unitCost = quantity > 0 ? (totalCost / quantity).toFixed(2) : '0.00';
+function calculateExistingCosts() {
+    const packages = parseFloat(document.getElementById('existing-packages').value) || 0;
+    const itemsPerPackage = parseFloat(document.getElementById('existing-items-per-package').value) || 0;
+    const pricePerPackage = parseFloat(document.getElementById('existing-price-per-package').value) || 0;
+    
+    const totalItems = packages * itemsPerPackage;
+    const totalCost = packages * pricePerPackage;
+    const unitCost = itemsPerPackage > 0 ? (pricePerPackage / itemsPerPackage).toFixed(2) : '0.00';
+    
+    document.getElementById('existing-total-items').value = totalItems;
     document.getElementById('existing-unit-cost').value = unitCost + ' NOK';
+    document.getElementById('existing-total-cost-display').value = totalCost.toFixed(2) + ' NOK';
 }
 
-// Auto-calculate unit cost for new products
-document.getElementById('new-quantity')?.addEventListener('input', calculateNewUnitCost);
-document.getElementById('new-total-cost')?.addEventListener('input', calculateNewUnitCost);
+// Auto-calculate for new products
+document.getElementById('new-packages')?.addEventListener('input', calculateNewCosts);
+document.getElementById('new-items-per-package')?.addEventListener('input', calculateNewCosts);
+document.getElementById('new-price-per-package')?.addEventListener('input', calculateNewCosts);
 
-function calculateNewUnitCost() {
-    const quantity = parseFloat(document.getElementById('new-quantity').value) || 0;
-    const totalCost = parseFloat(document.getElementById('new-total-cost').value) || 0;
-    const unitCost = quantity > 0 ? (totalCost / quantity).toFixed(2) : '0.00';
+function calculateNewCosts() {
+    const packages = parseFloat(document.getElementById('new-packages').value) || 0;
+    const itemsPerPackage = parseFloat(document.getElementById('new-items-per-package').value) || 0;
+    const pricePerPackage = parseFloat(document.getElementById('new-price-per-package').value) || 0;
+    
+    const totalItems = packages * itemsPerPackage;
+    const totalCost = packages * pricePerPackage;
+    const unitCost = itemsPerPackage > 0 ? (pricePerPackage / itemsPerPackage).toFixed(2) : '0.00';
+    
+    document.getElementById('new-total-items').value = totalItems;
     document.getElementById('new-unit-cost').value = unitCost + ' NOK';
+    document.getElementById('new-total-cost-display').value = totalCost.toFixed(2) + ' NOK';
 }
 
 async function loadProductsForPurchaseExisting() {
@@ -3116,14 +3160,17 @@ document.getElementById('purchaseExistingForm')?.addEventListener('submit', asyn
     
     const productId = document.getElementById('existing-product-select').value;
     const supplier = document.getElementById('existing-supplier').value;
-    const quantity = parseInt(document.getElementById('existing-quantity').value);
-    const totalCost = parseFloat(document.getElementById('existing-total-cost').value);
+    const packages = parseInt(document.getElementById('existing-packages').value);
+    const itemsPerPackage = parseInt(document.getElementById('existing-items-per-package').value);
+    const pricePerPackage = parseFloat(document.getElementById('existing-price-per-package').value);
     
-    if (!productId || !quantity || !totalCost) {
+    if (!productId || !packages || !itemsPerPackage || !pricePerPackage) {
         alert('❌ Vennligst fyll ut alle påkrevde felt');
         return;
     }
     
+    const quantity = packages * itemsPerPackage;
+    const totalCost = packages * pricePerPackage;
     const unitCost = totalCost / quantity;
     
     try {
@@ -3161,14 +3208,17 @@ document.getElementById('purchaseNewForm')?.addEventListener('submit', async fun
     const productName = document.getElementById('new-product-name').value;
     const category = document.getElementById('new-product-category').value;
     const supplier = document.getElementById('new-supplier').value;
-    const quantity = parseInt(document.getElementById('new-quantity').value);
-    const totalCost = parseFloat(document.getElementById('new-total-cost').value);
+    const packages = parseInt(document.getElementById('new-packages').value);
+    const itemsPerPackage = parseInt(document.getElementById('new-items-per-package').value);
+    const pricePerPackage = parseFloat(document.getElementById('new-price-per-package').value);
     
-    if (!productName || !quantity || !totalCost) {
+    if (!productName || !packages || !itemsPerPackage || !pricePerPackage) {
         alert('❌ Vennligst fyll ut alle påkrevde felt');
         return;
     }
     
+    const quantity = packages * itemsPerPackage;
+    const totalCost = packages * pricePerPackage;
     const unitCost = totalCost / quantity;
     
     try {

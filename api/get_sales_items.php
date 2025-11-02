@@ -59,6 +59,8 @@ try {
             " . ($dbType === 'mysql' ? "mp.billing_cycle" : "NULL") . " as billing_cycle,
             sp.img_product,
             sp.item_taxable,
+            sp.sku,
+            sp.stock_quantity,
             rs.duration_minutes as service_duration,
             rs.assigned_staff_ids as service_staff_ids
         FROM output_products op

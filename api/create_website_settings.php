@@ -79,18 +79,18 @@ try {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
     
-    $stmt->execute([
-        $companyId,
-        NULL, // module_id - optional
-        true, // is_enabled
-        true, // is_public
-        true, // show_in_navigation
-        $companyName,
-        $companyName . ' - Hjem',
-        'Velkommen til ' . $companyName,
-        false, // is_published (draft by default)
-        $_SESSION['tenant_admin_id']
-    ]);
+    // Bind parameters with explicit NULL type for PostgreSQL compatibility
+    $stmt->bindValue(1, $companyId, PDO::PARAM_INT);
+    $stmt->bindValue(2, null, PDO::PARAM_NULL); // module_id - optional
+    $stmt->bindValue(3, true, PDO::PARAM_BOOL);
+    $stmt->bindValue(4, true, PDO::PARAM_BOOL);
+    $stmt->bindValue(5, true, PDO::PARAM_BOOL);
+    $stmt->bindValue(6, $companyName, PDO::PARAM_STR);
+    $stmt->bindValue(7, $companyName . ' - Hjem', PDO::PARAM_STR);
+    $stmt->bindValue(8, 'Velkommen til ' . $companyName, PDO::PARAM_STR);
+    $stmt->bindValue(9, false, PDO::PARAM_BOOL);
+    $stmt->bindValue(10, $_SESSION['tenant_admin_id'], PDO::PARAM_INT);
+    $stmt->execute();
     
     $db->commit();
     
