@@ -114,6 +114,16 @@ try {
                     is_active = ?,
                     maintenance_mode = ?,
                     maintenance_message = ?,
+                    header_bg_color = ?,
+                    body_bg_color = ?,
+                    logo_height = ?,
+                    header_height = ?,
+                    logo_position = ?,
+                    nav_position = ?,
+                    font_family = ?,
+                    button_style = ?,
+                    border_radius = ?,
+                    spacing_unit = ?,
                     updated_at = NOW(),
                     updated_by = ?
                 WHERE company_id = ?
@@ -137,6 +147,16 @@ try {
                 normalizeBool($general['is_active'] ?? 1),
                 normalizeBool($general['maintenance_mode'] ?? 0),
                 !empty($general['maintenance_message']) ? trim($general['maintenance_message']) : null,
+                normalizeColor($general['header_bg_color'] ?? '#ffffff', '#ffffff'),
+                normalizeColor($general['body_bg_color'] ?? '#f8f9fa', '#f8f9fa'),
+                !empty($general['logo_height']) ? trim($general['logo_height']) : '50px',
+                !empty($general['header_height']) ? trim($general['header_height']) : '80px',
+                in_array($general['logo_position'] ?? 'left', ['left', 'center', 'right']) ? $general['logo_position'] : 'left',
+                in_array($general['nav_position'] ?? 'center', ['left', 'center', 'right']) ? $general['nav_position'] : 'center',
+                !empty($general['font_family']) ? trim($general['font_family']) : 'Inter, sans-serif',
+                in_array($general['button_style'] ?? 'rounded', ['rounded', 'square', 'pill']) ? $general['button_style'] : 'rounded',
+                !empty($general['border_radius']) ? trim($general['border_radius']) : '16px',
+                !empty($general['spacing_unit']) ? trim($general['spacing_unit']) : '1rem',
                 $adminId,
                 $companyId
             ]);
@@ -149,8 +169,10 @@ try {
                  navigation_style, header_layout, footer_layout, hero_enabled, hero_title,
                  hero_description, hero_button_text, contact_email, contact_phone, contact_address,
                  google_analytics_id, is_active, maintenance_mode, maintenance_message,
+                 header_bg_color, body_bg_color, logo_height, header_height, logo_position,
+                 nav_position, font_family, button_style, border_radius, spacing_unit,
                  created_by, created_at, updated_at, updated_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)
             ");
             $stmt->execute([
                 $generalId,
@@ -173,6 +195,16 @@ try {
                 normalizeBool($general['is_active'] ?? 1),
                 normalizeBool($general['maintenance_mode'] ?? 0),
                 !empty($general['maintenance_message']) ? trim($general['maintenance_message']) : null,
+                normalizeColor($general['header_bg_color'] ?? '#ffffff', '#ffffff'),
+                normalizeColor($general['body_bg_color'] ?? '#f8f9fa', '#f8f9fa'),
+                !empty($general['logo_height']) ? trim($general['logo_height']) : '50px',
+                !empty($general['header_height']) ? trim($general['header_height']) : '80px',
+                in_array($general['logo_position'] ?? 'left', ['left', 'center', 'right']) ? $general['logo_position'] : 'left',
+                in_array($general['nav_position'] ?? 'center', ['left', 'center', 'right']) ? $general['nav_position'] : 'center',
+                !empty($general['font_family']) ? trim($general['font_family']) : 'Inter, sans-serif',
+                in_array($general['button_style'] ?? 'rounded', ['rounded', 'square', 'pill']) ? $general['button_style'] : 'rounded',
+                !empty($general['border_radius']) ? trim($general['border_radius']) : '16px',
+                !empty($general['spacing_unit']) ? trim($general['spacing_unit']) : '1rem',
                 $adminId,
                 $adminId
             ]);
