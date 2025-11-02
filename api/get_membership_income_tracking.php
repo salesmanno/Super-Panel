@@ -23,6 +23,7 @@ try {
             mm.first_name,
             mm.last_name,
             mm.email,
+            mm.status as member_status,
             COALESCE(" . ($dbType === 'mysql' ? "mp.name" : "mp.plan_name") . ", 'Ingen plan') as plan_name,
             COALESCE(mp.price, 0) as yearly_price,
             COALESCE(payment_summary.total_paid, 0) as total_paid,
@@ -41,12 +42,11 @@ try {
             FROM unified_ledger
             WHERE company_id = ?
             AND module_source = 'membership'
-            AND payment_status IN ('completed', 'pending')
+            AND payment_status = 'completed'
             AND EXTRACT(YEAR FROM transaction_date) = ?
             GROUP BY customer_email
         ) payment_summary ON mm.email = payment_summary.customer_email
         WHERE mm.company_id = ?
-        AND mm.status = 'active'
         ORDER BY mm.last_name, mm.first_name
     ");
     

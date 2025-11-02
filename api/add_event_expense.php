@@ -63,7 +63,7 @@ try {
             customer_name, customer_email, payment_method, payment_status, transaction_date
         ) VALUES (
             " . ($dbType === 'mysql' ? "?" : "gen_random_uuid()") . ", ?, ?, 'events', 'event_expense', ?,
-            ?, 1, ?, ?,
+            ?, 1, 0, ?,
             ?, ?, 'manual', 'completed', ?
         )
     ");
@@ -71,13 +71,13 @@ try {
     if ($dbType === 'mysql') {
         $stmt->execute([
             $entryId, $orderId, $company_id, $event_id,
-            $description . $categoryLabel, -$amount, $amount,
+            $description . $categoryLabel, $amount,
             'Manuel registrering', $notes, $date
         ]);
     } else {
         $stmt->execute([
             $orderId, $company_id, $event_id,
-            $description . $categoryLabel, -$amount, $amount,
+            $description . $categoryLabel, $amount,
             'Manuel registrering', $notes, $date
         ]);
     }
