@@ -241,6 +241,14 @@
                             <textarea class="form-control" name="description" rows="3"></textarea>
                         </div>
                     </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Bildeurl</label>
+                            <input type="url" class="form-control" name="img_url" placeholder="https://eksempel.no/bilde.jpg">
+                            <small class="text-muted">Legg til en url til et bilde for denne tjenesten</small>
+                        </div>
+                    </div>
 
                     <div class="row">
                         <div class="col-md-4 mb-3">
@@ -350,6 +358,7 @@
                     <table class="table table-hover">
                         <thead class="table-light">
                             <tr>
+                                <th style="width: 80px;">Bilde</th>
                                 <th>Tjeneste</th>
                                 <th>Type</th>
                                 <th>Varighet</th>
@@ -363,7 +372,7 @@
                         </thead>
                         <tbody id="active-services-list">
                             <tr>
-                                <td colspan="9" class="text-center py-4">
+                                <td colspan="10" class="text-center py-4">
                                     <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Laster...</span>
                                     </div>
@@ -1123,7 +1132,7 @@ function loadActiveServices() {
             if (!data.success) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="9" class="text-center py-4 text-muted">
+                        <td colspan="10" class="text-center py-4 text-muted">
                             <i class="bi bi-exclamation-circle fs-1 d-block mb-2"></i>
                             <p>${data.error || 'Kunne ikke laste tjenester'}</p>
                         </td>
@@ -1137,7 +1146,7 @@ function loadActiveServices() {
             if (services.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="9" class="text-center py-4 text-muted">
+                        <td colspan="10" class="text-center py-4 text-muted">
                             <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                             <p>Ingen tjenester opprettet ennå</p>
                             <button class="btn btn-primary btn-sm mt-2" onclick="document.querySelector('[href=\\'#reservations-create-service\\']').click()">
@@ -1167,9 +1176,26 @@ function loadActiveServices() {
                     ? `<span class="badge bg-info text-dark" title="${service.assigned_staff_names}">${service.staff_count} ansatt${service.staff_count > 1 ? 'e' : ''}</span>`
                     : '<span class="text-muted small">Ingen</span>';
                 
+                // Properly escape HTML to prevent XSS (including quotes)
+                const escapeHtml = (str) => {
+                    if (!str) return '';
+                    return String(str)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#039;');
+                };
+                
+                const imageDisplay = service.img_url 
+                    ? `<img src="${escapeHtml(service.img_url)}" alt="${escapeHtml(service.service_name)}" class="img-thumbnail" style="width: 60px; height: 60px; object-fit: cover;" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">` +
+                      `<div class="text-center text-muted" style="width: 60px; height: 60px; display: none; align-items: center; justify-content: center; background: #f8f9fa; border-radius: 4px;"><i class="bi bi-image"></i></div>`
+                    : '<div class="text-center text-muted" style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; border-radius: 4px;"><i class="bi bi-image"></i></div>';
+                
                 return `
                     <tr>
-                        <td><strong>${service.service_name}</strong></td>
+                        <td>${imageDisplay}</td>
+                        <td><strong>${escapeHtml(service.service_name)}</strong></td>
                         <td>${typeLabels[service.service_type] || service.service_type}</td>
                         <td>${service.duration_minutes} min</td>
                         <td>${parseFloat(service.price).toFixed(2)} NOK</td>
@@ -1195,7 +1221,7 @@ function loadActiveServices() {
             console.error('Error loading services:', error);
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="9" class="text-center py-4 text-danger">
+                    <td colspan="10" class="text-center py-4 text-danger">
                         <i class="bi bi-exclamation-triangle fs-1 d-block mb-2"></i>
                         <p>Feil ved lasting av tjenester</p>
                     </td>

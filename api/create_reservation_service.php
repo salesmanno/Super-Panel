@@ -26,6 +26,23 @@ try {
         echo json_encode(['success' => false, 'message' => 'Velg minst én ansatt']);
         exit;
     }
+    
+    // Validate img_url if provided
+    $imgUrl = null;
+    if (!empty($data['img_url'])) {
+        $url = trim($data['img_url']);
+        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+            echo json_encode(['success' => false, 'message' => 'Ugyldig bildeurl']);
+            exit;
+        }
+        // Only allow http/https schemes
+        $parsedUrl = parse_url($url);
+        if (!isset($parsedUrl['scheme']) || !in_array(strtolower($parsedUrl['scheme']), ['http', 'https'])) {
+            echo json_encode(['success' => false, 'message' => 'Bildeurl må bruke http eller https']);
+            exit;
+        }
+        $imgUrl = $url;
+    }
 
     $db = getDBConnection();
     $db->beginTransaction();
@@ -101,8 +118,8 @@ try {
             INSERT INTO reservation_services (
                 id, company_id, output_product_id, service_name, description,
                 price, duration_minutes, service_type, available_from, available_to,
-                assigned_staff_ids, capacity, is_active, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                assigned_staff_ids, capacity, is_active, img_url, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         ");
         
         $stmt->execute([
@@ -118,7 +135,8 @@ try {
             $data['available_to'] ?? '17:00',
             $assignedStaffJson,
             $data['capacity'] ?? 1,
-            $data['is_active'] ?? 1
+            $data['is_active'] ?? 1,
+            $imgUrl
         ]);
         
         $db->commit();

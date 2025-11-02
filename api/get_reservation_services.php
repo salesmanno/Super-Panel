@@ -18,7 +18,7 @@ try {
         SELECT 
             id, service_name, description, price, duration_minutes,
             service_type, available_from, available_to,
-            assigned_staff_ids, capacity, is_active, created_at
+            assigned_staff_ids, capacity, is_active, img_url, created_at
         FROM reservation_services
         WHERE company_id = ?
         ORDER BY created_at DESC
