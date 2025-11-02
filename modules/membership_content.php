@@ -157,83 +157,86 @@
     <div id="membership-income" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title"><i class="bi bi-cash-stack me-2 text-success"></i>Medlemsinntekter</h5>
-                <div class="row mb-4">
+                <h5 class="card-title"><i class="bi bi-cash-stack me-2 text-success"></i>Medlemsinntekter <?php echo date('Y'); ?></h5>
+                <p class="text-muted">Oversikt over alle medlemsbetalinger og gjenværende betalinger for inneværende år</p>
+                
+                <div class="row mb-3">
                     <div class="col-md-3">
                         <div class="card bg-success text-white">
                             <div class="card-body">
-                                <small>Total omsetning</small>
-                                <h4 class="mb-0" id="income-total">0 NOK</h4>
+                                <small>Totalt innbetalt (i år)</small>
+                                <h4 class="mb-0" id="income-paid-total">0 NOK</h4>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card bg-primary text-white">
+                        <div class="card bg-warning text-white">
                             <div class="card-body">
-                                <small>Aktive medlemmer</small>
-                                <h4 class="mb-0" id="income-active-members">0</h4>
+                                <small>Gjenværende betaling</small>
+                                <h4 class="mb-0" id="income-remaining-total">0 NOK</h4>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="card bg-info text-white">
                             <div class="card-body">
-                                <small>Denne måneden</small>
-                                <h4 class="mb-0" id="income-month">0 NOK</h4>
+                                <small>Aktive medlemmer</small>
+                                <h4 class="mb-0" id="income-active-count">0</h4>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="card bg-light">
                             <div class="card-body">
-                                <small class="text-muted">I år</small>
-                                <h4 class="mb-0" id="income-year">0 NOK</h4>
+                                <small class="text-muted">Antall transaksjoner</small>
+                                <h4 class="mb-0" id="income-transaction-count">0</h4>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="row">
-                    <div class="col-md-8">
-                        <div class="card">
-                            <div class="card-header">
-                                <h6 class="mb-0"><i class="bi bi-list-ul me-2"></i>Siste medlemstransaksjoner</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-hover">
-                                        <thead>
-                                            <tr>
-                                                <th>Dato</th>
-                                                <th>Kunde</th>
-                                                <th>Medlemskap</th>
-                                                <th>Type</th>
-                                                <th class="text-end">Beløp</th>
-                                                <th>Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="income-transactions-list">
-                                            <tr>
-                                                <td colspan="6" class="text-center text-muted py-3">
-                                                    <i class="bi bi-hourglass-split me-2"></i>Laster...
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-people me-2"></i>Medlemsoversikt</h6>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <input type="radio" class="btn-check" name="payment-filter" id="filter-all" value="all" checked>
+                                <label class="btn btn-outline-primary" for="filter-all">Alle</label>
+                                
+                                <input type="radio" class="btn-check" name="payment-filter" id="filter-paid" value="paid">
+                                <label class="btn btn-outline-success" for="filter-paid">Betalt</label>
+                                
+                                <input type="radio" class="btn-check" name="payment-filter" id="filter-partial" value="partial">
+                                <label class="btn btn-outline-warning" for="filter-partial">Delvis betalt</label>
+                                
+                                <input type="radio" class="btn-check" name="payment-filter" id="filter-unpaid" value="unpaid">
+                                <label class="btn btn-outline-danger" for="filter-unpaid">Ikke betalt</label>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="card">
-                            <div class="card-header">
-                                <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Inntekt per plan</h6>
-                            </div>
-                            <div class="card-body" id="income-by-plan">
-                                <div class="text-center text-muted py-3">
-                                    <i class="bi bi-hourglass-split me-2"></i>Laster...
-                                </div>
-                            </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Medlem</th>
+                                        <th>E-post</th>
+                                        <th>Medlemskapsplan</th>
+                                        <th>Årlig pris</th>
+                                        <th class="text-end">Innbetalt</th>
+                                        <th class="text-end">Gjenværende</th>
+                                        <th>Status</th>
+                                        <th>Siste betaling</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="income-member-list">
+                                    <tr>
+                                        <td colspan="8" class="text-center text-muted py-3">
+                                            <i class="bi bi-hourglass-split me-2"></i>Laster medlemsdata...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

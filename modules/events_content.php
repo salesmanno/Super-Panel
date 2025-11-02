@@ -533,7 +533,7 @@ try {
     <div id="events-results" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">Arrangement Resultat</h5>
+                <h5 class="card-title"><i class="bi bi-graph-up me-2"></i>Arrangement Resultat</h5>
                 <p class="text-muted">Se og administrer inntekter og utgifter for arrangementer</p>
                 
                 <div class="table-responsive">
@@ -543,9 +543,9 @@ try {
                                 <th>Arrangement</th>
                                 <th>Dato</th>
                                 <th>Påmeldte</th>
-                                <th>Inntekt</th>
-                                <th>Utgift</th>
-                                <th>Netto</th>
+                                <th class="text-end">Inntekt</th>
+                                <th class="text-end">Utgift</th>
+                                <th class="text-end">Netto</th>
                                 <th>Handling</th>
                             </tr>
                         </thead>
