@@ -216,22 +216,32 @@
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-sm table-hover">
-                                <thead>
+                            <table class="table table-sm table-hover table-striped">
+                                <thead class="table-dark">
                                     <tr>
-                                        <th>Medlem</th>
+                                        <th>Fornavn</th>
+                                        <th>Etternavn</th>
                                         <th>E-post</th>
+                                        <th>Telefon</th>
+                                        <th>Adresse</th>
+                                        <th>Poststed</th>
+                                        <th>Fødselsdato</th>
                                         <th>Medlemskapsplan</th>
-                                        <th>Årlig pris</th>
+                                        <th class="text-end">Årlig pris</th>
                                         <th class="text-end">Innbetalt</th>
                                         <th class="text-end">Gjenværende</th>
-                                        <th>Status</th>
+                                        <th>Betalingsstatus</th>
+                                        <th>Medlem siden</th>
+                                        <th>Gyldig til</th>
                                         <th>Siste betaling</th>
+                                        <th>Ant. bet.</th>
+                                        <th>Auto-forny</th>
+                                        <th>Medlemsstatus</th>
                                     </tr>
                                 </thead>
                                 <tbody id="income-member-list">
                                     <tr>
-                                        <td colspan="8" class="text-center text-muted py-3">
+                                        <td colspan="18" class="text-center text-muted py-3">
                                             <i class="bi bi-hourglass-split me-2"></i>Laster medlemsdata...
                                         </td>
                                     </tr>
@@ -822,24 +832,50 @@ async function loadMembershipIncome(filter = 'all') {
                     const lastPayment = m.last_payment_date ? 
                         new Date(m.last_payment_date).toLocaleDateString('nb-NO') : 
                         '-';
+                    const joinDate = m.join_date ? 
+                        new Date(m.join_date).toLocaleDateString('nb-NO') : 
+                        '-';
+                    const expiryDate = m.expiry_date ? 
+                        new Date(m.expiry_date).toLocaleDateString('nb-NO') : 
+                        '-';
+                    const birthDate = m.dateofbirth ? 
+                        new Date(m.dateofbirth).toLocaleDateString('nb-NO') : 
+                        '-';
+                    
+                    const memberStatusBadge = m.member_status === 'active' ? 'bg-success' : 
+                                             m.member_status === 'expired' ? 'bg-danger' : 
+                                             m.member_status === 'pending' ? 'bg-warning' : 'bg-secondary';
+                    const memberStatusText = m.member_status === 'active' ? 'Aktiv' : 
+                                            m.member_status === 'expired' ? 'Utløpt' : 
+                                            m.member_status === 'pending' ? 'På vent' : m.member_status;
                     
                     return `
                         <tr>
-                            <td>${m.first_name} ${m.last_name}</td>
-                            <td><small>${m.email}</small></td>
+                            <td><strong>${m.first_name || '-'}</strong></td>
+                            <td><strong>${m.last_name || '-'}</strong></td>
+                            <td><small>${m.email || '-'}</small></td>
+                            <td><small>${m.phone || '-'}</small></td>
+                            <td><small>${m.address || '-'}</small></td>
+                            <td><small>${m.poststed || '-'}</small></td>
+                            <td><small>${birthDate}</small></td>
                             <td><span class="badge bg-info">${m.plan_name}</span></td>
-                            <td>${parseFloat(m.yearly_price).toLocaleString('nb-NO')} NOK</td>
+                            <td class="text-end">${parseFloat(m.yearly_price).toLocaleString('nb-NO')} NOK</td>
                             <td class="text-end"><strong class="text-success">${parseFloat(m.total_paid).toLocaleString('nb-NO')} NOK</strong></td>
                             <td class="text-end"><strong class="text-danger">${parseFloat(m.remaining).toLocaleString('nb-NO')} NOK</strong></td>
                             <td><span class="badge ${statusBadge}">${statusText}</span></td>
+                            <td><small>${joinDate}</small></td>
+                            <td><small>${expiryDate}</small></td>
                             <td><small>${lastPayment}</small></td>
+                            <td class="text-center">${m.payment_count || 0}</td>
+                            <td class="text-center">${m.auto_renew ? '<i class="bi bi-check-circle text-success"></i>' : '<i class="bi bi-x-circle text-muted"></i>'}</td>
+                            <td><span class="badge ${memberStatusBadge}">${memberStatusText}</span></td>
                         </tr>
                     `;
                 }).join('');
             } else {
                 memberList.innerHTML = `
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-3">
+                        <td colspan="18" class="text-center text-muted py-3">
                             <i class="bi bi-inbox me-2"></i>Ingen medlemmer funnet for valgt filter
                         </td>
                     </tr>

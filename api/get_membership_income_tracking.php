@@ -19,11 +19,18 @@ try {
     
     $stmt = $db->prepare("
         SELECT 
-            mm.id as member_id,
+            mm." . ($dbType === 'mysql' ? "id" : "member_id") . " as member_id,
             mm.first_name,
             mm.last_name,
             mm.email,
+            mm.phone,
+            mm.address,
+            mm.poststed,
+            mm.dateofbirth,
+            mm.join_date,
+            mm.expiry_date,
             mm.status as member_status,
+            mm.auto_renew,
             COALESCE(" . ($dbType === 'mysql' ? "mp.name" : "mp.plan_name") . ", 'Ingen plan') as plan_name,
             COALESCE(mp.price, 0) as yearly_price,
             COALESCE(payment_summary.total_paid, 0) as total_paid,
@@ -32,7 +39,7 @@ try {
             payment_summary.payment_count
         FROM membership_members mm
         LEFT JOIN " . ($dbType === 'mysql' ? "membership_plans" : "x_membership_plan") . " mp 
-            ON mm.plan_id = " . ($dbType === 'mysql' ? "mp.id" : "mp.plan_id") . "
+            ON mm." . ($dbType === 'mysql' ? "plan_id" : "membership_plan_id") . " = " . ($dbType === 'mysql' ? "mp.id" : "mp.plan_id") . "
         LEFT JOIN (
             SELECT 
                 customer_email,
