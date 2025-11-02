@@ -11,13 +11,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-if (!isset($_SESSION['admin_id']) || !isset($_SESSION['company_id'])) {
+if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
     exit;
 }
 
-$admin_id = $_SESSION['admin_id'];
+$admin_id = $_SESSION['tenant_admin_id'];
 $company_id = $_SESSION['company_id'];
 
 try {
@@ -36,7 +36,7 @@ try {
     // SECURITY: Calculate unit cost server-side, never trust client input
     $unit_cost = round($total_cost / $quantity, 2);
     
-    $db = getDB();
+    $db = getDBConnection();
     $db->beginTransaction();
     
     // Get current product data

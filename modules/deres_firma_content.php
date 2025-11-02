@@ -20,9 +20,15 @@
                 ?>
                 
                 <?php if ($companyData): ?>
+                <?php 
+                    // Extract domain: If subdomain contains hyphen, take only the first part
+                    $fullSubdomain = $companyData['subdomain'] ?? 'N/A';
+                    $domainParts = explode('-', $fullSubdomain);
+                    $displayDomain = $domainParts[0];
+                ?>
                 <div class="alert alert-info mb-3">
                     <i class="bi bi-info-circle me-2"></i>
-                    <strong>Subdomain:</strong> <?= htmlspecialchars($companyData['subdomain'] ?? 'N/A') ?>.salesman.no
+                    <strong>Nettsted:</strong> <?= htmlspecialchars($displayDomain) ?>.salesman.no
                 </div>
                 
                 <form id="companyDataForm" onsubmit="return handleSaveCompanyData(event);">

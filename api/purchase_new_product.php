@@ -11,13 +11,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-if (!isset($_SESSION['admin_id']) || !isset($_SESSION['company_id'])) {
+if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
     exit;
 }
 
-$admin_id = $_SESSION['admin_id'];
+$admin_id = $_SESSION['tenant_admin_id'];
 $company_id = $_SESSION['company_id'];
 
 try {
@@ -40,7 +40,7 @@ try {
     // Default selling price set to 0 for non-registered items (not intended for resale)
     $selling_price = 0;
     
-    $db = getDB();
+    $db = getDBConnection();
     $db->beginTransaction();
     
     // Generate product ID
