@@ -1983,4 +1983,174 @@ async function saveEventChanges() {
         alert('❌ Feil ved oppdatering av arrangement');
     }
 }
+
+function openAddIncomeModal() {
+    const eventId = document.getElementById('details-event-id').value;
+    document.getElementById('income-event-id').value = eventId;
+    document.getElementById('add-income-form').reset();
+    document.getElementById('income-event-id').value = eventId;
+    
+    const detailsModal = bootstrap.Modal.getInstance(document.getElementById('viewEventDetailsModal'));
+    if (detailsModal) detailsModal.hide();
+    
+    const incomeModal = new bootstrap.Modal(document.getElementById('addIncomeModal'));
+    incomeModal.show();
+}
+
+function openAddExpenseModal() {
+    const eventId = document.getElementById('details-event-id').value;
+    document.getElementById('expense-event-id').value = eventId;
+    document.getElementById('add-expense-form').reset();
+    document.getElementById('expense-event-id').value = eventId;
+    
+    const detailsModal = bootstrap.Modal.getInstance(document.getElementById('viewEventDetailsModal'));
+    if (detailsModal) detailsModal.hide();
+    
+    const expenseModal = new bootstrap.Modal(document.getElementById('addExpenseModal'));
+    expenseModal.show();
+}
+
+async function saveIncome() {
+    const form = document.getElementById('add-income-form');
+    const formData = new FormData(form);
+    
+    const data = {
+        event_id: formData.get('event_id'),
+        description: formData.get('description'),
+        amount: parseFloat(formData.get('amount')),
+        date: formData.get('date'),
+        notes: formData.get('notes')
+    };
+    
+    if (!data.description || !data.amount || data.amount <= 0) {
+        alert('❌ Vennligst fyll ut beskrivelse og gyldig beløp');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/add_event_income.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Inntekt lagt til!');
+            bootstrap.Modal.getInstance(document.getElementById('addIncomeModal')).hide();
+            viewEventDetails(data.event_id);
+            loadEventsResults();
+        } else {
+            alert('❌ ' + (result.message || 'Feil ved lagring'));
+        }
+    } catch (error) {
+        console.error('Error saving income:', error);
+        alert('❌ Feil ved lagring av inntekt');
+    }
+}
+
+async function saveExpense() {
+    const form = document.getElementById('add-expense-form');
+    const formData = new FormData(form);
+    
+    const data = {
+        event_id: formData.get('event_id'),
+        description: formData.get('description'),
+        amount: parseFloat(formData.get('amount')),
+        date: formData.get('date'),
+        category: formData.get('category'),
+        notes: formData.get('notes')
+    };
+    
+    if (!data.description || !data.amount || data.amount <= 0) {
+        alert('❌ Vennligst fyll ut beskrivelse og gyldig beløp');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/add_event_expense.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Utgift lagt til!');
+            bootstrap.Modal.getInstance(document.getElementById('addExpenseModal')).hide();
+            viewEventDetails(data.event_id);
+            loadEventsResults();
+        } else {
+            alert('❌ ' + (result.message || 'Feil ved lagring'));
+        }
+    } catch (error) {
+        console.error('Error saving expense:', error);
+        alert('❌ Feil ved lagring av utgift');
+    }
+}
+
+async function viewEventDetails(eventId, eventTitle = 'Arrangement') {
+    document.getElementById('details-event-id').value = eventId;
+    document.getElementById('details-event-title').textContent = eventTitle;
+    
+    try {
+        const response = await fetch(`/api/get_event_transactions.php?event_id=${eventId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('details-total-income').textContent = result.summary.total_income.toLocaleString('nb-NO') + ' NOK';
+            document.getElementById('details-total-expense').textContent = result.summary.total_expense.toLocaleString('nb-NO') + ' NOK';
+            document.getElementById('details-net-result').textContent = result.summary.net_result.toLocaleString('nb-NO') + ' NOK';
+            
+            const transactionsList = document.getElementById('details-transactions-list');
+            if (result.transactions && result.transactions.length > 0) {
+                transactionsList.innerHTML = result.transactions.map(t => {
+                    const date = new Date(t.transaction_date).toLocaleDateString('nb-NO');
+                    const typeClass = t.entry_type === 'income' ? 'text-success' : 'text-danger';
+                    const typeIcon = t.entry_type === 'income' ? 'plus-circle' : 'dash-circle';
+                    const typeText = t.entry_type === 'income' ? 'Inntekt' : 'Utgift';
+                    const amount = Math.abs(parseFloat(t.total_amount));
+                    
+                    return `
+                        <tr>
+                            <td><small>${date}</small></td>
+                            <td><span class="badge ${t.entry_type === 'income' ? 'bg-success' : 'bg-danger'}"><i class="bi bi-${typeIcon} me-1"></i>${typeText}</span></td>
+                            <td>${t.item_name}</td>
+                            <td class="${typeClass}"><strong>${amount.toLocaleString('nb-NO')} NOK</strong></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction('${t.id}')" title="Slett">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                transactionsList.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-3">
+                            Ingen transaksjoner ennå
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            const detailsModal = new bootstrap.Modal(document.getElementById('viewEventDetailsModal'));
+            detailsModal.show();
+        }
+    } catch (error) {
+        console.error('Error loading event details:', error);
+        alert('❌ Feil ved lasting av arrangementsdetaljer');
+    }
+}
+
+async function deleteTransaction(transactionId) {
+    if (!confirm('Er du sikker på at du vil slette denne transaksjonen?')) {
+        return;
+    }
+    
+    alert('⚠️ Sletting av transaksjoner er ikke implementert ennå');
+}
 </script>

@@ -797,73 +797,52 @@ async function renewMembership(memberId) {
 }
 
 // Load membership income statistics
-async function loadMembershipIncome() {
+let currentMembershipFilter = 'all';
+
+async function loadMembershipIncome(filter = 'all') {
+    currentMembershipFilter = filter;
+    
     try {
-        const response = await fetch('/api/get_membership_income.php');
+        const response = await fetch(`/api/get_membership_income_tracking.php?filter=${filter}`);
         const data = await response.json();
         
         if (data.success) {
-            // Update statistics cards
-            document.getElementById('income-total').textContent = data.stats.total_income.toLocaleString('nb-NO') + ' NOK';
-            document.getElementById('income-active-members').textContent = data.stats.active_members;
-            document.getElementById('income-month').textContent = data.stats.month_income.toLocaleString('nb-NO') + ' NOK';
-            document.getElementById('income-year').textContent = data.stats.year_income.toLocaleString('nb-NO') + ' NOK';
+            document.getElementById('income-paid-total').textContent = data.summary.total_paid.toLocaleString('nb-NO') + ' NOK';
+            document.getElementById('income-remaining-total').textContent = data.summary.total_remaining.toLocaleString('nb-NO') + ' NOK';
+            document.getElementById('income-active-count').textContent = data.summary.active_count;
+            document.getElementById('income-transaction-count').textContent = data.summary.transaction_count;
             
-            // Render transactions table
-            const transactionsList = document.getElementById('income-transactions-list');
-            if (data.transactions && data.transactions.length > 0) {
-                transactionsList.innerHTML = data.transactions.map(t => {
-                    const date = new Date(t.transaction_date).toLocaleDateString('nb-NO');
-                    const statusBadge = t.payment_status === 'completed' ? 'bg-success' : 
-                                       t.payment_status === 'pending' ? 'bg-warning' : 'bg-secondary';
-                    const statusText = t.payment_status === 'completed' ? 'Betalt' : 
-                                      t.payment_status === 'pending' ? 'Venter' : t.payment_status;
-                    const typeText = t.item_type === 'membership_renewal' ? 'Fornyelse' : 
-                                    t.item_type === 'membership' ? 'Nytt' : t.item_type;
+            const memberList = document.getElementById('income-member-list');
+            if (data.members && data.members.length > 0) {
+                memberList.innerHTML = data.members.map(m => {
+                    const statusBadge = m.payment_status === 'paid' ? 'bg-success' : 
+                                       m.payment_status === 'partial' ? 'bg-warning' : 'bg-danger';
+                    const statusText = m.payment_status === 'paid' ? 'Betalt' : 
+                                      m.payment_status === 'partial' ? 'Delvis betalt' : 'Ikke betalt';
+                    const lastPayment = m.last_payment_date ? 
+                        new Date(m.last_payment_date).toLocaleDateString('nb-NO') : 
+                        '-';
                     
                     return `
                         <tr>
-                            <td>${date}</td>
-                            <td>${t.customer_name || '-'}</td>
-                            <td><small>${t.item_name}</small></td>
-                            <td><span class="badge bg-info">${typeText}</span></td>
-                            <td class="text-end"><strong>${parseFloat(t.total).toLocaleString('nb-NO')} NOK</strong></td>
+                            <td>${m.first_name} ${m.last_name}</td>
+                            <td><small>${m.email}</small></td>
+                            <td><span class="badge bg-info">${m.plan_name}</span></td>
+                            <td>${parseFloat(m.yearly_price).toLocaleString('nb-NO')} NOK</td>
+                            <td class="text-end"><strong class="text-success">${parseFloat(m.total_paid).toLocaleString('nb-NO')} NOK</strong></td>
+                            <td class="text-end"><strong class="text-danger">${parseFloat(m.remaining).toLocaleString('nb-NO')} NOK</strong></td>
                             <td><span class="badge ${statusBadge}">${statusText}</span></td>
+                            <td><small>${lastPayment}</small></td>
                         </tr>
                     `;
                 }).join('');
             } else {
-                transactionsList.innerHTML = `
+                memberList.innerHTML = `
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-3">
-                            <i class="bi bi-inbox me-2"></i>Ingen medlemstransaksjoner registrert
+                        <td colspan="8" class="text-center text-muted py-3">
+                            <i class="bi bi-inbox me-2"></i>Ingen medlemmer funnet for valgt filter
                         </td>
                     </tr>
-                `;
-            }
-            
-            // Render income by plan
-            const incomeByPlanContainer = document.getElementById('income-by-plan');
-            if (data.income_by_plan && data.income_by_plan.length > 0) {
-                incomeByPlanContainer.innerHTML = data.income_by_plan.map(plan => `
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <small class="text-muted">${plan.item_name}</small>
-                            <strong>${parseFloat(plan.plan_income).toLocaleString('nb-NO')} NOK</strong>
-                        </div>
-                        <div class="progress" style="height: 20px;">
-                            <div class="progress-bar bg-success" role="progressbar" 
-                                 style="width: ${(plan.plan_income / data.stats.total_income * 100)}%">
-                                ${plan.sales_count} salg
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-            } else {
-                incomeByPlanContainer.innerHTML = `
-                    <div class="text-center text-muted py-3">
-                        <i class="bi bi-inbox me-2"></i>Ingen data tilgjengelig
-                    </div>
                 `;
             }
         } else {
@@ -873,6 +852,12 @@ async function loadMembershipIncome() {
         console.error('Error loading membership income:', error);
     }
 }
+
+document.querySelectorAll('input[name="payment-filter"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        loadMembershipIncome(this.value);
+    });
+});
 
 // Load income when income subtab is shown
 const incomeTabLink = document.querySelector('a[href="#membership-income"]');
