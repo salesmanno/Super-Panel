@@ -4,7 +4,7 @@ require_once __DIR__ . '/../config/database.php';
 
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['admin_id']) || !isset($_SESSION['company_id'])) {
+if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
     exit;
@@ -13,7 +13,7 @@ if (!isset($_SESSION['admin_id']) || !isset($_SESSION['company_id'])) {
 $company_id = $_SESSION['company_id'];
 
 try {
-    $db = getDB();
+    $db = getDBConnection();
     
     $stmt = $db->prepare("
         SELECT 
