@@ -24,7 +24,6 @@ try {
     $data = json_decode(file_get_contents('php://input'), true);
     
     $product_name = $data['product_name'] ?? null;
-    $category = $data['category'] ?? null;
     $supplier = $data['supplier'] ?? null;
     $quantity = intval($data['quantity'] ?? 0);
     $total_cost = floatval($data['total_cost'] ?? 0);
@@ -34,49 +33,21 @@ try {
         exit;
     }
     
-    // SECURITY: Calculate unit cost server-side, never trust client input
     $unit_cost = round($total_cost / $quantity, 2);
-    
-    // Default selling price set to 0 for non-registered items (not intended for resale)
-    $selling_price = 0;
     
     $db = getDBConnection();
     $db->beginTransaction();
     
-    // Generate product ID
-    $product_id = generateUUID();
-    
-    // Generate SKU automatically for non-registered items
-    $sku = 'NR-' . strtoupper(substr(md5($product_name . time()), 0, 8));
-    
-    // Create new product (no barcode field)
-    $stmt = $db->prepare("
-        INSERT INTO sales_products 
-        (id, company_id, sku, name, category_id, cost_price, selling_price, stock_quantity, is_active, unit)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'stk')
-    ");
-    $stmt->execute([
-        $product_id,
-        $company_id,
-        $sku,
-        $product_name,
-        $category,
-        $unit_cost,
-        $selling_price,
-        $quantity
-    ]);
-    
-    // Insert into purchase history
+    // Insert into purchase history (NO product creation!)
     $purchase_id = generateUUID();
     $stmt = $db->prepare("
         INSERT INTO sales_purchase_history 
         (id, company_id, product_id, product_name, supplier, quantity, unit_cost, total_cost, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?)
     ");
     $stmt->execute([
         $purchase_id,
         $company_id,
-        $product_id,
         $product_name,
         $supplier,
         $quantity,
@@ -96,13 +67,10 @@ try {
         'payment_method' => 'cash',
         'metadata' => json_encode([
             'purchase_id' => $purchase_id,
-            'product_id' => $product_id,
             'product_name' => $product_name,
             'supplier' => $supplier,
             'quantity' => $quantity,
             'unit_cost' => $unit_cost,
-            'sku' => $sku,
-            'new_product' => true,
             'non_registered_item' => true
         ])
     ]);
@@ -111,12 +79,10 @@ try {
     
     echo json_encode([
         'success' => true,
-        'message' => 'Produkt opprettet og innkjøp registrert',
-        'product_id' => $product_id,
+        'message' => 'Innkjøp registrert som utgift',
+        'purchase_id' => $purchase_id,
         'product_name' => $product_name,
-        'sku' => $sku,
-        'stock_quantity' => $quantity,
-        'cost_price' => number_format($unit_cost, 2)
+        'total_cost' => number_format($total_cost, 2)
     ]);
     
 } catch (Exception $e) {
@@ -124,7 +90,7 @@ try {
         $db->rollBack();
     }
     error_log("Purchase new product error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Serverfeil ved opprettelse av produkt']);
+    echo json_encode(['success' => false, 'message' => 'Serverfeil: ' . $e->getMessage()]);
 }
 
 function generateUUID() {
