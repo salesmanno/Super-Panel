@@ -441,6 +441,21 @@
                         <textarea name="general_site_description" class="form-control" rows="3"><?= htmlspecialchars($websiteGeneral['site_description'] ?? '') ?></textarea>
                     </div>
                     
+                    <div class="row mb-4">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Logo URL</label>
+                            <input type="url" name="general_logo_url" class="form-control" value="<?= htmlspecialchars($websiteGeneral['logo_url'] ?? '') ?>" placeholder="https://...">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Favicon URL</label>
+                            <input type="url" name="general_favicon_url" class="form-control" value="<?= htmlspecialchars($websiteGeneral['favicon_url'] ?? '') ?>" placeholder="https://...">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Hjemmesidem odul</label>
+                            <input type="text" name="general_homepage_module" class="form-control" value="<?= htmlspecialchars($websiteGeneral['homepage_module'] ?? '') ?>" placeholder="products, events, etc">
+                        </div>
+                    </div>
+                    
                     <!-- Design Settings -->
                     <h6 class="mb-3 mt-4"><i class="bi bi-palette-fill me-2"></i>Design</h6>
                     <div class="row mb-4">
@@ -558,13 +573,23 @@
                             <input type="text" name="general_hero_title" class="form-control" value="<?= htmlspecialchars($websiteGeneral['hero_title'] ?? '') ?>">
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Knappetekst</label>
-                            <input type="text" name="general_hero_button_text" class="form-control" value="<?= htmlspecialchars($websiteGeneral['hero_button_text'] ?? '') ?>">
+                            <label class="form-label">Hero bilde URL</label>
+                            <input type="url" name="general_hero_image_url" class="form-control" value="<?= htmlspecialchars($websiteGeneral['hero_image_url'] ?? '') ?>" placeholder="https://...">
                         </div>
                     </div>
                     <div class="mb-4">
                         <label class="form-label">Hero-beskrivelse</label>
                         <textarea name="general_hero_description" class="form-control" rows="2"><?= htmlspecialchars($websiteGeneral['hero_description'] ?? '') ?></textarea>
+                    </div>
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Knappetekst</label>
+                            <input type="text" name="general_hero_button_text" class="form-control" value="<?= htmlspecialchars($websiteGeneral['hero_button_text'] ?? '') ?>">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Knapp URL</label>
+                            <input type="url" name="general_hero_button_url" class="form-control" value="<?= htmlspecialchars($websiteGeneral['hero_button_url'] ?? '') ?>" placeholder="https://...">
+                        </div>
                     </div>
                     
                     <!-- Contact Information -->
@@ -584,6 +609,23 @@
                         </div>
                     </div>
                     
+                    <!-- Footer Section -->
+                    <h6 class="mb-3 mt-4"><i class="bi bi-layout-text-sidebar-reverse me-2"></i>Footer</h6>
+                    <div class="mb-3">
+                        <label class="form-label">Footer tekst</label>
+                        <textarea name="general_footer_text" class="form-control" rows="2" placeholder="Copyright tekst og annen footer-informasjon"><?= htmlspecialchars($websiteGeneral['footer_text'] ?? '') ?></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Footer lenker (JSON format)</label>
+                        <textarea name="general_footer_links" class="form-control" rows="3" placeholder='[{"title": "Om oss", "url": "/about"}, {"title": "Kontakt", "url": "/contact"}]'><?= htmlspecialchars($websiteGeneral['footer_links'] ?? '') ?></textarea>
+                        <small class="text-muted">Bruk JSON-format for å definere footer-lenker</small>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Sosiale medier lenker (JSON format)</label>
+                        <textarea name="general_social_media_links" class="form-control" rows="3" placeholder='{"facebook": "https://...", "instagram": "https://...", "twitter": "https://..."}'><?= htmlspecialchars($websiteGeneral['social_media_links'] ?? '') ?></textarea>
+                        <small class="text-muted">Bruk JSON-format for å definere sosiale medier</small>
+                    </div>
+                    
                     <!-- Advanced Settings -->
                     <h6 class="mb-3 mt-4"><i class="bi bi-code-square me-2"></i>Avansert</h6>
                     <div class="row mb-4">
@@ -595,6 +637,16 @@
                             <label class="form-label">Vedlikeholdsmelding</label>
                             <textarea name="general_maintenance_message" class="form-control" rows="2" placeholder="Vises når vedlikeholdsmodus er på"><?= htmlspecialchars($websiteGeneral['maintenance_message'] ?? '') ?></textarea>
                         </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Custom CSS</label>
+                        <textarea name="general_custom_css" class="form-control" rows="5" placeholder="/* Legg til custom CSS her */"><?= htmlspecialchars($websiteGeneral['custom_css'] ?? '') ?></textarea>
+                        <small class="text-muted">Egendefinert CSS for å overstyre standard styling</small>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Custom JavaScript</label>
+                        <textarea name="general_custom_js" class="form-control" rows="5" placeholder="// Legg til custom JavaScript her"><?= htmlspecialchars($websiteGeneral['custom_js'] ?? '') ?></textarea>
+                        <small class="text-muted">Egendefinert JavaScript for tilpasset funksjonalitet</small>
                     </div>
                     <?php endif; ?>
                     

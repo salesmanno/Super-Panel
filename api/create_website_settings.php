@@ -36,14 +36,32 @@ try {
             company_id,
             site_title,
             site_description,
-            is_active,
-            maintenance_mode,
+            logo_url,
+            favicon_url,
             primary_color,
             secondary_color,
             navigation_style,
             header_layout,
             footer_layout,
+            homepage_module,
             hero_enabled,
+            hero_title,
+            hero_description,
+            hero_image_url,
+            hero_button_text,
+            hero_button_url,
+            contact_email,
+            contact_phone,
+            contact_address,
+            social_media_links,
+            footer_text,
+            footer_links,
+            custom_css,
+            custom_js,
+            google_analytics_id,
+            is_active,
+            maintenance_mode,
+            maintenance_message,
             header_bg_color,
             body_bg_color,
             logo_height,
@@ -55,21 +73,39 @@ try {
             border_radius,
             spacing_unit,
             created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
     
     $stmt->execute([
         $companyId,
         $companyName,
         'Velkommen til vår nettside',
-        true, // is_active
-        false, // maintenance_mode
+        null, // logo_url
+        null, // favicon_url
         '#3366CC', // primary_color
         '#666666', // secondary_color
         'top', // navigation_style
         'standard', // header_layout
         'standard', // footer_layout
+        null, // homepage_module
         true, // hero_enabled
+        'Velkommen til ' . $companyName, // hero_title
+        'Vi tilbyr kvalitetsprodukt er og tjenester', // hero_description
+        null, // hero_image_url
+        'Les mer', // hero_button_text
+        null, // hero_button_url
+        null, // contact_email
+        null, // contact_phone
+        null, // contact_address
+        null, // social_media_links
+        '© ' . date('Y') . ' ' . $companyName . '. Alle rettigheter reservert.', // footer_text
+        null, // footer_links
+        null, // custom_css
+        null, // custom_js
+        null, // google_analytics_id
+        true, // is_active
+        false, // maintenance_mode
+        null, // maintenance_message
         '#ffffff', // header_bg_color
         '#f8f9fa', // body_bg_color
         '50px', // logo_height

@@ -45,6 +45,16 @@ try {
         return $default;
     }
     
+    // Helper function to validate URL
+    function validateUrl($url) {
+        if (empty($url)) return null;
+        $url = trim($url);
+        if (filter_var($url, FILTER_VALIDATE_URL) && (str_starts_with($url, 'http://') || str_starts_with($url, 'https://'))) {
+            return $url;
+        }
+        return null;
+    }
+    
     // Update or insert tenant_website_config
     if (isset($data['config'])) {
         $config = $data['config'];
@@ -109,18 +119,28 @@ try {
                 UPDATE tenant_website_general 
                 SET site_title = ?,
                     site_description = ?,
+                    logo_url = ?,
+                    favicon_url = ?,
                     primary_color = ?,
                     secondary_color = ?,
                     navigation_style = ?,
                     header_layout = ?,
                     footer_layout = ?,
+                    homepage_module = ?,
                     hero_enabled = ?,
                     hero_title = ?,
                     hero_description = ?,
+                    hero_image_url = ?,
                     hero_button_text = ?,
+                    hero_button_url = ?,
                     contact_email = ?,
                     contact_phone = ?,
                     contact_address = ?,
+                    social_media_links = ?,
+                    footer_text = ?,
+                    footer_links = ?,
+                    custom_css = ?,
+                    custom_js = ?,
                     google_analytics_id = ?,
                     is_active = ?,
                     maintenance_mode = ?,
@@ -142,18 +162,28 @@ try {
             $stmt->execute([
                 !empty($general['site_title']) ? trim($general['site_title']) : null,
                 !empty($general['site_description']) ? trim($general['site_description']) : null,
+                validateUrl($general['logo_url'] ?? null),
+                validateUrl($general['favicon_url'] ?? null),
                 normalizeColor($general['primary_color'] ?? '#3366CC', '#3366CC'),
                 normalizeColor($general['secondary_color'] ?? '#666666', '#666666'),
                 in_array($general['navigation_style'] ?? 'top', ['top', 'side']) ? $general['navigation_style'] : 'top',
                 in_array($general['header_layout'] ?? 'standard', ['standard', 'centered', 'minimal']) ? $general['header_layout'] : 'standard',
                 in_array($general['footer_layout'] ?? 'standard', ['standard', 'minimal', 'extended']) ? $general['footer_layout'] : 'standard',
+                !empty($general['homepage_module']) ? trim($general['homepage_module']) : null,
                 normalizeBool($general['hero_enabled'] ?? 1),
                 !empty($general['hero_title']) ? trim($general['hero_title']) : null,
                 !empty($general['hero_description']) ? trim($general['hero_description']) : null,
+                validateUrl($general['hero_image_url'] ?? null),
                 !empty($general['hero_button_text']) ? trim($general['hero_button_text']) : null,
+                validateUrl($general['hero_button_url'] ?? null),
                 !empty($general['contact_email']) ? filter_var(trim($general['contact_email']), FILTER_VALIDATE_EMAIL) : null,
                 !empty($general['contact_phone']) ? trim($general['contact_phone']) : null,
                 !empty($general['contact_address']) ? trim($general['contact_address']) : null,
+                !empty($general['social_media_links']) ? trim($general['social_media_links']) : null,
+                !empty($general['footer_text']) ? trim($general['footer_text']) : null,
+                !empty($general['footer_links']) ? trim($general['footer_links']) : null,
+                !empty($general['custom_css']) ? trim($general['custom_css']) : null,
+                !empty($general['custom_js']) ? trim($general['custom_js']) : null,
                 !empty($general['google_analytics_id']) ? trim($general['google_analytics_id']) : null,
                 normalizeBool($general['is_active'] ?? 1),
                 normalizeBool($general['maintenance_mode'] ?? 0),
@@ -176,32 +206,44 @@ try {
             $generalId = bin2hex(random_bytes(16));
             $stmt = $db->prepare("
                 INSERT INTO tenant_website_general 
-                (id, company_id, site_title, site_description, primary_color, secondary_color,
-                 navigation_style, header_layout, footer_layout, hero_enabled, hero_title,
-                 hero_description, hero_button_text, contact_email, contact_phone, contact_address,
+                (id, company_id, site_title, site_description, logo_url, favicon_url,
+                 primary_color, secondary_color, navigation_style, header_layout, footer_layout,
+                 homepage_module, hero_enabled, hero_title, hero_description, hero_image_url,
+                 hero_button_text, hero_button_url, contact_email, contact_phone, contact_address,
+                 social_media_links, footer_text, footer_links, custom_css, custom_js,
                  google_analytics_id, is_active, maintenance_mode, maintenance_message,
                  header_bg_color, body_bg_color, logo_height, header_height, logo_position,
                  nav_position, font_family, button_style, border_radius, spacing_unit,
                  created_by, created_at, updated_at, updated_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)
             ");
             $stmt->execute([
                 $generalId,
                 $companyId,
                 !empty($general['site_title']) ? trim($general['site_title']) : null,
                 !empty($general['site_description']) ? trim($general['site_description']) : null,
+                validateUrl($general['logo_url'] ?? null),
+                validateUrl($general['favicon_url'] ?? null),
                 normalizeColor($general['primary_color'] ?? '#3366CC', '#3366CC'),
                 normalizeColor($general['secondary_color'] ?? '#666666', '#666666'),
                 in_array($general['navigation_style'] ?? 'top', ['top', 'side']) ? $general['navigation_style'] : 'top',
                 in_array($general['header_layout'] ?? 'standard', ['standard', 'centered', 'minimal']) ? $general['header_layout'] : 'standard',
                 in_array($general['footer_layout'] ?? 'standard', ['standard', 'minimal', 'extended']) ? $general['footer_layout'] : 'standard',
+                !empty($general['homepage_module']) ? trim($general['homepage_module']) : null,
                 normalizeBool($general['hero_enabled'] ?? 1),
                 !empty($general['hero_title']) ? trim($general['hero_title']) : null,
                 !empty($general['hero_description']) ? trim($general['hero_description']) : null,
+                validateUrl($general['hero_image_url'] ?? null),
                 !empty($general['hero_button_text']) ? trim($general['hero_button_text']) : null,
+                validateUrl($general['hero_button_url'] ?? null),
                 !empty($general['contact_email']) ? filter_var(trim($general['contact_email']), FILTER_VALIDATE_EMAIL) : null,
                 !empty($general['contact_phone']) ? trim($general['contact_phone']) : null,
                 !empty($general['contact_address']) ? trim($general['contact_address']) : null,
+                !empty($general['social_media_links']) ? trim($general['social_media_links']) : null,
+                !empty($general['footer_text']) ? trim($general['footer_text']) : null,
+                !empty($general['footer_links']) ? trim($general['footer_links']) : null,
+                !empty($general['custom_css']) ? trim($general['custom_css']) : null,
+                !empty($general['custom_js']) ? trim($general['custom_js']) : null,
                 !empty($general['google_analytics_id']) ? trim($general['google_analytics_id']) : null,
                 normalizeBool($general['is_active'] ?? 1),
                 normalizeBool($general['maintenance_mode'] ?? 0),
