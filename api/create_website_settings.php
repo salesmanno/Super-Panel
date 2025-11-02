@@ -44,8 +44,18 @@ try {
             header_layout,
             footer_layout,
             hero_enabled,
+            header_bg_color,
+            body_bg_color,
+            logo_height,
+            header_height,
+            logo_position,
+            nav_position,
+            font_family,
+            button_style,
+            border_radius,
+            spacing_unit,
             created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
     
     $stmt->execute([
@@ -60,6 +70,16 @@ try {
         'standard', // header_layout
         'standard', // footer_layout
         true, // hero_enabled
+        '#ffffff', // header_bg_color
+        '#f8f9fa', // body_bg_color
+        '50px', // logo_height
+        '80px', // header_height
+        'left', // logo_position
+        'center', // nav_position
+        'Inter, sans-serif', // font_family
+        'rounded', // button_style
+        '16px', // border_radius
+        '1rem', // spacing_unit
         $_SESSION['tenant_admin_id']
     ]);
     
