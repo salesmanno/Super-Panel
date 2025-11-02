@@ -480,6 +480,69 @@
                         </div>
                     </div>
                     
+                    <!-- Layout & Styling -->
+                    <h6 class="mb-3 mt-4"><i class="bi bi-layout-text-window-reverse me-2"></i>Layout & Styling</h6>
+                    <div class="row mb-4">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Header bakgrunnsfarge</label>
+                            <input type="color" name="general_header_bg_color" class="form-control form-control-color" value="<?= htmlspecialchars($websiteGeneral['header_bg_color'] ?? '#ffffff') ?>">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Body bakgrunnsfarge</label>
+                            <input type="color" name="general_body_bg_color" class="form-control form-control-color" value="<?= htmlspecialchars($websiteGeneral['body_bg_color'] ?? '#f8f9fa') ?>">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Logo høyde</label>
+                            <input type="text" name="general_logo_height" class="form-control" value="<?= htmlspecialchars($websiteGeneral['logo_height'] ?? '50px') ?>" placeholder="50px">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Header høyde</label>
+                            <input type="text" name="general_header_height" class="form-control" value="<?= htmlspecialchars($websiteGeneral['header_height'] ?? '80px') ?>" placeholder="80px">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Logo posisjon</label>
+                            <select name="general_logo_position" class="form-select">
+                                <option value="left" <?= ($websiteGeneral['logo_position'] ?? 'left') === 'left' ? 'selected' : '' ?>>Venstre</option>
+                                <option value="center" <?= ($websiteGeneral['logo_position'] ?? 'left') === 'center' ? 'selected' : '' ?>>Senter</option>
+                                <option value="right" <?= ($websiteGeneral['logo_position'] ?? 'left') === 'right' ? 'selected' : '' ?>>Høyre</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Navigasjon posisjon</label>
+                            <select name="general_nav_position" class="form-select">
+                                <option value="left" <?= ($websiteGeneral['nav_position'] ?? 'center') === 'left' ? 'selected' : '' ?>>Venstre</option>
+                                <option value="center" <?= ($websiteGeneral['nav_position'] ?? 'center') === 'center' ? 'selected' : '' ?>>Senter</option>
+                                <option value="right" <?= ($websiteGeneral['nav_position'] ?? 'center') === 'right' ? 'selected' : '' ?>>Høyre</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Knappestil</label>
+                            <select name="general_button_style" class="form-select">
+                                <option value="rounded" <?= ($websiteGeneral['button_style'] ?? 'rounded') === 'rounded' ? 'selected' : '' ?>>Avrundet</option>
+                                <option value="square" <?= ($websiteGeneral['button_style'] ?? 'rounded') === 'square' ? 'selected' : '' ?>>Firkantet</option>
+                                <option value="pill" <?= ($websiteGeneral['button_style'] ?? 'rounded') === 'pill' ? 'selected' : '' ?>>Pill</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Border radius</label>
+                            <input type="text" name="general_border_radius" class="form-control" value="<?= htmlspecialchars($websiteGeneral['border_radius'] ?? '16px') ?>" placeholder="16px">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Font familie</label>
+                            <input type="text" name="general_font_family" class="form-control" value="<?= htmlspecialchars($websiteGeneral['font_family'] ?? 'Inter, sans-serif') ?>" placeholder="Inter, sans-serif">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Spacing enhet</label>
+                            <input type="text" name="general_spacing_unit" class="form-control" value="<?= htmlspecialchars($websiteGeneral['spacing_unit'] ?? '1rem') ?>" placeholder="1rem">
+                        </div>
+                    </div>
+                    
                     <!-- Hero Section -->
                     <h6 class="mb-3 mt-4"><i class="bi bi-image me-2"></i>Hero-seksjon</h6>
                     <div class="mb-3">

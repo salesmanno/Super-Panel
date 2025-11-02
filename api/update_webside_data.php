@@ -34,6 +34,17 @@ try {
         return strtoupper($color);
     }
     
+    // Helper function to validate CSS size values
+    function validateCssSize($value, $default) {
+        if (empty($value)) return $default;
+        $value = trim($value);
+        // Allow px, rem, em, %, vh, vw units
+        if (preg_match('/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/i', $value)) {
+            return $value;
+        }
+        return $default;
+    }
+    
     // Update or insert tenant_website_config
     if (isset($data['config'])) {
         $config = $data['config'];
@@ -149,14 +160,14 @@ try {
                 !empty($general['maintenance_message']) ? trim($general['maintenance_message']) : null,
                 normalizeColor($general['header_bg_color'] ?? '#ffffff', '#ffffff'),
                 normalizeColor($general['body_bg_color'] ?? '#f8f9fa', '#f8f9fa'),
-                !empty($general['logo_height']) ? trim($general['logo_height']) : '50px',
-                !empty($general['header_height']) ? trim($general['header_height']) : '80px',
+                validateCssSize($general['logo_height'] ?? '50px', '50px'),
+                validateCssSize($general['header_height'] ?? '80px', '80px'),
                 in_array($general['logo_position'] ?? 'left', ['left', 'center', 'right']) ? $general['logo_position'] : 'left',
                 in_array($general['nav_position'] ?? 'center', ['left', 'center', 'right']) ? $general['nav_position'] : 'center',
                 !empty($general['font_family']) ? trim($general['font_family']) : 'Inter, sans-serif',
                 in_array($general['button_style'] ?? 'rounded', ['rounded', 'square', 'pill']) ? $general['button_style'] : 'rounded',
-                !empty($general['border_radius']) ? trim($general['border_radius']) : '16px',
-                !empty($general['spacing_unit']) ? trim($general['spacing_unit']) : '1rem',
+                validateCssSize($general['border_radius'] ?? '16px', '16px'),
+                validateCssSize($general['spacing_unit'] ?? '1rem', '1rem'),
                 $adminId,
                 $companyId
             ]);
@@ -197,14 +208,14 @@ try {
                 !empty($general['maintenance_message']) ? trim($general['maintenance_message']) : null,
                 normalizeColor($general['header_bg_color'] ?? '#ffffff', '#ffffff'),
                 normalizeColor($general['body_bg_color'] ?? '#f8f9fa', '#f8f9fa'),
-                !empty($general['logo_height']) ? trim($general['logo_height']) : '50px',
-                !empty($general['header_height']) ? trim($general['header_height']) : '80px',
+                validateCssSize($general['logo_height'] ?? '50px', '50px'),
+                validateCssSize($general['header_height'] ?? '80px', '80px'),
                 in_array($general['logo_position'] ?? 'left', ['left', 'center', 'right']) ? $general['logo_position'] : 'left',
                 in_array($general['nav_position'] ?? 'center', ['left', 'center', 'right']) ? $general['nav_position'] : 'center',
                 !empty($general['font_family']) ? trim($general['font_family']) : 'Inter, sans-serif',
                 in_array($general['button_style'] ?? 'rounded', ['rounded', 'square', 'pill']) ? $general['button_style'] : 'rounded',
-                !empty($general['border_radius']) ? trim($general['border_radius']) : '16px',
-                !empty($general['spacing_unit']) ? trim($general['spacing_unit']) : '1rem',
+                validateCssSize($general['border_radius'] ?? '16px', '16px'),
+                validateCssSize($general['spacing_unit'] ?? '1rem', '1rem'),
                 $adminId,
                 $adminId
             ]);
