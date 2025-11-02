@@ -39,6 +39,8 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Clean Database Architecture**: Modular database design eliminating duplicates and redundancy, standardizing tables, adding cost price tracking, and introducing `service_bookings` and `unified_ledger` tables.
 
 ## Recent Changes
+- **2025-11-02**: Added 10 new styling/layout fields to `tenant_website_general`: header_bg_color, body_bg_color, logo_height, header_height, logo_position, nav_position, font_family, button_style, border_radius, spacing_unit. Migration: Run `docs/migration_add_website_styling_fields.sql` on MySQL production
+- **2025-11-02**: Added `img_url` support for reservation services with server-side URL validation (http/https only), XSS protection via HTML escaping, and error handling for broken images
 - **2025-11-01**: Added `event_registration_fields` table for configurable event registration fields. Migration: Run `api/migrate_event_registration_fields.php` or use `docs/migration_add_event_registration_fields.sql`
 - **2025-11-01**: Fixed event creation to properly handle registration field boolean values for SMALLINT columns
 - **2025-11-01**: Added `image_url` column to `x_tenant_announcements` for news/announcement image support
