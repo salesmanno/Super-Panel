@@ -230,6 +230,9 @@
         <?php
         // Hent cash_payment status
         $cashPaymentEnabled = true;
+        $vippsEnabled = false;
+        $vippsIsDemo = false;
+        
         try {
             $db = getDBConnection();
             if ($db) {
@@ -239,17 +242,31 @@
                 if ($result !== false) {
                     $cashPaymentEnabled = $result['cash_payment'] ?? true;
                 }
+                
+                // Check if Vipps demo is enabled
+                $stmt = $db->prepare("
+                    SELECT is_active, is_demo 
+                    FROM payment_methods 
+                    WHERE company_id = ? AND method_type = 'vipps' AND is_demo = ?
+                ");
+                $stmt->execute([$_SESSION['company_id'], true]);
+                $vippsResult = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($vippsResult) {
+                    $vippsEnabled = (bool)$vippsResult['is_active'];
+                    $vippsIsDemo = (bool)$vippsResult['is_demo'];
+                }
             }
         } catch (Exception $e) {
             $cashPaymentEnabled = true;
+            $vippsEnabled = false;
         }
         
         $gateways = [
-            ['name' => 'cash', 'display' => 'Kontant', 'desc' => 'Kontant betaling', 'icon' => 'cash-stack', 'enabled' => $cashPaymentEnabled],
-            ['name' => 'stripe', 'display' => 'Stripe', 'desc' => 'Kort og nettbetaling (Internasjonalt)', 'icon' => 'credit-card', 'enabled' => false],
-            ['name' => 'vipps', 'display' => 'Vipps', 'desc' => 'Norsk mobilbetaling', 'icon' => 'phone', 'enabled' => false],
-            ['name' => 'klarna', 'display' => 'Klarna', 'desc' => 'Betal senere løsninger', 'icon' => 'bag-check', 'enabled' => false],
-            ['name' => 'paypal', 'display' => 'PayPal', 'desc' => 'Internasjonal betalingsløsning', 'icon' => 'paypal', 'enabled' => false],
+            ['name' => 'cash', 'display' => 'Kontant', 'desc' => 'Kontant betaling', 'icon' => 'cash-stack', 'enabled' => $cashPaymentEnabled, 'is_demo' => false],
+            ['name' => 'stripe', 'display' => 'Stripe', 'desc' => 'Kort og nettbetaling (Internasjonalt)', 'icon' => 'credit-card', 'enabled' => false, 'is_demo' => false],
+            ['name' => 'vipps', 'display' => 'Vipps', 'desc' => 'Norsk mobilbetaling', 'icon' => 'phone', 'enabled' => $vippsEnabled, 'is_demo' => $vippsIsDemo],
+            ['name' => 'klarna', 'display' => 'Klarna', 'desc' => 'Betal senere løsninger', 'icon' => 'bag-check', 'enabled' => false, 'is_demo' => false],
+            ['name' => 'paypal', 'display' => 'PayPal', 'desc' => 'Internasjonal betalingsløsning', 'icon' => 'paypal', 'enabled' => false, 'is_demo' => false],
         ];
         ?>
         
@@ -280,6 +297,11 @@
                                 <span class="badge bg-success mb-2">
                                     <i class="bi bi-check-circle me-1"></i>Aktivert
                                 </span>
+                                <?php if ($gateway['is_demo']): ?>
+                                <span class="badge bg-warning text-dark mb-2 ms-1">
+                                    <i class="bi bi-tools me-1"></i>Demo/Sandbox
+                                </span>
+                                <?php endif; ?>
                                 <?php else: ?>
                                 <span class="badge bg-secondary mb-2">
                                     <i class="bi bi-x-circle me-1"></i>Ikke konfigurert
@@ -290,6 +312,11 @@
                                 <button class="btn btn-<?= $gateway['enabled'] ? 'danger' : 'success' ?> btn-sm w-100 mt-2" onclick="toggleCashPayment(<?= $gateway['enabled'] ? 'false' : 'true' ?>)">
                                     <i class="bi bi-toggle-<?= $gateway['enabled'] ? 'on' : 'off' ?> me-1"></i>
                                     <?= $gateway['enabled'] ? 'Deaktiver' : 'Aktiver' ?>
+                                </button>
+                                <?php elseif ($gateway['name'] === 'vipps'): ?>
+                                <button class="btn btn-<?= $gateway['enabled'] ? 'warning' : 'primary' ?> btn-sm w-100 mt-2" onclick="setupDemoVipps()">
+                                    <i class="bi bi-<?= $gateway['enabled'] ? 'x-circle' : 'lightning-charge' ?> me-1"></i>
+                                    <?= $gateway['enabled'] ? 'Deaktiver Demo' : 'Aktiver Demo' ?>
                                 </button>
                                 <?php else: ?>
                                 <button class="btn btn-outline-secondary btn-sm w-100 mt-2" disabled>
@@ -316,8 +343,26 @@
                 if (data.success) {
                     location.reload();
                 } else {
-                    // Show error message - page will not reload so toggle state stays unchanged
                     alert('Feil: ' + (data.error || 'Kunne ikke oppdatere kontantbetaling'));
+                }
+            })
+            .catch(error => {
+                alert('En feil oppstod: ' + error.message);
+            });
+        }
+        
+        function setupDemoVipps() {
+            fetch('/api/setup_demo_vipps.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Feil: ' + (data.message || 'Kunne ikke aktivere demo Vipps'));
                 }
             })
             .catch(error => {
