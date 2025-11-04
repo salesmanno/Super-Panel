@@ -1,7 +1,7 @@
 <?php
 session_start();
 header('Content-Type: application/json');
-require_once '../includes/db.php';
+require_once '../config/database.php';
 
 if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     echo json_encode(['success' => false, 'error' => 'Ikke autentisert']);

@@ -1,6 +1,6 @@
 <?php
 // Check email configuration status
-require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../config/database.php';
 $db = getDBConnection();
 $stmt = $db->prepare("
     SELECT smtp_host, smtp_port, smtp_username, smtp_password, imap_host, imap_port

@@ -23,13 +23,31 @@ function getDBConnection() {
                     throw new Exception("DATABASE_URL not found in Replit environment");
                 }
                 
+                // Parse DATABASE_URL (postgresql://user:pass@host/dbname?sslmode=require)
+                $parsed = parse_url($databaseUrl);
+                $host = $parsed['host'];
+                $dbname = ltrim($parsed['path'], '/');
+                $user = $parsed['user'];
+                $pass = $parsed['pass'];
+                
+                // Extract sslmode from query string if present
+                $sslmode = '';
+                if (isset($parsed['query'])) {
+                    parse_str($parsed['query'], $queryParams);
+                    if (isset($queryParams['sslmode'])) {
+                        $sslmode = ';sslmode=' . $queryParams['sslmode'];
+                    }
+                }
+                
+                $dsn = "pgsql:host={$host};dbname={$dbname}{$sslmode}";
+                
                 $options = [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_EMULATE_PREPARES => false,
                 ];
                 
-                $conn = new PDO($databaseUrl, null, null, $options);
+                $conn = new PDO($dsn, $user, $pass, $options);
                 $dbType = 'postgresql';
                 error_log("Connected to PostgreSQL (Replit)");
             } catch (PDOException $e) {
