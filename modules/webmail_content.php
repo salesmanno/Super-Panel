@@ -1,33 +1,5 @@
-<?php
-// Check email configuration status
-require_once __DIR__ . '/../config/database.php';
-$db = getDBConnection();
-$stmt = $db->prepare("
-    SELECT smtp_host, smtp_port, smtp_username, smtp_password, imap_host, imap_port
-    FROM email_configs
-    WHERE company_id = ?
-    LIMIT 1
-");
-$stmt->execute([$_SESSION['company_id']]);
-$emailConfig = $stmt->fetch(PDO::FETCH_ASSOC);
-
-$smtpConfigured = false;
-$imapConfigured = false;
-
-if ($emailConfig) {
-    $smtpConfigured = !empty($emailConfig['smtp_host']) && 
-                      !empty($emailConfig['smtp_port']) && 
-                      !empty($emailConfig['smtp_username']) && 
-                      !empty($emailConfig['smtp_password']);
-    
-    $imapConfigured = !empty($emailConfig['imap_host']) && 
-                      !empty($emailConfig['imap_port']);
-}
-
-$webmailConfigured = $smtpConfigured && $imapConfigured;
-?>
 <div class="module-content position-relative">
-<?php if (!$webmailConfigured): ?>
+<?php if (!isset($webmailConfigured) || !$webmailConfigured): ?>
     <!-- Overlay melding for ikke-konfigurert -->
     <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.95); z-index: 1; display: flex; align-items: center; justify-content: center;">
         <div class="text-center" style="max-width: 600px; padding: 3rem;">
@@ -38,10 +10,10 @@ $webmailConfigured = $smtpConfigured && $imapConfigured;
             <div class="alert alert-warning text-start mb-4">
                 <h6 class="alert-heading"><i class="bi bi-list-check me-2"></i>Konfigurasjonssjekk:</h6>
                 <ul class="mb-0">
-                    <?php if (!$smtpConfigured): ?>
+                    <?php if (!isset($smtpConfigured) || !$smtpConfigured): ?>
                     <li class="text-danger mb-2">
                         <i class="bi bi-x-circle me-1"></i>
-                        <strong>SMTP-server ikke konfigurert</strong> - Gå til "Deres Firma" → "E-post" for å konfigurere
+                        <strong>SMTP-server ikke konfigurert</strong> - Host, port, brukernavn og passord mangler
                     </li>
                     <?php else: ?>
                     <li class="text-success mb-2">
@@ -49,24 +21,20 @@ $webmailConfigured = $smtpConfigured && $imapConfigured;
                         <strong>SMTP-server konfigurert</strong>
                     </li>
                     <?php endif; ?>
-                    
-                    <?php if (!$imapConfigured): ?>
-                    <li class="text-danger mb-2">
-                        <i class="bi bi-x-circle me-1"></i>
-                        <strong>IMAP-server ikke konfigurert</strong> - Gå til "Deres Firma" → "E-post" for å konfigurere
+                    <li class="text-muted">
+                        <i class="bi bi-circle me-1"></i>
+                        Webmail-konto må opprettes
                     </li>
-                    <?php else: ?>
-                    <li class="text-success mb-2">
-                        <i class="bi bi-check-circle me-1"></i>
-                        <strong>IMAP-server konfigurert</strong>
+                    <li class="text-muted">
+                        <i class="bi bi-circle me-1"></i>
+                        Domene-konfigurasjon anbefales
                     </li>
-                    <?php endif; ?>
                 </ul>
             </div>
             
-            <a href="?module=deres_firma&tab=firma-email" class="btn btn-warning btn-lg">
-                <i class="bi bi-gear me-2"></i>Gå til E-postkonfigurasjon
-            </a>
+            <button class="btn btn-warning btn-lg" disabled>
+                <i class="bi bi-gear me-2"></i>Konfigurasjon kreves
+            </button>
         </div>
     </div>
 <?php endif; ?>
@@ -364,7 +332,7 @@ $webmailConfigured = $smtpConfigured && $imapConfigured;
                 </div>
                 
                 <div class="text-end mt-4">
-                    <button type="button" class="btn btn-primary" onclick="saveAutoMailerSettings()">
+                    <button class="btn btn-primary">
                         <i class="bi bi-save me-1"></i>Lagre innstillinger
                     </button>
                 </div>
@@ -374,39 +342,7 @@ $webmailConfigured = $smtpConfigured && $imapConfigured;
 </div>
 
 <script>
-// Load automailer settings on page load
-async function loadAutoMailerSettings() {
-    try {
-        const response = await fetch('/api/get_automailer_settings.php');
-        const data = await response.json();
-        
-        if (data.success && data.settings) {
-            Object.keys(data.settings).forEach(module => {
-                const moduleSettings = data.settings[module];
-                const toggle = document.getElementById(`automailer-${module}`);
-                if (toggle) {
-                    toggle.checked = moduleSettings.enabled;
-                    if (moduleSettings.enabled) {
-                        const settingsDiv = document.getElementById(`${module}-automailer-settings`);
-                        if (settingsDiv) settingsDiv.classList.add('show');
-                    }
-                }
-                
-                // Load individual settings
-                Object.keys(moduleSettings.settings || {}).forEach(key => {
-                    const checkbox = document.getElementById(`${module}-${key.replace('_', '-')}`);
-                    if (checkbox) {
-                        checkbox.checked = moduleSettings.settings[key];
-                    }
-                });
-            });
-        }
-    } catch (error) {
-        console.error('Error loading automailer settings:', error);
-    }
-}
-
-// Toggle AutoMailer settings display
+// Toggle AutoMailer settings
 document.querySelectorAll('[id^="automailer-"]').forEach(toggle => {
     toggle.addEventListener('change', function() {
         const module = this.id.replace('automailer-', '');
@@ -420,50 +356,5 @@ document.querySelectorAll('[id^="automailer-"]').forEach(toggle => {
         }
     });
 });
-
-// Save automailer settings for all modules
-async function saveAutoMailerSettings() {
-    const modules = ['rental', 'events', 'membership', 'reservations', 'sales'];
-    const savePromises = [];
-    
-    for (const module of modules) {
-        const toggle = document.getElementById(`automailer-${module}`);
-        if (!toggle) continue;
-        
-        const isEnabled = toggle.checked;
-        const settings = {};
-        
-        // Collect all checkboxes for this module
-        document.querySelectorAll(`[id^="${module}-"]`).forEach(checkbox => {
-            if (checkbox.type === 'checkbox' && checkbox.id !== `automailer-${module}`) {
-                const key = checkbox.id.replace(`${module}-`, '').replace(/-/g, '_');
-                settings[key] = checkbox.checked;
-            }
-        });
-        
-        savePromises.push(
-            fetch('/api/save_automailer_settings.php', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    module_name: module,
-                    is_enabled: isEnabled,
-                    settings: settings
-                })
-            })
-        );
-    }
-    
-    try {
-        await Promise.all(savePromises);
-        alert('✅ AutoMailer-innstillinger lagret');
-    } catch (error) {
-        console.error('Error saving automailer settings:', error);
-        alert('❌ Feil ved lagring av innstillinger');
-    }
-}
-
-// Load settings when switching to automailer tab
-document.querySelector('[data-bs-target="#webmail-automailer"]')?.addEventListener('click', loadAutoMailerSettings);
 </script>
 

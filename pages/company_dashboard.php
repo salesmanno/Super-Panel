@@ -924,61 +924,6 @@ try {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // CRITICAL: Define these functions FIRST before anything else
-        function navigateToDittNettsted() {
-            const modal = new bootstrap.Modal(document.getElementById('dittNettstedPasswordModal'));
-            modal.show();
-        }
-        
-        function unlockDittNettsted() {
-            const password = document.getElementById('dittNettstedPassword').value;
-            const errorDiv = document.getElementById('dittNettstedPasswordError');
-            const unlockBtn = document.querySelector('#dittNettstedPasswordForm .btn-primary');
-            
-            if (!password) {
-                errorDiv.textContent = 'Vennligst skriv inn passord';
-                errorDiv.style.display = 'block';
-                return;
-            }
-            
-            unlockBtn.disabled = true;
-            unlockBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Låser opp...';
-            
-            fetch('/api/unlock_ditt_nettsted.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: password })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    return fetch('/api/load_ditt_nettsted_content.php')
-                        .then(response => response.text())
-                        .then(html => {
-                            document.getElementById('dittNettstedPasswordForm').style.display = 'none';
-                            document.getElementById('dittNettstedModalContent').style.display = 'block';
-                            document.getElementById('firmaModalTabContent').innerHTML = html;
-                            document.getElementById('dittNettstedPassword').value = '';
-                            errorDiv.style.display = 'none';
-                            unlockBtn.disabled = false;
-                            unlockBtn.innerHTML = '<i class="bi bi-unlock me-1"></i>Lås opp';
-                        });
-                } else {
-                    errorDiv.textContent = data.error || 'Feil passord';
-                    errorDiv.style.display = 'block';
-                    unlockBtn.disabled = false;
-                    unlockBtn.innerHTML = '<i class="bi bi-unlock me-1"></i>Lås opp';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                errorDiv.textContent = 'En feil oppstod';
-                errorDiv.style.display = 'block';
-                unlockBtn.disabled = false;
-                unlockBtn.innerHTML = '<i class="bi bi-unlock me-1"></i>Lås opp';
-            });
-        }
-        
         // Global functions for firmadata in modal
         async function handleSaveCompanyData(event) {
             event.preventDefault();
@@ -1135,7 +1080,6 @@ try {
             }
         }
         
-        
         function refreshSession() {
             fetch('/api/refresh_session.php')
                 .then(response => response.json())
@@ -1233,18 +1177,78 @@ try {
             }
         }
         
-        document.addEventListener('DOMContentLoaded', function() {
-            // Nullstill modal når den lukkes (safe check)
-            const dittNettstedModal = document.getElementById('dittNettstedPasswordModal');
-            if (dittNettstedModal) {
-                dittNettstedModal.addEventListener('hidden.bs.modal', function() {
-                    document.getElementById('dittNettstedPasswordForm').style.display = 'block';
-                    document.getElementById('dittNettstedModalContent').style.display = 'none';
-                    document.getElementById('dittNettstedPassword').value = '';
-                    document.getElementById('dittNettstedPasswordError').style.display = 'none';
-                });
+        function navigateToDittNettsted() {
+            // Vis passord-prompt modal
+            const modal = new bootstrap.Modal(document.getElementById('dittNettstedPasswordModal'));
+            modal.show();
+        }
+        
+        function unlockDittNettsted() {
+            const password = document.getElementById('dittNettstedPassword').value;
+            const errorDiv = document.getElementById('dittNettstedPasswordError');
+            const unlockBtn = document.querySelector('#dittNettstedPasswordForm .btn-primary');
+            
+            if (!password) {
+                errorDiv.textContent = 'Vennligst skriv inn passord';
+                errorDiv.style.display = 'block';
+                return;
             }
             
+            // Vis laster-indikator
+            unlockBtn.disabled = true;
+            unlockBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Låser opp...';
+            
+            // Send passord til server for validering
+            fetch('/api/unlock_ditt_nettsted.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: password })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Last inn innholdet
+                    return fetch('/api/load_ditt_nettsted_content.php')
+                        .then(response => response.text())
+                        .then(html => {
+                            // Skjul password-form og vis innhold i modalen
+                            document.getElementById('dittNettstedPasswordForm').style.display = 'none';
+                            document.getElementById('dittNettstedModalContent').style.display = 'block';
+                            
+                            // Last inn innholdet i modal tab-content
+                            document.getElementById('firmaModalTabContent').innerHTML = html;
+                            
+                            // Nullstill input og knapp
+                            document.getElementById('dittNettstedPassword').value = '';
+                            errorDiv.style.display = 'none';
+                            unlockBtn.disabled = false;
+                            unlockBtn.innerHTML = '<i class="bi bi-unlock me-1"></i>Lås opp';
+                        });
+                } else {
+                    errorDiv.textContent = data.error || 'Feil passord';
+                    errorDiv.style.display = 'block';
+                    unlockBtn.disabled = false;
+                    unlockBtn.innerHTML = '<i class="bi bi-unlock me-1"></i>Lås opp';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                errorDiv.textContent = 'En feil oppstod';
+                errorDiv.style.display = 'block';
+                unlockBtn.disabled = false;
+                unlockBtn.innerHTML = '<i class="bi bi-unlock me-1"></i>Lås opp';
+            });
+        }
+        
+        // Nullstill modal når den lukkes
+        document.getElementById('dittNettstedPasswordModal').addEventListener('hidden.bs.modal', function() {
+            document.getElementById('dittNettstedPasswordForm').style.display = 'block';
+            document.getElementById('dittNettstedModalContent').style.display = 'none';
+            document.getElementById('dittNettstedPassword').value = '';
+            document.getElementById('dittNettstedPasswordError').style.display = 'none';
+        });
+        
+        document.addEventListener('DOMContentLoaded', function() {
             // Lytt til Bootstrap's tab shown event
             document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function(tabButton) {
                 tabButton.addEventListener('shown.bs.tab', function(event) {
