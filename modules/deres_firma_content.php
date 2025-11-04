@@ -681,12 +681,12 @@
             <p class="text-muted">Konfigurer SMTP og IMAP innstillinger for e-postfunksjonalitet</p>
             
             <?php
-            // Hent e-postkonfigurasjon fra x_webmailconfiguration
+            // Hent e-postkonfigurasjon fra email_configs
             $emailConfig = null;
             try {
                 $db = getDBConnection();
                 if ($db) {
-                    $stmt = $db->prepare("SELECT * FROM x_webmailconfiguration WHERE company_id = ?");
+                    $stmt = $db->prepare("SELECT * FROM email_configs WHERE company_id = ?");
                     $stmt->execute([$_SESSION['company_id']]);
                     $emailConfig = $stmt->fetch(PDO::FETCH_ASSOC);
                 }

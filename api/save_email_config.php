@@ -51,9 +51,15 @@ try {
             UPDATE email_configs 
             SET smtp_host = ?, 
                 smtp_port = ?, 
-                smtp_user = ?, 
+                smtp_username = ?, 
                 smtp_password = ?,
                 smtp_encryption = ?,
+                smtp_ssl = ?,
+                imap_host = ?,
+                imap_port = ?,
+                imap_username = ?,
+                imap_password = ?,
+                imap_ssl = ?,
                 from_email = ?,
                 from_name = ?,
                 updated_at = CURRENT_TIMESTAMP
@@ -63,9 +69,15 @@ try {
         $stmt->execute([
             $smtp_host,
             $smtp_port,
-            $smtp_user,
+            $smtp_username,
             $smtp_password,
             $smtp_encryption,
+            $smtp_ssl,
+            $imap_host,
+            $imap_port,
+            $imap_username,
+            $imap_password,
+            $imap_ssl,
             $from_email,
             $from_name,
             $companyId
@@ -81,12 +93,18 @@ try {
                 company_id,
                 smtp_host,
                 smtp_port,
-                smtp_user,
+                smtp_username,
                 smtp_password,
                 smtp_encryption,
+                smtp_ssl,
+                imap_host,
+                imap_port,
+                imap_username,
+                imap_password,
+                imap_ssl,
                 from_email,
                 from_name
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         
         $stmt->execute([
@@ -94,9 +112,15 @@ try {
             $companyId,
             $smtp_host,
             $smtp_port,
-            $smtp_user,
+            $smtp_username,
             $smtp_password,
             $smtp_encryption,
+            $smtp_ssl,
+            $imap_host,
+            $imap_port,
+            $imap_username,
+            $imap_password,
+            $imap_ssl,
             $from_email,
             $from_name
         ]);

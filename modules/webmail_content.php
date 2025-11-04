@@ -4,7 +4,7 @@ require_once __DIR__ . '/../includes/db.php';
 $db = getDBConnection();
 $stmt = $db->prepare("
     SELECT smtp_host, smtp_port, smtp_username, smtp_password, imap_host, imap_port
-    FROM x_webmailconfiguration
+    FROM email_configs
     WHERE company_id = ?
     LIMIT 1
 ");
