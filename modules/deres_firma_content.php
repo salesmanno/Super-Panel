@@ -674,4 +674,127 @@
         </div>
     </div>
 
+<div class="tab-pane fade" id="firma-email" role="tabpanel">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title"><i class="bi bi-envelope-at me-2"></i>E-postkonfigurasjon</h5>
+            <p class="text-muted">Konfigurer SMTP og IMAP innstillinger for e-postfunksjonalitet</p>
+            
+            <?php
+            // Hent e-postkonfigurasjon fra x_webmailconfiguration
+            $emailConfig = null;
+            try {
+                $db = getDBConnection();
+                if ($db) {
+                    $stmt = $db->prepare("SELECT * FROM x_webmailconfiguration WHERE company_id = ?");
+                    $stmt->execute([$_SESSION['company_id']]);
+                    $emailConfig = $stmt->fetch(PDO::FETCH_ASSOC);
+                }
+            } catch (Exception $e) {
+                echo '<div class="alert alert-danger">Kunne ikke laste e-postkonfigurasjon: ' . htmlspecialchars($e->getMessage()) . '</div>';
+            }
+            ?>
+            
+            <form id="emailConfigForm" onsubmit="return handleSaveEmailConfig(event);">
+                <div class="alert alert-info mb-4">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Tips:</strong> Kontakt din e-postleverandør for SMTP/IMAP innstillinger hvis du er usikker.
+                </div>
+                
+                <h6 class="mb-3"><i class="bi bi-send me-2"></i>SMTP (Utgående e-post)</h6>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">SMTP Host</label>
+                        <input type="text" name="smtp_host" class="form-control" 
+                               value="<?= htmlspecialchars($emailConfig['smtp_host'] ?? '') ?>" 
+                               placeholder="smtp.example.com">
+                        <small class="text-muted">Eksempel: smtp.gmail.com, smtp.domeneshop.no</small>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">SMTP Port</label>
+                        <input type="number" name="smtp_port" class="form-control" 
+                               value="<?= htmlspecialchars($emailConfig['smtp_port'] ?? '587') ?>" 
+                               placeholder="587">
+                        <small class="text-muted">Vanligvis 587 eller 465</small>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Kryptering</label>
+                        <select name="smtp_encryption" class="form-select">
+                            <option value="">Ingen</option>
+                            <option value="tls" <?= ($emailConfig['smtp_encryption'] ?? '') === 'tls' ? 'selected' : '' ?>>TLS</option>
+                            <option value="ssl" <?= ($emailConfig['smtp_encryption'] ?? '') === 'ssl' ? 'selected' : '' ?>>SSL</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">SMTP Brukernavn</label>
+                        <input type="text" name="smtp_username" class="form-control" 
+                               value="<?= htmlspecialchars($emailConfig['smtp_username'] ?? '') ?>" 
+                               placeholder="din@epost.no">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">SMTP Passord</label>
+                        <input type="password" name="smtp_password" class="form-control" 
+                               value="<?= htmlspecialchars($emailConfig['smtp_password'] ?? '') ?>" 
+                               placeholder="••••••••">
+                        <small class="text-muted">Passordet blir lagret kryptert</small>
+                    </div>
+                </div>
+                
+                <hr class="my-4">
+                
+                <h6 class="mb-3"><i class="bi bi-inbox me-2"></i>IMAP (Innkommende e-post)</h6>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">IMAP Host</label>
+                        <input type="text" name="imap_host" class="form-control" 
+                               value="<?= htmlspecialchars($emailConfig['imap_host'] ?? '') ?>" 
+                               placeholder="imap.example.com">
+                        <small class="text-muted">Eksempel: imap.gmail.com, imap.domeneshop.no</small>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">IMAP Port</label>
+                        <input type="number" name="imap_port" class="form-control" 
+                               value="<?= htmlspecialchars($emailConfig['imap_port'] ?? '993') ?>" 
+                               placeholder="993">
+                        <small class="text-muted">Vanligvis 993</small>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">SSL/TLS</label>
+                        <div class="form-check form-switch mt-2">
+                            <input class="form-check-input" type="checkbox" name="imap_ssl" id="imapSsl" 
+                                   <?= ($emailConfig['imap_ssl'] ?? true) ? 'checked' : '' ?>>
+                            <label class="form-check-label" for="imapSsl">Bruk SSL/TLS</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">IMAP Brukernavn</label>
+                        <input type="text" name="imap_username" class="form-control" 
+                               value="<?= htmlspecialchars($emailConfig['imap_username'] ?? '') ?>" 
+                               placeholder="din@epost.no">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">IMAP Passord</label>
+                        <input type="password" name="imap_password" class="form-control" 
+                               value="<?= htmlspecialchars($emailConfig['imap_password'] ?? '') ?>" 
+                               placeholder="••••••••">
+                    </div>
+                </div>
+                
+                <div class="alert alert-warning mt-3">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Sikkerhet:</strong> Brukernavn og passord lagres kryptert i databasen.
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save me-2"></i>Lagre E-postkonfigurasjon
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- JavaScript functions are now in company_dashboard.php -->
