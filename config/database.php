@@ -12,13 +12,25 @@ function getDBConnection() {
     static $dbType = null;
     
     if ($conn === null) {
-        // Detect environment: Replit has REPL_ID, production does not
-        $isReplit = getenv('REPL_ID') !== false;
-        
-        if ($isReplit) {
-            // REPLIT: Use PostgreSQL
+        // PRIMARY: Try MySQL first (Domeneshop - used in both production and development)
+        try {
+            $mysqlDsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET;
+            $options = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_TIMEOUT => 5,
+            ];
+            
+            $conn = new PDO($mysqlDsn, DB_USER, DB_PASS, $options);
+            $dbType = 'mysql';
+            error_log("Connected to MySQL (Primary)");
+            
+        } catch (PDOException $e) {
+            error_log("MySQL connection failed: " . $e->getMessage());
+            
+            // FALLBACK: Try PostgreSQL if MySQL fails (Replit environment)
             try {
-                // Get connection info from environment
                 $pgHost = getenv('PGHOST');
                 $pgPort = getenv('PGPORT') ?: '5432';
                 $pgDatabase = getenv('PGDATABASE');
@@ -26,10 +38,9 @@ function getDBConnection() {
                 $pgPassword = getenv('PGPASSWORD');
                 
                 if (!$pgHost || !$pgDatabase || !$pgUser || !$pgPassword) {
-                    throw new Exception("PostgreSQL environment variables not set (PGHOST, PGDATABASE, PGUSER, PGPASSWORD)");
+                    throw new Exception("PostgreSQL environment variables not set");
                 }
                 
-                // Build PDO DSN for PostgreSQL
                 $dsn = "pgsql:host={$pgHost};port={$pgPort};dbname={$pgDatabase};sslmode=require";
                 
                 $options = [
@@ -40,28 +51,11 @@ function getDBConnection() {
                 
                 $conn = new PDO($dsn, $pgUser, $pgPassword, $options);
                 $dbType = 'postgresql';
-                error_log("Connected to PostgreSQL (Replit)");
-            } catch (PDOException $e) {
-                error_log("PostgreSQL connection failed: " . $e->getMessage());
-                throw new Exception("FEIL: Kan ikke koble til PostgreSQL database (Replit). Feilmelding: " . $e->getMessage());
-            }
-        } else {
-            // PRODUCTION: Use MySQL
-            try {
-                $mysqlDsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET;
-                $options = [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false,
-                    PDO::ATTR_TIMEOUT => 5,
-                ];
+                error_log("Connected to PostgreSQL (Fallback)");
                 
-                $conn = new PDO($mysqlDsn, DB_USER, DB_PASS, $options);
-                $dbType = 'mysql';
-                error_log("Connected to MySQL (Production)");
-            } catch (PDOException $e) {
-                error_log("MySQL connection failed: " . $e->getMessage());
-                throw new Exception("KRITISK FEIL: Kan ikke koble til MySQL database (Domeneshop). Feilmelding: " . $e->getMessage());
+            } catch (Exception $pgError) {
+                error_log("PostgreSQL fallback also failed: " . $pgError->getMessage());
+                throw new Exception("KRITISK FEIL: Kan ikke koble til database. MySQL: " . $e->getMessage() . " | PostgreSQL: " . $pgError->getMessage());
             }
         }
     }
@@ -78,9 +72,8 @@ function getDBType() {
             $driver = $conn->getAttribute(PDO::ATTR_DRIVER_NAME);
             $dbType = $driver === 'pgsql' ? 'postgresql' : 'mysql';
         } catch (Exception $e) {
-            // Fallback detection
-            $isReplit = getenv('REPL_ID') !== false;
-            $dbType = $isReplit ? 'postgresql' : 'mysql';
+            // Default to MySQL (primary database)
+            $dbType = 'mysql';
         }
     }
     
