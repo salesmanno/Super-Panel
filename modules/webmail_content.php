@@ -364,7 +364,7 @@ $webmailConfigured = $smtpConfigured && $imapConfigured;
                 </div>
                 
                 <div class="text-end mt-4">
-                    <button class="btn btn-primary">
+                    <button type="button" class="btn btn-primary" onclick="saveAutoMailerSettings()">
                         <i class="bi bi-save me-1"></i>Lagre innstillinger
                     </button>
                 </div>
@@ -374,7 +374,39 @@ $webmailConfigured = $smtpConfigured && $imapConfigured;
 </div>
 
 <script>
-// Toggle AutoMailer settings
+// Load automailer settings on page load
+async function loadAutoMailerSettings() {
+    try {
+        const response = await fetch('/api/get_automailer_settings.php');
+        const data = await response.json();
+        
+        if (data.success && data.settings) {
+            Object.keys(data.settings).forEach(module => {
+                const moduleSettings = data.settings[module];
+                const toggle = document.getElementById(`automailer-${module}`);
+                if (toggle) {
+                    toggle.checked = moduleSettings.enabled;
+                    if (moduleSettings.enabled) {
+                        const settingsDiv = document.getElementById(`${module}-automailer-settings`);
+                        if (settingsDiv) settingsDiv.classList.add('show');
+                    }
+                }
+                
+                // Load individual settings
+                Object.keys(moduleSettings.settings || {}).forEach(key => {
+                    const checkbox = document.getElementById(`${module}-${key.replace('_', '-')}`);
+                    if (checkbox) {
+                        checkbox.checked = moduleSettings.settings[key];
+                    }
+                });
+            });
+        }
+    } catch (error) {
+        console.error('Error loading automailer settings:', error);
+    }
+}
+
+// Toggle AutoMailer settings display
 document.querySelectorAll('[id^="automailer-"]').forEach(toggle => {
     toggle.addEventListener('change', function() {
         const module = this.id.replace('automailer-', '');
@@ -388,5 +420,50 @@ document.querySelectorAll('[id^="automailer-"]').forEach(toggle => {
         }
     });
 });
+
+// Save automailer settings for all modules
+async function saveAutoMailerSettings() {
+    const modules = ['rental', 'events', 'membership', 'reservations', 'sales'];
+    const savePromises = [];
+    
+    for (const module of modules) {
+        const toggle = document.getElementById(`automailer-${module}`);
+        if (!toggle) continue;
+        
+        const isEnabled = toggle.checked;
+        const settings = {};
+        
+        // Collect all checkboxes for this module
+        document.querySelectorAll(`[id^="${module}-"]`).forEach(checkbox => {
+            if (checkbox.type === 'checkbox' && checkbox.id !== `automailer-${module}`) {
+                const key = checkbox.id.replace(`${module}-`, '').replace(/-/g, '_');
+                settings[key] = checkbox.checked;
+            }
+        });
+        
+        savePromises.push(
+            fetch('/api/save_automailer_settings.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    module_name: module,
+                    is_enabled: isEnabled,
+                    settings: settings
+                })
+            })
+        );
+    }
+    
+    try {
+        await Promise.all(savePromises);
+        alert('✅ AutoMailer-innstillinger lagret');
+    } catch (error) {
+        console.error('Error saving automailer settings:', error);
+        alert('❌ Feil ved lagring av innstillinger');
+    }
+}
+
+// Load settings when switching to automailer tab
+document.querySelector('[data-bs-target="#webmail-automailer"]')?.addEventListener('click', loadAutoMailerSettings);
 </script>
 
