@@ -1,5 +1,33 @@
+<?php
+// Check email configuration status
+require_once __DIR__ . '/../includes/db.php';
+$db = getDBConnection();
+$stmt = $db->prepare("
+    SELECT smtp_host, smtp_port, smtp_username, smtp_password, imap_host, imap_port
+    FROM x_webmailconfiguration
+    WHERE company_id = ?
+    LIMIT 1
+");
+$stmt->execute([$_SESSION['company_id']]);
+$emailConfig = $stmt->fetch(PDO::FETCH_ASSOC);
+
+$smtpConfigured = false;
+$imapConfigured = false;
+
+if ($emailConfig) {
+    $smtpConfigured = !empty($emailConfig['smtp_host']) && 
+                      !empty($emailConfig['smtp_port']) && 
+                      !empty($emailConfig['smtp_username']) && 
+                      !empty($emailConfig['smtp_password']);
+    
+    $imapConfigured = !empty($emailConfig['imap_host']) && 
+                      !empty($emailConfig['imap_port']);
+}
+
+$webmailConfigured = $smtpConfigured && $imapConfigured;
+?>
 <div class="module-content position-relative">
-<?php if (!isset($webmailConfigured) || !$webmailConfigured): ?>
+<?php if (!$webmailConfigured): ?>
     <!-- Overlay melding for ikke-konfigurert -->
     <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.95); z-index: 1; display: flex; align-items: center; justify-content: center;">
         <div class="text-center" style="max-width: 600px; padding: 3rem;">
@@ -10,10 +38,10 @@
             <div class="alert alert-warning text-start mb-4">
                 <h6 class="alert-heading"><i class="bi bi-list-check me-2"></i>Konfigurasjonssjekk:</h6>
                 <ul class="mb-0">
-                    <?php if (!isset($smtpConfigured) || !$smtpConfigured): ?>
+                    <?php if (!$smtpConfigured): ?>
                     <li class="text-danger mb-2">
                         <i class="bi bi-x-circle me-1"></i>
-                        <strong>SMTP-server ikke konfigurert</strong> - Host, port, brukernavn og passord mangler
+                        <strong>SMTP-server ikke konfigurert</strong> - Gå til "Deres Firma" → "E-post" for å konfigurere
                     </li>
                     <?php else: ?>
                     <li class="text-success mb-2">
@@ -21,20 +49,24 @@
                         <strong>SMTP-server konfigurert</strong>
                     </li>
                     <?php endif; ?>
-                    <li class="text-muted">
-                        <i class="bi bi-circle me-1"></i>
-                        Webmail-konto må opprettes
+                    
+                    <?php if (!$imapConfigured): ?>
+                    <li class="text-danger mb-2">
+                        <i class="bi bi-x-circle me-1"></i>
+                        <strong>IMAP-server ikke konfigurert</strong> - Gå til "Deres Firma" → "E-post" for å konfigurere
                     </li>
-                    <li class="text-muted">
-                        <i class="bi bi-circle me-1"></i>
-                        Domene-konfigurasjon anbefales
+                    <?php else: ?>
+                    <li class="text-success mb-2">
+                        <i class="bi bi-check-circle me-1"></i>
+                        <strong>IMAP-server konfigurert</strong>
                     </li>
+                    <?php endif; ?>
                 </ul>
             </div>
             
-            <button class="btn btn-warning btn-lg" disabled>
-                <i class="bi bi-gear me-2"></i>Konfigurasjon kreves
-            </button>
+            <a href="?module=deres_firma&tab=firma-email" class="btn btn-warning btn-lg">
+                <i class="bi bi-gear me-2"></i>Gå til E-postkonfigurasjon
+            </a>
         </div>
     </div>
 <?php endif; ?>

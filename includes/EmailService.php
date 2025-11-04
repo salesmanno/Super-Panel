@@ -208,27 +208,53 @@ class EmailService {
     }
     
     /**
-     * Send email via SMTP
-     * 
-     * Uses PHP's mail() function with proper headers
+     * Send email via SMTP using PHPMailer
      */
     private function sendViaSMTP($config, $to, $subject, $body) {
         try {
-            // Use PHP's built-in mail() function with proper SMTP headers
-            $headers = [];
-            $headers[] = "MIME-Version: 1.0";
-            $headers[] = "Content-type: text/html; charset=utf-8";
-            $headers[] = "From: {$config['from_name']} <{$config['from_email']}>";
-            $headers[] = "Reply-To: {$config['from_email']}";
-            $headers[] = "X-Mailer: PHP/" . phpversion();
+            $mail = new PHPMailer(true);
             
-            $success = mail($to, $subject, $body, implode("\r\n", $headers));
+            // Server settings
+            $mail->isSMTP();
+            $mail->Host = $config['smtp_host'];
+            $mail->Port = $config['smtp_port'];
+            $mail->CharSet = 'UTF-8';
             
-            if ($success) {
-                return ['success' => true];
-            } else {
-                return ['success' => false, 'error' => 'PHP mail() returnerte false'];
+            // Authentication
+            if (!empty($config['smtp_username']) && !empty($config['smtp_password'])) {
+                $mail->SMTPAuth = true;
+                $mail->Username = $config['smtp_username'];
+                $mail->Password = $config['smtp_password'];
             }
+            
+            // Encryption
+            if ($config['smtp_ssl']) {
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+            } elseif ($config['smtp_encryption'] === 'tls') {
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            }
+            
+            // Get company info for from address
+            $stmt = $this->db->prepare("SELECT name, contact_email FROM tenant_companies WHERE id = ?");
+            $stmt->execute([$this->companyId]);
+            $company = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            $fromEmail = $config['smtp_username'] ?: ($company['contact_email'] ?: 'noreply@salesman.no');
+            $fromName = $company['name'] ?: 'Salesman Portal';
+            
+            // Recipients
+            $mail->setFrom($fromEmail, $fromName);
+            $mail->addAddress($to);
+            $mail->addReplyTo($fromEmail, $fromName);
+            
+            // Content
+            $mail->isHTML(true);
+            $mail->Subject = $subject;
+            $mail->Body = $body;
+            $mail->AltBody = strip_tags($body);
+            
+            $mail->send();
+            return ['success' => true];
             
         } catch (Exception $e) {
             return ['success' => false, 'error' => $e->getMessage()];
