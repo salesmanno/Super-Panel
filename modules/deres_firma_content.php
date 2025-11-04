@@ -717,13 +717,20 @@
                                placeholder="587">
                         <small class="text-muted">Vanligvis 587 eller 465</small>
                     </div>
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-2 mb-3">
                         <label class="form-label">Kryptering</label>
                         <select name="smtp_encryption" class="form-select">
                             <option value="">Ingen</option>
                             <option value="tls" <?= ($emailConfig['smtp_encryption'] ?? '') === 'tls' ? 'selected' : '' ?>>TLS</option>
                             <option value="ssl" <?= ($emailConfig['smtp_encryption'] ?? '') === 'ssl' ? 'selected' : '' ?>>SSL</option>
                         </select>
+                    </div>
+                    <div class="col-md-1 mb-3">
+                        <label class="form-label">SSL</label>
+                        <div class="form-check form-switch mt-2">
+                            <input class="form-check-input" type="checkbox" name="smtp_ssl" id="smtpSsl" 
+                                   <?= ($emailConfig['smtp_ssl'] ?? false) ? 'checked' : '' ?>>
+                        </div>
                     </div>
                 </div>
                 <div class="row">
