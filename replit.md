@@ -23,7 +23,7 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Authentication**: Session-based system with robust backend validation, failsafe messages, complete session tracking, and single-session enforcement.
 - **Tab Navigation System**: Utilizes Bootstrap 5's native tab component for content display.
 - **Module & Privilege Management**: Granular access control via `tenant_admin_modules` and `tenant_company_modules` tables, with a dedicated interface for staff module access management.
-- **Email Module**: Integrated email client with SMTP configuration validation and `EmailService.php` for cross-module automated notifications.
+- **Email System**: Complete email infrastructure with `EmailService.php` using PHPMailer for SMTP sending, `email_configs` table for SMTP/IMAP configuration, `email_accounts` for individual mailboxes, `email_templates` for reusable templates, `email_logs` for audit trail, and `automailer_settings` for per-module automated email triggers. Includes AutoMailer system with configurable email automation for Rental, Events, Membership, Reservations, and Sales modules. PostgreSQL boolean handling uses `pgBoolToPHP()` helper to properly convert 't'/'f' strings.
 - **Events Module**: Comprehensive CRUD for event management with `output_products` integration, including configurable registration fields via `event_registration_fields` table (standard fields: first_name, last_name, email; optional: phone, street, zip, city, postal, age), scanner-based check-in, and income/expense tracking.
 - **Ditt Nettsted Module**: Manages website configuration from `tenant_website_config` with an admin password-protected lock mechanism.
 - **Reservation Module**: Complete reservation management with agenda/calendar views, filtering, statistics, and subtabs for service types. Includes visual calendar-based booking with staff availability.
@@ -39,6 +39,7 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Clean Database Architecture**: Modular database design eliminating duplicates and redundancy, standardizing tables, adding cost price tracking, and introducing `service_bookings` and `unified_ledger` tables.
 
 ## Recent Changes
+- **2025-11-04**: Implemented complete email system infrastructure with PHPMailer integration. Created `email_configs` (SMTP/IMAP), `email_accounts`, `email_folders`, `email_messages`, `email_drafts`, `email_attachments`, `automailer_settings`, and `email_templates` tables. Migrated from `x_webmailconfiguration` to `email_configs`. Built AutoMailer system with per-module toggles and per-event settings for automated emails. Created standard email templates (sale_receipt, event_registration, membership_welcome, rental_confirmation, service_booking). Fixed critical PostgreSQL boolean handling bug with `pgBoolToPHP()` helper in `api/get_automailer_settings.php`. MySQL migration: `docs/migration_email_system.sql`. PHPMailer installed via Composer (v7.0).
 - **2025-11-03**: Implemented payment methods system with demo/sandbox support. Created `payment_methods` table for storing payment configurations. Added "Aktiver Demo" button in Economy module for Vipps sandbox mode with demo credentials. New APIs: `api/setup_demo_vipps.php` (activates/deactivates demo Vipps), `api/get_payment_methods.php` (returns available payment methods for frontend use). MySQL migration: `docs/migration_add_payment_methods.sql`. Economy module now displays payment methods with demo/sandbox badge and toggle functionality.
 - **2025-11-03**: Fixed purchase_new_product.php - Ikke-registrerte varer (taklamper, etc) registreres nå KUN som utgift i `sales_purchase_history` og `unified_ledger`, IKKE som produkt i `sales_products`. Registrerte kioskvarer bruker fortsatt `purchase_existing_product.php` for varebeholdning.
 - **2025-11-02**: Fixed `sales_purchase_history` table migration - changed `id` from INT to CHAR(36) for UUID support. MySQL migration: `docs/migration_add_sales_purchase_history.sql`
@@ -54,5 +55,5 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
     - Production: MySQL (Domeneshop)
     - Development/Testing: PostgreSQL (auto-fallback when MySQL unavailable)
 - **UI Framework**: Bootstrap 5.
-- **Email Protocols**: SMTP and IMAP for webmail.
+- **Email Protocols**: PHPMailer (v7.0) for SMTP sending, IMAP for email retrieval.
 - **Storage**: Object storage for contract document uploads.
