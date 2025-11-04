@@ -1,5 +1,10 @@
 <?php
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
 /**
  * EmailService - Håndterer automatiske e-poster med templates
  * 
@@ -111,7 +116,7 @@ class EmailService {
      */
     private function getSMTPConfig() {
         $stmt = $this->db->prepare("
-            SELECT * FROM email_configs 
+            SELECT * FROM x_webmailconfiguration 
             WHERE company_id = ? 
             LIMIT 1
         ");
