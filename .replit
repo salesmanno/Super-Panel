@@ -16,6 +16,10 @@ author = "agent"
 task = "workflow.run"
 args = "PHP Server"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Email Queue Processor"
+
 [[workflows.workflow]]
 name = "PHP Server"
 author = "agent"
@@ -27,6 +31,17 @@ waitForPort = 5000
 
 [workflows.workflow.metadata]
 outputType = "webview"
+
+[[workflows.workflow]]
+name = "Email Queue Processor"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "while true; do php cron_email_queue.php; sleep 60; done"
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [[ports]]
 localPort = 5000
