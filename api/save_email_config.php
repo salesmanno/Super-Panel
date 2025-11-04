@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/db.php';
 
 header('Content-Type: application/json');
 
@@ -16,7 +16,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     exit;
 }
 
-$company_id = $_SESSION['company_id'];
+$companyId = $_SESSION['company_id'];
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -34,69 +34,71 @@ try {
     $imap_password = $data['imap_password'] ?? null;
     $imap_ssl = isset($data['imap_ssl']) ? (bool)$data['imap_ssl'] : false;
     
+    $from_email = $data['from_email'] ?? $smtp_username;
+    $from_name = $data['from_name'] ?? null;
+    
     $db = getDBConnection();
     $db->beginTransaction();
     
-    // Check if configuration already exists
-    $stmt = $db->prepare("SELECT config_id FROM x_webmailconfiguration WHERE company_id = ?");
-    $stmt->execute([$company_id]);
-    $existing = $stmt->fetch();
+    // Check if config exists
+    $stmt = $db->prepare("SELECT id FROM email_configs WHERE company_id = ?");
+    $stmt->execute([$companyId]);
+    $existingConfig = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    if ($existing) {
-        // Update existing configuration
+    if ($existingConfig) {
+        // Update existing
         $stmt = $db->prepare("
-            UPDATE x_webmailconfiguration 
-            SET smtp_host = ?,
-                smtp_port = ?,
-                smtp_username = ?,
+            UPDATE email_configs 
+            SET smtp_host = ?, 
+                smtp_port = ?, 
+                smtp_user = ?, 
                 smtp_password = ?,
                 smtp_encryption = ?,
-                smtp_ssl = ?,
-                imap_host = ?,
-                imap_port = ?,
-                imap_username = ?,
-                imap_password = ?,
-                imap_ssl = ?,
+                from_email = ?,
+                from_name = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE company_id = ?
         ");
+        
         $stmt->execute([
             $smtp_host,
             $smtp_port,
-            $smtp_username,
+            $smtp_user,
             $smtp_password,
             $smtp_encryption,
-            $smtp_ssl,
-            $imap_host,
-            $imap_port,
-            $imap_username,
-            $imap_password,
-            $imap_ssl,
-            $company_id
+            $from_email,
+            $from_name,
+            $companyId
         ]);
         
         $message = 'E-postkonfigurasjon oppdatert';
     } else {
-        // Insert new configuration
+        // Insert new
+        $configId = bin2hex(random_bytes(18));
         $stmt = $db->prepare("
-            INSERT INTO x_webmailconfiguration 
-            (company_id, smtp_host, smtp_port, smtp_username, smtp_password, smtp_encryption, smtp_ssl,
-             imap_host, imap_port, imap_username, imap_password, imap_ssl)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO email_configs (
+                id,
+                company_id,
+                smtp_host,
+                smtp_port,
+                smtp_user,
+                smtp_password,
+                smtp_encryption,
+                from_email,
+                from_name
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
+        
         $stmt->execute([
-            $company_id,
+            $configId,
+            $companyId,
             $smtp_host,
             $smtp_port,
-            $smtp_username,
+            $smtp_user,
             $smtp_password,
             $smtp_encryption,
-            $smtp_ssl,
-            $imap_host,
-            $imap_port,
-            $imap_username,
-            $imap_password,
-            $imap_ssl
+            $from_email,
+            $from_name
         ]);
         
         $message = 'E-postkonfigurasjon opprettet';

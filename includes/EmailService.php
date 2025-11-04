@@ -116,7 +116,7 @@ class EmailService {
      */
     private function getSMTPConfig() {
         $stmt = $this->db->prepare("
-            SELECT * FROM x_webmailconfiguration 
+            SELECT * FROM email_configs 
             WHERE company_id = ? 
             LIMIT 1
         ");
@@ -228,19 +228,14 @@ class EmailService {
             }
             
             // Encryption
-            if ($config['smtp_ssl']) {
+            if ($config['smtp_encryption'] === 'ssl') {
                 $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
             } elseif ($config['smtp_encryption'] === 'tls') {
                 $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             }
             
-            // Get company info for from address
-            $stmt = $this->db->prepare("SELECT name, contact_email FROM tenant_companies WHERE id = ?");
-            $stmt->execute([$this->companyId]);
-            $company = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            $fromEmail = $config['smtp_username'] ?: ($company['contact_email'] ?: 'noreply@salesman.no');
-            $fromName = $company['name'] ?: 'Salesman Portal';
+            $fromEmail = $config['from_email'] ?: 'noreply@salesman.no';
+            $fromName = $config['from_name'] ?: 'Salesman Portal';
             
             // Recipients
             $mail->setFrom($fromEmail, $fromName);
