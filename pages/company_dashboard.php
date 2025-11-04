@@ -902,11 +902,6 @@ try {
                                                 <i class="bi bi-palette me-2"></i>Webside
                                             </button>
                                         </li>
-                                        <li class="nav-item" role="presentation">
-                                            <button class="nav-link" id="firma-tab-email" data-bs-toggle="tab" data-bs-target="#firma-email" type="button" role="tab">
-                                                <i class="bi bi-envelope-at me-2"></i>E-post
-                                            </button>
-                                        </li>
                                     </ul>
                                     <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">
                                         <i class="bi bi-x-circle me-2"></i>Lukk vindu
@@ -1085,52 +1080,6 @@ try {
             }
         }
         
-        async function handleSaveEmailConfig(event) {
-            event.preventDefault();
-            
-            const form = event.target;
-            const formData = new FormData(form);
-            const data = {};
-            
-            // Serialize all form fields
-            formData.forEach((value, key) => {
-                data[key] = value;
-            });
-            
-            // Always include boolean checkbox values (even if unchecked)
-            data.imap_ssl = form.querySelector('[name="imap_ssl"]').checked;
-            data.smtp_ssl = form.querySelector('[name="smtp_ssl"]').checked;
-            
-            const submitBtn = form.querySelector('button[type="submit"]');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Lagrer...';
-            
-            try {
-                const response = await fetch('/api/save_email_config.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    alert('✅ ' + result.message);
-                } else {
-                    alert('❌ Feil: ' + (result.message || 'Kunne ikke lagre e-postkonfigurasjon'));
-                }
-            } catch (error) {
-                console.error('Error saving email config:', error);
-                alert('❌ Feil ved lagring av e-postkonfigurasjon');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="bi bi-save me-2"></i>Lagre E-postkonfigurasjon';
-            }
-            
-            return false;
-        }
         
         function refreshSession() {
             fetch('/api/refresh_session.php')
