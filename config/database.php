@@ -18,10 +18,19 @@ function getDBConnection() {
         if ($isReplit) {
             // REPLIT: Use PostgreSQL
             try {
-                $databaseUrl = getenv('DATABASE_URL');
-                if (!$databaseUrl) {
-                    throw new Exception("DATABASE_URL not found in Replit environment");
+                // Get connection info from environment
+                $pgHost = getenv('PGHOST');
+                $pgPort = getenv('PGPORT') ?: '5432';
+                $pgDatabase = getenv('PGDATABASE');
+                $pgUser = getenv('PGUSER');
+                $pgPassword = getenv('PGPASSWORD');
+                
+                if (!$pgHost || !$pgDatabase || !$pgUser || !$pgPassword) {
+                    throw new Exception("PostgreSQL environment variables not set (PGHOST, PGDATABASE, PGUSER, PGPASSWORD)");
                 }
+                
+                // Build PDO DSN for PostgreSQL
+                $dsn = "pgsql:host={$pgHost};port={$pgPort};dbname={$pgDatabase};sslmode=require";
                 
                 $options = [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -29,7 +38,7 @@ function getDBConnection() {
                     PDO::ATTR_EMULATE_PREPARES => false,
                 ];
                 
-                $conn = new PDO($databaseUrl, null, null, $options);
+                $conn = new PDO($dsn, $pgUser, $pgPassword, $options);
                 $dbType = 'postgresql';
                 error_log("Connected to PostgreSQL (Replit)");
             } catch (PDOException $e) {
