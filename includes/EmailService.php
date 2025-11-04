@@ -21,6 +21,7 @@ class EmailService {
     
     /**
      * Send automated email using template
+     * Adds email to queue for processing instead of sending directly
      * 
      * @param array $params {
      *   template: string (template_key from email_templates)
@@ -28,8 +29,10 @@ class EmailService {
      *   data: array (placeholder values)
      *   module_source: string ('sales', 'events', 'membership', 'rental', 'service')
      *   source_id: string (ID from original module table)
+     *   priority: int (optional, 1=highest, 10=lowest, default=5)
+     *   scheduled_at: string (optional, timestamp when to send, default=NOW)
      * }
-     * @return array ['success' => bool, 'message' => string, 'log_id' => string]
+     * @return array ['success' => bool, 'message' => string, 'queue_id' => string]
      */
     public function send($params) {
         try {
@@ -44,7 +47,7 @@ class EmailService {
                 throw new Exception("Email template '{$params['template']}' ikke funnet");
             }
             
-            // 2. Get SMTP config
+            // 2. Get SMTP config to verify it exists
             $smtpConfig = $this->getSMTPConfig();
             if (!$smtpConfig) {
                 throw new Exception('SMTP-konfigurasjon ikke funnet. Sett opp e-postkonfigurasjon først.');
@@ -54,35 +57,24 @@ class EmailService {
             $subject = $this->renderTemplate($template['subject_template'], $params['data'] ?? []);
             $body = $this->renderTemplate($template['body_template'], $params['data'] ?? []);
             
-            // 4. Create email log entry (pending)
-            $logId = $this->createEmailLog([
+            // 4. Add to email queue
+            $queueId = $this->queueEmail([
                 'template_id' => $template['id'],
                 'module_source' => $params['module_source'],
                 'source_id' => $params['source_id'],
                 'recipient_email' => $params['to'],
+                'from_email' => $smtpConfig['from_email'],
                 'subject' => $subject,
-                'status' => 'pending'
+                'body' => $body,
+                'priority' => $params['priority'] ?? 5,
+                'scheduled_at' => $params['scheduled_at'] ?? date('Y-m-d H:i:s')
             ]);
             
-            // 5. Send email via SMTP
-            $sendResult = $this->sendViaSMTP($smtpConfig, $params['to'], $subject, $body);
-            
-            // 6. Update log status
-            if ($sendResult['success']) {
-                $this->updateEmailLog($logId, 'sent', null);
-                return [
-                    'success' => true,
-                    'message' => 'E-post sendt',
-                    'log_id' => $logId
-                ];
-            } else {
-                $this->updateEmailLog($logId, 'failed', $sendResult['error']);
-                return [
-                    'success' => false,
-                    'message' => 'Feil ved sending: ' . $sendResult['error'],
-                    'log_id' => $logId
-                ];
-            }
+            return [
+                'success' => true,
+                'message' => 'E-post lagt i kø for sending',
+                'queue_id' => $queueId
+            ];
             
         } catch (Exception $e) {
             error_log("EmailService error: " . $e->getMessage());
@@ -288,5 +280,50 @@ class EmailService {
         $stmt->execute($params);
         
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
+    /**
+     * Add email to queue for processing
+     * 
+     * @param array $params
+     * @return string Queue ID
+     */
+    private function queueEmail($params) {
+        $queueId = bin2hex(random_bytes(18));
+        
+        $stmt = $this->db->prepare("
+            INSERT INTO email_queue (
+                id,
+                company_id,
+                recipient_email,
+                from_email,
+                subject,
+                body,
+                template_id,
+                module_source,
+                source_id,
+                status,
+                priority,
+                scheduled_at,
+                created_at,
+                updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, NOW(), NOW())
+        ");
+        
+        $stmt->execute([
+            $queueId,
+            $this->companyId,
+            $params['recipient_email'],
+            $params['from_email'],
+            $params['subject'],
+            $params['body'],
+            $params['template_id'],
+            $params['module_source'],
+            $params['source_id'],
+            $params['priority'],
+            $params['scheduled_at']
+        ]);
+        
+        return $queueId;
     }
 }
