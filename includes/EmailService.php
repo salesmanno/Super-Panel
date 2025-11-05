@@ -103,12 +103,19 @@ class EmailService {
      */
     private function getSMTPConfig() {
         $stmt = $this->db->prepare("
-            SELECT * FROM email_configs 
+            SELECT * FROM tenant_email_config 
             WHERE company_id = ? 
             LIMIT 1
         ");
         $stmt->execute([$this->companyId]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $config = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($config && isset($config['smtp_from_email'])) {
+            $config['from_email'] = $config['smtp_from_email'];
+            $config['from_name'] = $config['smtp_from_name'] ?? '';
+        }
+        
+        return $config;
     }
     
     /**
