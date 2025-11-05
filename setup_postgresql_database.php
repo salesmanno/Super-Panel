@@ -264,42 +264,26 @@ try {
     // 7. Email tables
     echo "  - Setting up email tables...\n";
     
-    // Email configs table
+    // Email configs table (matches production schema)
     $conn->exec("
         CREATE TABLE IF NOT EXISTS email_configs (
             id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
             company_id VARCHAR(36) NOT NULL,
-            smtp_host VARCHAR(255) NOT NULL,
-            smtp_port INTEGER NOT NULL DEFAULT 587,
-            smtp_encryption VARCHAR(10) DEFAULT 'tls',
-            smtp_username VARCHAR(255) NOT NULL,
-            smtp_password VARCHAR(255) NOT NULL,
-            from_email VARCHAR(255) NOT NULL,
-            from_name VARCHAR(255) NOT NULL,
-            is_active BOOLEAN DEFAULT TRUE,
+            smtp_host VARCHAR(255),
+            smtp_port INTEGER DEFAULT 587,
+            smtp_encryption VARCHAR(20),
+            smtp_username VARCHAR(255),
+            smtp_password VARCHAR(255),
+            smtp_from_email VARCHAR(255),
+            smtp_from_name VARCHAR(255),
+            imap_host VARCHAR(255),
+            imap_port INTEGER DEFAULT 993,
+            imap_encryption VARCHAR(20),
+            imap_username VARCHAR(255),
+            imap_password VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE
-        )
-    ");
-    
-    // Email accounts table
-    $conn->exec("
-        CREATE TABLE IF NOT EXISTS email_accounts (
-            id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
-            company_id VARCHAR(36) NOT NULL,
-            email_address VARCHAR(255) NOT NULL,
-            imap_host VARCHAR(255) NOT NULL,
-            imap_port INTEGER NOT NULL DEFAULT 993,
-            imap_encryption VARCHAR(10) DEFAULT 'ssl',
-            imap_username VARCHAR(255) NOT NULL,
-            imap_password VARCHAR(255) NOT NULL,
-            is_active BOOLEAN DEFAULT TRUE,
-            last_sync TIMESTAMP NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (company_id) REFERENCES tenant_companies(id) ON DELETE CASCADE,
-            UNIQUE(company_id, email_address)
         )
     ");
     
