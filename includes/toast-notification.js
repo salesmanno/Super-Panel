@@ -167,7 +167,15 @@ class ToastNotification {
     }
 
     loading(processName, duration = 3000) {
-        return this.show(processName, 'loading', '', duration);
+        const toastId = this.show(processName, 'loading', '', duration);
+        return {
+            id: toastId,
+            success: (message) => this.update(toastId, 'success', message),
+            error: (message) => this.update(toastId, 'error', message),
+            warning: (message) => this.update(toastId, 'warning', message),
+            info: (message) => this.update(toastId, 'info', message),
+            remove: () => this.remove(toastId)
+        };
     }
 }
 
