@@ -31,13 +31,16 @@ try {
                 category,
                 description,
                 daily_price,
+                market_price,
+                rental_periods,
+                image_url,
                 is_available,
                 requires_deposit,
                 deposit_amount,
                 location,
                 serial_number,
                 condition_notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         
         $stmt->execute([
@@ -47,9 +50,12 @@ try {
             $data['category'] ?? null,
             $data['description'] ?? null,
             $data['daily_price'] ?? 0,
+            $data['market_price'] ?? null,
+            $data['rental_periods'] ?? null,
+            $data['image_url'] ?? null,
             $data['is_available'] ?? true,
-            $data['requires_deposit'] ?? false,
-            $data['deposit_amount'] ?? null,
+            $data['requires_deposit'] ?? ($data['deposit_amount'] > 0 ? true : false),
+            $data['deposit_amount'] ?? 0,
             $data['location'] ?? null,
             $data['serial_number'] ?? null,
             $data['condition_notes'] ?? null
@@ -58,7 +64,23 @@ try {
         // Get last insert ID (works in both MySQL and PostgreSQL)
         $rentalId = $db->lastInsertId();
         
-        // 2. Auto-generate output_products entry
+        // 2. Save required fields if provided
+        if (isset($data['required_fields']) && is_array($data['required_fields']) && count($data['required_fields']) > 0) {
+            $fieldStmt = $db->prepare("
+                INSERT INTO rental_object_fields (object_id, field_name, is_required)
+                VALUES (?, ?, ?)
+            ");
+            
+            foreach ($data['required_fields'] as $field) {
+                $fieldStmt->execute([
+                    $rentalId,
+                    $field['field_name'],
+                    $field['is_required'] ? 1 : 0
+                ]);
+            }
+        }
+        
+        // 3. Auto-generate output_products entry
         $catalogService = new ProductCatalogService($db);
         $outputProductId = $catalogService->createProductEntry(
             $_SESSION['company_id'],
