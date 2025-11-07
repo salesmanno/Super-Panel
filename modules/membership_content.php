@@ -358,6 +358,17 @@
                         <textarea class="form-control" name="benefits" rows="4" placeholder="- Tilgang til arrangement&#10;- Medlemsrabatt&#10;- Nyhetsbrev"></textarea>
                         <small class="text-muted">Skriv en fordel per linje</small>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Plan bilde</label>
+                        <div id="planImagePreview" class="border rounded p-3 mb-2" style="min-height: 150px; background: white; display: flex; align-items: center; justify-content: center;">
+                            <div class="text-muted">
+                                <i class="bi bi-image fs-1 d-block mb-2"></i>
+                                <small>Last opp bilde</small>
+                            </div>
+                        </div>
+                        <input type="file" class="form-control form-control-sm" id="planImageInput" accept="image/*">
+                        <input type="hidden" name="image_url" id="planImageUrlField">
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -378,7 +389,8 @@ async function submitMembershipPlan() {
         description: formData.get('description'),
         price: parseFloat(formData.get('price')),
         billing_cycle: formData.get('billing_cycle'),
-        benefits: formData.get('benefits')
+        benefits: formData.get('benefits'),
+        image_url: document.getElementById('planImageUrlField').value || null
     };
     
     const toastId = toastManager.loading('Oppretter medlemskapsplan');
@@ -396,6 +408,13 @@ async function submitMembershipPlan() {
             toastManager.update(toastId, 'success', 'Medlemskapsplan opprettet!');
             bootstrap.Modal.getInstance(document.getElementById('createPlanModal')).hide();
             form.reset();
+            document.getElementById('planImagePreview').innerHTML = `
+                <div class="text-muted">
+                    <i class="bi bi-image fs-1 d-block mb-2"></i>
+                    <small>Last opp bilde</small>
+                </div>
+            `;
+            document.getElementById('planImageUrlField').value = '';
             loadMembershipPlans();
         } else {
             toastManager.update(toastId, 'error', result.message || 'Kunne ikke opprette plan');
@@ -431,9 +450,14 @@ async function loadMembershipPlans() {
                     billingLabel = 'Årlig';
                 }
                 
+                const imageHtml = plan.image_url 
+                    ? `<img src="${plan.image_url}" class="card-img-top" style="height: 200px; object-fit: cover;" alt="${plan.name}">` 
+                    : '';
+                
                 return `
                     <div class="col-md-4 mb-3">
                         <div class="card border">
+                            ${imageHtml}
                             <div class="card-body">
                                 <h6>${plan.name}</h6>
                                 <p class="text-muted small">${billingLabel}</p>
@@ -911,5 +935,19 @@ if (incomeTabLink) {
         }, 100);
     });
 }
+
+// Image upload handler for membership plan
+document.getElementById('planImageInput')?.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById('planImagePreview');
+            preview.innerHTML = `<img src="${e.target.result}" class="img-fluid rounded" style="max-height: 150px;">`;
+            document.getElementById('planImageUrlField').value = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+});
 </script>
 

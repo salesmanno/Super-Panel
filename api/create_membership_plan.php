@@ -41,8 +41,9 @@ try {
                     price,
                     billing_cycle,
                     benefits,
+                    image_url,
                     is_active
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
             ");
             
             $stmt->execute([
@@ -53,7 +54,8 @@ try {
                 $data['description'] ?? null,
                 $data['price'] ?? 0,
                 $billingCycle,
-                $data['benefits'] ?? null
+                $data['benefits'] ?? null,
+                $data['image_url'] ?? null
             ]);
         } else {
             // PostgreSQL: x_membership_plan table
@@ -72,8 +74,9 @@ try {
                     price,
                     duration_months,
                     features,
+                    image_url,
                     is_active
-                ) VALUES (?, ?, ?, ?, ?, ?, true)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, true)
                 RETURNING plan_id
             ");
             
@@ -83,7 +86,8 @@ try {
                 $data['description'] ?? null,
                 $data['price'] ?? 0,
                 $durationMonths,
-                $data['benefits'] ?? null
+                $data['benefits'] ?? null,
+                $data['image_url'] ?? null
             ]);
             
             $planId = $stmt->fetchColumn();
