@@ -381,6 +381,8 @@ async function submitMembershipPlan() {
         benefits: formData.get('benefits')
     };
     
+    const toastId = toast.loading('Oppretter medlemskapsplan');
+    
     try {
         const response = await fetch('/api/create_membership_plan.php', {
             method: 'POST',
@@ -391,16 +393,16 @@ async function submitMembershipPlan() {
         const result = await response.json();
         
         if (result.success) {
-            alert('✅ Medlemskapsplan opprettet!');
+            toast.success(toastId, 'Medlemskapsplan opprettet', 'Planen er nå tilgjengelig for medlemmer');
             bootstrap.Modal.getInstance(document.getElementById('createPlanModal')).hide();
             form.reset();
             loadMembershipPlans();
         } else {
-            alert('❌ Feil: ' + (result.message || 'Kunne ikke opprette plan'));
+            toast.error(toastId, 'Opprettelse av medlemskapsplan', result.message || 'Kunne ikke opprette plan');
         }
     } catch (error) {
         console.error('Error creating plan:', error);
-        alert('❌ Feil ved opprettelse av plan');
+        toast.error(toastId, 'Opprettelse av medlemskapsplan', 'Kunne ikke opprette plan');
     }
 }
 
@@ -476,9 +478,11 @@ async function submitMember() {
     };
     
     if (!memberData.first_name || !memberData.last_name || !memberData.email) {
-        alert('⚠️ Vennligst fyll ut alle obligatoriske felt (fornavn, etternavn, e-post)');
+        toast.quickWarning('Manglende informasjon', 'Vennligst fyll ut alle obligatoriske felt (fornavn, etternavn, e-post)');
         return;
     }
+    
+    const toastId = toast.loading('Legger til nytt medlem');
     
     try {
         const response = await fetch('../api/create_member.php', {
@@ -490,16 +494,16 @@ async function submitMember() {
         const result = await response.json();
         
         if (result.success) {
-            alert('✅ Medlem lagt til!');
+            toast.success(toastId, 'Medlem lagt til', `${memberData.first_name} ${memberData.last_name} er nå registrert`);
             bootstrap.Modal.getInstance(document.getElementById('createMemberModal')).hide();
             form.reset();
             loadMembers();
         } else {
-            alert('❌ Feil: ' + (result.message || 'Kunne ikke legge til medlem'));
+            toast.error(toastId, 'Registrering av medlem', result.message || 'Kunne ikke legge til medlem');
         }
     } catch (error) {
         console.error('Error creating member:', error);
-        alert('❌ Feil ved opprettelse av medlem');
+        toast.error(toastId, 'Registrering av medlem', 'Kunne ikke legge til medlem');
     }
 }
 

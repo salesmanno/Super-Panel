@@ -1434,5 +1434,7 @@ try {
             }
         }
     </script>
+    
+    <?php include __DIR__ . '/../includes/toast_notification.php'; ?>
 </body>
 </html>
