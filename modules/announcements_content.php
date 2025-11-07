@@ -169,7 +169,7 @@ async function loadAnnouncements() {
             currentAnnouncements = result.announcements;
             displayAnnouncements(result.announcements);
         } else {
-            alert('❌ ' + result.message);
+            toast.quickError('Feil', result.message);
         }
     } catch (error) {
         console.error('Load announcements error:', error);
@@ -311,7 +311,7 @@ async function saveAnnouncement() {
     const content = document.getElementById('announcement-content').value.trim();
 
     if (!title || !content) {
-        alert('❌ Tittel og innhold er påkrevd');
+        toast.quickWarning('Validering', 'Tittel og innhold er påkrevd');
         return;
     }
 
@@ -345,13 +345,13 @@ async function saveAnnouncement() {
         if (result.success) {
             bootstrap.Modal.getInstance(document.getElementById('announcementModal')).hide();
             await loadAnnouncements();
-            alert('✅ ' + result.message);
+            toast.quickSuccess('Kunngjøring', result.message);
         } else {
-            alert('❌ ' + result.message);
+            toast.quickError('Feil', result.message);
         }
     } catch (error) {
         console.error('Save announcement error:', error);
-        alert('❌ Kunne ikke lagre kunngjøring');
+        toast.quickError('Feil', 'Kunne ikke lagre kunngjøring');
     }
 }
 
@@ -370,7 +370,7 @@ async function togglePublish(id) {
         if (result.success) {
             await loadAnnouncements();
         } else {
-            alert('❌ ' + result.message);
+            toast.quickError('Feil', result.message);
         }
     } catch (error) {
         console.error('Toggle publish error:', error);
@@ -390,7 +390,7 @@ async function togglePin(id) {
         if (result.success) {
             await loadAnnouncements();
         } else {
-            alert('❌ ' + result.message);
+            toast.quickError('Feil', result.message);
         }
     } catch (error) {
         console.error('Toggle pin error:', error);
@@ -411,9 +411,9 @@ async function deleteAnnouncement(id) {
 
         if (result.success) {
             await loadAnnouncements();
-            alert('✅ ' + result.message);
+            toast.quickSuccess('Kunngjøring', result.message);
         } else {
-            alert('❌ ' + result.message);
+            toast.quickError('Feil', result.message);
         }
     } catch (error) {
         console.error('Delete announcement error:', error);

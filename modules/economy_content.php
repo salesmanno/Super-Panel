@@ -343,11 +343,11 @@
                 if (data.success) {
                     location.reload();
                 } else {
-                    alert('Feil: ' + (data.error || 'Kunne ikke oppdatere kontantbetaling'));
+                    toast.quickError('Feil', data.error || 'Kunne ikke oppdatere kontantbetaling');
                 }
             })
             .catch(error => {
-                alert('En feil oppstod: ' + error.message);
+                toast.quickError('Feil', 'En feil oppstod: ' + error.message);
             });
         }
         
@@ -359,14 +359,14 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert(data.message);
+                    toast.quickSuccess('Vipps', data.message);
                     location.reload();
                 } else {
-                    alert('Feil: ' + (data.message || 'Kunne ikke aktivere demo Vipps'));
+                    toast.quickError('Feil', data.message || 'Kunne ikke aktivere demo Vipps');
                 }
             })
             .catch(error => {
-                alert('En feil oppstod: ' + error.message);
+                toast.quickError('Feil', 'En feil oppstod: ' + error.message);
             });
         }
         </script>

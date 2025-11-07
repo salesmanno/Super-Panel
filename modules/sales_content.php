@@ -2719,7 +2719,7 @@ async function processServicePurchase() {
         
         // Validate reservation fields
         if (!purchaseData.reservation_date || !purchaseData.reservation_time || !purchaseData.reservation_staff_id) {
-            alert('⚠️ Vennligst fyll ut alle booking-felter');
+            toast.quickWarning('Validering', 'Vennligst fyll ut alle booking-felter');
             return;
         }
     }
@@ -2748,7 +2748,7 @@ async function processServicePurchase() {
         }
     } catch (error) {
         console.error('Service purchase error:', error);
-        alert('❌ Feil ved salg av tjeneste');
+        toast.quickError('Feil', 'Feil ved salg av tjeneste');
     }
 }
 
@@ -2839,11 +2839,11 @@ function initFullscreenSales() {
                     await loadAllSalesData();
                     syncCartToFullscreen();
                 } else {
-                    alert('❌ ' + result.message);
+                    toast.quickError('Feil', result.message);
                 }
             } catch (error) {
                 console.error('Checkout error:', error);
-                alert('❌ Feil ved betaling');
+                toast.quickError('Feil', 'Feil ved betaling');
             }
         });
     }
@@ -2990,7 +2990,7 @@ async function savePurchase() {
     const notes = document.getElementById('purchase-notes').value;
     
     if (!supplier || !date || !productId || !quantity || !unitCost) {
-        alert('Vennligst fyll ut alle påkrevde felt');
+        toast.quickWarning('Validering', 'Vennligst fyll ut alle påkrevde felt');
         return;
     }
     
