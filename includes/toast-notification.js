@@ -14,6 +14,13 @@ class ToastNotification {
         }
     }
 
+    resolveId(input) {
+        if (typeof input === 'object' && input !== null && input.id) {
+            return input.id;
+        }
+        return input;
+    }
+
     show(processName, type = 'loading', message = '', duration = 3000) {
         const toastId = `toast-${Date.now()}-${Math.random()}`;
         
@@ -80,7 +87,8 @@ class ToastNotification {
     }
 
     update(toastId, type, message = '') {
-        const toastData = this.activeToasts.get(toastId);
+        const actualId = this.resolveId(toastId);
+        const toastData = this.activeToasts.get(actualId);
         if (!toastData) return;
         
         const { toast, interval, processName } = toastData;
@@ -116,23 +124,24 @@ class ToastNotification {
                     <div class="toast-header-custom">
                         ${iconMap[type] || ''}
                         <span class="toast-message">${messageMap[type]}</span>
-                        <button type="button" class="toast-close" onclick="toastManager.remove('${toastId}')">&times;</button>
+                        <button type="button" class="toast-close" onclick="toastManager.remove('${actualId}')">&times;</button>
                     </div>
                 </div>
             `;
         }, 300);
         
-        this.activeToasts.set(toastId, { toast, processName });
+        this.activeToasts.set(actualId, { toast, processName });
         
         if (type !== 'error') {
             setTimeout(() => {
-                this.remove(toastId);
+                this.remove(actualId);
             }, 3000);
         }
     }
 
     remove(toastId) {
-        const toastData = this.activeToasts.get(toastId);
+        const actualId = this.resolveId(toastId);
+        const toastData = this.activeToasts.get(actualId);
         if (!toastData) return;
         
         const { toast, interval } = toastData;
@@ -146,7 +155,7 @@ class ToastNotification {
             if (toast.parentNode) {
                 toast.parentNode.removeChild(toast);
             }
-            this.activeToasts.delete(toastId);
+            this.activeToasts.delete(actualId);
         }, 300);
     }
 
@@ -168,7 +177,8 @@ class ToastNotification {
 
     loading(processName, duration = 3000) {
         const toastId = this.show(processName, 'loading', '', duration);
-        return {
+        
+        const helperObject = {
             id: toastId,
             success: (message) => this.update(toastId, 'success', message),
             error: (message) => this.update(toastId, 'error', message),
@@ -176,6 +186,11 @@ class ToastNotification {
             info: (message) => this.update(toastId, 'info', message),
             remove: () => this.remove(toastId)
         };
+        
+        helperObject.toString = () => toastId;
+        helperObject.valueOf = () => toastId;
+        
+        return helperObject;
     }
 }
 
