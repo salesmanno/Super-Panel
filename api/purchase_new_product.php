@@ -56,24 +56,9 @@ try {
         $admin_id
     ]);
     
-    // Log to unified ledger as expense
-    $ledger = new UnifiedLedgerService($db);
-    $ledger->logTransaction([
-        'company_id' => $company_id,
-        'transaction_type' => 'purchase',
-        'module_source' => 'sales',
-        'amount' => $total_cost,
-        'payment_status' => 'completed',
-        'payment_method' => 'cash',
-        'metadata' => json_encode([
-            'purchase_id' => $purchase_id,
-            'product_name' => $product_name,
-            'supplier' => $supplier,
-            'quantity' => $quantity,
-            'unit_cost' => $unit_cost,
-            'non_registered_item' => true
-        ])
-    ]);
+    // NOTE: UnifiedLedger currently only tracks income/sales, not purchase expenses
+    // Purchase expenses are tracked separately in sales_purchase_history table
+    // Future enhancement: Add expense tracking to unified_ledger
     
     $db->commit();
     
