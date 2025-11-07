@@ -538,18 +538,94 @@ class ToastNotification {
     }
 
     quickSuccess(title, message) {
+        const key = `success:${title}:${message || 'Vellykket'}`;
+        
+        // Check for duplicate
+        if (this.duplicateMap.has(key)) {
+            const existingToast = this.duplicateMap.get(key);
+            existingToast.count++;
+            this.updateCount(existingToast.id, existingToast.count);
+            
+            // Reset timer
+            if (existingToast.autoCloseTimer) {
+                clearTimeout(existingToast.autoCloseTimer);
+            }
+            existingToast.autoCloseTimer = setTimeout(() => {
+                this.close(existingToast.id);
+            }, 3000);
+            
+            return existingToast.id;
+        }
+        
         return this.show(title, message || 'Vellykket', 'success', { duration: 3000 });
     }
 
     quickError(title, message) {
+        const key = `error:${title}:${message || 'En feil oppstod'}`;
+        
+        // Check for duplicate
+        if (this.duplicateMap.has(key)) {
+            const existingToast = this.duplicateMap.get(key);
+            existingToast.count++;
+            this.updateCount(existingToast.id, existingToast.count);
+            
+            // Reset timer
+            if (existingToast.autoCloseTimer) {
+                clearTimeout(existingToast.autoCloseTimer);
+            }
+            existingToast.autoCloseTimer = setTimeout(() => {
+                this.close(existingToast.id);
+            }, 5000);
+            
+            return existingToast.id;
+        }
+        
         return this.show(title, message || 'En feil oppstod', 'error', { duration: 5000 });
     }
 
     quickWarning(title, message) {
+        const key = `warning:${title}:${message || 'Advarsel'}`;
+        
+        // Check for duplicate
+        if (this.duplicateMap.has(key)) {
+            const existingToast = this.duplicateMap.get(key);
+            existingToast.count++;
+            this.updateCount(existingToast.id, existingToast.count);
+            
+            // Reset timer
+            if (existingToast.autoCloseTimer) {
+                clearTimeout(existingToast.autoCloseTimer);
+            }
+            existingToast.autoCloseTimer = setTimeout(() => {
+                this.close(existingToast.id);
+            }, 4000);
+            
+            return existingToast.id;
+        }
+        
         return this.show(title, message || 'Advarsel', 'warning', { duration: 4000 });
     }
 
     quickInfo(title, message) {
+        const key = `info:${title}:${message || 'Informasjon'}`;
+        
+        // Check for duplicate
+        if (this.duplicateMap.has(key)) {
+            const existingToast = this.duplicateMap.get(key);
+            existingToast.count++;
+            this.updateCount(existingToast.id, existingToast.count);
+            
+            // Reset timer
+            if (existingToast.autoCloseTimer) {
+                clearTimeout(existingToast.autoCloseTimer);
+            }
+            existingToast.autoCloseTimer = setTimeout(() => {
+                this.close(existingToast.id);
+            }, 4000);
+            
+            return existingToast.id;
+        }
+        
         return this.show(title, message || 'Informasjon', 'info', { duration: 4000 });
     }
 }

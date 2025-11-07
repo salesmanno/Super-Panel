@@ -107,15 +107,20 @@ class ProductCatalogService {
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             
+            // Ensure booleans are properly typed for PostgreSQL
+            $isVisible = isset($options['is_visible']) ? (bool)$options['is_visible'] : true;
+            $isPublic = isset($options['is_public']) ? (bool)$options['is_public'] : true;
+            $isFeatured = isset($options['is_marketplace_featured']) ? (bool)$options['is_marketplace_featured'] : false;
+            
             $stmt->execute([
                 $outputProductId,
                 $companyId,
                 $moduleId,
                 $productType,
                 $productId,
-                $options['is_visible'] ?? true,
-                $options['is_public'] ?? true,
-                $options['is_marketplace_featured'] ?? false,
+                $isVisible,
+                $isPublic,
+                $isFeatured,
                 $options['marketplace_priority'] ?? 0,
                 $createdBy
             ]);
