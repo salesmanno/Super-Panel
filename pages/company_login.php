@@ -477,7 +477,8 @@ if (isset($_GET['message'])) {
         let isForgotPasswordMode = false;
         
         document.addEventListener('DOMContentLoaded', function() {
-            connectToNewsStream();
+            // SSE removed - news now shown as static section on dashboard
+            // connectToNewsStream();
             checkDatabaseStatus();
             // Check database status every 10 seconds
             dbCheckInterval = setInterval(checkDatabaseStatus, 10000);
