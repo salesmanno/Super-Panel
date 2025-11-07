@@ -304,6 +304,8 @@ try {
             color: #991b1b;
         }
     </style>
+    <link rel="stylesheet" href="../includes/toast-notification.css">
+    <script src="../includes/toast-notification.js"></script>
 </head>
 <body>
     <!-- Navigation -->

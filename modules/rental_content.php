@@ -334,6 +334,8 @@ async function createRentalObject() {
         is_available: formData.get('is_available') === 'on'
     };
     
+    const toastId = toastManager.loading('Oppretter utleieobjekt');
+    
     try {
         const response = await fetch('/api/create_rental.php', {
             method: 'POST',
@@ -346,15 +348,15 @@ async function createRentalObject() {
         const result = await response.json();
         
         if (result.success) {
+            toastManager.update(toastId, 'success', 'Utleieobjekt opprettet!');
             bootstrap.Modal.getInstance(document.getElementById('createRentalModal')).hide();
             loadRentalObjects();
-            showToast('Suksess', result.message, 'success');
         } else {
-            showToast('Feil', result.message, 'danger');
+            toastManager.update(toastId, 'error', `Kunne ikke opprette: ${result.message}`);
         }
     } catch (error) {
         console.error('Error creating rental object:', error);
-        showToast('Feil', 'Kunne ikke opprette utleieobjekt', 'danger');
+        toastManager.update(toastId, 'error', 'Kunne ikke opprette utleieobjekt');
     }
 }
 
@@ -362,6 +364,8 @@ async function deleteRentalObject(objectId) {
     if (!confirm('Er du sikker på at du vil slette dette utleieobjektet?')) {
         return;
     }
+    
+    const toastId = toastManager.loading('Sletter utleieobjekt');
     
     try {
         const response = await fetch('/api/delete_rental_object.php', {
@@ -375,36 +379,19 @@ async function deleteRentalObject(objectId) {
         const result = await response.json();
         
         if (result.success) {
+            toastManager.update(toastId, 'success', 'Utleieobjekt slettet!');
             loadRentalObjects();
-            showToast('Suksess', result.message, 'success');
         } else {
-            showToast('Feil', result.message, 'danger');
+            toastManager.update(toastId, 'error', `Kunne ikke slette: ${result.message}`);
         }
     } catch (error) {
         console.error('Error deleting rental object:', error);
-        showToast('Feil', 'Kunne ikke slette utleieobjekt', 'danger');
+        toastManager.update(toastId, 'error', 'Kunne ikke slette utleieobjekt');
     }
 }
 
 function editRentalObject(objectId) {
-    // TODO: Implementer redigeringsfunksjon
-    showToast('Info', 'Redigeringsfunksjon kommer snart', 'info');
-}
-
-function showToast(title, message, type = 'info') {
-    // Simple toast notification
-    const toast = document.createElement('div');
-    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-    toast.innerHTML = `
-        <strong>${title}</strong><br>${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.remove();
-    }, 5000);
+    toastManager.info('Redigeringsfunksjon kommer snart');
 }
 </script>
 
