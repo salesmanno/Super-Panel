@@ -381,6 +381,8 @@ async function submitMembershipPlan() {
         benefits: formData.get('benefits')
     };
     
+    const toastId = toastManager.loading('Oppretter medlemskapsplan');
+    
     try {
         const response = await fetch('/api/create_membership_plan.php', {
             method: 'POST',
@@ -391,16 +393,16 @@ async function submitMembershipPlan() {
         const result = await response.json();
         
         if (result.success) {
-            alert('✅ Medlemskapsplan opprettet!');
+            toastManager.update(toastId, 'success', 'Medlemskapsplan opprettet!');
             bootstrap.Modal.getInstance(document.getElementById('createPlanModal')).hide();
             form.reset();
             loadMembershipPlans();
         } else {
-            alert('❌ Feil: ' + (result.message || 'Kunne ikke opprette plan'));
+            toastManager.update(toastId, 'error', result.message || 'Kunne ikke opprette plan');
         }
     } catch (error) {
         console.error('Error creating plan:', error);
-        alert('❌ Feil ved opprettelse av plan');
+        toastManager.update(toastId, 'error', 'Feil ved opprettelse av plan');
     }
 }
 
@@ -476,9 +478,11 @@ async function submitMember() {
     };
     
     if (!memberData.first_name || !memberData.last_name || !memberData.email) {
-        alert('⚠️ Vennligst fyll ut alle obligatoriske felt (fornavn, etternavn, e-post)');
+        toastManager.error('Vennligst fyll ut alle obligatoriske felt (fornavn, etternavn, e-post)');
         return;
     }
+    
+    const toastId = toastManager.loading('Legger til medlem');
     
     try {
         const response = await fetch('../api/create_member.php', {
@@ -490,16 +494,16 @@ async function submitMember() {
         const result = await response.json();
         
         if (result.success) {
-            alert('✅ Medlem lagt til!');
+            toastManager.update(toastId, 'success', 'Medlem lagt til!');
             bootstrap.Modal.getInstance(document.getElementById('createMemberModal')).hide();
             form.reset();
             loadMembers();
         } else {
-            alert('❌ Feil: ' + (result.message || 'Kunne ikke legge til medlem'));
+            toastManager.update(toastId, 'error', result.message || 'Kunne ikke legge til medlem');
         }
     } catch (error) {
         console.error('Error creating member:', error);
-        alert('❌ Feil ved opprettelse av medlem');
+        toastManager.update(toastId, 'error', 'Feil ved opprettelse av medlem');
     }
 }
 
@@ -776,12 +780,14 @@ document.addEventListener('DOMContentLoaded', function() {
 async function renewMembership(memberId) {
     const member = allMembers.find(m => m.member_id == memberId);
     if (!member) {
-        alert('❌ Medlem ikke funnet');
+        toastManager.error('Medlem ikke funnet');
         return;
     }
     
     const startDate = prompt('Fornyingsdato (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
     if (!startDate) return;
+    
+    const toastId = toastManager.loading('Fornyer medlemskap');
     
     try {
         const response = await fetch('/api/renew_membership.php', {
@@ -795,14 +801,14 @@ async function renewMembership(memberId) {
         
         const result = await response.json();
         if (result.success) {
-            alert('✅ Medlemskap fornyet! Ny utløpsdato: ' + result.new_expiry_date);
+            toastManager.update(toastId, 'success', `Medlemskap fornyet! Ny utløpsdato: ${result.new_expiry_date}`);
             await loadMembers();
         } else {
-            alert('❌ Feil: ' + result.message);
+            toastManager.update(toastId, 'error', result.message);
         }
     } catch (error) {
         console.error('Renewal error:', error);
-        alert('❌ Feil ved fornyelse av medlemskap');
+        toastManager.update(toastId, 'error', 'Feil ved fornyelse av medlemskap');
     }
 }
 

@@ -986,7 +986,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const startDate = formData.get('start_date');
             
             if (minAttendees && parseInt(minAttendees) > 0 && !registrationDeadline) {
-                alert('❌ Du må velge en frist for minimum deltakere');
+                toastManager.error('Du må velge en frist for minimum deltakere');
                 return;
             }
             
@@ -995,7 +995,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const eventStartDate = new Date(startDate);
                 
                 if (deadlineDate >= eventStartDate) {
-                    alert('❌ Frist for min. deltakere må være før startdato');
+                    toastManager.error('Frist for min. deltakere må være før startdato');
                     return;
                 }
             }
@@ -1041,17 +1041,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 const result = await response.json();
 
                 if (result.success) {
-                    alert('✅ Arrangement opprettet!');
+                    toastManager.success('Arrangement opprettet!');
                     createEventForm.reset();
                     loadEvents();
                     // Switch to "Dine arrangement" tab
                     document.querySelector('[href="#events-my"]').click();
                 } else {
-                    alert('❌ Feil: ' + (result.message || 'Kunne ikke opprette arrangement'));
+                    toastManager.error(result.message || 'Kunne ikke opprette arrangement');
                 }
             } catch (error) {
                 console.error('Error creating event:', error);
-                alert('❌ Feil ved opprettelse av arrangement');
+                toastManager.error('Feil ved opprettelse av arrangement');
             }
         });
     }
@@ -1226,15 +1226,15 @@ function deleteEvent(eventId) {
         .then(res => res.json())
         .then(result => {
             if (result.success) {
-                alert('✅ Arrangement slettet');
+                toastManager.success('Arrangement slettet');
                 loadEvents();
             } else {
-                alert('❌ Feil: ' + (result.message || 'Kunne ikke slette'));
+                toastManager.error(result.message || 'Kunne ikke slette');
             }
         })
         .catch(error => {
             console.error('Error deleting event:', error);
-            alert('❌ Feil ved sletting');
+            toastManager.error('Feil ved sletting');
         });
     }
 }
@@ -1529,15 +1529,15 @@ document.getElementById('checkin-form')?.addEventListener('submit', async functi
         const result = await response.json();
         
         if (result.success) {
-            alert('✅ Deltaker sjekket inn!');
+            toastManager.success('Deltaker sjekket inn!');
             this.reset();
             loadCheckins(selectedEventId);
         } else {
-            alert('❌ Feil: ' + (result.message || 'Kunne ikke sjekke inn'));
+            toastManager.error(result.message || 'Kunne ikke sjekke inn');
         }
     } catch (error) {
         console.error('Error checking in:', error);
-        alert('❌ Feil ved innsjekking');
+        toastManager.error('Feil ved innsjekking');
     }
 });
 
@@ -1754,14 +1754,14 @@ async function addEventIncome(eventId) {
         const result = await response.json();
         
         if (result.success) {
-            alert('✅ Inntekt lagt til');
+            toastManager.success('Inntekt lagt til');
             await loadEventFinances(eventId);
         } else {
-            alert('❌ Feil: ' + result.message);
+            toastManager.error(result.message);
         }
     } catch (error) {
         console.error('Error adding income:', error);
-        alert('❌ Feil ved lagring av inntekt');
+        toastManager.error('Feil ved lagring av inntekt');
     }
 }
 
@@ -1792,14 +1792,14 @@ async function addEventExpense(eventId) {
         const result = await response.json();
         
         if (result.success) {
-            alert('✅ Utgift lagt til');
+            toastManager.success('Utgift lagt til');
             await loadEventFinances(eventId);
         } else {
-            alert('❌ Feil: ' + result.message);
+            toastManager.error(result.message);
         }
     } catch (error) {
         console.error('Error adding expense:', error);
-        alert('❌ Feil ved lagring av utgift');
+        toastManager.error('Feil ved lagring av utgift');
     }
 }
 
@@ -1916,7 +1916,7 @@ async function saveEventChanges() {
     const startDate = formData.get('start_date');
     
     if (minAttendees && parseInt(minAttendees) > 0 && !registrationDeadline) {
-        alert('❌ Du må velge en frist for minimum deltakere');
+        toastManager.error('Du må velge en frist for minimum deltakere');
         return;
     }
     
@@ -1925,7 +1925,7 @@ async function saveEventChanges() {
         const eventStartDate = new Date(startDate);
         
         if (deadlineDate >= eventStartDate) {
-            alert('❌ Frist for min. deltakere må være før startdato');
+            toastManager.error('Frist for min. deltakere må være før startdato');
             return;
         }
     }
@@ -1972,15 +1972,15 @@ async function saveEventChanges() {
         const result = await response.json();
 
         if (result.success) {
-            alert('✅ Arrangement oppdatert!');
+            toastManager.success('Arrangement oppdatert!');
             bootstrap.Modal.getInstance(document.getElementById('editEventModal')).hide();
             loadEvents();
         } else {
-            alert('❌ Feil: ' + (result.message || 'Kunne ikke oppdatere arrangement'));
+            toastManager.error(result.message || 'Kunne ikke oppdatere arrangement');
         }
     } catch (error) {
         console.error('Error updating event:', error);
-        alert('❌ Feil ved oppdatering av arrangement');
+        toastManager.error('Feil ved oppdatering av arrangement');
     }
 }
 
@@ -2023,7 +2023,7 @@ async function saveIncome() {
     };
     
     if (!data.description || !data.amount || data.amount <= 0) {
-        alert('❌ Vennligst fyll ut beskrivelse og gyldig beløp');
+        toastManager.error('Vennligst fyll ut beskrivelse og gyldig beløp');
         return;
     }
     
@@ -2046,7 +2046,7 @@ async function saveIncome() {
         }
     } catch (error) {
         console.error('Error saving income:', error);
-        alert('❌ Feil ved lagring av inntekt');
+        toastManager.error('Feil ved lagring av inntekt');
     }
 }
 
@@ -2064,7 +2064,7 @@ async function saveExpense() {
     };
     
     if (!data.description || !data.amount || data.amount <= 0) {
-        alert('❌ Vennligst fyll ut beskrivelse og gyldig beløp');
+        toastManager.error('Vennligst fyll ut beskrivelse og gyldig beløp');
         return;
     }
     
@@ -2087,7 +2087,7 @@ async function saveExpense() {
         }
     } catch (error) {
         console.error('Error saving expense:', error);
-        alert('❌ Feil ved lagring av utgift');
+        toastManager.error('Feil ved lagring av utgift');
     }
 }
 
@@ -2142,7 +2142,7 @@ async function viewEventDetails(eventId, eventTitle = 'Arrangement') {
         }
     } catch (error) {
         console.error('Error loading event details:', error);
-        alert('❌ Feil ved lasting av arrangementsdetaljer');
+        toastManager.error('Feil ved lasting av arrangementsdetaljer');
     }
 }
 
