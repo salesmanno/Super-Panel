@@ -25,6 +25,15 @@ try {
     try {
         $billingCycle = $data['billing_cycle'] ?? 'yearly';
         
+        // Validate image_url if provided
+        $imageUrl = null;
+        if (!empty($data['image_url'])) {
+            $url = trim($data['image_url']);
+            if (filter_var($url, FILTER_VALIDATE_URL)) {
+                $imageUrl = $url;
+            }
+        }
+        
         // Dual database support: MySQL uses membership_plans, PostgreSQL uses x_membership_plan
         if ($dbType === 'mysql') {
             // MySQL: membership_plans table
@@ -41,8 +50,9 @@ try {
                     price,
                     billing_cycle,
                     benefits,
-                    is_active
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+                    is_active,
+                    image_url
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
             ");
             
             $stmt->execute([
@@ -53,7 +63,8 @@ try {
                 $data['description'] ?? null,
                 $data['price'] ?? 0,
                 $billingCycle,
-                $data['benefits'] ?? null
+                $data['benefits'] ?? null,
+                $imageUrl
             ]);
         } else {
             // PostgreSQL: x_membership_plan table
@@ -64,6 +75,15 @@ try {
                 default => 12
             };
             
+            // Validate image_url if provided
+            $imageUrl = null;
+            if (!empty($data['image_url'])) {
+                $url = trim($data['image_url']);
+                if (filter_var($url, FILTER_VALIDATE_URL)) {
+                    $imageUrl = $url;
+                }
+            }
+            
             $stmt = $db->prepare("
                 INSERT INTO x_membership_plan (
                     company_id,
@@ -72,8 +92,9 @@ try {
                     price,
                     duration_months,
                     features,
-                    is_active
-                ) VALUES (?, ?, ?, ?, ?, ?, true)
+                    is_active,
+                    image_url
+                ) VALUES (?, ?, ?, ?, ?, ?, true, ?)
                 RETURNING plan_id
             ");
             
@@ -83,7 +104,8 @@ try {
                 $data['description'] ?? null,
                 $data['price'] ?? 0,
                 $durationMonths,
-                $data['benefits'] ?? null
+                $data['benefits'] ?? null,
+                $imageUrl
             ]);
             
             $planId = $stmt->fetchColumn();

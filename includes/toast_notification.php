@@ -12,13 +12,23 @@
 .toast-notification {
     background: white;
     border-radius: 8px;
-    border-left: 4px solid #7c3aed;
     box-shadow: 0 4px 16px rgba(124, 58, 237, 0.15);
     margin-bottom: 10px;
     overflow: hidden;
     animation: slideInRight 0.3s ease-out;
     pointer-events: auto;
     position: relative;
+}
+
+.toast-notification::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #7c3aed 0%, #a78bfa 100%);
+    z-index: 10;
 }
 
 @keyframes slideInRight {

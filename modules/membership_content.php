@@ -363,6 +363,11 @@
                         <textarea class="form-control" name="benefits" rows="4" placeholder="- Tilgang til arrangement&#10;- Medlemsrabatt&#10;- Nyhetsbrev"></textarea>
                         <small class="text-muted">Skriv en fordel per linje</small>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Bilde-URL</label>
+                        <input type="url" class="form-control" name="plan_image_url" placeholder="https://example.com/plan-bilde.jpg">
+                        <small class="text-muted">URL til bilde for denne planen</small>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -383,7 +388,8 @@ async function submitMembershipPlan() {
         description: formData.get('description'),
         price: parseFloat(formData.get('price')),
         billing_cycle: formData.get('billing_cycle'),
-        benefits: formData.get('benefits')
+        benefits: formData.get('benefits'),
+        image_url: formData.get('plan_image_url') || null
     };
     
     const toastId = toast.loading('Oppretter medlemskapsplan');
