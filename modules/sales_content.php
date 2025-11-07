@@ -1467,9 +1467,9 @@ async function addToCart(productId) {
         if (result.success) {
             await loadCart();
             // Visual feedback
-            showToast('✅ Lagt til i handlekurv');
+            toast.quickSuccess('Handlekurv', 'Lagt til i handlekurv');
         } else {
-            alert('❌ ' + result.message);
+            toast.quickError('Feil', result.message);
         }
     } catch (error) {
         console.error('Add to cart error:', error);
@@ -1580,7 +1580,7 @@ async function applyCashPayment(amount) {
     cartTotal = parseFloat(totalElement.textContent) || 0;
     
     if (cartTotal === 0) {
-        alert('❌ Handlekurven er tom');
+        toast.quickWarning('Handlekurv', 'Handlekurven er tom');
         return;
     }
     
@@ -1644,18 +1644,18 @@ async function performCheckout(salesModule, change = 0) {
                 message += `\n💰 Vekslepenger: ${change.toFixed(2)} NOK`;
             }
             
-            alert(message);
+            toast.quickSuccess('Betaling', message);
             salesModule.querySelector('#checkout-notes').value = '';
             salesModule.querySelector('#checkout-linked-event').value = '';
             resetPayment();
             await loadCart();
             await loadAllSalesData();
         } else {
-            alert('❌ ' + result.message);
+            toast.quickError('Feil', result.message);
         }
     } catch (error) {
         console.error('Checkout error:', error);
-        alert('❌ Feil ved betaling');
+        toast.quickError('Feil', 'Feil ved betaling');
     }
 }
 
@@ -1680,7 +1680,7 @@ async function applyCashPaymentFullscreen(amount) {
     cartTotalFullscreen = parseFloat(totalElement.textContent) || 0;
     
     if (cartTotalFullscreen === 0) {
-        alert('❌ Handlekurven er tom');
+        toast.quickWarning('Handlekurv', 'Handlekurven er tom');
         return;
     }
     
@@ -1744,7 +1744,7 @@ async function performCheckoutFullscreen(change = 0) {
                 message += `\n💰 Vekslepenger: ${change.toFixed(2)} NOK`;
             }
             
-            alert(message);
+            toast.quickSuccess('Betaling', message);
             document.getElementById('checkout-notes-fullscreen').value = '';
             document.getElementById('checkout-linked-event-fullscreen').value = '';
             resetPaymentFullscreen();
@@ -1752,11 +1752,11 @@ async function performCheckoutFullscreen(change = 0) {
             await loadCartFullscreen();
             await loadAllSalesData();
         } else {
-            alert('❌ ' + result.message);
+            toast.quickError('Feil', result.message);
         }
     } catch (error) {
         console.error('Checkout error:', error);
-        alert('❌ Feil ved betaling');
+        toast.quickError('Feil', 'Feil ved betaling');
     }
 }
 
@@ -1802,18 +1802,18 @@ if (salesModule) {
                 }
             }
             
-            alert(message);
+            toast.quickSuccess('Betaling', message);
             salesModule.querySelector('#checkout-notes').value = '';
             salesModule.querySelector('#checkout-linked-event').value = '';
             resetPayment();
             await loadCart();
             await loadAllSalesData(); // Refresh transactions and products
         } else {
-            alert('❌ ' + result.message);
+            toast.quickError('Feil', result.message);
         }
     } catch (error) {
         console.error('Checkout error:', error);
-        alert('❌ Feil ved betaling');
+        toast.quickError('Feil', 'Feil ved betaling');
     }
     });
 }
@@ -1977,11 +1977,11 @@ async function editProduct(productId) {
             const editModal = new bootstrap.Modal(document.getElementById('editSalesItemModal'));
             editModal.show();
         } else {
-            alert('❌ ' + result.message);
+            toast.quickError('Feil', result.message);
         }
     } catch (error) {
         console.error('Load product error:', error);
-        alert('❌ Feil ved henting av produktdata');
+        toast.quickError('Feil', 'Feil ved henting av produktdata');
     }
 }
 
@@ -2013,7 +2013,7 @@ async function submitEditProduct() {
         const result = await response.json();
         
         if (result.success) {
-            alert('✅ Produktet ble oppdatert');
+            toast.quickSuccess('Produkt', 'Produktet ble oppdatert');
             
             // Properly close modal and remove backdrop
             const modalElement = document.getElementById('editSalesItemModal');
@@ -2033,17 +2033,17 @@ async function submitEditProduct() {
             await loadSalesProducts();
             await loadAllSalesData();
         } else {
-            alert('❌ ' + result.message);
+            toast.quickError('Feil', result.message);
         }
     } catch (error) {
         console.error('Update product error:', error);
-        alert('❌ Feil ved oppdatering av produkt');
+        toast.quickError('Feil', 'Feil ved oppdatering av produkt');
     }
 }
 
 function deleteProduct(productId) {
     if (confirm('Er du sikker på at du vil slette dette produktet?')) {
-        alert('Sletting kommer snart for produkt: ' + productId);
+        toast.quickInfo('Info', 'Sletting kommer snart for produkt: ' + productId);
     }
 }
 
@@ -2183,7 +2183,7 @@ function setupServiceCashCalculator() {
 }
 
 function viewTransactionDetails(transactionId) {
-    alert('Detaljer for transaksjon #' + transactionId + ' kommer snart');
+    toast.quickInfo('Info', 'Detaljer for transaksjon #' + transactionId + ' kommer snart');
 }
 
 async function submitSalesItem() {
@@ -2219,16 +2219,16 @@ async function submitSalesItem() {
         const result = await response.json();
         
         if (result.success) {
-            alert(`✅ Produkt opprettet!\nProdukt ID: ${result.product_id}`);
+            toast.quickSuccess('Produkt', `Produkt opprettet!\nProdukt ID: ${result.product_id}`);
             bootstrap.Modal.getInstance(document.getElementById('addSalesItemModal')).hide();
             form.reset();
             await loadAllSalesData(); // Reload all sales data
         } else {
-            alert('❌ ' + result.message);
+            toast.quickError('Feil', result.message);
         }
     } catch (error) {
         console.error('Product creation error:', error);
-        alert('❌ Feil ved opprettelse av produkt');
+        toast.quickError('Feil', 'Feil ved opprettelse av produkt');
     }
 }
 
@@ -2638,7 +2638,7 @@ function applyManualTime() {
     const staffId = document.getElementById('manual-staff').value;
     
     if (!date || !time || !staffId) {
-        alert('❌ Vennligst fyll ut alle felt');
+        toast.quickWarning('Validering', 'Vennligst fyll ut alle felt');
         return;
     }
     
@@ -2734,17 +2734,17 @@ async function processServicePurchase() {
         const result = await response.json();
         
         if (result.success) {
-            let message = `✅ ${isReservation ? 'Reservasjon booket' : 'Tjeneste solgt'}!\nKunde: ${purchaseData.customer_first_name} ${purchaseData.customer_last_name}`;
+            let message = `${isReservation ? 'Reservasjon booket' : 'Tjeneste solgt'}!\nKunde: ${purchaseData.customer_first_name} ${purchaseData.customer_last_name}`;
             if (isReservation) {
                 message += `\nDato: ${purchaseData.reservation_date} kl. ${purchaseData.reservation_time}`;
             }
             message += `\nTotalsum: ${result.total} NOK`;
-            alert(message);
+            toast.quickSuccess(isReservation ? 'Reservasjon' : 'Tjeneste', message);
             bootstrap.Modal.getInstance(document.getElementById('servicePurchaseModal')).hide();
             form.reset();
             await loadSalesProducts();
         } else {
-            alert('❌ ' + result.message);
+            toast.quickError('Feil', result.message);
         }
     } catch (error) {
         console.error('Service purchase error:', error);
@@ -2831,7 +2831,7 @@ function initFullscreenSales() {
                         }
                     }
                     
-                    alert(message);
+                    toast.quickSuccess('Betaling', message);
                     document.getElementById('checkout-notes-fullscreen').value = '';
                     document.getElementById('checkout-linked-event-fullscreen').value = '';
                     resetPaymentFullscreen();
@@ -3165,7 +3165,7 @@ document.getElementById('purchaseExistingForm')?.addEventListener('submit', asyn
     const pricePerPackage = parseFloat(document.getElementById('existing-price-per-package').value);
     
     if (!productId || !packages || !itemsPerPackage || !pricePerPackage) {
-        alert('❌ Vennligst fyll ut alle påkrevde felt');
+        toast.quickWarning('Validering', 'Vennligst fyll ut alle påkrevde felt');
         return;
     }
     
@@ -3189,16 +3189,16 @@ document.getElementById('purchaseExistingForm')?.addEventListener('submit', asyn
         const result = await response.json();
         
         if (result.success) {
-            alert(`✅ Innkjøp registrert!\n\nNy beholdning: ${result.new_stock}\nNy kostpris: ${result.new_cost_price} NOK (vektet gjennomsnitt)`);
+            toast.quickSuccess('Innkjøp', `Innkjøp registrert!\n\nNy beholdning: ${result.new_stock}\nNy kostpris: ${result.new_cost_price} NOK (vektet gjennomsnitt)`);
             this.reset();
             resetPurchaseView();
             await loadSalesProducts();
         } else {
-            alert('❌ ' + (result.message || 'Feil ved registrering av innkjøp'));
+            toast.quickError('Feil', result.message || 'Feil ved registrering av innkjøp');
         }
     } catch (error) {
         console.error('Error purchasing existing product:', error);
-        alert('❌ Feil ved registrering av innkjøp');
+        toast.quickError('Feil', 'Feil ved registrering av innkjøp');
     }
 });
 
@@ -3213,7 +3213,7 @@ document.getElementById('purchaseNewForm')?.addEventListener('submit', async fun
     const pricePerPackage = parseFloat(document.getElementById('new-price-per-package').value);
     
     if (!productName || !packages || !itemsPerPackage || !pricePerPackage) {
-        alert('❌ Vennligst fyll ut alle påkrevde felt');
+        toast.quickWarning('Validering', 'Vennligst fyll ut alle påkrevde felt');
         return;
     }
     
@@ -3239,16 +3239,16 @@ document.getElementById('purchaseNewForm')?.addEventListener('submit', async fun
         if (result.success) {
             const productId = result.product_id || 'Ukjent';
             const sku = result.sku || 'Ukjent';
-            alert(`✅ Produkt opprettet og innkjøp registrert!\n\nProdukt-ID: ${productId}\nSKU: ${sku}\nProdukt: ${productName}\nLagerbeholdning: ${quantity}\nKostpris: ${unitCost.toFixed(2)} NOK`);
+            toast.quickSuccess('Produkt', `Produkt opprettet og innkjøp registrert!\n\nProdukt-ID: ${productId}\nSKU: ${sku}\nProdukt: ${productName}\nLagerbeholdning: ${quantity}\nKostpris: ${unitCost.toFixed(2)} NOK`);
             this.reset();
             resetPurchaseView();
             await loadSalesProducts();
         } else {
-            alert('❌ ' + (result.message || 'Feil ved opprettelse av produkt'));
+            toast.quickError('Feil', result.message || 'Feil ved opprettelse av produkt');
         }
     } catch (error) {
         console.error('Error purchasing new product:', error);
-        alert('❌ Feil ved opprettelse av produkt');
+        toast.quickError('Feil', 'Feil ved opprettelse av produkt');
     }
 });
 
@@ -3305,7 +3305,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         await loadProductsWithProfit();
                     } else {
                         cell.innerHTML = originalHTML;
-                        alert('❌ Feil ved oppdatering');
+                        toast.quickError('Feil', 'Feil ved oppdatering');
                     }
                 } catch (error) {
                     cell.innerHTML = originalHTML;
