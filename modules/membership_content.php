@@ -358,17 +358,6 @@
                         <textarea class="form-control" name="benefits" rows="4" placeholder="- Tilgang til arrangement&#10;- Medlemsrabatt&#10;- Nyhetsbrev"></textarea>
                         <small class="text-muted">Skriv en fordel per linje</small>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Plan bilde</label>
-                        <div id="planImagePreview" class="border rounded p-3 mb-2" style="min-height: 150px; background: white; display: flex; align-items: center; justify-content: center;">
-                            <div class="text-muted">
-                                <i class="bi bi-image fs-1 d-block mb-2"></i>
-                                <small>Last opp bilde</small>
-                            </div>
-                        </div>
-                        <input type="file" class="form-control form-control-sm" id="planImageInput" accept="image/*">
-                        <input type="hidden" name="image_url" id="planImageUrlField">
-                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -389,11 +378,8 @@ async function submitMembershipPlan() {
         description: formData.get('description'),
         price: parseFloat(formData.get('price')),
         billing_cycle: formData.get('billing_cycle'),
-        benefits: formData.get('benefits'),
-        image_url: document.getElementById('planImageUrlField').value || null
+        benefits: formData.get('benefits')
     };
-    
-    const toastId = toastManager.loading('Oppretter medlemskapsplan');
     
     try {
         const response = await fetch('/api/create_membership_plan.php', {
@@ -405,23 +391,16 @@ async function submitMembershipPlan() {
         const result = await response.json();
         
         if (result.success) {
-            toastManager.update(toastId, 'success', 'Medlemskapsplan opprettet!');
+            alert('✅ Medlemskapsplan opprettet!');
             bootstrap.Modal.getInstance(document.getElementById('createPlanModal')).hide();
             form.reset();
-            document.getElementById('planImagePreview').innerHTML = `
-                <div class="text-muted">
-                    <i class="bi bi-image fs-1 d-block mb-2"></i>
-                    <small>Last opp bilde</small>
-                </div>
-            `;
-            document.getElementById('planImageUrlField').value = '';
             loadMembershipPlans();
         } else {
-            toastManager.update(toastId, 'error', result.message || 'Kunne ikke opprette plan');
+            alert('❌ Feil: ' + (result.message || 'Kunne ikke opprette plan'));
         }
     } catch (error) {
         console.error('Error creating plan:', error);
-        toastManager.update(toastId, 'error', 'Feil ved opprettelse av plan');
+        alert('❌ Feil ved opprettelse av plan');
     }
 }
 
@@ -450,14 +429,9 @@ async function loadMembershipPlans() {
                     billingLabel = 'Årlig';
                 }
                 
-                const imageHtml = plan.image_url 
-                    ? `<img src="${plan.image_url}" class="card-img-top" style="height: 200px; object-fit: cover;" alt="${plan.name}">` 
-                    : '';
-                
                 return `
                     <div class="col-md-4 mb-3">
                         <div class="card border">
-                            ${imageHtml}
                             <div class="card-body">
                                 <h6>${plan.name}</h6>
                                 <p class="text-muted small">${billingLabel}</p>
@@ -502,11 +476,9 @@ async function submitMember() {
     };
     
     if (!memberData.first_name || !memberData.last_name || !memberData.email) {
-        toastManager.error('Vennligst fyll ut alle obligatoriske felt (fornavn, etternavn, e-post)');
+        alert('⚠️ Vennligst fyll ut alle obligatoriske felt (fornavn, etternavn, e-post)');
         return;
     }
-    
-    const toastId = toastManager.loading('Legger til medlem');
     
     try {
         const response = await fetch('../api/create_member.php', {
@@ -518,16 +490,16 @@ async function submitMember() {
         const result = await response.json();
         
         if (result.success) {
-            toastManager.update(toastId, 'success', 'Medlem lagt til!');
+            alert('✅ Medlem lagt til!');
             bootstrap.Modal.getInstance(document.getElementById('createMemberModal')).hide();
             form.reset();
             loadMembers();
         } else {
-            toastManager.update(toastId, 'error', result.message || 'Kunne ikke legge til medlem');
+            alert('❌ Feil: ' + (result.message || 'Kunne ikke legge til medlem'));
         }
     } catch (error) {
         console.error('Error creating member:', error);
-        toastManager.update(toastId, 'error', 'Feil ved opprettelse av medlem');
+        alert('❌ Feil ved opprettelse av medlem');
     }
 }
 
@@ -804,14 +776,12 @@ document.addEventListener('DOMContentLoaded', function() {
 async function renewMembership(memberId) {
     const member = allMembers.find(m => m.member_id == memberId);
     if (!member) {
-        toastManager.error('Medlem ikke funnet');
+        alert('❌ Medlem ikke funnet');
         return;
     }
     
     const startDate = prompt('Fornyingsdato (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
     if (!startDate) return;
-    
-    const toastId = toastManager.loading('Fornyer medlemskap');
     
     try {
         const response = await fetch('/api/renew_membership.php', {
@@ -825,14 +795,14 @@ async function renewMembership(memberId) {
         
         const result = await response.json();
         if (result.success) {
-            toastManager.update(toastId, 'success', `Medlemskap fornyet! Ny utløpsdato: ${result.new_expiry_date}`);
+            alert('✅ Medlemskap fornyet! Ny utløpsdato: ' + result.new_expiry_date);
             await loadMembers();
         } else {
-            toastManager.update(toastId, 'error', result.message);
+            alert('❌ Feil: ' + result.message);
         }
     } catch (error) {
         console.error('Renewal error:', error);
-        toastManager.update(toastId, 'error', 'Feil ved fornyelse av medlemskap');
+        alert('❌ Feil ved fornyelse av medlemskap');
     }
 }
 
@@ -935,19 +905,5 @@ if (incomeTabLink) {
         }, 100);
     });
 }
-
-// Image upload handler for membership plan
-document.getElementById('planImageInput')?.addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const preview = document.getElementById('planImagePreview');
-            preview.innerHTML = `<img src="${e.target.result}" class="img-fluid rounded" style="max-height: 150px;">`;
-            document.getElementById('planImageUrlField').value = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    }
-});
 </script>
 

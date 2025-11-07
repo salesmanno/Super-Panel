@@ -404,82 +404,127 @@ try {
     </div>
 
     <div id="events-checkin" class="subtab-content" style="display: none;">
-        <!-- Top Section: Event Selection & Stats -->
-        <div class="card mb-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-            <div class="card-body py-3">
-                <div class="row align-items-center">
-                    <div class="col-md-4">
-                        <label class="form-label text-white mb-2 fw-bold">
-                            <i class="bi bi-calendar-event me-2"></i>Velg arrangement
-                        </label>
+        <div class="row g-3">
+            <!-- Left Column: Event Selection & Scanner -->
+            <div class="col-md-4">
+                <div class="card mb-3">
+                    <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <h6 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Velg arrangement</h6>
+                    </div>
+                    <div class="card-body">
                         <select class="form-select" id="checkin-event-selector">
                             <option value="">Laster...</option>
                         </select>
                     </div>
-                    <div class="col-md-8" id="checkin-stats" style="display: none;">
-                        <div class="row g-2 text-center">
-                            <div class="col-3">
-                                <div class="bg-white bg-opacity-25 rounded p-2">
-                                    <div class="text-white-50 small">Påmeldte</div>
-                                    <div class="fs-4 fw-bold text-white" id="checkin-total-attendees">0</div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div id="checkin-stats" class="card mb-3" style="display: none;">
+                    <div class="card-body p-2">
+                        <div class="row g-2 text-center small">
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded">
+                                    <div class="text-muted">Påmeldte</div>
+                                    <div class="fs-5 fw-bold" id="checkin-total-attendees">0</div>
                                 </div>
                             </div>
-                            <div class="col-3">
-                                <div class="bg-white bg-opacity-25 rounded p-2">
-                                    <div class="text-white-50 small">Betalt</div>
-                                    <div class="fs-4 fw-bold text-white" id="checkin-paid-count">0</div>
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded">
+                                    <div class="text-muted">Betalt</div>
+                                    <div class="fs-5 fw-bold text-success" id="checkin-paid-count">0</div>
                                 </div>
                             </div>
-                            <div class="col-3">
-                                <div class="bg-white bg-opacity-25 rounded p-2">
-                                    <div class="text-white-50 small">Venter</div>
-                                    <div class="fs-4 fw-bold text-white" id="checkin-pending-count">0</div>
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded">
+                                    <div class="text-muted">Venter</div>
+                                    <div class="fs-5 fw-bold text-warning" id="checkin-pending-count">0</div>
                                 </div>
                             </div>
-                            <div class="col-3">
-                                <div class="bg-white bg-opacity-25 rounded p-2">
-                                    <div class="text-white-50 small">Inntekt</div>
-                                    <div class="fs-4 fw-bold text-white" id="checkin-total-revenue">0 kr</div>
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded">
+                                    <div class="text-muted">Inntekt</div>
+                                    <div class="fs-5 fw-bold text-primary" id="checkin-total-revenue">0 kr</div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Main Content Area -->
-        <div class="card">
-            <div class="card-header bg-light">
-                <h6 class="mb-0"><i class="bi bi-people me-2"></i>Deltakerliste</h6>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive" id="checkin-list-container" style="display: none; max-height: 600px; overflow-y: auto;">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light sticky-top">
-                            <tr>
-                                <th style="width: 30%;">Navn</th>
-                                <th style="width: 25%;">Kontakt</th>
-                                <th style="width: 15%;">Type</th>
-                                <th style="width: 12%;">Pris</th>
-                                <th style="width: 10%;">Status</th>
-                                <th style="width: 8%;">Tid</th>
-                            </tr>
-                        </thead>
-                        <tbody id="checkin-attendees-list">
-                            <tr>
-                                <td colspan="6" class="text-center text-muted py-5">
-                                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                                    Ingen deltakere ennå
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <!-- Quick Guest Registration -->
+                <div id="quick-guest-registration" class="card" style="display: none;">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="bi bi-person-plus me-2"></i>Registrer gjest</h6>
+                    </div>
+                    <div class="card-body">
+                        <form id="quick-guest-form">
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Fornavn</label>
+                                <input type="text" class="form-control form-control-sm" id="guest-fornavn" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Etternavn</label>
+                                <input type="text" class="form-control form-control-sm" id="guest-etternavn" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Pris (kr)</label>
+                                <input type="number" class="form-control form-control-sm" id="guest-price" min="0" step="0.01" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Betalingsmetode</label>
+                                <select class="form-select form-select-sm" id="guest-payment-method" required>
+                                    <option value="cash">Kontant</option>
+                                    <option value="card">Kort</option>
+                                    <option value="vipps">Vipps</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small mb-1">Status</label>
+                                <select class="form-select form-select-sm" id="guest-payment-status" required>
+                                    <option value="paid">Betalt</option>
+                                    <option value="pending">Venter betaling</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-success btn-sm w-100">
+                                <i class="bi bi-check-circle me-1"></i>Registrer
+                            </button>
+                        </form>
+                    </div>
                 </div>
-                <div class="text-center text-muted py-5" id="checkin-empty-state">
-                    <i class="bi bi-calendar-x fs-1 text-muted d-block mb-3"></i>
-                    <h5 class="text-muted">Velg et arrangement</h5>
-                    <p class="mb-0">Velg et arrangement fra listen ovenfor for å se påmeldte deltakere</p>
+            </div>
+
+            <!-- Right Column: Attendee List -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-people me-2"></i>Påmeldte deltakere</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive" id="checkin-list-container" style="display: none;">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Navn</th>
+                                        <th>Kontakt</th>
+                                        <th>Type</th>
+                                        <th>Pris</th>
+                                        <th>Status</th>
+                                        <th>Tid</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="checkin-attendees-list">
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-4">
+                                            Ingen deltakere ennå
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-center text-muted py-5" id="checkin-empty-state">
+                            <i class="bi bi-people fs-1"></i>
+                            <p class="mt-2">Velg et arrangement for å se deltakere</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -941,7 +986,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const startDate = formData.get('start_date');
             
             if (minAttendees && parseInt(minAttendees) > 0 && !registrationDeadline) {
-                toastManager.error('Du må velge en frist for minimum deltakere');
+                alert('❌ Du må velge en frist for minimum deltakere');
                 return;
             }
             
@@ -950,7 +995,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const eventStartDate = new Date(startDate);
                 
                 if (deadlineDate >= eventStartDate) {
-                    toastManager.error('Frist for min. deltakere må være før startdato');
+                    alert('❌ Frist for min. deltakere må være før startdato');
                     return;
                 }
             }
@@ -996,17 +1041,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 const result = await response.json();
 
                 if (result.success) {
-                    toastManager.success('Arrangement opprettet!');
+                    alert('✅ Arrangement opprettet!');
                     createEventForm.reset();
                     loadEvents();
                     // Switch to "Dine arrangement" tab
                     document.querySelector('[href="#events-my"]').click();
                 } else {
-                    toastManager.error(result.message || 'Kunne ikke opprette arrangement');
+                    alert('❌ Feil: ' + (result.message || 'Kunne ikke opprette arrangement'));
                 }
             } catch (error) {
                 console.error('Error creating event:', error);
-                toastManager.error('Feil ved opprettelse av arrangement');
+                alert('❌ Feil ved opprettelse av arrangement');
             }
         });
     }
@@ -1181,15 +1226,15 @@ function deleteEvent(eventId) {
         .then(res => res.json())
         .then(result => {
             if (result.success) {
-                toastManager.success('Arrangement slettet');
+                alert('✅ Arrangement slettet');
                 loadEvents();
             } else {
-                toastManager.error(result.message || 'Kunne ikke slette');
+                alert('❌ Feil: ' + (result.message || 'Kunne ikke slette'));
             }
         })
         .catch(error => {
             console.error('Error deleting event:', error);
-            toastManager.error('Feil ved sletting');
+            alert('❌ Feil ved sletting');
         });
     }
 }
@@ -1484,15 +1529,15 @@ document.getElementById('checkin-form')?.addEventListener('submit', async functi
         const result = await response.json();
         
         if (result.success) {
-            toastManager.success('Deltaker sjekket inn!');
+            alert('✅ Deltaker sjekket inn!');
             this.reset();
             loadCheckins(selectedEventId);
         } else {
-            toastManager.error(result.message || 'Kunne ikke sjekke inn');
+            alert('❌ Feil: ' + (result.message || 'Kunne ikke sjekke inn'));
         }
     } catch (error) {
         console.error('Error checking in:', error);
-        toastManager.error('Feil ved innsjekking');
+        alert('❌ Feil ved innsjekking');
     }
 });
 
@@ -1709,14 +1754,14 @@ async function addEventIncome(eventId) {
         const result = await response.json();
         
         if (result.success) {
-            toastManager.success('Inntekt lagt til');
+            alert('✅ Inntekt lagt til');
             await loadEventFinances(eventId);
         } else {
-            toastManager.error(result.message);
+            alert('❌ Feil: ' + result.message);
         }
     } catch (error) {
         console.error('Error adding income:', error);
-        toastManager.error('Feil ved lagring av inntekt');
+        alert('❌ Feil ved lagring av inntekt');
     }
 }
 
@@ -1747,14 +1792,14 @@ async function addEventExpense(eventId) {
         const result = await response.json();
         
         if (result.success) {
-            toastManager.success('Utgift lagt til');
+            alert('✅ Utgift lagt til');
             await loadEventFinances(eventId);
         } else {
-            toastManager.error(result.message);
+            alert('❌ Feil: ' + result.message);
         }
     } catch (error) {
         console.error('Error adding expense:', error);
-        toastManager.error('Feil ved lagring av utgift');
+        alert('❌ Feil ved lagring av utgift');
     }
 }
 
@@ -1871,7 +1916,7 @@ async function saveEventChanges() {
     const startDate = formData.get('start_date');
     
     if (minAttendees && parseInt(minAttendees) > 0 && !registrationDeadline) {
-        toastManager.error('Du må velge en frist for minimum deltakere');
+        alert('❌ Du må velge en frist for minimum deltakere');
         return;
     }
     
@@ -1880,7 +1925,7 @@ async function saveEventChanges() {
         const eventStartDate = new Date(startDate);
         
         if (deadlineDate >= eventStartDate) {
-            toastManager.error('Frist for min. deltakere må være før startdato');
+            alert('❌ Frist for min. deltakere må være før startdato');
             return;
         }
     }
@@ -1927,15 +1972,15 @@ async function saveEventChanges() {
         const result = await response.json();
 
         if (result.success) {
-            toastManager.success('Arrangement oppdatert!');
+            alert('✅ Arrangement oppdatert!');
             bootstrap.Modal.getInstance(document.getElementById('editEventModal')).hide();
             loadEvents();
         } else {
-            toastManager.error(result.message || 'Kunne ikke oppdatere arrangement');
+            alert('❌ Feil: ' + (result.message || 'Kunne ikke oppdatere arrangement'));
         }
     } catch (error) {
         console.error('Error updating event:', error);
-        toastManager.error('Feil ved oppdatering av arrangement');
+        alert('❌ Feil ved oppdatering av arrangement');
     }
 }
 
@@ -1978,7 +2023,7 @@ async function saveIncome() {
     };
     
     if (!data.description || !data.amount || data.amount <= 0) {
-        toastManager.error('Vennligst fyll ut beskrivelse og gyldig beløp');
+        alert('❌ Vennligst fyll ut beskrivelse og gyldig beløp');
         return;
     }
     
@@ -2001,7 +2046,7 @@ async function saveIncome() {
         }
     } catch (error) {
         console.error('Error saving income:', error);
-        toastManager.error('Feil ved lagring av inntekt');
+        alert('❌ Feil ved lagring av inntekt');
     }
 }
 
@@ -2019,7 +2064,7 @@ async function saveExpense() {
     };
     
     if (!data.description || !data.amount || data.amount <= 0) {
-        toastManager.error('Vennligst fyll ut beskrivelse og gyldig beløp');
+        alert('❌ Vennligst fyll ut beskrivelse og gyldig beløp');
         return;
     }
     
@@ -2042,7 +2087,7 @@ async function saveExpense() {
         }
     } catch (error) {
         console.error('Error saving expense:', error);
-        toastManager.error('Feil ved lagring av utgift');
+        alert('❌ Feil ved lagring av utgift');
     }
 }
 
@@ -2097,7 +2142,7 @@ async function viewEventDetails(eventId, eventTitle = 'Arrangement') {
         }
     } catch (error) {
         console.error('Error loading event details:', error);
-        toastManager.error('Feil ved lasting av arrangementsdetaljer');
+        alert('❌ Feil ved lasting av arrangementsdetaljer');
     }
 }
 

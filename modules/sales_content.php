@@ -1455,8 +1455,6 @@ function getServiceTypeName(type) {
 async function addToCart(productId) {
     const quantity = 1; // Always add 1 item when clicking product card
     
-    const toastId = toastManager.loading('Legger til i handlekurv');
-    
     try {
         const response = await fetch('/api/add_to_cart.php', {
             method: 'POST',
@@ -1468,14 +1466,27 @@ async function addToCart(productId) {
         
         if (result.success) {
             await loadCart();
-            toastManager.update(toastId, 'success', 'Lagt til i handlekurv!');
+            // Visual feedback
+            showToast('✅ Lagt til i handlekurv');
         } else {
-            toastManager.update(toastId, 'error', result.message);
+            alert('❌ ' + result.message);
         }
     } catch (error) {
         console.error('Add to cart error:', error);
-        toastManager.update(toastId, 'error', 'Kunne ikke legge til i handlekurv');
     }
+}
+
+function showToast(message) {
+    const existingToast = document.querySelector('.cart-toast');
+    if (existingToast) existingToast.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = 'cart-toast position-fixed top-0 start-50 translate-middle-x mt-3';
+    toast.style.cssText = 'z-index: 9999; padding: 12px 24px; background: #28a745; color: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.remove(), 2000);
 }
 
 async function loadCart() {
@@ -1569,7 +1580,7 @@ async function applyCashPayment(amount) {
     cartTotal = parseFloat(totalElement.textContent) || 0;
     
     if (cartTotal === 0) {
-        toastManager.error('Handlekurven er tom');
+        alert('❌ Handlekurven er tom');
         return;
     }
     
@@ -1613,8 +1624,6 @@ async function performCheckout(salesModule, change = 0) {
     const notes = salesModule.querySelector('#checkout-notes').value;
     const linkedEvent = salesModule.querySelector('#checkout-linked-event').value;
     
-    const toastId = toastManager.loading('Gjennomfører salg');
-    
     try {
         const response = await fetch('/api/checkout_cart.php', {
             method: 'POST',
@@ -1629,24 +1638,24 @@ async function performCheckout(salesModule, change = 0) {
         const result = await response.json();
         
         if (result.success) {
-            let message = `Salg gjennomført! Antall varer: ${result.items_sold}, Total: ${result.total.toFixed(2)} NOK`;
+            let message = `✅ Salg gjennomført!\nAntall varer: ${result.items_sold}\nTotalsum: ${result.total.toFixed(2)} NOK`;
             
             if (change > 0) {
-                message += ` - Vekslepenger: ${change.toFixed(2)} NOK`;
+                message += `\n💰 Vekslepenger: ${change.toFixed(2)} NOK`;
             }
             
-            toastManager.update(toastId, 'success', message);
+            alert(message);
             salesModule.querySelector('#checkout-notes').value = '';
             salesModule.querySelector('#checkout-linked-event').value = '';
             resetPayment();
             await loadCart();
             await loadAllSalesData();
         } else {
-            toastManager.update(toastId, 'error', result.message);
+            alert('❌ ' + result.message);
         }
     } catch (error) {
         console.error('Checkout error:', error);
-        toastManager.update(toastId, 'error', 'Feil ved betaling');
+        alert('❌ Feil ved betaling');
     }
 }
 
@@ -1671,7 +1680,7 @@ async function applyCashPaymentFullscreen(amount) {
     cartTotalFullscreen = parseFloat(totalElement.textContent) || 0;
     
     if (cartTotalFullscreen === 0) {
-        toastManager.error('Handlekurven er tom');
+        alert('❌ Handlekurven er tom');
         return;
     }
     
@@ -3156,15 +3165,13 @@ document.getElementById('purchaseExistingForm')?.addEventListener('submit', asyn
     const pricePerPackage = parseFloat(document.getElementById('existing-price-per-package').value);
     
     if (!productId || !packages || !itemsPerPackage || !pricePerPackage) {
-        toastManager.error('Vennligst fyll ut alle påkrevde felt');
+        alert('❌ Vennligst fyll ut alle påkrevde felt');
         return;
     }
     
     const quantity = packages * itemsPerPackage;
     const totalCost = packages * pricePerPackage;
     const unitCost = totalCost / quantity;
-    
-    const toastId = toastManager.loading('Registrerer innkjøp');
     
     try {
         const response = await fetch('/api/purchase_existing_product.php', {
@@ -3182,16 +3189,16 @@ document.getElementById('purchaseExistingForm')?.addEventListener('submit', asyn
         const result = await response.json();
         
         if (result.success) {
-            toastManager.update(toastId, 'success', `Innkjøp registrert! Ny beholdning: ${result.new_stock}, Ny kostpris: ${result.new_cost_price} NOK`);
+            alert(`✅ Innkjøp registrert!\n\nNy beholdning: ${result.new_stock}\nNy kostpris: ${result.new_cost_price} NOK (vektet gjennomsnitt)`);
             this.reset();
             resetPurchaseView();
             await loadSalesProducts();
         } else {
-            toastManager.update(toastId, 'error', result.message || 'Feil ved registrering av innkjøp');
+            alert('❌ ' + (result.message || 'Feil ved registrering av innkjøp'));
         }
     } catch (error) {
         console.error('Error purchasing existing product:', error);
-        toastManager.update(toastId, 'error', 'Feil ved registrering av innkjøp');
+        alert('❌ Feil ved registrering av innkjøp');
     }
 });
 
@@ -3206,15 +3213,13 @@ document.getElementById('purchaseNewForm')?.addEventListener('submit', async fun
     const pricePerPackage = parseFloat(document.getElementById('new-price-per-package').value);
     
     if (!productName || !packages || !itemsPerPackage || !pricePerPackage) {
-        toastManager.error('Vennligst fyll ut alle påkrevde felt');
+        alert('❌ Vennligst fyll ut alle påkrevde felt');
         return;
     }
     
     const quantity = packages * itemsPerPackage;
     const totalCost = packages * pricePerPackage;
     const unitCost = totalCost / quantity;
-    
-    const toastId = toastManager.loading('Oppretter produkt og registrerer innkjøp');
     
     try {
         const response = await fetch('/api/purchase_new_product.php', {
@@ -3234,16 +3239,16 @@ document.getElementById('purchaseNewForm')?.addEventListener('submit', async fun
         if (result.success) {
             const productId = result.product_id || 'Ukjent';
             const sku = result.sku || 'Ukjent';
-            toastManager.update(toastId, 'success', `Produkt opprettet! SKU: ${sku}, Lager: ${quantity}, Kostpris: ${unitCost.toFixed(2)} NOK`);
+            alert(`✅ Produkt opprettet og innkjøp registrert!\n\nProdukt-ID: ${productId}\nSKU: ${sku}\nProdukt: ${productName}\nLagerbeholdning: ${quantity}\nKostpris: ${unitCost.toFixed(2)} NOK`);
             this.reset();
             resetPurchaseView();
             await loadSalesProducts();
         } else {
-            toastManager.update(toastId, 'error', result.message || 'Feil ved opprettelse av produkt');
+            alert('❌ ' + (result.message || 'Feil ved opprettelse av produkt'));
         }
     } catch (error) {
         console.error('Error purchasing new product:', error);
-        toastManager.update(toastId, 'error', 'Feil ved opprettelse av produkt');
+        alert('❌ Feil ved opprettelse av produkt');
     }
 });
 

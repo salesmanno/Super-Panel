@@ -955,14 +955,14 @@ function viewReservation(id) {
 
 function confirmReservation(id) {
     if (confirm('Bekreft denne reservasjonen?')) {
-        toastManager.success('Bekreftet: ' + id);
+        alert('Bekreftet: ' + id);
         loadReservations();
     }
 }
 
 function cancelReservation(id) {
     if (confirm('Kansellere denne reservasjonen?')) {
-        toastManager.success('Kansellert: ' + id);
+        alert('Kansellert: ' + id);
         loadReservations();
     }
 }
@@ -1056,7 +1056,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Validate staff selection
             if (!data.assigned_staff || data.assigned_staff.length === 0) {
-                toastManager.error('Vennligst velg minst én ansatt som kan utføre denne tjenesten');
+                alert('Vennligst velg minst én ansatt som kan utføre denne tjenesten');
                 return;
             }
             
@@ -1068,18 +1068,18 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(result => {
                 if (result.success) {
-                    toastManager.success('Tjeneste opprettet!');
+                    alert('Tjeneste opprettet!');
                     createServiceForm.reset();
                     // Switch to active services tab
                     document.querySelector('[href="#reservations-active-services"]').click();
                     loadActiveServices();
                 } else {
-                    toastManager.error(result.message || 'Kunne ikke opprette tjeneste');
+                    alert('Feil: ' + (result.message || 'Kunne ikke opprette tjeneste'));
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                toastManager.error('Feil ved opprettelse av tjeneste');
+                alert('Feil ved opprettelse av tjeneste');
             });
         });
     }
@@ -1231,7 +1231,7 @@ function loadActiveServices() {
 }
 
 function editService(id) {
-    toastManager.info('Rediger tjeneste: ' + id + ' (kommer snart)');
+    alert('Rediger tjeneste: ' + id + ' (kommer snart)');
 }
 
 function deleteService(id) {
@@ -1244,15 +1244,15 @@ function deleteService(id) {
         .then(response => response.json())
         .then(result => {
             if (result.success) {
-                toastManager.success('Tjeneste slettet');
+                alert('Tjeneste slettet');
                 loadActiveServices();
             } else {
-                toastManager.error(result.message || 'Kunne ikke slette tjeneste');
+                alert('Feil: ' + (result.message || 'Kunne ikke slette tjeneste'));
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            toastManager.error('Feil ved sletting');
+            alert('Feil ved sletting');
         });
     }
 }

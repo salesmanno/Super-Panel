@@ -311,7 +311,7 @@ async function saveAnnouncement() {
     const content = document.getElementById('announcement-content').value.trim();
 
     if (!title || !content) {
-        toastManager.error('Tittel og innhold er påkrevd');
+        alert('❌ Tittel og innhold er påkrevd');
         return;
     }
 
@@ -332,8 +332,6 @@ async function saveAnnouncement() {
         data.id = id;
     }
 
-    const toastId = toastManager.loading(id ? 'Oppdaterer kunngjøring' : 'Oppretter kunngjøring');
-
     try {
         const endpoint = id ? '/api/update_announcement.php' : '/api/create_announcement.php';
         const response = await fetch(endpoint, {
@@ -347,13 +345,13 @@ async function saveAnnouncement() {
         if (result.success) {
             bootstrap.Modal.getInstance(document.getElementById('announcementModal')).hide();
             await loadAnnouncements();
-            toastManager.update(toastId, 'success', result.message);
+            alert('✅ ' + result.message);
         } else {
-            toastManager.update(toastId, 'error', result.message);
+            alert('❌ ' + result.message);
         }
     } catch (error) {
         console.error('Save announcement error:', error);
-        toastManager.update(toastId, 'error', 'Kunne ikke lagre kunngjøring');
+        alert('❌ Kunne ikke lagre kunngjøring');
     }
 }
 
@@ -402,8 +400,6 @@ async function togglePin(id) {
 async function deleteAnnouncement(id) {
     if (!confirm('Er du sikker på at du vil slette denne kunngjøringen? Dette kan ikke angres.')) return;
 
-    const toastId = toastManager.loading('Sletter kunngjøring');
-
     try {
         const response = await fetch('/api/delete_announcement.php', {
             method: 'POST',
@@ -415,13 +411,12 @@ async function deleteAnnouncement(id) {
 
         if (result.success) {
             await loadAnnouncements();
-            toastManager.update(toastId, 'success', result.message);
+            alert('✅ ' + result.message);
         } else {
-            toastManager.update(toastId, 'error', result.message);
+            alert('❌ ' + result.message);
         }
     } catch (error) {
         console.error('Delete announcement error:', error);
-        toastManager.update(toastId, 'error', 'Kunne ikke slette kunngjøring');
     }
 }
 

@@ -54,11 +54,6 @@ try {
                 $params[] = $data['benefits'];
             }
             
-            if (isset($data['image_url'])) {
-                $updateFields[] = "image_url = ?";
-                $params[] = $data['image_url'];
-            }
-            
             if (isset($data['is_active'])) {
                 $updateFields[] = "is_active = ?";
                 $params[] = $data['is_active'];
@@ -112,11 +107,6 @@ try {
             if (isset($data['benefits'])) {
                 $updateFields[] = "features = ?";
                 $params[] = $data['benefits'];
-            }
-            
-            if (isset($data['image_url'])) {
-                $updateFields[] = "image_url = ?";
-                $params[] = $data['image_url'];
             }
             
             if (isset($data['is_active'])) {
