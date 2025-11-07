@@ -57,6 +57,15 @@ try {
         }
     }
     
+    // Validate image_url if provided
+    $imageUrl = null;
+    if (!empty($data['image_url'])) {
+        $url = trim($data['image_url']);
+        if (filter_var($url, FILTER_VALIDATE_URL)) {
+            $imageUrl = $url;
+        }
+    }
+    
     // Opprett medlem
     $stmt = $db->prepare("
         INSERT INTO membership_members (
@@ -72,8 +81,9 @@ try {
             join_date,
             expiry_date,
             status,
-            notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_DATE, ?, 'active', ?)
+            notes,
+            image_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_DATE, ?, 'active', ?, ?)
         RETURNING member_id
     ");
     
@@ -88,7 +98,8 @@ try {
         $data['poststed'] ?? null,
         $data['dateofbirth'] ?? null,
         $expiryDate,
-        $data['notes'] ?? null
+        $data['notes'] ?? null,
+        $imageUrl
     ]);
     
     $memberId = $stmt->fetchColumn();

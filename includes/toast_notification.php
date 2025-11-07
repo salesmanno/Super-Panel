@@ -1,10 +1,10 @@
 <style>
 .toast-notification-container {
     position: fixed;
-    top: 20px;
+    bottom: 20px;
     right: 20px;
     z-index: 9999;
-    max-width: 400px;
+    max-width: 320px;
     width: 100%;
     pointer-events: none;
 }
@@ -12,8 +12,9 @@
 .toast-notification {
     background: white;
     border-radius: 8px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-    margin-bottom: 12px;
+    border-left: 4px solid #7c3aed;
+    box-shadow: 0 4px 16px rgba(124, 58, 237, 0.15);
+    margin-bottom: 10px;
     overflow: hidden;
     animation: slideInRight 0.3s ease-out;
     pointer-events: auto;
@@ -50,39 +51,39 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 16px;
+    padding: 10px 12px;
     border-bottom: 1px solid #e9ecef;
 }
 
 .toast-notification-title {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 13px;
     margin: 0;
 }
 
 .toast-notification-icon {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .toast-notification-icon i {
-    font-size: 18px;
+    font-size: 16px;
 }
 
 .toast-notification-close {
     background: none;
     border: none;
     color: #6c757d;
-    font-size: 20px;
+    font-size: 18px;
     cursor: pointer;
     padding: 0;
-    width: 24px;
+    width: 20px;
     height: 24px;
     display: flex;
     align-items: center;
@@ -97,9 +98,10 @@
 }
 
 .toast-notification-body {
-    padding: 12px 16px;
+    padding: 10px 12px;
     color: #495057;
-    font-size: 14px;
+    font-size: 13px;
+    line-height: 1.4;
 }
 
 .toast-notification-progress {

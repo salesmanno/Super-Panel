@@ -306,6 +306,11 @@
                         </select>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">Bilde-URL</label>
+                        <input type="url" class="form-control" name="image_url" placeholder="https://example.com/bilde.jpg">
+                        <small class="text-muted">URL til profilbilde eller medlemsbilde</small>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Notater</label>
                         <textarea class="form-control" name="notes" rows="3"></textarea>
                     </div>
@@ -431,6 +436,7 @@ async function loadMembershipPlans() {
                     billingLabel = 'Årlig';
                 }
                 
+                const planId = plan.id || plan.plan_id;
                 return `
                     <div class="col-md-4 mb-3">
                         <div class="card border">
@@ -439,7 +445,12 @@ async function loadMembershipPlans() {
                                 <p class="text-muted small">${billingLabel}</p>
                                 <h4 class="text-primary">${plan.price} NOK</h4>
                                 ${plan.benefits ? '<div class="small text-muted mt-2">' + plan.benefits.split('\n').slice(0, 2).join('<br>') + '</div>' : ''}
-                                <button class="btn btn-outline-primary btn-sm w-100 mt-2">Rediger</button>
+                                <div class="d-flex gap-2 mt-2">
+                                    <button class="btn btn-outline-primary btn-sm flex-fill">Rediger</button>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="deleteMembershipPlan('${planId}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -461,6 +472,34 @@ async function loadMembershipPlans() {
 // Last inn planer når medlemskap-tab vises
 document.getElementById('tab-membership')?.addEventListener('shown.bs.tab', loadMembershipPlans);
 
+async function deleteMembershipPlan(planId) {
+    if (!confirm('Er du sikker på at du vil slette denne medlemskapsplanen?')) {
+        return;
+    }
+    
+    const toastId = toast.loading('Sletter medlemskapsplan');
+    
+    try {
+        const response = await fetch('/api/delete_membership_plan.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plan_id: planId })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            toast.success(toastId, 'Medlemskapsplan slettet', 'Planen er nå fjernet fra systemet');
+            loadMembershipPlans();
+        } else {
+            toast.error(toastId, 'Sletting av medlemskapsplan', result.message || 'Kunne ikke slette plan');
+        }
+    } catch (error) {
+        console.error('Error deleting plan:', error);
+        toast.error(toastId, 'Sletting av medlemskapsplan', 'Kunne ikke slette plan');
+    }
+}
+
 async function submitMember() {
     const form = document.getElementById('create-member-form');
     const formData = new FormData(form);
@@ -474,7 +513,8 @@ async function submitMember() {
         poststed: formData.get('poststed'),
         dateofbirth: formData.get('dateofbirth'),
         membership_plan_id: formData.get('membership_plan_id') || null,
-        notes: formData.get('notes')
+        notes: formData.get('notes'),
+        image_url: formData.get('image_url') || null
     };
     
     if (!memberData.first_name || !memberData.last_name || !memberData.email) {

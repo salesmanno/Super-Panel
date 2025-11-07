@@ -48,13 +48,18 @@ try {
     
     // SINGLE SESSION ENFORCEMENT: Check if user has an active session with recent activity (within 30 min)
     // First, clean up stale sessions (inactive for more than 30 minutes)
+    $dbType = getDBType();
+    $intervalCheck = $dbType === 'mysql' 
+        ? "DATE_SUB(NOW(), INTERVAL 30 MINUTE)" 
+        : "NOW() - INTERVAL '30 MINUTE'";
+    
     $stmt = $db->prepare("
         UPDATE tenant_admin_sessions 
         SET is_active = " . dbBool(false) . ", 
             logout_at = NOW()
         WHERE tenant_admin_id = ? 
         AND is_active = " . dbBool(true) . "
-        AND last_activity < DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+        AND last_activity < $intervalCheck
     ");
     $stmt->execute([$admin['id']]);
     
@@ -64,7 +69,7 @@ try {
         FROM tenant_admin_sessions 
         WHERE tenant_admin_id = ? 
         AND is_active = " . dbBool(true) . "
-        AND last_activity >= DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+        AND last_activity >= $intervalCheck
     ");
     $stmt->execute([$admin['id']]);
     $result = $stmt->fetch(PDO::FETCH_ASSOC);

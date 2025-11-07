@@ -36,7 +36,7 @@ try {
             FROM membership_members mm
             LEFT JOIN tenant_customers c ON mm.customer_id = c.id
             LEFT JOIN membership_plans p ON mm.membership_plan_id = p.id
-            WHERE mm.member_id = ? AND mm.company_id = ?
+            WHERE mm.id = ? AND mm.company_id = ?
         ");
     } else {
         $stmt = $db->prepare("
@@ -51,7 +51,7 @@ try {
             FROM membership_members mm
             LEFT JOIN tenant_customers c ON mm.customer_id = c.id
             LEFT JOIN x_membership_plan p ON mm.membership_plan_id = p.plan_id
-            WHERE mm.member_id = ? AND mm.company_id = ?
+            WHERE mm.id = ? AND mm.company_id = ?
         ");
     }
     $stmt->execute([$data['member_id'], $_SESSION['company_id']]);
@@ -80,12 +80,13 @@ try {
     $newExpiryDate = date('Y-m-d', strtotime($renewalDate . " +{$durationMonths} months"));
     
     // Update member expiry date and status
+    $expiryColumn = $dbType === 'mysql' ? 'expiration_date' : 'expiry_date';
     $stmt = $db->prepare("
         UPDATE membership_members 
-        SET expiry_date = ?, 
+        SET $expiryColumn = ?, 
             status = 'active',
             join_date = ?
-        WHERE member_id = ? AND company_id = ?
+        WHERE id = ? AND company_id = ?
     ");
     $stmt->execute([$newExpiryDate, $renewalDate, $data['member_id'], $_SESSION['company_id']]);
     
