@@ -299,6 +299,49 @@ try {
             color: #065f46;
         }
         
+        /* News Section */
+        .news-banner {
+            background: linear-gradient(135deg, var(--primary-start), var(--primary-end));
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            color: white;
+        }
+        
+        .news-item-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid var(--primary-start);
+            transition: all 0.2s;
+        }
+        
+        .news-item-card:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .news-item-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+        
+        .news-item-content {
+            color: #6b7280;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 0.5rem;
+        }
+        
+        .news-item-date {
+            color: #9ca3af;
+            font-size: 0.85rem;
+        }
+        
         .status-inactive {
             background-color: #fee2e2;
             color: #991b1b;
@@ -354,6 +397,49 @@ try {
                 <img src="<?= htmlspecialchars($companyLogo) ?>" alt="<?= htmlspecialchars($companyName) ?>" class="header-logo">
             <?php endif; ?>
         </div>
+    </div>
+    
+    <!-- News Section -->
+    <div class="container mb-4">
+        <?php
+        try {
+            $db = getDBConnection();
+            if ($db) {
+                $stmt = $db->prepare("
+                    SELECT title, content, publish_at 
+                    FROM x_tenant_announcements 
+                    WHERE company_id = ? AND is_published = 1 
+                    ORDER BY publish_at DESC 
+                    LIMIT 5
+                ");
+                $stmt->execute([$_SESSION['company_id']]);
+                $newsItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                if (!empty($newsItems)):
+        ?>
+        <div class="news-banner">
+            <h5 class="mb-3"><i class="bi bi-megaphone me-2"></i>Nyheter</h5>
+            <?php foreach ($newsItems as $news): ?>
+            <div class="news-item-card">
+                <div class="news-item-title"><?= htmlspecialchars($news['title']) ?></div>
+                <div class="news-item-content"><?= nl2br(htmlspecialchars($news['content'])) ?></div>
+                <div class="news-item-date">
+                    <i class="bi bi-calendar me-1"></i>
+                    <?php 
+                        $date = new DateTime($news['publish_at']);
+                        echo $date->format('d.m.Y H:i');
+                    ?>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php 
+                endif;
+            }
+        } catch (Exception $e) {
+            // Silent fail - news er ikke kritisk
+        }
+        ?>
     </div>
     
     <?php if (!empty($visibleModules)): ?>
