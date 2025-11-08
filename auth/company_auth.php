@@ -89,7 +89,7 @@ try {
     $_SESSION['admin_first_name'] = $admin['first_name'] ?? '';
     $_SESSION['db_type'] = getDBType();
     $_SESSION['admin_last_name'] = $admin['last_name'] ?? '';
-    $_SESSION['admin_name'] = trim(($admin['first_name'] ?? '') . ' ' . ($admin['last_name'] ?? ''));
+    $_SESSION['admin_name'] = $admin['first_name'] ?? 'Bruker';
     $_SESSION['company_name'] = $admin['company_name'];
     $_SESSION['subdomain'] = $admin['subdomain'];
     $_SESSION['logged_in_at'] = time();

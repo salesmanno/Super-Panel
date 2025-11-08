@@ -172,12 +172,35 @@ function endTenantAdminSession($sessionId) {
     try {
         $activeValue = dbBool(true);
         $inactiveValue = dbBool(false);
+        
+        // Get tenant_admin_id from session before ending it
+        $stmt = $db->prepare("
+            SELECT tenant_admin_id 
+            FROM tenant_admin_sessions 
+            WHERE session_id = ? AND is_active = $activeValue
+        ");
+        $stmt->execute([$sessionId]);
+        $session = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // End the session
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
             SET logout_at = NOW(), is_active = $inactiveValue 
             WHERE session_id = ? AND is_active = $activeValue
         ");
-        return $stmt->execute([$sessionId]);
+        $stmt->execute([$sessionId]);
+        
+        // Update last_logout in tenant_admins
+        if ($session && isset($session['tenant_admin_id'])) {
+            $stmt = $db->prepare("
+                UPDATE tenant_admins 
+                SET last_logout = NOW() 
+                WHERE id = ?
+            ");
+            $stmt->execute([$session['tenant_admin_id']]);
+        }
+        
+        return true;
     } catch (PDOException $e) {
         error_log("Error ending session: " . $e->getMessage());
         return false;

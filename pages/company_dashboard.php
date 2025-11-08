@@ -380,8 +380,12 @@ try {
     <!-- Header -->
     <div class="dashboard-header">
         <div class="container" style="position: relative;">
-            <h1 class="mb-2">Velkommen, <?= htmlspecialchars($adminName) ?>!</h1>
+            <h1 class="mb-2">Hei, <?= htmlspecialchars($adminName) ?>!</h1>
             <p class="text-muted mb-0">Du har tilgang til <?= count($allUserModules) ?> modul<?= count($allUserModules) != 1 ? 'er' : '' ?></p>
+            <div id="activity-summary" style="margin-top: 0.75rem; font-size: 0.9rem; color: #6c757d;">
+                <i class="bi bi-hourglass-split me-1"></i>
+                <span id="activity-text">Laster aktivitetssammendrag...</span>
+            </div>
             <?php if ($companySubdomain): ?>
                 <div class="subdomain-info">
                     <a href="https://<?= htmlspecialchars($companySubdomain) ?>.salesman.no" target="_blank" class="subdomain-url">
@@ -593,13 +597,13 @@ try {
                     <a class="nav-link active" href="#sales-varesalg">Varesalg</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#sales-transactions">Transaksjoner</a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link" href="#sales-purchases">Innkjøp</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="#sales-items">Produkter</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#sales-transactions">Transaksjoner</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="#sales-orders">Ordrer</a>
@@ -1518,6 +1522,33 @@ try {
                 console.error('Error saving module access:', error);
                 alert('❌ Feil ved lagring av modulrettigheter');
             }
+        }
+        
+        // Load activity summary on page load
+        async function loadActivitySummary() {
+            try {
+                const response = await fetch('/api/get_activity_summary.php');
+                const data = await response.json();
+                
+                const activityText = document.getElementById('activity-text');
+                
+                if (data.success && data.activities && data.activities.length > 0) {
+                    const summaries = data.activities.map(a => `${a.count} i ${a.module}`).join(', ');
+                    activityText.innerHTML = `<i class="bi bi-bell-fill me-1"></i>Det er <strong>${data.total_count}</strong> nye hendelse${data.total_count > 1 ? 'r' : ''} siden sist: ${summaries}`;
+                } else {
+                    activityText.innerHTML = '<i class="bi bi-check-circle me-1"></i>Ingen nye hendelser siden sist';
+                }
+            } catch (error) {
+                console.error('Error loading activity summary:', error);
+                document.getElementById('activity-summary').style.display = 'none';
+            }
+        }
+        
+        // Load activity summary when page loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadActivitySummary);
+        } else {
+            loadActivitySummary();
         }
     </script>
     

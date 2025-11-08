@@ -97,9 +97,34 @@ try {
         $admin_id
     ]);
     
-    // NOTE: UnifiedLedger currently only tracks income/sales, not purchase expenses
-    // Purchase expenses are tracked separately in sales_purchase_history table
-    // Future enhancement: Add expense tracking to unified_ledger
+    // Log to unified_ledger as expense (negative amount)
+    $ledgerService = new UnifiedLedgerService($db, $company_id);
+    $order_id = 'PUR-' . date('Ymd') . '-' . strtoupper(substr($purchase_id, 0, 6));
+    
+    $ledgerService->logTransaction([
+        'order_id' => $order_id,
+        'module_source' => 'sales',
+        'item_type' => 'purchase',
+        'source_id' => $product_id,
+        'item_name' => $product_name,
+        'quantity' => $quantity,
+        'selling_price' => -$total_cost,
+        'cost_price' => $unit_cost,
+        'customer_name' => $supplier,
+        'customer_email' => null,
+        'payment_method' => 'purchase',
+        'payment_status' => 'completed',
+        'status' => 'active',
+        'transaction_date' => date('Y-m-d H:i:s'),
+        'metadata' => [
+            'supplier' => $supplier,
+            'unit_cost' => $unit_cost,
+            'old_stock' => $old_stock,
+            'new_stock' => $new_stock,
+            'old_cost_price' => $old_cost_price,
+            'new_cost_price' => $new_cost_price
+        ]
+    ]);
     
     $db->commit();
     
