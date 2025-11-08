@@ -112,7 +112,7 @@ try {
     $stmt = $db->prepare("
         INSERT INTO output_products 
         (id, company_id, module_id, product_type, product_id, is_visible, is_public, created_at, updated_at, created_by)
-        VALUES (?, ?, ?, 'product', ?, 1, 1, NOW(), NOW(), ?)
+        VALUES (?, ?, ?, 'product', ?, ?, ?, NOW(), NOW(), ?)
     ");
     
     $stmt->execute([
@@ -120,6 +120,8 @@ try {
         $company_id,
         $module_id,
         $product_id,
+        (bool)true,  // PostgreSQL boolean compatibility
+        (bool)true,  // PostgreSQL boolean compatibility
         $admin_id
     ]);
     
