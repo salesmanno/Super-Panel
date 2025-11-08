@@ -39,16 +39,10 @@ try {
                 title,
                 content,
                 image_url,
-                announcement_type,
-                priority,
-                target_audience,
                 is_published,
                 publish_at,
                 expire_at,
-                is_pinned,
-                related_event_id,
-                related_module,
-                metadata
+                is_pinned
             ) VALUES (
                 " . ($dbType === 'mysql' ? ":id," : "") . "
                 :company_id,
@@ -56,16 +50,10 @@ try {
                 :title,
                 :content,
                 :image_url,
-                :announcement_type,
-                :priority,
-                :target_audience,
                 :is_published,
                 :publish_at,
                 :expire_at,
-                :is_pinned,
-                :related_event_id,
-                :related_module,
-                " . ($dbType === 'mysql' ? ":metadata" : "CAST(:metadata AS JSONB)") . "
+                :is_pinned
             )" . ($dbType === 'pgsql' ? " RETURNING id" : "");
     
     $stmt = $db->prepare($sql);
@@ -79,16 +67,11 @@ try {
     $stmt->bindValue(':title', $data['title']);
     $stmt->bindValue(':content', $data['content']);
     $stmt->bindValue(':image_url', $data['image_url'] ?? null);
-    $stmt->bindValue(':announcement_type', $data['announcement_type'] ?? 'info');
-    $stmt->bindValue(':priority', $data['priority'] ?? 'normal');
-    $stmt->bindValue(':target_audience', $data['target_audience'] ?? 'all');
     $stmt->bindValue(':is_published', isset($data['is_published']) ? (int)$data['is_published'] : 0);
-    $stmt->bindValue(':publish_at', $data['publish_at'] ?? null);
+    // If publish_at is empty, set to current timestamp for immediate publishing
+    $stmt->bindValue(':publish_at', ($data['publish_at'] ?? null) ?: date('Y-m-d H:i:s'));
     $stmt->bindValue(':expire_at', $data['expire_at'] ?? null);
     $stmt->bindValue(':is_pinned', isset($data['is_pinned']) ? (int)$data['is_pinned'] : 0);
-    $stmt->bindValue(':related_event_id', $data['related_event_id'] ?? null);
-    $stmt->bindValue(':related_module', $data['related_module'] ?? null);
-    $stmt->bindValue(':metadata', isset($data['metadata']) ? json_encode($data['metadata']) : null);
     
     $stmt->execute();
     

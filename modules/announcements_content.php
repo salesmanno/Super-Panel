@@ -12,36 +12,11 @@
     <!-- Filters -->
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label small text-muted">Type</label>
-                    <select class="form-select form-select-sm" id="filter-type" onchange="loadAnnouncements()">
-                        <option value="">Alle typer</option>
-                        <option value="info">Info</option>
-                        <option value="warning">Advarsel</option>
-                        <option value="event">Arrangement</option>
-                        <option value="update">Oppdatering</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label small text-muted">Prioritet</label>
-                    <select class="form-select form-select-sm" id="filter-priority" onchange="loadAnnouncements()">
-                        <option value="">Alle prioriteter</option>
-                        <option value="low">Lav</option>
-                        <option value="normal">Normal</option>
-                        <option value="high">Høy</option>
-                        <option value="urgent">Haster</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label small text-muted">&nbsp;</label>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="filter-unpublished" onchange="loadAnnouncements()">
-                        <label class="form-check-label" for="filter-unpublished">
-                            Vis upubliserte
-                        </label>
-                    </div>
-                </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="filter-unpublished" onchange="loadAnnouncements()">
+                <label class="form-check-label" for="filter-unpublished">
+                    Vis upubliserte
+                </label>
             </div>
         </div>
     </div>
@@ -76,38 +51,6 @@
                         <label class="form-label">Bilde (valgfri)</label>
                         <input type="text" class="form-control" id="announcement-image-url" placeholder="Lim inn bilde-URL">
                         <small class="text-muted">Eksempel: https://example.com/image.jpg</small>
-                    </div>
-
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-4">
-                            <label class="form-label">Type</label>
-                            <select class="form-select" id="announcement-type">
-                                <option value="info">Info</option>
-                                <option value="warning">Advarsel</option>
-                                <option value="event">Arrangement</option>
-                                <option value="update">Oppdatering</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label class="form-label">Prioritet</label>
-                            <select class="form-select" id="announcement-priority">
-                                <option value="low">Lav</option>
-                                <option value="normal" selected>Normal</option>
-                                <option value="high">Høy</option>
-                                <option value="urgent">Haster</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label class="form-label">Målgruppe</label>
-                            <select class="form-select" id="announcement-audience">
-                                <option value="all" selected>Alle</option>
-                                <option value="members">Medlemmer</option>
-                                <option value="staff">Ansatte</option>
-                                <option value="customers">Kunder</option>
-                            </select>
-                        </div>
                     </div>
 
                     <div class="row g-3 mb-3">
@@ -153,13 +96,9 @@ let currentAnnouncements = [];
 
 async function loadAnnouncements() {
     try {
-        const type = document.getElementById('filter-type').value;
-        const priority = document.getElementById('filter-priority').value;
         const showUnpublished = document.getElementById('filter-unpublished').checked;
 
         const params = new URLSearchParams();
-        if (type) params.append('type', type);
-        if (priority) params.append('priority', priority);
         if (showUnpublished) params.append('show_unpublished', 'true');
 
         const response = await fetch(`/api/get_announcements.php?${params.toString()}`);
@@ -191,23 +130,7 @@ function displayAnnouncements(announcements) {
         return;
     }
 
-    const typeIcons = {
-        'info': 'info-circle-fill text-primary',
-        'warning': 'exclamation-triangle-fill text-warning',
-        'event': 'calendar-event-fill text-success',
-        'update': 'arrow-up-circle-fill text-info'
-    };
-
-    const priorityBadges = {
-        'low': 'secondary',
-        'normal': 'primary',
-        'high': 'warning',
-        'urgent': 'danger'
-    };
-
     container.innerHTML = announcements.map(announcement => {
-        const typeIcon = typeIcons[announcement.announcement_type] || 'megaphone text-muted';
-        const priorityBadge = priorityBadges[announcement.priority] || 'secondary';
         const isExpired = announcement.expire_at && new Date(announcement.expire_at) < new Date();
         const hasImage = announcement.image_url && announcement.image_url.trim();
 
@@ -218,19 +141,17 @@ function displayAnnouncements(announcements) {
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="flex-grow-1">
                             <div class="d-flex align-items-center gap-2 mb-2">
-                                <i class="bi bi-${typeIcon}"></i>
+                                <i class="bi bi-megaphone text-primary"></i>
                                 <h5 class="mb-0">${announcement.title}</h5>
                                 ${announcement.is_pinned ? '<span class="badge bg-info"><i class="bi bi-pin-angle-fill"></i> Festet</span>' : ''}
                                 ${announcement.is_published ? '<span class="badge bg-success">Publisert</span>' : '<span class="badge bg-secondary">Upublisert</span>'}
-                                <span class="badge bg-${priorityBadge}">${announcement.priority}</span>
                                 ${isExpired ? '<span class="badge bg-dark">Utløpt</span>' : ''}
                             </div>
                             <p class="mb-2">${announcement.content}</p>
                             <div class="d-flex gap-3 text-muted small">
                                 <span><i class="bi bi-person"></i> ${announcement.author_name || 'Ukjent'}</span>
-                                <span><i class="bi bi-calendar"></i> ${new Date(announcement.publish_at).toLocaleDateString('nb-NO')}</span>
+                                <span><i class="bi bi-calendar"></i> ${announcement.publish_at ? new Date(announcement.publish_at).toLocaleDateString('nb-NO') : 'Umiddelbart'}</span>
                                 ${announcement.expire_at ? `<span><i class="bi bi-hourglass-split"></i> Utløper: ${new Date(announcement.expire_at).toLocaleDateString('nb-NO')}</span>` : ''}
-                                <span><i class="bi bi-people"></i> ${getAudienceName(announcement.target_audience)}</span>
                             </div>
                         </div>
                         <div class="btn-group">
@@ -254,15 +175,6 @@ function displayAnnouncements(announcements) {
     }).join('');
 }
 
-function getAudienceName(audience) {
-    const audiences = {
-        'all': 'Alle',
-        'members': 'Medlemmer',
-        'staff': 'Ansatte',
-        'customers': 'Kunder'
-    };
-    return audiences[audience] || audience;
-}
 
 function openNewAnnouncementModal() {
     document.getElementById('announcementModalTitle').textContent = 'Ny kunngjøring';
@@ -284,9 +196,6 @@ function editAnnouncement(id) {
     document.getElementById('announcement-title').value = announcement.title;
     document.getElementById('announcement-content').value = announcement.content;
     document.getElementById('announcement-image-url').value = announcement.image_url || '';
-    document.getElementById('announcement-type').value = announcement.announcement_type;
-    document.getElementById('announcement-priority').value = announcement.priority;
-    document.getElementById('announcement-audience').value = announcement.target_audience;
     document.getElementById('announcement-is-published').checked = announcement.is_published;
     document.getElementById('announcement-is-pinned').checked = announcement.is_pinned;
 
@@ -319,9 +228,6 @@ async function saveAnnouncement() {
         title: title,
         content: content,
         image_url: document.getElementById('announcement-image-url').value.trim() || null,
-        announcement_type: document.getElementById('announcement-type').value,
-        priority: document.getElementById('announcement-priority').value,
-        target_audience: document.getElementById('announcement-audience').value,
         is_published: document.getElementById('announcement-is-published').checked,
         is_pinned: document.getElementById('announcement-is-pinned').checked,
         publish_at: document.getElementById('announcement-publish-at').value || null,

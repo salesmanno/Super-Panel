@@ -33,16 +33,10 @@ try {
                 title = :title,
                 content = :content,
                 image_url = :image_url,
-                announcement_type = :announcement_type,
-                priority = :priority,
-                target_audience = :target_audience,
                 is_published = :is_published,
                 publish_at = :publish_at,
                 expire_at = :expire_at,
                 is_pinned = :is_pinned,
-                related_event_id = :related_event_id,
-                related_module = :related_module,
-                metadata = " . ($dbType === 'mysql' ? ":metadata" : "CAST(:metadata AS JSONB)") . ",
                 updated_at = " . ($dbType === 'mysql' ? "NOW()" : "CURRENT_TIMESTAMP") . "
             WHERE id = :id AND company_id = :company_id";
     
@@ -53,16 +47,10 @@ try {
     $stmt->bindValue(':title', $data['title']);
     $stmt->bindValue(':content', $data['content']);
     $stmt->bindValue(':image_url', $data['image_url'] ?? null);
-    $stmt->bindValue(':announcement_type', $data['announcement_type'] ?? 'info');
-    $stmt->bindValue(':priority', $data['priority'] ?? 'normal');
-    $stmt->bindValue(':target_audience', $data['target_audience'] ?? 'all');
     $stmt->bindValue(':is_published', isset($data['is_published']) ? (int)$data['is_published'] : 0);
     $stmt->bindValue(':publish_at', $data['publish_at'] ?? null);
     $stmt->bindValue(':expire_at', $data['expire_at'] ?? null);
     $stmt->bindValue(':is_pinned', isset($data['is_pinned']) ? (int)$data['is_pinned'] : 0);
-    $stmt->bindValue(':related_event_id', $data['related_event_id'] ?? null);
-    $stmt->bindValue(':related_module', $data['related_module'] ?? null);
-    $stmt->bindValue(':metadata', isset($data['metadata']) ? json_encode($data['metadata']) : null);
     
     $stmt->execute();
     
