@@ -66,18 +66,11 @@ try {
     
     $currentStock = $product['stock_quantity'] ?? 0;
     
-    // Calculate new stock
+    // Calculate new stock (allow negative stock)
     if ($adjustmentType === 'add') {
         $newStock = $currentStock + $quantity;
     } else {
         $newStock = $currentStock - $quantity;
-        
-        // Prevent negative stock
-        if ($newStock < 0) {
-            $db->rollBack();
-            echo json_encode(['success' => false, 'message' => 'Ikke nok varer på lager']);
-            exit;
-        }
     }
     
     // Update stock (with schema compatibility)

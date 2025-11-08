@@ -65,46 +65,18 @@ try {
     // Also log to unified_ledger for centralized economy tracking
     $ledgerService = new UnifiedLedgerService($db, $company_id);
     
-    // First, check stock availability for all items (if stock tracking exists)
+    // Check if stock tracking exists (no validation, just detection)
     $hasStockTracking = true;
-    foreach ($items as $item) {
-        if ($item['product_id']) {
-            try {
-                $stockCheckStmt = $db->prepare("
-                    SELECT stock_quantity, name 
-                    FROM sales_products 
-                    WHERE id = ? AND company_id = ?
-                    FOR UPDATE
-                ");
-                $stockCheckStmt->execute([$item['product_id'], $company_id]);
-                $stockInfo = $stockCheckStmt->fetch(PDO::FETCH_ASSOC);
-                
-                if ($stockInfo && $stockInfo['stock_quantity'] !== null) {
-                    $availableStock = (int)$stockInfo['stock_quantity'];
-                    $requestedQty = (int)$item['quantity'];
-                    
-                    if ($availableStock < $requestedQty) {
-                        $db->rollBack();
-                        echo json_encode([
-                            'success' => false,
-                            'message' => "Ikke nok på lager for '{$stockInfo['name']}'. Tilgjengelig: {$availableStock}, ønsket: {$requestedQty}"
-                        ]);
-                        exit;
-                    }
-                }
-            } catch (PDOException $e) {
-                // If stock_quantity column doesn't exist, skip stock validation
-                if (strpos($e->getMessage(), 'Unknown column') !== false || strpos($e->getMessage(), 'Column not found') !== false) {
-                    $hasStockTracking = false;
-                    break;
-                } else {
-                    throw $e;
-                }
-            }
+    try {
+        $testStmt = $db->prepare("SELECT stock_quantity FROM sales_products LIMIT 1");
+        $testStmt->execute();
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'Unknown column') !== false || strpos($e->getMessage(), 'Column not found') !== false) {
+            $hasStockTracking = false;
         }
     }
     
-    // Process each item (stock is validated)
+    // Process each item (no stock validation, allow negative stock)
     foreach ($items as $item) {
         $itemTotal = $item['quantity'] * $item['price'];
         
