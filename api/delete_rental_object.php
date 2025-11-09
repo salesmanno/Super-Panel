@@ -1,75 +1,75 @@
 <?php
-session_start();
+require_once __DIR__ . '/../includes/functions.php';
+
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['tenant_admin_id'])) {
+// Autentiser bruker
+$admin = authenticateTenantAdmin();
+if (!$admin) {
+    http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
     exit;
 }
 
-require_once __DIR__ . '/../config/database.php';
+// Hent object ID
+$data = json_decode(file_get_contents('php://input'), true);
+$object_id = $data['id'] ?? null;
+
+if (!$object_id) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Objekt-ID mangler']);
+    exit;
+}
 
 try {
-    $data = json_decode(file_get_contents('php://input'), true);
-    
-    if (empty($data['object_id'])) {
-        echo json_encode(['success' => false, 'message' => 'Mangler object_id']);
-        exit;
-    }
-
     $db = getDBConnection();
     
-    // Soft delete: mark as unavailable instead of deleting
-    // This preserves output_products and historical data
-    $dbType = getDBType();
-    if ($dbType === 'mysql') {
-        $stmt = $db->prepare("
-            UPDATE rental_objects 
-            SET is_available = " . dbBool(false) . "
-            WHERE id = ? AND company_id = ?
-        ");
-    } else {
-        $stmt = $db->prepare("
-            UPDATE rental_objects 
-            SET is_available = " . dbBool(false) . "
-            WHERE object_id = ? AND company_id = ?
-        ");
+    // Verify object exists and belongs to company
+    $stmt = $db->prepare("
+        SELECT id, object_name FROM rental_objects 
+        WHERE id = :id AND company_id = :company_id
+    ");
+    $stmt->execute([':id' => $object_id, ':company_id' => $admin['company_id']]);
+    $object = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$object) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'Objekt ikke funnet']);
+        exit;
     }
     
-    $stmt->execute([
-        $data['object_id'],
-        $_SESSION['company_id']
-    ]);
+    // Check if object has active bookings
+    $checkStmt = $db->prepare("
+        SELECT COUNT(*) as count FROM rental_schedule 
+        WHERE rental_object_id = :object_id 
+        AND status NOT IN ('completed', 'cancelled')
+    ");
+    $checkStmt->execute([':object_id' => $object_id]);
+    $result = $checkStmt->fetch(PDO::FETCH_ASSOC);
     
-    if ($stmt->rowCount() > 0) {
-        // Also hide the product from output_products catalog
-        $hideStmt = $db->prepare("
-            UPDATE output_products 
-            SET is_visible = " . dbBool(false) . ", is_public = " . dbBool(false) . "
-            WHERE product_id = ? 
-            AND product_type = 'rental'
-            AND company_id = ?
-        ");
-        $hideStmt->execute([
-            $data['object_id'],
-            $_SESSION['company_id']
-        ]);
-        
-        echo json_encode([
-            'success' => true,
-            'message' => 'Utleieobjekt slettet'
-        ]);
-    } else {
+    if ($result['count'] > 0) {
+        http_response_code(400);
         echo json_encode([
             'success' => false,
-            'message' => 'Kunne ikke slette utleieobjekt'
+            'message' => 'Kan ikke slette objekt med aktive bookinger. Avbryt eller fullfør bookingene først.'
         ]);
+        exit;
     }
     
+    // Delete object (CASCADE will delete from type-specific table and rental_schedule)
+    $deleteStmt = $db->prepare("DELETE FROM rental_objects WHERE id = :id AND company_id = :company_id");
+    $deleteStmt->execute([':id' => $object_id, ':company_id' => $admin['company_id']]);
+    
+    echo json_encode([
+        'success' => true,
+        'message' => "'{$object['object_name']}' er slettet"
+    ]);
+    
 } catch (Exception $e) {
-    error_log("Error deleting rental object: " . $e->getMessage());
+    http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Feil ved sletting'
+        'message' => 'Feil ved sletting av utleieobjekt',
+        'error' => $e->getMessage()
     ]);
 }

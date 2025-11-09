@@ -1,68 +1,152 @@
 <?php
-session_start();
+require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/rental_schemas.php';
+
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['tenant_admin_id'])) {
+// Autentiser bruker
+$admin = authenticateTenantAdmin();
+if (!$admin) {
+    http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
     exit;
 }
 
-require_once __DIR__ . '/../config/database.php';
-
 try {
     $db = getDBConnection();
-    $dbType = getDBType();
     
-    // Get all rental objects for company
-    $query = "
-        SELECT 
-            ro.*,
-            op.id as output_product_id,
-            op.is_visible,
-            op.is_public
-        FROM rental_objects ro
-        LEFT JOIN output_products op ON op.product_id = ro.object_id 
-            AND op.product_type = 'rental' 
-            AND op.company_id = ro.company_id
-        WHERE ro.company_id = ?
-        ORDER BY ro.created_at DESC
-    ";
+    // Get specific object by ID or all objects
+    $object_id = $_GET['id'] ?? null;
     
-    $stmt = $db->prepare($query);
-    $stmt->execute([$_SESSION['company_id']]);
-    $objects = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Format data for frontend
-    $formatted = array_map(function($obj) {
-        return [
-            'id' => $obj['object_id'],
-            'name' => $obj['object_name'],
-            'type' => $obj['object_type'],
-            'category' => $obj['category'],
-            'description' => $obj['description'],
-            'daily_price' => (float)$obj['daily_price'],
-            'is_available' => (bool)$obj['is_available'],
-            'requires_deposit' => (bool)$obj['requires_deposit'],
-            'deposit_amount' => $obj['deposit_amount'] ? (float)$obj['deposit_amount'] : 0,
-            'location' => $obj['location'],
-            'serial_number' => $obj['serial_number'],
-            'condition_notes' => $obj['condition_notes'],
-            'is_visible' => isset($obj['is_visible']) ? (bool)$obj['is_visible'] : false,
-            'is_public' => isset($obj['is_public']) ? (bool)$obj['is_public'] : false,
-            'created_at' => $obj['created_at']
-        ];
-    }, $objects);
-    
-    echo json_encode([
-        'success' => true,
-        'objects' => $formatted
-    ]);
+    if ($object_id) {
+        // Get single object with type-specific data
+        $stmt = $db->prepare("
+            SELECT * FROM rental_objects 
+            WHERE id = :id AND company_id = :company_id
+        ");
+        $stmt->execute([
+            ':id' => $object_id,
+            ':company_id' => $admin['company_id']
+        ]);
+        $object = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$object) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'message' => 'Objekt ikke funnet']);
+            exit;
+        }
+        
+        // Fetch type-specific data
+        if ($object['category']) {
+            $schema = getRentalSchema($object['category']);
+            if ($schema) {
+                $typeStmt = $db->prepare("SELECT * FROM {$schema['table']} WHERE object_id = :object_id");
+                $typeStmt->execute([':object_id' => $object_id]);
+                $typeData = $typeStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($typeData) {
+                    unset($typeData['object_id']); // Remove FK
+                    $object['type_data'] = $typeData;
+                    $object['type_label'] = $schema['label'];
+                }
+            }
+        }
+        
+        echo json_encode(['success' => true, 'object' => $object]);
+        
+    } else {
+        // Get all objects for company
+        $stmt = $db->prepare("
+            SELECT ro.*, 
+                   CASE WHEN ro.is_available = 1 AND ro.is_active = 1 THEN 'available'
+                        WHEN ro.is_available = 0 THEN 'rented'
+                        ELSE 'inactive'
+                   END as display_status
+            FROM rental_objects ro
+            WHERE ro.company_id = :company_id
+            ORDER BY ro.created_at DESC
+        ");
+        $stmt->execute([':company_id' => $admin['company_id']]);
+        $objects = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Fetch type-specific data for each object
+        foreach ($objects as &$object) {
+            if ($object['category']) {
+                $schema = getRentalSchema($object['category']);
+                if ($schema) {
+                    $object['type_label'] = $schema['label'];
+                    
+                    // Get type-specific summary data (key fields only)
+                    $typeStmt = $db->prepare("SELECT * FROM {$schema['table']} WHERE object_id = :object_id");
+                    $typeStmt->execute([':object_id' => $object['id']]);
+                    $typeData = $typeStmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($typeData) {
+                        unset($typeData['object_id']);
+                        $object['type_data'] = $typeData;
+                        
+                        // Create summary badges based on type
+                        $object['badges'] = createTypeBadges($object['category'], $typeData);
+                    }
+                }
+            }
+        }
+        
+        echo json_encode(['success' => true, 'objects' => $objects]);
+    }
     
 } catch (Exception $e) {
-    error_log("Error fetching rental objects: " . $e->getMessage());
+    http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Feil ved henting av data: ' . $e->getMessage(),
-        'objects' => []
+        'message' => 'Feil ved henting av utleieobjekter',
+        'error' => $e->getMessage()
     ]);
+}
+
+/**
+ * Create summary badges for list view based on object type
+ */
+function createTypeBadges($category, $typeData) {
+    $badges = [];
+    
+    switch ($category) {
+        case 'residence':
+        case 'cabin':
+        case 'office':
+            if (!empty($typeData['sqm'])) $badges[] = $typeData['sqm'] . 'm²';
+            if (!empty($typeData['bedrooms'])) $badges[] = $typeData['bedrooms'] . ' soverom';
+            if (!empty($typeData['bathrooms'])) $badges[] = $typeData['bathrooms'] . ' bad';
+            break;
+            
+        case 'venue':
+            if (!empty($typeData['capacity_seated'])) $badges[] = $typeData['capacity_seated'] . ' sitteplasser';
+            if (!empty($typeData['sqm'])) $badges[] = $typeData['sqm'] . 'm²';
+            break;
+            
+        case 'container':
+            if (!empty($typeData['container_type'])) $badges[] = $typeData['container_type'];
+            if (!empty($typeData['cubic_meters'])) $badges[] = $typeData['cubic_meters'] . 'm³';
+            break;
+            
+        case 'vehicle':
+        case 'rv':
+            if (!empty($typeData['make'])) $badges[] = $typeData['make'];
+            if (!empty($typeData['model'])) $badges[] = $typeData['model'];
+            if (!empty($typeData['year'])) $badges[] = $typeData['year'];
+            break;
+            
+        case 'trailer':
+            if (!empty($typeData['trailer_type'])) $badges[] = $typeData['trailer_type'];
+            if (!empty($typeData['load_capacity_kg'])) $badges[] = $typeData['load_capacity_kg'] . 'kg';
+            break;
+            
+        case 'tool':
+        case 'sports_equipment':
+            if (!empty($typeData['brand'])) $badges[] = $typeData['brand'];
+            if (!empty($typeData['model'])) $badges[] = $typeData['model'];
+            break;
+    }
+    
+    return $badges;
 }
