@@ -332,15 +332,8 @@ try {
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Standard betalingsmetode</label>
-                            <select class="form-select" name="default_payment_method">
-                                <option value="">Velg betalingsmetode</option>
-                                <?php if (!empty($companyData['Cash_payment'])): ?>
-                                <option value="cash" selected>Kontant</option>
-                                <?php endif; ?>
-                                <option value="card">Kort</option>
-                                <option value="vipps">Vipps</option>
-                                <option value="online">Online</option>
-                                <option value="invoice">Faktura</option>
+                            <select class="form-select" name="default_payment_method" id="payment-method-select">
+                                <option value="">Laster betalingsmetoder...</option>
                             </select>
                             <small class="form-text text-muted">Denne metoden vil være forhåndsvalgt ved påmelding</small>
                         </div>
@@ -991,6 +984,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (membershipPlansContainer) {
         loadMembershipPlans();
     }
+    
+    // Load payment methods for event creation
+    const paymentMethodSelect = document.getElementById('payment-method-select');
+    if (paymentMethodSelect) {
+        loadPaymentMethods();
+    }
 
     // Handle min_attendees field - show/hide deadline
     const minAttendeesInput = document.getElementById('min_attendees');
@@ -1200,6 +1199,59 @@ async function loadMembershipPlans() {
                 Kunne ikke laste medlemskapsplaner: ${error.message}
             </div>
         `;
+    }
+}
+
+async function loadPaymentMethods() {
+    const select = document.getElementById('payment-method-select');
+    if (!select) {
+        console.warn('Payment method select not found');
+        return;
+    }
+    
+    console.log('Loading payment methods...');
+    
+    try {
+        const response = await fetch('../api/get_payment_methods.php');
+        const result = await response.json();
+        
+        console.log('Payment methods API response:', result);
+        
+        if (result.success && result.payment_methods && result.payment_methods.length > 0) {
+            console.log(`Found ${result.payment_methods.length} payment method(s)`);
+            
+            // Clear existing options
+            select.innerHTML = '<option value="">Velg betalingsmetode (valgfri)</option>';
+            
+            // Add payment methods
+            result.payment_methods.forEach((method, index) => {
+                const option = document.createElement('option');
+                option.value = method.method_type;
+                
+                // Build display name
+                let displayName = method.method_name || method.method_type;
+                if (method.is_demo) {
+                    displayName += ' (Demo)';
+                }
+                
+                option.textContent = displayName;
+                
+                // Select first option (usually cash) by default
+                if (index === 0) {
+                    option.selected = true;
+                }
+                
+                select.appendChild(option);
+            });
+            
+            console.log('Payment methods loaded successfully');
+        } else {
+            console.log('No payment methods found, using fallback');
+            select.innerHTML = '<option value="">Ingen betalingsmetoder konfigurert</option>';
+        }
+    } catch (error) {
+        console.error('Error loading payment methods:', error);
+        select.innerHTML = '<option value="">Feil ved lasting av betalingsmetoder</option>';
     }
 }
 
