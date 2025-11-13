@@ -295,6 +295,24 @@ try {
                             <small class="form-text text-muted">La stå tom hvis samme pris som ordinær billett</small>
                         </div>
                     </div>
+                    
+                    <div class="card border-success mb-3">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0"><i class="bi bi-card-checklist me-2"></i>Medlemskapsplaner som gir rett til medlemspris</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">
+                                Velg hvilke medlemskapsplaner som skal gi rett til medlemspris på dette arrangementet. 
+                                La stå tomt for å godta alle aktive medlemskap.
+                            </p>
+                            <div id="membership-plans-container">
+                                <div class="text-center text-muted">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    Laster medlemskapsplaner...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <?php endif; ?>
 
                     <div class="row">
@@ -953,6 +971,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('events-my')) {
         loadEvents();
     }
+    
+    // Load membership plans for event creation
+    const membershipPlansContainer = document.getElementById('membership-plans-container');
+    if (membershipPlansContainer) {
+        loadMembershipPlans();
+    }
 
     // Handle min_attendees field - show/hide deadline
     const minAttendeesInput = document.getElementById('min_attendees');
@@ -1000,6 +1024,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
+            // Collect selected membership plans
+            const selectedPlans = [];
+            document.querySelectorAll('input[name="membership_plan[]"]:checked').forEach(checkbox => {
+                selectedPlans.push(checkbox.value);
+            });
+            
             const data = {
                 title: formData.get('title'),
                 description: formData.get('description'),
@@ -1020,6 +1050,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 event_image_url: formData.get('event_image_url') || null,
                 default_payment_method: formData.get('default_payment_method') || null,
                 is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
+                membership_plan_ids: selectedPlans,
                 // Registration fields
                 field_phone: formData.get('field_phone') ? 1 : 0,
                 field_street: formData.get('field_street') ? 1 : 0,
@@ -1056,6 +1087,70 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+async function loadMembershipPlans() {
+    const container = document.getElementById('membership-plans-container');
+    if (!container) return;
+    
+    try {
+        const response = await fetch('../api/get_membership_plans.php');
+        const result = await response.json();
+        
+        if (result.success && result.plans && result.plans.length > 0) {
+            container.innerHTML = `
+                <div class="row">
+                    ${result.plans.map(plan => `
+                        <div class="col-md-6 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="membership_plan[]" 
+                                       value="${plan.plan_id || plan.id}" id="plan-${plan.plan_id || plan.id}">
+                                <label class="form-check-label" for="plan-${plan.plan_id || plan.id}">
+                                    <strong>${plan.name}</strong>
+                                    ${plan.price ? `<span class="text-muted"> - ${plan.price} kr/${plan.billing_cycle || plan.duration_months + ' mnd'}</span>` : ''}
+                                </label>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="mt-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAllPlans()">
+                        <i class="bi bi-check-all me-1"></i>Velg alle
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAllPlans()">
+                        <i class="bi bi-x-circle me-1"></i>Fjern alle
+                    </button>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="alert alert-info mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Ingen medlemskapsplaner funnet. Du må først opprette medlemskapsplaner i Medlemskap-modulen.
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading membership plans:', error);
+        container.innerHTML = `
+            <div class="alert alert-danger mb-0">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Kunne ikke laste medlemskapsplaner
+            </div>
+        `;
+    }
+}
+
+function selectAllPlans() {
+    document.querySelectorAll('input[name="membership_plan[]"]').forEach(checkbox => {
+        checkbox.checked = true;
+    });
+}
+
+function deselectAllPlans() {
+    document.querySelectorAll('input[name="membership_plan[]"]').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+}
 
 async function loadEvents() {
     try {
