@@ -122,11 +122,10 @@ try {
         ]);
         
         // 2. Save registration fields config
-        // Always add standard fields first (first_name, last_name, email)
+        // Always add standard fields first (first_name, last_name - always required)
         $standardFields = [
             'first_name' => ['label' => 'Fornavn', 'type' => 'text', 'required' => true],
-            'last_name' => ['label' => 'Etternavn', 'type' => 'text', 'required' => true],
-            'email' => ['label' => 'E-postadresse', 'type' => 'email', 'required' => true]
+            'last_name' => ['label' => 'Etternavn', 'type' => 'text', 'required' => true]
         ];
         
         $displayOrder = 1;
@@ -150,8 +149,9 @@ try {
             ]);
         }
         
-        // Then add optional fields if selected
+        // Then add optional fields if selected (including email which is now optional)
         $optionalFields = [
+            'email' => ['label' => 'E-postadresse', 'type' => 'email'],
             'phone' => ['label' => 'Telefonnummer', 'type' => 'tel'],
             'street' => ['label' => 'Gateadresse', 'type' => 'text'],
             'zip' => ['label' => 'Postnummer', 'type' => 'text'],
