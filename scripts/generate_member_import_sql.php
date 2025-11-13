@@ -61,12 +61,31 @@ foreach ($matches as $index => $match) {
     $firstName = $nameParts[0];
     $lastName = isset($nameParts[1]) ? $nameParts[1] : '';
     
+    // Parse adresse: "Gateadresse 123 6092 Fosnavåg" -> street, zip, city
+    $street = 'NULL';
+    $zip = 'NULL';
+    $city = 'NULL';
+    
+    if ($address !== 'NULL') {
+        // Regex: finn 4-sifret postnummer og by som kommer etter
+        if (preg_match('/^(.+?)\s+(\d{4})\s+(.+)$/', $address, $addrMatch)) {
+            $street = trim($addrMatch[1]);
+            $zip = trim($addrMatch[2]);
+            $city = trim($addrMatch[3]);
+        } else {
+            // Hvis ingen match, sett alt i street
+            $street = $address;
+        }
+    }
+    
     // SQL-escape
     $firstName = addslashes($firstName);
     $lastName = addslashes($lastName);
     $email = $email === 'NULL' ? 'NULL' : "'" . addslashes($email) . "'";
     $phone = $phone === 'NULL' ? 'NULL' : "'" . addslashes($phone) . "'";
-    $address = $address === 'NULL' ? 'NULL' : "'" . addslashes($address) . "'";
+    $street = $street === 'NULL' ? 'NULL' : "'" . addslashes($street) . "'";
+    $zip = $zip === 'NULL' ? 'NULL' : "'" . addslashes($zip) . "'";
+    $city = $city === 'NULL' ? 'NULL' : "'" . addslashes($city) . "'";
     $birthDate = $birthDate === 'NULL' ? 'NULL' : "'" . addslashes($birthDate) . "'";
     
     echo "-- #" . ($index + 1) . ": $fullName\n";
@@ -74,8 +93,8 @@ foreach ($matches as $index => $match) {
     echo "SET @member_id = REPLACE(UUID(), '-', '');\n";
     
     // Prøv å opprette kunde
-    echo "INSERT IGNORE INTO tenant_customers (id, company_id, customer_code, first_name, last_name, email, phone, date_of_birth, address_street, is_member, status)\n";
-    echo "VALUES (@customer_id, @company_id, CONCAT('CUST-', UPPER(SUBSTRING(@customer_id, 1, 8))), '$firstName', '$lastName', $email, $phone, $birthDate, $address, 1, 'active');\n";
+    echo "INSERT IGNORE INTO tenant_customers (id, company_id, customer_code, first_name, last_name, email, phone, date_of_birth, address_street, address_city, address_zip, is_member, status)\n";
+    echo "VALUES (@customer_id, @company_id, CONCAT('CUST-', UPPER(SUBSTRING(@customer_id, 1, 8))), '$firstName', '$lastName', $email, $phone, $birthDate, $street, $city, $zip, 1, 'active');\n";
     
     // Finn kunde-ID (enten nyopprettet eller eksisterende)
     echo "SET @customer_id = (\n";
