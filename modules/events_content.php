@@ -300,49 +300,24 @@ try {
                             <small class="form-text text-muted">La stå tom hvis samme pris som ordinær billett</small>
                         </div>
                     </div>
-                    <?php endif; ?>
-
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Bilde-URL</label>
-                            <input type="url" class="form-control" name="event_image_url">
-                            <small class="form-text text-muted">Valgfri: URL til arrangementsbilde</small>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Betalingsmetode</label>
-                            <select class="form-select" name="default_payment_method" id="payment-method-select">
-                                <option value="">Laster betalingsmetoder...</option>
-                            </select>
-                            <small class="form-text text-muted">Hvilken metode som vil være forhåndsvalgt</small>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Når skal betales?</label>
-                            <select class="form-select" name="payment_timing" required>
-                                <option value="both" selected>Deltaker velger (nå eller ved oppmøte)</option>
-                                <option value="immediate">Må betales nå (online)</option>
-                                <option value="on_arrival">Betales ved oppmøte</option>
-                            </select>
-                            <small class="form-text text-muted">Bestemmer når deltakerne må betale</small>
-                        </div>
-                    </div>
-
-                    <hr class="my-4">
-
-                    <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
-                    <!-- Combined Membership & Registration Card -->
-                    <div class="card border-success mb-3">
-                        <div class="card-header bg-success text-white">
-                            <h6 class="mb-0"><i class="bi bi-person-check me-2"></i>Medlemskap & Påmelding</h6>
+                    
+                    <div class="card border-success mb-3" id="membership-plans-card">
+                        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-card-checklist me-2"></i>Medlemskapsplaner</h6>
+                            <span class="badge bg-light text-success" id="member-restriction-badge" style="display: none;">
+                                <i class="bi bi-shield-check me-1"></i>Kun medlemmer aktivert
+                            </span>
                         </div>
                         <div class="card-body">
-                            <!-- Medlemskapsplaner Section -->
-                            <h6 class="mb-2"><i class="bi bi-card-checklist me-2 text-success"></i>Medlemskapsplaner</h6>
                             <div class="alert alert-info mb-3">
                                 <i class="bi bi-info-circle me-2"></i>
-                                <small><strong>Velg hvilke planer som gir medlemspris/adgang. Tom = alle medlemmer kvalifiserer.</strong></small>
+                                <strong>Slik fungerer det:</strong>
+                                <ul class="mb-0 mt-2 small">
+                                    <li><strong>Ingen planer valgt:</strong> Alle medlemskap får medlemspris / adgang</li>
+                                    <li><strong>Spesifikke planer valgt:</strong> Kun disse planene får medlemspris / adgang</li>
+                                    <li><strong>"Kun medlemmer" AV:</strong> Planer gir kun medlemspris (alle kan delta)</li>
+                                    <li><strong>"Kun medlemmer" PÅ:</strong> Planer begrenser også hvem som kan delta</li>
+                                </ul>
                             </div>
                             <div id="membership-plans-container">
                                 <div class="text-center text-muted">
@@ -350,31 +325,34 @@ try {
                                     Laster medlemskapsplaner...
                                 </div>
                             </div>
-                            
-                            <hr class="my-3">
-                            
-                            <!-- Påmeldingsfelt Section -->
-                            <h6 class="mb-2"><i class="bi bi-ui-checks me-2 text-success"></i>Påmeldingsfelt</h6>
-                            <p class="text-muted small mb-2">Konfigurer hvilke opplysninger som skal samles inn ved påmelding</p>
-                            
-                            <div class="alert alert-info mb-3">
-                                <i class="bi bi-info-circle me-2"></i>
-                                <strong>Standard felt (alltid inkludert):</strong><br>
-                                <small>✓ Fornavn &nbsp; ✓ Etternavn</small>
-                            </div>
-                            
-                            <h6 class="mb-3">Valgfrie felt:</h6>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_email" id="field_email" checked>
-                                        <label class="form-check-label" for="field_email">
-                                            <i class="bi bi-envelope text-success me-1"></i> E-postadresse
-                                        </label>
-                                    </div>
-                                </div>
-                    <?php else: ?>
-                    <!-- Registration Fields Only Card -->
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Standard betalingsmetode</label>
+                            <select class="form-select" name="default_payment_method">
+                                <option value="">Velg betalingsmetode</option>
+                                <?php if (!empty($companyData['Cash_payment'])): ?>
+                                <option value="cash" selected>Kontant</option>
+                                <?php endif; ?>
+                                <option value="card">Kort</option>
+                                <option value="vipps">Vipps</option>
+                                <option value="online">Online</option>
+                                <option value="invoice">Faktura</option>
+                            </select>
+                            <small class="form-text text-muted">Denne metoden vil være forhåndsvalgt ved påmelding</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Bilde-URL</label>
+                            <input type="url" class="form-control" name="event_image_url">
+                            <small class="form-text text-muted">Valgfri: URL til arrangementsbilde</small>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
                     <div class="card border-primary mb-3">
                         <div class="card-header bg-primary text-white">
                             <h6 class="mb-0"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h6>
@@ -385,20 +363,10 @@ try {
                             <div class="alert alert-info mb-3">
                                 <i class="bi bi-info-circle me-2"></i>
                                 <strong>Standard felt (alltid inkludert):</strong><br>
-                                <small>✓ Fornavn &nbsp; ✓ Etternavn</small>
+                                <small>✓ Fornavn &nbsp; ✓ Etternavn &nbsp; ✓ E-postadresse</small>
                             </div>
                             
-                            <h6 class="mb-3">Valgfrie felt:</h6>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_email" id="field_email" checked>
-                                        <label class="form-check-label" for="field_email">
-                                            <i class="bi bi-envelope text-primary me-1"></i> E-postadresse
-                                        </label>
-                                    </div>
-                                </div>
-                    <?php endif; ?>
+                            <h6 class="mb-3">Valgfrie tilleggsfelt:</h6>
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-check mb-2">
@@ -1023,12 +991,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (membershipPlansContainer) {
         loadMembershipPlans();
     }
-    
-    // Load payment methods for event creation
-    const paymentMethodSelect = document.getElementById('payment-method-select');
-    if (paymentMethodSelect) {
-        loadPaymentMethods();
-    }
 
     // Handle min_attendees field - show/hide deadline
     const minAttendeesInput = document.getElementById('min_attendees');
@@ -1238,59 +1200,6 @@ async function loadMembershipPlans() {
                 Kunne ikke laste medlemskapsplaner: ${error.message}
             </div>
         `;
-    }
-}
-
-async function loadPaymentMethods() {
-    const select = document.getElementById('payment-method-select');
-    if (!select) {
-        console.warn('Payment method select not found');
-        return;
-    }
-    
-    console.log('Loading payment methods...');
-    
-    try {
-        const response = await fetch('../api/get_payment_methods.php');
-        const result = await response.json();
-        
-        console.log('Payment methods API response:', result);
-        
-        if (result.success && result.payment_methods && result.payment_methods.length > 0) {
-            console.log(`Found ${result.payment_methods.length} payment method(s)`);
-            
-            // Clear existing options
-            select.innerHTML = '<option value="">Velg betalingsmetode (valgfri)</option>';
-            
-            // Add payment methods
-            result.payment_methods.forEach((method, index) => {
-                const option = document.createElement('option');
-                option.value = method.method_type;
-                
-                // Build display name
-                let displayName = method.method_name || method.method_type;
-                if (method.is_demo) {
-                    displayName += ' (Demo)';
-                }
-                
-                option.textContent = displayName;
-                
-                // Select first option (usually cash) by default
-                if (index === 0) {
-                    option.selected = true;
-                }
-                
-                select.appendChild(option);
-            });
-            
-            console.log('Payment methods loaded successfully');
-        } else {
-            console.log('No payment methods found, using fallback');
-            select.innerHTML = '<option value="">Ingen betalingsmetoder konfigurert</option>';
-        }
-    } catch (error) {
-        console.error('Error loading payment methods:', error);
-        select.innerHTML = '<option value="">Feil ved lasting av betalingsmetoder</option>';
     }
 }
 

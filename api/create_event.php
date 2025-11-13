@@ -28,12 +28,6 @@ try {
         // Column already exists, ignore
     }
     
-    try {
-        $db->exec("ALTER TABLE events_eventdata ADD COLUMN payment_timing VARCHAR(20) DEFAULT 'both'");
-    } catch (Exception $e) {
-        // Column already exists, ignore
-    }
-    
     // 2. Server-side validation for registration_deadline
     if (!empty($data['min_attendees']) && intval($data['min_attendees']) > 0) {
         if (empty($data['registration_deadline'])) {
@@ -75,10 +69,8 @@ try {
                 ticket_price,
                 member_ticket_price,
                 default_payment_method,
-                payment_timing,
                 created_by
             ) VALUES (
-                ?,
                 ?,
                 ?,
                 ?,
@@ -126,15 +118,15 @@ try {
             $data['ticket_price'] ?? 0,
             $data['member_ticket_price'] ?? null,
             $data['default_payment_method'] ?? null,
-            $data['payment_timing'] ?? 'both',
             $_SESSION['tenant_admin_id']
         ]);
         
         // 2. Save registration fields config
-        // Always add standard fields first (first_name, last_name)
+        // Always add standard fields first (first_name, last_name, email)
         $standardFields = [
             'first_name' => ['label' => 'Fornavn', 'type' => 'text', 'required' => true],
-            'last_name' => ['label' => 'Etternavn', 'type' => 'text', 'required' => true]
+            'last_name' => ['label' => 'Etternavn', 'type' => 'text', 'required' => true],
+            'email' => ['label' => 'E-postadresse', 'type' => 'email', 'required' => true]
         ];
         
         $displayOrder = 1;
@@ -160,7 +152,6 @@ try {
         
         // Then add optional fields if selected
         $optionalFields = [
-            'email' => ['label' => 'E-postadresse', 'type' => 'email'],
             'phone' => ['label' => 'Telefonnummer', 'type' => 'tel'],
             'street' => ['label' => 'Gateadresse', 'type' => 'text'],
             'zip' => ['label' => 'Postnummer', 'type' => 'text'],
