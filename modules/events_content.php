@@ -198,25 +198,15 @@ try {
             <div class="card-body">
                 <h5 class="card-title">Opprett nytt arrangement</h5>
                 <form id="create-event-form">
-                    <div class="row">
-                        <div class="col-md-<?php echo isset($hasMembershipAccess) && $hasMembershipAccess ? '8' : '12'; ?> mb-3">
-                            <label class="form-label">Arrangement navn *</label>
-                            <input type="text" class="form-control" name="title" required>
-                        </div>
-                        <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Kun for medlemmer?</label>
-                            <div class="form-check form-switch mt-2">
-                                <input class="form-check-input" type="checkbox" name="is_member_exclusive" id="memberExclusive">
-                                <label class="form-check-label" for="memberExclusive">
-                                    <strong>Kun medlemmer</strong>
-                                </label>
-                            </div>
-                            <small class="form-text text-muted">
-                                Aktiver for å begrense påmelding til kun medlemmer. Velg planer nedenfor for ekstra begrensning.
-                            </small>
-                        </div>
-                        <?php endif; ?>
+                    <div class="mb-3">
+                        <label class="form-label">Arrangement navn *</label>
+                        <input type="text" class="form-control" name="title" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Bilde-URL</label>
+                        <input type="url" class="form-control" name="event_image_url" placeholder="https://...">
+                        <small class="form-text text-muted">Valgfri: URL til arrangementsbilde</small>
                     </div>
                     
                     <div class="mb-3">
@@ -300,37 +290,10 @@ try {
                             <small class="form-text text-muted">La stå tom hvis samme pris som ordinær billett</small>
                         </div>
                     </div>
-                    
-                    <div class="card border-success mb-3" id="membership-plans-card">
-                        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0"><i class="bi bi-card-checklist me-2"></i>Medlemskapsplaner</h6>
-                            <span class="badge bg-light text-success" id="member-restriction-badge" style="display: none;">
-                                <i class="bi bi-shield-check me-1"></i>Kun medlemmer aktivert
-                            </span>
-                        </div>
-                        <div class="card-body">
-                            <div class="alert alert-info mb-3">
-                                <i class="bi bi-info-circle me-2"></i>
-                                <strong>Slik fungerer det:</strong>
-                                <ul class="mb-0 mt-2 small">
-                                    <li><strong>Ingen planer valgt:</strong> Alle medlemskap får medlemspris / adgang</li>
-                                    <li><strong>Spesifikke planer valgt:</strong> Kun disse planene får medlemspris / adgang</li>
-                                    <li><strong>"Kun medlemmer" AV:</strong> Planer gir kun medlemspris (alle kan delta)</li>
-                                    <li><strong>"Kun medlemmer" PÅ:</strong> Planer begrenser også hvem som kan delta</li>
-                                </ul>
-                            </div>
-                            <div id="membership-plans-container">
-                                <div class="text-center text-muted">
-                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                                    Laster medlemskapsplaner...
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                     <?php endif; ?>
 
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-12 mb-3">
                             <label class="form-label">Standard betalingsmetode</label>
                             <select class="form-select" name="default_payment_method">
                                 <option value="">Velg betalingsmetode</option>
@@ -344,30 +307,41 @@ try {
                             </select>
                             <small class="form-text text-muted">Denne metoden vil være forhåndsvalgt ved påmelding</small>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Bilde-URL</label>
-                            <input type="url" class="form-control" name="event_image_url">
-                            <small class="form-text text-muted">Valgfri: URL til arrangementsbilde</small>
-                        </div>
                     </div>
 
                     <hr class="my-4">
 
+                    <!-- Combined Registration & Membership Card -->
                     <div class="card border-primary mb-3">
-                        <div class="card-header bg-primary text-white">
-                            <h6 class="mb-0"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h6>
+                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-ui-checks me-2"></i>Påmelding & Medlemskap</h6>
+                            <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
+                            <span class="badge bg-light text-primary" id="member-restriction-badge" style="display: none;">
+                                <i class="bi bi-shield-check me-1"></i>Kun medlemmer aktivert
+                            </span>
+                            <?php endif; ?>
                         </div>
                         <div class="card-body">
+                            <!-- Registration Fields Section -->
+                            <h6 class="mb-3"><i class="bi bi-person-lines-fill me-2"></i>Påmeldingsfelt</h6>
                             <p class="text-muted small mb-3">Konfigurer hvilke opplysninger som skal samles inn ved påmelding</p>
                             
                             <div class="alert alert-info mb-3">
                                 <i class="bi bi-info-circle me-2"></i>
                                 <strong>Standard felt (alltid inkludert):</strong><br>
-                                <small>✓ Fornavn &nbsp; ✓ Etternavn &nbsp; ✓ E-postadresse</small>
+                                <small>✓ Fornavn &nbsp; ✓ Etternavn</small>
                             </div>
                             
-                            <h6 class="mb-3">Valgfrie tilleggsfelt:</h6>
+                            <h6 class="mb-3">Valgfrie felt:</h6>
                             <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="field_email" id="field_email" checked>
+                                        <label class="form-check-label" for="field_email">
+                                            <i class="bi bi-envelope text-primary me-1"></i> E-postadresse
+                                        </label>
+                                    </div>
+                                </div>
                                 <div class="col-md-4">
                                     <div class="form-check mb-2">
                                         <input class="form-check-input" type="checkbox" name="field_phone" id="field_phone" checked>
@@ -376,6 +350,16 @@ try {
                                         </label>
                                     </div>
                                 </div>
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="field_age" id="field_age" checked>
+                                        <label class="form-check-label" for="field_age">
+                                            <i class="bi bi-person-badge text-primary me-1"></i> Alder
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-check mb-2">
                                         <input class="form-check-input" type="checkbox" name="field_street" id="field_street" checked>
@@ -392,8 +376,6 @@ try {
                                         </label>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-check mb-2">
                                         <input class="form-check-input" type="checkbox" name="field_city" id="field_city" checked>
@@ -402,6 +384,8 @@ try {
                                         </label>
                                     </div>
                                 </div>
+                            </div>
+                            <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-check mb-2">
                                         <input class="form-check-input" type="checkbox" name="field_postal" id="field_postal" checked>
@@ -410,15 +394,45 @@ try {
                                         </label>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_age" id="field_age" checked>
-                                        <label class="form-check-label" for="field_age">
-                                            <i class="bi bi-person-badge text-primary me-1"></i> Alder
-                                        </label>
-                                    </div>
+                            </div>
+
+                            <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
+                            <hr class="my-4">
+                            
+                            <!-- Membership Section -->
+                            <h6 class="mb-3"><i class="bi bi-card-checklist me-2"></i>Medlemskap</h6>
+                            
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="is_member_exclusive" id="memberExclusive">
+                                    <label class="form-check-label" for="memberExclusive">
+                                        <strong><i class="bi bi-shield-lock me-1"></i>Kun medlemmer kan melde seg på</strong>
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted ms-4">
+                                    Aktiver for å begrense påmelding til kun medlemmer. Velg spesifikke planer nedenfor for ytterligere begrensning.
+                                </small>
+                            </div>
+                            
+                            <div class="alert alert-info mb-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Slik fungerer medlemskapsplaner:</strong>
+                                <ul class="mb-0 mt-2 small">
+                                    <li><strong>Ingen planer valgt:</strong> Alle medlemskap får medlemspris / adgang</li>
+                                    <li><strong>Spesifikke planer valgt:</strong> Kun disse planene får medlemspris / adgang</li>
+                                    <li><strong>"Kun medlemmer" AV:</strong> Planer gir kun medlemspris (alle kan delta)</li>
+                                    <li><strong>"Kun medlemmer" PÅ:</strong> Planer begrenser også hvem som kan delta</li>
+                                </ul>
+                            </div>
+                            
+                            <h6 class="mb-3">Velg medlemskapsplaner:</h6>
+                            <div id="membership-plans-container">
+                                <div class="text-center text-muted">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    Laster medlemskapsplaner...
                                 </div>
                             </div>
+                            <?php endif; ?>
                         </div>
                     </div>
 
