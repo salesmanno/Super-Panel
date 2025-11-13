@@ -1030,6 +1030,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 selectedPlans.push(checkbox.value);
             });
             
+            // Debug: Log selected plans
+            if (selectedPlans.length > 0) {
+                console.log('Valgte medlemskapsplaner:', selectedPlans);
+            } else {
+                console.log('Ingen medlemskapsplaner valgt - alle aktive medlemmer får medlemspris');
+            }
+            
             const data = {
                 title: formData.get('title'),
                 description: formData.get('description'),
