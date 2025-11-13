@@ -64,7 +64,8 @@ try {
                 event_image_url = ?,
                 ticket_price = ?,
                 member_ticket_price = ?,
-                default_payment_method = ?
+                default_payment_method = ?,
+                payment_timing = ?
             WHERE id = ? AND company_id = ?
         ");
         
@@ -88,20 +89,22 @@ try {
             $data['ticket_price'] ?? 0,
             $data['member_ticket_price'] ?? null,
             $data['default_payment_method'] ?? null,
+            $data['payment_timing'] ?? 'both',
             $data['event_id'],
             $_SESSION['company_id']
         ]);
         
         // Update registration fields config
-        // Delete existing optional fields (keep standard fields)
+        // Delete existing optional fields (keep standard fields: first_name, last_name)
         $stmt = $db->prepare("
             DELETE FROM event_registration_fields 
-            WHERE event_id = ? AND field_name NOT IN ('first_name', 'last_name', 'email')
+            WHERE event_id = ? AND field_name NOT IN ('first_name', 'last_name')
         ");
         $stmt->execute([$data['event_id']]);
         
         // Add optional fields if selected
         $optionalFields = [
+            'email' => ['label' => 'E-postadresse', 'type' => 'email'],
             'phone' => ['label' => 'Telefonnummer', 'type' => 'tel'],
             'street' => ['label' => 'Gateadresse', 'type' => 'text'],
             'zip' => ['label' => 'Postnummer', 'type' => 'text'],
@@ -110,7 +113,7 @@ try {
             'age' => ['label' => 'Alder', 'type' => 'number']
         ];
         
-        $displayOrder = 4; // After standard fields (1,2,3)
+        $displayOrder = 3; // After standard fields (1,2)
         foreach ($optionalFields as $fieldName => $fieldConfig) {
             if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
                 $fieldId = bin2hex(random_bytes(16));
