@@ -63,10 +63,20 @@ foreach ($matches as $index => $match) {
     echo "SET @customer_id = REPLACE(UUID(), '-', '');\n";
     echo "SET @member_id = REPLACE(UUID(), '-', '');\n";
     
-    echo "INSERT INTO tenant_customers (id, company_id, customer_code, first_name, last_name, email, phone, date_of_birth, address_street, is_member, status)\n";
+    // Bruk INSERT IGNORE for å hoppe over duplikater
+    echo "INSERT IGNORE INTO tenant_customers (id, company_id, customer_code, first_name, last_name, email, phone, date_of_birth, address_street, is_member, status)\n";
     echo "VALUES (@customer_id, @company_id, CONCAT('CUST-', UPPER(SUBSTRING(@customer_id, 1, 8))), '$firstName', '$lastName', $email, $phone, $birthDate, $address, 1, 'active');\n";
     
-    echo "INSERT INTO membership_members (id, company_id, customer_id, membership_plan_id, member_code, status, join_date, expiration_date, auto_renew)\n";
+    // Sjekk om kunde ble opprettet, ellers finn eksisterende kunde
+    echo "SET @customer_id = COALESCE(\n";
+    echo "    (SELECT id FROM tenant_customers WHERE company_id = @company_id AND customer_code = CONCAT('CUST-', UPPER(SUBSTRING(@customer_id, 1, 8))) LIMIT 1),\n";
+    if ($email !== 'NULL') {
+        echo "    (SELECT id FROM tenant_customers WHERE company_id = @company_id AND email = $email LIMIT 1),\n";
+    }
+    echo "    @customer_id\n";
+    echo ");\n";
+    
+    echo "INSERT IGNORE INTO membership_members (id, company_id, customer_id, membership_plan_id, member_code, status, join_date, expiration_date, auto_renew)\n";
     echo "VALUES (@member_id, @company_id, @customer_id, @plan_id, CONCAT('MBR-', UPPER(SUBSTRING(@member_id, 1, 8))), 'active', '$joinDate', '$expiresAt', 1);\n\n";
 }
 
