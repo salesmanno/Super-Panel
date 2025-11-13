@@ -60,14 +60,14 @@ foreach ($matches as $index => $match) {
     $birthDate = $birthDate === 'NULL' ? 'NULL' : "'" . addslashes($birthDate) . "'";
     
     echo "-- #" . ($index + 1) . ": $fullName\n";
-    echo "SET @customer_id = UNHEX(REPLACE(UUID(), '-', ''));\n";
-    echo "SET @member_id = UNHEX(REPLACE(UUID(), '-', ''));\n";
+    echo "SET @customer_id = UUID();\n";
+    echo "SET @member_id = UUID();\n";
     
     echo "INSERT INTO tenant_customers (id, company_id, customer_code, first_name, last_name, email, phone, date_of_birth, address_street, is_member, status)\n";
-    echo "VALUES (@customer_id, @company_id, CONCAT('CUST-', UPPER(SUBSTRING(HEX(@customer_id), 1, 8))), '$firstName', '$lastName', $email, $phone, $birthDate, $address, 1, 'active');\n";
+    echo "VALUES (@customer_id, @company_id, CONCAT('CUST-', UPPER(SUBSTRING(REPLACE(@customer_id, '-', ''), 1, 8))), '$firstName', '$lastName', $email, $phone, $birthDate, $address, 1, 'active');\n";
     
     echo "INSERT INTO membership_members (id, company_id, customer_id, membership_plan_id, member_code, status, join_date, expiration_date, auto_renew)\n";
-    echo "VALUES (@member_id, @company_id, @customer_id, @plan_id, CONCAT('MBR-', UPPER(SUBSTRING(HEX(@member_id), 1, 8))), 'active', '$joinDate', '$expiresAt', 1);\n\n";
+    echo "VALUES (@member_id, @company_id, @customer_id, @plan_id, CONCAT('MBR-', UPPER(SUBSTRING(REPLACE(@member_id, '-', ''), 1, 8))), 'active', '$joinDate', '$expiresAt', 1);\n\n";
 }
 
 echo "-- ========================================\n";
