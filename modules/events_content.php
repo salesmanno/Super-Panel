@@ -1054,15 +1054,16 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Collect selected membership plans
             const selectedPlans = [];
-            document.querySelectorAll('input[name="membership_plan[]"]:checked').forEach(checkbox => {
+            document.querySelectorAll('.membership-plan-checkbox:checked').forEach(checkbox => {
                 selectedPlans.push(checkbox.value);
+                console.log('Selected plan:', checkbox.value, '- Name:', checkbox.dataset.planName);
             });
             
             // Debug: Log selected plans
             if (selectedPlans.length > 0) {
-                console.log('Valgte medlemskapsplaner:', selectedPlans);
+                console.log('✓ Valgte medlemskapsplaner:', selectedPlans);
             } else {
-                console.log('Ingen medlemskapsplaner valgt - alle aktive medlemmer får medlemspris');
+                console.log('ℹ Ingen medlemskapsplaner valgt - alle aktive medlemmer kvalifiserer');
             }
             
             const data = {
@@ -1125,38 +1126,65 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function loadMembershipPlans() {
     const container = document.getElementById('membership-plans-container');
-    if (!container) return;
+    if (!container) {
+        console.warn('Membership plans container not found');
+        return;
+    }
+    
+    console.log('Loading membership plans...');
     
     try {
         const response = await fetch('../api/get_membership_plans.php');
         const result = await response.json();
         
+        console.log('Membership plans API response:', result);
+        
         if (result.success && result.plans && result.plans.length > 0) {
+            console.log(`Found ${result.plans.length} membership plan(s)`);
+            
             container.innerHTML = `
-                <div class="row">
-                    ${result.plans.map(plan => `
-                        <div class="col-md-6 mb-2">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="membership_plan[]" 
-                                       value="${plan.plan_id || plan.id}" id="plan-${plan.plan_id || plan.id}">
-                                <label class="form-check-label" for="plan-${plan.plan_id || plan.id}">
-                                    <strong>${plan.name}</strong>
-                                    ${plan.price ? `<span class="text-muted"> - ${plan.price} kr/${plan.billing_cycle || plan.duration_months + ' mnd'}</span>` : ''}
-                                </label>
+                <div class="row" id="plans-checkboxes">
+                    ${result.plans.map(plan => {
+                        const planId = plan.plan_id || plan.id;
+                        const billingInfo = plan.price ? 
+                            `<span class="text-muted"> - ${plan.price} kr/${plan.billing_cycle || (plan.duration_months + ' mnd')}</span>` : '';
+                        return `
+                            <div class="col-md-6 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input membership-plan-checkbox" 
+                                           type="checkbox" 
+                                           name="membership_plan_${planId}" 
+                                           value="${planId}" 
+                                           id="plan-${planId}"
+                                           data-plan-name="${plan.name}">
+                                    <label class="form-check-label" for="plan-${planId}">
+                                        <strong>${plan.name}</strong>
+                                        ${billingInfo}
+                                    </label>
+                                </div>
                             </div>
-                        </div>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </div>
                 <div class="mt-3">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAllPlans()">
+                    <button type="button" class="btn btn-sm btn-outline-success" onclick="selectAllPlans()">
                         <i class="bi bi-check-all me-1"></i>Velg alle
                     </button>
                     <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAllPlans()">
                         <i class="bi bi-x-circle me-1"></i>Fjern alle
                     </button>
+                    <span class="ms-3 text-muted small" id="selected-plans-count">0 valgt</span>
                 </div>
             `;
+            
+            // Add change listeners to update count
+            document.querySelectorAll('.membership-plan-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', updateSelectedPlansCount);
+            });
+            
+            console.log('Membership plans loaded successfully');
         } else {
+            console.log('No membership plans found');
             container.innerHTML = `
                 <div class="alert alert-info mb-0">
                     <i class="bi bi-info-circle me-2"></i>
@@ -1169,22 +1197,40 @@ async function loadMembershipPlans() {
         container.innerHTML = `
             <div class="alert alert-danger mb-0">
                 <i class="bi bi-exclamation-triangle me-2"></i>
-                Kunne ikke laste medlemskapsplaner
+                Kunne ikke laste medlemskapsplaner: ${error.message}
             </div>
         `;
     }
 }
 
+function updateSelectedPlansCount() {
+    const checkboxes = document.querySelectorAll('.membership-plan-checkbox');
+    const checkedCount = document.querySelectorAll('.membership-plan-checkbox:checked').length;
+    const countElement = document.getElementById('selected-plans-count');
+    
+    if (countElement) {
+        if (checkedCount === 0) {
+            countElement.textContent = '0 valgt (alle medlemskap kvalifiserer)';
+            countElement.className = 'ms-3 text-muted small';
+        } else {
+            countElement.textContent = `${checkedCount} av ${checkboxes.length} valgt`;
+            countElement.className = 'ms-3 text-success small fw-bold';
+        }
+    }
+}
+
 function selectAllPlans() {
-    document.querySelectorAll('input[name="membership_plan[]"]').forEach(checkbox => {
+    document.querySelectorAll('.membership-plan-checkbox').forEach(checkbox => {
         checkbox.checked = true;
     });
+    updateSelectedPlansCount();
 }
 
 function deselectAllPlans() {
-    document.querySelectorAll('input[name="membership_plan[]"]').forEach(checkbox => {
+    document.querySelectorAll('.membership-plan-checkbox').forEach(checkbox => {
         checkbox.checked = false;
     });
+    updateSelectedPlansCount();
 }
 
 async function loadEvents() {

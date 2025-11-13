@@ -31,6 +31,7 @@ try {
         ");
         $stmt->execute([':company_id' => $companyId]);
     } else {
+        // PostgreSQL: Cast company_id to UUID to avoid type errors
         $stmt = $db->prepare("
             SELECT 
                 plan_id,
@@ -41,10 +42,10 @@ try {
                 features as benefits,
                 is_active
             FROM x_membership_plan
-            WHERE company_id = :company_id AND is_active = true
+            WHERE company_id::text = :company_id AND is_active = true
             ORDER BY created_at DESC
         ");
-        $stmt->execute([':company_id' => $companyId]);
+        $stmt->execute([':company_id' => (string)$companyId]);
     }
     
     $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
