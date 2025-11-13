@@ -208,8 +208,13 @@ try {
                             <label class="form-label">Kun for medlemmer?</label>
                             <div class="form-check form-switch mt-2">
                                 <input class="form-check-input" type="checkbox" name="is_member_exclusive" id="memberExclusive">
-                                <label class="form-check-label" for="memberExclusive">Kun medlemmer</label>
+                                <label class="form-check-label" for="memberExclusive">
+                                    <strong>Kun medlemmer</strong>
+                                </label>
                             </div>
+                            <small class="form-text text-muted">
+                                Aktiver for å begrense påmelding til kun medlemmer. Velg planer nedenfor for ekstra begrensning.
+                            </small>
                         </div>
                         <?php endif; ?>
                     </div>
@@ -296,15 +301,24 @@ try {
                         </div>
                     </div>
                     
-                    <div class="card border-success mb-3">
-                        <div class="card-header bg-success text-white">
-                            <h6 class="mb-0"><i class="bi bi-card-checklist me-2"></i>Medlemskapsplaner som gir rett til medlemspris</h6>
+                    <div class="card border-success mb-3" id="membership-plans-card">
+                        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-card-checklist me-2"></i>Medlemskapsplaner</h6>
+                            <span class="badge bg-light text-success" id="member-restriction-badge" style="display: none;">
+                                <i class="bi bi-shield-check me-1"></i>Kun medlemmer aktivert
+                            </span>
                         </div>
                         <div class="card-body">
-                            <p class="text-muted small mb-3">
-                                Velg hvilke medlemskapsplaner som skal gi rett til medlemspris på dette arrangementet. 
-                                La stå tomt for å godta alle aktive medlemskap.
-                            </p>
+                            <div class="alert alert-info mb-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Slik fungerer det:</strong>
+                                <ul class="mb-0 mt-2 small">
+                                    <li><strong>Ingen planer valgt:</strong> Alle medlemskap får medlemspris / adgang</li>
+                                    <li><strong>Spesifikke planer valgt:</strong> Kun disse planene får medlemspris / adgang</li>
+                                    <li><strong>"Kun medlemmer" AV:</strong> Planer gir kun medlemspris (alle kan delta)</li>
+                                    <li><strong>"Kun medlemmer" PÅ:</strong> Planer begrenser også hvem som kan delta</li>
+                                </ul>
+                            </div>
                             <div id="membership-plans-container">
                                 <div class="text-center text-muted">
                                     <div class="spinner-border spinner-border-sm me-2" role="status"></div>
@@ -992,6 +1006,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 deadlineContainer.style.display = 'none';
                 deadlineInput.required = false;
                 deadlineInput.value = '';
+            }
+        });
+    }
+    
+    // Handle "Kun medlemmer" toggle - show/hide badge
+    const memberExclusiveCheckbox = document.getElementById('memberExclusive');
+    const memberRestrictionBadge = document.getElementById('member-restriction-badge');
+    
+    if (memberExclusiveCheckbox && memberRestrictionBadge) {
+        memberExclusiveCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                memberRestrictionBadge.style.display = 'inline-block';
+            } else {
+                memberRestrictionBadge.style.display = 'none';
             }
         });
     }
