@@ -466,23 +466,30 @@ try {
                     <div class="card-body">
                         <form id="quick-guest-form">
                             <div class="mb-2">
-                                <label class="form-label small mb-1">Fornavn</label>
+                                <label class="form-label small mb-1">Fornavn *</label>
                                 <input type="text" class="form-control form-control-sm" id="guest-fornavn" required>
                             </div>
                             <div class="mb-2">
-                                <label class="form-label small mb-1">Etternavn</label>
+                                <label class="form-label small mb-1">Etternavn *</label>
                                 <input type="text" class="form-control form-control-sm" id="guest-etternavn" required>
                             </div>
                             <div class="mb-2">
+                                <label class="form-label small mb-1">E-post</label>
+                                <input type="email" class="form-control form-control-sm" id="guest-email">
+                            </div>
+                            <div class="mb-2" id="guest-membership-container" style="display: none;">
+                                <label class="form-label small mb-1">Medlemsplan</label>
+                                <select class="form-select form-select-sm" id="guest-membership-plan">
+                                    <option value="">Ingen (ordinær pris)</option>
+                                </select>
+                            </div>
+                            <div class="mb-2">
                                 <label class="form-label small mb-1">Pris (kr)</label>
-                                <input type="number" class="form-control form-control-sm" id="guest-price" min="0" step="0.01" required>
+                                <input type="number" class="form-control form-control-sm" id="guest-price" min="0" step="0.01" required readonly>
                             </div>
                             <div class="mb-2">
                                 <label class="form-label small mb-1">Betalingsmetode</label>
                                 <select class="form-select form-select-sm" id="guest-payment-method" required>
-                                    <option value="cash">Kontant</option>
-                                    <option value="card">Kort</option>
-                                    <option value="vipps">Vipps</option>
                                 </select>
                             </div>
                             <div class="mb-3">
@@ -1340,15 +1347,40 @@ document.getElementById('checkin-event-selector')?.addEventListener('change', as
         document.getElementById('checkin-list-container').style.display = 'block';
         document.getElementById('checkin-empty-state').style.display = 'none';
         
-        // Load event price to pre-fill guest form
+        // Load event details and populate form
         try {
             const response = await fetch(`/api/get_event.php?id=${selectedEventId}`);
             const result = await response.json();
             if (result.success && result.event) {
+                // Set default price
                 document.getElementById('guest-price').value = result.event.ticket_price || 0;
+                
+                // Load payment methods
+                const paymentMethodSelect = document.getElementById('guest-payment-method');
+                paymentMethodSelect.innerHTML = '';
+                const paymentMethods = result.event.payment_methods_json ? JSON.parse(result.event.payment_methods_json) : ['cash'];
+                const methodNames = {
+                    'cash': 'Kontant',
+                    'card': 'Kort',
+                    'vipps': 'Vipps',
+                    'invoice': 'Faktura',
+                    'bank_transfer': 'Bankoverføring'
+                };
+                paymentMethods.forEach(method => {
+                    const option = document.createElement('option');
+                    option.value = method;
+                    option.textContent = methodNames[method] || method;
+                    if (method === result.event.default_payment_method) {
+                        option.selected = true;
+                    }
+                    paymentMethodSelect.appendChild(option);
+                });
+                
+                // Load membership plans if available
+                loadMembershipPlansForGuest(selectedEventId);
             }
         } catch (error) {
-            console.error('Error loading event price:', error);
+            console.error('Error loading event details:', error);
         }
         
         loadCheckins(selectedEventId);
@@ -1358,6 +1390,56 @@ document.getElementById('checkin-event-selector')?.addEventListener('change', as
         document.getElementById('checkin-list-container').style.display = 'none';
     }
 });
+
+// Load membership plans for guest registration
+async function loadMembershipPlansForGuest(eventId) {
+    try {
+        const response = await fetch(`/api/get_event_membership_pricing.php?event_id=${eventId}`);
+        const result = await response.json();
+        
+        if (result.success && result.pricing && result.pricing.length > 0) {
+            const container = document.getElementById('guest-membership-container');
+            const select = document.getElementById('guest-membership-plan');
+            
+            // Clear existing options except the first "None" option
+            select.innerHTML = '<option value="">Ingen (ordinær pris)</option>';
+            
+            // Add membership plan options
+            result.pricing.forEach(plan => {
+                const option = document.createElement('option');
+                option.value = plan.membership_plan_id;
+                option.textContent = `${plan.plan_name} (${plan.ticket_price} kr)`;
+                option.dataset.price = plan.ticket_price;
+                select.appendChild(option);
+            });
+            
+            // Show container
+            container.style.display = 'block';
+            
+            // Update price when membership plan changes
+            select.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                if (selectedOption.dataset.price) {
+                    document.getElementById('guest-price').value = selectedOption.dataset.price;
+                } else {
+                    // Reset to default event price
+                    fetch(`/api/get_event.php?id=${eventId}`)
+                        .then(r => r.json())
+                        .then(d => {
+                            if (d.success && d.event) {
+                                document.getElementById('guest-price').value = d.event.ticket_price || 0;
+                            }
+                        });
+                }
+            });
+        } else {
+            // Hide membership container if no plans
+            document.getElementById('guest-membership-container').style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error loading membership plans:', error);
+    }
+}
 
 // Handle quick guest registration
 document.getElementById('quick-guest-form')?.addEventListener('submit', async function(e) {
@@ -1370,9 +1452,10 @@ document.getElementById('quick-guest-form')?.addEventListener('submit', async fu
     
     const formData = {
         event_id: selectedEventId,
-        fornavn: document.getElementById('guest-fornavn').value.trim(),
-        etternavn: document.getElementById('guest-etternavn').value.trim(),
-        ticket_price: parseFloat(document.getElementById('guest-price').value),
+        attendee_first_name: document.getElementById('guest-fornavn').value.trim(),
+        attendee_last_name: document.getElementById('guest-etternavn').value.trim(),
+        attendee_email: document.getElementById('guest-email').value.trim() || null,
+        membership_plan_id: document.getElementById('guest-membership-plan').value || null,
         payment_method: document.getElementById('guest-payment-method').value,
         payment_status: document.getElementById('guest-payment-status').value
     };

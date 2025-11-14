@@ -11,8 +11,8 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 
 $input = json_decode(file_get_contents('php://input'), true);
 
-if (!$input || !isset($input['event_id']) || !isset($input['fornavn']) || !isset($input['etternavn'])) {
-    echo json_encode(['success' => false, 'message' => 'Manglende påkrevde felt']);
+if (!$input || !isset($input['event_id']) || !isset($input['attendee_first_name']) || !isset($input['attendee_last_name'])) {
+    echo json_encode(['success' => false, 'message' => 'Fornavn og etternavn er påkrevd']);
     exit;
 }
 
@@ -22,79 +22,78 @@ try {
     $admin_id = $_SESSION['tenant_admin_id'];
     
     $event_id = $input['event_id'];
-    $fornavn = trim($input['fornavn']);
-    $etternavn = trim($input['etternavn']);
-    $ticket_price = isset($input['ticket_price']) ? floatval($input['ticket_price']) : 0;
+    $first_name = trim($input['attendee_first_name']);
+    $last_name = trim($input['attendee_last_name']);
+    $email = isset($input['attendee_email']) ? trim($input['attendee_email']) : null;
+    $membership_plan_id = isset($input['membership_plan_id']) ? $input['membership_plan_id'] : null;
     $payment_method = isset($input['payment_method']) ? $input['payment_method'] : 'cash';
     $payment_status = isset($input['payment_status']) ? $input['payment_status'] : 'paid';
     
-    // Verify event belongs to company
-    $stmt = $db->prepare("SELECT id FROM events_eventdata WHERE id = ? AND company_id = ?");
+    // Verify event belongs to company and get pricing info
+    $stmt = $db->prepare("SELECT ticket_price, payment_methods_json, default_payment_method FROM events_eventdata WHERE id = ? AND company_id = ?");
     $stmt->execute([$event_id, $company_id]);
+    $event = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    if (!$stmt->fetch()) {
+    if (!$event) {
         echo json_encode(['success' => false, 'message' => 'Arrangement ikke funnet']);
         exit;
     }
     
-    // Generate UUID
-    $dbType = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
-    if ($dbType === 'pgsql') {
-        $stmt = $db->query("SELECT gen_random_uuid()");
-        $checkin_id = $stmt->fetchColumn();
-    } else {
-        $checkin_id = sprintf(
-            '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0x0fff) | 0x4000,
-            mt_rand(0, 0x3fff) | 0x8000,
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
-        );
+    // Determine ticket price based on membership plan
+    $ticket_type = 'walk-in';
+    $ticket_price = $event['ticket_price'];
+    
+    if ($membership_plan_id) {
+        $pricingStmt = $db->prepare("
+            SELECT emp.ticket_price, mp.name as plan_name
+            FROM event_membership_plans emp
+            JOIN membership_plans mp ON emp.membership_plan_id = mp.id
+            WHERE emp.event_id = ? AND emp.membership_plan_id = ? AND mp.company_id = ?
+        ");
+        $pricingStmt->execute([$event_id, $membership_plan_id, $company_id]);
+        $pricing = $pricingStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($pricing) {
+            $ticket_price = $pricing['ticket_price'];
+            $ticket_type = $pricing['plan_name'];
+        }
     }
     
-    // Combine fornavn and etternavn
-    $attendee_name = $fornavn . ' ' . $etternavn;
+    // Validate payment method against allowed methods
+    $allowedMethods = $event['payment_methods_json'] ? json_decode($event['payment_methods_json'], true) : ['cash'];
+    if (!in_array($payment_method, $allowedMethods)) {
+        $payment_method = $event['default_payment_method'] ?? $allowedMethods[0] ?? 'cash';
+    }
+    
+    // Generate UUID
+    $checkin_id = bin2hex(random_bytes(16));
     
     // Insert guest into events_checkin
-    if ($dbType === 'pgsql') {
-        $stmt = $db->prepare("
-            INSERT INTO events_checkin 
-            (id, event_id, attendee_name, ticket_type, ticket_price, 
-             payment_status, payment_method, checked_in, checked_in_by, created_at, updated_at) 
-            VALUES (?, ?, ?, 'walk-in', ?, ?, ?, TRUE, ?, NOW(), NOW())
-        ");
-        $stmt->execute([
-            $checkin_id,
-            $event_id,
-            $attendee_name,
-            $ticket_price,
-            $payment_status,
-            $payment_method,
-            $admin_id
-        ]);
-    } else {
-        $stmt = $db->prepare("
-            INSERT INTO events_checkin 
-            (id, event_id, attendee_name, ticket_type, ticket_price, 
-             payment_status, payment_method, checked_in, checked_in_by, created_at, updated_at) 
-            VALUES (?, ?, ?, 'walk-in', ?, ?, ?, 1, ?, NOW(), NOW())
-        ");
-        $stmt->execute([
-            $checkin_id,
-            $event_id,
-            $attendee_name,
-            $ticket_price,
-            $payment_status,
-            $payment_method,
-            $admin_id
-        ]);
-    }
+    $stmt = $db->prepare("
+        INSERT INTO events_checkin 
+        (id, event_id, attendee_first_name, attendee_last_name, attendee_email,
+         ticket_type, ticket_price, payment_status, payment_method, 
+         checked_in, checked_in_by, created_at, updated_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, NOW(), NOW())
+    ");
+    $stmt->execute([
+        $checkin_id,
+        $event_id,
+        $first_name,
+        $last_name,
+        $email,
+        $ticket_type,
+        $ticket_price,
+        $payment_status,
+        $payment_method,
+        $admin_id
+    ]);
     
     // If payment is completed (paid), create unified_ledger entry
     if ($payment_status === 'paid' && $ticket_price > 0) {
         require_once '../includes/UnifiedLedgerService.php';
         
+        $attendee_name = trim($first_name . ' ' . $last_name);
         $ledgerService = new UnifiedLedgerService($db, $company_id);
         $ledgerService->logTransaction([
             'order_id' => $checkin_id,
@@ -106,13 +105,15 @@ try {
             'selling_price' => $ticket_price,
             'cost_price' => 0,
             'customer_name' => $attendee_name,
+            'customer_email' => $email,
             'payment_method' => $payment_method,
             'payment_status' => 'completed',
             'status' => 'active',
             'metadata' => [
                 'event_id' => $event_id,
                 'checkin_id' => $checkin_id,
-                'guest_type' => 'walk-in'
+                'guest_type' => 'walk-in',
+                'membership_plan_id' => $membership_plan_id
             ]
         ]);
     }

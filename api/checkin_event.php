@@ -21,9 +21,15 @@ try {
 
     $db = getDBConnection();
     
+    // Validate required fields
+    if (empty($data['attendee_first_name']) || empty($data['attendee_last_name'])) {
+        echo json_encode(['success' => false, 'message' => 'Fornavn og etternavn er påkrevd']);
+        exit;
+    }
+    
     // Get event details and pricing
     $stmt = $db->prepare("
-        SELECT title, date_from, time_from, location, ticket_price, member_ticket_price, is_member_exclusive
+        SELECT title, start_date, start_time, venue_name, event_city, ticket_price, is_member_exclusive, payment_methods_json, default_payment_method
         FROM events_eventdata
         WHERE id = ? AND company_id = ?
     ");
@@ -35,12 +41,32 @@ try {
         exit;
     }
     
-    // Determine ticket price based on customer type
-    $ticketType = $data['ticket_type'] ?? 'regular';
+    // Validate payment method against allowed methods
+    $paymentMethod = $data['payment_method'] ?? $event['default_payment_method'] ?? 'cash';
+    $allowedMethods = $event['payment_methods_json'] ? json_decode($event['payment_methods_json'], true) : ['cash'];
+    if (!in_array($paymentMethod, $allowedMethods)) {
+        $paymentMethod = $allowedMethods[0] ?? 'cash'; // Fallback to first allowed method
+    }
+    
+    // Determine ticket price based on membership plan
+    $ticketType = 'regular';
     $ticketPrice = $event['ticket_price'];
     
-    if ($ticketType === 'member' && $event['member_ticket_price'] !== null) {
-        $ticketPrice = $event['member_ticket_price'];
+    if (!empty($data['membership_plan_id'])) {
+        // Check for membership-specific pricing
+        $pricingStmt = $db->prepare("
+            SELECT emp.ticket_price, mp.name as plan_name
+            FROM event_membership_plans emp
+            JOIN membership_plans mp ON emp.membership_plan_id = mp.id
+            WHERE emp.event_id = ? AND emp.membership_plan_id = ? AND mp.company_id = ?
+        ");
+        $pricingStmt->execute([$data['event_id'], $data['membership_plan_id'], $_SESSION['company_id']]);
+        $pricing = $pricingStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($pricing) {
+            $ticketPrice = $pricing['ticket_price'];
+            $ticketType = $pricing['plan_name'];
+        }
     }
     
     // Create check-in record
@@ -51,7 +77,8 @@ try {
             id,
             event_id,
             customer_id,
-            attendee_name,
+            attendee_first_name,
+            attendee_last_name,
             attendee_email,
             attendee_phone,
             attendee_street,
@@ -83,6 +110,7 @@ try {
             ?,
             ?,
             ?,
+            ?,
             TRUE,
             NOW(),
             ?,
@@ -96,10 +124,10 @@ try {
     // - on_arrival: Always pending (payment not received yet)
     // - cash: Paid only if explicitly confirmed
     // - other methods: Pending until confirmed
-    if ($data['payment_method'] === 'on_arrival') {
+    if ($paymentMethod === 'on_arrival') {
         $paymentStatus = 'pending';  // Never mark as paid - money not received
     } else {
-        $paymentStatus = ($data['payment_method'] === 'cash' && isset($data['paid']) && $data['paid']) ? 'paid' : 'pending';
+        $paymentStatus = ($paymentMethod === 'cash' && isset($data['paid']) && $data['paid']) ? 'paid' : 'pending';
     }
     
     // Normalize dynamic fields (blank-to-null for consistency)
@@ -112,7 +140,8 @@ try {
         $checkinId,
         $data['event_id'],
         $data['customer_id'] ?? null,
-        $data['attendee_name'] ?? null,
+        $data['attendee_first_name'],
+        $data['attendee_last_name'],
         $data['attendee_email'] ?? null,
         $data['attendee_phone'] ?? null,
         $street,
@@ -122,7 +151,7 @@ try {
         $ticketType,
         $ticketPrice,
         $paymentStatus,
-        $data['payment_method'] ?? 'cash',
+        $paymentMethod,
         $_SESSION['tenant_admin_id'],
         $data['notes'] ?? null
     ]);
@@ -140,6 +169,7 @@ try {
         // Generate order ID for this event checkin
         $orderId = 'EVT-' . date('Ymd') . '-' . strtoupper(substr($checkinId, 0, 6));
         
+        $attendeeName = trim($data['attendee_first_name'] . ' ' . $data['attendee_last_name']);
         $ledgerService->logTransaction([
             'order_id' => $orderId,
             'module_source' => 'events',
@@ -149,9 +179,9 @@ try {
             'quantity' => 1,
             'selling_price' => $ticketPrice,
             'cost_price' => $costPrice,
-            'customer_name' => $data['attendee_name'] ?? null,
+            'customer_name' => $attendeeName,
             'customer_email' => $data['attendee_email'] ?? null,
-            'payment_method' => $data['payment_method'] ?? 'cash',
+            'payment_method' => $paymentMethod,
             'payment_status' => 'completed',
             'status' => 'active',
             'transaction_date' => date('Y-m-d H:i:s'),
@@ -167,17 +197,18 @@ try {
     $emailSent = false;
     if (!empty($data['attendee_email'])) {
         try {
+            $attendeeName = trim($data['attendee_first_name'] . ' ' . $data['attendee_last_name']);
             $emailService = new EmailService($db, $_SESSION['company_id']);
             $emailResult = $emailService->send([
                 'template' => 'event_confirmation',
                 'to' => $data['attendee_email'],
                 'data' => [
-                    'customer_name' => $data['attendee_name'] ?? 'Deltaker',
+                    'customer_name' => $attendeeName,
                     'event_title' => $event['title'],
-                    'event_date' => $event['date_from'],
-                    'event_time' => $event['time_from'],
-                    'event_location' => $event['location'] ?? 'Se arrangementdetaljer',
-                    'ticket_type' => $ticketType === 'member' ? 'Medlemsbillett' : 'Ordinær billett'
+                    'event_date' => $event['start_date'],
+                    'event_time' => $event['start_time'],
+                    'event_location' => $event['venue_name'] ?? $event['event_city'] ?? 'Se arrangementdetaljer',
+                    'ticket_type' => $ticketType
                 ],
                 'module_source' => 'events',
                 'source_id' => $checkinId
