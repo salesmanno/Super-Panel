@@ -18,6 +18,18 @@ try {
     }
     
     $db = getDBConnection();
+    $companyId = $_SESSION['company_id'];
+    
+    // Verify event belongs to company
+    $checkStmt = $db->prepare("SELECT company_id FROM events_eventdata WHERE id = ?");
+    $checkStmt->execute([$eventId]);
+    $event = $checkStmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$event || $event['company_id'] !== $companyId) {
+        echo json_encode(['success' => false, 'error' => 'Arrangement ikke funnet']);
+        exit;
+    }
+    
     $dbType = getDBType();
     
     if ($dbType === 'mysql') {

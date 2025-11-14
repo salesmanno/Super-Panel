@@ -67,12 +67,8 @@ try {
                 end_date,
                 event_image_url,
                 ticket_price,
-                member_ticket_price,
-                default_payment_method,
                 created_by
             ) VALUES (
-                ?,
-                ?,
                 ?,
                 ?,
                 ?,
@@ -116,8 +112,6 @@ try {
             $data['end_date'] ?? null,
             $data['event_image_url'] ?? null,
             $data['ticket_price'] ?? 0,
-            $data['member_ticket_price'] ?? null,
-            $data['default_payment_method'] ?? null,
             $_SESSION['tenant_admin_id']
         ]);
         
@@ -126,7 +120,7 @@ try {
         $standardFields = [
             'first_name' => ['label' => 'Fornavn', 'type' => 'text', 'required' => true],
             'last_name' => ['label' => 'Etternavn', 'type' => 'text', 'required' => true],
-            'email' => ['label' => 'E-postadresse', 'type' => 'email', 'required' => true]
+            'email' => ['label' => 'E-postadresse', 'type' => 'email', 'required' => false]
         ];
         
         $displayOrder = 1;
@@ -182,7 +176,57 @@ try {
             }
         }
         
-        // 3. Auto-generate output_products entry using service
+        // 3. Save membership pricing if provided
+        if (isset($data['membership_pricing']) && is_array($data['membership_pricing'])) {
+            $stmt = $db->prepare("
+                INSERT INTO event_membership_plans (event_id, membership_plan_id, ticket_price, created_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ");
+            
+            foreach ($data['membership_pricing'] as $pricing) {
+                if (isset($pricing['plan_id']) && isset($pricing['price'])) {
+                    // Verify membership plan belongs to company
+                    $planCheck = $db->prepare("SELECT company_id FROM membership_plans WHERE id = ?");
+                    $planCheck->execute([$pricing['plan_id']]);
+                    $plan = $planCheck->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($plan && $plan['company_id'] === $_SESSION['company_id']) {
+                        $stmt->execute([$eventId, $pricing['plan_id'], $pricing['price']]);
+                    }
+                }
+            }
+        }
+        
+        // 4. Save allowed payment methods
+        $defaultPaymentMethod = 'cash'; // Safe fallback default
+        $paymentMethodsArray = [];
+        
+        if (isset($data['allowed_payment_methods']) && is_array($data['allowed_payment_methods']) && count($data['allowed_payment_methods']) > 0) {
+            // Use provided payment methods
+            $paymentMethodsArray = $data['allowed_payment_methods'];
+            $defaultPaymentMethod = $paymentMethodsArray[0]; // First method is default
+        } elseif (isset($data['default_payment_method']) && !empty($data['default_payment_method'])) {
+            // Legacy: Use single default_payment_method if provided
+            $defaultPaymentMethod = $data['default_payment_method'];
+            $paymentMethodsArray = [$defaultPaymentMethod];
+        } else {
+            // Fallback: Use company cash setting or default to cash
+            $companyStmt = $db->prepare("SELECT Cash_payment FROM tenant_companies WHERE id = ?");
+            $companyStmt->execute([$_SESSION['company_id']]);
+            $company = $companyStmt->fetch(PDO::FETCH_ASSOC);
+            if ($company && $company['Cash_payment']) {
+                $paymentMethodsArray = ['cash'];
+            } else {
+                $paymentMethodsArray = ['card']; // Default to card if cash not enabled
+                $defaultPaymentMethod = 'card';
+            }
+        }
+        
+        $paymentMethodsJson = json_encode($paymentMethodsArray);
+        $stmt = $db->prepare("UPDATE events_eventdata SET payment_methods_json = ?, default_payment_method = ? WHERE id = ?");
+        $stmt->execute([$paymentMethodsJson, $defaultPaymentMethod, $eventId]);
+        
+        // 5. Auto-generate output_products entry using service
         $catalogService = new ProductCatalogService($db);
         $outputProductId = $catalogService->createProductEntry(
             $_SESSION['company_id'],

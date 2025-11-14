@@ -288,31 +288,39 @@ try {
                     </div>
 
                     <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Medlemspris (NOK)</label>
-                            <input type="number" step="0.01" class="form-control" name="member_ticket_price">
-                            <small class="form-text text-muted">La stå tom hvis samme pris som ordinær billett</small>
+                    <div class="card border-success mb-3">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0"><i class="bi bi-people-fill me-2"></i>Medlemspriser</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">Definer egne priser for forskjellige medlemsplaner</p>
+                            <div id="membership-pricing-container">
+                                <div class="text-center py-3">
+                                    <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                                    <small class="text-muted">Laster medlemsplaner...</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <?php endif; ?>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Standard betalingsmetode</label>
-                            <select class="form-select" name="default_payment_method">
-                                <option value="">Velg betalingsmetode</option>
-                                <?php if (!empty($companyData['Cash_payment'])): ?>
-                                <option value="cash" selected>Kontant</option>
-                                <?php endif; ?>
-                                <option value="card">Kort</option>
-                                <option value="vipps">Vipps</option>
-                                <option value="online">Online</option>
-                                <option value="invoice">Faktura</option>
-                            </select>
-                            <small class="form-text text-muted">Denne metoden vil være forhåndsvalgt ved påmelding</small>
+                    <div class="card border-info mb-3">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i class="bi bi-credit-card me-2"></i>Tillatte betalingsmetoder</h6>
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">Velg hvilke betalingsmetoder som skal være tilgjengelige for dette arrangementet</p>
+                            <div id="payment-methods-container">
+                                <div class="text-center py-3">
+                                    <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                                    <small class="text-muted">Laster betalingsmetoder...</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
                             <label class="form-label">Bilde-URL</label>
                             <input type="url" class="form-control" name="event_image_url">
                             <small class="form-text text-muted">Valgfri: URL til arrangementsbilde</small>
@@ -953,6 +961,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('events-my')) {
         loadEvents();
     }
+    
+    // Load membership plans and payment methods for create form
+    loadMembershipPlansForCreate();
+    loadPaymentMethodsForCreate();
 
     // Handle min_attendees field - show/hide deadline
     const minAttendeesInput = document.getElementById('min_attendees');
@@ -1000,6 +1012,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
+            // Collect membership plan pricing
+            const membershipPricing = [];
+            membershipPlansData.forEach(plan => {
+                const priceInput = document.querySelector(`input[data-plan-id="${plan.plan_id}"]`);
+                if (priceInput && priceInput.value) {
+                    membershipPricing.push({
+                        plan_id: plan.plan_id,
+                        price: parseFloat(priceInput.value)
+                    });
+                }
+            });
+            
+            // Collect allowed payment methods
+            const allowedPaymentMethods = [];
+            document.querySelectorAll('#payment-methods-container input[type="checkbox"]:checked').forEach(checkbox => {
+                allowedPaymentMethods.push(checkbox.dataset.methodType);
+            });
+            
             const data = {
                 title: formData.get('title'),
                 description: formData.get('description'),
@@ -1016,10 +1046,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 max_attendees: formData.get('max_attendees') || null,
                 age_limit: formData.get('age_limit') || null,
                 ticket_price: formData.get('ticket_price') || 0,
-                member_ticket_price: formData.get('member_ticket_price') || null,
                 event_image_url: formData.get('event_image_url') || null,
-                default_payment_method: formData.get('default_payment_method') || null,
                 is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
+                membership_pricing: membershipPricing,
+                allowed_payment_methods: allowedPaymentMethods,
                 // Registration fields
                 field_phone: formData.get('field_phone') ? 1 : 0,
                 field_street: formData.get('field_street') ? 1 : 0,
@@ -2152,5 +2182,75 @@ async function deleteTransaction(transactionId) {
     }
     
     toast.quickWarning('Info', 'Sletting av transaksjoner er ikke implementert ennå');
+}
+
+// Load membership plans for create form
+let membershipPlansData = [];
+async function loadMembershipPlansForCreate() {
+    const container = document.getElementById('membership-pricing-container');
+    if (!container) return;
+    
+    try {
+        const response = await fetch('/api/get_membership_plans.php');
+        const result = await response.json();
+        
+        if (result.success && result.plans && result.plans.length > 0) {
+            membershipPlansData = result.plans;
+            container.innerHTML = '<div class="row">' + result.plans.map(plan => `
+                <div class="col-md-6 mb-2">
+                    <label class="form-label small">${plan.name}</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">NOK</span>
+                        <input type="number" step="0.01" class="form-control" 
+                               name="plan_price_${plan.plan_id}" 
+                               data-plan-id="${plan.plan_id}"
+                               placeholder="Standard pris">
+                        <span class="input-group-text text-muted">${plan.price} kr/mnd</span>
+                    </div>
+                </div>
+            `).join('') + '</div>';
+        } else {
+            container.innerHTML = '<p class="text-muted small mb-0"><i class="bi bi-info-circle me-2"></i>Ingen medlemsplaner funnet</p>';
+        }
+    } catch (error) {
+        console.error('Error loading membership plans:', error);
+        container.innerHTML = '<p class="text-danger small mb-0">Feil ved lasting av medlemsplaner</p>';
+    }
+}
+
+// Load payment methods for create form
+let paymentMethodsData = [];
+async function loadPaymentMethodsForCreate() {
+    const container = document.getElementById('payment-methods-container');
+    if (!container) return;
+    
+    try {
+        const response = await fetch('/api/get_payment_methods.php');
+        const result = await response.json();
+        
+        if (result.success && result.payment_methods && result.payment_methods.length > 0) {
+            paymentMethodsData = result.payment_methods;
+            container.innerHTML = '<div class="row">' + result.payment_methods.map(method => `
+                <div class="col-md-4 mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" 
+                               name="payment_method_${method.method_type}" 
+                               id="pm_${method.method_type}"
+                               data-method-type="${method.method_type}"
+                               checked>
+                        <label class="form-check-label" for="pm_${method.method_type}">
+                            <i class="bi bi-${method.method_type === 'cash' ? 'cash-stack' : method.method_type === 'card' ? 'credit-card' : 'wallet2'} me-1"></i>
+                            ${method.method_name}
+                        </label>
+                    </div>
+                </div>
+            `).join('') + '</div>';
+        } else {
+            container.innerHTML = '<p class="text-muted small mb-0"><i class="bi bi-info-circle me-2"></i>Ingen betalingsmetoder konfigurert</p>';
+        }
+    } catch (error) {
+        console.error('Error loading payment methods:', error);
+        container.innerHTML = '<p class="text-danger small mb-0">Feil ved lasting av betalingsmetoder</p>';
+    }
 }
 </script>

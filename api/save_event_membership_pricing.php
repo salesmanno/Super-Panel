@@ -18,8 +18,19 @@ try {
     }
     
     $db = getDBConnection();
+    $companyId = $_SESSION['company_id'];
     $eventId = $data['event_id'];
     $pricingData = $data['pricing'];
+    
+    // Verify event belongs to company
+    $checkStmt = $db->prepare("SELECT company_id FROM events_eventdata WHERE id = ?");
+    $checkStmt->execute([$eventId]);
+    $event = $checkStmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$event || $event['company_id'] !== $companyId) {
+        echo json_encode(['success' => false, 'error' => 'Arrangement ikke funnet']);
+        exit;
+    }
     
     $db->beginTransaction();
     
@@ -33,11 +44,18 @@ try {
     
     foreach ($pricingData as $pricing) {
         if (isset($pricing['plan_id']) && isset($pricing['price'])) {
-            $insertStmt->execute([
-                $eventId,
-                $pricing['plan_id'],
-                $pricing['price']
-            ]);
+            // Verify membership plan belongs to company
+            $planCheckStmt = $db->prepare("SELECT company_id FROM membership_plans WHERE id = ?");
+            $planCheckStmt->execute([$pricing['plan_id']]);
+            $plan = $planCheckStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($plan && $plan['company_id'] === $companyId) {
+                $insertStmt->execute([
+                    $eventId,
+                    $pricing['plan_id'],
+                    $pricing['price']
+                ]);
+            }
         }
     }
     
