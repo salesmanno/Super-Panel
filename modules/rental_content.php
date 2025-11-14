@@ -1,3 +1,8 @@
+<?php
+require_once __DIR__ . '/../includes/rental_schemas.php';
+$schemas = getRentalSchemas();
+?>
+
 <div class="module-content">
     <div id="rental-objects" class="subtab-content">
         <div class="card">
@@ -8,29 +13,22 @@
                         <i class="bi bi-plus-circle me-1"></i>Nytt objekt
                     </button>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-hover" id="rentalObjectsTable">
-                        <thead>
-                            <tr>
-                                <th>Objekt navn</th>
-                                <th>Type</th>
-                                <th>Kategori</th>
-                                <th>Serienummer</th>
-                                <th>Tilstand</th>
-                                <th>Status</th>
-                                <th>Pris/dag</th>
-                                <th>Handling</th>
-                            </tr>
-                        </thead>
-                        <tbody id="rentalObjectsBody">
-                            <tr>
-                                <td colspan="8" class="text-center text-muted py-4">
-                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                                    Laster inn data...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                
+                <!-- Filter by category -->
+                <div class="mb-3">
+                    <select class="form-select form-select-sm" id="categoryFilter" onchange="filterByCategory()">
+                        <option value="">Alle kategorier</option>
+                        <?php foreach ($schemas as $key => $schema): ?>
+                            <option value="<?= $key ?>"><?= htmlspecialchars($schema['label']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                
+                <div id="rentalObjectsContainer">
+                    <div class="text-center text-muted py-4">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        Laster inn data...
+                    </div>
                 </div>
             </div>
         </div>
@@ -136,108 +134,103 @@
     </div>
 </div>
 
-<!-- Modal for opprettelse av utleieobjekt -->
-<div class="modal fade" id="createRentalModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+<!-- Modal for opprettelse/redigering av utleieobjekt -->
+<div class="modal fade" id="rentalModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Opprett nytt utleieobjekt</h5>
+                <h5 class="modal-title" id="rentalModalTitle">Opprett nytt utleieobjekt</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="createRentalForm">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Objektnavn *</label>
+                <form id="rentalForm">
+                    <input type="hidden" id="rental_id" name="id">
+                    
+                    <!-- Grunnleggende informasjon -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Objektnavn <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="object_name" required>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Type</label>
-                            <select class="form-select" name="object_type">
-                                <option value="">Velg type</option>
-                                <option value="small">Lite objekt</option>
-                                <option value="large">Stort objekt</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Kategori</label>
-                            <select class="form-select" name="category">
+                        <div class="col-md-6">
+                            <label class="form-label">Kategori <span class="text-danger">*</span></label>
+                            <select class="form-select" name="category" id="categorySelect" required onchange="updateDynamicFields()">
                                 <option value="">Velg kategori</option>
-                                <option value="hus">Hus/Hytte</option>
-                                <option value="verktoy">Verktøy</option>
-                                <option value="utstyr">Utstyr</option>
-                                <option value="kjoreto">Kjøretøy</option>
-                                <option value="annet">Annet</option>
+                                <?php foreach ($schemas as $key => $schema): ?>
+                                    <option value="<?= $key ?>"><?= htmlspecialchars($schema['label']) ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Serienummer</label>
-                            <input type="text" class="form-control" name="serial_number">
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Leiepris per dag (NOK) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="rental_price" step="0.01" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Depositum (NOK)</label>
+                            <input type="number" class="form-control" name="deposit_amount" step="0.01" value="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Bilde URL</label>
+                            <input type="text" class="form-control" name="image_url" placeholder="https://...">
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Pris per dag (NOK) *</label>
-                            <input type="number" class="form-control" name="daily_price" step="0.01" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Plassering</label>
-                            <input type="text" class="form-control" name="location" placeholder="F.eks. Lager A">
-                        </div>
-                    </div>
+                    
                     <div class="mb-3">
                         <label class="form-label">Beskrivelse</label>
-                        <textarea class="form-control" name="description" rows="3"></textarea>
+                        <textarea class="form-control" name="description" rows="2"></textarea>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="requires_deposit" id="requiresDeposit">
-                                <label class="form-check-label" for="requiresDeposit">
-                                    Krever depositum
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-6 mb-3" id="depositAmountGroup" style="display: none;">
-                            <label class="form-label">Depositum beløp (NOK)</label>
-                            <input type="number" class="form-control" name="deposit_amount" step="0.01">
-                        </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="is_available" id="isAvailable" checked>
+                        <label class="form-check-label" for="isAvailable">
+                            Tilgjengelig for utleie
+                        </label>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Tilstandsnotat</label>
-                        <textarea class="form-control" name="condition_notes" rows="2" placeholder="F.eks. God tilstand, sjekket og vedlikeholdt"></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="is_available" checked>
-                            <label class="form-check-label">
-                                Tilgjengelig for utleie
-                            </label>
-                        </div>
-                    </div>
+                    
+                    <hr>
+                    
+                    <!-- Dynamiske felt basert på kategori -->
+                    <div id="dynamicFieldsContainer"></div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
-                <button type="button" class="btn btn-primary" onclick="createRentalObject()">
-                    <i class="bi bi-check-circle me-1"></i>Opprett objekt
+                <button type="button" class="btn btn-primary" onclick="saveRentalObject()">
+                    <i class="bi bi-check-circle me-1"></i>Lagre
                 </button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Detaljvisning Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detailsModalTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detailsModalBody">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Lukk</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-// Load rental objects when tab is activated
+// Store schemas in JS for dynamic form generation
+const rentalSchemas = <?= json_encode($schemas) ?>;
+let allRentalObjects = [];
+let currentFilter = '';
+
 document.addEventListener('DOMContentLoaded', function() {
     loadRentalObjects();
-    
-    // Toggle deposit amount field
-    document.querySelector('input[name="requires_deposit"]')?.addEventListener('change', function() {
-        document.getElementById('depositAmountGroup').style.display = this.checked ? 'block' : 'none';
-    });
 });
 
 async function loadRentalObjects() {
@@ -245,153 +238,369 @@ async function loadRentalObjects() {
         const response = await fetch('/api/get_rental_objects.php');
         const data = await response.json();
         
-        if (data.success && data.objects.length > 0) {
-            renderRentalObjects(data.objects);
+        if (data.success && data.objects) {
+            allRentalObjects = data.objects;
+            renderRentalObjects(allRentalObjects);
         } else {
-            document.getElementById('rentalObjectsBody').innerHTML = `
-                <tr>
-                    <td colspan="8" class="text-center text-muted py-4">
-                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                        Ingen utleieobjekter funnet
-                    </td>
-                </tr>
+            document.getElementById('rentalObjectsContainer').innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                    Ingen utleieobjekter funnet
+                </div>
             `;
         }
     } catch (error) {
         console.error('Error loading rental objects:', error);
-        document.getElementById('rentalObjectsBody').innerHTML = `
-            <tr>
-                <td colspan="8" class="text-center text-danger py-4">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    Feil ved lasting av data
-                </td>
-            </tr>
+        document.getElementById('rentalObjectsContainer').innerHTML = `
+            <div class="text-center text-danger py-4">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Feil ved lasting av data
+            </div>
         `;
     }
 }
 
+function filterByCategory() {
+    currentFilter = document.getElementById('categoryFilter').value;
+    const filtered = currentFilter 
+        ? allRentalObjects.filter(obj => obj.category === currentFilter)
+        : allRentalObjects;
+    renderRentalObjects(filtered);
+}
+
 function renderRentalObjects(objects) {
-    const tbody = document.getElementById('rentalObjectsBody');
-    tbody.innerHTML = objects.map(obj => {
-        const statusBadge = obj.is_available 
-            ? '<span class="badge bg-success">Tilgjengelig</span>'
-            : '<span class="badge bg-secondary">Ikke tilgjengelig</span>';
-        
-        const typeBadge = obj.type === 'large' 
-            ? '<span class="badge bg-info">Stort</span>'
-            : obj.type === 'small'
-            ? '<span class="badge bg-primary">Lite</span>'
-            : '';
-        
-        return `
-            <tr>
-                <td>
-                    <strong>${obj.name}</strong>
-                    ${obj.description ? `<br><small class="text-muted">${obj.description.substring(0, 50)}${obj.description.length > 50 ? '...' : ''}</small>` : ''}
-                </td>
-                <td>${typeBadge}</td>
-                <td>${obj.category || '-'}</td>
-                <td><code>${obj.serial_number || '-'}</code></td>
-                <td>
-                    <small class="text-muted">${obj.condition_notes || 'Ingen notater'}</small>
-                </td>
-                <td>${statusBadge}</td>
-                <td><strong>${obj.daily_price.toFixed(2)} NOK</strong></td>
-                <td>
-                    <button class="btn btn-sm btn-outline-primary" onclick="editRentalObject(${obj.id})" title="Rediger">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteRentalObject(${obj.id})" title="Slett">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </td>
-            </tr>
+    const container = document.getElementById('rentalObjectsContainer');
+    
+    if (objects.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                Ingen objekter funnet
+            </div>
         `;
-    }).join('');
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+            ${objects.map(obj => renderObjectCard(obj)).join('')}
+        </div>
+    `;
+}
+
+function renderObjectCard(obj) {
+    const schema = rentalSchemas[obj.category];
+    const categoryLabel = schema ? schema.label : obj.category;
+    const statusBadge = obj.is_available 
+        ? '<span class="badge bg-success">Tilgjengelig</span>'
+        : '<span class="badge bg-secondary">Ikke tilgjengelig</span>';
+    
+    // Generate badges from type_data
+    let badges = obj.badges || [];
+    const badgesHtml = badges.length > 0 
+        ? badges.map(b => `<span class="badge bg-info me-1">${b}</span>`).join('')
+        : '';
+    
+    const imageHtml = obj.image_url 
+        ? `<img src="${obj.image_url}" class="card-img-top" style="height: 200px; object-fit: cover;" alt="${obj.object_name}">`
+        : `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+             <i class="bi bi-image fs-1 text-muted"></i>
+           </div>`;
+    
+    return `
+        <div class="col">
+            <div class="card h-100">
+                ${imageHtml}
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="card-title mb-0">${obj.object_name}</h6>
+                        ${statusBadge}
+                    </div>
+                    <p class="badge bg-primary mb-2">${categoryLabel}</p>
+                    <div class="mb-2">
+                        ${badgesHtml}
+                    </div>
+                    ${obj.description ? `<p class="card-text text-muted small">${obj.description.substring(0, 100)}${obj.description.length > 100 ? '...' : ''}</p>` : ''}
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <strong class="text-primary">${parseFloat(obj.rental_price).toFixed(0)} NOK/dag</strong>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="viewDetails('${obj.id}')" title="Detaljer">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="editRentalObject('${obj.id}')" title="Rediger">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="deleteRentalObject('${obj.id}')" title="Slett">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 function showCreateRentalModal() {
-    const modal = new bootstrap.Modal(document.getElementById('createRentalModal'));
-    document.getElementById('createRentalForm').reset();
+    document.getElementById('rentalModalTitle').textContent = 'Opprett nytt utleieobjekt';
+    document.getElementById('rentalForm').reset();
+    document.getElementById('rental_id').value = '';
+    document.getElementById('dynamicFieldsContainer').innerHTML = '';
+    const modal = new bootstrap.Modal(document.getElementById('rentalModal'));
     modal.show();
 }
 
-async function createRentalObject() {
-    const form = document.getElementById('createRentalForm');
-    const formData = new FormData(form);
+function updateDynamicFields() {
+    const category = document.getElementById('categorySelect').value;
+    const container = document.getElementById('dynamicFieldsContainer');
     
+    if (!category || !rentalSchemas[category]) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    const schema = rentalSchemas[category];
+    container.innerHTML = `
+        <h6 class="mb-3">${schema.label} - Spesifikke felt</h6>
+        <div class="row" id="typeDataFields">
+            ${Object.entries(schema.fields).map(([key, field]) => generateFieldHTML(key, field)).join('')}
+        </div>
+    `;
+}
+
+function generateFieldHTML(fieldName, field) {
+    const required = field.required ? '<span class="text-danger">*</span>' : '';
+    const requiredAttr = field.required ? 'required' : '';
+    
+    let inputHTML = '';
+    
+    switch (field.type) {
+        case 'text':
+            inputHTML = `<input type="text" class="form-control" name="type_data[${fieldName}]" ${requiredAttr}>`;
+            break;
+        case 'number':
+            const step = field.step || '1';
+            inputHTML = `<input type="number" class="form-control" name="type_data[${fieldName}]" step="${step}" ${requiredAttr}>`;
+            break;
+        case 'checkbox':
+            return `
+                <div class="col-md-6 mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="type_data[${fieldName}]" id="${fieldName}" value="1">
+                        <label class="form-check-label" for="${fieldName}">
+                            ${field.label} ${required}
+                        </label>
+                    </div>
+                </div>
+            `;
+        case 'select':
+            inputHTML = `
+                <select class="form-select" name="type_data[${fieldName}]" ${requiredAttr}>
+                    <option value="">Velg...</option>
+                    ${field.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                </select>
+            `;
+            break;
+        case 'textarea':
+            inputHTML = `<textarea class="form-control" name="type_data[${fieldName}]" rows="2" ${requiredAttr}></textarea>`;
+            break;
+        default:
+            inputHTML = `<input type="text" class="form-control" name="type_data[${fieldName}]" ${requiredAttr}>`;
+    }
+    
+    return `
+        <div class="col-md-6 mb-3">
+            <label class="form-label">${field.label} ${required}</label>
+            ${inputHTML}
+        </div>
+    `;
+}
+
+async function saveRentalObject() {
+    const form = document.getElementById('rentalForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const formData = new FormData(form);
+    const id = formData.get('id');
+    const isEdit = id && id !== '';
+    
+    // Build base data
     const data = {
         object_name: formData.get('object_name'),
-        object_type: formData.get('object_type'),
         category: formData.get('category'),
-        description: formData.get('description'),
-        daily_price: parseFloat(formData.get('daily_price')),
-        location: formData.get('location'),
-        serial_number: formData.get('serial_number'),
-        condition_notes: formData.get('condition_notes'),
-        requires_deposit: formData.get('requires_deposit') === 'on',
-        deposit_amount: formData.get('requires_deposit') === 'on' ? parseFloat(formData.get('deposit_amount')) : 0,
+        rental_price: parseFloat(formData.get('rental_price')),
+        deposit_amount: parseFloat(formData.get('deposit_amount')) || 0,
+        image_url: formData.get('image_url') || null,
+        description: formData.get('description') || null,
         is_available: formData.get('is_available') === 'on'
     };
     
-    const toastId = toast.loading('Oppretter utleieobjekt');
+    if (isEdit) {
+        data.id = id;
+    }
+    
+    // Build type_data from dynamic fields
+    const typeData = {};
+    for (let [key, value] of formData.entries()) {
+        if (key.startsWith('type_data[')) {
+            const fieldName = key.match(/type_data\[(.+)\]/)[1];
+            
+            // Handle checkboxes
+            const inputElement = form.querySelector(`[name="${key}"]`);
+            if (inputElement && inputElement.type === 'checkbox') {
+                typeData[fieldName] = value === '1';
+            } else {
+                typeData[fieldName] = value || null;
+            }
+        }
+    }
+    
+    if (Object.keys(typeData).length > 0) {
+        data.type_data = typeData;
+    }
+    
+    const toastId = toast.loading(isEdit ? 'Oppdaterer objekt...' : 'Oppretter objekt...');
     
     try {
-        const response = await fetch('/api/create_rental.php', {
+        const endpoint = isEdit ? '/api/update_rental_object.php' : '/api/create_rental_object.php';
+        const response = await fetch(endpoint, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
         
         const result = await response.json();
         
         if (result.success) {
-            toast.success(toastId, 'Utleieobjekt opprettet', `${data.object_name} er nå tilgjengelig for utleie`);
-            bootstrap.Modal.getInstance(document.getElementById('createRentalModal')).hide();
+            toast.success(toastId, isEdit ? 'Objekt oppdatert' : 'Objekt opprettet', `${data.object_name} er lagret`);
+            bootstrap.Modal.getInstance(document.getElementById('rentalModal')).hide();
             loadRentalObjects();
         } else {
-            toast.error(toastId, 'Opprettelse av utleieobjekt', result.message);
+            toast.error(toastId, 'Feil', result.message || 'Kunne ikke lagre objekt');
         }
     } catch (error) {
-        console.error('Error creating rental object:', error);
-        toast.error(toastId, 'Opprettelse av utleieobjekt', 'Kunne ikke opprette utleieobjekt');
+        console.error('Error saving rental object:', error);
+        toast.error(toastId, 'Feil', 'Kunne ikke lagre objekt');
     }
 }
 
-async function deleteRentalObject(objectId) {
-    if (!confirm('Er du sikker på at du vil slette dette utleieobjektet?')) {
+async function editRentalObject(objectId) {
+    const obj = allRentalObjects.find(o => o.id === objectId);
+    if (!obj) {
+        toast.quickError('Feil', 'Objektet ble ikke funnet');
         return;
     }
     
-    const toastId = toast.loading('Sletter utleieobjekt');
+    document.getElementById('rentalModalTitle').textContent = 'Rediger utleieobjekt';
+    const form = document.getElementById('rentalForm');
+    form.reset();
+    
+    // Set base fields
+    document.getElementById('rental_id').value = obj.id;
+    form.querySelector('[name="object_name"]').value = obj.object_name;
+    form.querySelector('[name="category"]').value = obj.category;
+    form.querySelector('[name="rental_price"]').value = obj.rental_price;
+    form.querySelector('[name="deposit_amount"]').value = obj.deposit_amount || 0;
+    form.querySelector('[name="image_url"]').value = obj.image_url || '';
+    form.querySelector('[name="description"]').value = obj.description || '';
+    form.querySelector('[name="is_available"]').checked = obj.is_available;
+    
+    // Generate dynamic fields
+    updateDynamicFields();
+    
+    // Populate type_data fields
+    if (obj.type_data) {
+        setTimeout(() => {
+            Object.entries(obj.type_data).forEach(([key, value]) => {
+                const input = form.querySelector(`[name="type_data[${key}]"]`);
+                if (input) {
+                    if (input.type === 'checkbox') {
+                        input.checked = value === true || value === 1 || value === '1';
+                    } else {
+                        input.value = value || '';
+                    }
+                }
+            });
+        }, 100);
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('rentalModal'));
+    modal.show();
+}
+
+async function deleteRentalObject(objectId) {
+    const obj = allRentalObjects.find(o => o.id === objectId);
+    if (!confirm(`Er du sikker på at du vil slette "${obj?.object_name}"?`)) {
+        return;
+    }
+    
+    const toastId = toast.loading('Sletter objekt...');
     
     try {
         const response = await fetch('/api/delete_rental_object.php', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ object_id: objectId })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: objectId })
         });
         
         const result = await response.json();
         
         if (result.success) {
-            toast.success(toastId, 'Utleieobjekt slettet', 'Objektet er nå fjernet fra systemet');
+            toast.success(toastId, 'Objekt slettet', 'Objektet er fjernet fra systemet');
             loadRentalObjects();
         } else {
-            toast.error(toastId, 'Sletting av utleieobjekt', result.message);
+            toast.error(toastId, 'Feil', result.message || 'Kunne ikke slette objekt');
         }
     } catch (error) {
         console.error('Error deleting rental object:', error);
-        toast.error(toastId, 'Sletting av utleieobjekt', 'Kunne ikke slette utleieobjekt');
+        toast.error(toastId, 'Feil', 'Kunne ikke slette objekt');
     }
 }
 
-function editRentalObject(objectId) {
-    toast.quickInfo('Kommer snart', 'Redigeringsfunksjon er under utvikling');
+function viewDetails(objectId) {
+    const obj = allRentalObjects.find(o => o.id === objectId);
+    if (!obj) return;
+    
+    const schema = rentalSchemas[obj.category];
+    document.getElementById('detailsModalTitle').textContent = obj.object_name;
+    
+    let detailsHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                ${obj.image_url ? `<img src="${obj.image_url}" class="img-fluid rounded mb-3" alt="${obj.object_name}">` : ''}
+                <p><strong>Kategori:</strong> ${schema.label}</p>
+                <p><strong>Leiepris:</strong> ${parseFloat(obj.rental_price).toFixed(0)} NOK/dag</p>
+                ${obj.deposit_amount > 0 ? `<p><strong>Depositum:</strong> ${parseFloat(obj.deposit_amount).toFixed(0)} NOK</p>` : ''}
+                <p><strong>Status:</strong> ${obj.is_available ? '<span class="badge bg-success">Tilgjengelig</span>' : '<span class="badge bg-secondary">Ikke tilgjengelig</span>'}</p>
+                ${obj.description ? `<p><strong>Beskrivelse:</strong><br>${obj.description}</p>` : ''}
+            </div>
+            <div class="col-md-6">
+                <h6>Type-spesifikke detaljer:</h6>
+    `;
+    
+    if (obj.type_data && schema) {
+        Object.entries(obj.type_data).forEach(([key, value]) => {
+            const field = schema.fields[key];
+            if (field && value !== null && value !== '') {
+                let displayValue = value;
+                if (field.type === 'checkbox') {
+                    displayValue = value ? '<i class="bi bi-check-circle-fill text-success"></i> Ja' : '<i class="bi bi-x-circle-fill text-danger"></i> Nei';
+                }
+                detailsHTML += `<p><strong>${field.label}:</strong> ${displayValue}</p>`;
+            }
+        });
+    }
+    
+    detailsHTML += `
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('detailsModalBody').innerHTML = detailsHTML;
+    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+    modal.show();
 }
 </script>
-
