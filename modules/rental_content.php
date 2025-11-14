@@ -14,7 +14,6 @@ $schemas = getRentalSchemas();
                     </button>
                 </div>
                 
-                <!-- Filter by category -->
                 <div class="mb-3">
                     <select class="form-select form-select-sm" id="categoryFilter" onchange="filterByCategory()">
                         <option value="">Alle kategorier</option>
@@ -145,55 +144,7 @@ $schemas = getRentalSchemas();
             <div class="modal-body">
                 <form id="rentalForm">
                     <input type="hidden" id="rental_id" name="id">
-                    
-                    <!-- Grunnleggende informasjon -->
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Objektnavn <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="object_name" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Kategori <span class="text-danger">*</span></label>
-                            <select class="form-select" name="category" id="categorySelect" required onchange="updateDynamicFields()">
-                                <option value="">Velg kategori</option>
-                                <?php foreach ($schemas as $key => $schema): ?>
-                                    <option value="<?= $key ?>"><?= htmlspecialchars($schema['label']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label class="form-label">Leiepris per dag (NOK) <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" name="rental_price" step="0.01" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Depositum (NOK)</label>
-                            <input type="number" class="form-control" name="deposit_amount" step="0.01" value="0">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Bilde URL</label>
-                            <input type="text" class="form-control" name="image_url" placeholder="https://...">
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Beskrivelse</label>
-                        <textarea class="form-control" name="description" rows="2"></textarea>
-                    </div>
-                    
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="is_available" id="isAvailable" checked>
-                        <label class="form-check-label" for="isAvailable">
-                            Tilgjengelig for utleie
-                        </label>
-                    </div>
-                    
-                    <hr>
-                    
-                    <!-- Dynamiske felt basert på kategori -->
-                    <div id="dynamicFieldsContainer"></div>
+                    <div id="formFieldsContainer"></div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -214,8 +165,7 @@ $schemas = getRentalSchemas();
                 <h5 class="modal-title" id="detailsModalTitle"></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" id="detailsModalBody">
-            </div>
+            <div class="modal-body" id="detailsModalBody"></div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Lukk</button>
             </div>
@@ -224,7 +174,6 @@ $schemas = getRentalSchemas();
 </div>
 
 <script>
-// Store schemas in JS for dynamic form generation
 const rentalSchemas = <?= json_encode($schemas) ?>;
 let allRentalObjects = [];
 let currentFilter = '';
@@ -295,7 +244,6 @@ function renderObjectCard(obj) {
         ? '<span class="badge bg-success">Tilgjengelig</span>'
         : '<span class="badge bg-secondary">Ikke tilgjengelig</span>';
     
-    // Generate badges from type_data
     let badges = obj.badges || [];
     const badgesHtml = badges.length > 0 
         ? badges.map(b => `<span class="badge bg-info me-1">${b}</span>`).join('')
@@ -306,6 +254,8 @@ function renderObjectCard(obj) {
         : `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
              <i class="bi bi-image fs-1 text-muted"></i>
            </div>`;
+    
+    const weekendPrice = obj.weekend_price > 0 ? `<br><small class="text-muted">Helg: ${parseFloat(obj.weekend_price).toFixed(0)} NOK/dag</small>` : '';
     
     return `
         <div class="col">
@@ -322,7 +272,10 @@ function renderObjectCard(obj) {
                     </div>
                     ${obj.description ? `<p class="card-text text-muted small">${obj.description.substring(0, 100)}${obj.description.length > 100 ? '...' : ''}</p>` : ''}
                     <div class="d-flex justify-content-between align-items-center mt-3">
-                        <strong class="text-primary">${parseFloat(obj.rental_price).toFixed(0)} NOK/dag</strong>
+                        <div>
+                            <strong class="text-primary">${parseFloat(obj.rental_price).toFixed(0)} NOK/dag</strong>
+                            ${weekendPrice}
+                        </div>
                         <div class="btn-group btn-group-sm">
                             <button class="btn btn-outline-primary" onclick="viewDetails('${obj.id}')" title="Detaljer">
                                 <i class="bi bi-eye"></i>
@@ -345,30 +298,86 @@ function showCreateRentalModal() {
     document.getElementById('rentalModalTitle').textContent = 'Opprett nytt utleieobjekt';
     document.getElementById('rentalForm').reset();
     document.getElementById('rental_id').value = '';
-    document.getElementById('dynamicFieldsContainer').innerHTML = '';
+    buildIntegratedForm();
     const modal = new bootstrap.Modal(document.getElementById('rentalModal'));
     modal.show();
 }
 
-function updateDynamicFields() {
-    const category = document.getElementById('categorySelect').value;
-    const container = document.getElementById('dynamicFieldsContainer');
+function buildIntegratedForm(category = '', existingData = {}) {
+    const container = document.getElementById('formFieldsContainer');
     
-    if (!category || !rentalSchemas[category]) {
-        container.innerHTML = '';
-        return;
-    }
+    let html = `
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Objektnavn <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" name="object_name" value="${existingData.object_name || ''}" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Kategori <span class="text-danger">*</span></label>
+                <select class="form-select" name="category" id="categorySelect" required onchange="buildIntegratedForm(this.value, getCurrentFormData())">
+                    <option value="">Velg kategori</option>
+    `;
     
-    const schema = rentalSchemas[category];
-    container.innerHTML = `
-        <h6 class="mb-3">${schema.label} - Spesifikke felt</h6>
-        <div class="row" id="typeDataFields">
-            ${Object.entries(schema.fields).map(([key, field]) => generateFieldHTML(key, field)).join('')}
+    Object.entries(rentalSchemas).forEach(([key, schema]) => {
+        html += `<option value="${key}" ${key === category ? 'selected' : ''}>${schema.label}</option>`;
+    });
+    
+    html += `
+                </select>
+            </div>
+        </div>
+        
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Leiepris per dag (NOK) <span class="text-danger">*</span></label>
+                <input type="number" class="form-control" name="rental_price" step="0.01" value="${existingData.rental_price || ''}" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Helgepris per dag (NOK)</label>
+                <input type="number" class="form-control" name="weekend_price" step="0.01" value="${existingData.weekend_price || 0}">
+                <small class="text-muted">0 = samme som ukedag</small>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Depositum (NOK)</label>
+                <input type="number" class="form-control" name="deposit_amount" step="0.01" value="${existingData.deposit_amount || 0}">
+            </div>
+        </div>
+        
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Bilde URL</label>
+                <input type="text" class="form-control" name="image_url" value="${existingData.image_url || ''}" placeholder="https://...">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Beskrivelse</label>
+                <textarea class="form-control" name="description" rows="2">${existingData.description || ''}</textarea>
+            </div>
+        </div>
+        
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="is_available" id="isAvailable" ${(existingData.is_available === undefined || existingData.is_available === null || existingData.is_available === true || existingData.is_available === 1 || existingData.is_available === '1') ? 'checked' : ''}>
+            <label class="form-check-label" for="isAvailable">
+                Tilgjengelig for utleie
+            </label>
         </div>
     `;
+    
+    if (category && rentalSchemas[category]) {
+        const schema = rentalSchemas[category];
+        html += '<hr><div class="row">';
+        
+        Object.entries(schema.fields).forEach(([fieldName, field]) => {
+            const value = existingData.type_data?.[fieldName] || '';
+            html += generateIntegratedFieldHTML(fieldName, field, value);
+        });
+        
+        html += '</div>';
+    }
+    
+    container.innerHTML = html;
 }
 
-function generateFieldHTML(fieldName, field) {
+function generateIntegratedFieldHTML(fieldName, field, value = '') {
     const required = field.required ? '<span class="text-danger">*</span>' : '';
     const requiredAttr = field.required ? 'required' : '';
     
@@ -376,17 +385,18 @@ function generateFieldHTML(fieldName, field) {
     
     switch (field.type) {
         case 'text':
-            inputHTML = `<input type="text" class="form-control" name="type_data[${fieldName}]" ${requiredAttr}>`;
+            inputHTML = `<input type="text" class="form-control" name="type_data[${fieldName}]" value="${value || ''}" ${requiredAttr}>`;
             break;
         case 'number':
             const step = field.step || '1';
-            inputHTML = `<input type="number" class="form-control" name="type_data[${fieldName}]" step="${step}" ${requiredAttr}>`;
+            inputHTML = `<input type="number" class="form-control" name="type_data[${fieldName}]" step="${step}" value="${value || ''}" ${requiredAttr}>`;
             break;
         case 'checkbox':
+            const checked = value === true || value === 1 || value === '1' ? 'checked' : '';
             return `
                 <div class="col-md-6 mb-3">
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="type_data[${fieldName}]" id="${fieldName}" value="1">
+                        <input class="form-check-input" type="checkbox" name="type_data[${fieldName}]" id="${fieldName}" value="1" ${checked}>
                         <label class="form-check-label" for="${fieldName}">
                             ${field.label} ${required}
                         </label>
@@ -397,15 +407,15 @@ function generateFieldHTML(fieldName, field) {
             inputHTML = `
                 <select class="form-select" name="type_data[${fieldName}]" ${requiredAttr}>
                     <option value="">Velg...</option>
-                    ${field.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                    ${field.options.map(opt => `<option value="${opt}" ${value === opt ? 'selected' : ''}>${opt}</option>`).join('')}
                 </select>
             `;
             break;
         case 'textarea':
-            inputHTML = `<textarea class="form-control" name="type_data[${fieldName}]" rows="2" ${requiredAttr}></textarea>`;
+            inputHTML = `<textarea class="form-control" name="type_data[${fieldName}]" rows="2" ${requiredAttr}>${value || ''}</textarea>`;
             break;
         default:
-            inputHTML = `<input type="text" class="form-control" name="type_data[${fieldName}]" ${requiredAttr}>`;
+            inputHTML = `<input type="text" class="form-control" name="type_data[${fieldName}]" value="${value || ''}" ${requiredAttr}>`;
     }
     
     return `
@@ -414,6 +424,36 @@ function generateFieldHTML(fieldName, field) {
             ${inputHTML}
         </div>
     `;
+}
+
+function getCurrentFormData() {
+    const form = document.getElementById('rentalForm');
+    const formData = new FormData(form);
+    
+    const data = {
+        object_name: formData.get('object_name') || '',
+        rental_price: formData.get('rental_price') || '',
+        weekend_price: formData.get('weekend_price') || 0,
+        deposit_amount: formData.get('deposit_amount') || 0,
+        image_url: formData.get('image_url') || '',
+        description: formData.get('description') || '',
+        is_available: formData.get('is_available') === 'on',
+        type_data: {}
+    };
+    
+    for (let [key, value] of formData.entries()) {
+        if (key.startsWith('type_data[')) {
+            const fieldName = key.match(/type_data\[(.+)\]/)[1];
+            const inputElement = form.querySelector(`[name="${key}"]`);
+            if (inputElement && inputElement.type === 'checkbox') {
+                data.type_data[fieldName] = value === '1';
+            } else {
+                data.type_data[fieldName] = value || '';
+            }
+        }
+    }
+    
+    return data;
 }
 
 async function saveRentalObject() {
@@ -427,11 +467,11 @@ async function saveRentalObject() {
     const id = formData.get('id');
     const isEdit = id && id !== '';
     
-    // Build base data
     const data = {
         object_name: formData.get('object_name'),
         category: formData.get('category'),
         rental_price: parseFloat(formData.get('rental_price')),
+        weekend_price: parseFloat(formData.get('weekend_price')) || 0,
         deposit_amount: parseFloat(formData.get('deposit_amount')) || 0,
         image_url: formData.get('image_url') || null,
         description: formData.get('description') || null,
@@ -442,13 +482,10 @@ async function saveRentalObject() {
         data.id = id;
     }
     
-    // Build type_data from dynamic fields
     const typeData = {};
     for (let [key, value] of formData.entries()) {
         if (key.startsWith('type_data[')) {
             const fieldName = key.match(/type_data\[(.+)\]/)[1];
-            
-            // Handle checkboxes
             const inputElement = form.querySelector(`[name="${key}"]`);
             if (inputElement && inputElement.type === 'checkbox') {
                 typeData[fieldName] = value === '1';
@@ -495,37 +532,9 @@ async function editRentalObject(objectId) {
     }
     
     document.getElementById('rentalModalTitle').textContent = 'Rediger utleieobjekt';
-    const form = document.getElementById('rentalForm');
-    form.reset();
-    
-    // Set base fields
     document.getElementById('rental_id').value = obj.id;
-    form.querySelector('[name="object_name"]').value = obj.object_name;
-    form.querySelector('[name="category"]').value = obj.category;
-    form.querySelector('[name="rental_price"]').value = obj.rental_price;
-    form.querySelector('[name="deposit_amount"]').value = obj.deposit_amount || 0;
-    form.querySelector('[name="image_url"]').value = obj.image_url || '';
-    form.querySelector('[name="description"]').value = obj.description || '';
-    form.querySelector('[name="is_available"]').checked = obj.is_available;
     
-    // Generate dynamic fields
-    updateDynamicFields();
-    
-    // Populate type_data fields
-    if (obj.type_data) {
-        setTimeout(() => {
-            Object.entries(obj.type_data).forEach(([key, value]) => {
-                const input = form.querySelector(`[name="type_data[${key}]"]`);
-                if (input) {
-                    if (input.type === 'checkbox') {
-                        input.checked = value === true || value === 1 || value === '1';
-                    } else {
-                        input.value = value || '';
-                    }
-                }
-            });
-        }, 100);
-    }
+    buildIntegratedForm(obj.category, obj);
     
     const modal = new bootstrap.Modal(document.getElementById('rentalModal'));
     modal.show();
@@ -572,13 +581,14 @@ function viewDetails(objectId) {
             <div class="col-md-6">
                 ${obj.image_url ? `<img src="${obj.image_url}" class="img-fluid rounded mb-3" alt="${obj.object_name}">` : ''}
                 <p><strong>Kategori:</strong> ${schema.label}</p>
-                <p><strong>Leiepris:</strong> ${parseFloat(obj.rental_price).toFixed(0)} NOK/dag</p>
+                <p><strong>Leiepris (ukedag):</strong> ${parseFloat(obj.rental_price).toFixed(0)} NOK/dag</p>
+                ${obj.weekend_price > 0 ? `<p><strong>Leiepris (helg):</strong> ${parseFloat(obj.weekend_price).toFixed(0)} NOK/dag</p>` : ''}
                 ${obj.deposit_amount > 0 ? `<p><strong>Depositum:</strong> ${parseFloat(obj.deposit_amount).toFixed(0)} NOK</p>` : ''}
                 <p><strong>Status:</strong> ${obj.is_available ? '<span class="badge bg-success">Tilgjengelig</span>' : '<span class="badge bg-secondary">Ikke tilgjengelig</span>'}</p>
                 ${obj.description ? `<p><strong>Beskrivelse:</strong><br>${obj.description}</p>` : ''}
             </div>
             <div class="col-md-6">
-                <h6>Type-spesifikke detaljer:</h6>
+                <h6>Detaljer:</h6>
     `;
     
     if (obj.type_data && schema) {

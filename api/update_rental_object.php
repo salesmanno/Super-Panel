@@ -45,7 +45,7 @@ try {
     $updateParams = [':id' => $data['id'], ':company_id' => $admin['company_id']];
     
     $allowedFields = ['object_name', 'serial_number', 'description', 'category', 
-                      'rental_price', 'deposit_amount', 'condition_notes', 'image_url',
+                      'rental_price', 'weekend_price', 'deposit_amount', 'condition_notes', 'image_url',
                       'is_available', 'is_active'];
     
     foreach ($allowedFields as $field) {

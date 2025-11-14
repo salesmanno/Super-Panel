@@ -40,11 +40,11 @@ try {
     $stmt = $db->prepare("
         INSERT INTO rental_objects (
             id, company_id, output_product_id, object_name, serial_number, description,
-            category, rental_price, deposit_amount, condition_notes, image_url,
+            category, rental_price, weekend_price, deposit_amount, condition_notes, image_url,
             is_available, is_active, created_by
         ) VALUES (
             :id, :company_id, :output_product_id, :object_name, :serial_number, :description,
-            :category, :rental_price, :deposit_amount, :condition_notes, :image_url,
+            :category, :rental_price, :weekend_price, :deposit_amount, :condition_notes, :image_url,
             :is_available, :is_active, :created_by
         )
     ");
@@ -58,6 +58,7 @@ try {
         ':description' => $data['description'] ?? null,
         ':category' => $data['category'],
         ':rental_price' => $data['rental_price'] ?? 0,
+        ':weekend_price' => $data['weekend_price'] ?? 0,
         ':deposit_amount' => $data['deposit_amount'] ?? 0,
         ':condition_notes' => $data['condition_notes'] ?? null,
         ':image_url' => $data['image_url'] ?? null,
