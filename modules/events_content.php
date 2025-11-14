@@ -729,6 +729,21 @@ try {
                         </div>
                     </div>
 
+                    <div class="card border-info mb-3">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i class="bi bi-credit-card me-2"></i>Tillatte betalingsmetoder</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">Velg hvilke betalingsmetoder som skal være tilgjengelige for dette arrangementet</p>
+                            <div id="edit-payment-methods-container">
+                                <div class="text-center py-3">
+                                    <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                                    <small class="text-muted">Laster betalingsmetoder...</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <hr class="my-3">
 
                     <div class="card border-primary mb-3">
@@ -1077,8 +1092,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             // Collect allowed payment methods
-            const allowedPaymentMethods = [];
-            document.querySelectorAll('#payment-methods-container input[type="checkbox"]:checked').forEach(checkbox => {
+            const allowedPaymentMethods = ['cash']; // Cash is always required
+            document.querySelectorAll('#payment-methods-container input[type="checkbox"]:checked:not([disabled])').forEach(checkbox => {
                 allowedPaymentMethods.push(checkbox.dataset.methodType);
             });
             
@@ -2035,6 +2050,17 @@ async function editEvent(eventId) {
             });
         }
         
+        // Load payment methods with current selection
+        let selectedPaymentMethods = [];
+        if (event.payment_methods_json) {
+            try {
+                selectedPaymentMethods = JSON.parse(event.payment_methods_json);
+            } catch (e) {
+                console.error('Error parsing payment_methods_json:', e);
+            }
+        }
+        await loadPaymentMethodsForEdit(selectedPaymentMethods);
+        
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('editEventModal'));
         modal.show();
@@ -2097,6 +2123,12 @@ async function saveEventChanges() {
         }
     }
     
+    // Collect allowed payment methods
+    const allowedPaymentMethods = ['cash']; // Cash is always required
+    document.querySelectorAll('#edit-payment-methods-container input[type="checkbox"]:checked:not([disabled])').forEach(checkbox => {
+        allowedPaymentMethods.push(checkbox.dataset.methodType);
+    });
+    
     const data = {
         event_id: formData.get('event_id'),
         title: formData.get('title'),
@@ -2118,8 +2150,10 @@ async function saveEventChanges() {
         event_image_url: formData.get('event_image_url') || null,
         default_payment_method: formData.get('default_payment_method') || null,
         is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
+        allowed_payment_methods: allowedPaymentMethods,
         // Registration fields
         field_phone: formData.get('field_phone') ? 1 : 0,
+        field_email: formData.get('field_email') ? 1 : 0,
         field_street: formData.get('field_street') ? 1 : 0,
         field_zip: formData.get('field_zip') ? 1 : 0,
         field_city: formData.get('field_city') ? 1 : 0,
@@ -2367,17 +2401,22 @@ async function loadPaymentMethodsForCreate() {
         
         if (result.success && result.payment_methods && result.payment_methods.length > 0) {
             paymentMethodsData = result.payment_methods;
-            container.innerHTML = '<div class="row">' + result.payment_methods.map(method => `
+            container.innerHTML = `
+                <div class="alert alert-info small mb-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Oppmøtebetaling</strong> er alltid inkludert for å tillate arrangementer uten webbetaling.
+                </div>
+                <div class="row">` + result.payment_methods.map(method => `
                 <div class="col-md-4 mb-2">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" 
                                name="payment_method_${method.method_type}" 
                                id="pm_${method.method_type}"
                                data-method-type="${method.method_type}"
-                               checked>
-                        <label class="form-check-label" for="pm_${method.method_type}">
+                               ${method.method_type === 'cash' ? 'checked disabled' : 'checked'}>
+                        <label class="form-check-label ${method.method_type === 'cash' ? 'text-muted' : ''}" for="pm_${method.method_type}">
                             <i class="bi bi-${method.method_type === 'cash' ? 'cash-stack' : method.method_type === 'card' ? 'credit-card' : 'wallet2'} me-1"></i>
-                            ${method.method_name}
+                            ${method.method_name}${method.method_type === 'cash' ? ' <small>(alltid påkrevd)</small>' : ''}
                         </label>
                     </div>
                 </div>
@@ -2387,6 +2426,54 @@ async function loadPaymentMethodsForCreate() {
         }
     } catch (error) {
         console.error('Error loading payment methods:', error);
+        container.innerHTML = '<p class="text-danger small mb-0">Feil ved lasting av betalingsmetoder</p>';
+    }
+}
+
+// Load payment methods for edit form
+async function loadPaymentMethodsForEdit(selectedMethods = []) {
+    const container = document.getElementById('edit-payment-methods-container');
+    if (!container) return;
+    
+    try {
+        const response = await fetch('/api/get_payment_methods.php');
+        const result = await response.json();
+        
+        if (result.success && result.payment_methods && result.payment_methods.length > 0) {
+            // Ensure cash is always in selected methods
+            if (!selectedMethods.includes('cash')) {
+                selectedMethods.push('cash');
+            }
+            
+            container.innerHTML = `
+                <div class="alert alert-info small mb-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Oppmøtebetaling</strong> er alltid inkludert for å tillate arrangementer uten webbetaling.
+                </div>
+                <div class="row">` + result.payment_methods.map(method => {
+                const isChecked = selectedMethods.includes(method.method_type);
+                const isCash = method.method_type === 'cash';
+                return `
+                <div class="col-md-4 mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" 
+                               name="edit_payment_method_${method.method_type}" 
+                               id="edit_pm_${method.method_type}"
+                               data-method-type="${method.method_type}"
+                               ${isChecked ? 'checked' : ''} ${isCash ? 'disabled' : ''}>
+                        <label class="form-check-label ${isCash ? 'text-muted' : ''}" for="edit_pm_${method.method_type}">
+                            <i class="bi bi-${isCash ? 'cash-stack' : method.method_type === 'card' ? 'credit-card' : 'wallet2'} me-1"></i>
+                            ${method.method_name}${isCash ? ' <small>(alltid påkrevd)</small>' : ''}
+                        </label>
+                    </div>
+                </div>
+            `;
+            }).join('') + '</div>';
+        } else {
+            container.innerHTML = '<p class="text-muted small mb-0"><i class="bi bi-info-circle me-2"></i>Ingen betalingsmetoder konfigurert</p>';
+        }
+    } catch (error) {
+        console.error('Error loading payment methods for edit:', error);
         container.innerHTML = '<p class="text-danger small mb-0">Feil ved lasting av betalingsmetoder</p>';
     }
 }

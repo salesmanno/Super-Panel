@@ -232,17 +232,14 @@ try {
         }
         
         // 4. Save allowed payment methods
-        $defaultPaymentMethod = 'cash'; // Safe fallback default
         $paymentMethodsArray = [];
         
         if (isset($data['allowed_payment_methods']) && is_array($data['allowed_payment_methods']) && count($data['allowed_payment_methods']) > 0) {
             // Use provided payment methods
             $paymentMethodsArray = $data['allowed_payment_methods'];
-            $defaultPaymentMethod = $paymentMethodsArray[0]; // First method is default
         } elseif (isset($data['default_payment_method']) && !empty($data['default_payment_method'])) {
             // Legacy: Use single default_payment_method if provided
-            $defaultPaymentMethod = $data['default_payment_method'];
-            $paymentMethodsArray = [$defaultPaymentMethod];
+            $paymentMethodsArray = [$data['default_payment_method']];
         } else {
             // Fallback: Use company cash setting or default to cash
             $companyStmt = $db->prepare("SELECT Cash_payment FROM tenant_companies WHERE id = ?");
@@ -251,11 +248,22 @@ try {
             if ($company && $company['Cash_payment']) {
                 $paymentMethodsArray = ['cash'];
             } else {
-                $paymentMethodsArray = ['card']; // Default to card if cash not enabled
-                $defaultPaymentMethod = 'card';
+                $paymentMethodsArray = ['card'];
             }
         }
         
+        // ENFORCE: Cash must always be included (insert as first element if not present)
+        if (!in_array('cash', $paymentMethodsArray)) {
+            array_unshift($paymentMethodsArray, 'cash');
+        } elseif ($paymentMethodsArray[0] !== 'cash') {
+            // Move cash to first position if present but not first
+            $cashIndex = array_search('cash', $paymentMethodsArray);
+            unset($paymentMethodsArray[$cashIndex]);
+            array_unshift($paymentMethodsArray, 'cash');
+            $paymentMethodsArray = array_values($paymentMethodsArray); // Re-index
+        }
+        
+        $defaultPaymentMethod = $paymentMethodsArray[0]; // First method is always default (now guaranteed to be cash)
         $paymentMethodsJson = json_encode($paymentMethodsArray);
         $stmt = $db->prepare("UPDATE events_eventdata SET payment_methods_json = ?, default_payment_method = ? WHERE id = ?");
         $stmt->execute([$paymentMethodsJson, $defaultPaymentMethod, $eventId]);
