@@ -11,30 +11,6 @@ try {
 } catch (Exception $e) {
     error_log("Error fetching company data: " . $e->getMessage());
 }
-
-// Check if user has membership module access (if not set by parent)
-if (!isset($hasMembershipAccess)) {
-    $hasMembershipAccess = false;
-    try {
-        if (isset($_SESSION['tenant_admin_id']) && isset($db)) {
-            require_once __DIR__ . '/../includes/functions.php';
-            $adminModules = getTenantAdminModules($_SESSION['tenant_admin_id'], $db);
-            error_log("events_content - Checking membership access for admin: " . $_SESSION['tenant_admin_id']);
-            error_log("events_content - Admin has " . count($adminModules) . " modules");
-            foreach ($adminModules as $module) {
-                error_log("events_content - Module: " . $module['module_key']);
-                if ($module['module_key'] === 'membership') {
-                    $hasMembershipAccess = true;
-                    error_log("events_content - MEMBERSHIP ACCESS GRANTED!");
-                    break;
-                }
-            }
-        }
-    } catch (Exception $e) {
-        error_log("Error checking membership access: " . $e->getMessage());
-    }
-}
-error_log("events_content - Final hasMembershipAccess value: " . ($hasMembershipAccess ? 'TRUE' : 'FALSE'));
 ?>
 <style>
 .event-card {
@@ -222,15 +198,20 @@ error_log("events_content - Final hasMembershipAccess value: " . ($hasMembership
             <div class="card-body">
                 <h5 class="card-title">Opprett nytt arrangement</h5>
                 <form id="create-event-form">
-                    <div class="mb-3">
-                        <label class="form-label">Arrangement navn *</label>
-                        <input type="text" class="form-control" name="title" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Bilde-URL</label>
-                        <input type="url" class="form-control" name="event_image_url" placeholder="https://...">
-                        <small class="form-text text-muted">Valgfri: URL til arrangementsbilde</small>
+                    <div class="row">
+                        <div class="col-md-<?php echo isset($hasMembershipAccess) && $hasMembershipAccess ? '8' : '12'; ?> mb-3">
+                            <label class="form-label">Arrangement navn *</label>
+                            <input type="text" class="form-control" name="title" required>
+                        </div>
+                        <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Kun for medlemmer?</label>
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" name="is_member_exclusive" id="memberExclusive">
+                                <label class="form-check-label" for="memberExclusive">Kun medlemmer</label>
+                            </div>
+                        </div>
+                        <?php endif; ?>
                     </div>
                     
                     <div class="mb-3">
@@ -317,7 +298,7 @@ error_log("events_content - Final hasMembershipAccess value: " . ($hasMembership
                     <?php endif; ?>
 
                     <div class="row">
-                        <div class="col-md-12 mb-3">
+                        <div class="col-md-6 mb-3">
                             <label class="form-label">Standard betalingsmetode</label>
                             <select class="form-select" name="default_payment_method">
                                 <option value="">Velg betalingsmetode</option>
@@ -331,41 +312,30 @@ error_log("events_content - Final hasMembershipAccess value: " . ($hasMembership
                             </select>
                             <small class="form-text text-muted">Denne metoden vil være forhåndsvalgt ved påmelding</small>
                         </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Bilde-URL</label>
+                            <input type="url" class="form-control" name="event_image_url">
+                            <small class="form-text text-muted">Valgfri: URL til arrangementsbilde</small>
+                        </div>
                     </div>
 
                     <hr class="my-4">
 
-                    <!-- Combined Registration & Membership Card -->
                     <div class="card border-primary mb-3">
-                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0"><i class="bi bi-ui-checks me-2"></i>Påmelding & Medlemskap</h6>
-                            <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
-                            <span class="badge bg-light text-primary" id="member-restriction-badge" style="display: none;">
-                                <i class="bi bi-shield-check me-1"></i>Kun medlemmer aktivert
-                            </span>
-                            <?php endif; ?>
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h6>
                         </div>
                         <div class="card-body">
-                            <!-- Registration Fields Section -->
-                            <h6 class="mb-3"><i class="bi bi-person-lines-fill me-2"></i>Påmeldingsfelt</h6>
                             <p class="text-muted small mb-3">Konfigurer hvilke opplysninger som skal samles inn ved påmelding</p>
                             
                             <div class="alert alert-info mb-3">
                                 <i class="bi bi-info-circle me-2"></i>
                                 <strong>Standard felt (alltid inkludert):</strong><br>
-                                <small>✓ Fornavn &nbsp; ✓ Etternavn</small>
+                                <small>✓ Fornavn &nbsp; ✓ Etternavn &nbsp; ✓ E-postadresse</small>
                             </div>
                             
-                            <h6 class="mb-3">Valgfrie felt:</h6>
+                            <h6 class="mb-3">Valgfrie tilleggsfelt:</h6>
                             <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_email" id="field_email" checked>
-                                        <label class="form-check-label" for="field_email">
-                                            <i class="bi bi-envelope text-primary me-1"></i> E-postadresse
-                                        </label>
-                                    </div>
-                                </div>
                                 <div class="col-md-4">
                                     <div class="form-check mb-2">
                                         <input class="form-check-input" type="checkbox" name="field_phone" id="field_phone" checked>
@@ -374,16 +344,6 @@ error_log("events_content - Final hasMembershipAccess value: " . ($hasMembership
                                         </label>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_age" id="field_age" checked>
-                                        <label class="form-check-label" for="field_age">
-                                            <i class="bi bi-person-badge text-primary me-1"></i> Alder
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-check mb-2">
                                         <input class="form-check-input" type="checkbox" name="field_street" id="field_street" checked>
@@ -400,6 +360,8 @@ error_log("events_content - Final hasMembershipAccess value: " . ($hasMembership
                                         </label>
                                     </div>
                                 </div>
+                            </div>
+                            <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-check mb-2">
                                         <input class="form-check-input" type="checkbox" name="field_city" id="field_city" checked>
@@ -408,8 +370,6 @@ error_log("events_content - Final hasMembershipAccess value: " . ($hasMembership
                                         </label>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-check mb-2">
                                         <input class="form-check-input" type="checkbox" name="field_postal" id="field_postal" checked>
@@ -418,45 +378,15 @@ error_log("events_content - Final hasMembershipAccess value: " . ($hasMembership
                                         </label>
                                     </div>
                                 </div>
-                            </div>
-
-                            <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
-                            <hr class="my-4">
-                            
-                            <!-- Membership Section -->
-                            <h6 class="mb-3"><i class="bi bi-card-checklist me-2"></i>Medlemskap</h6>
-                            
-                            <div class="mb-3">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" name="is_member_exclusive" id="memberExclusive">
-                                    <label class="form-check-label" for="memberExclusive">
-                                        <strong><i class="bi bi-shield-lock me-1"></i>Kun medlemmer kan melde seg på</strong>
-                                    </label>
-                                </div>
-                                <small class="form-text text-muted ms-4">
-                                    Aktiver for å begrense påmelding til kun medlemmer. Velg spesifikke planer nedenfor for ytterligere begrensning.
-                                </small>
-                            </div>
-                            
-                            <div class="alert alert-info mb-3">
-                                <i class="bi bi-info-circle me-2"></i>
-                                <strong>Slik fungerer medlemskapsplaner:</strong>
-                                <ul class="mb-0 mt-2 small">
-                                    <li><strong>Ingen planer valgt:</strong> Alle medlemskap får medlemspris / adgang</li>
-                                    <li><strong>Spesifikke planer valgt:</strong> Kun disse planene får medlemspris / adgang</li>
-                                    <li><strong>"Kun medlemmer" AV:</strong> Planer gir kun medlemspris (alle kan delta)</li>
-                                    <li><strong>"Kun medlemmer" PÅ:</strong> Planer begrenser også hvem som kan delta</li>
-                                </ul>
-                            </div>
-                            
-                            <h6 class="mb-3">Velg medlemskapsplaner:</h6>
-                            <div id="membership-plans-container">
-                                <div class="text-center text-muted">
-                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                                    Laster medlemskapsplaner...
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="field_age" id="field_age" checked>
+                                        <label class="form-check-label" for="field_age">
+                                            <i class="bi bi-person-badge text-primary me-1"></i> Alder
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
-                            <?php endif; ?>
                         </div>
                     </div>
 
@@ -1023,12 +953,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('events-my')) {
         loadEvents();
     }
-    
-    // Load membership plans for event creation
-    const membershipPlansContainer = document.getElementById('membership-plans-container');
-    if (membershipPlansContainer) {
-        loadMembershipPlans();
-    }
 
     // Handle min_attendees field - show/hide deadline
     const minAttendeesInput = document.getElementById('min_attendees');
@@ -1044,20 +968,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 deadlineContainer.style.display = 'none';
                 deadlineInput.required = false;
                 deadlineInput.value = '';
-            }
-        });
-    }
-    
-    // Handle "Kun medlemmer" toggle - show/hide badge
-    const memberExclusiveCheckbox = document.getElementById('memberExclusive');
-    const memberRestrictionBadge = document.getElementById('member-restriction-badge');
-    
-    if (memberExclusiveCheckbox && memberRestrictionBadge) {
-        memberExclusiveCheckbox.addEventListener('change', function() {
-            if (this.checked) {
-                memberRestrictionBadge.style.display = 'inline-block';
-            } else {
-                memberRestrictionBadge.style.display = 'none';
             }
         });
     }
@@ -1090,20 +1000,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            // Collect selected membership plans
-            const selectedPlans = [];
-            document.querySelectorAll('.membership-plan-checkbox:checked').forEach(checkbox => {
-                selectedPlans.push(checkbox.value);
-                console.log('Selected plan:', checkbox.value, '- Name:', checkbox.dataset.planName);
-            });
-            
-            // Debug: Log selected plans
-            if (selectedPlans.length > 0) {
-                console.log('✓ Valgte medlemskapsplaner:', selectedPlans);
-            } else {
-                console.log('ℹ Ingen medlemskapsplaner valgt - alle aktive medlemmer kvalifiserer');
-            }
-            
             const data = {
                 title: formData.get('title'),
                 description: formData.get('description'),
@@ -1124,7 +1020,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 event_image_url: formData.get('event_image_url') || null,
                 default_payment_method: formData.get('default_payment_method') || null,
                 is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
-                membership_plan_ids: selectedPlans,
                 // Registration fields
                 field_phone: formData.get('field_phone') ? 1 : 0,
                 field_street: formData.get('field_street') ? 1 : 0,
@@ -1161,120 +1056,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
-
-async function loadMembershipPlans() {
-    const container = document.getElementById('membership-plans-container');
-    if (!container) {
-        console.warn('Membership plans container not found');
-        return;
-    }
-    
-    console.log('Loading membership plans...');
-    
-    try {
-        console.log('STARTING loadMembershipPlans()');
-        const response = await fetch('/api/get_membership_plans.php');
-        console.log('Fetch response status:', response.status);
-        const result = await response.json();
-        
-        console.log('Membership plans API response:', result);
-        console.log('Result success:', result.success);
-        console.log('Plans count:', result.plans ? result.plans.length : 0);
-        
-        if (result.success && result.plans && result.plans.length > 0) {
-            console.log(`Found ${result.plans.length} membership plan(s)`);
-            
-            container.innerHTML = `
-                <div class="row" id="plans-checkboxes">
-                    ${result.plans.map(plan => {
-                        const planId = plan.plan_id || plan.id;
-                        const billingInfo = plan.price ? 
-                            `<span class="text-muted"> - ${plan.price} kr/${plan.billing_cycle || (plan.duration_months + ' mnd')}</span>` : '';
-                        return `
-                            <div class="col-md-6 mb-2">
-                                <div class="form-check">
-                                    <input class="form-check-input membership-plan-checkbox" 
-                                           type="checkbox" 
-                                           name="membership_plan_${planId}" 
-                                           value="${planId}" 
-                                           id="plan-${planId}"
-                                           data-plan-name="${plan.name}">
-                                    <label class="form-check-label" for="plan-${planId}">
-                                        <strong>${plan.name}</strong>
-                                        ${billingInfo}
-                                    </label>
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-                <div class="mt-3">
-                    <button type="button" class="btn btn-sm btn-outline-success" onclick="selectAllPlans()">
-                        <i class="bi bi-check-all me-1"></i>Velg alle
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAllPlans()">
-                        <i class="bi bi-x-circle me-1"></i>Fjern alle
-                    </button>
-                    <span class="ms-3 text-muted small" id="selected-plans-count">0 valgt</span>
-                </div>
-            `;
-            
-            // Add change listeners to update count
-            document.querySelectorAll('.membership-plan-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('change', updateSelectedPlansCount);
-            });
-            
-            console.log('Membership plans loaded successfully');
-        } else {
-            console.log('No membership plans found');
-            container.innerHTML = `
-                <div class="alert alert-info mb-0">
-                    <i class="bi bi-info-circle me-2"></i>
-                    Ingen medlemskapsplaner funnet. Du må først opprette medlemskapsplaner i Medlemskap-modulen.
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('CATCH ERROR loading membership plans:', error);
-        console.error('Error details:', error.message, error.stack);
-        container.innerHTML = `
-            <div class="alert alert-danger mb-0">
-                <i class="bi bi-exclamation-triangle me-2"></i>
-                Kunne ikke laste medlemskapsplaner: ${error.message}
-            </div>
-        `;
-    }
-}
-
-function updateSelectedPlansCount() {
-    const checkboxes = document.querySelectorAll('.membership-plan-checkbox');
-    const checkedCount = document.querySelectorAll('.membership-plan-checkbox:checked').length;
-    const countElement = document.getElementById('selected-plans-count');
-    
-    if (countElement) {
-        if (checkedCount === 0) {
-            countElement.textContent = '0 valgt (alle medlemskap kvalifiserer)';
-            countElement.className = 'ms-3 text-muted small';
-        } else {
-            countElement.textContent = `${checkedCount} av ${checkboxes.length} valgt`;
-            countElement.className = 'ms-3 text-success small fw-bold';
-        }
-    }
-}
-
-function selectAllPlans() {
-    document.querySelectorAll('.membership-plan-checkbox').forEach(checkbox => {
-        checkbox.checked = true;
-    });
-    updateSelectedPlansCount();
-}
-
-function deselectAllPlans() {
-    document.querySelectorAll('.membership-plan-checkbox').forEach(checkbox => {
-        checkbox.checked = false;
-    });
-    updateSelectedPlansCount();
-}
 
 async function loadEvents() {
     try {

@@ -122,10 +122,11 @@ try {
         ]);
         
         // 2. Save registration fields config
-        // Always add standard fields first (first_name, last_name - always required)
+        // Always add standard fields first (first_name, last_name, email)
         $standardFields = [
             'first_name' => ['label' => 'Fornavn', 'type' => 'text', 'required' => true],
-            'last_name' => ['label' => 'Etternavn', 'type' => 'text', 'required' => true]
+            'last_name' => ['label' => 'Etternavn', 'type' => 'text', 'required' => true],
+            'email' => ['label' => 'E-postadresse', 'type' => 'email', 'required' => true]
         ];
         
         $displayOrder = 1;
@@ -149,9 +150,8 @@ try {
             ]);
         }
         
-        // Then add optional fields if selected (including email which is now optional)
+        // Then add optional fields if selected
         $optionalFields = [
-            'email' => ['label' => 'E-postadresse', 'type' => 'email'],
             'phone' => ['label' => 'Telefonnummer', 'type' => 'tel'],
             'street' => ['label' => 'Gateadresse', 'type' => 'text'],
             'zip' => ['label' => 'Postnummer', 'type' => 'text'],
@@ -182,19 +182,7 @@ try {
             }
         }
         
-        // 3. Save selected membership plans for this event
-        if (!empty($data['membership_plan_ids']) && is_array($data['membership_plan_ids'])) {
-            foreach ($data['membership_plan_ids'] as $planId) {
-                $planLinkId = bin2hex(random_bytes(16));
-                $stmt = $db->prepare("
-                    INSERT INTO event_membership_plans (id, event_id, membership_plan_id)
-                    VALUES (?, ?, ?)
-                ");
-                $stmt->execute([$planLinkId, $eventId, $planId]);
-            }
-        }
-        
-        // 4. Auto-generate output_products entry using service
+        // 3. Auto-generate output_products entry using service
         $catalogService = new ProductCatalogService($db);
         $outputProductId = $catalogService->createProductEntry(
             $_SESSION['company_id'],

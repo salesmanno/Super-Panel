@@ -14,8 +14,6 @@ try {
     $companyId = $_SESSION['company_id'];
     $dbType = getDBType();
     
-    error_log("get_membership_plans - company_id: " . var_export($companyId, true) . ", dbType: " . $dbType);
-    
     // Dual database support: MySQL uses membership_plans, PostgreSQL uses x_membership_plan
     if ($dbType === 'mysql') {
         $stmt = $db->prepare("
@@ -28,12 +26,10 @@ try {
                 benefits,
                 is_active
             FROM membership_plans
-            WHERE company_id = :company_id AND is_active = 1
+            WHERE company_id = ? AND is_active = 1
             ORDER BY created_at DESC
         ");
-        $stmt->execute([':company_id' => $companyId]);
     } else {
-        // PostgreSQL: Cast company_id to UUID to avoid type errors
         $stmt = $db->prepare("
             SELECT 
                 plan_id,
@@ -44,15 +40,13 @@ try {
                 features as benefits,
                 is_active
             FROM x_membership_plan
-            WHERE company_id::text = :company_id AND is_active = true
+            WHERE company_id = ? AND is_active = true
             ORDER BY created_at DESC
         ");
-        $stmt->execute([':company_id' => (string)$companyId]);
     }
     
+    $stmt->execute([$companyId]);
     $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    error_log("get_membership_plans - found " . count($plans) . " plans");
     
     echo json_encode([
         'success' => true,

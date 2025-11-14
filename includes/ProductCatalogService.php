@@ -112,20 +112,15 @@ class ProductCatalogService {
             $isPublic = isset($options['is_public']) ? (bool)$options['is_public'] : true;
             $isFeatured = isset($options['is_marketplace_featured']) ? (bool)$options['is_marketplace_featured'] : false;
             
-            // Convert booleans to integers for database compatibility
-            $isVisibleInt = $isVisible ? 1 : 0;
-            $isPublicInt = $isPublic ? 1 : 0;
-            $isFeaturedInt = $isFeatured ? 1 : 0;
-            
             $stmt->execute([
                 $outputProductId,
                 $companyId,
                 $moduleId,
                 $productType,
                 $productId,
-                $isVisibleInt,
-                $isPublicInt,
-                $isFeaturedInt,
+                $isVisible,
+                $isPublic,
+                $isFeatured,
                 $options['marketplace_priority'] ?? 0,
                 $createdBy
             ]);

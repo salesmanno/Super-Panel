@@ -2,7 +2,7 @@ modules = ["php", "php-8.2", "postgresql-16", "python-3.11", "python3", "nodejs-
 
 [nix]
 channel = "stable-24_05"
-packages = ["php82Extensions.zip", "imagemagick", "php82Extensions.imap", "mysql80", "php82Extensions.pdo_pgsql", "php82Extensions.pgsql", "run"]
+packages = ["php82Extensions.zip", "imagemagick", "php82Extensions.imap", "mysql80", "php82Extensions.pdo_pgsql", "php82Extensions.pgsql"]
 
 [workflows]
 runButton = "Project"
@@ -66,10 +66,6 @@ externalPort = 8000
 [[ports]]
 localPort = 36961
 externalPort = 5000
-
-[[ports]]
-localPort = 39095
-externalPort = 8080
 
 [[ports]]
 localPort = 41747

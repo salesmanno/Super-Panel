@@ -68,8 +68,6 @@ try {
             ]);
         } else {
             // PostgreSQL: x_membership_plan table
-            $planId = bin2hex(random_bytes(16));
-            
             $durationMonths = match($billingCycle) {
                 'monthly' => 1,
                 'quarterly' => 3,
@@ -88,7 +86,6 @@ try {
             
             $stmt = $db->prepare("
                 INSERT INTO x_membership_plan (
-                    plan_id,
                     company_id,
                     plan_name,
                     description,
@@ -97,11 +94,11 @@ try {
                     features,
                     is_active,
                     image_url
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, true, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, true, ?)
+                RETURNING plan_id
             ");
             
             $stmt->execute([
-                $planId,
                 $_SESSION['company_id'],
                 $data['name'],
                 $data['description'] ?? null,
@@ -110,6 +107,8 @@ try {
                 $data['benefits'] ?? null,
                 $imageUrl
             ]);
+            
+            $planId = $stmt->fetchColumn();
         }
         
         // Automatically create output_products entry
