@@ -1148,7 +1148,7 @@ async function loadMembershipPlans() {
     console.log('Loading membership plans...');
     
     try {
-        const response = await fetch('../api/get_membership_plans.php');
+        const response = await fetch('/api/get_membership_plans.php');
         const result = await response.json();
         
         console.log('Membership plans API response:', result);
