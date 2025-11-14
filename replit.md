@@ -39,6 +39,9 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Clean Database Architecture**: Modular database design eliminating duplicates and redundancy, standardizing tables, adding cost price tracking, and introducing `service_bookings` and `unified_ledger` tables.
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
+## Recent Changes
+- **2025-11-14 (Latest)**: RENTAL MODULE - TABLE-PER-TYPE ARCHITECTURE FULLFØRT - Komplett omskriving av Rental Module til profesjonell table-per-type arkitektur. Backend: Opprettet 12 type-spesifikke tabeller (rental_residences, rental_cabins, rental_venues, rental_containers, rental_tools, rental_vehicles, rental_offices, rental_sports_equipment, rental_parking, rental_rvs, rental_event_items, rental_trailers) med 1:1 foreign keys til rental_objects base-tabell. Alle relasjoner bruker ON DELETE CASCADE for automatisk opprydding. Type-spesifikke tabeller inneholder felt som: residence (sqm, bedrooms, bathrooms, furnished, energy_rating), cabin (beds, season_type, cleaning_fee, facilities), vehicle (make, model, fuel_type, driver_license_class, license_years_required), etc. Opprettet `includes/rental_schemas.php` som definerer alle feltskjemaer for 12 objekttyper med norske labels, datatyper og valideringsregler. Full CRUD API: `api/create_rental_object.php`, `api/get_rental_objects.php`, `api/update_rental_object.php`, `api/delete_rental_object.php`. Frontend: Komplett omskriving av `modules/rental_content.php` med dynamisk form-generator basert på objekttype, card-basert visning med bilder og badges, kategorifilter, edit/delete-funksjonalitet med type_data populering, og detaljvisning-modal. Validering: Schema-level "required" flags enforces frontend-side, backend validerer kun object_name og category.
+
 ## External Dependencies
 - **Database**: Dual database support with PDO:
     - Production: MySQL
