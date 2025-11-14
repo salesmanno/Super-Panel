@@ -11,6 +11,25 @@ try {
 } catch (Exception $e) {
     error_log("Error fetching company data: " . $e->getMessage());
 }
+
+// Check if user has membership module access (if not set by parent)
+if (!isset($hasMembershipAccess)) {
+    $hasMembershipAccess = false;
+    try {
+        if (isset($_SESSION['tenant_admin_id']) && isset($db)) {
+            require_once __DIR__ . '/../includes/functions.php';
+            $adminModules = getTenantAdminModules($_SESSION['tenant_admin_id'], $db);
+            foreach ($adminModules as $module) {
+                if ($module['module_key'] === 'membership') {
+                    $hasMembershipAccess = true;
+                    break;
+                }
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Error checking membership access: " . $e->getMessage());
+    }
+}
 ?>
 <style>
 .event-card {
