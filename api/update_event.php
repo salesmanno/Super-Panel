@@ -93,16 +93,52 @@ try {
         ]);
         
         // Update registration fields config
-        // Delete existing optional fields (keep standard fields)
+        // Validate that at least one contact field (email or phone) is selected
+        $hasEmail = isset($data['field_email']) && $data['field_email'];
+        $hasPhone = isset($data['field_phone']) && $data['field_phone'];
+        
+        if (!$hasEmail && !$hasPhone) {
+            throw new Exception('Minst ett kontaktfelt (E-post eller Telefonnummer) må være valgt');
+        }
+        
+        // Delete all existing fields except required name fields
         $stmt = $db->prepare("
             DELETE FROM event_registration_fields 
-            WHERE event_id = ? AND field_name NOT IN ('first_name', 'last_name', 'email')
+            WHERE event_id = ? AND field_name NOT IN ('first_name', 'last_name')
         ");
         $stmt->execute([$data['event_id']]);
         
-        // Add optional fields if selected
+        // Add contact fields (email and/or phone) - at least one required
+        $contactFields = [
+            'email' => ['label' => 'E-postadresse', 'type' => 'email', 'required' => false],
+            'phone' => ['label' => 'Telefonnummer', 'type' => 'tel', 'required' => false]
+        ];
+        
+        $displayOrder = 3; // After first_name (1) and last_name (2)
+        foreach ($contactFields as $fieldName => $fieldConfig) {
+            if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
+                $fieldId = bin2hex(random_bytes(16));
+                $stmt = $db->prepare("
+                    INSERT INTO event_registration_fields (
+                        id, event_id, field_name, field_label, field_type,
+                        is_required, is_visible, display_order
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+                $stmt->execute([
+                    $fieldId,
+                    $data['event_id'],
+                    $fieldName,
+                    $fieldConfig['label'],
+                    $fieldConfig['type'],
+                    (int)$fieldConfig['required'],
+                    1,
+                    $displayOrder++
+                ]);
+            }
+        }
+        
+        // Add other optional fields if selected
         $optionalFields = [
-            'phone' => ['label' => 'Telefonnummer', 'type' => 'tel'],
             'street' => ['label' => 'Gateadresse', 'type' => 'text'],
             'zip' => ['label' => 'Postnummer', 'type' => 'text'],
             'city' => ['label' => 'Poststed', 'type' => 'text'],
@@ -110,7 +146,6 @@ try {
             'age' => ['label' => 'Alder', 'type' => 'number']
         ];
         
-        $displayOrder = 4; // After standard fields (1,2,3)
         foreach ($optionalFields as $fieldName => $fieldConfig) {
             if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
                 $fieldId = bin2hex(random_bytes(16));
@@ -126,8 +161,8 @@ try {
                     $fieldName,
                     $fieldConfig['label'],
                     $fieldConfig['type'],
-                    false,
-                    true,
+                    0,
+                    1,
                     $displayOrder++
                 ]);
             }

@@ -338,20 +338,38 @@ try {
                             
                             <div class="alert alert-info mb-3">
                                 <i class="bi bi-info-circle me-2"></i>
-                                <strong>Standard felt (alltid inkludert):</strong><br>
-                                <small>✓ Fornavn &nbsp; ✓ Etternavn &nbsp; ✓ E-postadresse</small>
+                                <strong>Påkrevde felt:</strong><br>
+                                <small>✓ Fornavn (påkrevd) &nbsp; ✓ Etternavn (påkrevd)</small>
                             </div>
                             
-                            <h6 class="mb-3">Valgfrie tilleggsfelt:</h6>
+                            <div class="alert alert-warning mb-3">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                <strong>Kontaktinformasjon (minst én påkrevd):</strong><br>
+                                <small>Velg E-post og/eller Telefonnummer. Minst én må være aktivert for å verifisere medlemskap.</small>
+                            </div>
+                            
+                            <h6 class="mb-3">Kontaktfelt (minst én påkrevd):</h6>
                             <div class="row">
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_phone" id="field_phone" checked>
+                                        <input class="form-check-input contact-field-required" type="checkbox" name="field_email" id="field_email" checked>
+                                        <label class="form-check-label" for="field_email">
+                                            <i class="bi bi-envelope text-primary me-1"></i> E-postadresse
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input contact-field-required" type="checkbox" name="field_phone" id="field_phone" checked>
                                         <label class="form-check-label" for="field_phone">
                                             <i class="bi bi-telephone text-primary me-1"></i> Telefonnummer
                                         </label>
                                     </div>
                                 </div>
+                            </div>
+                            
+                            <h6 class="mb-3 mt-4">Valgfrie tilleggsfelt:</h6>
+                            <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-check mb-2">
                                         <input class="form-check-input" type="checkbox" name="field_street" id="field_street" checked>
@@ -722,20 +740,38 @@ try {
                             
                             <div class="alert alert-info mb-3">
                                 <i class="bi bi-info-circle me-2"></i>
-                                <strong>Standard felt (alltid inkludert):</strong><br>
-                                <small>✓ Fornavn &nbsp; ✓ Etternavn &nbsp; ✓ E-postadresse</small>
+                                <strong>Påkrevde felt:</strong><br>
+                                <small>✓ Fornavn (påkrevd) &nbsp; ✓ Etternavn (påkrevd)</small>
                             </div>
                             
-                            <h6 class="mb-3">Valgfrie tilleggsfelt:</h6>
+                            <div class="alert alert-warning mb-3">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                <strong>Kontaktinformasjon (minst én påkrevd):</strong><br>
+                                <small>Velg E-post og/eller Telefonnummer. Minst én må være aktivert for å verifisere medlemskap.</small>
+                            </div>
+                            
+                            <h6 class="mb-3">Kontaktfelt (minst én påkrevd):</h6>
                             <div class="row">
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_phone" id="edit-field-phone">
+                                        <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_email" id="edit-field-email">
+                                        <label class="form-check-label" for="edit-field-email">
+                                            <i class="bi bi-envelope text-primary me-1"></i> E-postadresse
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_phone" id="edit-field-phone">
                                         <label class="form-check-label" for="edit-field-phone">
                                             <i class="bi bi-telephone text-primary me-1"></i> Telefonnummer
                                         </label>
                                     </div>
                                 </div>
+                            </div>
+                            
+                            <h6 class="mb-3 mt-4">Valgfrie tilleggsfelt:</h6>
+                            <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-check mb-2">
                                         <input class="form-check-input" type="checkbox" name="field_street" id="edit-field-street">
@@ -998,6 +1034,15 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             
             const formData = new FormData(this);
+            
+            // Validate that at least one contact field is selected
+            const emailChecked = document.getElementById('field_email').checked;
+            const phoneChecked = document.getElementById('field_phone').checked;
+            
+            if (!emailChecked && !phoneChecked) {
+                toast.quickWarning('Validering', 'Du må velge minst ett kontaktfelt (E-post eller Telefonnummer) for å verifisere medlemskap');
+                return;
+            }
             
             // Validate registration deadline
             const minAttendees = formData.get('min_attendees');
@@ -2022,6 +2067,15 @@ if (editMinAttendeesInput && editDeadlineContainer) {
 async function saveEventChanges() {
     const form = document.getElementById('edit-event-form');
     const formData = new FormData(form);
+    
+    // Validate that at least one contact field is selected
+    const emailChecked = document.getElementById('edit-field-email').checked;
+    const phoneChecked = document.getElementById('edit-field-phone').checked;
+    
+    if (!emailChecked && !phoneChecked) {
+        toast.quickWarning('Validering', 'Du må velge minst ett kontaktfelt (E-post eller Telefonnummer) for å verifisere medlemskap');
+        return;
+    }
     
     // Validate registration deadline
     const minAttendees = formData.get('min_attendees');
