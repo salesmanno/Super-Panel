@@ -19,9 +19,13 @@ if (!isset($hasMembershipAccess)) {
         if (isset($_SESSION['tenant_admin_id']) && isset($db)) {
             require_once __DIR__ . '/../includes/functions.php';
             $adminModules = getTenantAdminModules($_SESSION['tenant_admin_id'], $db);
+            error_log("events_content - Checking membership access for admin: " . $_SESSION['tenant_admin_id']);
+            error_log("events_content - Admin has " . count($adminModules) . " modules");
             foreach ($adminModules as $module) {
+                error_log("events_content - Module: " . $module['module_key']);
                 if ($module['module_key'] === 'membership') {
                     $hasMembershipAccess = true;
+                    error_log("events_content - MEMBERSHIP ACCESS GRANTED!");
                     break;
                 }
             }
@@ -30,6 +34,7 @@ if (!isset($hasMembershipAccess)) {
         error_log("Error checking membership access: " . $e->getMessage());
     }
 }
+error_log("events_content - Final hasMembershipAccess value: " . ($hasMembershipAccess ? 'TRUE' : 'FALSE'));
 ?>
 <style>
 .event-card {
@@ -1167,10 +1172,14 @@ async function loadMembershipPlans() {
     console.log('Loading membership plans...');
     
     try {
+        console.log('STARTING loadMembershipPlans()');
         const response = await fetch('/api/get_membership_plans.php');
+        console.log('Fetch response status:', response.status);
         const result = await response.json();
         
         console.log('Membership plans API response:', result);
+        console.log('Result success:', result.success);
+        console.log('Plans count:', result.plans ? result.plans.length : 0);
         
         if (result.success && result.plans && result.plans.length > 0) {
             console.log(`Found ${result.plans.length} membership plan(s)`);
@@ -1226,7 +1235,8 @@ async function loadMembershipPlans() {
             `;
         }
     } catch (error) {
-        console.error('Error loading membership plans:', error);
+        console.error('CATCH ERROR loading membership plans:', error);
+        console.error('Error details:', error.message, error.stack);
         container.innerHTML = `
             <div class="alert alert-danger mb-0">
                 <i class="bi bi-exclamation-triangle me-2"></i>

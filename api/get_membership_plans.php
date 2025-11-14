@@ -14,6 +14,8 @@ try {
     $companyId = $_SESSION['company_id'];
     $dbType = getDBType();
     
+    error_log("get_membership_plans - company_id: " . var_export($companyId, true) . ", dbType: " . $dbType);
+    
     // Dual database support: MySQL uses membership_plans, PostgreSQL uses x_membership_plan
     if ($dbType === 'mysql') {
         $stmt = $db->prepare("
@@ -49,6 +51,8 @@ try {
     }
     
     $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    error_log("get_membership_plans - found " . count($plans) . " plans");
     
     echo json_encode([
         'success' => true,
