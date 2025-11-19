@@ -21,56 +21,77 @@ $company_id = $_SESSION['company_id'];
 try {
     $db = getDBConnection();
     
-    // Get cash payment status from tenant_companies
-    $stmt = $db->prepare("SELECT cash_payment FROM tenant_companies WHERE id = ?");
-    $stmt->execute([$company_id]);
-    $company = $stmt->fetch();
-    $cashEnabled = $company ? ($company['cash_payment'] ?? true) : true;
-    
-    // Get configured payment methods from payment_methods table
-    $stmt = $db->prepare("
-        SELECT 
-            id,
-            method_name,
-            method_type,
-            is_demo,
-            is_active,
-            config_data
-        FROM payment_methods 
-        WHERE company_id = ? AND is_active = ?
-        ORDER BY created_at ASC
-    ");
-    $stmt->execute([$company_id, true]);
-    $configured = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
     // Build payment methods array
     $methods = [];
     
-    // Always include cash (based on company setting)
-    if ($cashEnabled) {
+    // Always include cash/arrival payment
+    $methods[] = [
+        'method_type' => 'cash',
+        'method_name' => 'Kontant / Oppmøtebetaling',
+        'is_demo' => false,
+        'is_active' => true,
+        'config' => [
+            'display_name' => 'Kontant / Oppmøtebetaling',
+            'icon' => 'cash-stack',
+            'description' => 'Kontant betaling ved oppmøte'
+        ]
+    ];
+    
+    // Try to get configured payment gateways from economy_payment_gateways
+    try {
+        $stmt = $db->prepare("
+            SELECT 
+                id,
+                provider_name,
+                gateway_type,
+                is_demo,
+                is_active
+            FROM economy_payment_gateways 
+            WHERE company_id = ? AND is_active = 1
+            ORDER BY created_at ASC
+        ");
+        $stmt->execute([$company_id]);
+        $gateways = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Add configured gateways
+        foreach ($gateways as $gateway) {
+            $methodType = strtolower($gateway['gateway_type']);
+            $methods[] = [
+                'method_type' => $methodType,
+                'method_name' => $gateway['provider_name'],
+                'is_demo' => (bool)$gateway['is_demo'],
+                'is_active' => (bool)$gateway['is_active'],
+                'config' => [
+                    'display_name' => $gateway['provider_name'],
+                    'icon' => $methodType === 'vipps' ? 'phone' : 'credit-card',
+                    'description' => 'Online betaling via ' . $gateway['provider_name']
+                ]
+            ];
+        }
+    } catch (Exception $gatewayError) {
+        // If economy_payment_gateways table doesn't exist or query fails, add default online methods
         $methods[] = [
-            'method_type' => 'cash',
-            'method_name' => 'Kontant',
+            'method_type' => 'vipps',
+            'method_name' => 'Vipps',
             'is_demo' => false,
             'is_active' => true,
             'config' => [
-                'display_name' => 'Kontant',
-                'icon' => 'cash-stack',
-                'description' => 'Kontant betaling'
+                'display_name' => 'Vipps',
+                'icon' => 'phone',
+                'description' => 'Betal med Vipps'
             ]
         ];
-    }
-    
-    // Add configured payment methods
-    foreach ($configured as $method) {
-        $config = json_decode($method['config_data'], true) ?? [];
         
         $methods[] = [
-            'method_type' => $method['method_type'],
-            'method_name' => $method['method_name'],
-            'is_demo' => (bool)$method['is_demo'],
-            'is_active' => (bool)$method['is_active'],
-            'config' => $config
+            'method_type' => 'card',
+            'method_name' => 'Kort',
+            'is_demo' => false,
+            'is_active' => true,
+            'config' => [
+                'display_name' => 'Kort',
+                'icon' => 'credit-card',
+                'description' => 'Betal med kort'
+            ]
         ];
     }
     
