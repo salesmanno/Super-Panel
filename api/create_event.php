@@ -79,6 +79,12 @@ try {
             throw new Exception('Bindende arrangement krever at minst én betalingsmetode fra economy er valgt');
         }
         
+        // Prepare payment methods JSON
+        $paymentMethodsJson = null;
+        if (isset($data['allowed_payment_methods']) && is_array($data['allowed_payment_methods']) && count($data['allowed_payment_methods']) > 0) {
+            $paymentMethodsJson = json_encode($data['allowed_payment_methods']);
+        }
+        
         $stmt = $db->prepare("
             INSERT INTO events_eventdata (
                 id,
@@ -102,8 +108,10 @@ try {
                 ticket_price,
                 registration_type,
                 payment_timing,
+                payment_methods_json,
                 created_by
             ) VALUES (
+                ?,
                 ?,
                 ?,
                 ?,
@@ -151,6 +159,7 @@ try {
             $data['ticket_price'] ?? 0,
             $registrationType,
             $paymentTiming,
+            $paymentMethodsJson,
             $_SESSION['tenant_admin_id']
         ]);
         
