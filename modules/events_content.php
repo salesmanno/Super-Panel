@@ -342,28 +342,28 @@ try {
                     </div>
                     <?php endif; ?>
 
-                    <div class="card border-warning mb-3" id="payment-timing-section">
+                    <div class="card border-warning mb-3" id="payment-section">
                         <div class="card-header bg-warning text-dark">
-                            <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Oppgjør av reservasjon</h6>
+                            <h6 class="mb-0"><i class="bi bi-credit-card-2-front me-2"></i>Betaling</h6>
                         </div>
                         <div class="card-body">
-                            <p class="text-muted small mb-3">Velg når deltakere skal betale for arrangementet</p>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input payment-timing-option" type="checkbox" name="payment_timing_arrival" id="payment-arrival" value="arrival" checked disabled>
-                                        <label class="form-check-label text-muted" for="payment-arrival">
-                                            <i class="bi bi-cash-stack me-1"></i> <strong>Ved oppmøte</strong> <small>(alltid tilgjengelig)</small><br>
-                                            <small class="text-muted">Deltakere betaler når de møter opp</small>
-                                        </label>
-                                    </div>
+                            <h6 class="mb-3"><i class="bi bi-check-circle me-2"></i>Tillatte betalingsmetoder</h6>
+                            <p class="text-muted small mb-3">Velg hvilke betalingsmetoder deltakere kan bruke</p>
+                            <div id="payment-methods-container">
+                                <div class="text-center py-2">
+                                    <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                                    <small class="text-muted">Laster betalingsmetoder...</small>
                                 </div>
-                                <div class="col-md-6" id="payment-timing-economy-container">
-                                    <div class="text-center py-2">
-                                        <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-                                        <small class="text-muted">Laster betalingsmetoder...</small>
-                                    </div>
-                                </div>
+                            </div>
+                            
+                            <hr class="my-4">
+                            
+                            <h6 class="mb-3"><i class="bi bi-clock-history me-2"></i>Når skjer betalingen?</h6>
+                            <p class="text-muted small mb-3">Deltakere kan alltid betale ved oppmøte. Velg økonomimetoder over for å aktivere nettbetaling.</p>
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Ved oppmøte (kontant):</strong> Alltid tilgjengelig<br>
+                                <strong>Ved reservasjon (nett):</strong> <span id="payment-timing-status">Aktiveres når du velger økonomimetoder over</span>
                             </div>
                         </div>
                     </div>
@@ -1140,15 +1140,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
-            // Collect allowed payment methods and payment timing
+            // Collect allowed payment methods
             const allowedPaymentMethods = ['cash']; // Cash is always required
-            const paymentTimingMethods = ['arrival']; // Always include arrival
+            document.querySelectorAll('#payment-methods-container input[type="checkbox"]:checked:not([disabled])').forEach(checkbox => {
+                allowedPaymentMethods.push(checkbox.dataset.methodType);
+            });
             
-            // Collect economy payment methods from payment timing section
-            document.querySelectorAll('.payment-timing-option:checked:not([disabled])').forEach(checkbox => {
-                if (checkbox.value && checkbox.value !== 'arrival') {
-                    allowedPaymentMethods.push(checkbox.value); // Also add to allowed methods
-                    paymentTimingMethods.push(checkbox.value);
+            // Build payment timing methods array: always has 'arrival', plus economy methods if any selected
+            const paymentTimingMethods = ['arrival'];
+            allowedPaymentMethods.forEach(method => {
+                if (method !== 'cash') {
+                    paymentTimingMethods.push(method); // Add actual method type (card, vipps, etc)
                 }
             });
             
@@ -2479,12 +2481,35 @@ async function loadPaymentMethodsForCreate() {
                     </div>
                 </div>
             `).join('') + '</div>';
+            
+            // Add event listeners to update payment timing status
+            const checkboxes = container.querySelectorAll('input[type="checkbox"]:not([disabled])');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', updatePaymentTimingStatus);
+            });
+            
+            // Initial update
+            updatePaymentTimingStatus();
         } else {
             container.innerHTML = '<p class="text-muted small mb-0"><i class="bi bi-info-circle me-2"></i>Ingen betalingsmetoder konfigurert</p>';
         }
     } catch (error) {
         console.error('Error loading payment methods:', error);
         container.innerHTML = '<p class="text-danger small mb-0">Feil ved lasting av betalingsmetoder</p>';
+    }
+}
+
+// Update payment timing status based on selected methods
+function updatePaymentTimingStatus() {
+    const statusSpan = document.getElementById('payment-timing-status');
+    if (!statusSpan) return;
+    
+    const checkedEconomyMethods = document.querySelectorAll('#payment-methods-container input[type="checkbox"]:checked:not([disabled])');
+    
+    if (checkedEconomyMethods.length > 0) {
+        statusSpan.innerHTML = '<strong class="text-success">✓ Aktivert</strong> (nettbetaling tilgjengelig)';
+    } else {
+        statusSpan.innerHTML = 'Aktiveres når du velger økonomimetoder over';
     }
 }
 
@@ -2536,52 +2561,15 @@ async function loadPaymentMethodsForEdit(selectedMethods = []) {
     }
 }
 
-// Load economy payment methods for payment timing
-async function loadEconomyPaymentMethods() {
-    const container = document.getElementById('payment-timing-economy-container');
-    if (!container) return;
-    
-    try {
-        const response = await fetch('/api/get_payment_methods.php');
-        const result = await response.json();
-        
-        if (result.success && result.payment_methods && result.payment_methods.length > 0) {
-            // Filter out cash (already shown as disabled "arrival")
-            const economyMethods = result.payment_methods.filter(m => m.method_type !== 'cash' && m.is_active);
-            
-            if (economyMethods.length > 0) {
-                container.innerHTML = economyMethods.map(method => `
-                    <div class="form-check mb-2">
-                        <input class="form-check-input payment-timing-option" type="checkbox" 
-                               name="payment_timing_${method.method_type}" 
-                               id="payment-timing-${method.method_type}"
-                               value="${method.method_type}">
-                        <label class="form-check-label" for="payment-timing-${method.method_type}">
-                            <i class="bi bi-${method.method_type === 'card' ? 'credit-card' : 'wallet2'} me-1"></i> <strong>${method.method_name}</strong><br>
-                            <small class="text-muted">Betaling ved reservasjon</small>
-                        </label>
-                    </div>
-                `).join('');
-            } else {
-                container.innerHTML = '<p class="text-muted small mb-0">Ingen betalingsmetoder fra economy tilgjengelig</p>';
-            }
-        } else {
-            container.innerHTML = '<p class="text-muted small mb-0">Ingen betalingsmetoder funnet</p>';
-        }
-    } catch (error) {
-        console.error('Error loading economy payment methods:', error);
-        container.innerHTML = '<p class="text-danger small mb-0">Feil ved lasting</p>';
-    }
-}
 
 // Handle registration type changes
 const registrationTypeRadios = document.querySelectorAll('input[name="registration_type"]');
-const paymentTimingSection = document.getElementById('payment-timing-section');
+const paymentSection = document.getElementById('payment-section');
 const registrationFieldsSection = document.querySelector('.card.border-primary'); // Påmeldingsfelt section
 
-if (registrationTypeRadios.length > 0 && paymentTimingSection) {
+if (registrationTypeRadios.length > 0 && paymentSection) {
     // Store original parent and position for moving section
-    const originalParent = paymentTimingSection.parentElement;
+    const originalParent = paymentSection.parentElement;
     const registrationTypeCard = document.querySelector('.card.border-success');
     
     function handleRegistrationTypeChange() {
@@ -2596,26 +2584,23 @@ if (registrationTypeRadios.length > 0 && paymentTimingSection) {
             }
         }
         
-        // Move payment timing section based on type
+        // Move payment section based on type
         if (selectedType === 'binding') {
             // Move after registration type section (before description)
-            if (registrationTypeCard && registrationTypeCard.nextElementSibling !== paymentTimingSection) {
-                registrationTypeCard.insertAdjacentElement('afterend', paymentTimingSection);
+            if (registrationTypeCard && registrationTypeCard.nextElementSibling !== paymentSection) {
+                registrationTypeCard.insertAdjacentElement('afterend', paymentSection);
             }
-            // Make it required for binding
-            paymentTimingSection.querySelector('.card-header').classList.remove('bg-warning');
-            paymentTimingSection.querySelector('.card-header').classList.add('bg-danger', 'text-white');
-            paymentTimingSection.querySelector('.card-header h6').innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Oppgjør av reservasjon (påkrevd for bindende arrangement)';
+            // Highlight as required for binding
+            paymentSection.classList.add('border-danger');
+            paymentSection.classList.remove('border-warning');
         } else {
-            // Move back to original position (after tillatte betalingsmetoder)
-            const paymentMethodsSection = document.querySelector('.card.border-info');
-            if (paymentMethodsSection && paymentMethodsSection.nextElementSibling !== paymentTimingSection) {
-                paymentMethodsSection.insertAdjacentElement('afterend', paymentTimingSection);
+            // Move back to original position  (after medlemspriser if exists, otherwise after ticket price)
+            if (originalParent && paymentSection.parentElement !== originalParent) {
+                originalParent.appendChild(paymentSection);
             }
             // Make it optional again
-            paymentTimingSection.querySelector('.card-header').classList.remove('bg-danger', 'text-white');
-            paymentTimingSection.querySelector('.card-header').classList.add('bg-warning', 'text-dark');
-            paymentTimingSection.querySelector('.card-header h6').innerHTML = '<i class="bi bi-clock-history me-2"></i>Oppgjør av reservasjon';
+            paymentSection.classList.remove('border-danger');
+            paymentSection.classList.add('border-warning');
         }
     }
     
@@ -2624,6 +2609,4 @@ if (registrationTypeRadios.length > 0 && paymentTimingSection) {
     });
 }
 
-// Load economy payment methods on page load
-loadEconomyPaymentMethods();
 </script>
