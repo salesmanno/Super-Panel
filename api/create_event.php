@@ -56,6 +56,7 @@ try {
             $data['max_attendees'] = null;
             $data['min_attendees'] = null;
             $data['registration_deadline'] = null;
+            $data['is_member_exclusive'] = 0; // Cannot be member-only
             // Skip registration fields and membership pricing for 'none' type
         }
         

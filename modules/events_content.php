@@ -2650,6 +2650,25 @@ if (registrationTypeRadios.length > 0) {
             if (minAttendeesInput) minAttendeesInput.value = '';
             if (maxAttendeesInput) maxAttendeesInput.value = '';
         }
+        
+        // Handle "Kun medlemmer" checkbox - disable for "Ingen påmelding"
+        const memberExclusiveCheckbox = document.getElementById('memberExclusive');
+        if (memberExclusiveCheckbox) {
+            if (isNone) {
+                memberExclusiveCheckbox.checked = false;
+                memberExclusiveCheckbox.disabled = true;
+                const memberExclusiveContainer = memberExclusiveCheckbox.closest('.col-md-4');
+                if (memberExclusiveContainer) {
+                    memberExclusiveContainer.style.opacity = '0.5';
+                }
+            } else {
+                memberExclusiveCheckbox.disabled = false;
+                const memberExclusiveContainer = memberExclusiveCheckbox.closest('.col-md-4');
+                if (memberExclusiveContainer) {
+                    memberExclusiveContainer.style.opacity = '1';
+                }
+            }
+        }
     }
     
     registrationTypeRadios.forEach(radio => {

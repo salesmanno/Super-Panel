@@ -86,6 +86,7 @@ try {
             $data['max_attendees'] = null;
             $data['min_attendees'] = null;
             $data['registration_deadline'] = null;
+            $data['is_member_exclusive'] = 0; // Cannot be member-only
             
             // Delete all membership pricing for this event
             $stmt = $db->prepare("DELETE FROM event_membership_plans WHERE event_id = ?");
