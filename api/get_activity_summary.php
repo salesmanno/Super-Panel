@@ -15,20 +15,20 @@ $company_id = $_SESSION['company_id'];
 try {
     $db = getDBConnection();
     
-    // Get last_logout timestamp for this admin
+    // Get last_login timestamp for this admin (use as baseline for "new" activity)
     $stmt = $db->prepare("
-        SELECT last_logout 
+        SELECT last_login 
         FROM tenant_admins 
         WHERE id = ?
     ");
     $stmt->execute([$admin_id]);
     $admin = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    $lastLogout = $admin['last_logout'] ?? null;
+    $lastLogin = $admin['last_login'] ?? null;
     
-    // If no previous logout (first login), default to 7 days ago
-    if (!$lastLogout) {
-        $lastLogout = date('Y-m-d H:i:s', strtotime('-7 days'));
+    // If no previous login (first login), default to 7 days ago
+    if (!$lastLogin) {
+        $lastLogin = date('Y-m-d H:i:s', strtotime('-7 days'));
     }
     
     $activities = [];
@@ -40,7 +40,7 @@ try {
         WHERE company_id = ? 
         AND transaction_date > ?
     ");
-    $stmt->execute([$company_id, $lastLogout]);
+    $stmt->execute([$company_id, $lastLogin]);
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($result['count'] > 0) {
         $activities[] = [
@@ -57,7 +57,7 @@ try {
         WHERE company_id = ? 
         AND created_at > ?
     ");
-    $stmt->execute([$company_id, $lastLogout]);
+    $stmt->execute([$company_id, $lastLogin]);
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($result['count'] > 0) {
         $activities[] = [
@@ -74,7 +74,7 @@ try {
         WHERE company_id = ? 
         AND created_at > ?
     ");
-    $stmt->execute([$company_id, $lastLogout]);
+    $stmt->execute([$company_id, $lastLogin]);
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($result['count'] > 0) {
         $activities[] = [
@@ -92,7 +92,7 @@ try {
         WHERE te.company_id = ? 
         AND ter.created_at > ?
     ");
-    $stmt->execute([$company_id, $lastLogout]);
+    $stmt->execute([$company_id, $lastLogin]);
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($result['count'] > 0) {
         $activities[] = [
@@ -109,7 +109,7 @@ try {
         WHERE company_id = ? 
         AND created_at > ?
     ");
-    $stmt->execute([$company_id, $lastLogout]);
+    $stmt->execute([$company_id, $lastLogin]);
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($result['count'] > 0) {
         $activities[] = [
@@ -126,7 +126,7 @@ try {
         WHERE company_id = ? 
         AND created_at > ?
     ");
-    $stmt->execute([$company_id, $lastLogout]);
+    $stmt->execute([$company_id, $lastLogin]);
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($result['count'] > 0) {
         $activities[] = [
@@ -138,7 +138,7 @@ try {
     
     echo json_encode([
         'success' => true,
-        'last_logout' => $lastLogout,
+        'last_login' => $lastLogin,
         'activities' => $activities,
         'total_count' => array_sum(array_column($activities, 'count'))
     ]);
