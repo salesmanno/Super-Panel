@@ -1997,7 +1997,15 @@ async function editEvent(eventId) {
         
         if (fieldsResult.success && fieldsResult.fields) {
             fieldsResult.fields.forEach(field => {
-                const checkbox = document.getElementById(`edit-field-${field.field_name}`);
+                // Handle legacy field names (street, zip, city, postal) -> map to 'address'
+                const legacyAddressFields = ['street', 'zip', 'city', 'postal'];
+                let fieldName = field.field_name;
+                
+                if (legacyAddressFields.includes(fieldName)) {
+                    fieldName = 'address';
+                }
+                
+                const checkbox = document.getElementById(`edit-field-${fieldName}`);
                 if (checkbox) {
                     checkbox.checked = true;
                 }
