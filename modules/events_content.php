@@ -2838,7 +2838,7 @@ if (editRegistrationTypeRadios.length > 0) {
             if (membershipHeader && membershipHeader.tagName === 'H6') {
                 membershipHeader.style.display = isNone ? 'none' : 'block';
             }
-            membershipPricingContainer.parentElement.style.display = isNone ? 'none' : 'block';
+            editMembershipPricingContainer.parentElement.style.display = isNone ? 'none' : 'block';
         }
         
         // Show/hide payment section (with null checks)
