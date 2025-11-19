@@ -2106,13 +2106,10 @@ async function saveEventChanges() {
         default_payment_method: formData.get('default_payment_method') || null,
         is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
         allowed_payment_methods: allowedPaymentMethods,
-        // Registration fields
+        // Registration fields (konsolidert)
         field_phone: formData.get('field_phone') ? 1 : 0,
         field_email: formData.get('field_email') ? 1 : 0,
-        field_street: formData.get('field_street') ? 1 : 0,
-        field_zip: formData.get('field_zip') ? 1 : 0,
-        field_city: formData.get('field_city') ? 1 : 0,
-        field_postal: formData.get('field_postal') ? 1 : 0,
+        field_address: formData.get('field_address') ? 1 : 0,
         field_age: formData.get('field_age') ? 1 : 0
     };
 
