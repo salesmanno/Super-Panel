@@ -1990,18 +1990,37 @@ async function editEvent(eventId) {
         const fieldsResult = await fieldsResponse.json();
         
         // Reset all optional field checkboxes
-        document.getElementById('edit-field-email').checked = false;
-        document.getElementById('edit-field-phone').checked = false;
-        document.getElementById('edit-field-address').checked = false;
-        document.getElementById('edit-field-age').checked = false;
+        const emailCheckbox = document.getElementById('edit-field-email');
+        const phoneCheckbox = document.getElementById('edit-field-phone');
+        const addressCheckbox = document.getElementById('edit-field-address');
+        const ageCheckbox = document.getElementById('edit-field-age');
+        
+        if (emailCheckbox) emailCheckbox.checked = false;
+        if (phoneCheckbox) phoneCheckbox.checked = false;
+        if (addressCheckbox) addressCheckbox.checked = false;
+        if (ageCheckbox) ageCheckbox.checked = false;
         
         if (fieldsResult.success && fieldsResult.fields) {
+            // Track if any address fields exist
+            let hasAddressFields = false;
+            
             fieldsResult.fields.forEach(field => {
-                const checkbox = document.getElementById(`edit-field-${field.field_name}`);
-                if (checkbox) {
-                    checkbox.checked = true;
+                // Map legacy address fields to consolidated checkbox
+                if (['street', 'zip', 'city', 'postal'].includes(field.field_name)) {
+                    hasAddressFields = true;
+                } else if (field.field_name === 'email' && emailCheckbox) {
+                    emailCheckbox.checked = true;
+                } else if (field.field_name === 'phone' && phoneCheckbox) {
+                    phoneCheckbox.checked = true;
+                } else if (field.field_name === 'age' && ageCheckbox) {
+                    ageCheckbox.checked = true;
                 }
             });
+            
+            // Set address checkbox if any address field exists
+            if (hasAddressFields && addressCheckbox) {
+                addressCheckbox.checked = true;
+            }
         }
         
         // Load payment methods with current selection

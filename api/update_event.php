@@ -189,17 +189,17 @@ try {
                 }
             }
             
-            // Add other optional fields if selected
-            $optionalFields = [
-                'street' => ['label' => 'Gateadresse', 'type' => 'text'],
-                'zip' => ['label' => 'Postnummer', 'type' => 'text'],
-                'city' => ['label' => 'Poststed', 'type' => 'text'],
-                'postal' => ['label' => 'Postboks', 'type' => 'text'],
-                'age' => ['label' => 'Alder', 'type' => 'number']
-            ];
-            
-            foreach ($optionalFields as $fieldName => $fieldConfig) {
-                if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
+            // Handle consolidated address field
+            if (isset($data['field_address']) && $data['field_address']) {
+                // Address checkbox is selected - create all 4 address fields
+                $addressFields = [
+                    'street' => ['label' => 'Gateadresse', 'type' => 'text'],
+                    'zip' => ['label' => 'Postnummer', 'type' => 'text'],
+                    'city' => ['label' => 'Poststed', 'type' => 'text'],
+                    'postal' => ['label' => 'Postboks', 'type' => 'text']
+                ];
+                
+                foreach ($addressFields as $fieldName => $fieldConfig) {
                     $fieldId = bin2hex(random_bytes(16));
                     $stmt = $db->prepare("
                         INSERT INTO event_registration_fields (
@@ -218,6 +218,27 @@ try {
                         $displayOrder++
                     ]);
                 }
+            }
+            
+            // Handle age field
+            if (isset($data['field_age']) && $data['field_age']) {
+                $fieldId = bin2hex(random_bytes(16));
+                $stmt = $db->prepare("
+                    INSERT INTO event_registration_fields (
+                        id, event_id, field_name, field_label, field_type,
+                        is_required, is_visible, display_order
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+                $stmt->execute([
+                    $fieldId,
+                    $data['event_id'],
+                    'age',
+                    'Alder',
+                    'number',
+                    0,
+                    1,
+                    $displayOrder++
+                ]);
             }
         } else {
             // For 'none' type, delete all registration fields
