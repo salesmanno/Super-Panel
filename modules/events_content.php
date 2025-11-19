@@ -1977,11 +1977,9 @@ async function editEvent(eventId) {
         const fieldsResult = await fieldsResponse.json();
         
         // Reset all optional field checkboxes
+        document.getElementById('edit-field-email').checked = false;
         document.getElementById('edit-field-phone').checked = false;
-        document.getElementById('edit-field-street').checked = false;
-        document.getElementById('edit-field-zip').checked = false;
-        document.getElementById('edit-field-city').checked = false;
-        document.getElementById('edit-field-postal').checked = false;
+        document.getElementById('edit-field-address').checked = false;
         document.getElementById('edit-field-age').checked = false;
         
         if (fieldsResult.success && fieldsResult.fields) {
@@ -2002,7 +2000,8 @@ async function editEvent(eventId) {
                 console.error('Error parsing payment_methods_json:', e);
             }
         }
-        await loadPaymentMethodsForEdit(selectedPaymentMethods);
+        const registrationType = event.registration_type || 'signup';
+        await loadPaymentMethodsForEdit(selectedPaymentMethods, registrationType);
         
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('editEventModal'));
@@ -2459,7 +2458,7 @@ function updatePaymentTimingStatus() {
 }
 
 // Load payment methods for edit form
-async function loadPaymentMethodsForEdit(selectedMethods = []) {
+async function loadPaymentMethodsForEdit(selectedMethods = [], registrationType = 'signup') {
     const container = document.getElementById('edit-payment-methods-container');
     if (!container) return;
     
@@ -2467,8 +2466,10 @@ async function loadPaymentMethodsForEdit(selectedMethods = []) {
         const response = await fetch('/api/get_payment_methods.php');
         const result = await response.json();
         
-        // Ensure cash is always in selected methods
-        if (!selectedMethods.includes('cash')) {
+        const isBinding = registrationType === 'binding';
+        
+        // For non-binding: ensure cash is always in selected methods
+        if (!isBinding && !selectedMethods.includes('cash')) {
             selectedMethods.push('cash');
         }
         
@@ -2476,7 +2477,7 @@ async function loadPaymentMethodsForEdit(selectedMethods = []) {
         let paymentMethodsHTML = `
             <div class="alert alert-info small mb-3">
                 <i class="bi bi-info-circle me-2"></i>
-                <strong>Oppmøtebetaling</strong> er alltid inkludert for å tillate arrangementer uten webbetaling.
+                <strong>Oppmøtebetaling</strong> ${isBinding ? 'er ikke tillatt for bindende arrangementer' : 'er alltid inkludert for å tillate arrangementer uten webbetaling'}.
             </div>
             <div class="row">
                 <div class="col-md-4 mb-2">
@@ -2485,10 +2486,10 @@ async function loadPaymentMethodsForEdit(selectedMethods = []) {
                                name="edit_payment_method_cash" 
                                id="edit_pm_cash"
                                data-method-type="cash"
-                               checked disabled>
+                               ${isBinding ? '' : 'checked'} disabled>
                         <label class="form-check-label text-muted" for="edit_pm_cash">
                             <i class="bi bi-cash-stack me-1"></i>
-                            Kontant/Oppmøte <small>(alltid påkrevd)</small>
+                            Kontant/Oppmøte <small>(${isBinding ? 'ikke tillatt for bindende' : 'alltid påkrevd'})</small>
                         </label>
                     </div>
                 </div>`;
@@ -2521,11 +2522,12 @@ async function loadPaymentMethodsForEdit(selectedMethods = []) {
         container.innerHTML = paymentMethodsHTML;
     } catch (error) {
         console.error('Error loading payment methods for edit:', error);
+        const isBinding = registrationType === 'binding';
         // Still show cash even on error
         container.innerHTML = `
             <div class="alert alert-info small mb-3">
                 <i class="bi bi-info-circle me-2"></i>
-                <strong>Oppmøtebetaling</strong> er alltid tilgjengelig.
+                <strong>Oppmøtebetaling</strong> ${isBinding ? 'er ikke tillatt for bindende arrangementer' : 'er alltid tilgjengelig'}.
             </div>
             <div class="row">
                 <div class="col-md-4 mb-2">
@@ -2534,10 +2536,10 @@ async function loadPaymentMethodsForEdit(selectedMethods = []) {
                                name="edit_payment_method_cash" 
                                id="edit_pm_cash"
                                data-method-type="cash"
-                               checked disabled>
+                               ${isBinding ? '' : 'checked'} disabled>
                         <label class="form-check-label text-muted" for="edit_pm_cash">
                             <i class="bi bi-cash-stack me-1"></i>
-                            Kontant/Oppmøte <small>(alltid påkrevd)</small>
+                            Kontant/Oppmøte <small>(${isBinding ? 'ikke tillatt for bindende' : 'alltid påkrevd'})</small>
                         </label>
                     </div>
                 </div>
@@ -2553,6 +2555,7 @@ if (registrationTypeRadios.length > 0) {
     function handleRegistrationTypeChange() {
         const selectedType = document.querySelector('input[name="registration_type"]:checked').value;
         const isNone = selectedType === 'none';
+        const isBinding = selectedType === 'binding';
         
         // Show/hide påmeldingsfelt section
         if (registrationFieldsSection) {
@@ -2582,6 +2585,30 @@ if (registrationTypeRadios.length > 0) {
                 membershipHeader.style.display = isNone ? 'none' : 'block';
             }
             membershipPricingContainer.style.display = isNone ? 'none' : 'block';
+        }
+        
+        // Handle cash payment method based on registration type
+        const cashCheckbox = document.getElementById('pm_cash');
+        if (cashCheckbox) {
+            if (isBinding) {
+                // For binding registration: cash is NOT allowed
+                cashCheckbox.checked = false;
+                cashCheckbox.disabled = true;
+                const cashLabel = cashCheckbox.nextElementSibling;
+                if (cashLabel) {
+                    cashLabel.innerHTML = '<i class="bi bi-cash-stack me-1"></i> Kontant/Oppmøte <small>(ikke tillatt for bindende)</small>';
+                    cashLabel.classList.add('text-muted');
+                }
+            } else {
+                // For signup/none: cash is always allowed
+                cashCheckbox.checked = true;
+                cashCheckbox.disabled = true;
+                const cashLabel = cashCheckbox.nextElementSibling;
+                if (cashLabel) {
+                    cashLabel.innerHTML = '<i class="bi bi-cash-stack me-1"></i> Kontant/Oppmøte <small>(alltid påkrevd)</small>';
+                    cashLabel.classList.add('text-muted');
+                }
+            }
         }
         
         // Show/hide payment methods section
