@@ -595,6 +595,44 @@ try {
                         <label class="form-label">Beskrivelse</label>
                         <textarea class="form-control" name="description" id="edit-description" rows="3"></textarea>
                     </div>
+                    
+                    <div class="card border-success mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0"><i class="bi bi-check-circle me-2"></i>Registreringstype</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">Velg hvordan deltakere registrerer seg til arrangementet</p>
+                            <div class="row">
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-signup" value="signup">
+                                        <label class="form-check-label" for="edit-reg-signup">
+                                            <i class="bi bi-person-plus text-primary me-1"></i> <strong>Påmelding</strong><br>
+                                            <small class="text-muted">Deltakere melder seg på</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-none" value="none">
+                                        <label class="form-check-label" for="edit-reg-none">
+                                            <i class="bi bi-x-circle text-secondary me-1"></i> <strong>Ingen påmelding</strong><br>
+                                            <small class="text-muted">Fritt arrangement uten registrering</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-binding" value="binding">
+                                        <label class="form-check-label" for="edit-reg-binding">
+                                            <i class="bi bi-lock text-warning me-1"></i> <strong>Bindende</strong><br>
+                                            <small class="text-muted">Krever betaling ved påmelding</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="row">
                         <div class="col-md-3 mb-3">
@@ -672,7 +710,7 @@ try {
                     </div>
                     <?php endif; ?>
 
-                    <hr class="my-4">
+                    <hr class="my-4" id="edit-payment-section">
                     <h6 class="mb-3"><i class="bi bi-credit-card-2-front me-2"></i>Betalingsmetoder</h6>
                     <div id="edit-payment-methods-container" class="mb-3">
                         <div class="text-center py-2">
@@ -680,6 +718,7 @@ try {
                             <small class="text-muted">Laster betalingsmetoder...</small>
                         </div>
                     </div>
+                    <p class="text-muted small"><strong>Status:</strong> <span id="edit-payment-timing-status">Velg økonomimetoder for å aktivere nettbetaling</span></p>
                     
                     <div class="row">
                         <div class="col-md-12 mb-3">
@@ -688,8 +727,9 @@ try {
                         </div>
                     </div>
 
-                    <hr class="my-4">
-                    <h6 class="mb-3"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h6>
+                    <div id="edit-registration-fields-section">
+                        <hr class="my-4">
+                        <h6 class="mb-3"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h6>
                     
                     <div class="alert alert-info mb-3">
                         <i class="bi bi-info-circle me-2"></i>
@@ -735,6 +775,7 @@ try {
                                 </label>
                             </div>
                         </div>
+                    </div>
                     </div>
                 </form>
             </div>
@@ -1977,6 +2018,13 @@ async function editEvent(eventId) {
             memberExclusiveCheckbox.checked = event.is_member_exclusive == 1;
         }
         
+        // Set registration type
+        const registrationType = event.registration_type || 'signup';
+        const regTypeRadio = document.getElementById(`edit-reg-${registrationType}`);
+        if (regTypeRadio) {
+            regTypeRadio.checked = true;
+        }
+        
         // Show/hide registration deadline if min_attendees is set
         const editDeadlineContainer = document.getElementById('edit-registration-deadline-container');
         if (event.min_attendees && parseInt(event.min_attendees) > 0) {
@@ -2039,6 +2087,13 @@ async function editEvent(eventId) {
         const modal = new bootstrap.Modal(document.getElementById('editEventModal'));
         modal.show();
         
+        // Trigger registration type change to show/hide relevant sections
+        setTimeout(() => {
+            if (typeof handleEditRegistrationTypeChange === 'function') {
+                handleEditRegistrationTypeChange();
+            }
+        }, 100);
+        
     } catch (error) {
         console.error('Error loading event for edit:', error);
         toast.quickError('Arrangement', 'Feil ved lasting av arrangement');
@@ -2097,10 +2152,54 @@ async function saveEventChanges() {
         }
     }
     
-    // Collect allowed payment methods
-    const allowedPaymentMethods = ['cash']; // Cash is always required
-    document.querySelectorAll('#edit-payment-methods-container input[type="checkbox"]:checked:not([disabled])').forEach(checkbox => {
-        allowedPaymentMethods.push(checkbox.dataset.methodType);
+    // Get registration type
+    const registrationType = formData.get('registration_type') || 'signup';
+    const isBinding = registrationType === 'binding';
+    
+    // Collect allowed payment methods (rebuild live from checkboxes)
+    const allowedPaymentMethods = [];
+    const paymentContainer = document.getElementById('edit-payment-methods-container');
+    
+    if (paymentContainer) {
+        // For non-binding, cash is always included
+        if (!isBinding) {
+            allowedPaymentMethods.push('cash');
+        }
+        
+        // Add checked economy methods
+        paymentContainer.querySelectorAll('input[type="checkbox"]:checked:not([disabled])').forEach(checkbox => {
+            const methodType = checkbox.dataset.methodType;
+            if (methodType && methodType !== 'cash') {
+                allowedPaymentMethods.push(methodType);
+            }
+        });
+    }
+    
+    // Validate binding events must have at least one economy payment method
+    if (isBinding && allowedPaymentMethods.length === 0) {
+        toast.quickWarning('Validering', 'Bindende arrangementer må ha minst én online betalingsmetode (ikke kontant)');
+        return;
+    }
+    
+    // Build payment timing methods array: always has 'arrival', plus economy methods if any selected
+    const paymentTimingMethods = ['arrival'];
+    allowedPaymentMethods.forEach(method => {
+        if (method !== 'cash') {
+            paymentTimingMethods.push(method); // Add actual method type (card, vipps, etc)
+        }
+    });
+    
+    // Collect membership pricing if applicable
+    const membershipPricing = [];
+    document.querySelectorAll('#edit-membership-pricing-container input[type="checkbox"]:checked').forEach(checkbox => {
+        const planId = checkbox.dataset.planId;
+        const priceInput = document.querySelector(`#edit-membership-pricing-container input[data-plan-id="${planId}"][type="number"]`);
+        if (priceInput && priceInput.value) {
+            membershipPricing.push({
+                plan_id: planId,
+                price: parseFloat(priceInput.value)
+            });
+        }
     });
     
     const data = {
@@ -2124,6 +2223,9 @@ async function saveEventChanges() {
         event_image_url: formData.get('event_image_url') || null,
         default_payment_method: formData.get('default_payment_method') || null,
         is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
+        registration_type: formData.get('registration_type') || 'signup',
+        payment_timing_methods: paymentTimingMethods,
+        membership_pricing: membershipPricing,
         allowed_payment_methods: allowedPaymentMethods,
         // Registration fields (konsolidert)
         field_phone: formData.get('field_phone') ? 1 : 0,
@@ -2694,6 +2796,78 @@ if (memberExclusiveCheckbox && ticketPriceContainer && ticketPriceInput) {
     
     // Run on page load
     handleMemberExclusiveChange();
+}
+
+// Handle registration type changes in EDIT modal - show/hide sections for "Ingen påmelding"
+const editRegistrationTypeRadios = document.querySelectorAll('#edit-event-form input[name="registration_type"]');
+const editRegistrationFieldsSection = document.getElementById('edit-registration-fields-section');
+
+if (editRegistrationTypeRadios.length > 0) {
+    function handleEditRegistrationTypeChange() {
+        const selectedType = document.querySelector('#edit-event-form input[name="registration_type"]:checked');
+        if (!selectedType) return;
+        
+        const value = selectedType.value;
+        const isNone = value === 'none';
+        const isBinding = value === 'binding';
+        
+        // Show/hide påmeldingsfelt section
+        if (editRegistrationFieldsSection) {
+            editRegistrationFieldsSection.style.display = isNone ? 'none' : 'block';
+        }
+        
+        // Show/hide participant limits and ticket price
+        const editMinAttendees = document.getElementById('edit-min-attendees');
+        const editMaxAttendees = document.getElementById('edit-max-attendees');
+        const editTicketPriceContainer = document.getElementById('edit-ticket-price-container');
+        const editRegDeadlineContainer = document.getElementById('edit-registration-deadline-container');
+        
+        if (editMinAttendees) editMinAttendees.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
+        if (editMaxAttendees) editMaxAttendees.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
+        if (editTicketPriceContainer) editTicketPriceContainer.style.display = isNone ? 'none' : 'block';
+        if (editRegDeadlineContainer && isNone) editRegDeadlineContainer.style.display = 'none';
+        
+        // Show/hide membership pricing section in edit modal
+        const editMembershipPricingContainer = document.getElementById('edit-membership-pricing-container');
+        if (editMembershipPricingContainer) {
+            const membershipSection = editMembershipPricingContainer.closest('div').previousElementSibling;
+            if (membershipSection && membershipSection.tagName === 'HR') {
+                membershipSection.style.display = isNone ? 'none' : 'block';
+            }
+            const membershipHeader = editMembershipPricingContainer.previousElementSibling;
+            if (membershipHeader && membershipHeader.tagName === 'H6') {
+                membershipHeader.style.display = isNone ? 'none' : 'block';
+            }
+            membershipPricingContainer.parentElement.style.display = isNone ? 'none' : 'block';
+        }
+        
+        // Show/hide payment section (with null checks)
+        const editPaymentSection = document.getElementById('edit-payment-section');
+        if (editPaymentSection) {
+            editPaymentSection.style.display = isNone ? 'none' : 'block';
+        }
+        const editPaymentMethodsContainer = document.getElementById('edit-payment-methods-container');
+        if (editPaymentMethodsContainer) {
+            const parentDiv = editPaymentMethodsContainer.closest('.mb-3, p');
+            if (parentDiv) {
+                parentDiv.style.display = isNone ? 'none' : 'block';
+            }
+        }
+        const editPaymentTimingStatus = document.getElementById('edit-payment-timing-status');
+        if (editPaymentTimingStatus && editPaymentTimingStatus.closest('p')) {
+            editPaymentTimingStatus.closest('p').style.display = isNone ? 'none' : 'block';
+        }
+        
+        // Reset fields when switching to 'none'
+        if (isNone) {
+            if (editMinAttendees) editMinAttendees.value = '';
+            if (editMaxAttendees) editMaxAttendees.value = '';
+        }
+    }
+    
+    editRegistrationTypeRadios.forEach(radio => {
+        radio.addEventListener('change', handleEditRegistrationTypeChange);
+    });
 }
 
 // Handle "Kun medlemmer" checkbox - hide ticket price when checked (EDIT FORM)
