@@ -79,11 +79,8 @@ try {
             throw new Exception('Bindende arrangement krever at minst én betalingsmetode fra economy er valgt');
         }
         
-        // Prepare payment methods JSON
+        // Initialize payment_methods_json (will be set after normalization)
         $paymentMethodsJson = null;
-        if (isset($data['allowed_payment_methods']) && is_array($data['allowed_payment_methods']) && count($data['allowed_payment_methods']) > 0) {
-            $paymentMethodsJson = json_encode($data['allowed_payment_methods']);
-        }
         
         $stmt = $db->prepare("
             INSERT INTO events_eventdata (
@@ -315,8 +312,13 @@ try {
         }
         
         $defaultPaymentMethod = $paymentMethodsArray[0]; // First method is always default (now guaranteed to be cash)
-        $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = ? WHERE id = ?");
-        $stmt->execute([$defaultPaymentMethod, $eventId]);
+        
+        // NOW encode the normalized payment methods array to JSON
+        $paymentMethodsJson = json_encode($paymentMethodsArray);
+        
+        // Update both default_payment_method and payment_methods_json
+        $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = ?, payment_methods_json = ? WHERE id = ?");
+        $stmt->execute([$defaultPaymentMethod, $paymentMethodsJson, $eventId]);
         
         // 5. Auto-generate output_products entry using service
         $catalogService = new ProductCatalogService($db);

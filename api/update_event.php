@@ -93,12 +93,6 @@ try {
         }
         
         // Update the event in events_eventdata
-        // Prepare payment methods JSON
-        $paymentMethodsJson = null;
-        if (isset($data['allowed_payment_methods']) && is_array($data['allowed_payment_methods']) && count($data['allowed_payment_methods']) > 0) {
-            $paymentMethodsJson = json_encode($data['allowed_payment_methods']);
-        }
-        
         $stmt = $db->prepare("
             UPDATE events_eventdata SET
                 title = ?,
@@ -119,10 +113,8 @@ try {
                 event_image_url = ?,
                 ticket_price = ?,
                 member_ticket_price = ?,
-                default_payment_method = ?,
                 registration_type = ?,
-                payment_timing = ?,
-                payment_methods_json = ?
+                payment_timing = ?
             WHERE id = ? AND company_id = ?
         ");
         
@@ -145,10 +137,8 @@ try {
             $data['event_image_url'] ?? null,
             $data['ticket_price'] ?? 0,
             $data['member_ticket_price'] ?? null,
-            $data['default_payment_method'] ?? null,
             $registrationType,
             $paymentTiming,
-            $paymentMethodsJson,
             $data['event_id'],
             $_SESSION['company_id']
         ]);
@@ -269,9 +259,12 @@ try {
         
         $defaultPaymentMethod = $paymentMethodsArray[0]; // First method is always default (now guaranteed to be cash)
         
-        // Update default_payment_method
-        $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = ? WHERE id = ? AND company_id = ?");
-        $stmt->execute([$defaultPaymentMethod, $data['event_id'], $_SESSION['company_id']]);
+        // NOW encode the normalized payment methods array to JSON
+        $paymentMethodsJson = json_encode($paymentMethodsArray);
+        
+        // Update both default_payment_method and payment_methods_json
+        $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = ?, payment_methods_json = ? WHERE id = ? AND company_id = ?");
+        $stmt->execute([$defaultPaymentMethod, $paymentMethodsJson, $data['event_id'], $_SESSION['company_id']]);
         
         // Sync output_products entry using service
         $catalogService = new ProductCatalogService($db);
