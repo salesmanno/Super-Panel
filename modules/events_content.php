@@ -1107,6 +1107,230 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+// Handle registration type changes - show/hide sections for "Ingen påmelding"
+const registrationTypeRadios = document.querySelectorAll('input[name="registration_type"]');
+const registrationFieldsSection = document.getElementById('registration-fields-section');
+
+if (registrationTypeRadios.length > 0) {
+    function handleRegistrationTypeChange() {
+        const selectedType = document.querySelector('input[name="registration_type"]:checked');
+        if (!selectedType) return;
+        
+        const value = selectedType.value;
+        const isNone = value === 'none';
+        const isBinding = value === 'binding';
+        
+        // Show/hide påmeldingsfelt section
+        if (registrationFieldsSection) {
+            registrationFieldsSection.style.display = isNone ? 'none' : 'block';
+        }
+        
+        // Show/hide participant limits and ticket price
+        const minAttendeesInput = document.querySelector('input[name="min_attendees"]');
+        const maxAttendeesInput = document.querySelector('input[name="max_attendees"]');
+        const ticketPriceInput = document.querySelector('input[name="ticket_price"]');
+        const regDeadlineContainer = document.getElementById('registration_deadline_container');
+        
+        if (minAttendeesInput) minAttendeesInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
+        if (maxAttendeesInput) maxAttendeesInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
+        if (ticketPriceInput) ticketPriceInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
+        if (regDeadlineContainer) regDeadlineContainer.style.display = 'none';
+        
+        // Show/hide membership pricing section
+        const membershipPricingContainer = document.getElementById('membership-pricing-container');
+        if (membershipPricingContainer) {
+            const membershipSection = membershipPricingContainer.closest('div').previousElementSibling;
+            if (membershipSection && membershipSection.tagName === 'HR') {
+                membershipSection.style.display = isNone ? 'none' : 'block';
+            }
+            const membershipHeader = membershipPricingContainer.previousElementSibling;
+            if (membershipHeader && membershipHeader.tagName === 'H6') {
+                membershipHeader.style.display = isNone ? 'none' : 'block';
+            }
+            membershipPricingContainer.style.display = isNone ? 'none' : 'block';
+        }
+        
+        // Handle cash payment method based on registration type
+        const cashCheckbox = document.getElementById('pm_cash');
+        if (cashCheckbox) {
+            if (isBinding) {
+                // For binding registration: cash is NOT allowed
+                cashCheckbox.checked = false;
+                cashCheckbox.disabled = true;
+                const cashLabel = cashCheckbox.nextElementSibling;
+                if (cashLabel) {
+                    cashLabel.innerHTML = '<i class="bi bi-cash-stack me-1"></i> Kontant/Oppmøte <small>(ikke tillatt for bindende)</small>';
+                    cashLabel.classList.add('text-muted');
+                }
+            } else {
+                // For signup/none: cash is always allowed
+                cashCheckbox.checked = true;
+                cashCheckbox.disabled = true;
+                const cashLabel = cashCheckbox.nextElementSibling;
+                if (cashLabel) {
+                    cashLabel.innerHTML = '<i class="bi bi-cash-stack me-1"></i> Kontant/Oppmøte <small>(alltid påkrevd)</small>';
+                    cashLabel.classList.add('text-muted');
+                }
+            }
+        }
+        
+        // Show/hide payment methods section
+        const paymentSection = document.getElementById('payment-section');
+        const paymentMethodsContainer = document.getElementById('payment-methods-container');
+        const paymentTimingStatus = document.getElementById('payment-timing-status');
+        
+        if (paymentSection) {
+            const paymentHeader = paymentSection.nextElementSibling;
+            if (paymentHeader && paymentHeader.tagName === 'H6') {
+                paymentHeader.style.display = isNone ? 'none' : 'block';
+            }
+            paymentSection.style.display = isNone ? 'none' : 'block';
+        }
+        if (paymentMethodsContainer) paymentMethodsContainer.style.display = isNone ? 'none' : 'block';
+        if (paymentTimingStatus) paymentTimingStatus.closest('p').style.display = isNone ? 'none' : 'block';
+        
+        // Clear values when "Ingen påmelding" is selected
+        if (isNone) {
+            if (ticketPriceInput) ticketPriceInput.value = '0';
+            if (minAttendeesInput) minAttendeesInput.value = '';
+            if (maxAttendeesInput) maxAttendeesInput.value = '';
+        }
+    }
+    
+    registrationTypeRadios.forEach(radio => {
+        radio.addEventListener('change', handleRegistrationTypeChange);
+    });
+    
+    // Run on page load
+    handleRegistrationTypeChange();
+}
+
+// Handle "Kun medlemmer" checkbox - hide ticket price when checked (CREATE FORM)
+const memberExclusiveCheckbox = document.getElementById('memberExclusive');
+const ticketPriceContainer = document.getElementById('ticket-price-container');
+const ticketPriceInput = document.getElementById('ticket_price');
+
+if (memberExclusiveCheckbox && ticketPriceContainer && ticketPriceInput) {
+    function handleMemberExclusiveChange() {
+        const isMemberOnly = memberExclusiveCheckbox.checked;
+        
+        if (isMemberOnly) {
+            // Hide the ticket price field completely
+            ticketPriceContainer.style.display = 'none';
+            ticketPriceInput.value = '0';
+        } else {
+            // Show the ticket price field
+            ticketPriceContainer.style.display = 'block';
+        }
+    }
+    
+    memberExclusiveCheckbox.addEventListener('change', handleMemberExclusiveChange);
+    
+    // Run on page load
+    handleMemberExclusiveChange();
+}
+
+// Handle registration type changes in EDIT modal - show/hide sections for "Ingen påmelding"
+const editRegistrationTypeRadios = document.querySelectorAll('#edit-event-form input[name="registration_type"]');
+const editRegistrationFieldsSection = document.getElementById('edit-registration-fields-section');
+
+if (editRegistrationTypeRadios.length > 0) {
+    function handleEditRegistrationTypeChange() {
+        const selectedType = document.querySelector('#edit-event-form input[name="registration_type"]:checked');
+        if (!selectedType) return;
+        
+        const value = selectedType.value;
+        const isNone = value === 'none';
+        const isBinding = value === 'binding';
+        
+        // Show/hide påmeldingsfelt section
+        if (editRegistrationFieldsSection) {
+            editRegistrationFieldsSection.style.display = isNone ? 'none' : 'block';
+        }
+        
+        // Show/hide participant limits and ticket price
+        const editMinAttendees = document.getElementById('edit-min-attendees');
+        const editMaxAttendees = document.getElementById('edit-max-attendees');
+        const editTicketPriceContainer = document.getElementById('edit-ticket-price-container');
+        const editRegDeadlineContainer = document.getElementById('edit-registration-deadline-container');
+        
+        if (editMinAttendees) editMinAttendees.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
+        if (editMaxAttendees) editMaxAttendees.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
+        if (editTicketPriceContainer) editTicketPriceContainer.style.display = isNone ? 'none' : 'block';
+        if (editRegDeadlineContainer && isNone) editRegDeadlineContainer.style.display = 'none';
+        
+        // Show/hide membership pricing section in edit modal
+        const editMembershipPricingContainer = document.getElementById('edit-membership-pricing-container');
+        if (editMembershipPricingContainer) {
+            const membershipSection = editMembershipPricingContainer.closest('div').previousElementSibling;
+            if (membershipSection && membershipSection.tagName === 'HR') {
+                membershipSection.style.display = isNone ? 'none' : 'block';
+            }
+            const membershipHeader = editMembershipPricingContainer.previousElementSibling;
+            if (membershipHeader && membershipHeader.tagName === 'H6') {
+                membershipHeader.style.display = isNone ? 'none' : 'block';
+            }
+            editMembershipPricingContainer.parentElement.style.display = isNone ? 'none' : 'block';
+        }
+        
+        // Show/hide payment section (with null checks)
+        const editPaymentSection = document.getElementById('edit-payment-section');
+        if (editPaymentSection) {
+            editPaymentSection.style.display = isNone ? 'none' : 'block';
+        }
+        const editPaymentMethodsContainer = document.getElementById('edit-payment-methods-container');
+        if (editPaymentMethodsContainer) {
+            const parentDiv = editPaymentMethodsContainer.closest('.mb-3, p');
+            if (parentDiv) {
+                parentDiv.style.display = isNone ? 'none' : 'block';
+            }
+        }
+        const editPaymentTimingStatus = document.getElementById('edit-payment-timing-status');
+        if (editPaymentTimingStatus && editPaymentTimingStatus.closest('p')) {
+            editPaymentTimingStatus.closest('p').style.display = isNone ? 'none' : 'block';
+        }
+        
+        // Reset fields when switching to 'none'
+        if (isNone) {
+            if (editMinAttendees) editMinAttendees.value = '';
+            if (editMaxAttendees) editMaxAttendees.value = '';
+        }
+    }
+    
+    editRegistrationTypeRadios.forEach(radio => {
+        radio.addEventListener('change', handleEditRegistrationTypeChange);
+    });
+}
+
+// Handle "Kun medlemmer" checkbox - hide ticket price when checked (EDIT FORM)
+const editMemberExclusiveCheckbox = document.getElementById('edit-member-exclusive');
+const editTicketPriceContainer = document.getElementById('edit-ticket-price-container');
+const editTicketPriceInput = document.getElementById('edit-ticket-price');
+
+if (editMemberExclusiveCheckbox && editTicketPriceContainer && editTicketPriceInput) {
+    function handleEditMemberExclusiveChange() {
+        const isMemberOnly = editMemberExclusiveCheckbox.checked;
+        
+        if (isMemberOnly) {
+            // Hide the ticket price field completely
+            editTicketPriceContainer.style.display = 'none';
+            editTicketPriceInput.value = '0';
+        } else {
+            // Show the ticket price field
+            editTicketPriceContainer.style.display = 'block';
+        }
+    }
+    
+    editMemberExclusiveCheckbox.addEventListener('change', handleEditMemberExclusiveChange);
+    
+    // Also run when edit modal is shown to ensure correct state
+    const editEventModal = document.getElementById('editEventModal');
+    if (editEventModal) {
+        editEventModal.addEventListener('shown.bs.modal', handleEditMemberExclusiveChange);
+    }
+}
+
 });
 
 async function loadEvents() {
@@ -2675,226 +2899,6 @@ async function loadPaymentMethodsForEdit(selectedMethods = [], registrationType 
                     </div>
                 </div>
             </div>`;
-    }
-}
-
-// Handle registration type changes - show/hide sections for "Ingen påmelding"
-const registrationTypeRadios = document.querySelectorAll('input[name="registration_type"]');
-const registrationFieldsSection = document.getElementById('registration-fields-section');
-
-if (registrationTypeRadios.length > 0) {
-    function handleRegistrationTypeChange() {
-        const selectedType = document.querySelector('input[name="registration_type"]:checked').value;
-        const isNone = selectedType === 'none';
-        const isBinding = selectedType === 'binding';
-        
-        // Show/hide påmeldingsfelt section
-        if (registrationFieldsSection) {
-            registrationFieldsSection.style.display = isNone ? 'none' : 'block';
-        }
-        
-        // Show/hide participant limits and ticket price
-        const minAttendeesInput = document.querySelector('input[name="min_attendees"]');
-        const maxAttendeesInput = document.querySelector('input[name="max_attendees"]');
-        const ticketPriceInput = document.querySelector('input[name="ticket_price"]');
-        const regDeadlineContainer = document.getElementById('registration_deadline_container');
-        
-        if (minAttendeesInput) minAttendeesInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
-        if (maxAttendeesInput) maxAttendeesInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
-        if (ticketPriceInput) ticketPriceInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
-        if (regDeadlineContainer) regDeadlineContainer.style.display = 'none';
-        
-        // Show/hide membership pricing section
-        const membershipPricingContainer = document.getElementById('membership-pricing-container');
-        if (membershipPricingContainer) {
-            const membershipSection = membershipPricingContainer.closest('div').previousElementSibling;
-            if (membershipSection && membershipSection.tagName === 'HR') {
-                membershipSection.style.display = isNone ? 'none' : 'block';
-            }
-            const membershipHeader = membershipPricingContainer.previousElementSibling;
-            if (membershipHeader && membershipHeader.tagName === 'H6') {
-                membershipHeader.style.display = isNone ? 'none' : 'block';
-            }
-            membershipPricingContainer.style.display = isNone ? 'none' : 'block';
-        }
-        
-        // Handle cash payment method based on registration type
-        const cashCheckbox = document.getElementById('pm_cash');
-        if (cashCheckbox) {
-            if (isBinding) {
-                // For binding registration: cash is NOT allowed
-                cashCheckbox.checked = false;
-                cashCheckbox.disabled = true;
-                const cashLabel = cashCheckbox.nextElementSibling;
-                if (cashLabel) {
-                    cashLabel.innerHTML = '<i class="bi bi-cash-stack me-1"></i> Kontant/Oppmøte <small>(ikke tillatt for bindende)</small>';
-                    cashLabel.classList.add('text-muted');
-                }
-            } else {
-                // For signup/none: cash is always allowed
-                cashCheckbox.checked = true;
-                cashCheckbox.disabled = true;
-                const cashLabel = cashCheckbox.nextElementSibling;
-                if (cashLabel) {
-                    cashLabel.innerHTML = '<i class="bi bi-cash-stack me-1"></i> Kontant/Oppmøte <small>(alltid påkrevd)</small>';
-                    cashLabel.classList.add('text-muted');
-                }
-            }
-        }
-        
-        // Show/hide payment methods section
-        const paymentSection = document.getElementById('payment-section');
-        const paymentMethodsContainer = document.getElementById('payment-methods-container');
-        const paymentTimingStatus = document.getElementById('payment-timing-status');
-        
-        if (paymentSection) {
-            const paymentHeader = paymentSection.nextElementSibling;
-            if (paymentHeader && paymentHeader.tagName === 'H6') {
-                paymentHeader.style.display = isNone ? 'none' : 'block';
-            }
-            paymentSection.style.display = isNone ? 'none' : 'block';
-        }
-        if (paymentMethodsContainer) paymentMethodsContainer.style.display = isNone ? 'none' : 'block';
-        if (paymentTimingStatus) paymentTimingStatus.closest('p').style.display = isNone ? 'none' : 'block';
-        
-        // Clear values when "Ingen påmelding" is selected
-        if (isNone) {
-            if (ticketPriceInput) ticketPriceInput.value = '0';
-            if (minAttendeesInput) minAttendeesInput.value = '';
-            if (maxAttendeesInput) maxAttendeesInput.value = '';
-        }
-    }
-    
-    registrationTypeRadios.forEach(radio => {
-        radio.addEventListener('change', handleRegistrationTypeChange);
-    });
-    
-    // Run on page load
-    handleRegistrationTypeChange();
-}
-
-// Handle "Kun medlemmer" checkbox - hide ticket price when checked (CREATE FORM)
-const memberExclusiveCheckbox = document.getElementById('memberExclusive');
-const ticketPriceContainer = document.getElementById('ticket-price-container');
-const ticketPriceInput = document.getElementById('ticket_price');
-
-if (memberExclusiveCheckbox && ticketPriceContainer && ticketPriceInput) {
-    function handleMemberExclusiveChange() {
-        const isMemberOnly = memberExclusiveCheckbox.checked;
-        
-        if (isMemberOnly) {
-            // Hide the ticket price field completely
-            ticketPriceContainer.style.display = 'none';
-            ticketPriceInput.value = '0';
-        } else {
-            // Show the ticket price field
-            ticketPriceContainer.style.display = 'block';
-        }
-    }
-    
-    memberExclusiveCheckbox.addEventListener('change', handleMemberExclusiveChange);
-    
-    // Run on page load
-    handleMemberExclusiveChange();
-}
-
-// Handle registration type changes in EDIT modal - show/hide sections for "Ingen påmelding"
-const editRegistrationTypeRadios = document.querySelectorAll('#edit-event-form input[name="registration_type"]');
-const editRegistrationFieldsSection = document.getElementById('edit-registration-fields-section');
-
-if (editRegistrationTypeRadios.length > 0) {
-    function handleEditRegistrationTypeChange() {
-        const selectedType = document.querySelector('#edit-event-form input[name="registration_type"]:checked');
-        if (!selectedType) return;
-        
-        const value = selectedType.value;
-        const isNone = value === 'none';
-        const isBinding = value === 'binding';
-        
-        // Show/hide påmeldingsfelt section
-        if (editRegistrationFieldsSection) {
-            editRegistrationFieldsSection.style.display = isNone ? 'none' : 'block';
-        }
-        
-        // Show/hide participant limits and ticket price
-        const editMinAttendees = document.getElementById('edit-min-attendees');
-        const editMaxAttendees = document.getElementById('edit-max-attendees');
-        const editTicketPriceContainer = document.getElementById('edit-ticket-price-container');
-        const editRegDeadlineContainer = document.getElementById('edit-registration-deadline-container');
-        
-        if (editMinAttendees) editMinAttendees.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
-        if (editMaxAttendees) editMaxAttendees.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
-        if (editTicketPriceContainer) editTicketPriceContainer.style.display = isNone ? 'none' : 'block';
-        if (editRegDeadlineContainer && isNone) editRegDeadlineContainer.style.display = 'none';
-        
-        // Show/hide membership pricing section in edit modal
-        const editMembershipPricingContainer = document.getElementById('edit-membership-pricing-container');
-        if (editMembershipPricingContainer) {
-            const membershipSection = editMembershipPricingContainer.closest('div').previousElementSibling;
-            if (membershipSection && membershipSection.tagName === 'HR') {
-                membershipSection.style.display = isNone ? 'none' : 'block';
-            }
-            const membershipHeader = editMembershipPricingContainer.previousElementSibling;
-            if (membershipHeader && membershipHeader.tagName === 'H6') {
-                membershipHeader.style.display = isNone ? 'none' : 'block';
-            }
-            editMembershipPricingContainer.parentElement.style.display = isNone ? 'none' : 'block';
-        }
-        
-        // Show/hide payment section (with null checks)
-        const editPaymentSection = document.getElementById('edit-payment-section');
-        if (editPaymentSection) {
-            editPaymentSection.style.display = isNone ? 'none' : 'block';
-        }
-        const editPaymentMethodsContainer = document.getElementById('edit-payment-methods-container');
-        if (editPaymentMethodsContainer) {
-            const parentDiv = editPaymentMethodsContainer.closest('.mb-3, p');
-            if (parentDiv) {
-                parentDiv.style.display = isNone ? 'none' : 'block';
-            }
-        }
-        const editPaymentTimingStatus = document.getElementById('edit-payment-timing-status');
-        if (editPaymentTimingStatus && editPaymentTimingStatus.closest('p')) {
-            editPaymentTimingStatus.closest('p').style.display = isNone ? 'none' : 'block';
-        }
-        
-        // Reset fields when switching to 'none'
-        if (isNone) {
-            if (editMinAttendees) editMinAttendees.value = '';
-            if (editMaxAttendees) editMaxAttendees.value = '';
-        }
-    }
-    
-    editRegistrationTypeRadios.forEach(radio => {
-        radio.addEventListener('change', handleEditRegistrationTypeChange);
-    });
-}
-
-// Handle "Kun medlemmer" checkbox - hide ticket price when checked (EDIT FORM)
-const editMemberExclusiveCheckbox = document.getElementById('edit-member-exclusive');
-const editTicketPriceContainer = document.getElementById('edit-ticket-price-container');
-const editTicketPriceInput = document.getElementById('edit-ticket-price');
-
-if (editMemberExclusiveCheckbox && editTicketPriceContainer && editTicketPriceInput) {
-    function handleEditMemberExclusiveChange() {
-        const isMemberOnly = editMemberExclusiveCheckbox.checked;
-        
-        if (isMemberOnly) {
-            // Hide the ticket price field completely
-            editTicketPriceContainer.style.display = 'none';
-            editTicketPriceInput.value = '0';
-        } else {
-            // Show the ticket price field
-            editTicketPriceContainer.style.display = 'block';
-        }
-    }
-    
-    editMemberExclusiveCheckbox.addEventListener('change', handleEditMemberExclusiveChange);
-    
-    // Also run when edit modal is shown to ensure correct state
-    const editEventModal = document.getElementById('editEventModal');
-    if (editEventModal) {
-        editEventModal.addEventListener('shown.bs.modal', handleEditMemberExclusiveChange);
     }
 }
 
