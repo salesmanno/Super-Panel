@@ -278,44 +278,36 @@ try {
 
                     <div class="row">
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Aldersgrense</label>
-                            <input type="number" class="form-control" name="age_limit">
+                            <input type="number" class="form-control" name="age_limit" placeholder="Aldersgrense">
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Stedsnavn</label>
-                            <input type="text" class="form-control" name="venue_name">
+                            <input type="text" class="form-control" name="venue_name" placeholder="Stedsnavn">
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">By</label>
-                            <input type="text" class="form-control" name="event_city">
+                            <input type="number" class="form-control" name="min_attendees" id="min_attendees" placeholder="Min. deltakere">
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Postnummer</label>
-                            <input type="text" class="form-control" name="event_postal">
+                            <input type="number" class="form-control" name="max_attendees" placeholder="Maks. deltakere">
                         </div>
                     </div>
 
                     <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Adresse</label>
-                            <input type="text" class="form-control" name="event_address">
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Min. deltakere</label>
-                            <input type="number" class="form-control" name="min_attendees" id="min_attendees">
-                        </div>
                         <div class="col-md-3 mb-3" id="registration_deadline_container" style="display: none;">
-                            <label class="form-label">Frist for min. deltakere *</label>
-                            <input type="date" class="form-control" name="registration_deadline" id="registration_deadline">
+                            <input type="date" class="form-control" name="registration_deadline" id="registration_deadline" placeholder="Frist for min. deltakere">
                             <small class="form-text text-muted">Må være før startdato</small>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Maks. deltakere</label>
-                            <input type="number" class="form-control" name="max_attendees">
+                            <input type="text" class="form-control" name="event_address" placeholder="Gateadresse">
                         </div>
+                        <div class="col-md-3 mb-3">
+                            <input type="text" class="form-control" name="event_postal" placeholder="Postnummer">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <input type="text" class="form-control" name="event_city" placeholder="By">
+                        </div>
+                    </div>
+
+                    <div class="row">
                         <div class="col-md-3 mb-3" id="ticket-price-container">
                             <input type="number" step="0.01" class="form-control" name="ticket_price" id="ticket_price" placeholder="Billettpris (NOK)">
                         </div>
@@ -375,7 +367,7 @@ try {
                                 <div class="form-check mb-2">
                                     <input class="form-check-input" type="checkbox" name="field_address" id="field_address">
                                     <label class="form-check-label" for="field_address">
-                                        Adresse
+                                        Adresse (gate, postnr, by)
                                     </label>
                                 </div>
                             </div>
@@ -731,7 +723,7 @@ try {
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="field_address" id="edit-field-address">
                                 <label class="form-check-label" for="edit-field-address">
-                                    Adresse
+                                    Adresse (gate, postnr, by)
                                 </label>
                             </div>
                         </div>
@@ -2322,12 +2314,10 @@ async function loadMembershipPlansForCreate() {
                 <div class="col-md-6 mb-3">
                     <label class="form-label" style="font-size: 0.75rem;">${plan.name}</label>
                     <div class="input-group input-group-sm mb-1">
-                        <span class="input-group-text">NOK</span>
                         <input type="number" step="0.01" class="form-control" 
                                name="plan_price_${plan.plan_id}" 
                                data-plan-id="${plan.plan_id}"
-                               placeholder="Pris">
-                        <span class="input-group-text text-muted" style="font-size: 0.7rem;">${plan.price} kr/mnd</span>
+                               placeholder="Pris (NOK)">
                     </div>
                     <div class="form-check form-check-sm">
                         <input class="form-check-input membership-public-checkbox" type="checkbox" 
