@@ -294,9 +294,8 @@ try {
         }
         
         $defaultPaymentMethod = $paymentMethodsArray[0]; // First method is always default (now guaranteed to be cash)
-        $paymentMethodsJson = json_encode($paymentMethodsArray);
-        $stmt = $db->prepare("UPDATE events_eventdata SET payment_methods_json = ?, default_payment_method = ? WHERE id = ?");
-        $stmt->execute([$paymentMethodsJson, $defaultPaymentMethod, $eventId]);
+        $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = ? WHERE id = ?");
+        $stmt->execute([$defaultPaymentMethod, $eventId]);
         
         // 5. Auto-generate output_products entry using service
         $catalogService = new ProductCatalogService($db);

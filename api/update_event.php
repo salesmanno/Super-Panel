@@ -241,11 +241,10 @@ try {
         }
         
         $defaultPaymentMethod = $paymentMethodsArray[0]; // First method is always default (now guaranteed to be cash)
-        $paymentMethodsJson = json_encode($paymentMethodsArray);
         
-        // Update both payment_methods_json AND default_payment_method for consistency
-        $stmt = $db->prepare("UPDATE events_eventdata SET payment_methods_json = ?, default_payment_method = ? WHERE id = ? AND company_id = ?");
-        $stmt->execute([$paymentMethodsJson, $defaultPaymentMethod, $data['event_id'], $_SESSION['company_id']]);
+        // Update default_payment_method
+        $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = ? WHERE id = ? AND company_id = ?");
+        $stmt->execute([$defaultPaymentMethod, $data['event_id'], $_SESSION['company_id']]);
         
         // Sync output_products entry using service
         $catalogService = new ProductCatalogService($db);

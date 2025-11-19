@@ -29,7 +29,7 @@ try {
     
     // Get event details and pricing
     $stmt = $db->prepare("
-        SELECT title, start_date, start_time, venue_name, event_city, ticket_price, is_member_exclusive, payment_methods_json, default_payment_method
+        SELECT title, start_date, start_time, venue_name, event_city, ticket_price, is_member_exclusive, default_payment_method
         FROM events_eventdata
         WHERE id = ? AND company_id = ?
     ");
@@ -41,12 +41,8 @@ try {
         exit;
     }
     
-    // Validate payment method against allowed methods
+    // Use default payment method
     $paymentMethod = $data['payment_method'] ?? $event['default_payment_method'] ?? 'cash';
-    $allowedMethods = $event['payment_methods_json'] ? json_decode($event['payment_methods_json'], true) : ['cash'];
-    if (!in_array($paymentMethod, $allowedMethods)) {
-        $paymentMethod = $allowedMethods[0] ?? 'cash'; // Fallback to first allowed method
-    }
     
     // Determine ticket price based on membership plan
     $ticketType = 'regular';

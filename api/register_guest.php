@@ -30,7 +30,7 @@ try {
     $payment_status = isset($input['payment_status']) ? $input['payment_status'] : 'paid';
     
     // Verify event belongs to company and get pricing info
-    $stmt = $db->prepare("SELECT ticket_price, payment_methods_json, default_payment_method FROM events_eventdata WHERE id = ? AND company_id = ?");
+    $stmt = $db->prepare("SELECT ticket_price, default_payment_method FROM events_eventdata WHERE id = ? AND company_id = ?");
     $stmt->execute([$event_id, $company_id]);
     $event = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -59,10 +59,9 @@ try {
         }
     }
     
-    // Validate payment method against allowed methods
-    $allowedMethods = $event['payment_methods_json'] ? json_decode($event['payment_methods_json'], true) : ['cash'];
-    if (!in_array($payment_method, $allowedMethods)) {
-        $payment_method = $event['default_payment_method'] ?? $allowedMethods[0] ?? 'cash';
+    // Use default payment method
+    if (!$payment_method) {
+        $payment_method = $event['default_payment_method'] ?? 'cash';
     }
     
     // Generate UUID
