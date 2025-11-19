@@ -93,6 +93,12 @@ try {
         }
         
         // Update the event in events_eventdata
+        // Prepare payment methods JSON
+        $paymentMethodsJson = null;
+        if (isset($data['allowed_payment_methods']) && is_array($data['allowed_payment_methods']) && count($data['allowed_payment_methods']) > 0) {
+            $paymentMethodsJson = json_encode($data['allowed_payment_methods']);
+        }
+        
         $stmt = $db->prepare("
             UPDATE events_eventdata SET
                 title = ?,
@@ -115,7 +121,8 @@ try {
                 member_ticket_price = ?,
                 default_payment_method = ?,
                 registration_type = ?,
-                payment_timing = ?
+                payment_timing = ?,
+                payment_methods_json = ?
             WHERE id = ? AND company_id = ?
         ");
         
@@ -141,6 +148,7 @@ try {
             $data['default_payment_method'] ?? null,
             $registrationType,
             $paymentTiming,
+            $paymentMethodsJson,
             $data['event_id'],
             $_SESSION['company_id']
         ]);
