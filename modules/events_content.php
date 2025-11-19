@@ -625,31 +625,28 @@ try {
                     </div>
 
                     <div class="row">
-                        <div class="col-md-12 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">Aldersgrense</label>
                             <input type="number" class="form-control" name="age_limit" id="edit-age-limit">
                         </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">Stedsnavn</label>
                             <input type="text" class="form-control" name="venue_name" id="edit-venue-name">
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Adresse</label>
-                            <input type="text" class="form-control" name="event_address" id="edit-event-address">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">By</label>
+                            <input type="text" class="form-control" name="event_city" id="edit-event-city">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Postnummer</label>
+                            <input type="text" class="form-control" name="event_postal" id="edit-event-postal">
                         </div>
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">By</label>
-                            <input type="text" class="form-control" name="event_city" id="edit-event-city">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Postnummer</label>
-                            <input type="text" class="form-control" name="event_postal" id="edit-event-postal">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Adresse</label>
+                            <input type="text" class="form-control" name="event_address" id="edit-event-address">
                         </div>
                     </div>
 
@@ -667,143 +664,110 @@ try {
                             <label class="form-label">Maks. deltakere</label>
                             <input type="number" class="form-control" name="max_attendees" id="edit-max-attendees">
                         </div>
-                        <div class="col-md-3 mb-3">
+                        <div class="col-md-3 mb-3" id="edit-ticket-price-container">
                             <label class="form-label">Billettpris (NOK)</label>
                             <input type="number" step="0.01" class="form-control" name="ticket_price" id="edit-ticket-price">
                         </div>
                     </div>
 
                     <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Medlemspris (NOK)</label>
-                            <input type="number" step="0.01" class="form-control" name="member_ticket_price" id="edit-member-ticket-price">
-                            <small class="form-text text-muted">La stå tom hvis samme pris som ordinær billett</small>
+                    <hr class="my-4">
+                    <h6 class="mb-3"><i class="bi bi-people-fill me-2"></i>Medlemspriser</h6>
+                    <div id="edit-membership-pricing-container">
+                        <div class="text-center py-2">
+                            <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                            <small class="text-muted">Laster medlemsplaner...</small>
                         </div>
                     </div>
                     <?php endif; ?>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Standard betalingsmetode</label>
-                            <select class="form-select" name="default_payment_method" id="edit-default-payment-method">
-                                <option value="">Velg betalingsmetode</option>
-                                <?php if (!empty($companyData['Cash_payment'])): ?>
-                                <option value="cash">Kontant</option>
-                                <?php endif; ?>
-                                <option value="card">Kort</option>
-                                <option value="vipps">Vipps</option>
-                                <option value="online">Online</option>
-                                <option value="invoice">Faktura</option>
-                            </select>
+                    <hr class="my-4">
+                    <h6 class="mb-3"><i class="bi bi-credit-card-2-front me-2"></i>Betalingsmetoder</h6>
+                    <div id="edit-payment-methods-container" class="mb-3">
+                        <div class="text-center py-2">
+                            <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                            <small class="text-muted">Laster betalingsmetoder...</small>
                         </div>
-                        <div class="col-md-6 mb-3">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
                             <label class="form-label">Bilde-URL</label>
                             <input type="url" class="form-control" name="event_image_url" id="edit-event-image-url">
-                            <small class="form-text text-muted">Valgfri: URL til arrangementsbilde</small>
                         </div>
                     </div>
 
-                    <div class="card border-info mb-3">
-                        <div class="card-header bg-info text-white">
-                            <h6 class="mb-0"><i class="bi bi-credit-card me-2"></i>Tillatte betalingsmetoder</h6>
+                    <hr class="my-4">
+                    <h6 class="mb-3"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h6>
+                    
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Påkrevde felt:</strong> Fornavn og Etternavn er alltid påkrevd.
+                    </div>
+                    
+                    <div class="alert alert-warning mb-3">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Kontaktinformasjon (minst én påkrevd):</strong><br>
+                        <small>Velg E-post og/eller Telefonnummer. Minst én må være aktivert for å verifisere medlemskap.</small>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_email" id="edit-field-email">
+                                <label class="form-check-label" for="edit-field-email">
+                                    <i class="bi bi-envelope text-primary me-1"></i> E-post
+                                </label>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <p class="text-muted small mb-3">Velg hvilke betalingsmetoder som skal være tilgjengelige for dette arrangementet</p>
-                            <div id="edit-payment-methods-container">
-                                <div class="text-center py-3">
-                                    <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-                                    <small class="text-muted">Laster betalingsmetoder...</small>
-                                </div>
+                        <div class="col-md-3 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_phone" id="edit-field-phone">
+                                <label class="form-check-label" for="edit-field-phone">
+                                    <i class="bi bi-telephone text-primary me-1"></i> Telefon
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="field_street" id="edit-field-street">
+                                <label class="form-check-label" for="edit-field-street">
+                                    <i class="bi bi-house text-primary me-1"></i> Gateadresse
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="field_zip" id="edit-field-zip">
+                                <label class="form-check-label" for="edit-field-zip">
+                                    <i class="bi bi-mailbox text-primary me-1"></i> Postnummer
+                                </label>
                             </div>
                         </div>
                     </div>
-
-                    <hr class="my-3">
-
-                    <div class="card border-primary mb-3">
-                        <div class="card-header bg-primary text-white">
-                            <h6 class="mb-0"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h6>
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="field_city" id="edit-field-city">
+                                <label class="form-check-label" for="edit-field-city">
+                                    <i class="bi bi-geo-alt text-primary me-1"></i> Poststed
+                                </label>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <p class="text-muted small mb-3">Konfigurer hvilke opplysninger som skal samles inn ved påmelding</p>
-                            
-                            <div class="alert alert-info mb-3">
-                                <i class="bi bi-info-circle me-2"></i>
-                                <strong>Påkrevde felt:</strong><br>
-                                <small>✓ Fornavn (påkrevd) &nbsp; ✓ Etternavn (påkrevd)</small>
+                        <div class="col-md-3 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="field_postal" id="edit-field-postal">
+                                <label class="form-check-label" for="edit-field-postal">
+                                    <i class="bi bi-box text-primary me-1"></i> Postboks
+                                </label>
                             </div>
-                            
-                            <div class="alert alert-warning mb-3">
-                                <i class="bi bi-exclamation-triangle me-2"></i>
-                                <strong>Kontaktinformasjon (minst én påkrevd):</strong><br>
-                                <small>Velg E-post og/eller Telefonnummer. Minst én må være aktivert for å verifisere medlemskap.</small>
-                            </div>
-                            
-                            <h6 class="mb-3">Kontaktfelt (minst én påkrevd):</h6>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_email" id="edit-field-email">
-                                        <label class="form-check-label" for="edit-field-email">
-                                            <i class="bi bi-envelope text-primary me-1"></i> E-postadresse
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_phone" id="edit-field-phone">
-                                        <label class="form-check-label" for="edit-field-phone">
-                                            <i class="bi bi-telephone text-primary me-1"></i> Telefonnummer
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <h6 class="mb-3 mt-4">Valgfrie tilleggsfelt:</h6>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_street" id="edit-field-street">
-                                        <label class="form-check-label" for="edit-field-street">
-                                            <i class="bi bi-house text-primary me-1"></i> Gateadresse
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_zip" id="edit-field-zip">
-                                        <label class="form-check-label" for="edit-field-zip">
-                                            <i class="bi bi-mailbox text-primary me-1"></i> Postnummer
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_city" id="edit-field-city">
-                                        <label class="form-check-label" for="edit-field-city">
-                                            <i class="bi bi-geo-alt text-primary me-1"></i> Poststed
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_postal" id="edit-field-postal">
-                                        <label class="form-check-label" for="edit-field-postal">
-                                            <i class="bi bi-box text-primary me-1"></i> Postboks
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_age" id="edit-field-age">
-                                        <label class="form-check-label" for="edit-field-age">
-                                            <i class="bi bi-person-badge text-primary me-1"></i> Alder
-                                        </label>
-                                    </div>
-                                </div>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="field_age" id="edit-field-age">
+                                <label class="form-check-label" for="edit-field-age">
+                                    <i class="bi bi-person-badge text-primary me-1"></i> Alder
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -1157,7 +1121,12 @@ async function loadEvents() {
                 
                 let priceDisplay = '<span class="event-price event-price-free">Gratis arrangement – ingen påmelding</span>';
                 if (!isNoRegistration) {
-                    if (event.ticket_price > 0) {
+                    // Check if member-exclusive event
+                    if (event.is_member_exclusive && event.membership_prices && event.membership_prices.length > 0) {
+                        // Show membership prices
+                        const prices = event.membership_prices.map(mp => `${mp.price} kr (${mp.plan_name})`).join('<br>');
+                        priceDisplay = `<span class="event-price">${prices}</span>`;
+                    } else if (event.ticket_price > 0) {
                         priceDisplay = `<span class="event-price">${event.ticket_price} kr</span>`;
                         if (event.member_ticket_price !== null && event.member_ticket_price !== undefined && event.member_ticket_price > 0) {
                             priceDisplay += `<br><small class="text-muted">${event.member_ticket_price} kr (medlem)</small>`;
@@ -2575,7 +2544,7 @@ if (registrationTypeRadios.length > 0) {
     handleRegistrationTypeChange();
 }
 
-// Handle "Kun medlemmer" checkbox - gray out/hide ticket price when checked
+// Handle "Kun medlemmer" checkbox - gray out/hide ticket price when checked (CREATE FORM)
 const memberExclusiveCheckbox = document.getElementById('memberExclusive');
 const ticketPriceContainer = document.getElementById('ticket-price-container');
 const ticketPriceInput = document.getElementById('ticket_price');
@@ -2600,6 +2569,36 @@ if (memberExclusiveCheckbox && ticketPriceContainer && ticketPriceInput) {
     
     // Run on page load
     handleMemberExclusiveChange();
+}
+
+// Handle "Kun medlemmer" checkbox - gray out/hide ticket price when checked (EDIT FORM)
+const editMemberExclusiveCheckbox = document.getElementById('edit-member-exclusive');
+const editTicketPriceContainer = document.getElementById('edit-ticket-price-container');
+const editTicketPriceInput = document.getElementById('edit-ticket-price');
+
+if (editMemberExclusiveCheckbox && editTicketPriceContainer && editTicketPriceInput) {
+    function handleEditMemberExclusiveChange() {
+        const isMemberOnly = editMemberExclusiveCheckbox.checked;
+        
+        if (isMemberOnly) {
+            // Gray out and disable the ticket price field
+            editTicketPriceInput.disabled = true;
+            editTicketPriceInput.classList.add('bg-light', 'text-muted');
+            editTicketPriceInput.value = '0';
+        } else {
+            // Re-enable the ticket price field
+            editTicketPriceInput.disabled = false;
+            editTicketPriceInput.classList.remove('bg-light', 'text-muted');
+        }
+    }
+    
+    editMemberExclusiveCheckbox.addEventListener('change', handleEditMemberExclusiveChange);
+    
+    // Also run when edit modal is shown to ensure correct state
+    const editEventModal = document.getElementById('editEventModal');
+    if (editEventModal) {
+        editEventModal.addEventListener('shown.bs.modal', handleEditMemberExclusiveChange);
+    }
 }
 
 </script>

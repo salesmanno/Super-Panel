@@ -32,6 +32,7 @@ try {
             e.event_image_url,
             e.ticket_price,
             e.member_ticket_price,
+            e.registration_type,
             e.output_product_id,
             e.created_by,
             e.created_at,
@@ -49,13 +50,28 @@ try {
         GROUP BY e.id, e.title, e.description, e.max_attendees, e.min_attendees, e.age_limit, 
                  e.is_member_exclusive, e.event_address, e.event_city, e.event_postal, e.venue_name,
                  e.start_time, e.start_date, e.end_time, e.end_date, e.event_image_url, 
-                 e.ticket_price, e.member_ticket_price, e.output_product_id, e.created_by, e.created_at,
+                 e.ticket_price, e.member_ticket_price, e.registration_type, e.output_product_id, e.created_by, e.created_at,
                  op.is_visible, op.is_public, ts.first_name, ts.last_name
         ORDER BY e.start_date DESC, e.start_time DESC
     ");
     
     $stmt->execute([$_SESSION['company_id']]);
     $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Fetch membership prices for member-exclusive events
+    foreach ($events as &$event) {
+        if ($event['is_member_exclusive']) {
+            $priceStmt = $db->prepare("
+                SELECT emp.price, mp.plan_name
+                FROM event_membership_plans emp
+                JOIN membership_plans mp ON emp.plan_id = mp.id
+                WHERE emp.event_id = ?
+                ORDER BY emp.price ASC
+            ");
+            $priceStmt->execute([$event['id']]);
+            $event['membership_prices'] = $priceStmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+    }
     
     echo json_encode([
         'success' => true,
