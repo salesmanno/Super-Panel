@@ -2068,7 +2068,6 @@ async function editEvent(eventId) {
                 console.error('Error parsing payment_methods_json:', e);
             }
         }
-        const registrationType = event.registration_type || 'signup';
         await loadPaymentMethodsForEdit(selectedPaymentMethods, registrationType);
         
         // Show modal
