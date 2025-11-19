@@ -62,11 +62,11 @@ try {
     foreach ($events as &$event) {
         if ($event['is_member_exclusive']) {
             $priceStmt = $db->prepare("
-                SELECT emp.price, mp.plan_name
+                SELECT emp.ticket_price as price, mp.plan_name
                 FROM event_membership_plans emp
-                JOIN membership_plans mp ON emp.plan_id = mp.id
+                JOIN membership_plans mp ON emp.membership_plan_id = mp.id
                 WHERE emp.event_id = ?
-                ORDER BY emp.price ASC
+                ORDER BY emp.ticket_price ASC
             ");
             $priceStmt->execute([$event['id']]);
             $event['membership_prices'] = $priceStmt->fetchAll(PDO::FETCH_ASSOC);
