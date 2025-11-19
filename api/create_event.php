@@ -227,10 +227,7 @@ try {
             
             // Then add other optional fields if selected
             $optionalFields = [
-                'street' => ['label' => 'Gateadresse', 'type' => 'text'],
-                'zip' => ['label' => 'Postnummer', 'type' => 'text'],
-                'city' => ['label' => 'Poststed', 'type' => 'text'],
-                'postal' => ['label' => 'Postboks', 'type' => 'text'],
+                'address' => ['label' => 'Adresse (gate, postnr, by)', 'type' => 'text'],
                 'age' => ['label' => 'Alder', 'type' => 'number']
             ];
             
