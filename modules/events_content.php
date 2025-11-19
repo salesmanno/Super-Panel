@@ -316,9 +316,9 @@ try {
                             <label class="form-label">Maks. deltakere</label>
                             <input type="number" class="form-control" name="max_attendees">
                         </div>
-                        <div class="col-md-3 mb-3">
+                        <div class="col-md-3 mb-3" id="ticket-price-container">
                             <label class="form-label">Billettpris (NOK)</label>
-                            <input type="number" step="0.01" class="form-control" name="ticket_price">
+                            <input type="number" step="0.01" class="form-control" name="ticket_price" id="ticket_price">
                         </div>
                     </div>
 
@@ -2573,6 +2573,33 @@ if (registrationTypeRadios.length > 0) {
     
     // Run on page load
     handleRegistrationTypeChange();
+}
+
+// Handle "Kun medlemmer" checkbox - gray out/hide ticket price when checked
+const memberExclusiveCheckbox = document.getElementById('memberExclusive');
+const ticketPriceContainer = document.getElementById('ticket-price-container');
+const ticketPriceInput = document.getElementById('ticket_price');
+
+if (memberExclusiveCheckbox && ticketPriceContainer && ticketPriceInput) {
+    function handleMemberExclusiveChange() {
+        const isMemberOnly = memberExclusiveCheckbox.checked;
+        
+        if (isMemberOnly) {
+            // Gray out and disable the ticket price field
+            ticketPriceInput.disabled = true;
+            ticketPriceInput.classList.add('bg-light', 'text-muted');
+            ticketPriceInput.value = '0';
+        } else {
+            // Re-enable the ticket price field
+            ticketPriceInput.disabled = false;
+            ticketPriceInput.classList.remove('bg-light', 'text-muted');
+        }
+    }
+    
+    memberExclusiveCheckbox.addEventListener('change', handleMemberExclusiveChange);
+    
+    // Run on page load
+    handleMemberExclusiveChange();
 }
 
 </script>
