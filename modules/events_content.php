@@ -277,7 +277,7 @@ try {
                     </div>
 
                     <div class="row">
-                        <div class="col-md-12 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">Aldersgrense</label>
                             <input type="number" class="form-control" name="age_limit">
                         </div>
@@ -342,21 +342,6 @@ try {
                     </div>
                     <?php endif; ?>
 
-                    <div class="card border-info mb-3">
-                        <div class="card-header bg-info text-white">
-                            <h6 class="mb-0"><i class="bi bi-credit-card me-2"></i>Tillatte betalingsmetoder</h6>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted small mb-3">Velg hvilke betalingsmetoder som skal være tilgjengelige for dette arrangementet</p>
-                            <div id="payment-methods-container">
-                                <div class="text-center py-3">
-                                    <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-                                    <small class="text-muted">Laster betalingsmetoder...</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
                     <div class="card border-warning mb-3" id="payment-timing-section">
                         <div class="card-header bg-warning text-dark">
                             <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Oppgjør av reservasjon</h6>
@@ -1155,16 +1140,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
-            // Collect allowed payment methods
+            // Collect allowed payment methods and payment timing
             const allowedPaymentMethods = ['cash']; // Cash is always required
-            document.querySelectorAll('#payment-methods-container input[type="checkbox"]:checked:not([disabled])').forEach(checkbox => {
-                allowedPaymentMethods.push(checkbox.dataset.methodType);
-            });
-            
-            // Collect payment timing methods
             const paymentTimingMethods = ['arrival']; // Always include arrival
+            
+            // Collect economy payment methods from payment timing section
             document.querySelectorAll('.payment-timing-option:checked:not([disabled])').forEach(checkbox => {
                 if (checkbox.value && checkbox.value !== 'arrival') {
+                    allowedPaymentMethods.push(checkbox.value); // Also add to allowed methods
                     paymentTimingMethods.push(checkbox.value);
                 }
             });
