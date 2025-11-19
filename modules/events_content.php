@@ -596,6 +596,37 @@ try {
                         <textarea class="form-control" name="description" id="edit-description" rows="3"></textarea>
                     </div>
 
+                    <h6 class="mb-2"><i class="bi bi-card-checklist me-2"></i>Registreringstype</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-4 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="edit_registration_type" id="edit-reg-signup" value="signup" checked>
+                                <label class="form-check-label" for="edit-reg-signup">
+                                    <i class="bi bi-person-plus text-primary me-1"></i> <strong>Påmelding</strong><br>
+                                    <small class="text-muted">Deltakere melder seg på</small>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="edit_registration_type" id="edit-reg-none" value="none">
+                                <label class="form-check-label" for="edit-reg-none">
+                                    <i class="bi bi-x-circle text-secondary me-1"></i> <strong>Ingen påmelding</strong><br>
+                                    <small class="text-muted">Fritt arrangement uten registrering</small>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="edit_registration_type" id="edit-reg-binding" value="binding">
+                                <label class="form-check-label" for="edit-reg-binding">
+                                    <i class="bi bi-lock text-warning me-1"></i> <strong>Bindende</strong><br>
+                                    <small class="text-muted">Krever betaling ved påmelding</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="row">
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Startdato *</label>
@@ -734,6 +765,15 @@ try {
                                     Alder
                                 </label>
                             </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    <h6 class="mb-3"><i class="bi bi-credit-card me-2"></i>Betalingsmetoder</h6>
+                    <div id="edit-payment-methods-container">
+                        <div class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                            <small class="text-muted">Laster betalingsmetoder...</small>
                         </div>
                     </div>
                 </form>
@@ -1977,6 +2017,13 @@ async function editEvent(eventId) {
             memberExclusiveCheckbox.checked = event.is_member_exclusive == 1;
         }
         
+        // Set registration type radio button
+        const registrationType = event.registration_type || 'signup';
+        const registrationTypeRadio = document.getElementById(`edit-reg-${registrationType}`);
+        if (registrationTypeRadio) {
+            registrationTypeRadio.checked = true;
+        }
+        
         // Show/hide registration deadline if min_attendees is set
         const editDeadlineContainer = document.getElementById('edit-registration-deadline-container');
         if (event.min_attendees && parseInt(event.min_attendees) > 0) {
@@ -2086,6 +2133,9 @@ async function saveEventChanges() {
         }
     }
     
+    // Get registration type
+    const registrationType = document.querySelector('input[name="edit_registration_type"]:checked').value;
+    
     // Collect allowed payment methods
     const allowedPaymentMethods = ['cash']; // Cash is always required
     document.querySelectorAll('#edit-payment-methods-container input[type="checkbox"]:checked:not([disabled])').forEach(checkbox => {
@@ -2113,6 +2163,7 @@ async function saveEventChanges() {
         event_image_url: formData.get('event_image_url') || null,
         default_payment_method: formData.get('default_payment_method') || null,
         is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
+        registration_type: registrationType,
         allowed_payment_methods: allowedPaymentMethods,
         // Registration fields (konsolidert)
         field_phone: formData.get('field_phone') ? 1 : 0,
