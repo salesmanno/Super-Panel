@@ -713,6 +713,25 @@ try {
                     </div>
                     
                     <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Standard betalingsmetode</label>
+                            <select class="form-select" name="default_payment_method" id="edit-default-payment-method">
+                                <option value="">Velg standard betalingsmetode</option>
+                                <option value="cash">Kontant</option>
+                                <option value="card">Kort</option>
+                                <option value="invoice">Faktura</option>
+                                <option value="vipps">Vipps</option>
+                            </select>
+                        </div>
+                        <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Medlemsrabatt billettpris (NOK)</label>
+                            <input type="number" step="0.01" class="form-control" name="member_ticket_price" id="edit-member-ticket-price" placeholder="La stå tom hvis ikke relevant">
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <div class="row">
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Bilde-URL</label>
                             <input type="url" class="form-control" name="event_image_url" id="edit-event-image-url">
@@ -765,15 +784,6 @@ try {
                                     Alder
                                 </label>
                             </div>
-                        </div>
-                    </div>
-
-                    <hr class="my-4">
-                    <h6 class="mb-3"><i class="bi bi-credit-card me-2"></i>Betalingsmetoder</h6>
-                    <div id="edit-payment-methods-container">
-                        <div class="text-center py-3">
-                            <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-                            <small class="text-muted">Laster betalingsmetoder...</small>
                         </div>
                     </div>
                 </form>
@@ -1990,26 +2000,31 @@ async function editEvent(eventId) {
             return;
         }
         
-        // Populate form fields
-        document.getElementById('edit-event-id').value = event.id;
-        document.getElementById('edit-title').value = event.title || '';
-        document.getElementById('edit-description').value = event.description || '';
-        document.getElementById('edit-start-date').value = event.start_date || '';
-        document.getElementById('edit-start-time').value = event.start_time || '';
-        document.getElementById('edit-end-date').value = event.end_date || '';
-        document.getElementById('edit-end-time').value = event.end_time || '';
-        document.getElementById('edit-age-limit').value = event.age_limit || '';
-        document.getElementById('edit-venue-name').value = event.venue_name || '';
-        document.getElementById('edit-event-address').value = event.event_address || '';
-        document.getElementById('edit-event-city').value = event.event_city || '';
-        document.getElementById('edit-event-postal').value = event.event_postal || '';
-        document.getElementById('edit-min-attendees').value = event.min_attendees || '';
-        document.getElementById('edit-registration-deadline').value = event.registration_deadline || '';
-        document.getElementById('edit-max-attendees').value = event.max_attendees || '';
-        document.getElementById('edit-ticket-price').value = event.ticket_price || 0;
-        document.getElementById('edit-member-ticket-price').value = event.member_ticket_price || '';
-        document.getElementById('edit-default-payment-method').value = event.default_payment_method || '';
-        document.getElementById('edit-event-image-url').value = event.event_image_url || '';
+        // Populate form fields with null checks
+        const setFieldValue = (id, value) => {
+            const field = document.getElementById(id);
+            if (field) field.value = value || '';
+        };
+        
+        setFieldValue('edit-event-id', event.id);
+        setFieldValue('edit-title', event.title);
+        setFieldValue('edit-description', event.description);
+        setFieldValue('edit-start-date', event.start_date);
+        setFieldValue('edit-start-time', event.start_time);
+        setFieldValue('edit-end-date', event.end_date);
+        setFieldValue('edit-end-time', event.end_time);
+        setFieldValue('edit-age-limit', event.age_limit);
+        setFieldValue('edit-venue-name', event.venue_name);
+        setFieldValue('edit-event-address', event.event_address);
+        setFieldValue('edit-event-city', event.event_city);
+        setFieldValue('edit-event-postal', event.event_postal);
+        setFieldValue('edit-min-attendees', event.min_attendees);
+        setFieldValue('edit-registration-deadline', event.registration_deadline);
+        setFieldValue('edit-max-attendees', event.max_attendees);
+        setFieldValue('edit-ticket-price', event.ticket_price || 0);
+        setFieldValue('edit-member-ticket-price', event.member_ticket_price);
+        setFieldValue('edit-default-payment-method', event.default_payment_method);
+        setFieldValue('edit-event-image-url', event.event_image_url);
         
         // Set checkbox
         const memberExclusiveCheckbox = document.getElementById('edit-member-exclusive');
@@ -2036,11 +2051,16 @@ async function editEvent(eventId) {
         const fieldsResponse = await fetch(`/api/get_event_registration_fields.php?event_id=${eventId}`);
         const fieldsResult = await fieldsResponse.json();
         
-        // Reset all optional field checkboxes
-        document.getElementById('edit-field-email').checked = false;
-        document.getElementById('edit-field-phone').checked = false;
-        document.getElementById('edit-field-address').checked = false;
-        document.getElementById('edit-field-age').checked = false;
+        // Reset all optional field checkboxes with null checks
+        const setCheckbox = (id, value) => {
+            const checkbox = document.getElementById(id);
+            if (checkbox) checkbox.checked = value;
+        };
+        
+        setCheckbox('edit-field-email', false);
+        setCheckbox('edit-field-phone', false);
+        setCheckbox('edit-field-address', false);
+        setCheckbox('edit-field-age', false);
         
         if (fieldsResult.success && fieldsResult.fields) {
             fieldsResult.fields.forEach(field => {
