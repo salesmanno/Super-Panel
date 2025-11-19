@@ -2364,43 +2364,83 @@ async function loadPaymentMethodsForCreate() {
         const response = await fetch('/api/get_payment_methods.php');
         const result = await response.json();
         
+        // Always show cash/oppmøte checkbox, even if no payment methods configured
+        let paymentMethodsHTML = `
+            <div class="alert alert-info small mb-3">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Oppmøtebetaling</strong> er alltid inkludert for å tillate arrangementer uten webbetaling.
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" 
+                               name="payment_method_cash" 
+                               id="pm_cash"
+                               data-method-type="cash"
+                               checked disabled>
+                        <label class="form-check-label text-muted" for="pm_cash">
+                            <i class="bi bi-cash-stack me-1"></i>
+                            Kontant/Oppmøte <small>(alltid påkrevd)</small>
+                        </label>
+                    </div>
+                </div>`;
+        
         if (result.success && result.payment_methods && result.payment_methods.length > 0) {
             paymentMethodsData = result.payment_methods;
-            container.innerHTML = `
-                <div class="alert alert-info small mb-3">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <strong>Oppmøtebetaling</strong> er alltid inkludert for å tillate arrangementer uten webbetaling.
-                </div>
-                <div class="row">` + result.payment_methods.map(method => `
+            
+            // Add other payment methods (excluding cash as it's already added)
+            paymentMethodsHTML += result.payment_methods
+                .filter(method => method.method_type !== 'cash')
+                .map(method => `
                 <div class="col-md-4 mb-2">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" 
                                name="payment_method_${method.method_type}" 
                                id="pm_${method.method_type}"
-                               data-method-type="${method.method_type}"
-                               ${method.method_type === 'cash' ? 'checked disabled' : 'checked'}>
-                        <label class="form-check-label ${method.method_type === 'cash' ? 'text-muted' : ''}" for="pm_${method.method_type}">
-                            <i class="bi bi-${method.method_type === 'cash' ? 'cash-stack' : method.method_type === 'card' ? 'credit-card' : 'wallet2'} me-1"></i>
-                            ${method.method_name}${method.method_type === 'cash' ? ' <small>(alltid påkrevd)</small>' : ''}
+                               data-method-type="${method.method_type}">
+                        <label class="form-check-label" for="pm_${method.method_type}">
+                            <i class="bi bi-${method.method_type === 'card' ? 'credit-card' : 'wallet2'} me-1"></i>
+                            ${method.method_name}
                         </label>
                     </div>
                 </div>
-            `).join('') + '</div>';
-            
-            // Add event listeners to update payment timing status
-            const checkboxes = container.querySelectorAll('input[type="checkbox"]:not([disabled])');
-            checkboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', updatePaymentTimingStatus);
-            });
-            
-            // Initial update
-            updatePaymentTimingStatus();
-        } else {
-            container.innerHTML = '<p class="text-muted small mb-0"><i class="bi bi-info-circle me-2"></i>Ingen betalingsmetoder konfigurert</p>';
+            `).join('');
         }
+        
+        paymentMethodsHTML += '</div>';
+        container.innerHTML = paymentMethodsHTML;
+        
+        // Add event listeners to update payment timing status
+        const checkboxes = container.querySelectorAll('input[type="checkbox"]:not([disabled])');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updatePaymentTimingStatus);
+        });
+        
+        // Initial update
+        updatePaymentTimingStatus();
     } catch (error) {
         console.error('Error loading payment methods:', error);
-        container.innerHTML = '<p class="text-danger small mb-0">Feil ved lasting av betalingsmetoder</p>';
+        // Still show cash even on error
+        container.innerHTML = `
+            <div class="alert alert-info small mb-3">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Oppmøtebetaling</strong> er alltid tilgjengelig.
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" 
+                               name="payment_method_cash" 
+                               id="pm_cash"
+                               data-method-type="cash"
+                               checked disabled>
+                        <label class="form-check-label text-muted" for="pm_cash">
+                            <i class="bi bi-cash-stack me-1"></i>
+                            Kontant/Oppmøte <small>(alltid påkrevd)</small>
+                        </label>
+                    </div>
+                </div>
+            </div>`;
     }
 }
 
@@ -2427,42 +2467,81 @@ async function loadPaymentMethodsForEdit(selectedMethods = []) {
         const response = await fetch('/api/get_payment_methods.php');
         const result = await response.json();
         
+        // Ensure cash is always in selected methods
+        if (!selectedMethods.includes('cash')) {
+            selectedMethods.push('cash');
+        }
+        
+        // Always show cash/oppmøte checkbox
+        let paymentMethodsHTML = `
+            <div class="alert alert-info small mb-3">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Oppmøtebetaling</strong> er alltid inkludert for å tillate arrangementer uten webbetaling.
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" 
+                               name="edit_payment_method_cash" 
+                               id="edit_pm_cash"
+                               data-method-type="cash"
+                               checked disabled>
+                        <label class="form-check-label text-muted" for="edit_pm_cash">
+                            <i class="bi bi-cash-stack me-1"></i>
+                            Kontant/Oppmøte <small>(alltid påkrevd)</small>
+                        </label>
+                    </div>
+                </div>`;
+        
         if (result.success && result.payment_methods && result.payment_methods.length > 0) {
-            // Ensure cash is always in selected methods
-            if (!selectedMethods.includes('cash')) {
-                selectedMethods.push('cash');
-            }
-            
-            container.innerHTML = `
-                <div class="alert alert-info small mb-3">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <strong>Oppmøtebetaling</strong> er alltid inkludert for å tillate arrangementer uten webbetaling.
-                </div>
-                <div class="row">` + result.payment_methods.map(method => {
-                const isChecked = selectedMethods.includes(method.method_type);
-                const isCash = method.method_type === 'cash';
-                return `
+            // Add other payment methods (excluding cash)
+            paymentMethodsHTML += result.payment_methods
+                .filter(method => method.method_type !== 'cash')
+                .map(method => {
+                    const isChecked = selectedMethods.includes(method.method_type);
+                    return `
                 <div class="col-md-4 mb-2">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" 
                                name="edit_payment_method_${method.method_type}" 
                                id="edit_pm_${method.method_type}"
                                data-method-type="${method.method_type}"
-                               ${isChecked ? 'checked' : ''} ${isCash ? 'disabled' : ''}>
-                        <label class="form-check-label ${isCash ? 'text-muted' : ''}" for="edit_pm_${method.method_type}">
-                            <i class="bi bi-${isCash ? 'cash-stack' : method.method_type === 'card' ? 'credit-card' : 'wallet2'} me-1"></i>
-                            ${method.method_name}${isCash ? ' <small>(alltid påkrevd)</small>' : ''}
+                               ${isChecked ? 'checked' : ''}>
+                        <label class="form-check-label" for="edit_pm_${method.method_type}">
+                            <i class="bi bi-${method.method_type === 'card' ? 'credit-card' : 'wallet2'} me-1"></i>
+                            ${method.method_name}
                         </label>
                     </div>
                 </div>
             `;
-            }).join('') + '</div>';
-        } else {
-            container.innerHTML = '<p class="text-muted small mb-0"><i class="bi bi-info-circle me-2"></i>Ingen betalingsmetoder konfigurert</p>';
+                }).join('');
         }
+        
+        paymentMethodsHTML += '</div>';
+        container.innerHTML = paymentMethodsHTML;
     } catch (error) {
         console.error('Error loading payment methods for edit:', error);
-        container.innerHTML = '<p class="text-danger small mb-0">Feil ved lasting av betalingsmetoder</p>';
+        // Still show cash even on error
+        container.innerHTML = `
+            <div class="alert alert-info small mb-3">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Oppmøtebetaling</strong> er alltid tilgjengelig.
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" 
+                               name="edit_payment_method_cash" 
+                               id="edit_pm_cash"
+                               data-method-type="cash"
+                               checked disabled>
+                        <label class="form-check-label text-muted" for="edit_pm_cash">
+                            <i class="bi bi-cash-stack me-1"></i>
+                            Kontant/Oppmøte <small>(alltid påkrevd)</small>
+                        </label>
+                    </div>
+                </div>
+            </div>`;
     }
 }
 
