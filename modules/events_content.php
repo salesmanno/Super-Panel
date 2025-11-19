@@ -1022,10 +1022,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const membershipPricing = [];
             membershipPlansData.forEach(plan => {
                 const priceInput = document.querySelector(`input[data-plan-id="${plan.plan_id}"]`);
+                const publicCheckbox = document.querySelector(`input[name="plan_public_${plan.plan_id}"]`);
                 if (priceInput && priceInput.value) {
                     membershipPricing.push({
                         plan_id: plan.plan_id,
-                        price: parseFloat(priceInput.value)
+                        price: parseFloat(priceInput.value),
+                        public_display: publicCheckbox && publicCheckbox.checked ? 1 : 0
                     });
                 }
             });
@@ -1123,9 +1125,15 @@ async function loadEvents() {
                 if (!isNoRegistration) {
                     // Check if member-exclusive event
                     if (event.is_member_exclusive && event.membership_prices && event.membership_prices.length > 0) {
-                        // Show membership prices
-                        const prices = event.membership_prices.map(mp => `${mp.price} kr (${mp.plan_name})`).join('<br>');
-                        priceDisplay = `<span class="event-price">${prices}</span>`;
+                        // Show membership prices (shortened plan names)
+                        const prices = event.membership_prices
+                            .filter(mp => mp.public_display !== 0)
+                            .map(mp => {
+                                const shortName = mp.plan_name.length > 15 ? mp.plan_name.substring(0, 15) + '...' : mp.plan_name;
+                                return `${mp.price} kr (${shortName})`;
+                            })
+                            .join('<br>');
+                        priceDisplay = prices ? `<span class="event-price">${prices}</span>` : '<span class="event-price event-price-free">Kun medlemmer</span>';
                     } else if (event.ticket_price > 0) {
                         priceDisplay = `<span class="event-price">${event.ticket_price} kr</span>`;
                         if (event.member_ticket_price !== null && event.member_ticket_price !== undefined && event.member_ticket_price > 0) {
@@ -2341,15 +2349,24 @@ async function loadMembershipPlansForCreate() {
         if (result.success && result.plans && result.plans.length > 0) {
             membershipPlansData = result.plans;
             container.innerHTML = '<div class="row">' + result.plans.map(plan => `
-                <div class="col-md-6 mb-2">
+                <div class="col-md-6 mb-3">
                     <label class="form-label small">${plan.name}</label>
-                    <div class="input-group input-group-sm">
+                    <div class="input-group input-group-sm mb-1">
                         <span class="input-group-text">NOK</span>
                         <input type="number" step="0.01" class="form-control" 
                                name="plan_price_${plan.plan_id}" 
                                data-plan-id="${plan.plan_id}"
                                placeholder="Standard pris">
                         <span class="input-group-text text-muted">${plan.price} kr/mnd</span>
+                    </div>
+                    <div class="form-check form-check-sm">
+                        <input class="form-check-input" type="checkbox" 
+                               name="plan_public_${plan.plan_id}" 
+                               id="plan_public_${plan.plan_id}"
+                               checked>
+                        <label class="form-check-label small text-muted" for="plan_public_${plan.plan_id}">
+                            Vis offentlig
+                        </label>
                     </div>
                 </div>
             `).join('') + '</div>';

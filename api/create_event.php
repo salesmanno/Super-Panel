@@ -254,8 +254,8 @@ try {
         // 3. Save membership pricing if provided (skip for 'none' type)
         if ($registrationType !== 'none' && isset($data['membership_pricing']) && is_array($data['membership_pricing'])) {
             $stmt = $db->prepare("
-                INSERT INTO event_membership_plans (event_id, membership_plan_id, ticket_price, created_at)
-                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                INSERT INTO event_membership_plans (event_id, membership_plan_id, ticket_price, public_display, created_at)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
             ");
             
             foreach ($data['membership_pricing'] as $pricing) {
@@ -266,7 +266,8 @@ try {
                     $plan = $planCheck->fetch(PDO::FETCH_ASSOC);
                     
                     if ($plan && $plan['company_id'] === $_SESSION['company_id']) {
-                        $stmt->execute([$eventId, $pricing['plan_id'], $pricing['price']]);
+                        $publicDisplay = isset($pricing['public_display']) ? (int)$pricing['public_display'] : 1;
+                        $stmt->execute([$eventId, $pricing['plan_id'], $pricing['price'], $publicDisplay]);
                     }
                 }
             }

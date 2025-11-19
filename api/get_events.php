@@ -62,7 +62,7 @@ try {
     foreach ($events as &$event) {
         if ($event['is_member_exclusive']) {
             $priceStmt = $db->prepare("
-                SELECT emp.ticket_price as price, mp.name as plan_name
+                SELECT emp.ticket_price as price, mp.name as plan_name, emp.public_display
                 FROM event_membership_plans emp
                 JOIN membership_plans mp ON emp.membership_plan_id COLLATE utf8mb4_general_ci = mp.id COLLATE utf8mb4_general_ci
                 WHERE emp.event_id COLLATE utf8mb4_general_ci = ?
