@@ -281,27 +281,24 @@ try {
                             <label class="form-label">Aldersgrense</label>
                             <input type="number" class="form-control" name="age_limit">
                         </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">Stedsnavn</label>
                             <input type="text" class="form-control" name="venue_name">
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Adresse</label>
-                            <input type="text" class="form-control" name="event_address">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">By</label>
+                            <input type="text" class="form-control" name="event_city">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Postnummer</label>
+                            <input type="text" class="form-control" name="event_postal">
                         </div>
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">By</label>
-                            <input type="text" class="form-control" name="event_city">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Postnummer</label>
-                            <input type="text" class="form-control" name="event_postal">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Adresse</label>
+                            <input type="text" class="form-control" name="event_address">
                         </div>
                     </div>
 
@@ -326,140 +323,69 @@ try {
                     </div>
 
                     <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
-                    <div class="card border-success mb-3">
-                        <div class="card-header bg-success text-white">
-                            <h6 class="mb-0"><i class="bi bi-people-fill me-2"></i>Medlemspriser</h6>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted small mb-3">Definer egne priser for forskjellige medlemsplaner</p>
-                            <div id="membership-pricing-container">
-                                <div class="text-center py-3">
-                                    <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-                                    <small class="text-muted">Laster medlemsplaner...</small>
-                                </div>
-                            </div>
+                    <hr class="my-4">
+                    <h6 class="mb-3"><i class="bi bi-people-fill me-2"></i>Medlemspriser</h6>
+                    <div id="membership-pricing-container">
+                        <div class="text-center py-2">
+                            <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                            <small class="text-muted">Laster medlemsplaner...</small>
                         </div>
                     </div>
                     <?php endif; ?>
 
-                    <div class="card border-warning mb-3" id="payment-section">
-                        <div class="card-header bg-warning text-dark">
-                            <h6 class="mb-0"><i class="bi bi-credit-card-2-front me-2"></i>Betaling</h6>
-                        </div>
-                        <div class="card-body">
-                            <h6 class="mb-3"><i class="bi bi-check-circle me-2"></i>Tillatte betalingsmetoder</h6>
-                            <p class="text-muted small mb-3">Velg hvilke betalingsmetoder deltakere kan bruke</p>
-                            <div id="payment-methods-container">
-                                <div class="text-center py-2">
-                                    <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-                                    <small class="text-muted">Laster betalingsmetoder...</small>
-                                </div>
-                            </div>
-                            
-                            <hr class="my-4">
-                            
-                            <h6 class="mb-3"><i class="bi bi-clock-history me-2"></i>Når skjer betalingen?</h6>
-                            <p class="text-muted small mb-3">Deltakere kan alltid betale ved oppmøte. Velg økonomimetoder over for å aktivere nettbetaling.</p>
-                            <div class="alert alert-info">
-                                <i class="bi bi-info-circle me-2"></i>
-                                <strong>Ved oppmøte (kontant):</strong> Alltid tilgjengelig<br>
-                                <strong>Ved reservasjon (nett):</strong> <span id="payment-timing-status">Aktiveres når du velger økonomimetoder over</span>
-                            </div>
+                    <hr class="my-4" id="payment-section">
+                    <h6 class="mb-3"><i class="bi bi-credit-card-2-front me-2"></i>Betalingsmetoder</h6>
+                    <div id="payment-methods-container" class="mb-3">
+                        <div class="text-center py-2">
+                            <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                            <small class="text-muted">Laster betalingsmetoder...</small>
                         </div>
                     </div>
+                    <p class="text-muted small"><strong>Status:</strong> <span id="payment-timing-status">Velg økonomimetoder for å aktivere nettbetaling</span></p>
                     
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Bilde-URL</label>
                             <input type="url" class="form-control" name="event_image_url">
-                            <small class="form-text text-muted">Valgfri: URL til arrangementsbilde</small>
                         </div>
                     </div>
 
-                    <hr class="my-4">
-
-                    <div class="card border-primary mb-3">
-                        <div class="card-header bg-primary text-white">
-                            <h6 class="mb-0"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h6>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted small mb-3">Konfigurer hvilke opplysninger som skal samles inn ved påmelding</p>
-                            
-                            <div class="alert alert-info mb-3">
-                                <i class="bi bi-info-circle me-2"></i>
-                                <strong>Påkrevde felt:</strong><br>
-                                <small>✓ Fornavn (påkrevd) &nbsp; ✓ Etternavn (påkrevd)</small>
-                            </div>
-                            
-                            <div class="alert alert-warning mb-3">
-                                <i class="bi bi-exclamation-triangle me-2"></i>
-                                <strong>Kontaktinformasjon (minst én påkrevd):</strong><br>
-                                <small>Velg E-post og/eller Telefonnummer. Minst én må være aktivert for å verifisere medlemskap.</small>
-                            </div>
-                            
-                            <h6 class="mb-3">Kontaktfelt (minst én påkrevd):</h6>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input contact-field-required" type="checkbox" name="field_email" id="field_email" checked>
-                                        <label class="form-check-label" for="field_email">
-                                            <i class="bi bi-envelope text-primary me-1"></i> E-postadresse
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input contact-field-required" type="checkbox" name="field_phone" id="field_phone" checked>
-                                        <label class="form-check-label" for="field_phone">
-                                            <i class="bi bi-telephone text-primary me-1"></i> Telefonnummer
-                                        </label>
-                                    </div>
+                    <div id="registration-fields-section">
+                        <hr class="my-4">
+                        <h6 class="mb-3"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h6>
+                        <p class="text-muted small mb-3">Fornavn og etternavn er alltid påkrevd. Velg minst én kontaktmetode (e-post eller telefon).</p>
+                        
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input contact-field-required" type="checkbox" name="field_email" id="field_email" checked>
+                                    <label class="form-check-label" for="field_email">
+                                        <i class="bi bi-envelope me-1"></i> E-post
+                                    </label>
                                 </div>
                             </div>
-                            
-                            <h6 class="mb-3 mt-4">Valgfrie tilleggsfelt:</h6>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_street" id="field_street" checked>
-                                        <label class="form-check-label" for="field_street">
-                                            <i class="bi bi-house text-primary me-1"></i> Gateadresse
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_zip" id="field_zip" checked>
-                                        <label class="form-check-label" for="field_zip">
-                                            <i class="bi bi-mailbox text-primary me-1"></i> Postnummer
-                                        </label>
-                                    </div>
+                            <div class="col-md-3">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input contact-field-required" type="checkbox" name="field_phone" id="field_phone" checked>
+                                    <label class="form-check-label" for="field_phone">
+                                        <i class="bi bi-telephone me-1"></i> Telefon
+                                    </label>
                                 </div>
                             </div>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_city" id="field_city" checked>
-                                        <label class="form-check-label" for="field_city">
-                                            <i class="bi bi-geo-alt text-primary me-1"></i> Poststed
-                                        </label>
-                                    </div>
+                            <div class="col-md-3">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="field_street" id="field_street">
+                                    <label class="form-check-label" for="field_street">
+                                        <i class="bi bi-house me-1"></i> Adresse
+                                    </label>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_postal" id="field_postal" checked>
-                                        <label class="form-check-label" for="field_postal">
-                                            <i class="bi bi-box text-primary me-1"></i> Postboks
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="field_age" id="field_age" checked>
-                                        <label class="form-check-label" for="field_age">
-                                            <i class="bi bi-person-badge text-primary me-1"></i> Alder
-                                        </label>
-                                    </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="field_age" id="field_age">
+                                    <label class="form-check-label" for="field_age">
+                                        <i class="bi bi-person-badge me-1"></i> Alder
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -2561,46 +2487,19 @@ async function loadPaymentMethodsForEdit(selectedMethods = []) {
     }
 }
 
-
-// Handle registration type changes
+// Handle registration type changes - show/hide registration fields
 const registrationTypeRadios = document.querySelectorAll('input[name="registration_type"]');
-const paymentSection = document.getElementById('payment-section');
-const registrationFieldsSection = document.querySelector('.card.border-primary'); // Påmeldingsfelt section
+const registrationFieldsSection = document.getElementById('registration-fields-section');
 
-if (registrationTypeRadios.length > 0 && paymentSection) {
-    // Store original parent and position for moving section
-    const originalParent = paymentSection.parentElement;
-    const registrationTypeCard = document.querySelector('.card.border-success');
-    
+if (registrationTypeRadios.length > 0 && registrationFieldsSection) {
     function handleRegistrationTypeChange() {
         const selectedType = document.querySelector('input[name="registration_type"]:checked').value;
         
         // Show/hide påmeldingsfelt section based on type
-        if (registrationFieldsSection) {
-            if (selectedType === 'none') {
-                registrationFieldsSection.style.display = 'none';
-            } else {
-                registrationFieldsSection.style.display = 'block';
-            }
-        }
-        
-        // Move payment section based on type
-        if (selectedType === 'binding') {
-            // Move after registration type section (before description)
-            if (registrationTypeCard && registrationTypeCard.nextElementSibling !== paymentSection) {
-                registrationTypeCard.insertAdjacentElement('afterend', paymentSection);
-            }
-            // Highlight as required for binding
-            paymentSection.classList.add('border-danger');
-            paymentSection.classList.remove('border-warning');
+        if (selectedType === 'none') {
+            registrationFieldsSection.style.display = 'none';
         } else {
-            // Move back to original position  (after medlemspriser if exists, otherwise after ticket price)
-            if (originalParent && paymentSection.parentElement !== originalParent) {
-                originalParent.appendChild(paymentSection);
-            }
-            // Make it optional again
-            paymentSection.classList.remove('border-danger');
-            paymentSection.classList.add('border-warning');
+            registrationFieldsSection.style.display = 'block';
         }
     }
     
