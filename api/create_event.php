@@ -46,6 +46,30 @@ try {
         // 3. Create the event in events_eventdata
         $eventId = bin2hex(random_bytes(16));
         
+        // Validate registration_type and payment_timing
+        $registrationType = $data['registration_type'] ?? 'signup';
+        $paymentTiming = 'arrival'; // Default to arrival only
+        
+        // Calculate payment_timing based on selected options
+        $hasEconomyPayment = false;
+        if (isset($data['payment_timing_methods']) && is_array($data['payment_timing_methods'])) {
+            foreach ($data['payment_timing_methods'] as $method) {
+                if ($method !== 'arrival') {
+                    $hasEconomyPayment = true;
+                    break;
+                }
+            }
+        }
+        
+        if ($hasEconomyPayment) {
+            $paymentTiming = 'both'; // Both arrival and economy payment methods
+        }
+        
+        // Validate binding type requires payment method
+        if ($registrationType === 'binding' && !$hasEconomyPayment) {
+            throw new Exception('Bindende arrangement krever at minst én betalingsmetode fra economy er valgt');
+        }
+        
         $stmt = $db->prepare("
             INSERT INTO events_eventdata (
                 id,
@@ -67,8 +91,12 @@ try {
                 end_date,
                 event_image_url,
                 ticket_price,
+                registration_type,
+                payment_timing,
                 created_by
             ) VALUES (
+                ?,
+                ?,
                 ?,
                 ?,
                 ?,
@@ -112,6 +140,8 @@ try {
             $data['end_date'] ?? null,
             $data['event_image_url'] ?? null,
             $data['ticket_price'] ?? 0,
+            $registrationType,
+            $paymentTiming,
             $_SESSION['tenant_admin_id']
         ]);
         

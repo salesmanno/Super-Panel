@@ -214,6 +214,44 @@ try {
                         <?php endif; ?>
                     </div>
                     
+                    <div class="card border-success mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0"><i class="bi bi-check-circle me-2"></i>Registreringstype</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">Velg hvordan deltakere registrerer seg til arrangementet</p>
+                            <div class="row">
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="registration_type" id="reg-signup" value="signup" checked>
+                                        <label class="form-check-label" for="reg-signup">
+                                            <i class="bi bi-person-plus text-primary me-1"></i> <strong>Påmelding</strong><br>
+                                            <small class="text-muted">Deltakere melder seg på</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="registration_type" id="reg-none" value="none">
+                                        <label class="form-check-label" for="reg-none">
+                                            <i class="bi bi-x-circle text-secondary me-1"></i> <strong>Ingen påmelding</strong><br>
+                                            <small class="text-muted">Fritt arrangement uten registrering</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="registration_type" id="reg-binding" value="binding">
+                                        <label class="form-check-label" for="reg-binding">
+                                            <i class="bi bi-lock text-warning me-1"></i> <strong>Bindende</strong><br>
+                                            <small class="text-muted">Krever betaling ved påmelding</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="mb-3">
                         <label class="form-label">Beskrivelse</label>
                         <textarea class="form-control" name="description" rows="3"></textarea>
@@ -314,6 +352,32 @@ try {
                                 <div class="text-center py-3">
                                     <div class="spinner-border spinner-border-sm text-primary me-2"></div>
                                     <small class="text-muted">Laster betalingsmetoder...</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card border-warning mb-3" id="payment-timing-section">
+                        <div class="card-header bg-warning text-dark">
+                            <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Oppgjør av reservasjon</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">Velg når deltakere skal betale for arrangementet</p>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input payment-timing-option" type="checkbox" name="payment_timing_arrival" id="payment-arrival" value="arrival" checked disabled>
+                                        <label class="form-check-label text-muted" for="payment-arrival">
+                                            <i class="bi bi-cash-stack me-1"></i> <strong>Ved oppmøte</strong> <small>(alltid tilgjengelig)</small><br>
+                                            <small class="text-muted">Deltakere betaler når de møter opp</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6" id="payment-timing-economy-container">
+                                    <div class="text-center py-2">
+                                        <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                                        <small class="text-muted">Laster betalingsmetoder...</small>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1097,6 +1161,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 allowedPaymentMethods.push(checkbox.dataset.methodType);
             });
             
+            // Collect payment timing methods
+            const paymentTimingMethods = ['arrival']; // Always include arrival
+            document.querySelectorAll('.payment-timing-option:checked:not([disabled])').forEach(checkbox => {
+                if (checkbox.value && checkbox.value !== 'arrival') {
+                    paymentTimingMethods.push(checkbox.value);
+                }
+            });
+            
             const data = {
                 title: formData.get('title'),
                 description: formData.get('description'),
@@ -1115,9 +1187,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 ticket_price: formData.get('ticket_price') || 0,
                 event_image_url: formData.get('event_image_url') || null,
                 is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
+                registration_type: formData.get('registration_type') || 'signup',
+                payment_timing_methods: paymentTimingMethods,
                 membership_pricing: membershipPricing,
                 allowed_payment_methods: allowedPaymentMethods,
                 // Registration fields
+                field_email: formData.get('field_email') ? 1 : 0,
                 field_phone: formData.get('field_phone') ? 1 : 0,
                 field_street: formData.get('field_street') ? 1 : 0,
                 field_zip: formData.get('field_zip') ? 1 : 0,
@@ -2477,4 +2552,95 @@ async function loadPaymentMethodsForEdit(selectedMethods = []) {
         container.innerHTML = '<p class="text-danger small mb-0">Feil ved lasting av betalingsmetoder</p>';
     }
 }
+
+// Load economy payment methods for payment timing
+async function loadEconomyPaymentMethods() {
+    const container = document.getElementById('payment-timing-economy-container');
+    if (!container) return;
+    
+    try {
+        const response = await fetch('/api/get_payment_methods.php');
+        const result = await response.json();
+        
+        if (result.success && result.payment_methods && result.payment_methods.length > 0) {
+            // Filter out cash (already shown as disabled "arrival")
+            const economyMethods = result.payment_methods.filter(m => m.method_type !== 'cash' && m.is_active);
+            
+            if (economyMethods.length > 0) {
+                container.innerHTML = economyMethods.map(method => `
+                    <div class="form-check mb-2">
+                        <input class="form-check-input payment-timing-option" type="checkbox" 
+                               name="payment_timing_${method.method_type}" 
+                               id="payment-timing-${method.method_type}"
+                               value="${method.method_type}">
+                        <label class="form-check-label" for="payment-timing-${method.method_type}">
+                            <i class="bi bi-${method.method_type === 'card' ? 'credit-card' : 'wallet2'} me-1"></i> <strong>${method.method_name}</strong><br>
+                            <small class="text-muted">Betaling ved reservasjon</small>
+                        </label>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = '<p class="text-muted small mb-0">Ingen betalingsmetoder fra economy tilgjengelig</p>';
+            }
+        } else {
+            container.innerHTML = '<p class="text-muted small mb-0">Ingen betalingsmetoder funnet</p>';
+        }
+    } catch (error) {
+        console.error('Error loading economy payment methods:', error);
+        container.innerHTML = '<p class="text-danger small mb-0">Feil ved lasting</p>';
+    }
+}
+
+// Handle registration type changes
+const registrationTypeRadios = document.querySelectorAll('input[name="registration_type"]');
+const paymentTimingSection = document.getElementById('payment-timing-section');
+const registrationFieldsSection = document.querySelector('.card.border-primary'); // Påmeldingsfelt section
+
+if (registrationTypeRadios.length > 0 && paymentTimingSection) {
+    // Store original parent and position for moving section
+    const originalParent = paymentTimingSection.parentElement;
+    const registrationTypeCard = document.querySelector('.card.border-success');
+    
+    function handleRegistrationTypeChange() {
+        const selectedType = document.querySelector('input[name="registration_type"]:checked').value;
+        
+        // Show/hide påmeldingsfelt section based on type
+        if (registrationFieldsSection) {
+            if (selectedType === 'none') {
+                registrationFieldsSection.style.display = 'none';
+            } else {
+                registrationFieldsSection.style.display = 'block';
+            }
+        }
+        
+        // Move payment timing section based on type
+        if (selectedType === 'binding') {
+            // Move after registration type section (before description)
+            if (registrationTypeCard && registrationTypeCard.nextElementSibling !== paymentTimingSection) {
+                registrationTypeCard.insertAdjacentElement('afterend', paymentTimingSection);
+            }
+            // Make it required for binding
+            paymentTimingSection.querySelector('.card-header').classList.remove('bg-warning');
+            paymentTimingSection.querySelector('.card-header').classList.add('bg-danger', 'text-white');
+            paymentTimingSection.querySelector('.card-header h6').innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Oppgjør av reservasjon (påkrevd for bindende arrangement)';
+        } else {
+            // Move back to original position (after tillatte betalingsmetoder)
+            const paymentMethodsSection = document.querySelector('.card.border-info');
+            if (paymentMethodsSection && paymentMethodsSection.nextElementSibling !== paymentTimingSection) {
+                paymentMethodsSection.insertAdjacentElement('afterend', paymentTimingSection);
+            }
+            // Make it optional again
+            paymentTimingSection.querySelector('.card-header').classList.remove('bg-danger', 'text-white');
+            paymentTimingSection.querySelector('.card-header').classList.add('bg-warning', 'text-dark');
+            paymentTimingSection.querySelector('.card-header h6').innerHTML = '<i class="bi bi-clock-history me-2"></i>Oppgjør av reservasjon';
+        }
+    }
+    
+    registrationTypeRadios.forEach(radio => {
+        radio.addEventListener('change', handleRegistrationTypeChange);
+    });
+}
+
+// Load economy payment methods on page load
+loadEconomyPaymentMethods();
 </script>

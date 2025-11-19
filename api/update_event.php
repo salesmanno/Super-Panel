@@ -43,6 +43,42 @@ try {
             throw new Exception('Arrangement ikke funnet');
         }
         
+        // Validate registration_type and payment_timing
+        // If payment_timing_methods is not provided, fetch existing data to avoid breaking edits
+        $registrationType = $data['registration_type'] ?? null;
+        $paymentTiming = null;
+        
+        if (isset($data['payment_timing_methods']) && is_array($data['payment_timing_methods'])) {
+            // New flow: calculate from provided data
+            $hasEconomyPayment = false;
+            foreach ($data['payment_timing_methods'] as $method) {
+                if ($method !== 'arrival') {
+                    $hasEconomyPayment = true;
+                    break;
+                }
+            }
+            
+            $paymentTiming = $hasEconomyPayment ? 'both' : 'arrival';
+            
+            // Validate binding type requires payment method
+            if ($registrationType === 'binding' && !$hasEconomyPayment) {
+                throw new Exception('Bindende arrangement krever at minst én betalingsmetode fra economy er valgt');
+            }
+        } else {
+            // Legacy flow: fetch existing values from database
+            $stmt = $db->prepare("SELECT registration_type, payment_timing FROM events_eventdata WHERE id = ? AND company_id = ?");
+            $stmt->execute([$data['event_id'], $_SESSION['company_id']]);
+            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($existing) {
+                $registrationType = $registrationType ?? $existing['registration_type'] ?? 'signup';
+                $paymentTiming = $existing['payment_timing'] ?? 'arrival';
+            } else {
+                $registrationType = $registrationType ?? 'signup';
+                $paymentTiming = 'arrival';
+            }
+        }
+        
         // Update the event in events_eventdata
         $stmt = $db->prepare("
             UPDATE events_eventdata SET
@@ -64,7 +100,9 @@ try {
                 event_image_url = ?,
                 ticket_price = ?,
                 member_ticket_price = ?,
-                default_payment_method = ?
+                default_payment_method = ?,
+                registration_type = ?,
+                payment_timing = ?
             WHERE id = ? AND company_id = ?
         ");
         
@@ -88,6 +126,8 @@ try {
             $data['ticket_price'] ?? 0,
             $data['member_ticket_price'] ?? null,
             $data['default_payment_method'] ?? null,
+            $registrationType,
+            $paymentTiming,
             $data['event_id'],
             $_SESSION['company_id']
         ]);
