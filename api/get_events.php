@@ -19,6 +19,7 @@ try {
             e.description,
             e.max_attendees,
             e.min_attendees,
+            e.registration_deadline,
             e.age_limit,
             e.is_member_exclusive,
             e.event_address,
@@ -33,6 +34,9 @@ try {
             e.ticket_price,
             e.member_ticket_price,
             e.registration_type,
+            e.payment_timing,
+            e.payment_methods_json,
+            e.default_payment_method,
             e.output_product_id,
             e.created_by,
             e.created_at,
@@ -47,10 +51,11 @@ try {
         LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
         LEFT JOIN events_checkin ec ON e.id = ec.event_id
         WHERE e.company_id = ? AND e.is_active = TRUE
-        GROUP BY e.id, e.title, e.description, e.max_attendees, e.min_attendees, e.age_limit, 
+        GROUP BY e.id, e.title, e.description, e.max_attendees, e.min_attendees, e.registration_deadline, e.age_limit, 
                  e.is_member_exclusive, e.event_address, e.event_city, e.event_postal, e.venue_name,
                  e.start_time, e.start_date, e.end_time, e.end_date, e.event_image_url, 
-                 e.ticket_price, e.member_ticket_price, e.registration_type, e.output_product_id, e.created_by, e.created_at,
+                 e.ticket_price, e.member_ticket_price, e.registration_type, e.payment_timing, e.payment_methods_json,
+                 e.default_payment_method, e.output_product_id, e.created_by, e.created_at,
                  op.is_visible, op.is_public, ts.first_name, ts.last_name
         ORDER BY e.start_date DESC, e.start_time DESC
     ");
