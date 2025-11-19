@@ -477,8 +477,8 @@ if (isset($_GET['message'])) {
         let isForgotPasswordMode = false;
         
         document.addEventListener('DOMContentLoaded', function() {
-            // SSE removed - news now shown as static section on dashboard
-            // connectToNewsStream();
+            // Load news via fetch instead of SSE (works better with PHP built-in server)
+            loadNews();
             checkDatabaseStatus();
             // Check database status every 10 seconds
             dbCheckInterval = setInterval(checkDatabaseStatus, 10000);
@@ -576,43 +576,21 @@ if (isset($_GET['message'])) {
                 });
         }
         
-        function connectToNewsStream() {
-            if (eventSource) {
-                eventSource.close();
-            }
-            
-            eventSource = new EventSource('/api/news_stream.php');
-            
-            eventSource.onopen = function() {
-                console.log('SSE connection established');
-                if (reconnectTimeout) {
-                    clearTimeout(reconnectTimeout);
-                    reconnectTimeout = null;
-                }
-            };
-            
-            eventSource.onmessage = function(event) {
-                try {
-                    const data = JSON.parse(event.data);
+        function loadNews() {
+            fetch('/api/get_news.php')
+                .then(response => response.json())
+                .then(data => {
                     updateNewsDisplay(data);
-                } catch (error) {
-                    console.error('Error parsing SSE data:', error);
-                }
-            };
-            
-            eventSource.onerror = function(error) {
-                console.error('SSE error:', error);
-                eventSource.close();
-                
-                document.getElementById('news-content').innerHTML = `
-                    <div class="news-loading">
-                        <i class="bi bi-exclamation-triangle fs-2 mb-3 d-block"></i>
-                        <p>Mistet tilkobling. Prøver å koble til igjen...</p>
-                    </div>
-                `;
-                
-                reconnectTimeout = setTimeout(connectToNewsStream, 5000);
-            };
+                })
+                .catch(error => {
+                    console.error('Error loading news:', error);
+                    document.getElementById('news-content').innerHTML = `
+                        <div class="news-loading">
+                            <i class="bi bi-exclamation-triangle fs-2 mb-3 d-block"></i>
+                            <p>Kunne ikke laste nyheter. Prøv igjen senere.</p>
+                        </div>
+                    `;
+                });
         }
         
         function updateNewsDisplay(data) {
