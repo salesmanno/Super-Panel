@@ -1080,26 +1080,33 @@ async function loadEvents() {
                 const dateStr = startDate.toLocaleDateString('no-NO', { day: 'numeric', month: 'short', year: 'numeric' });
                 const timeStr = event.start_time ? event.start_time.substring(0, 5) : '';
                 
+                // Registration type display names
+                const registrationTypeNames = {
+                    'none': 'Ingen påmelding',
+                    'signup': 'Påmelding',
+                    'binding': 'Bindende påmelding'
+                };
+                const registrationTypeBadge = registrationTypeNames[event.registration_type] || '';
+                
                 // Check if "Ingen påmelding" (no registration) event
                 const isNoRegistration = event.registration_type === 'none';
                 
-                let priceDisplay = '<span class="event-price event-price-free">Gratis arrangement – ingen påmelding</span>';
+                let priceDisplay = '<span class="event-price event-price-free">Gratis</span>';
                 if (!isNoRegistration) {
                     // Check if member-exclusive event
                     if (event.is_member_exclusive && event.membership_prices && event.membership_prices.length > 0) {
-                        // Show membership prices (shortened plan names)
+                        // Show membership prices with large price and small plan name
                         const prices = event.membership_prices
                             .filter(mp => mp.public_display !== 0)
                             .map(mp => {
-                                const shortName = mp.plan_name.length > 15 ? mp.plan_name.substring(0, 15) + '...' : mp.plan_name;
-                                return `${mp.price} kr (${shortName})`;
+                                return `<div><span class="event-price">${mp.price} kr</span><br><small class="text-muted" style="font-size: 0.7rem;">${mp.plan_name}</small></div>`;
                             })
-                            .join('<br>');
-                        priceDisplay = prices ? `<span class="event-price">${prices}</span>` : '<span class="event-price event-price-free">Kun medlemmer</span>';
+                            .join('');
+                        priceDisplay = prices || '<span class="event-price event-price-free">Kun medlemmer</span>';
                     } else if (event.ticket_price > 0) {
                         priceDisplay = `<span class="event-price">${event.ticket_price} kr</span>`;
                         if (event.member_ticket_price !== null && event.member_ticket_price !== undefined && event.member_ticket_price > 0) {
-                            priceDisplay += `<br><small class="text-muted">${event.member_ticket_price} kr (medlem)</small>`;
+                            priceDisplay += `<br><small class="text-muted" style="font-size: 0.7rem;">${event.member_ticket_price} kr (medlem)</small>`;
                         }
                     } else {
                         priceDisplay = '<span class="event-price event-price-free">Gratis</span>';
@@ -1114,7 +1121,13 @@ async function loadEvents() {
                     ? '<span class="badge bg-warning event-badge-overlay">Kun medlemmer</span>' 
                     : '';
                 
-                const location = event.venue_name || event.event_city || 'Ikke angitt';
+                // Build location with address and city/venue
+                let locationParts = [];
+                if (event.event_address) locationParts.push(event.event_address);
+                if (event.venue_name) locationParts.push(event.venue_name);
+                if (event.event_city) locationParts.push(event.event_city);
+                const location = locationParts.length > 0 ? locationParts.join(', ') : 'Ikke angitt';
+                
                 const capacity = event.max_attendees ? `${event.current_attendees || 0} / ${event.max_attendees}` : 'Ubegrenset';
                 const createdBy = (event.first_name && event.last_name) 
                     ? `${event.first_name} ${event.last_name}` 
@@ -1152,7 +1165,7 @@ async function loadEvents() {
                             ${imageHtml}
                             ${memberBadge}
                             <div class="event-body" onclick="toggleEventResults('${event.id}')" style="cursor: pointer;">
-                                <h5 class="event-title">${event.title}</h5>
+                                <h5 class="event-title">${event.title} <small class="text-muted" style="font-size: 0.75rem;">(${registrationTypeBadge})</small></h5>
                                 <div class="event-meta">
                                     ${metaItems}
                                 </div>
