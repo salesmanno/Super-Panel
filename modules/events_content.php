@@ -1152,11 +1152,18 @@ async function loadEvents() {
                 const dateStr = startDate.toLocaleDateString('no-NO', { day: 'numeric', month: 'short', year: 'numeric' });
                 const timeStr = event.start_time ? event.start_time.substring(0, 5) : '';
                 
-                let priceDisplay = '<span class="event-price event-price-free">Gratis</span>';
-                if (event.ticket_price > 0) {
-                    priceDisplay = `<span class="event-price">${event.ticket_price} kr</span>`;
-                    if (event.member_ticket_price !== null && event.member_ticket_price !== undefined && event.member_ticket_price > 0) {
-                        priceDisplay += `<br><small class="text-muted">${event.member_ticket_price} kr (medlem)</small>`;
+                // Check if "Ingen påmelding" (no registration) event
+                const isNoRegistration = event.registration_type === 'none';
+                
+                let priceDisplay = '<span class="event-price event-price-free">Gratis arrangement – ingen påmelding</span>';
+                if (!isNoRegistration) {
+                    if (event.ticket_price > 0) {
+                        priceDisplay = `<span class="event-price">${event.ticket_price} kr</span>`;
+                        if (event.member_ticket_price !== null && event.member_ticket_price !== undefined && event.member_ticket_price > 0) {
+                            priceDisplay += `<br><small class="text-muted">${event.member_ticket_price} kr (medlem)</small>`;
+                        }
+                    } else {
+                        priceDisplay = '<span class="event-price event-price-free">Gratis</span>';
                     }
                 }
                 
@@ -1174,6 +1181,32 @@ async function loadEvents() {
                     ? `${event.first_name} ${event.last_name}` 
                     : 'Ukjent bruker';
                 
+                // Build meta items based on registration type
+                let metaItems = `
+                    <div class="event-meta-item">
+                        <i class="bi bi-calendar3"></i>
+                        <span>${dateStr} ${timeStr}</span>
+                    </div>
+                    <div class="event-meta-item">
+                        <i class="bi bi-geo-alt"></i>
+                        <span>${location}</span>
+                    </div>`;
+                
+                // Only show participant capacity if NOT "Ingen påmelding"
+                if (!isNoRegistration) {
+                    metaItems += `
+                    <div class="event-meta-item">
+                        <i class="bi bi-people"></i>
+                        <span>${capacity} plasser</span>
+                    </div>`;
+                }
+                
+                metaItems += `
+                    <div class="event-meta-item">
+                        <i class="bi bi-person-circle"></i>
+                        <span>Opprettet av ${createdBy}</span>
+                    </div>`;
+                
                 return `
                     <div class="col-md-4">
                         <div class="event-card">
@@ -1182,22 +1215,7 @@ async function loadEvents() {
                             <div class="event-body" onclick="toggleEventResults('${event.id}')" style="cursor: pointer;">
                                 <h5 class="event-title">${event.title}</h5>
                                 <div class="event-meta">
-                                    <div class="event-meta-item">
-                                        <i class="bi bi-calendar3"></i>
-                                        <span>${dateStr} ${timeStr}</span>
-                                    </div>
-                                    <div class="event-meta-item">
-                                        <i class="bi bi-geo-alt"></i>
-                                        <span>${location}</span>
-                                    </div>
-                                    <div class="event-meta-item">
-                                        <i class="bi bi-people"></i>
-                                        <span>${capacity} plasser</span>
-                                    </div>
-                                    <div class="event-meta-item">
-                                        <i class="bi bi-person-circle"></i>
-                                        <span>Opprettet av ${createdBy}</span>
-                                    </div>
+                                    ${metaItems}
                                 </div>
                             </div>
                             <div class="event-footer">
@@ -2487,25 +2505,74 @@ async function loadPaymentMethodsForEdit(selectedMethods = []) {
     }
 }
 
-// Handle registration type changes - show/hide registration fields
+// Handle registration type changes - show/hide sections for "Ingen påmelding"
 const registrationTypeRadios = document.querySelectorAll('input[name="registration_type"]');
 const registrationFieldsSection = document.getElementById('registration-fields-section');
 
-if (registrationTypeRadios.length > 0 && registrationFieldsSection) {
+if (registrationTypeRadios.length > 0) {
     function handleRegistrationTypeChange() {
         const selectedType = document.querySelector('input[name="registration_type"]:checked').value;
+        const isNone = selectedType === 'none';
         
-        // Show/hide påmeldingsfelt section based on type
-        if (selectedType === 'none') {
-            registrationFieldsSection.style.display = 'none';
-        } else {
-            registrationFieldsSection.style.display = 'block';
+        // Show/hide påmeldingsfelt section
+        if (registrationFieldsSection) {
+            registrationFieldsSection.style.display = isNone ? 'none' : 'block';
+        }
+        
+        // Show/hide participant limits and ticket price
+        const minAttendeesInput = document.querySelector('input[name="min_attendees"]');
+        const maxAttendeesInput = document.querySelector('input[name="max_attendees"]');
+        const ticketPriceInput = document.querySelector('input[name="ticket_price"]');
+        const regDeadlineContainer = document.getElementById('registration_deadline_container');
+        
+        if (minAttendeesInput) minAttendeesInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
+        if (maxAttendeesInput) maxAttendeesInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
+        if (ticketPriceInput) ticketPriceInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
+        if (regDeadlineContainer) regDeadlineContainer.style.display = 'none';
+        
+        // Show/hide membership pricing section
+        const membershipPricingContainer = document.getElementById('membership-pricing-container');
+        if (membershipPricingContainer) {
+            const membershipSection = membershipPricingContainer.closest('div').previousElementSibling;
+            if (membershipSection && membershipSection.tagName === 'HR') {
+                membershipSection.style.display = isNone ? 'none' : 'block';
+            }
+            const membershipHeader = membershipPricingContainer.previousElementSibling;
+            if (membershipHeader && membershipHeader.tagName === 'H6') {
+                membershipHeader.style.display = isNone ? 'none' : 'block';
+            }
+            membershipPricingContainer.style.display = isNone ? 'none' : 'block';
+        }
+        
+        // Show/hide payment methods section
+        const paymentSection = document.getElementById('payment-section');
+        const paymentMethodsContainer = document.getElementById('payment-methods-container');
+        const paymentTimingStatus = document.getElementById('payment-timing-status');
+        
+        if (paymentSection) {
+            const paymentHeader = paymentSection.nextElementSibling;
+            if (paymentHeader && paymentHeader.tagName === 'H6') {
+                paymentHeader.style.display = isNone ? 'none' : 'block';
+            }
+            paymentSection.style.display = isNone ? 'none' : 'block';
+        }
+        if (paymentMethodsContainer) paymentMethodsContainer.style.display = isNone ? 'none' : 'block';
+        if (paymentTimingStatus) paymentTimingStatus.closest('p').style.display = isNone ? 'none' : 'block';
+        
+        // Clear values when "Ingen påmelding" is selected
+        if (isNone) {
+            if (ticketPriceInput) ticketPriceInput.value = '0';
+            if (minAttendeesInput) minAttendeesInput.value = '';
+            if (maxAttendeesInput) maxAttendeesInput.value = '';
         }
     }
     
     registrationTypeRadios.forEach(radio => {
         radio.addEventListener('change', handleRegistrationTypeChange);
     });
+    
+    // Run on page load
+    handleRegistrationTypeChange();
 }
 
 </script>

@@ -79,6 +79,19 @@ try {
             }
         }
         
+        // ENFORCE: "Ingen påmelding" must be free (no pricing, no participant limits)
+        if ($registrationType === 'none') {
+            $data['ticket_price'] = 0;
+            $data['member_ticket_price'] = null;
+            $data['max_attendees'] = null;
+            $data['min_attendees'] = null;
+            $data['registration_deadline'] = null;
+            
+            // Delete all membership pricing for this event
+            $stmt = $db->prepare("DELETE FROM event_membership_plans WHERE event_id = ?");
+            $stmt->execute([$data['event_id']]);
+        }
+        
         // Update the event in events_eventdata
         $stmt = $db->prepare("
             UPDATE events_eventdata SET
@@ -132,80 +145,86 @@ try {
             $_SESSION['company_id']
         ]);
         
-        // Update registration fields config
-        // Validate that at least one contact field (email or phone) is selected
-        $hasEmail = isset($data['field_email']) && $data['field_email'];
-        $hasPhone = isset($data['field_phone']) && $data['field_phone'];
-        
-        if (!$hasEmail && !$hasPhone) {
-            throw new Exception('Minst ett kontaktfelt (E-post eller Telefonnummer) må være valgt');
-        }
-        
-        // Delete all existing fields except required name fields
-        $stmt = $db->prepare("
-            DELETE FROM event_registration_fields 
-            WHERE event_id = ? AND field_name NOT IN ('first_name', 'last_name')
-        ");
-        $stmt->execute([$data['event_id']]);
-        
-        // Add contact fields (email and/or phone) - at least one required
-        $contactFields = [
-            'email' => ['label' => 'E-postadresse', 'type' => 'email', 'required' => false],
-            'phone' => ['label' => 'Telefonnummer', 'type' => 'tel', 'required' => false]
-        ];
-        
-        $displayOrder = 3; // After first_name (1) and last_name (2)
-        foreach ($contactFields as $fieldName => $fieldConfig) {
-            if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
-                $fieldId = bin2hex(random_bytes(16));
-                $stmt = $db->prepare("
-                    INSERT INTO event_registration_fields (
-                        id, event_id, field_name, field_label, field_type,
-                        is_required, is_visible, display_order
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ");
-                $stmt->execute([
-                    $fieldId,
-                    $data['event_id'],
-                    $fieldName,
-                    $fieldConfig['label'],
-                    $fieldConfig['type'],
-                    (int)$fieldConfig['required'],
-                    1,
-                    $displayOrder++
-                ]);
+        // Update registration fields config (skip for 'none' type)
+        if ($registrationType !== 'none') {
+            // Validate that at least one contact field (email or phone) is selected
+            $hasEmail = isset($data['field_email']) && $data['field_email'];
+            $hasPhone = isset($data['field_phone']) && $data['field_phone'];
+            
+            if (!$hasEmail && !$hasPhone) {
+                throw new Exception('Minst ett kontaktfelt (E-post eller Telefonnummer) må være valgt');
             }
-        }
-        
-        // Add other optional fields if selected
-        $optionalFields = [
-            'street' => ['label' => 'Gateadresse', 'type' => 'text'],
-            'zip' => ['label' => 'Postnummer', 'type' => 'text'],
-            'city' => ['label' => 'Poststed', 'type' => 'text'],
-            'postal' => ['label' => 'Postboks', 'type' => 'text'],
-            'age' => ['label' => 'Alder', 'type' => 'number']
-        ];
-        
-        foreach ($optionalFields as $fieldName => $fieldConfig) {
-            if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
-                $fieldId = bin2hex(random_bytes(16));
-                $stmt = $db->prepare("
-                    INSERT INTO event_registration_fields (
-                        id, event_id, field_name, field_label, field_type,
-                        is_required, is_visible, display_order
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ");
-                $stmt->execute([
-                    $fieldId,
-                    $data['event_id'],
-                    $fieldName,
-                    $fieldConfig['label'],
-                    $fieldConfig['type'],
-                    0,
-                    1,
-                    $displayOrder++
-                ]);
+            
+            // Delete all existing fields except required name fields
+            $stmt = $db->prepare("
+                DELETE FROM event_registration_fields 
+                WHERE event_id = ? AND field_name NOT IN ('first_name', 'last_name')
+            ");
+            $stmt->execute([$data['event_id']]);
+            
+            // Add contact fields (email and/or phone) - at least one required
+            $contactFields = [
+                'email' => ['label' => 'E-postadresse', 'type' => 'email', 'required' => false],
+                'phone' => ['label' => 'Telefonnummer', 'type' => 'tel', 'required' => false]
+            ];
+            
+            $displayOrder = 3; // After first_name (1) and last_name (2)
+            foreach ($contactFields as $fieldName => $fieldConfig) {
+                if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
+                    $fieldId = bin2hex(random_bytes(16));
+                    $stmt = $db->prepare("
+                        INSERT INTO event_registration_fields (
+                            id, event_id, field_name, field_label, field_type,
+                            is_required, is_visible, display_order
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ");
+                    $stmt->execute([
+                        $fieldId,
+                        $data['event_id'],
+                        $fieldName,
+                        $fieldConfig['label'],
+                        $fieldConfig['type'],
+                        (int)$fieldConfig['required'],
+                        1,
+                        $displayOrder++
+                    ]);
+                }
             }
+            
+            // Add other optional fields if selected
+            $optionalFields = [
+                'street' => ['label' => 'Gateadresse', 'type' => 'text'],
+                'zip' => ['label' => 'Postnummer', 'type' => 'text'],
+                'city' => ['label' => 'Poststed', 'type' => 'text'],
+                'postal' => ['label' => 'Postboks', 'type' => 'text'],
+                'age' => ['label' => 'Alder', 'type' => 'number']
+            ];
+            
+            foreach ($optionalFields as $fieldName => $fieldConfig) {
+                if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
+                    $fieldId = bin2hex(random_bytes(16));
+                    $stmt = $db->prepare("
+                        INSERT INTO event_registration_fields (
+                            id, event_id, field_name, field_label, field_type,
+                            is_required, is_visible, display_order
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ");
+                    $stmt->execute([
+                        $fieldId,
+                        $data['event_id'],
+                        $fieldName,
+                        $fieldConfig['label'],
+                        $fieldConfig['type'],
+                        0,
+                        1,
+                        $displayOrder++
+                    ]);
+                }
+            }
+        } else {
+            // For 'none' type, delete all registration fields
+            $stmt = $db->prepare("DELETE FROM event_registration_fields WHERE event_id = ?");
+            $stmt->execute([$data['event_id']]);
         }
         
         // Update allowed payment methods

@@ -50,6 +50,15 @@ try {
         $registrationType = $data['registration_type'] ?? 'signup';
         $paymentTiming = 'arrival'; // Default to arrival only
         
+        // ENFORCE: "Ingen påmelding" must be free (no pricing, no participant limits)
+        if ($registrationType === 'none') {
+            $data['ticket_price'] = 0;
+            $data['max_attendees'] = null;
+            $data['min_attendees'] = null;
+            $data['registration_deadline'] = null;
+            // Skip registration fields and membership pricing for 'none' type
+        }
+        
         // Calculate payment_timing based on selected options
         $hasEconomyPayment = false;
         if (isset($data['payment_timing_methods']) && is_array($data['payment_timing_methods'])) {
@@ -145,50 +154,24 @@ try {
             $_SESSION['tenant_admin_id']
         ]);
         
-        // 2. Save registration fields config
-        // Validate that at least one contact field (email or phone) is selected
-        $hasEmail = isset($data['field_email']) && $data['field_email'];
-        $hasPhone = isset($data['field_phone']) && $data['field_phone'];
-        
-        if (!$hasEmail && !$hasPhone) {
-            throw new Exception('Minst ett kontaktfelt (E-post eller Telefonnummer) må være valgt');
-        }
-        
-        // Always add required name fields first
-        $requiredFields = [
-            'first_name' => ['label' => 'Fornavn', 'type' => 'text', 'required' => true],
-            'last_name' => ['label' => 'Etternavn', 'type' => 'text', 'required' => true]
-        ];
-        
-        $displayOrder = 1;
-        foreach ($requiredFields as $fieldName => $fieldConfig) {
-            $fieldId = bin2hex(random_bytes(16));
-            $stmt = $db->prepare("
-                INSERT INTO event_registration_fields (
-                    id, event_id, field_name, field_label, field_type,
-                    is_required, is_visible, display_order
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ");
-            $stmt->execute([
-                $fieldId,
-                $eventId,
-                $fieldName,
-                $fieldConfig['label'],
-                $fieldConfig['type'],
-                (int)$fieldConfig['required'],
-                1,
-                $displayOrder++
-            ]);
-        }
-        
-        // Add contact fields (email and/or phone) - at least one required
-        $contactFields = [
-            'email' => ['label' => 'E-postadresse', 'type' => 'email', 'required' => false],
-            'phone' => ['label' => 'Telefonnummer', 'type' => 'tel', 'required' => false]
-        ];
-        
-        foreach ($contactFields as $fieldName => $fieldConfig) {
-            if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
+        // 2. Save registration fields config (skip for 'none' type)
+        if ($registrationType !== 'none') {
+            // Validate that at least one contact field (email or phone) is selected
+            $hasEmail = isset($data['field_email']) && $data['field_email'];
+            $hasPhone = isset($data['field_phone']) && $data['field_phone'];
+            
+            if (!$hasEmail && !$hasPhone) {
+                throw new Exception('Minst ett kontaktfelt (E-post eller Telefonnummer) må være valgt');
+            }
+            
+            // Always add required name fields first
+            $requiredFields = [
+                'first_name' => ['label' => 'Fornavn', 'type' => 'text', 'required' => true],
+                'last_name' => ['label' => 'Etternavn', 'type' => 'text', 'required' => true]
+            ];
+            
+            $displayOrder = 1;
+            foreach ($requiredFields as $fieldName => $fieldConfig) {
                 $fieldId = bin2hex(random_bytes(16));
                 $stmt = $db->prepare("
                     INSERT INTO event_registration_fields (
@@ -207,41 +190,69 @@ try {
                     $displayOrder++
                 ]);
             }
-        }
-        
-        // Then add other optional fields if selected
-        $optionalFields = [
-            'street' => ['label' => 'Gateadresse', 'type' => 'text'],
-            'zip' => ['label' => 'Postnummer', 'type' => 'text'],
-            'city' => ['label' => 'Poststed', 'type' => 'text'],
-            'postal' => ['label' => 'Postboks', 'type' => 'text'],
-            'age' => ['label' => 'Alder', 'type' => 'number']
-        ];
-        
-        foreach ($optionalFields as $fieldName => $fieldConfig) {
-            if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
-                $fieldId = bin2hex(random_bytes(16));
-                $stmt = $db->prepare("
-                    INSERT INTO event_registration_fields (
-                        id, event_id, field_name, field_label, field_type,
-                        is_required, is_visible, display_order
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ");
-                $stmt->execute([
-                    $fieldId,
-                    $eventId,
-                    $fieldName,
-                    $fieldConfig['label'],
-                    $fieldConfig['type'],
-                    0,
-                    1,
-                    $displayOrder++
-                ]);
+            
+            // Add contact fields (email and/or phone) - at least one required
+            $contactFields = [
+                'email' => ['label' => 'E-postadresse', 'type' => 'email', 'required' => false],
+                'phone' => ['label' => 'Telefonnummer', 'type' => 'tel', 'required' => false]
+            ];
+            
+            foreach ($contactFields as $fieldName => $fieldConfig) {
+                if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
+                    $fieldId = bin2hex(random_bytes(16));
+                    $stmt = $db->prepare("
+                        INSERT INTO event_registration_fields (
+                            id, event_id, field_name, field_label, field_type,
+                            is_required, is_visible, display_order
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ");
+                    $stmt->execute([
+                        $fieldId,
+                        $eventId,
+                        $fieldName,
+                        $fieldConfig['label'],
+                        $fieldConfig['type'],
+                        (int)$fieldConfig['required'],
+                        1,
+                        $displayOrder++
+                    ]);
+                }
+            }
+            
+            // Then add other optional fields if selected
+            $optionalFields = [
+                'street' => ['label' => 'Gateadresse', 'type' => 'text'],
+                'zip' => ['label' => 'Postnummer', 'type' => 'text'],
+                'city' => ['label' => 'Poststed', 'type' => 'text'],
+                'postal' => ['label' => 'Postboks', 'type' => 'text'],
+                'age' => ['label' => 'Alder', 'type' => 'number']
+            ];
+            
+            foreach ($optionalFields as $fieldName => $fieldConfig) {
+                if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
+                    $fieldId = bin2hex(random_bytes(16));
+                    $stmt = $db->prepare("
+                        INSERT INTO event_registration_fields (
+                            id, event_id, field_name, field_label, field_type,
+                            is_required, is_visible, display_order
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ");
+                    $stmt->execute([
+                        $fieldId,
+                        $eventId,
+                        $fieldName,
+                        $fieldConfig['label'],
+                        $fieldConfig['type'],
+                        0,
+                        1,
+                        $displayOrder++
+                    ]);
+                }
             }
         }
         
-        // 3. Save membership pricing if provided
-        if (isset($data['membership_pricing']) && is_array($data['membership_pricing'])) {
+        // 3. Save membership pricing if provided (skip for 'none' type)
+        if ($registrationType !== 'none' && isset($data['membership_pricing']) && is_array($data['membership_pricing'])) {
             $stmt = $db->prepare("
                 INSERT INTO event_membership_plans (event_id, membership_plan_id, ticket_price, created_at)
                 VALUES (?, ?, ?, CURRENT_TIMESTAMP)
