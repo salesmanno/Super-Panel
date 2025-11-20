@@ -43,7 +43,7 @@ try {
             COUNT(ec.id) as current_attendees
         FROM events_eventdata e
         LEFT JOIN output_products op ON e.output_product_id = op.id
-        LEFT JOIN tenant_admins ta ON e.created_by = ta.id
+        LEFT JOIN tenant_admins ta ON e.created_by = CAST(ta.id AS VARCHAR)
         LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
         LEFT JOIN events_checkin ec ON e.id = ec.event_id
         WHERE e.company_id = ? AND e.is_active = TRUE
