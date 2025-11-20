@@ -16,18 +16,19 @@ try {
         SELECT 
             r.id,
             r.event_id,
-            r.first_name,
-            r.last_name,
-            r.email,
-            r.phone,
-            r.has_valid_membership,
-            r.is_paid,
+            r.customer_id,
+            c.first_name,
+            c.last_name,
+            c.email,
+            c.phone,
+            c.is_member AS has_valid_membership,
             r.created_at,
             e.title AS event_title,
             e.start_date,
             e.start_time
         FROM event_registrations r
         INNER JOIN events_eventdata e ON r.event_id = e.id COLLATE utf8mb4_unicode_ci
+        INNER JOIN tenant_customers c ON r.customer_id = c.id COLLATE utf8mb4_unicode_ci
         WHERE r.company_id = ?
         AND r.approval_status = 'pending'
         ORDER BY r.created_at DESC

@@ -2760,7 +2760,7 @@ async function loadPendingRegistrations() {
                             <small class="text-muted">${reg.start_date} ${reg.start_time}</small>
                         </td>
                         <td><small>${contact}</small></td>
-                        <td>${paidBadge}</td>
+                        <td><span class="badge bg-info">Medlemskap brukt</span></td>
                         <td>${memberBadge}</td>
                         <td><small>${dateStr}</small></td>
                         <td>
