@@ -56,7 +56,6 @@ try {
             $data['max_attendees'] = null;
             $data['min_attendees'] = null;
             $data['registration_deadline'] = null;
-            $data['is_member_exclusive'] = 0; // Cannot be member-only
             // Skip registration fields and membership pricing for 'none' type
         }
         
@@ -79,9 +78,6 @@ try {
         if ($registrationType === 'binding' && !$hasEconomyPayment) {
             throw new Exception('Bindende arrangement krever at minst én betalingsmetode fra economy er valgt');
         }
-        
-        // Initialize payment_methods_json (will be set after normalization)
-        $paymentMethodsJson = null;
         
         $stmt = $db->prepare("
             INSERT INTO events_eventdata (
@@ -106,10 +102,8 @@ try {
                 ticket_price,
                 registration_type,
                 payment_timing,
-                payment_methods_json,
                 created_by
             ) VALUES (
-                ?,
                 ?,
                 ?,
                 ?,
@@ -157,7 +151,6 @@ try {
             $data['ticket_price'] ?? 0,
             $registrationType,
             $paymentTiming,
-            $paymentMethodsJson,
             $_SESSION['tenant_admin_id']
         ]);
         
@@ -228,7 +221,10 @@ try {
             
             // Then add other optional fields if selected
             $optionalFields = [
-                'address' => ['label' => 'Adresse (gate, postnr, by)', 'type' => 'text'],
+                'street' => ['label' => 'Gateadresse', 'type' => 'text'],
+                'zip' => ['label' => 'Postnummer', 'type' => 'text'],
+                'city' => ['label' => 'Poststed', 'type' => 'text'],
+                'postal' => ['label' => 'Postboks', 'type' => 'text'],
                 'age' => ['label' => 'Alder', 'type' => 'number']
             ];
             
@@ -310,13 +306,8 @@ try {
         }
         
         $defaultPaymentMethod = $paymentMethodsArray[0]; // First method is always default (now guaranteed to be cash)
-        
-        // NOW encode the normalized payment methods array to JSON
-        $paymentMethodsJson = json_encode($paymentMethodsArray);
-        
-        // Update both default_payment_method and payment_methods_json
-        $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = ?, payment_methods_json = ? WHERE id = ?");
-        $stmt->execute([$defaultPaymentMethod, $paymentMethodsJson, $eventId]);
+        $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = ? WHERE id = ?");
+        $stmt->execute([$defaultPaymentMethod, $eventId]);
         
         // 5. Auto-generate output_products entry using service
         $catalogService = new ProductCatalogService($db);

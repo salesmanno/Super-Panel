@@ -283,31 +283,25 @@ try {
                         <div class="col-md-3 mb-3">
                             <input type="text" class="form-control" name="venue_name" placeholder="Stedsnavn">
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <input type="number" class="form-control" name="min_attendees" id="min_attendees" placeholder="Min. deltakere">
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <input type="number" class="form-control" name="max_attendees" placeholder="Maks. deltakere">
+                        <div class="col-md-6 mb-3">
+                            <input type="text" class="form-control" name="event_address" placeholder="Adresse (gate, by, postnummer)">
                         </div>
                     </div>
 
                     <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Min. deltakere</label>
+                            <input type="number" class="form-control" name="min_attendees" id="min_attendees">
+                        </div>
                         <div class="col-md-3 mb-3" id="registration_deadline_container" style="display: none;">
-                            <input type="date" class="form-control" name="registration_deadline" id="registration_deadline" placeholder="Frist for min. deltakere">
+                            <label class="form-label">Frist for min. deltakere *</label>
+                            <input type="date" class="form-control" name="registration_deadline" id="registration_deadline">
                             <small class="form-text text-muted">Må være før startdato</small>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <input type="text" class="form-control" name="event_address" placeholder="Gateadresse">
+                            <label class="form-label">Maks. deltakere</label>
+                            <input type="number" class="form-control" name="max_attendees">
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <input type="text" class="form-control" name="event_postal" placeholder="Postnummer">
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <input type="text" class="form-control" name="event_city" placeholder="By">
-                        </div>
-                    </div>
-
-                    <div class="row">
                         <div class="col-md-3 mb-3" id="ticket-price-container">
                             <input type="number" step="0.01" class="form-control" name="ticket_price" id="ticket_price" placeholder="Billettpris (NOK)">
                         </div>
@@ -351,7 +345,7 @@ try {
                                 <div class="form-check mb-2">
                                     <input class="form-check-input contact-field-required" type="checkbox" name="field_email" id="field_email" checked>
                                     <label class="form-check-label" for="field_email">
-                                        E-post
+                                        <i class="bi bi-envelope me-1"></i> E-post
                                     </label>
                                 </div>
                             </div>
@@ -359,15 +353,15 @@ try {
                                 <div class="form-check mb-2">
                                     <input class="form-check-input contact-field-required" type="checkbox" name="field_phone" id="field_phone" checked>
                                     <label class="form-check-label" for="field_phone">
-                                        Telefon
+                                        <i class="bi bi-telephone me-1"></i> Telefon
                                     </label>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_address" id="field_address">
-                                    <label class="form-check-label" for="field_address">
-                                        Adresse (gate, postnr, by)
+                                    <input class="form-check-input" type="checkbox" name="field_street" id="field_street">
+                                    <label class="form-check-label" for="field_street">
+                                        <i class="bi bi-house me-1"></i> Adresse
                                     </label>
                                 </div>
                             </div>
@@ -375,7 +369,7 @@ try {
                                 <div class="form-check mb-2">
                                     <input class="form-check-input" type="checkbox" name="field_age" id="field_age">
                                     <label class="form-check-label" for="field_age">
-                                        Alder
+                                        <i class="bi bi-person-badge me-1"></i> Alder
                                     </label>
                                 </div>
                             </div>
@@ -596,37 +590,6 @@ try {
                         <textarea class="form-control" name="description" id="edit-description" rows="3"></textarea>
                     </div>
 
-                    <h6 class="mb-2"><i class="bi bi-card-checklist me-2"></i>Registreringstype</h6>
-                    <div class="row mb-3">
-                        <div class="col-md-4 mb-2">
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="edit_registration_type" id="edit-reg-signup" value="signup" checked>
-                                <label class="form-check-label" for="edit-reg-signup">
-                                    <i class="bi bi-person-plus text-primary me-1"></i> <strong>Påmelding</strong><br>
-                                    <small class="text-muted">Deltakere melder seg på</small>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-4 mb-2">
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="edit_registration_type" id="edit-reg-none" value="none">
-                                <label class="form-check-label" for="edit-reg-none">
-                                    <i class="bi bi-x-circle text-secondary me-1"></i> <strong>Ingen påmelding</strong><br>
-                                    <small class="text-muted">Fritt arrangement uten registrering</small>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-4 mb-2">
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="edit_registration_type" id="edit-reg-binding" value="binding">
-                                <label class="form-check-label" for="edit-reg-binding">
-                                    <i class="bi bi-lock text-warning me-1"></i> <strong>Bindende</strong><br>
-                                    <small class="text-muted">Krever betaling ved påmelding</small>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="row">
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Startdato *</label>
@@ -713,25 +676,6 @@ try {
                     </div>
                     
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Standard betalingsmetode</label>
-                            <select class="form-select" name="default_payment_method" id="edit-default-payment-method">
-                                <option value="">Velg standard betalingsmetode</option>
-                                <option value="cash">Kontant</option>
-                                <option value="card">Kort</option>
-                                <option value="invoice">Faktura</option>
-                                <option value="vipps">Vipps</option>
-                            </select>
-                        </div>
-                        <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Medlemsrabatt billettpris (NOK)</label>
-                            <input type="number" step="0.01" class="form-control" name="member_ticket_price" id="edit-member-ticket-price" placeholder="La stå tom hvis ikke relevant">
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                    
-                    <div class="row">
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Bilde-URL</label>
                             <input type="url" class="form-control" name="event_image_url" id="edit-event-image-url">
@@ -757,7 +701,7 @@ try {
                             <div class="form-check">
                                 <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_email" id="edit-field-email">
                                 <label class="form-check-label" for="edit-field-email">
-                                    E-post
+                                    <i class="bi bi-envelope text-primary me-1"></i> E-post
                                 </label>
                             </div>
                         </div>
@@ -765,15 +709,41 @@ try {
                             <div class="form-check">
                                 <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_phone" id="edit-field-phone">
                                 <label class="form-check-label" for="edit-field-phone">
-                                    Telefon
+                                    <i class="bi bi-telephone text-primary me-1"></i> Telefon
                                 </label>
                             </div>
                         </div>
                         <div class="col-md-3 mb-2">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="field_address" id="edit-field-address">
-                                <label class="form-check-label" for="edit-field-address">
-                                    Adresse (gate, postnr, by)
+                                <input class="form-check-input" type="checkbox" name="field_street" id="edit-field-street">
+                                <label class="form-check-label" for="edit-field-street">
+                                    <i class="bi bi-house text-primary me-1"></i> Gateadresse
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="field_zip" id="edit-field-zip">
+                                <label class="form-check-label" for="edit-field-zip">
+                                    <i class="bi bi-mailbox text-primary me-1"></i> Postnummer
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="field_city" id="edit-field-city">
+                                <label class="form-check-label" for="edit-field-city">
+                                    <i class="bi bi-geo-alt text-primary me-1"></i> Poststed
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="field_postal" id="edit-field-postal">
+                                <label class="form-check-label" for="edit-field-postal">
+                                    <i class="bi bi-box text-primary me-1"></i> Postboks
                                 </label>
                             </div>
                         </div>
@@ -781,7 +751,7 @@ try {
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="field_age" id="edit-field-age">
                                 <label class="form-check-label" for="edit-field-age">
-                                    Alder
+                                    <i class="bi bi-person-badge text-primary me-1"></i> Alder
                                 </label>
                             </div>
                         </div>
@@ -1086,7 +1056,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Registration fields
                 field_email: formData.get('field_email') ? 1 : 0,
                 field_phone: formData.get('field_phone') ? 1 : 0,
-                field_address: formData.get('field_address') ? 1 : 0,
+                field_street: formData.get('field_street') ? 1 : 0,
+                field_zip: formData.get('field_zip') ? 1 : 0,
+                field_city: formData.get('field_city') ? 1 : 0,
+                field_postal: formData.get('field_postal') ? 1 : 0,
                 field_age: formData.get('field_age') ? 1 : 0
             };
 
@@ -1130,33 +1103,26 @@ async function loadEvents() {
                 const dateStr = startDate.toLocaleDateString('no-NO', { day: 'numeric', month: 'short', year: 'numeric' });
                 const timeStr = event.start_time ? event.start_time.substring(0, 5) : '';
                 
-                // Registration type display names
-                const registrationTypeNames = {
-                    'none': 'Ingen påmelding',
-                    'signup': 'Påmelding',
-                    'binding': 'Bindende påmelding'
-                };
-                const registrationTypeBadge = registrationTypeNames[event.registration_type] || '';
-                
                 // Check if "Ingen påmelding" (no registration) event
                 const isNoRegistration = event.registration_type === 'none';
                 
-                let priceDisplay = '<span class="event-price event-price-free">Gratis</span>';
+                let priceDisplay = '<span class="event-price event-price-free">Gratis arrangement – ingen påmelding</span>';
                 if (!isNoRegistration) {
                     // Check if member-exclusive event
                     if (event.is_member_exclusive && event.membership_prices && event.membership_prices.length > 0) {
-                        // Show membership prices with large price and small plan name
+                        // Show membership prices (shortened plan names)
                         const prices = event.membership_prices
                             .filter(mp => mp.public_display !== 0)
                             .map(mp => {
-                                return `<div><span class="event-price">${mp.price} kr</span><br><small class="text-muted" style="font-size: 0.7rem;">${mp.plan_name}</small></div>`;
+                                const shortName = mp.plan_name.length > 15 ? mp.plan_name.substring(0, 15) + '...' : mp.plan_name;
+                                return `${mp.price} kr (${shortName})`;
                             })
-                            .join('');
-                        priceDisplay = prices || '<span class="event-price event-price-free">Kun medlemmer</span>';
+                            .join('<br>');
+                        priceDisplay = prices ? `<span class="event-price">${prices}</span>` : '<span class="event-price event-price-free">Kun medlemmer</span>';
                     } else if (event.ticket_price > 0) {
                         priceDisplay = `<span class="event-price">${event.ticket_price} kr</span>`;
                         if (event.member_ticket_price !== null && event.member_ticket_price !== undefined && event.member_ticket_price > 0) {
-                            priceDisplay += `<br><small class="text-muted" style="font-size: 0.7rem;">${event.member_ticket_price} kr (medlem)</small>`;
+                            priceDisplay += `<br><small class="text-muted">${event.member_ticket_price} kr (medlem)</small>`;
                         }
                     } else {
                         priceDisplay = '<span class="event-price event-price-free">Gratis</span>';
@@ -1171,13 +1137,7 @@ async function loadEvents() {
                     ? '<span class="badge bg-warning event-badge-overlay">Kun medlemmer</span>' 
                     : '';
                 
-                // Build location with address and city/venue
-                let locationParts = [];
-                if (event.event_address) locationParts.push(event.event_address);
-                if (event.venue_name) locationParts.push(event.venue_name);
-                if (event.event_city) locationParts.push(event.event_city);
-                const location = locationParts.length > 0 ? locationParts.join(', ') : 'Ikke angitt';
-                
+                const location = event.venue_name || event.event_city || 'Ikke angitt';
                 const capacity = event.max_attendees ? `${event.current_attendees || 0} / ${event.max_attendees}` : 'Ubegrenset';
                 const createdBy = (event.first_name && event.last_name) 
                     ? `${event.first_name} ${event.last_name}` 
@@ -1215,7 +1175,7 @@ async function loadEvents() {
                             ${imageHtml}
                             ${memberBadge}
                             <div class="event-body" onclick="toggleEventResults('${event.id}')" style="cursor: pointer;">
-                                <h5 class="event-title">${event.title} <small class="text-muted" style="font-size: 0.75rem;">(${registrationTypeBadge})</small></h5>
+                                <h5 class="event-title">${event.title}</h5>
                                 <div class="event-meta">
                                     ${metaItems}
                                 </div>
@@ -2000,43 +1960,31 @@ async function editEvent(eventId) {
             return;
         }
         
-        // Populate form fields with null checks
-        const setFieldValue = (id, value) => {
-            const field = document.getElementById(id);
-            if (field) field.value = value || '';
-        };
-        
-        setFieldValue('edit-event-id', event.id);
-        setFieldValue('edit-title', event.title);
-        setFieldValue('edit-description', event.description);
-        setFieldValue('edit-start-date', event.start_date);
-        setFieldValue('edit-start-time', event.start_time);
-        setFieldValue('edit-end-date', event.end_date);
-        setFieldValue('edit-end-time', event.end_time);
-        setFieldValue('edit-age-limit', event.age_limit);
-        setFieldValue('edit-venue-name', event.venue_name);
-        setFieldValue('edit-event-address', event.event_address);
-        setFieldValue('edit-event-city', event.event_city);
-        setFieldValue('edit-event-postal', event.event_postal);
-        setFieldValue('edit-min-attendees', event.min_attendees);
-        setFieldValue('edit-registration-deadline', event.registration_deadline);
-        setFieldValue('edit-max-attendees', event.max_attendees);
-        setFieldValue('edit-ticket-price', event.ticket_price || 0);
-        setFieldValue('edit-member-ticket-price', event.member_ticket_price);
-        setFieldValue('edit-default-payment-method', event.default_payment_method);
-        setFieldValue('edit-event-image-url', event.event_image_url);
+        // Populate form fields
+        document.getElementById('edit-event-id').value = event.id;
+        document.getElementById('edit-title').value = event.title || '';
+        document.getElementById('edit-description').value = event.description || '';
+        document.getElementById('edit-start-date').value = event.start_date || '';
+        document.getElementById('edit-start-time').value = event.start_time || '';
+        document.getElementById('edit-end-date').value = event.end_date || '';
+        document.getElementById('edit-end-time').value = event.end_time || '';
+        document.getElementById('edit-age-limit').value = event.age_limit || '';
+        document.getElementById('edit-venue-name').value = event.venue_name || '';
+        document.getElementById('edit-event-address').value = event.event_address || '';
+        document.getElementById('edit-event-city').value = event.event_city || '';
+        document.getElementById('edit-event-postal').value = event.event_postal || '';
+        document.getElementById('edit-min-attendees').value = event.min_attendees || '';
+        document.getElementById('edit-registration-deadline').value = event.registration_deadline || '';
+        document.getElementById('edit-max-attendees').value = event.max_attendees || '';
+        document.getElementById('edit-ticket-price').value = event.ticket_price || 0;
+        document.getElementById('edit-member-ticket-price').value = event.member_ticket_price || '';
+        document.getElementById('edit-default-payment-method').value = event.default_payment_method || '';
+        document.getElementById('edit-event-image-url').value = event.event_image_url || '';
         
         // Set checkbox
         const memberExclusiveCheckbox = document.getElementById('edit-member-exclusive');
         if (memberExclusiveCheckbox) {
             memberExclusiveCheckbox.checked = event.is_member_exclusive == 1;
-        }
-        
-        // Set registration type radio button
-        const registrationType = event.registration_type || 'signup';
-        const registrationTypeRadio = document.getElementById(`edit-reg-${registrationType}`);
-        if (registrationTypeRadio) {
-            registrationTypeRadio.checked = true;
         }
         
         // Show/hide registration deadline if min_attendees is set
@@ -2051,28 +1999,17 @@ async function editEvent(eventId) {
         const fieldsResponse = await fetch(`/api/get_event_registration_fields.php?event_id=${eventId}`);
         const fieldsResult = await fieldsResponse.json();
         
-        // Reset all optional field checkboxes with null checks
-        const setCheckbox = (id, value) => {
-            const checkbox = document.getElementById(id);
-            if (checkbox) checkbox.checked = value;
-        };
-        
-        setCheckbox('edit-field-email', false);
-        setCheckbox('edit-field-phone', false);
-        setCheckbox('edit-field-address', false);
-        setCheckbox('edit-field-age', false);
+        // Reset all optional field checkboxes
+        document.getElementById('edit-field-phone').checked = false;
+        document.getElementById('edit-field-street').checked = false;
+        document.getElementById('edit-field-zip').checked = false;
+        document.getElementById('edit-field-city').checked = false;
+        document.getElementById('edit-field-postal').checked = false;
+        document.getElementById('edit-field-age').checked = false;
         
         if (fieldsResult.success && fieldsResult.fields) {
             fieldsResult.fields.forEach(field => {
-                // Handle legacy field names (street, zip, city, postal) -> map to 'address'
-                const legacyAddressFields = ['street', 'zip', 'city', 'postal'];
-                let fieldName = field.field_name;
-                
-                if (legacyAddressFields.includes(fieldName)) {
-                    fieldName = 'address';
-                }
-                
-                const checkbox = document.getElementById(`edit-field-${fieldName}`);
+                const checkbox = document.getElementById(`edit-field-${field.field_name}`);
                 if (checkbox) {
                     checkbox.checked = true;
                 }
@@ -2088,7 +2025,7 @@ async function editEvent(eventId) {
                 console.error('Error parsing payment_methods_json:', e);
             }
         }
-        await loadPaymentMethodsForEdit(selectedPaymentMethods, registrationType);
+        await loadPaymentMethodsForEdit(selectedPaymentMethods);
         
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('editEventModal'));
@@ -2152,9 +2089,6 @@ async function saveEventChanges() {
         }
     }
     
-    // Get registration type
-    const registrationType = document.querySelector('input[name="edit_registration_type"]:checked').value;
-    
     // Collect allowed payment methods
     const allowedPaymentMethods = ['cash']; // Cash is always required
     document.querySelectorAll('#edit-payment-methods-container input[type="checkbox"]:checked:not([disabled])').forEach(checkbox => {
@@ -2182,12 +2116,14 @@ async function saveEventChanges() {
         event_image_url: formData.get('event_image_url') || null,
         default_payment_method: formData.get('default_payment_method') || null,
         is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
-        registration_type: registrationType,
         allowed_payment_methods: allowedPaymentMethods,
-        // Registration fields (konsolidert)
+        // Registration fields
         field_phone: formData.get('field_phone') ? 1 : 0,
         field_email: formData.get('field_email') ? 1 : 0,
-        field_address: formData.get('field_address') ? 1 : 0,
+        field_street: formData.get('field_street') ? 1 : 0,
+        field_zip: formData.get('field_zip') ? 1 : 0,
+        field_city: formData.get('field_city') ? 1 : 0,
+        field_postal: formData.get('field_postal') ? 1 : 0,
         field_age: formData.get('field_age') ? 1 : 0
     };
 
@@ -2401,10 +2337,12 @@ async function loadMembershipPlansForCreate() {
                 <div class="col-md-6 mb-3">
                     <label class="form-label" style="font-size: 0.75rem;">${plan.name}</label>
                     <div class="input-group input-group-sm mb-1">
+                        <span class="input-group-text">NOK</span>
                         <input type="number" step="0.01" class="form-control" 
                                name="plan_price_${plan.plan_id}" 
                                data-plan-id="${plan.plan_id}"
-                               placeholder="Pris (NOK)">
+                               placeholder="Pris">
+                        <span class="input-group-text text-muted" style="font-size: 0.7rem;">${plan.price} kr/mnd</span>
                     </div>
                     <div class="form-check form-check-sm">
                         <input class="form-check-input membership-public-checkbox" type="checkbox" 
@@ -2451,83 +2389,43 @@ async function loadPaymentMethodsForCreate() {
         const response = await fetch('/api/get_payment_methods.php');
         const result = await response.json();
         
-        // Always show cash/oppmøte checkbox, even if no payment methods configured
-        let paymentMethodsHTML = `
-            <div class="alert alert-info small mb-3">
-                <i class="bi bi-info-circle me-2"></i>
-                <strong>Oppmøtebetaling</strong> er alltid inkludert for å tillate arrangementer uten webbetaling.
-            </div>
-            <div class="row">
-                <div class="col-md-4 mb-2">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" 
-                               name="payment_method_cash" 
-                               id="pm_cash"
-                               data-method-type="cash"
-                               checked disabled>
-                        <label class="form-check-label text-muted" for="pm_cash">
-                            <i class="bi bi-cash-stack me-1"></i>
-                            Kontant/Oppmøte <small>(alltid påkrevd)</small>
-                        </label>
-                    </div>
-                </div>`;
-        
         if (result.success && result.payment_methods && result.payment_methods.length > 0) {
             paymentMethodsData = result.payment_methods;
-            
-            // Add other payment methods (excluding cash as it's already added)
-            paymentMethodsHTML += result.payment_methods
-                .filter(method => method.method_type !== 'cash')
-                .map(method => `
+            container.innerHTML = `
+                <div class="alert alert-info small mb-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Oppmøtebetaling</strong> er alltid inkludert for å tillate arrangementer uten webbetaling.
+                </div>
+                <div class="row">` + result.payment_methods.map(method => `
                 <div class="col-md-4 mb-2">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" 
                                name="payment_method_${method.method_type}" 
                                id="pm_${method.method_type}"
-                               data-method-type="${method.method_type}">
-                        <label class="form-check-label" for="pm_${method.method_type}">
-                            <i class="bi bi-${method.method_type === 'card' ? 'credit-card' : 'wallet2'} me-1"></i>
-                            ${method.method_name}
+                               data-method-type="${method.method_type}"
+                               ${method.method_type === 'cash' ? 'checked disabled' : 'checked'}>
+                        <label class="form-check-label ${method.method_type === 'cash' ? 'text-muted' : ''}" for="pm_${method.method_type}">
+                            <i class="bi bi-${method.method_type === 'cash' ? 'cash-stack' : method.method_type === 'card' ? 'credit-card' : 'wallet2'} me-1"></i>
+                            ${method.method_name}${method.method_type === 'cash' ? ' <small>(alltid påkrevd)</small>' : ''}
                         </label>
                     </div>
                 </div>
-            `).join('');
+            `).join('') + '</div>';
+            
+            // Add event listeners to update payment timing status
+            const checkboxes = container.querySelectorAll('input[type="checkbox"]:not([disabled])');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', updatePaymentTimingStatus);
+            });
+            
+            // Initial update
+            updatePaymentTimingStatus();
+        } else {
+            container.innerHTML = '<p class="text-muted small mb-0"><i class="bi bi-info-circle me-2"></i>Ingen betalingsmetoder konfigurert</p>';
         }
-        
-        paymentMethodsHTML += '</div>';
-        container.innerHTML = paymentMethodsHTML;
-        
-        // Add event listeners to update payment timing status
-        const checkboxes = container.querySelectorAll('input[type="checkbox"]:not([disabled])');
-        checkboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', updatePaymentTimingStatus);
-        });
-        
-        // Initial update
-        updatePaymentTimingStatus();
     } catch (error) {
         console.error('Error loading payment methods:', error);
-        // Still show cash even on error
-        container.innerHTML = `
-            <div class="alert alert-info small mb-3">
-                <i class="bi bi-info-circle me-2"></i>
-                <strong>Oppmøtebetaling</strong> er alltid tilgjengelig.
-            </div>
-            <div class="row">
-                <div class="col-md-4 mb-2">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" 
-                               name="payment_method_cash" 
-                               id="pm_cash"
-                               data-method-type="cash"
-                               checked disabled>
-                        <label class="form-check-label text-muted" for="pm_cash">
-                            <i class="bi bi-cash-stack me-1"></i>
-                            Kontant/Oppmøte <small>(alltid påkrevd)</small>
-                        </label>
-                    </div>
-                </div>
-            </div>`;
+        container.innerHTML = '<p class="text-danger small mb-0">Feil ved lasting av betalingsmetoder</p>';
     }
 }
 
@@ -2546,7 +2444,7 @@ function updatePaymentTimingStatus() {
 }
 
 // Load payment methods for edit form
-async function loadPaymentMethodsForEdit(selectedMethods = [], registrationType = 'signup') {
+async function loadPaymentMethodsForEdit(selectedMethods = []) {
     const container = document.getElementById('edit-payment-methods-container');
     if (!container) return;
     
@@ -2554,84 +2452,42 @@ async function loadPaymentMethodsForEdit(selectedMethods = [], registrationType 
         const response = await fetch('/api/get_payment_methods.php');
         const result = await response.json();
         
-        const isBinding = registrationType === 'binding';
-        
-        // For non-binding: ensure cash is always in selected methods
-        if (!isBinding && !selectedMethods.includes('cash')) {
-            selectedMethods.push('cash');
-        }
-        
-        // Always show cash/oppmøte checkbox
-        let paymentMethodsHTML = `
-            <div class="alert alert-info small mb-3">
-                <i class="bi bi-info-circle me-2"></i>
-                <strong>Oppmøtebetaling</strong> ${isBinding ? 'er ikke tillatt for bindende arrangementer' : 'er alltid inkludert for å tillate arrangementer uten webbetaling'}.
-            </div>
-            <div class="row">
-                <div class="col-md-4 mb-2">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" 
-                               name="edit_payment_method_cash" 
-                               id="edit_pm_cash"
-                               data-method-type="cash"
-                               ${isBinding ? '' : 'checked'} disabled>
-                        <label class="form-check-label text-muted" for="edit_pm_cash">
-                            <i class="bi bi-cash-stack me-1"></i>
-                            Kontant/Oppmøte <small>(${isBinding ? 'ikke tillatt for bindende' : 'alltid påkrevd'})</small>
-                        </label>
-                    </div>
-                </div>`;
-        
         if (result.success && result.payment_methods && result.payment_methods.length > 0) {
-            // Add other payment methods (excluding cash)
-            paymentMethodsHTML += result.payment_methods
-                .filter(method => method.method_type !== 'cash')
-                .map(method => {
-                    const isChecked = selectedMethods.includes(method.method_type);
-                    return `
+            // Ensure cash is always in selected methods
+            if (!selectedMethods.includes('cash')) {
+                selectedMethods.push('cash');
+            }
+            
+            container.innerHTML = `
+                <div class="alert alert-info small mb-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Oppmøtebetaling</strong> er alltid inkludert for å tillate arrangementer uten webbetaling.
+                </div>
+                <div class="row">` + result.payment_methods.map(method => {
+                const isChecked = selectedMethods.includes(method.method_type);
+                const isCash = method.method_type === 'cash';
+                return `
                 <div class="col-md-4 mb-2">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" 
                                name="edit_payment_method_${method.method_type}" 
                                id="edit_pm_${method.method_type}"
                                data-method-type="${method.method_type}"
-                               ${isChecked ? 'checked' : ''}>
-                        <label class="form-check-label" for="edit_pm_${method.method_type}">
-                            <i class="bi bi-${method.method_type === 'card' ? 'credit-card' : 'wallet2'} me-1"></i>
-                            ${method.method_name}
+                               ${isChecked ? 'checked' : ''} ${isCash ? 'disabled' : ''}>
+                        <label class="form-check-label ${isCash ? 'text-muted' : ''}" for="edit_pm_${method.method_type}">
+                            <i class="bi bi-${isCash ? 'cash-stack' : method.method_type === 'card' ? 'credit-card' : 'wallet2'} me-1"></i>
+                            ${method.method_name}${isCash ? ' <small>(alltid påkrevd)</small>' : ''}
                         </label>
                     </div>
                 </div>
             `;
-                }).join('');
+            }).join('') + '</div>';
+        } else {
+            container.innerHTML = '<p class="text-muted small mb-0"><i class="bi bi-info-circle me-2"></i>Ingen betalingsmetoder konfigurert</p>';
         }
-        
-        paymentMethodsHTML += '</div>';
-        container.innerHTML = paymentMethodsHTML;
     } catch (error) {
         console.error('Error loading payment methods for edit:', error);
-        const isBinding = registrationType === 'binding';
-        // Still show cash even on error
-        container.innerHTML = `
-            <div class="alert alert-info small mb-3">
-                <i class="bi bi-info-circle me-2"></i>
-                <strong>Oppmøtebetaling</strong> ${isBinding ? 'er ikke tillatt for bindende arrangementer' : 'er alltid tilgjengelig'}.
-            </div>
-            <div class="row">
-                <div class="col-md-4 mb-2">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" 
-                               name="edit_payment_method_cash" 
-                               id="edit_pm_cash"
-                               data-method-type="cash"
-                               ${isBinding ? '' : 'checked'} disabled>
-                        <label class="form-check-label text-muted" for="edit_pm_cash">
-                            <i class="bi bi-cash-stack me-1"></i>
-                            Kontant/Oppmøte <small>(${isBinding ? 'ikke tillatt for bindende' : 'alltid påkrevd'})</small>
-                        </label>
-                    </div>
-                </div>
-            </div>`;
+        container.innerHTML = '<p class="text-danger small mb-0">Feil ved lasting av betalingsmetoder</p>';
     }
 }
 
@@ -2643,7 +2499,6 @@ if (registrationTypeRadios.length > 0) {
     function handleRegistrationTypeChange() {
         const selectedType = document.querySelector('input[name="registration_type"]:checked').value;
         const isNone = selectedType === 'none';
-        const isBinding = selectedType === 'binding';
         
         // Show/hide påmeldingsfelt section
         if (registrationFieldsSection) {
@@ -2675,30 +2530,6 @@ if (registrationTypeRadios.length > 0) {
             membershipPricingContainer.style.display = isNone ? 'none' : 'block';
         }
         
-        // Handle cash payment method based on registration type
-        const cashCheckbox = document.getElementById('pm_cash');
-        if (cashCheckbox) {
-            if (isBinding) {
-                // For binding registration: cash is NOT allowed
-                cashCheckbox.checked = false;
-                cashCheckbox.disabled = true;
-                const cashLabel = cashCheckbox.nextElementSibling;
-                if (cashLabel) {
-                    cashLabel.innerHTML = '<i class="bi bi-cash-stack me-1"></i> Kontant/Oppmøte <small>(ikke tillatt for bindende)</small>';
-                    cashLabel.classList.add('text-muted');
-                }
-            } else {
-                // For signup/none: cash is always allowed
-                cashCheckbox.checked = true;
-                cashCheckbox.disabled = true;
-                const cashLabel = cashCheckbox.nextElementSibling;
-                if (cashLabel) {
-                    cashLabel.innerHTML = '<i class="bi bi-cash-stack me-1"></i> Kontant/Oppmøte <small>(alltid påkrevd)</small>';
-                    cashLabel.classList.add('text-muted');
-                }
-            }
-        }
-        
         // Show/hide payment methods section
         const paymentSection = document.getElementById('payment-section');
         const paymentMethodsContainer = document.getElementById('payment-methods-container');
@@ -2719,25 +2550,6 @@ if (registrationTypeRadios.length > 0) {
             if (ticketPriceInput) ticketPriceInput.value = '0';
             if (minAttendeesInput) minAttendeesInput.value = '';
             if (maxAttendeesInput) maxAttendeesInput.value = '';
-        }
-        
-        // Handle "Kun medlemmer" checkbox - disable for "Ingen påmelding"
-        const memberExclusiveCheckbox = document.getElementById('memberExclusive');
-        if (memberExclusiveCheckbox) {
-            if (isNone) {
-                memberExclusiveCheckbox.checked = false;
-                memberExclusiveCheckbox.disabled = true;
-                const memberExclusiveContainer = memberExclusiveCheckbox.closest('.col-md-4');
-                if (memberExclusiveContainer) {
-                    memberExclusiveContainer.style.opacity = '0.5';
-                }
-            } else {
-                memberExclusiveCheckbox.disabled = false;
-                const memberExclusiveContainer = memberExclusiveCheckbox.closest('.col-md-4');
-                if (memberExclusiveContainer) {
-                    memberExclusiveContainer.style.opacity = '1';
-                }
-            }
         }
     }
     

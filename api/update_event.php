@@ -86,7 +86,6 @@ try {
             $data['max_attendees'] = null;
             $data['min_attendees'] = null;
             $data['registration_deadline'] = null;
-            $data['is_member_exclusive'] = 0; // Cannot be member-only
             
             // Delete all membership pricing for this event
             $stmt = $db->prepare("DELETE FROM event_membership_plans WHERE event_id = ?");
@@ -114,6 +113,7 @@ try {
                 event_image_url = ?,
                 ticket_price = ?,
                 member_ticket_price = ?,
+                default_payment_method = ?,
                 registration_type = ?,
                 payment_timing = ?
             WHERE id = ? AND company_id = ?
@@ -138,6 +138,7 @@ try {
             $data['event_image_url'] ?? null,
             $data['ticket_price'] ?? 0,
             $data['member_ticket_price'] ?? null,
+            $data['default_payment_method'] ?? null,
             $registrationType,
             $paymentTiming,
             $data['event_id'],
@@ -192,7 +193,10 @@ try {
             
             // Add other optional fields if selected
             $optionalFields = [
-                'address' => ['label' => 'Adresse (gate, postnr, by)', 'type' => 'text'],
+                'street' => ['label' => 'Gateadresse', 'type' => 'text'],
+                'zip' => ['label' => 'Postnummer', 'type' => 'text'],
+                'city' => ['label' => 'Poststed', 'type' => 'text'],
+                'postal' => ['label' => 'Postboks', 'type' => 'text'],
                 'age' => ['label' => 'Alder', 'type' => 'number']
             ];
             
@@ -257,12 +261,9 @@ try {
         
         $defaultPaymentMethod = $paymentMethodsArray[0]; // First method is always default (now guaranteed to be cash)
         
-        // NOW encode the normalized payment methods array to JSON
-        $paymentMethodsJson = json_encode($paymentMethodsArray);
-        
-        // Update both default_payment_method and payment_methods_json
-        $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = ?, payment_methods_json = ? WHERE id = ? AND company_id = ?");
-        $stmt->execute([$defaultPaymentMethod, $paymentMethodsJson, $data['event_id'], $_SESSION['company_id']]);
+        // Update default_payment_method
+        $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = ? WHERE id = ? AND company_id = ?");
+        $stmt->execute([$defaultPaymentMethod, $data['event_id'], $_SESSION['company_id']]);
         
         // Sync output_products entry using service
         $catalogService = new ProductCatalogService($db);
