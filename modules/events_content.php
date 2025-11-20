@@ -252,6 +252,21 @@ try {
                         </div>
                     </div>
                     
+                    <!-- Manual Approval Option (only for signup type) -->
+                    <div id="manual-approval-section" class="alert alert-info mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="requires_manual_approval" id="requires-manual-approval">
+                            <label class="form-check-label" for="requires-manual-approval">
+                                <i class="bi bi-shield-check me-1"></i> <strong>Krev manuell godkjenning for alle påmeldinger</strong>
+                            </label>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Hvis aktivert, må du godkjenne hver påmelding manuelt.<br>
+                            Hvis deaktivert, godkjennes kun betalte påmeldinger med gyldig medlemskap automatisk.
+                        </small>
+                    </div>
+                    
                     <div class="mb-3">
                         <label class="form-label">Beskrivelse</label>
                         <textarea class="form-control" name="description" rows="3"></textarea>
@@ -562,6 +577,40 @@ try {
                                 <td colspan="7" class="text-center text-muted py-4">
                                     <div class="spinner-border spinner-border-sm me-2" role="status"></div>
                                     Laster arrangementer...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Event Registrations Approval Tab -->
+    <div id="events-registrations" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-clipboard-check me-2"></i>Påmeldinger til godkjenning</h5>
+                <p class="text-muted">Godkjenn eller avvis ventende påmeldinger til arrangementer</p>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Navn</th>
+                                <th>Arrangement</th>
+                                <th>Kontakt</th>
+                                <th>Betalt</th>
+                                <th>Medlemskap</th>
+                                <th>Registrert</th>
+                                <th>Handlinger</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pending-registrations-list">
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    Laster påmeldinger...
                                 </td>
                             </tr>
                         </tbody>
@@ -1065,6 +1114,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 event_image_url: formData.get('event_image_url') || null,
                 is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
                 registration_type: formData.get('registration_type') || 'signup',
+                requires_manual_approval: formData.get('requires_manual_approval') ? 1 : 0,
                 payment_timing_methods: paymentTimingMethods,
                 membership_pricing: membershipPricing,
                 allowed_payment_methods: allowedPaymentMethods,
@@ -2529,15 +2579,22 @@ async function loadPaymentMethodsForEdit(selectedMethods = []) {
 // Handle registration type changes - show/hide sections for "Ingen påmelding"
 const registrationTypeRadios = document.querySelectorAll('input[name="registration_type"]');
 const registrationFieldsSection = document.getElementById('registration-fields-section');
+const manualApprovalSection = document.getElementById('manual-approval-section');
 
 if (registrationTypeRadios.length > 0) {
     function handleRegistrationTypeChange() {
         const selectedType = document.querySelector('input[name="registration_type"]:checked').value;
         const isNone = selectedType === 'none';
+        const isSignup = selectedType === 'signup';
         
         // Show/hide påmeldingsfelt section
         if (registrationFieldsSection) {
             registrationFieldsSection.style.display = isNone ? 'none' : 'block';
+        }
+        
+        // Show/hide manual approval section (only for signup type)
+        if (manualApprovalSection) {
+            manualApprovalSection.style.display = isSignup ? 'block' : 'none';
         }
         
         // Show/hide participant limits and ticket price
