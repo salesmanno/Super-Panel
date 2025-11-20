@@ -1110,8 +1110,6 @@ async function loadEvents() {
     try {
         const response = await fetch('../api/get_events.php');
         const result = await response.json();
-        
-        console.log('get_events.php response:', result);
 
         const eventsList = document.getElementById('events-list');
         
