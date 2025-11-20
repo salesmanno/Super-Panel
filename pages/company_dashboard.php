@@ -499,6 +499,9 @@ try {
                     <a class="nav-link active" href="#events-my">Dine arrangement</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="#events-registrations">Påmeldinger til godkjenning</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="#events-create">Opprett arrangement</a>
                 </li>
                 <li class="nav-item">
