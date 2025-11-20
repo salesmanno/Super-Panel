@@ -1973,13 +1973,15 @@ async function editEvent(eventId) {
         const result = await response.json();
         
         if (!result.success) {
-            toast.quickError('Arrangement', 'Kunne ikke laste arrangement');
+            toast.quickError('Arrangement', result.message || 'Kunne ikke laste arrangement');
+            console.error('get_events error:', result);
             return;
         }
         
         const event = result.events.find(e => e.id === eventId);
         if (!event) {
             toast.quickError('Arrangement', 'Arrangement ikke funnet');
+            console.error('Event not found in list:', eventId, result.events);
             return;
         }
         
