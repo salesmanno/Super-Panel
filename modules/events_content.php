@@ -1121,7 +1121,10 @@ async function loadEvents() {
         }
         
         if (result.success && result.events && result.events.length > 0) {
-            eventsList.innerHTML = result.events.map(event => {
+            // DEDUPLICATE: Remove duplicate events by ID
+            const uniqueEvents = Array.from(new Map(result.events.map(e => [e.id, e])).values());
+            
+            eventsList.innerHTML = uniqueEvents.map(event => {
                 const startDate = new Date(event.start_date + ' ' + event.start_time);
                 const dateStr = startDate.toLocaleDateString('no-NO', { day: 'numeric', month: 'short', year: 'numeric' });
                 const timeStr = event.start_time ? event.start_time.substring(0, 5) : '';

@@ -40,7 +40,7 @@ try {
             op.is_public,
             ts.first_name,
             ts.last_name,
-            COUNT(ec.id) as current_attendees
+            COALESCE(COUNT(DISTINCT ec.id), 0) as current_attendees
         FROM events_eventdata e
         LEFT JOIN output_products op ON e.output_product_id = op.id
         LEFT JOIN tenant_admins ta ON CAST(e.created_by AS INTEGER) = ta.id
@@ -57,6 +57,14 @@ try {
     
     $stmt->execute([$_SESSION['company_id']]);
     $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Log event IDs to detect duplicates
+    $eventIds = array_column($events, 'id');
+    $uniqueIds = array_unique($eventIds);
+    if (count($eventIds) !== count($uniqueIds)) {
+        error_log("WARNING: Duplicate event IDs detected! Total: " . count($eventIds) . ", Unique: " . count($uniqueIds));
+        error_log("Event IDs: " . json_encode($eventIds));
+    }
     
     // Fetch membership prices for member-exclusive events
     foreach ($events as &$event) {
