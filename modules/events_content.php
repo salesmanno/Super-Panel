@@ -256,18 +256,6 @@ try {
                         </div>
                     </div>
                     
-                    <!-- Manual Approval Option (only for signup type) -->
-                    <div id="manual-approval-section" class="mb-3" style="display: none;">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="requires_manual_approval" id="requires-manual-approval">
-                            <label class="form-check-label" for="requires-manual-approval">
-                                Krev manuell godkjenning for alle påmeldinger
-                            </label>
-                            <small class="text-muted d-block mt-1 ms-4">
-                                Medlemmer godkjennes alltid automatisk
-                            </small>
-                        </div>
-                    </div>
                     
                     <div class="mb-3">
                         <label class="form-label">Beskrivelse</label>
@@ -1118,7 +1106,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 event_image_url: formData.get('event_image_url') || null,
                 is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
                 registration_type: formData.get('registration_type') || 'signup',
-                requires_manual_approval: formData.get('requires_manual_approval') ? 1 : 0,
                 payment_timing_methods: paymentTimingMethods,
                 membership_pricing: membershipPricing,
                 allowed_payment_methods: allowedPaymentMethods,
@@ -2583,22 +2570,15 @@ async function loadPaymentMethodsForEdit(selectedMethods = []) {
 // Handle registration type changes - show/hide sections for "Ingen påmelding"
 const registrationTypeRadios = document.querySelectorAll('input[name="registration_type"]');
 const registrationFieldsSection = document.getElementById('registration-fields-section');
-const manualApprovalSection = document.getElementById('manual-approval-section');
 
 if (registrationTypeRadios.length > 0) {
     function handleRegistrationTypeChange() {
         const selectedType = document.querySelector('input[name="registration_type"]:checked').value;
         const isNone = selectedType === 'none';
-        const isSignup = selectedType === 'signup';
         
         // Show/hide påmeldingsfelt section
         if (registrationFieldsSection) {
             registrationFieldsSection.style.display = isNone ? 'none' : 'block';
-        }
-        
-        // Show/hide manual approval section (only for signup type)
-        if (manualApprovalSection) {
-            manualApprovalSection.style.display = isSignup ? 'block' : 'none';
         }
         
         // Show/hide participant limits and ticket price

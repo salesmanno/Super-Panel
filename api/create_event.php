@@ -101,11 +101,9 @@ try {
                 event_image_url,
                 ticket_price,
                 registration_type,
-                requires_manual_approval,
                 payment_timing,
                 created_by
             ) VALUES (
-                ?,
                 ?,
                 ?,
                 ?,
@@ -152,7 +150,6 @@ try {
             $data['event_image_url'] ?? null,
             $data['ticket_price'] ?? 0,
             $registrationType,
-            $data['requires_manual_approval'] ?? 0,
             $paymentTiming,
             $_SESSION['tenant_admin_id']
         ]);
