@@ -1968,9 +1968,13 @@ async function addEventExpense(eventId) {
 // Edit event function
 async function editEvent(eventId) {
     try {
+        console.log('editEvent called with eventId:', eventId, 'type:', typeof eventId);
+        
         // Fetch event details
         const response = await fetch(`/api/get_events.php`);
         const result = await response.json();
+        
+        console.log('get_events.php response:', result);
         
         if (!result.success) {
             toast.quickError('Arrangement', result.message || 'Kunne ikke laste arrangement');
@@ -1978,12 +1982,17 @@ async function editEvent(eventId) {
             return;
         }
         
+        console.log('Looking for event with ID:', eventId);
+        console.log('Available event IDs:', result.events.map(e => ({ id: e.id, type: typeof e.id, title: e.title })));
+        
         const event = result.events.find(e => e.id === eventId);
         if (!event) {
             toast.quickError('Arrangement', 'Arrangement ikke funnet');
-            console.error('Event not found in list:', eventId, result.events);
+            console.error('Event not found. Looking for:', eventId, 'Available:', result.events.map(e => e.id));
             return;
         }
+        
+        console.log('Found event:', event);
         
         // Populate form fields
         document.getElementById('edit-event-id').value = event.id;
