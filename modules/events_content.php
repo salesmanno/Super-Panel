@@ -1092,9 +1092,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (result.success) {
                     toast.quickSuccess('Arrangement', 'Arrangement opprettet!');
                     createEventForm.reset();
-                    loadEvents();
-                    // Switch to "Dine arrangement" tab
+                    // Switch to "Dine arrangement" tab first
                     document.querySelector('[href="#events-my"]').click();
+                    // Then load events once
+                    setTimeout(() => loadEvents(), 100);
                 } else {
                     toast.quickError('Feil', result.message || 'Kunne ikke opprette arrangement');
                 }
@@ -1106,7 +1107,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// Prevent multiple simultaneous calls
+let loadEventsRunning = false;
+
 async function loadEvents() {
+    if (loadEventsRunning) {
+        console.log('loadEvents already running, skipping...');
+        return;
+    }
+    
+    loadEventsRunning = true;
+    
     try {
         const response = await fetch('../api/get_events.php');
         const result = await response.json();
@@ -1123,6 +1134,8 @@ async function loadEvents() {
         if (result.success && result.events && result.events.length > 0) {
             // DEDUPLICATE: Remove duplicate events by ID
             const uniqueEvents = Array.from(new Map(result.events.map(e => [e.id, e])).values());
+            
+            console.log('Rendering', uniqueEvents.length, 'unique events');
             
             eventsList.innerHTML = uniqueEvents.map(event => {
                 const startDate = new Date(event.start_date + ' ' + event.start_time);
@@ -1296,6 +1309,8 @@ async function loadEvents() {
                 </div>
             </div>
         `;
+    } finally {
+        loadEventsRunning = false;
     }
 }
 
