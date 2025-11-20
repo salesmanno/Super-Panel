@@ -278,13 +278,27 @@ try {
 
                     <div class="row">
                         <div class="col-md-3 mb-3">
-                            <input type="number" class="form-control" name="age_limit" placeholder="Aldersgrense">
+                            <label class="form-label">Aldersgrense</label>
+                            <input type="number" class="form-control" name="age_limit">
                         </div>
                         <div class="col-md-3 mb-3">
-                            <input type="text" class="form-control" name="venue_name" placeholder="Stedsnavn">
+                            <label class="form-label">Stedsnavn</label>
+                            <input type="text" class="form-control" name="venue_name">
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <input type="text" class="form-control" name="event_address" placeholder="Adresse (gate, by, postnummer)">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">By</label>
+                            <input type="text" class="form-control" name="event_city">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Postnummer</label>
+                            <input type="text" class="form-control" name="event_postal">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Adresse</label>
+                            <input type="text" class="form-control" name="event_address">
                         </div>
                     </div>
 
@@ -303,7 +317,8 @@ try {
                             <input type="number" class="form-control" name="max_attendees">
                         </div>
                         <div class="col-md-3 mb-3" id="ticket-price-container">
-                            <input type="number" step="0.01" class="form-control" name="ticket_price" id="ticket_price" placeholder="Billettpris (NOK)">
+                            <label class="form-label">Billettpris (NOK)</label>
+                            <input type="number" step="0.01" class="form-control" name="ticket_price" id="ticket_price">
                         </div>
                     </div>
 
@@ -2335,20 +2350,19 @@ async function loadMembershipPlansForCreate() {
             membershipPlansData = result.plans;
             container.innerHTML = '<div class="row">' + result.plans.map(plan => `
                 <div class="col-md-6 mb-3">
-                    <label class="form-label" style="font-size: 0.75rem;">${plan.name}</label>
+                    <label class="form-label small">${plan.name}</label>
                     <div class="input-group input-group-sm mb-1">
                         <span class="input-group-text">NOK</span>
                         <input type="number" step="0.01" class="form-control" 
                                name="plan_price_${plan.plan_id}" 
                                data-plan-id="${plan.plan_id}"
-                               placeholder="Pris">
-                        <span class="input-group-text text-muted" style="font-size: 0.7rem;">${plan.price} kr/mnd</span>
+                               placeholder="Standard pris">
+                        <span class="input-group-text text-muted">${plan.price} kr/mnd</span>
                     </div>
                     <div class="form-check form-check-sm">
-                        <input class="form-check-input membership-public-checkbox" type="checkbox" 
+                        <input class="form-check-input" type="checkbox" 
                                name="plan_public_${plan.plan_id}" 
                                id="plan_public_${plan.plan_id}"
-                               data-plan-id="${plan.plan_id}"
                                checked>
                         <label class="form-check-label small text-muted" for="plan_public_${plan.plan_id}">
                             Vis offentlig
@@ -2356,20 +2370,6 @@ async function loadMembershipPlansForCreate() {
                     </div>
                 </div>
             `).join('') + '</div>';
-            
-            // Add validation: at least one must be checked
-            setTimeout(() => {
-                const checkboxes = document.querySelectorAll('.membership-public-checkbox');
-                checkboxes.forEach(cb => {
-                    cb.addEventListener('change', () => {
-                        const anyChecked = Array.from(checkboxes).some(box => box.checked);
-                        if (!anyChecked) {
-                            cb.checked = true;
-                            toast.quickWarning('Validering', 'Minst én medlemspris må vises offentlig');
-                        }
-                    });
-                });
-            }, 100);
         } else {
             container.innerHTML = '<p class="text-muted small mb-0"><i class="bi bi-info-circle me-2"></i>Ingen medlemsplaner funnet</p>';
         }
@@ -2561,7 +2561,7 @@ if (registrationTypeRadios.length > 0) {
     handleRegistrationTypeChange();
 }
 
-// Handle "Kun medlemmer" checkbox - hide ticket price when checked (CREATE FORM)
+// Handle "Kun medlemmer" checkbox - gray out/hide ticket price when checked (CREATE FORM)
 const memberExclusiveCheckbox = document.getElementById('memberExclusive');
 const ticketPriceContainer = document.getElementById('ticket-price-container');
 const ticketPriceInput = document.getElementById('ticket_price');
@@ -2571,12 +2571,14 @@ if (memberExclusiveCheckbox && ticketPriceContainer && ticketPriceInput) {
         const isMemberOnly = memberExclusiveCheckbox.checked;
         
         if (isMemberOnly) {
-            // Hide the ticket price field completely
-            ticketPriceContainer.style.display = 'none';
+            // Gray out and disable the ticket price field
+            ticketPriceInput.disabled = true;
+            ticketPriceInput.classList.add('bg-light', 'text-muted');
             ticketPriceInput.value = '0';
         } else {
-            // Show the ticket price field
-            ticketPriceContainer.style.display = 'block';
+            // Re-enable the ticket price field
+            ticketPriceInput.disabled = false;
+            ticketPriceInput.classList.remove('bg-light', 'text-muted');
         }
     }
     
@@ -2586,7 +2588,7 @@ if (memberExclusiveCheckbox && ticketPriceContainer && ticketPriceInput) {
     handleMemberExclusiveChange();
 }
 
-// Handle "Kun medlemmer" checkbox - hide ticket price when checked (EDIT FORM)
+// Handle "Kun medlemmer" checkbox - gray out/hide ticket price when checked (EDIT FORM)
 const editMemberExclusiveCheckbox = document.getElementById('edit-member-exclusive');
 const editTicketPriceContainer = document.getElementById('edit-ticket-price-container');
 const editTicketPriceInput = document.getElementById('edit-ticket-price');
@@ -2596,12 +2598,14 @@ if (editMemberExclusiveCheckbox && editTicketPriceContainer && editTicketPriceIn
         const isMemberOnly = editMemberExclusiveCheckbox.checked;
         
         if (isMemberOnly) {
-            // Hide the ticket price field completely
-            editTicketPriceContainer.style.display = 'none';
+            // Gray out and disable the ticket price field
+            editTicketPriceInput.disabled = true;
+            editTicketPriceInput.classList.add('bg-light', 'text-muted');
             editTicketPriceInput.value = '0';
         } else {
-            // Show the ticket price field
-            editTicketPriceContainer.style.display = 'block';
+            // Re-enable the ticket price field
+            editTicketPriceInput.disabled = false;
+            editTicketPriceInput.classList.remove('bg-light', 'text-muted');
         }
     }
     
