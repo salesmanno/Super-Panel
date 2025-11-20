@@ -25,7 +25,8 @@ try {
             r.created_at,
             e.title AS event_title,
             e.start_date,
-            e.start_time
+            e.start_time,
+            e.requires_manual_approval
         FROM event_registrations r
         INNER JOIN events_eventdata e ON r.event_id = e.id COLLATE utf8mb4_unicode_ci
         WHERE r.company_id = ?

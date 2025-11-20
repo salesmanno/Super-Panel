@@ -176,17 +176,15 @@ try {
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h4 class="mb-1"><i class="bi bi-calendar-event me-2"></i>Dine arrangement</h4>
-                <p class="text-muted mb-0">Oversikt over alle dine arrangementer</p>
+                <p class="text-muted mb-0">Oversikt over alle dine arrangementer 
+                    <a href="#" onclick="document.querySelector('[href=\'#events-registrations\']').click(); return false;" style="text-decoration: none;">
+                        <span class="badge bg-danger ms-1" id="pending-count-badge" style="display: none;">0 venter godkjenning</span>
+                    </a>
+                </p>
             </div>
-            <div class="d-flex gap-2">
-                <button class="btn btn-outline-primary" onclick="document.querySelector('[href=\'#events-registrations\']').click()">
-                    <i class="bi bi-clipboard-check me-2"></i>Påmeldinger
-                    <span class="badge bg-danger ms-1" id="pending-count-badge" style="display: none;">0</span>
-                </button>
-                <button class="btn btn-primary" onclick="document.querySelector('[href=\'#events-create\']').click()">
-                    <i class="bi bi-plus-circle me-2"></i>Opprett nytt
-                </button>
-            </div>
+            <button class="btn btn-primary" onclick="document.querySelector('[href=\'#events-create\']').click()">
+                <i class="bi bi-plus-circle me-2"></i>Opprett nytt
+            </button>
         </div>
         
         <div id="events-list" class="row g-4">
@@ -259,18 +257,16 @@ try {
                     </div>
                     
                     <!-- Manual Approval Option (only for signup type) -->
-                    <div id="manual-approval-section" class="alert alert-info mb-4">
+                    <div id="manual-approval-section" class="mb-3" style="display: none;">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" name="requires_manual_approval" id="requires-manual-approval">
                             <label class="form-check-label" for="requires-manual-approval">
-                                <i class="bi bi-shield-check me-1"></i> <strong>Krev manuell godkjenning for alle påmeldinger</strong>
+                                Krev manuell godkjenning for alle påmeldinger
                             </label>
+                            <small class="text-muted d-block mt-1 ms-4">
+                                Medlemmer godkjennes alltid automatisk
+                            </small>
                         </div>
-                        <small class="text-muted d-block mt-2">
-                            <i class="bi bi-info-circle me-1"></i>
-                            Hvis aktivert, må du godkjenne hver påmelding manuelt.<br>
-                            Hvis deaktivert, godkjennes kun betalte påmeldinger med gyldig medlemskap automatisk.
-                        </small>
                     </div>
                     
                     <div class="mb-3">
