@@ -1985,18 +1985,27 @@ async function addEventExpense(eventId) {
 
 // Edit event function
 async function editEvent(eventId) {
+    console.log('editEvent called with ID:', eventId, 'Type:', typeof eventId);
+    
     try {
         // Fetch event details
         const response = await fetch(`/api/get_events.php`);
         const result = await response.json();
+        
+        console.log('API returned:', result);
         
         if (!result.success) {
             toast.quickError('Arrangement', result.message || 'Kunne ikke laste arrangement');
             return;
         }
         
-        const event = result.events.find(e => e.id === eventId);
+        // Convert both to string for comparison (eventId from onclick is string, db ID may be int)
+        const event = result.events.find(e => String(e.id) === String(eventId));
+        
+        console.log('Found event:', event);
+        
         if (!event) {
+            console.error('Event not found. Looking for:', eventId, 'Available IDs:', result.events.map(e => e.id));
             toast.quickError('Arrangement', 'Arrangement ikke funnet');
             return;
         }
