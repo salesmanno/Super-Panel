@@ -178,9 +178,15 @@ try {
                 <h4 class="mb-1"><i class="bi bi-calendar-event me-2"></i>Dine arrangement</h4>
                 <p class="text-muted mb-0">Oversikt over alle dine arrangementer</p>
             </div>
-            <button class="btn btn-primary" onclick="document.querySelector('[href=\'#events-create\']').click()">
-                <i class="bi bi-plus-circle me-2"></i>Opprett nytt
-            </button>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary" onclick="document.querySelector('[href=\'#events-registrations\']').click()">
+                    <i class="bi bi-clipboard-check me-2"></i>Påmeldinger
+                    <span class="badge bg-danger ms-1" id="pending-count-badge" style="display: none;">0</span>
+                </button>
+                <button class="btn btn-primary" onclick="document.querySelector('[href=\'#events-create\']').click()">
+                    <i class="bi bi-plus-circle me-2"></i>Opprett nytt
+                </button>
+            </div>
         </div>
         
         <div id="events-list" class="row g-4">
@@ -1006,6 +1012,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load events when module is active
     if (document.getElementById('events-my')) {
         loadEvents();
+        // Load pending registrations count for badge
+        loadPendingRegistrations();
     }
     
     // Load membership plans and payment methods for create form
@@ -2707,6 +2715,170 @@ if (editMemberExclusiveCheckbox && editTicketPriceContainer && editTicketPriceIn
     const editEventModal = document.getElementById('editEventModal');
     if (editEventModal) {
         editEventModal.addEventListener('shown.bs.modal', handleEditMemberExclusiveChange);
+    }
+}
+
+// ========== REGISTRATIONS APPROVAL FUNCTIONALITY ==========
+
+// Load pending registrations when tab is shown
+document.querySelector('[href="#events-registrations"]')?.addEventListener('click', function() {
+    loadPendingRegistrations();
+});
+
+async function loadPendingRegistrations() {
+    try {
+        const response = await fetch('../api/get_pending_registrations.php');
+        const result = await response.json();
+        
+        const tbody = document.getElementById('pending-registrations-list');
+        const badge = document.getElementById('pending-count-badge');
+        
+        if (!result.success) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center text-danger py-4">
+                        ${result.message || 'Feil ved lasting av påmeldinger'}
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // Update badge count
+        if (badge && result.registrations && result.registrations.length > 0) {
+            badge.textContent = result.registrations.length;
+            badge.style.display = 'inline-block';
+        } else if (badge) {
+            badge.style.display = 'none';
+        }
+        
+        if (result.registrations && result.registrations.length > 0) {
+            tbody.innerHTML = result.registrations.map(reg => {
+                const registeredDate = new Date(reg.created_at);
+                const dateStr = registeredDate.toLocaleDateString('no-NO', { 
+                    day: 'numeric', 
+                    month: 'short', 
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                const paidBadge = reg.is_paid 
+                    ? '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Betalt</span>' 
+                    : '<span class="badge bg-warning"><i class="bi bi-clock"></i> Ubetalt</span>';
+                
+                const memberBadge = reg.has_valid_membership 
+                    ? '<span class="badge bg-primary"><i class="bi bi-star"></i> Medlem</span>' 
+                    : '<span class="badge bg-secondary">Ikke medlem</span>';
+                
+                const contact = [
+                    reg.email ? `<i class="bi bi-envelope"></i> ${reg.email}` : '',
+                    reg.phone ? `<i class="bi bi-telephone"></i> ${reg.phone}` : ''
+                ].filter(Boolean).join('<br>');
+                
+                return `
+                    <tr>
+                        <td><strong>${reg.first_name} ${reg.last_name}</strong></td>
+                        <td>
+                            <div>${reg.event_title}</div>
+                            <small class="text-muted">${reg.start_date} ${reg.start_time}</small>
+                        </td>
+                        <td><small>${contact}</small></td>
+                        <td>${paidBadge}</td>
+                        <td>${memberBadge}</td>
+                        <td><small>${dateStr}</small></td>
+                        <td>
+                            <button class="btn btn-sm btn-success me-1" onclick="approveRegistration('${reg.id}')" title="Godkjenn">
+                                <i class="bi bi-check-circle"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="rejectRegistration('${reg.id}')" title="Avvis">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        <i class="bi bi-check-circle fs-1 d-block mb-2"></i>
+                        Ingen ventende påmeldinger
+                    </td>
+                </tr>
+            `;
+        }
+        
+    } catch (error) {
+        console.error('Error loading pending registrations:', error);
+        document.getElementById('pending-registrations-list').innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center text-danger py-4">
+                    Feil ved lasting av påmeldinger
+                </td>
+            </tr>
+        `;
+    }
+}
+
+async function approveRegistration(registrationId) {
+    if (!confirm('Er du sikker på at du vil godkjenne denne påmeldingen?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('../api/approve_registration.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ registration_id: registrationId })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            toast.quickSuccess('Påmelding', 'Påmelding godkjent!');
+            loadPendingRegistrations();
+        } else {
+            toast.quickError('Feil', result.message || 'Kunne ikke godkjenne påmelding');
+        }
+    } catch (error) {
+        console.error('Error approving registration:', error);
+        toast.quickError('Feil', 'Feil ved godkjenning av påmelding');
+    }
+}
+
+async function rejectRegistration(registrationId) {
+    const reason = prompt('Årsak til avvisning (valgfritt):');
+    
+    if (reason === null) {
+        return; // User cancelled
+    }
+    
+    try {
+        const response = await fetch('../api/reject_registration.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                registration_id: registrationId,
+                reason: reason || null
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            toast.quickSuccess('Påmelding', 'Påmelding avvist');
+            loadPendingRegistrations();
+        } else {
+            toast.quickError('Feil', result.message || 'Kunne ikke avvise påmelding');
+        }
+    } catch (error) {
+        console.error('Error rejecting registration:', error);
+        toast.quickError('Feil', 'Feil ved avvisning av påmelding');
     }
 }
 
