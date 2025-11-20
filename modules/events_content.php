@@ -1110,8 +1110,18 @@ async function loadEvents() {
     try {
         const response = await fetch('../api/get_events.php');
         const result = await response.json();
+        
+        console.log('get_events.php response:', result);
 
         const eventsList = document.getElementById('events-list');
+        
+        if (!result.success) {
+            eventsList.innerHTML = `<div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i> ${result.message || 'Kunne ikke laste arrangementer'}
+            </div>`;
+            return;
+        }
+        
         if (result.success && result.events && result.events.length > 0) {
             eventsList.innerHTML = result.events.map(event => {
                 const startDate = new Date(event.start_date + ' ' + event.start_time);
