@@ -580,8 +580,8 @@ try {
     <div id="events-registrations" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title"><i class="bi bi-clipboard-check me-2"></i>Påmeldinger til godkjenning</h5>
-                <p class="text-muted">Godkjenn eller avvis ventende påmeldinger til arrangementer</p>
+                <h5 class="card-title"><i class="bi bi-clipboard-check me-2"></i>Eventbestillinger</h5>
+                <p class="text-muted">Godkjenn eller avvis ventende bestillinger</p>
                 
                 <div class="table-responsive">
                     <table class="table table-hover">
