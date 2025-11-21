@@ -592,6 +592,9 @@ try {
                 <li class="nav-item">
                     <a class="nav-link" href="#economy-payment">Betalingsløsninger</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#economy-terms">Kjøpsbetingelser</a>
+                </li>
             </ul>
             
             <!-- Sales subtabs -->
