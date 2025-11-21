@@ -371,12 +371,152 @@
         }
         </script>
     </div>
+
+    <div id="economy-terms" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-file-earmark-text me-2"></i>Kjøpsbetingelser</h5>
+                <p class="text-muted">Administrer kjøpsbetingelser og vilkår for ditt selskap</p>
+
+                <div class="mb-4">
+                    <button class="btn btn-primary" onclick="showCreateTermsModal()">
+                        <i class="bi bi-plus-circle me-1"></i>Nye betingelser
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Aktive betingelser</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover" id="terms-table">
+                                <thead>
+                                    <tr>
+                                        <th>Tittel</th>
+                                        <th>Versjon</th>
+                                        <th>Gyldig fra</th>
+                                        <th>Status</th>
+                                        <th>Aksepteringer</th>
+                                        <th class="text-end">Handlinger</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-3">
+                                            Laster...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal for creating/editing terms -->
+        <div class="modal fade" id="termsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="termsModalTitle">Nye kjøpsbetingelser</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="termsForm">
+                            <input type="hidden" id="termsId" value="">
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Tittel</label>
+                                <input type="text" class="form-control" id="termsTitle" value="Kjøpsbetingelser" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Versjon</label>
+                                <input type="text" class="form-control" id="termsVersion" value="1.0" placeholder="f.eks. 1.0, 1.1">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Gyldig fra</label>
+                                <input type="date" class="form-control" id="termsEffectiveDate" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Innhold</label>
+                                <textarea class="form-control" id="termsContent" rows="8" required placeholder="Skriv inn dine kjøpsbetingelser her..."></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Aksepttype</label>
+                                <select class="form-select" id="termsAcceptanceType">
+                                    <option value="checkbox">Avkryssingsboks</option>
+                                    <option value="signature">Signatur</option>
+                                    <option value="implicit">Implisitt aksept</option>
+                                </select>
+                            </div>
+
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="termsRequireAcceptance" checked>
+                                <label class="form-check-label" for="termsRequireAcceptance">
+                                    Krever aksept fra kunder
+                                </label>
+                            </div>
+
+                            <div class="alert alert-info mt-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Disse betingelsene vil gjelde for alle moduler som standard.
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                        <button type="button" class="btn btn-primary" onclick="saveTerms()">Lagre betingelser</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal for viewing acceptances -->
+        <div class="modal fade" id="acceptancesModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Aksepteringer</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm" id="acceptances-table">
+                                <thead>
+                                    <tr>
+                                        <th>Kunde</th>
+                                        <th>E-post</th>
+                                        <th>Akseptert</th>
+                                        <th>Modul</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-3">
+                                            Laster aksepteringer...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
 // Load economy data when module is active
 document.addEventListener('DOMContentLoaded', function() {
     loadEconomyOverview();
+    loadTermsConditions();
 });
 
 function loadEconomyOverview() {
@@ -618,5 +758,169 @@ document.querySelectorAll('#economy-income input[type="date"]').forEach(input =>
         }
     });
 });
+
+// Terms and Conditions Functions
+function loadTermsConditions() {
+    fetch('/api/get_terms_conditions.php')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                updateTermsTable(data.data);
+            }
+        })
+        .catch(error => console.error('Error loading terms:', error));
+}
+
+function updateTermsTable(terms) {
+    const tbody = document.querySelector('#terms-table tbody');
+    if (terms.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Ingen betingelser registrert</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = terms.map(term => {
+        const status = term.is_active ? '<span class="badge bg-success">Aktiv</span>' : '<span class="badge bg-secondary">Inaktiv</span>';
+        return `
+            <tr>
+                <td>${term.title}</td>
+                <td><code>${term.version}</code></td>
+                <td>${formatDate(term.effective_date)}</td>
+                <td>${status}</td>
+                <td><a href="#" onclick="showAcceptances('${term.id}'); return false;" class="text-decoration-none">${term.acceptance_count || 0}</a></td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-primary" onclick="editTerms('${term.id}')">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteTerms('${term.id}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function showCreateTermsModal() {
+    document.getElementById('termsId').value = '';
+    document.getElementById('termsForm').reset();
+    document.getElementById('termsTitle').value = 'Kjøpsbetingelser';
+    document.getElementById('termsVersion').value = '1.0';
+    document.getElementById('termsEffectiveDate').valueAsDate = new Date();
+    document.getElementById('termsModalTitle').textContent = 'Nye kjøpsbetingelser';
+    const modal = new bootstrap.Modal(document.getElementById('termsModal'));
+    modal.show();
+}
+
+function editTerms(id) {
+    fetch(`/api/get_terms_conditions.php?id=${id}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                const term = data.data;
+                document.getElementById('termsId').value = term.id;
+                document.getElementById('termsTitle').value = term.title;
+                document.getElementById('termsVersion').value = term.version;
+                document.getElementById('termsEffectiveDate').value = term.effective_date;
+                document.getElementById('termsContent').value = term.content;
+                document.getElementById('termsAcceptanceType').value = term.acceptance_type;
+                document.getElementById('termsRequireAcceptance').checked = term.requires_customer_acceptance;
+                document.getElementById('termsModalTitle').textContent = 'Rediger kjøpsbetingelser';
+                const modal = new bootstrap.Modal(document.getElementById('termsModal'));
+                modal.show();
+            }
+        })
+        .catch(error => {
+            toast.quickError('Feil', 'Kunne ikke hente betingelser');
+        });
+}
+
+function saveTerms() {
+    const termsId = document.getElementById('termsId').value;
+    const formData = {
+        title: document.getElementById('termsTitle').value,
+        version: document.getElementById('termsVersion').value,
+        effective_date: document.getElementById('termsEffectiveDate').value,
+        content: document.getElementById('termsContent').value,
+        acceptance_type: document.getElementById('termsAcceptanceType').value,
+        requires_customer_acceptance: document.getElementById('termsRequireAcceptance').checked
+    };
+
+    if (termsId) {
+        formData.id = termsId;
+    }
+
+    fetch('/api/create_update_terms.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            toast.quickSuccess('Suksess', termsId ? 'Betingelser oppdatert' : 'Betingelser opprettet');
+            bootstrap.Modal.getInstance(document.getElementById('termsModal')).hide();
+            loadTermsConditions();
+        } else {
+            toast.quickError('Feil', data.message || 'Kunne ikke lagre betingelser');
+        }
+    })
+    .catch(error => {
+        toast.quickError('Feil', 'En feil oppstod: ' + error.message);
+    });
+}
+
+function deleteTerms(id) {
+    if (!confirm('Er du sikker på at du vil slette disse betingelsene?')) return;
+
+    fetch('/api/create_update_terms.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id, action: 'delete' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            toast.quickSuccess('Suksess', 'Betingelser slettet');
+            loadTermsConditions();
+        } else {
+            toast.quickError('Feil', data.message || 'Kunne ikke slette betingelser');
+        }
+    })
+    .catch(error => {
+        toast.quickError('Feil', 'En feil oppstod: ' + error.message);
+    });
+}
+
+function showAcceptances(termsId) {
+    fetch(`/api/get_terms_acceptances.php?terms_id=${termsId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                updateAcceptancesTable(data.data);
+                const modal = new bootstrap.Modal(document.getElementById('acceptancesModal'));
+                modal.show();
+            }
+        })
+        .catch(error => {
+            toast.quickError('Feil', 'Kunne ikke hente aksepteringer');
+        });
+}
+
+function updateAcceptancesTable(acceptances) {
+    const tbody = document.querySelector('#acceptances-table tbody');
+    if (acceptances.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Ingen aksepteringer ennå</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = acceptances.map(acc => `
+        <tr>
+            <td>${acc.user_name || 'Anonym'}</td>
+            <td><small>${acc.user_email}</small></td>
+            <td><small>${formatDate(acc.accepted_at)}</small></td>
+            <td><span class="badge bg-info">${acc.module_context || 'Generelt'}</span></td>
+        </tr>
+    `).join('');
+}
 </script>
 
