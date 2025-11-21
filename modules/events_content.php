@@ -643,6 +643,44 @@ try {
                         <label class="form-label">Beskrivelse</label>
                         <textarea class="form-control" name="description" id="edit-description" rows="3"></textarea>
                     </div>
+                    
+                    <div class="card border-success mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0"><i class="bi bi-check-circle me-2"></i>Registreringstype</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">Velg hvordan deltakere registrerer seg til arrangementet</p>
+                            <div class="row">
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-signup" value="signup">
+                                        <label class="form-check-label" for="edit-reg-signup">
+                                            <i class="bi bi-person-plus text-primary me-1"></i> <strong>Påmelding</strong><br>
+                                            <small class="text-muted">Deltakere melder seg på</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-none" value="none">
+                                        <label class="form-check-label" for="edit-reg-none">
+                                            <i class="bi bi-x-circle text-secondary me-1"></i> <strong>Ingen påmelding</strong><br>
+                                            <small class="text-muted">Fritt arrangement uten registrering</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-binding" value="binding">
+                                        <label class="form-check-label" for="edit-reg-binding">
+                                            <i class="bi bi-lock text-warning me-1"></i> <strong>Bindende</strong><br>
+                                            <small class="text-muted">Krever betaling ved påmelding</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="row">
                         <div class="col-md-3 mb-3">
@@ -2029,8 +2067,8 @@ async function editEvent(eventId) {
     console.log('editEvent called with ID:', eventId, 'Type:', typeof eventId);
     
     try {
-        // Fetch event details
-        const response = await fetch(`/api/get_events.php`);
+        // Fetch specific event details using dedicated endpoint
+        const response = await fetch(`/api/get_event.php?id=${eventId}`);
         const result = await response.json();
         
         console.log('API returned:', result);
@@ -2040,13 +2078,9 @@ async function editEvent(eventId) {
             return;
         }
         
-        // Convert both to string for comparison (eventId from onclick is string, db ID may be int)
-        const event = result.events.find(e => String(e.id) === String(eventId));
-        
-        console.log('Found event:', event);
+        const event = result.event;
         
         if (!event) {
-            console.error('Event not found. Looking for:', eventId, 'Available IDs:', result.events.map(e => e.id));
             toast.quickError('Arrangement', 'Arrangement ikke funnet');
             return;
         }
@@ -2071,6 +2105,13 @@ async function editEvent(eventId) {
         document.getElementById('edit-member-ticket-price').value = event.member_ticket_price || '';
         document.getElementById('edit-default-payment-method').value = event.default_payment_method || '';
         document.getElementById('edit-event-image-url').value = event.event_image_url || '';
+        
+        // Set registration type radio button
+        const registrationType = event.registration_type || 'signup';
+        const registrationRadio = document.querySelector(`input[name="registration_type"][value="${registrationType}"]`);
+        if (registrationRadio) {
+            registrationRadio.checked = true;
+        }
         
         // Set checkbox
         const memberExclusiveCheckbox = document.getElementById('edit-member-exclusive');
@@ -2190,6 +2231,7 @@ async function saveEventChanges() {
         event_id: formData.get('event_id'),
         title: formData.get('title'),
         description: formData.get('description'),
+        registration_type: formData.get('registration_type') || 'signup',
         start_date: startDate,
         start_time: formData.get('start_time'),
         end_date: formData.get('end_date') || null,
