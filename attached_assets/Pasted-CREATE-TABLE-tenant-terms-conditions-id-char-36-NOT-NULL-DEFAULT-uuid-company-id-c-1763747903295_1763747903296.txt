@@ -1,0 +1,49 @@
+CREATE TABLE `tenant_terms_conditions` (
+  `id` char(36) NOT NULL DEFAULT uuid(),
+  `company_id` char(36) NOT NULL,
+  `title` varchar(255) NOT NULL DEFAULT 'Kjøpsbetingelser',
+  `content` text NOT NULL,
+  `version` varchar(20) NOT NULL DEFAULT '1.0',
+  `effective_date` date NOT NULL,
+  `is_active` tinyint(1) DEFAULT 1,
+  `applies_to_modules` text DEFAULT NULL COMMENT 'JSON array of module IDs or "all"',
+  `requires_customer_acceptance` tinyint(1) DEFAULT 1,
+  `acceptance_type` enum('checkbox','signature','implicit') DEFAULT 'checkbox',
+  `created_by` char(36) NOT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_company_version` (`company_id`,`version`),
+  KEY `idx_tenant_terms_company` (`company_id`),
+  KEY `idx_tenant_terms_active` (`is_active`,`effective_date`),
+  CONSTRAINT `tenant_terms_conditions_ibfk_1` FOREIGN KEY (`company_id`) REFERENCES `tenant_companies` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `tenant_terms_conditions_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `tenant_admins` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+--
+-- Tabellstruktur for tabell `tenant_terms_acceptances`
+--
+
+CREATE TABLE `tenant_terms_acceptances` (
+  `id` char(36) NOT NULL DEFAULT uuid(),
+  `terms_conditions_id` char(36) NOT NULL,
+  `customer_id` char(36) DEFAULT NULL,
+  `user_type` varchar(20) NOT NULL DEFAULT 'customer',
+  `user_id` char(36) DEFAULT NULL,
+  `user_email` varchar(255) NOT NULL,
+  `user_name` varchar(255) DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` text DEFAULT NULL,
+  `accepted_at` datetime DEFAULT current_timestamp(),
+  `module_context` varchar(50) DEFAULT NULL COMMENT 'Which module triggered acceptance',
+  `transaction_id` char(36) DEFAULT NULL COMMENT 'Related transaction/sale/booking',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_acceptance` (`terms_conditions_id`,`customer_id`,`module_context`,`transaction_id`),
+  KEY `idx_terms_acceptances_customer` (`customer_id`),
+  KEY `idx_terms_acceptances_terms` (`terms_conditions_id`),
+  KEY `idx_terms_acceptances_module` (`module_context`),
+  KEY `idx_terms_acceptances_date` (`accepted_at`),
+  CONSTRAINT `tenant_terms_acceptances_ibfk_1` FOREIGN KEY (`terms_conditions_id`) REFERENCES `tenant_terms_conditions` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `tenant_terms_acceptances_ibfk_2` FOREIGN KEY (`customer_id`) REFERENCES `tenant_customers` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
