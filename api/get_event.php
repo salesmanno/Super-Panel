@@ -45,9 +45,9 @@ try {
             event_image_url,
             created_at
         FROM events_eventdata 
-        WHERE id = ? AND company_id = ?
+        WHERE id = :event_id AND company_id = :company_id
     ");
-    $stmt->execute([$event_id, $company_id]);
+    $stmt->execute([':event_id' => $event_id, ':company_id' => $company_id]);
     $event = $stmt->fetch(PDO::FETCH_ASSOC);
     
     // Also fetch membership prices if it's a member-exclusive event
@@ -56,10 +56,10 @@ try {
             SELECT emp.id, mp.plan_name, emp.ticket_price, emp.public_display
             FROM event_membership_plans emp
             JOIN membership_plans mp ON emp.membership_plan_id = mp.id
-            WHERE emp.event_id = ?
+            WHERE emp.event_id = :event_id
             ORDER BY mp.plan_name
         ");
-        $planStmt->execute([$event_id]);
+        $planStmt->execute([':event_id' => $event_id]);
         $event['membership_prices'] = $planStmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
