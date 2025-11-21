@@ -1186,27 +1186,27 @@ async function loadEvents() {
                 // Check if "Ingen påmelding" (no registration) event
                 const isNoRegistration = event.registration_type === 'none';
                 
-                let priceDisplay = '<span class="event-price event-price-free">Gratis arrangement – ingen påmelding</span>';
-                if (!isNoRegistration) {
-                    // Check if member-exclusive event
-                    if (event.is_member_exclusive && event.membership_prices && event.membership_prices.length > 0) {
-                        // Show membership prices (shortened plan names)
-                        const prices = event.membership_prices
-                            .filter(mp => mp.public_display !== 0)
-                            .map(mp => {
-                                const shortName = mp.plan_name.length > 15 ? mp.plan_name.substring(0, 15) + '...' : mp.plan_name;
-                                return `${mp.price} kr (${shortName})`;
-                            })
-                            .join('<br>');
-                        priceDisplay = prices ? `<span class="event-price">${prices}</span>` : '<span class="event-price event-price-free">Kun medlemmer</span>';
-                    } else if (event.ticket_price > 0) {
-                        priceDisplay = `<span class="event-price">${event.ticket_price} kr</span>`;
-                        if (event.member_ticket_price !== null && event.member_ticket_price !== undefined && event.member_ticket_price > 0) {
-                            priceDisplay += `<br><small class="text-muted">${event.member_ticket_price} kr (medlem)</small>`;
-                        }
-                    } else {
-                        priceDisplay = '<span class="event-price event-price-free">Gratis</span>';
+                let priceDisplay = '';
+                
+                // Check if member-exclusive event
+                if (event.is_member_exclusive && event.membership_prices && event.membership_prices.length > 0) {
+                    // Show membership prices (shortened plan names)
+                    const prices = event.membership_prices
+                        .filter(mp => mp.public_display !== 0)
+                        .map(mp => {
+                            const shortName = mp.plan_name.length > 15 ? mp.plan_name.substring(0, 15) + '...' : mp.plan_name;
+                            return `${mp.price} kr (${shortName})`;
+                        })
+                        .join('<br>');
+                    priceDisplay = prices ? `<span class="event-price">${prices}</span>` : '<span class="event-price event-price-free">Kun medlemmer</span>';
+                } else if (event.ticket_price > 0) {
+                    priceDisplay = `<span class="event-price">${event.ticket_price} kr</span>`;
+                    if (event.member_ticket_price !== null && event.member_ticket_price !== undefined && event.member_ticket_price > 0) {
+                        priceDisplay += `<br><small class="text-muted">${event.member_ticket_price} kr (medlem)</small>`;
                     }
+                } else {
+                    // For events with no price, show nothing (not "Gratis")
+                    priceDisplay = '';
                 }
                 
                 const imageHtml = event.event_image_url 
