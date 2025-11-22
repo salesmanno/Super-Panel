@@ -324,6 +324,7 @@ try {
                         <div class="col-md-3 mb-3" id="ticket-price-container">
                             <label class="form-label">Billettpris (NOK)</label>
                             <input type="number" step="0.01" class="form-control" name="ticket_price" id="ticket_price">
+                            <small class="form-text text-muted" id="ticket-price-help">Ved "Ingen påmelding" vises pris med "(betales ved inngang)"</small>
                         </div>
                     </div>
 
@@ -1238,9 +1239,14 @@ async function loadEvents() {
                         .join('<br>');
                     priceDisplay = prices ? `<span class="event-price">${prices}</span>` : '<span class="event-price event-price-free">Kun medlemmer</span>';
                 } else if (event.ticket_price > 0) {
-                    priceDisplay = `<span class="event-price">${event.ticket_price} kr</span>`;
-                    if (event.member_ticket_price !== null && event.member_ticket_price !== undefined && event.member_ticket_price > 0) {
-                        priceDisplay += `<br><small class="text-muted">${event.member_ticket_price} kr (medlem)</small>`;
+                    // Show price - if no registration, add "(betales ved inngang)"
+                    if (isNoRegistration) {
+                        priceDisplay = `<span class="event-price">${event.ticket_price} kr (betales ved inngang)</span>`;
+                    } else {
+                        priceDisplay = `<span class="event-price">${event.ticket_price} kr</span>`;
+                        if (event.member_ticket_price !== null && event.member_ticket_price !== undefined && event.member_ticket_price > 0) {
+                            priceDisplay += `<br><small class="text-muted">${event.member_ticket_price} kr (medlem)</small>`;
+                        }
                     }
                 } else {
                     // For events with no price, show nothing (not "Gratis")
@@ -2623,7 +2629,7 @@ if (registrationTypeRadios.length > 0) {
             registrationFieldsSection.style.display = isNone ? 'none' : 'block';
         }
         
-        // Show/hide participant limits and ticket price
+        // Show/hide participant limits (but NOT ticket price - that's allowed for "Ingen påmelding")
         const minAttendeesInput = document.querySelector('input[name="min_attendees"]');
         const maxAttendeesInput = document.querySelector('input[name="max_attendees"]');
         const ticketPriceInput = document.querySelector('input[name="ticket_price"]');
@@ -2631,8 +2637,21 @@ if (registrationTypeRadios.length > 0) {
         
         if (minAttendeesInput) minAttendeesInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
         if (maxAttendeesInput) maxAttendeesInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
-        if (ticketPriceInput) ticketPriceInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
+        // Keep ticket price visible for all registration types
+        if (ticketPriceInput) ticketPriceInput.closest('.col-md-3').style.display = 'block';
         if (regDeadlineContainer) regDeadlineContainer.style.display = 'none';
+        
+        // Update ticket price help text based on registration type
+        const ticketPriceHelp = document.getElementById('ticket-price-help');
+        if (ticketPriceHelp) {
+            if (isNone) {
+                ticketPriceHelp.textContent = 'Ved "Ingen påmelding" vises pris med "(betales ved inngang)"';
+                ticketPriceHelp.style.display = 'block';
+            } else {
+                ticketPriceHelp.textContent = '';
+                ticketPriceHelp.style.display = 'none';
+            }
+        }
         
         // Show/hide membership pricing section
         const membershipPricingContainer = document.getElementById('membership-pricing-container');
@@ -2663,9 +2682,9 @@ if (registrationTypeRadios.length > 0) {
         if (paymentMethodsContainer) paymentMethodsContainer.style.display = isNone ? 'none' : 'block';
         if (paymentTimingStatus) paymentTimingStatus.closest('p').style.display = isNone ? 'none' : 'block';
         
-        // Clear values when "Ingen påmelding" is selected
+        // Clear values when "Ingen påmelding" is selected (except ticket price - that's allowed)
         if (isNone) {
-            if (ticketPriceInput) ticketPriceInput.value = '0';
+            // Don't clear ticketPriceInput - påmeldingsfrie arrangementer kan ha pris
             if (minAttendeesInput) minAttendeesInput.value = '';
             if (maxAttendeesInput) maxAttendeesInput.value = '';
         }
