@@ -34,7 +34,7 @@ try {
         $productName = '';
         $unitPrice = 0;
         
-        if ($outputProduct['product_type'] === 'event') {
+        if ($outputProduct['product_type'] === 'events') {
             $stmt = $db->prepare("SELECT title as name, ticket_price as price FROM events_eventdata WHERE id = ?");
             $stmt->execute([$outputProduct['product_id']]);
             $product = $stmt->fetch(PDO::FETCH_ASSOC);

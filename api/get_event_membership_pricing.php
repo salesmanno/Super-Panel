@@ -49,7 +49,7 @@ try {
                 emp.ticket_price,
                 mp.plan_name
             FROM event_membership_plans emp
-            LEFT JOIN x_membership_plan mp ON emp.membership_plan_id = mp.plan_id
+            LEFT JOIN membership_plans mp ON emp.membership_plan_id = mp.id
             WHERE emp.event_id = ?
         ");
     }

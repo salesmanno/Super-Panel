@@ -11,8 +11,6 @@ require_once __DIR__ . '/../config/database.php';
 
 try {
     $db = getDBConnection();
-    $dbType = getDBType();
-    
     // membership_members columns: id, company_id, customer_id, membership_plan_id, 
     // member_code, status, join_date, expiration_date, auto_renew, created_at
     
@@ -21,8 +19,7 @@ try {
     
     // Check if tenant_customers exists, otherwise try customers
     try {
-        if ($dbType === 'mysql') {
-            $checkStmt = $db->query("SHOW TABLES LIKE 'tenant_customers'");
+        $checkStmt = $db->query("SHOW TABLES LIKE 'tenant_customers'");
             if ($checkStmt->rowCount() == 0) {
                 $checkStmt = $db->query("SHOW TABLES LIKE 'customers'");
                 if ($checkStmt->rowCount() > 0) {
@@ -42,8 +39,7 @@ try {
         // Use default
     }
     
-    if ($dbType === 'mysql') {
-        // MySQL with membership_plans table
+    // MySQL with membership_plans table
         $stmt = $db->prepare("
             SELECT 
                 mm.id as member_id,
@@ -67,9 +63,7 @@ try {
             WHERE mm.company_id = ?
             ORDER BY mm.created_at DESC
         ");
-    } else {
-        // PostgreSQL with x_membership_plan table
-        $stmt = $db->prepare("
+    $stmt = $db->prepare("
             SELECT 
                 mm.id as member_id,
                 mm.member_code,
@@ -88,7 +82,7 @@ try {
                 p.plan_name as membership_type
             FROM membership_members mm
             LEFT JOIN $customerTable c ON mm.customer_id = c.id
-            LEFT JOIN x_membership_plan p ON mm.membership_plan_id = p.plan_id
+            LEFT JOIN membership_plans p ON mm.membership_plan_id = p.plan_id
             WHERE mm.company_id = ?
             ORDER BY mm.created_at DESC
         ");

@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once '../config/database.php';
 require_once '../includes/auth_check.php';
 
@@ -13,10 +14,9 @@ try {
     }
     
     $db = getDBConnection();
-    $dbType = getDBType();
     $companyId = $_SESSION['company_id'];
     
-    $tableName = $dbType === 'mysql' ? 'tenant_announcements' : 'x_tenant_announcements';
+    $tableName = 'tenant_announcements';
     
     // Verify ownership
     $stmt = $db->prepare("SELECT id FROM {$tableName} WHERE id = :id AND company_id = :company_id");
@@ -37,7 +37,7 @@ try {
                 publish_at = :publish_at,
                 expire_at = :expire_at,
                 is_pinned = :is_pinned,
-                updated_at = " . ($dbType === 'mysql' ? "NOW()" : "CURRENT_TIMESTAMP") . "
+                updated_at = 
             WHERE id = :id AND company_id = :company_id";
     
     $stmt = $db->prepare($sql);

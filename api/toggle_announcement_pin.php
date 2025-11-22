@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once '../config/database.php';
 require_once '../includes/auth_check.php';
 
@@ -13,15 +14,14 @@ try {
     }
     
     $db = getDBConnection();
-    $dbType = getDBType();
     $companyId = $_SESSION['company_id'];
     
-    $tableName = $dbType === 'mysql' ? 'tenant_announcements' : 'x_tenant_announcements';
+    $tableName = 'tenant_announcements';
     
     // Toggle pin status
     $sql = "UPDATE {$tableName} 
             SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END,
-                updated_at = " . ($dbType === 'mysql' ? "NOW()" : "CURRENT_TIMESTAMP") . "
+                updated_at = 
             WHERE id = :id AND company_id = :company_id";
     
     $stmt = $db->prepare($sql);

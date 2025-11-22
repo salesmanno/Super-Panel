@@ -38,7 +38,7 @@ try {
             UPDATE output_products 
             SET is_visible = FALSE, is_public = FALSE
             WHERE product_id = ? 
-            AND product_type = 'event'
+            AND product_type = 'events'
             AND company_id = ?
         ");
         $hideStmt->execute([

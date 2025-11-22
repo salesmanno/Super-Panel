@@ -58,7 +58,6 @@ try {
         // Get reservations module_id from system_modules, create if missing
         $moduleStmt = $db->prepare("SELECT id FROM system_modules WHERE module_key = 'reservations' LIMIT 1");
         $moduleStmt->execute();
-        $reservationsModuleId = $moduleStmt->fetchColumn();
         
         if (!$reservationsModuleId) {
             // Module doesn't exist - create it
@@ -75,7 +74,6 @@ try {
                 $insertModuleStmt = $db->prepare("
                     INSERT INTO system_modules (module_key, name, description, icon, is_active, created_at) 
                     VALUES ('reservations', 'Reservasjoner', 'Reservasjonssystem', 'calendar-check', true, NOW())
-                    RETURNING id
                 ");
             }
             
@@ -83,7 +81,6 @@ try {
             
             // Fetch the newly created module ID
             $moduleStmt->execute();
-            $reservationsModuleId = $moduleStmt->fetchColumn();
             
             if (!$reservationsModuleId) {
                 throw new Exception("Failed to create reservations module");

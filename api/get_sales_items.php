@@ -22,9 +22,9 @@ try {
             op.product_id,
             COALESCE(
                 CASE 
-                    WHEN op.product_type = 'event' THEN e.title
+                    WHEN op.product_type = 'events' THEN e.title
                     WHEN op.product_type = 'product' THEN sp.name
-                    WHEN op.product_type = 'membership' THEN " . ($dbType === 'mysql' ? "mp.name" : "mp.plan_name") . "
+                    WHEN op.product_type = 'membership' THEN " . (mp.name) . "
                     WHEN op.product_type = 'service' THEN rs.service_name
                     ELSE NULL
                 END,
@@ -32,7 +32,7 @@ try {
             ) as item_name,
             COALESCE(
                 CASE 
-                    WHEN op.product_type = 'event' THEN e.ticket_price
+                    WHEN op.product_type = 'events' THEN e.ticket_price
                     WHEN op.product_type = 'product' THEN sp.selling_price
                     WHEN op.product_type = 'membership' THEN mp.price
                     WHEN op.product_type = 'service' THEN rs.price
@@ -41,7 +41,7 @@ try {
                 op.price
             ) as price,
             CASE 
-                WHEN op.product_type = 'event' THEN e.member_ticket_price
+                WHEN op.product_type = 'events' THEN e.member_ticket_price
                 ELSE NULL
             END as member_price,
             CASE 
@@ -64,9 +64,9 @@ try {
             rs.duration_minutes as service_duration,
             rs.assigned_staff_ids as service_staff_ids
         FROM output_products op
-        LEFT JOIN events_eventdata e ON op.product_type = 'event' AND op.product_id = e.id
+        LEFT JOIN events_eventdata e ON op.product_type = 'events' AND op.product_id = e.id
         LEFT JOIN sales_products sp ON op.product_type = 'product' AND op.product_id = sp.id
-        LEFT JOIN " . ($dbType === 'mysql' ? "membership_plans" : "x_membership_plan") . " mp ON op.product_type = 'membership' AND op.product_id = " . ($dbType === 'mysql' ? "mp.id" : "mp.plan_id") . "
+        LEFT JOIN " . ($dbType === 'mysql' ? "membership_plans" : "membership_plans") . " mp ON op.product_type = 'membership' AND op.product_id = " . ($dbType === 'mysql' ? "mp.id" : "mp.id") . "
         LEFT JOIN reservation_services rs ON op.product_type = 'service' AND op.product_id = rs.id
         WHERE op.company_id = ? AND op.is_visible = 1
         ORDER BY item_name ASC
@@ -82,7 +82,7 @@ try {
         $finalItems[] = $item;
         
         // If it's an event with member_price, add a second entry for member pricing
-        if ($item['product_type'] === 'event' && !empty($item['member_price']) && $item['member_price'] > 0) {
+        if ($item['product_type'] === 'events' && !empty($item['member_price']) && $item['member_price'] > 0) {
             $memberItem = $item;
             $memberItem['id'] = $item['id'] . '_member'; // Unique ID for member version
             $memberItem['item_name'] = $item['item_name'] . ' (Medlemspris)';

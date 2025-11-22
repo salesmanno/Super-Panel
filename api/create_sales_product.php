@@ -56,7 +56,6 @@ try {
             $insertModuleStmt = $db->prepare("
                 INSERT INTO system_modules (module_key, name, description, icon, is_active, created_at) 
                 VALUES ('sales', 'Salg', 'Salgsmodul', 'cart', true, NOW())
-                RETURNING id
             ");
         }
         

@@ -83,7 +83,7 @@ try {
             if ($dbType === 'mysql') {
                 $stmt = $db->prepare("SELECT id as plan_id, name as service_name, price, billing_cycle FROM membership_plans WHERE id = ?");
             } else {
-                $stmt = $db->prepare("SELECT plan_id, plan_name as service_name, price, duration_months FROM x_membership_plan WHERE plan_id = ?");
+                $stmt = $db->prepare("SELECT plan_id, plan_name as service_name, price, duration_months FROM membership_plans WHERE plan_id = ?");
             }
             $stmt->execute([$product_id]);
             $service = $stmt->fetch();
@@ -298,7 +298,6 @@ try {
                     (company_id, customer_id, membership_plan_id, member_code, 
                      join_date, expiration_date, auto_renew, status, created_at) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())
-                    RETURNING id
                 ");
                 $stmt->execute([
                     $company_id,
@@ -313,7 +312,7 @@ try {
                 $transactionId = $memberResult['id'] ?? bin2hex(random_bytes(16));
             }
             
-            // x_membership_plan doesn't have cost_price field
+            // membership_plans doesn't have cost_price field
             $costPrice = null;
             
             // Set ledger payment_status based on payment_method
@@ -347,7 +346,6 @@ try {
                 (company_id, object_id, customer_name, customer_email, customer_phone, 
                  start_date, end_date, daily_price, total_price, deposit_paid, status, notes, created_at, updated_at) 
                 VALUES (?, ?, ?, ?, ?, NOW(), NOW() + INTERVAL '1 day', ?, ?, 0, 'confirmed', ?, NOW(), NOW())
-                RETURNING reservation_id
             ");
             
             // Calculate daily price from total (assuming 1 day rental by default)

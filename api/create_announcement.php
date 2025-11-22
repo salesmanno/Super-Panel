@@ -18,11 +18,10 @@ try {
     }
     
     $db = getDBConnection();
-    $dbType = getDBType();
     $companyId = $_SESSION['company_id'];
     $authorId = $_SESSION['tenant_admin_id'];
     
-    $tableName = $dbType === 'mysql' ? 'tenant_announcements' : 'x_tenant_announcements';
+    $tableName = 'tenant_announcements';
     
     $db->beginTransaction();
     
@@ -54,7 +53,6 @@ try {
                 :publish_at,
                 :expire_at,
                 :is_pinned
-            )" . ($dbType === 'pgsql' ? " RETURNING id" : "");
     
     $stmt = $db->prepare($sql);
     

@@ -47,6 +47,7 @@ try {
             created_at
         FROM events_eventdata 
         WHERE id = :event_id AND company_id = :company_id
+        LIMIT 1
     ");
     $stmt->execute([':event_id' => $event_id, ':company_id' => $company_id]);
     $event = $stmt->fetch(PDO::FETCH_ASSOC);

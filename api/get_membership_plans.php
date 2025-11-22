@@ -12,11 +12,8 @@ require_once __DIR__ . '/../config/database.php';
 try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
-    $dbType = getDBType();
-    
-    // Dual database support: MySQL uses membership_plans, PostgreSQL uses x_membership_plan
-    if ($dbType === 'mysql') {
-        $stmt = $db->prepare("
+    // Dual database support: MySQL uses membership_plans, PostgreSQL uses membership_plans
+    $stmt = $db->prepare("
             SELECT 
                 id as plan_id,
                 name,
@@ -39,7 +36,7 @@ try {
                 duration_months,
                 features as benefits,
                 is_active
-            FROM x_membership_plan
+            FROM membership_plans
             WHERE company_id = ? AND is_active = true
             ORDER BY created_at DESC
         ");

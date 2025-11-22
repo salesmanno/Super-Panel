@@ -36,35 +36,17 @@ function getDBConnection() {
 }
 
 function getDBType() {
-    static $dbType = null;
-    
-    if ($dbType === null) {
-        try {
-            $conn = getDBConnection();
-            $driver = $conn->getAttribute(PDO::ATTR_DRIVER_NAME);
-            $dbType = $driver === 'pgsql' ? 'postgresql' : 'mysql';
-        } catch (Exception $e) {
-            // Default to MySQL (primary database)
-            $dbType = 'mysql';
-        }
-    }
-    
-    return $dbType;
+    // MYSQL ONLY - No PostgreSQL fallback
+    return 'mysql';
 }
 
 function dbBool($value) {
-    $dbType = getDBType();
-    if ($dbType === 'postgresql') {
-        return $value ? 'TRUE' : 'FALSE';
-    }
+    // MySQL only - use 1/0
     return $value ? '1' : '0';
 }
 
 function dbInterval($amount, $unit = 'MINUTE') {
-    $dbType = getDBType();
-    if ($dbType === 'postgresql') {
-        return "INTERVAL '{$amount} {$unit}'";
-    }
+    // MySQL only - use INTERVAL syntax
     return "INTERVAL {$amount} {$unit}";
 }
 

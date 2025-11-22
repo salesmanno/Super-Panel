@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once '../config/database.php';
 require_once '../includes/auth_check.php';
 
@@ -13,12 +14,9 @@ try {
     }
     
     $db = getDBConnection();
-    $dbType = getDBType();
     $companyId = $_SESSION['company_id'];
     
-    $tableName = $dbType === 'mysql' ? 'tenant_announcements' : 'x_tenant_announcements';
-    
-    $stmt = $db->prepare("DELETE FROM {$tableName} WHERE id = :id AND company_id = :company_id");
+    $stmt = $db->prepare("DELETE FROM tenant_announcements WHERE id = :id AND company_id = :company_id");
     $stmt->execute([':id' => $data['id'], ':company_id' => $companyId]);
     
     if ($stmt->rowCount() > 0) {

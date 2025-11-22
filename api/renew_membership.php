@@ -19,12 +19,10 @@ try {
     }
 
     $db = getDBConnection();
-    $dbType = getDBType();
     $db->beginTransaction();
     
     // Get member details
-    if ($dbType === 'mysql') {
-        $stmt = $db->prepare("
+    $stmt = $db->prepare("
             SELECT 
                 mm.*,
                 c.first_name,
@@ -50,7 +48,7 @@ try {
                 p.plan_name
             FROM membership_members mm
             LEFT JOIN tenant_customers c ON mm.customer_id = c.id
-            LEFT JOIN x_membership_plan p ON mm.membership_plan_id = p.plan_id
+            LEFT JOIN membership_plans p ON mm.membership_plan_id = p.plan_id
             WHERE mm.id = ? AND mm.company_id = ?
         ");
     }

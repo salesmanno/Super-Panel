@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once '../config/database.php';
 require_once '../includes/auth_check.php';
 
@@ -13,16 +14,15 @@ try {
     }
     
     $db = getDBConnection();
-    $dbType = getDBType();
     $companyId = $_SESSION['company_id'];
     
-    $tableName = $dbType === 'mysql' ? 'tenant_announcements' : 'x_tenant_announcements';
+    $tableName = 'tenant_announcements';
     
     // Toggle publish status
     $sql = "UPDATE {$tableName} 
             SET is_published = CASE WHEN is_published = 1 THEN 0 ELSE 1 END,
-                publish_at = CASE WHEN is_published = 0 THEN " . ($dbType === 'mysql' ? "NOW()" : "CURRENT_TIMESTAMP") . " ELSE publish_at END,
-                updated_at = " . ($dbType === 'mysql' ? "NOW()" : "CURRENT_TIMESTAMP") . "
+                publish_at = CASE WHEN is_published = 0 THEN  ELSE publish_at END,
+                updated_at = 
             WHERE id = :id AND company_id = :company_id";
     
     $stmt = $db->prepare($sql);

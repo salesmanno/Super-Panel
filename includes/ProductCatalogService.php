@@ -21,8 +21,7 @@ class ProductCatalogService {
             return $moduleId;
         }
         
-        // Module doesn't exist - create it
-        $dbType = getDBType();
+        // Module doesn't exist - create it (MySQL only)
         
         // Module metadata
         $moduleMetadata = [
@@ -35,18 +34,11 @@ class ProductCatalogService {
         
         $meta = $moduleMetadata[$moduleKey] ?? ['name' => ucfirst($moduleKey), 'description' => ucfirst($moduleKey), 'icon' => 'circle'];
         
-        if ($dbType === 'mysql') {
-            $insertStmt = $this->db->prepare("
-                INSERT INTO system_modules (id, module_key, name, description, icon, is_active, created_at) 
-                VALUES (UUID(), ?, ?, ?, ?, 1, NOW())
-            ");
-        } else {
-            $insertStmt = $this->db->prepare("
-                INSERT INTO system_modules (module_key, name, description, icon, is_active, created_at) 
-                VALUES (?, ?, ?, ?, true, NOW())
-                RETURNING id
-            ");
-        }
+        // MySQL: Insert with UUID
+        $insertStmt = $this->db->prepare("
+            INSERT INTO system_modules (id, module_key, name, description, icon, is_active, created_at) 
+            VALUES (UUID(), ?, ?, ?, ?, 1, NOW())
+        ");
         
         $insertStmt->execute([$moduleKey, $meta['name'], $meta['description'], $meta['icon']]);
         
@@ -76,9 +68,9 @@ class ProductCatalogService {
             // Get or create module
             $moduleId = $this->getOrCreateModule($moduleKey);
             
-            // Map module_key to product_type (CLEAN: updated mapping)
+            // Map module_key to product_type (MySQL only)
             $productTypeMap = [
-                'events' => 'event',
+                'events' => 'events',
                 'sales' => 'product',
                 'product' => 'product',
                 'rental' => 'rental',
@@ -199,28 +191,20 @@ class ProductCatalogService {
      */
     private function getProductDetails($productType, $productId) {
         try {
-            $dbType = getDBType();
-            
+            // MySQL only
             switch ($productType) {
-                case 'event':
+                case 'events':
+                case 'event': // Legacy support
                     $stmt = $this->db->prepare("SELECT * FROM events_eventdata WHERE id = ? AND is_active = " . dbBool(true));
                     break;
                     
                 case 'product':
                 case 'sales_item': // Legacy support
-                    if ($dbType === 'mysql') {
-                        $stmt = $this->db->prepare("SELECT * FROM sales_products WHERE id = ? AND is_active = " . dbBool(true));
-                    } else {
-                        $stmt = $this->db->prepare("SELECT * FROM sales_items WHERE id = ? AND is_active = " . dbBool(true));
-                    }
+                    $stmt = $this->db->prepare("SELECT * FROM sales_products WHERE id = ? AND is_active = " . dbBool(true));
                     break;
                     
                 case 'rental':
-                    if ($dbType === 'mysql') {
-                        $stmt = $this->db->prepare("SELECT * FROM rental_objects WHERE id = ? AND is_available = " . dbBool(true));
-                    } else {
-                        $stmt = $this->db->prepare("SELECT * FROM rental_objects WHERE object_id = ? AND is_available = " . dbBool(true));
-                    }
+                    $stmt = $this->db->prepare("SELECT * FROM rental_objects WHERE id = ? AND is_available = " . dbBool(true));
                     break;
                     
                 case 'membership':

@@ -31,15 +31,15 @@ try {
             mm.expiry_date,
             mm.status as member_status,
             mm.auto_renew,
-            COALESCE(" . ($dbType === 'mysql' ? "mp.name" : "mp.plan_name") . ", 'Ingen plan') as plan_name,
+            COALESCE(" . (mp.name) . ", 'Ingen plan') as plan_name,
             COALESCE(mp.price, 0) as yearly_price,
             COALESCE(payment_summary.total_paid, 0) as total_paid,
             COALESCE(mp.price, 0) - COALESCE(payment_summary.total_paid, 0) as remaining,
             payment_summary.last_payment_date,
             payment_summary.payment_count
         FROM membership_members mm
-        LEFT JOIN " . ($dbType === 'mysql' ? "membership_plans" : "x_membership_plan") . " mp 
-            ON mm." . ($dbType === 'mysql' ? "plan_id" : "membership_plan_id") . " = " . ($dbType === 'mysql' ? "mp.id" : "mp.plan_id") . "
+        LEFT JOIN " . ($dbType === 'mysql' ? "membership_plans" : "membership_plans") . " mp 
+            ON mm." . ($dbType === 'mysql' ? "plan_id" : "membership_plan_id") . " = " . ($dbType === 'mysql' ? "mp.id" : "mp.id") . "
         LEFT JOIN (
             SELECT 
                 customer_email,

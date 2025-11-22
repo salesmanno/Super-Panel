@@ -11,10 +11,9 @@ require_once '../config/database.php';
 
 try {
     $db = getDBConnection();
-    $dbType = getDBType();
     $companyId = $_SESSION['company_id'];
     
-    $tableName = $dbType === 'mysql' ? 'tenant_announcements' : 'x_tenant_announcements';
+    $tableName = 'tenant_announcements';
     
     // Get filter parameters
     $showUnpublished = isset($_GET['show_unpublished']) && $_GET['show_unpublished'] === 'true';
@@ -38,8 +37,8 @@ try {
     // Apply filters
     if (!$showUnpublished) {
         $sql .= " AND a.is_published = 1 
-                  AND COALESCE(a.publish_at, " . ($dbType === 'mysql' ? "NOW()" : "CURRENT_TIMESTAMP") . ") <= " . ($dbType === 'mysql' ? "NOW()" : "CURRENT_TIMESTAMP") . "
-                  AND (a.expire_at IS NULL OR a.expire_at > " . ($dbType === 'mysql' ? "NOW()" : "CURRENT_TIMESTAMP") . ")";
+                  AND COALESCE(a.publish_at, NOW()) <= 
+                  AND (a.expire_at IS NULL OR a.expire_at > )";
     }
     
     $sql .= " ORDER BY a.is_pinned DESC, a.publish_at DESC";

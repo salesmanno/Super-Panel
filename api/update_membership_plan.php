@@ -20,15 +20,12 @@ try {
 
     $db = getDBConnection();
     $db->beginTransaction();
-    $dbType = getDBType();
-    
     try {
         // Update membership plan - support both MySQL and PostgreSQL
         $updateFields = [];
         $params = [];
         
-        if ($dbType === 'mysql') {
-            // MySQL: membership_plans table
+        // MySQL: membership_plans table
             if (isset($data['name'])) {
                 $updateFields[] = "name = ?";
                 $params[] = $data['name'];
@@ -75,9 +72,7 @@ try {
             
             $stmt->execute($params);
             
-        } else {
-            // PostgreSQL: x_membership_plan table
-            if (isset($data['name'])) {
+        $data['name'])) {
                 $updateFields[] = "plan_name = ?";
                 $params[] = $data['name'];
             }
@@ -123,7 +118,7 @@ try {
             $params[] = $_SESSION['company_id'];
             
             $stmt = $db->prepare("
-                UPDATE x_membership_plan 
+                UPDATE membership_plans 
                 SET " . implode(', ', $updateFields) . "
                 WHERE plan_id = ? AND company_id = ?
             ");

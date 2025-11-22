@@ -30,12 +30,9 @@ try {
     // Beregn utløpsdato basert på plan
     $expiryDate = null;
     if (!empty($data['membership_plan_id'])) {
-        $dbType = getDBType();
-        
-        if ($dbType === 'mysql') {
-            $planStmt = $db->prepare("SELECT billing_cycle FROM membership_plans WHERE id = ? AND company_id = ?");
+        $planStmt = $db->prepare("SELECT billing_cycle FROM membership_plans WHERE id = ? AND company_id = ?");
         } else {
-            $planStmt = $db->prepare("SELECT duration_months FROM x_membership_plan WHERE plan_id = ? AND company_id = ?");
+            $planStmt = $db->prepare("SELECT duration_months FROM membership_plans WHERE plan_id = ? AND company_id = ?");
         }
         $planStmt->execute([$data['membership_plan_id'], $_SESSION['company_id']]);
         $plan = $planStmt->fetch(PDO::FETCH_ASSOC);
@@ -84,7 +81,6 @@ try {
             notes,
             image_url
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_DATE, ?, 'active', ?, ?)
-        RETURNING member_id
     ");
     
     $stmt->execute([
@@ -102,7 +98,6 @@ try {
         $imageUrl
     ]);
     
-    $memberId = $stmt->fetchColumn();
     
     echo json_encode([
         'success' => true,
