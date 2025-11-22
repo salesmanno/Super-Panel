@@ -57,7 +57,7 @@ try {
     $income = $incomeStmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Get all expenses for this event
-    // Expenses = negative selling_price values where metadata contains event_id
+    // Expenses = negative selling_price values where metadata contains event_id OR source_id matches
     $expenseQuery = "
         SELECT 
             id,
@@ -70,11 +70,14 @@ try {
         WHERE company_id = ? 
         AND status = 'active'
         AND selling_price < 0
-        AND $jsonEventCheck
+        AND (
+            $jsonEventCheck
+            OR (module_source = 'events' AND source_id = ?)
+        )
         ORDER BY transaction_date DESC
     ";
     $expenseStmt = $db->prepare($expenseQuery);
-    $expenseStmt->execute([$company_id, $event_id]);
+    $expenseStmt->execute([$company_id, $event_id, $event_id]);
     $expenses = $expenseStmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Calculate totals
