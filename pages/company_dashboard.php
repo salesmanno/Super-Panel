@@ -382,6 +382,10 @@ try {
         <div class="container" style="position: relative;">
             <h1 class="mb-2">Hei, <?= htmlspecialchars($adminName) ?>!</h1>
             <p class="text-muted mb-0">Du har tilgang til <?= count($allUserModules) ?> modul<?= count($allUserModules) != 1 ? 'er' : '' ?></p>
+            <p class="text-muted mb-0" id="products-summary" style="font-size: 0.9rem;">
+                <i class="bi bi-hourglass-split"></i> <span id="products-text">Laster oppføringer...</span>
+                <a href="#" id="view-products-link" onclick="showProductsModal(); return false;" style="display: none; margin-left: 0.5rem;">Se og slett</a>
+            </p>
             <div id="activity-summary" style="margin-top: 0.75rem; font-size: 0.9rem; color: #6c757d;">
                 <i class="bi bi-hourglass-split me-1"></i>
                 <span id="activity-text">Laster aktivitetssammendrag...</span>
@@ -1555,6 +1559,155 @@ try {
             document.addEventListener('DOMContentLoaded', loadActivitySummary);
         } else {
             loadActivitySummary();
+        }
+        
+        // Load output products summary
+        async function loadProductsSummary() {
+            try {
+                const response = await fetch('/api/get_output_products.php');
+                const data = await response.json();
+                
+                if (data.success && data.total_products > 0) {
+                    const moduleList = data.modules.join(', ');
+                    document.getElementById('products-text').innerHTML = 
+                        `...og har <strong>${data.total_products}</strong> oppføring${data.total_products > 1 ? 'er' : ''} i <strong>${data.total_modules_with_products}</strong> modul${data.total_modules_with_products > 1 ? 'er' : ''} (${moduleList}) av disse!`;
+                    document.getElementById('view-products-link').style.display = 'inline';
+                    
+                    // Store data for modal
+                    window.productsData = data;
+                } else {
+                    document.getElementById('products-summary').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading products summary:', error);
+                document.getElementById('products-summary').style.display = 'none';
+            }
+        }
+        
+        // Show products modal
+        function showProductsModal() {
+            if (!window.productsData || window.productsData.total_products === 0) {
+                alert('Ingen oppføringer å vise');
+                return;
+            }
+            
+            const data = window.productsData;
+            const products = data.products;
+            const moduleNames = {
+                'sales': 'Salg',
+                'events': 'Arrangementer',
+                'rental': 'Utleie',
+                'reservation': 'Reservasjoner',
+                'membership': 'Medlemskap'
+            };
+            
+            let html = `
+                <div class="modal fade" id="productsModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Alle oppføringer (${products.length})</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div style="max-height: 400px; overflow-y: auto;">
+                                    <table class="table table-sm">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Modul</th>
+                                                <th>Navn</th>
+                                                <th>Pris</th>
+                                                <th>Status</th>
+                                                <th style="width: 80px;">Handling</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+            `;
+            
+            products.forEach(product => {
+                const moduleName = moduleNames[product.module_source] || product.module_source;
+                const statusBadge = product.is_available ? 
+                    '<span class="badge bg-success">Aktiv</span>' : 
+                    '<span class="badge bg-secondary">Inaktiv</span>';
+                
+                html += `
+                    <tr>
+                        <td>${moduleName}</td>
+                        <td>${product.name}</td>
+                        <td>${product.selling_price} NOK</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="deleteProduct('${product.id}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Lukk</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            const existing = document.getElementById('productsModal');
+            if (existing) existing.remove();
+            
+            // Add modal to page
+            document.body.insertAdjacentHTML('beforeend', html);
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('productsModal'));
+            modal.show();
+        }
+        
+        // Delete product
+        async function deleteProduct(productId) {
+            if (!confirm('Er du sikker på at du vil slette denne oppføringen?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/delete_output_product.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({product_id: productId})
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Remove row from table
+                    document.querySelector(`button[onclick="deleteProduct('${productId}')"]`)
+                        .closest('tr').remove();
+                    
+                    // Reload summary
+                    setTimeout(() => {
+                        loadProductsSummary();
+                    }, 500);
+                } else {
+                    alert('Feil: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error deleting product:', error);
+                alert('Feil ved sletting');
+            }
+        }
+        
+        // Load products summary when page loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadProductsSummary);
+        } else {
+            loadProductsSummary();
         }
     </script>
     
