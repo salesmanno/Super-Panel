@@ -48,7 +48,7 @@ try {
         
         // Validate registration_type and payment_timing
         $registrationType = $data['registration_type'] ?? 'signup';
-        $paymentTiming = 'arrival'; // Default to arrival only
+        $paymentTiming = 'on_arrival'; // Default to on_arrival only (MySQL enum value)
         
         // ENFORCE: "Ingen påmelding" must be free (no pricing, no participant limits)
         if ($registrationType === 'none') {
@@ -63,7 +63,7 @@ try {
         $hasEconomyPayment = false;
         if (isset($data['payment_timing_methods']) && is_array($data['payment_timing_methods'])) {
             foreach ($data['payment_timing_methods'] as $method) {
-                if ($method !== 'arrival') {
+                if ($method !== 'on_arrival') {
                     $hasEconomyPayment = true;
                     break;
                 }
@@ -71,7 +71,7 @@ try {
         }
         
         if ($hasEconomyPayment) {
-            $paymentTiming = 'both'; // Both arrival and economy payment methods
+            $paymentTiming = 'both'; // Both on_arrival and economy payment methods
         }
         
         // Validate binding type requires payment method
@@ -79,104 +79,7 @@ try {
             throw new Exception('Bindende arrangement krever at minst én betalingsmetode fra economy er valgt');
         }
         
-        $stmt = $db->prepare("
-            INSERT INTO events_eventdata (
-                id,
-                company_id,
-                title,
-                description,
-                max_attendees,
-                min_attendees,
-                registration_deadline,
-                age_limit,
-                is_member_exclusive,
-                event_address,
-                event_city,
-                event_postal,
-                venue_name,
-                start_time,
-                start_date,
-                end_time,
-                end_date,
-                event_image_url,
-                ticket_price,
-                registration_type,
-                payment_timing,
-                created_by
-            ) VALUES (
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?
-            )
-        ");
-        
-        $stmt->execute([
-            $eventId,
-            $_SESSION['company_id'],
-            $data['title'],
-            $data['description'] ?? null,
-            $data['max_attendees'] ?? null,
-            $data['min_attendees'] ?? null,
-            $data['registration_deadline'] ?? null,
-            $data['age_limit'] ?? null,
-            $data['is_member_exclusive'] ?? 0,
-            $data['event_address'] ?? null,
-            $data['event_city'] ?? null,
-            $data['event_postal'] ?? null,
-            $data['venue_name'] ?? null,
-            $data['start_time'],
-            $data['start_date'],
-            $data['end_time'] ?? null,
-            $data['end_date'] ?? null,
-            $data['event_image_url'] ?? null,
-            $data['ticket_price'] ?? 0,
-            $registrationType,
-            $paymentTiming,
-            $_SESSION['tenant_admin_id']
-        ]);
-        
-        // 2. Save membership pricing if provided (skip for 'none' type)
-        if ($registrationType !== 'none' && isset($data['membership_pricing']) && is_array($data['membership_pricing'])) {
-            $stmt = $db->prepare("
-                INSERT INTO event_membership_plans (event_id, membership_plan_id, ticket_price, public_display, created_at)
-                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-            ");
-            
-            foreach ($data['membership_pricing'] as $pricing) {
-                if (isset($pricing['plan_id']) && isset($pricing['price'])) {
-                    // Verify membership plan belongs to company
-                    $planCheck = $db->prepare("SELECT company_id FROM membership_plans WHERE id = ?");
-                    $planCheck->execute([$pricing['plan_id']]);
-                    $plan = $planCheck->fetch(PDO::FETCH_ASSOC);
-                    
-                    if ($plan && $plan['company_id'] === $_SESSION['company_id']) {
-                        $publicDisplay = isset($pricing['public_display']) ? (int)$pricing['public_display'] : 1;
-                        $stmt->execute([$eventId, $pricing['plan_id'], $pricing['price'], $publicDisplay]);
-                    }
-                }
-            }
-        }
-        
-        // 4. Save allowed payment methods
+        // 3a. Prepare payment methods array BEFORE INSERT
         $paymentMethodsArray = [];
         
         if (isset($data['allowed_payment_methods']) && is_array($data['allowed_payment_methods']) && count($data['allowed_payment_methods']) > 0) {
@@ -208,9 +111,121 @@ try {
             $paymentMethodsArray = array_values($paymentMethodsArray); // Re-index
         }
         
-        $defaultPaymentMethod = $paymentMethodsArray[0]; // First method is always default (now guaranteed to be cash)
+        $paymentMethodsJson = json_encode($paymentMethodsArray);
+        
+        $stmt = $db->prepare("
+            INSERT INTO events_eventdata (
+                id,
+                company_id,
+                title,
+                description,
+                max_attendees,
+                min_attendees,
+                registration_deadline,
+                age_limit,
+                is_member_exclusive,
+                event_address,
+                event_city,
+                event_postal,
+                venue_name,
+                start_time,
+                start_date,
+                end_time,
+                end_date,
+                event_image_url,
+                ticket_price,
+                member_ticket_price,
+                cost_price,
+                registration_type,
+                payment_timing,
+                payment_methods_json,
+                created_by
+            ) VALUES (
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?
+            )
+        ");
+        
+        // Prepare payment methods JSON
+        $paymentMethodsJson = json_encode($paymentMethodsArray ?? ['cash']);
+        
+        $stmt->execute([
+            $eventId,
+            $_SESSION['company_id'],
+            $data['title'],
+            $data['description'] ?? null,
+            $data['max_attendees'] ?? null,
+            $data['min_attendees'] ?? null,
+            $data['registration_deadline'] ?? null,
+            $data['age_limit'] ?? null,
+            $data['is_member_exclusive'] ?? 0,
+            $data['event_address'] ?? null,
+            $data['event_city'] ?? null,
+            $data['event_postal'] ?? null,
+            $data['venue_name'] ?? null,
+            $data['start_time'],
+            $data['start_date'],
+            $data['end_time'] ?? null,
+            $data['end_date'] ?? null,
+            $data['event_image_url'] ?? null,
+            $data['ticket_price'] ?? 0,
+            $data['member_ticket_price'] ?? null,
+            $data['cost_price'] ?? 0,
+            $registrationType,
+            $paymentTiming,
+            $paymentMethodsJson,
+            $_SESSION['tenant_admin_id']
+        ]);
+        
+        // 3b. Save default payment method (first of the array, always cash)
+        $defaultPaymentMethod = $paymentMethodsArray[0];
         $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = ? WHERE id = ?");
         $stmt->execute([$defaultPaymentMethod, $eventId]);
+        
+        // 4. Save membership pricing if provided (skip for 'none' type)
+        if ($registrationType !== 'none' && isset($data['membership_pricing']) && is_array($data['membership_pricing'])) {
+            $stmt = $db->prepare("
+                INSERT INTO event_membership_plans (event_id, membership_plan_id, ticket_price, public_display, created_at)
+                VALUES (?, ?, ?, ?, NOW())
+            ");
+            
+            foreach ($data['membership_pricing'] as $pricing) {
+                if (isset($pricing['plan_id']) && isset($pricing['price'])) {
+                    // Verify membership plan belongs to company
+                    $planCheck = $db->prepare("SELECT company_id FROM membership_plans WHERE id = ?");
+                    $planCheck->execute([$pricing['plan_id']]);
+                    $plan = $planCheck->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($plan && $plan['company_id'] === $_SESSION['company_id']) {
+                        $publicDisplay = isset($pricing['public_display']) ? (int)$pricing['public_display'] : 1;
+                        $stmt->execute([$eventId, $pricing['plan_id'], $pricing['price'], $publicDisplay]);
+                    }
+                }
+            }
+        }
         
         // 5. Auto-generate output_products entry using service
         $catalogService = new ProductCatalogService($db);

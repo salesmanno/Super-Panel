@@ -52,13 +52,13 @@ try {
             // New flow: calculate from provided data
             $hasEconomyPayment = false;
             foreach ($data['payment_timing_methods'] as $method) {
-                if ($method !== 'arrival') {
+                if ($method !== 'on_arrival') {
                     $hasEconomyPayment = true;
                     break;
                 }
             }
             
-            $paymentTiming = $hasEconomyPayment ? 'both' : 'arrival';
+            $paymentTiming = $hasEconomyPayment ? 'both' : 'on_arrival';
             
             // Validate binding type requires payment method
             if ($registrationType === 'binding' && !$hasEconomyPayment) {
@@ -72,10 +72,10 @@ try {
             
             if ($existing) {
                 $registrationType = $registrationType ?? $existing['registration_type'] ?? 'signup';
-                $paymentTiming = $existing['payment_timing'] ?? 'arrival';
+                $paymentTiming = $existing['payment_timing'] ?? 'on_arrival';
             } else {
                 $registrationType = $registrationType ?? 'signup';
-                $paymentTiming = 'arrival';
+                $paymentTiming = 'on_arrival';
             }
         }
         
@@ -90,6 +90,22 @@ try {
             // Delete all membership pricing for this event
             $stmt = $db->prepare("DELETE FROM event_membership_plans WHERE event_id = :event_id");
             $stmt->execute([':event_id' => $data['event_id']]);
+        }
+        
+        // Prepare payment methods array for update
+        $paymentMethodsJson = null;
+        if (isset($data['allowed_payment_methods']) && is_array($data['allowed_payment_methods']) && count($data['allowed_payment_methods']) > 0) {
+            $paymentMethodsArray = $data['allowed_payment_methods'];
+            // ENFORCE: Cash must always be first
+            if (!in_array('cash', $paymentMethodsArray)) {
+                array_unshift($paymentMethodsArray, 'cash');
+            } elseif ($paymentMethodsArray[0] !== 'cash') {
+                $cashIndex = array_search('cash', $paymentMethodsArray);
+                unset($paymentMethodsArray[$cashIndex]);
+                array_unshift($paymentMethodsArray, 'cash');
+                $paymentMethodsArray = array_values($paymentMethodsArray);
+            }
+            $paymentMethodsJson = json_encode($paymentMethodsArray);
         }
         
         // Update the event in events_eventdata
@@ -113,9 +129,11 @@ try {
                 event_image_url = :event_image_url,
                 ticket_price = :ticket_price,
                 member_ticket_price = :member_ticket_price,
+                cost_price = :cost_price,
                 default_payment_method = :default_payment_method,
                 registration_type = :registration_type,
-                payment_timing = :payment_timing
+                payment_timing = :payment_timing,
+                payment_methods_json = :payment_methods_json
             WHERE id = :event_id AND company_id = :company_id
         ");
         
@@ -138,9 +156,11 @@ try {
             ':event_image_url' => $data['event_image_url'] ?? null,
             ':ticket_price' => $data['ticket_price'] ?? 0,
             ':member_ticket_price' => $data['member_ticket_price'] ?? null,
+            ':cost_price' => $data['cost_price'] ?? 0,
             ':default_payment_method' => $data['default_payment_method'] ?? null,
             ':registration_type' => $registrationType,
             ':payment_timing' => $paymentTiming,
+            ':payment_methods_json' => $paymentMethodsJson,
             ':event_id' => $data['event_id'],
             ':company_id' => $_SESSION['company_id']
         ]);
