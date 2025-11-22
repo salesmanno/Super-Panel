@@ -42,10 +42,10 @@ try {
             ts.last_name,
             COALESCE(COUNT(DISTINCT ec.id), 0) as current_attendees
         FROM events_eventdata e
-        LEFT JOIN output_products op ON e.output_product_id = op.id
+        LEFT JOIN output_products op ON e.output_product_id COLLATE utf8mb4_unicode_ci = op.id COLLATE utf8mb4_unicode_ci
         LEFT JOIN tenant_admins ta ON CAST(e.created_by AS INTEGER) = ta.id
-        LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
-        LEFT JOIN events_checkin ec ON e.id = ec.event_id
+        LEFT JOIN tenant_staff ts ON ta.tenant_staff_id COLLATE utf8mb4_unicode_ci = ts.id COLLATE utf8mb4_unicode_ci
+        LEFT JOIN events_checkin ec ON e.id COLLATE utf8mb4_unicode_ci = ec.event_id COLLATE utf8mb4_unicode_ci
         WHERE e.company_id = :company_id AND e.is_active = TRUE
         GROUP BY e.id, e.title, e.description, e.max_attendees, e.min_attendees, e.age_limit, 
                  e.is_member_exclusive, e.event_address, e.event_city, e.event_postal, e.venue_name,
@@ -72,7 +72,7 @@ try {
             $priceStmt = $db->prepare("
                 SELECT emp.ticket_price as price, mp.name as plan_name, emp.public_display
                 FROM event_membership_plans emp
-                JOIN membership_plans mp ON emp.membership_plan_id = mp.id
+                JOIN membership_plans mp ON emp.membership_plan_id COLLATE utf8mb4_unicode_ci = mp.id COLLATE utf8mb4_unicode_ci
                 WHERE emp.event_id = :event_id
                 ORDER BY emp.ticket_price ASC
             ");
