@@ -23,7 +23,7 @@ try {
     // This preserves output_products and historical data
     $stmt = $db->prepare("
         UPDATE events_eventdata 
-        SET is_active = FALSE
+        SET is_active = 0
         WHERE id = ? AND company_id = ?
     ");
     
@@ -36,7 +36,7 @@ try {
         // Also hide the product from output_products catalog
         $hideStmt = $db->prepare("
             UPDATE output_products 
-            SET is_visible = FALSE, is_public = FALSE
+            SET is_visible = 0, is_public = 0
             WHERE product_id = ? 
             AND product_type = 'events'
             AND company_id = ?

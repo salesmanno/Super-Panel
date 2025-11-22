@@ -42,7 +42,7 @@ try {
     }
     
     // Get all available modules
-    $stmt = $db->query("SELECT id FROM system_modules WHERE is_active = TRUE");
+    $stmt = $db->query("SELECT id FROM system_modules WHERE is_active = 1");
     $availableModules = $stmt->fetchAll(PDO::FETCH_COLUMN);
     
     // Delete existing module assignments for this admin
@@ -53,7 +53,7 @@ try {
     $insertStmt = $db->prepare("
         INSERT INTO tenant_admin_modules 
         (tenant_admin_id, module_id, is_active, granted_by, granted_at)
-        VALUES (?, ?, TRUE, ?, NOW())
+        VALUES (?, ?, 1, ?, NOW())
     ");
     
     foreach ($modules as $module_id) {

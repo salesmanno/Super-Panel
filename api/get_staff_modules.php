@@ -37,7 +37,7 @@ try {
     $stmt = $db->query("
         SELECT id, name, module_key, icon, description
         FROM system_modules
-        WHERE is_active = TRUE
+        WHERE is_active = 1
         ORDER BY name
     ");
     $modules = $stmt->fetchAll(PDO::FETCH_ASSOC);

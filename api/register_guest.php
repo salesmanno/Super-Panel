@@ -73,7 +73,7 @@ try {
         (id, event_id, attendee_first_name, attendee_last_name, attendee_email,
          ticket_type, ticket_price, payment_status, payment_method, 
          checked_in, checked_in_by, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, NOW(), NOW())
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NOW(), NOW())
     ");
     $stmt->execute([
         $checkin_id,

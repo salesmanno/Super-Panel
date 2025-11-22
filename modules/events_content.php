@@ -1443,12 +1443,21 @@ let selectedEventId = null;
 
 // Load events into check-in selector
 async function loadCheckinEventSelector() {
+    const selector = document.getElementById('checkin-event-selector');
+    
     try {
         const response = await fetch('/api/get_events.php');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const result = await response.json();
         
-        const selector = document.getElementById('checkin-event-selector');
+        console.log('[Check-in Loader] API Response:', { success: result.success, eventsCount: result.events?.length ?? 0 });
+        
         if (result.success && result.events && result.events.length > 0) {
+            console.log(`[Check-in Loader] Found ${result.events.length} events, populating selector`);
             selector.innerHTML = '<option value="">-- Velg arrangement --</option>' + 
                 result.events.map(event => `
                     <option value="${event.id}">
@@ -1456,10 +1465,12 @@ async function loadCheckinEventSelector() {
                     </option>
                 `).join('');
         } else {
+            console.warn('[Check-in Loader] No events returned from API:', result.message || 'unknown reason');
             selector.innerHTML = '<option value="">Ingen arrangementer tilgjengelig</option>';
         }
     } catch (error) {
-        console.error('Error loading events:', error);
+        console.error('[Check-in Loader] CRITICAL ERROR fetching events:', error);
+        selector.innerHTML = '<option value="">⚠️ Feil ved lasting av arrangementer</option>';
     }
 }
 
