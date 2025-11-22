@@ -12,6 +12,8 @@ require_once __DIR__ . '/../config/database.php';
 try {
     $db = getDBConnection();
     
+    // First: Get unique events WITHOUT LEFT JOIN to check-ins (avoids duplicates)
+    // Get event IDs and metadata only
     $stmt = $db->prepare("
         SELECT 
             e.id,
@@ -39,31 +41,28 @@ try {
             op.is_visible,
             op.is_public,
             ts.first_name,
-            ts.last_name,
-            COALESCE(COUNT(DISTINCT ec.id), 0) as current_attendees
+            ts.last_name
         FROM events_eventdata e
         LEFT JOIN output_products op ON e.output_product_id COLLATE utf8mb4_unicode_ci = op.id COLLATE utf8mb4_unicode_ci
         LEFT JOIN tenant_admins ta ON CAST(e.created_by AS INTEGER) = ta.id
         LEFT JOIN tenant_staff ts ON ta.tenant_staff_id COLLATE utf8mb4_unicode_ci = ts.id COLLATE utf8mb4_unicode_ci
-        LEFT JOIN events_checkin ec ON e.id COLLATE utf8mb4_unicode_ci = ec.event_id COLLATE utf8mb4_unicode_ci
         WHERE e.company_id = :company_id AND e.is_active = TRUE
-        GROUP BY e.id, e.title, e.description, e.max_attendees, e.min_attendees, e.age_limit, 
-                 e.is_member_exclusive, e.event_address, e.event_city, e.event_postal, e.venue_name,
-                 e.start_time, e.start_date, e.end_time, e.end_date, e.event_image_url, 
-                 e.ticket_price, e.member_ticket_price, e.registration_type, e.output_product_id, e.created_by, e.created_at,
-                 op.is_visible, op.is_public, ts.first_name, ts.last_name
         ORDER BY e.start_date DESC, e.start_time DESC
     ");
     
     $stmt->execute([':company_id' => $_SESSION['company_id']]);
     $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Log event IDs to detect duplicates
-    $eventIds = array_column($events, 'id');
-    $uniqueIds = array_unique($eventIds);
-    if (count($eventIds) !== count($uniqueIds)) {
-        error_log("WARNING: Duplicate event IDs detected! Total: " . count($eventIds) . ", Unique: " . count($uniqueIds));
-        error_log("Event IDs: " . json_encode($eventIds));
+    // Then: Count attendees for each event separately (avoids LEFT JOIN duplicates)
+    foreach ($events as &$event) {
+        $countStmt = $db->prepare("
+            SELECT COUNT(DISTINCT id) as attendee_count
+            FROM events_checkin
+            WHERE event_id = :event_id
+        ");
+        $countStmt->execute([':event_id' => $event['id']]);
+        $countResult = $countStmt->fetch(PDO::FETCH_ASSOC);
+        $event['current_attendees'] = $countResult['attendee_count'] ?? 0;
     }
     
     // Fetch membership prices for member-exclusive events
