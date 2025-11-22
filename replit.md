@@ -40,6 +40,8 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-22 (Latest Session - PART 3)**:
+  - **INTERN MEDLEMSKAPSPLAN FEATURE**: Lagt til checkbox "Intern medlemskapsplan" i opprett-form for medlemskapsplaner. Når avmerket: (1) `is_internal = 1` i database, (2) INGEN output_products entry lages, (3) Planen vises IKKE i offentlige tjenester/shopping cart. Filter: `get_membership_plans.php` viser kun `WHERE is_internal = 0`. Bruk: Interne planer for intern administrasjon, eksterne for salgskanaler.
 - **2025-11-22 (Latest Session - PART 2)**:
   - **OUTPUT_PRODUCTS VISIBILITY & MANAGEMENT**: Lagt til feature på dashboarden som viser hvor mange oppføringer bruker har i moduler med output_products. Under "Du har tilgang til X moduler" vises nå "...og har Y(antall) oppføringer i Z(moduler) av disse!" med "Se og slett"-lenke. Klikk åpner modal med tabell over alle oppføringer (navn, modul, pris, status) med mulighet for å slette hver enkelt. APIs: `get_output_products.php` (teller og henter alle), `delete_output_product.php` (sletter). Dashboard JavaScript oppdateres automatisk etter sletting.
   - **ARRANGEMENT RESULTAT - FIKSET**: Fixed asymmetric SQL query i `get_event_finances.php` - expenses-query manglte OR-klausul for source_id matching. Nå både income og expenses søker etter både metadata JSON OG module_source+source_id kombinasjon.

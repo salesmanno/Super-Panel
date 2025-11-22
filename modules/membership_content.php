@@ -368,6 +368,13 @@
                         <input type="url" class="form-control" name="plan_image_url" placeholder="https://example.com/plan-bilde.jpg">
                         <small class="text-muted">URL til bilde for denne planen</small>
                     </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="is_internal" id="is_internal">
+                        <label class="form-check-label" for="is_internal">
+                            Intern medlemskapsplan
+                        </label>
+                        <small class="text-muted d-block">Hvis avmerket, vises ikke denne planen i tjenester som kan kjøpes</small>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -389,7 +396,8 @@ async function submitMembershipPlan() {
         price: parseFloat(formData.get('price')),
         billing_cycle: formData.get('billing_cycle'),
         benefits: formData.get('benefits'),
-        image_url: formData.get('plan_image_url') || null
+        image_url: formData.get('plan_image_url') || null,
+        is_internal: document.getElementById('is_internal')?.checked ? 1 : 0
     };
     
     const toastId = toast.loading('Oppretter medlemskapsplan');

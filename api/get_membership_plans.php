@@ -21,9 +21,10 @@ try {
                 price,
                 billing_cycle,
                 benefits,
-                is_active
+                is_active,
+                is_internal
             FROM membership_plans
-            WHERE company_id = ? AND is_active = 1
+            WHERE company_id = ? AND is_active = 1 AND is_internal = 0
             ORDER BY created_at DESC
         ");
     } else {

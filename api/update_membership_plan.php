@@ -56,6 +56,11 @@ try {
                 $params[] = $data['is_active'];
             }
             
+            if (isset($data['is_internal'])) {
+                $updateFields[] = "is_internal = ?";
+                $params[] = $data['is_internal'];
+            }
+            
             if (empty($updateFields)) {
                 echo json_encode(['success' => false, 'message' => 'Ingen felter å oppdatere']);
                 exit;
