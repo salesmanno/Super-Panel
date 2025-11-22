@@ -69,10 +69,10 @@ try {
         ];
     }
     
-    // 3. New events (tenant_events)
+    // 3. New events (events_eventdata)
     $stmt = $db->prepare("
         SELECT COUNT(*) as count 
-        FROM tenant_events 
+        FROM events_eventdata 
         WHERE company_id = ? 
         AND created_at > ?
     ");
@@ -86,13 +86,13 @@ try {
         ];
     }
     
-    // 4. New event registrations (tenant_event_registrations)
+    // 4. New event registrations (event_registrations)
     $stmt = $db->prepare("
         SELECT COUNT(*) as count 
-        FROM tenant_event_registrations ter
-        INNER JOIN tenant_events te ON ter.event_id = te.id
-        WHERE te.company_id = ? 
-        AND ter.created_at > ?
+        FROM event_registrations er
+        INNER JOIN events_eventdata ee ON er.event_id = ee.id
+        WHERE ee.company_id = ? 
+        AND er.created_at > ?
     ");
     $stmt->execute([$company_id, $baselineTime]);
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -101,6 +101,24 @@ try {
             'module' => 'Arrangementer',
             'count' => $result['count'],
             'description' => $result['count'] . ' ny' . ($result['count'] > 1 ? 'e påmeldinger' : ' påmelding')
+        ];
+    }
+    
+    // 4b. New event check-ins (events_checkin)
+    $stmt = $db->prepare("
+        SELECT COUNT(*) as count 
+        FROM events_checkin ec
+        INNER JOIN events_eventdata ee ON ec.event_id = ee.id
+        WHERE ee.company_id = ? 
+        AND ec.created_at > ?
+    ");
+    $stmt->execute([$company_id, $baselineTime]);
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($result['count'] > 0) {
+        $activities[] = [
+            'module' => 'Arrangementer (innsjekk)',
+            'count' => $result['count'],
+            'description' => $result['count'] . ' ny' . ($result['count'] > 1 ? 'e innsjekk' : ' innsjekk')
         ];
     }
     
@@ -121,10 +139,10 @@ try {
         ];
     }
     
-    // 6. New sales products
+    // 6. New sales orders (orders table - from checkout_cart.php)
     $stmt = $db->prepare("
         SELECT COUNT(*) as count 
-        FROM sales_products 
+        FROM orders 
         WHERE company_id = ? 
         AND created_at > ?
     ");
@@ -134,9 +152,12 @@ try {
         $activities[] = [
             'module' => 'Salg',
             'count' => $result['count'],
-            'description' => $result['count'] . ' ny' . ($result['count'] > 1 ? 'e produkt' : 't produkt') . ($result['count'] > 1 ? 'er' : '')
+            'description' => $result['count'] . ' ny' . ($result['count'] > 1 ? 'e bestilling' : ' bestilling') . ($result['count'] > 1 ? 'er' : '')
         ];
     }
+    
+    // 7. New individual sales (process_service_sale creates these in unified_ledger)
+    // Already counted in #1 "New transactions (unified_ledger)"
     
     echo json_encode([
         'success' => true,
