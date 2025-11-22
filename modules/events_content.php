@@ -20,6 +20,7 @@ try {
     transition: all 0.2s ease;
     background: white;
     height: 100%;
+    position: relative;
 }
 
 .event-card:hover {
@@ -2146,6 +2147,7 @@ async function editEvent(eventId) {
         const fieldsResult = await fieldsResponse.json();
         
         // Reset all optional field checkboxes
+        document.getElementById('edit-field-email').checked = false;
         document.getElementById('edit-field-phone').checked = false;
         document.getElementById('edit-field-street').checked = false;
         document.getElementById('edit-field-zip').checked = false;
@@ -2241,6 +2243,14 @@ async function saveEventChanges() {
         allowedPaymentMethods.push(checkbox.dataset.methodType);
     });
     
+    // Build payment timing methods array: always has 'arrival', plus economy methods if any selected
+    const paymentTimingMethods = ['arrival'];
+    allowedPaymentMethods.forEach(method => {
+        if (method !== 'cash') {
+            paymentTimingMethods.push(method); // Add actual method type (card, vipps, etc)
+        }
+    });
+    
     const data = {
         event_id: formData.get('event_id'),
         title: formData.get('title'),
@@ -2264,6 +2274,7 @@ async function saveEventChanges() {
         default_payment_method: formData.get('default_payment_method') || null,
         is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
         allowed_payment_methods: allowedPaymentMethods,
+        payment_timing_methods: paymentTimingMethods,
         // Registration fields
         field_phone: formData.get('field_phone') ? 1 : 0,
         field_email: formData.get('field_email') ? 1 : 0,

@@ -46,7 +46,7 @@ try {
         LEFT JOIN tenant_admins ta ON CAST(e.created_by AS INTEGER) = ta.id
         LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
         LEFT JOIN events_checkin ec ON e.id = ec.event_id
-        WHERE e.company_id = ? AND e.is_active = TRUE
+        WHERE e.company_id = :company_id AND e.is_active = TRUE
         GROUP BY e.id, e.title, e.description, e.max_attendees, e.min_attendees, e.age_limit, 
                  e.is_member_exclusive, e.event_address, e.event_city, e.event_postal, e.venue_name,
                  e.start_time, e.start_date, e.end_time, e.end_date, e.event_image_url, 
@@ -55,7 +55,7 @@ try {
         ORDER BY e.start_date DESC, e.start_time DESC
     ");
     
-    $stmt->execute([$_SESSION['company_id']]);
+    $stmt->execute([':company_id' => $_SESSION['company_id']]);
     $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Log event IDs to detect duplicates
@@ -72,11 +72,11 @@ try {
             $priceStmt = $db->prepare("
                 SELECT emp.ticket_price as price, mp.name as plan_name, emp.public_display
                 FROM event_membership_plans emp
-                JOIN membership_plans mp ON emp.membership_plan_id COLLATE utf8mb4_unicode_ci = mp.id COLLATE utf8mb4_unicode_ci
-                WHERE emp.event_id = ?
+                JOIN membership_plans mp ON emp.membership_plan_id = mp.id
+                WHERE emp.event_id = :event_id
                 ORDER BY emp.ticket_price ASC
             ");
-            $priceStmt->execute([$event['id']]);
+            $priceStmt->execute([':event_id' => $event['id']]);
             $event['membership_prices'] = $priceStmt->fetchAll(PDO::FETCH_ASSOC);
         }
     }

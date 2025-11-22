@@ -42,6 +42,7 @@ try {
             registration_deadline,
             payment_methods_json,
             default_payment_method,
+            payment_timing,
             event_image_url,
             created_at
         FROM events_eventdata 
