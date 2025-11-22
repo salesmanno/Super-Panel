@@ -12,8 +12,8 @@ require_once __DIR__ . '/../config/database.php';
 try {
     $db = getDBConnection();
     
-    // First: Get unique events WITHOUT LEFT JOIN to check-ins (avoids duplicates)
-    // Get event IDs and metadata only
+    // First: Get unique events only - NO LEFT JOINs to avoid duplicates
+    // Creator info and product metadata fetched separately if needed
     $stmt = $db->prepare("
         SELECT 
             e.id,
@@ -37,15 +37,8 @@ try {
             e.registration_type,
             e.output_product_id,
             e.created_by,
-            e.created_at,
-            op.is_visible,
-            op.is_public,
-            ts.first_name,
-            ts.last_name
+            e.created_at
         FROM events_eventdata e
-        LEFT JOIN output_products op ON e.output_product_id COLLATE utf8mb4_unicode_ci = op.id COLLATE utf8mb4_unicode_ci
-        LEFT JOIN tenant_admins ta ON CAST(e.created_by AS INTEGER) = ta.id
-        LEFT JOIN tenant_staff ts ON ta.tenant_staff_id COLLATE utf8mb4_unicode_ci = ts.id COLLATE utf8mb4_unicode_ci
         WHERE e.company_id = :company_id AND e.is_active = TRUE
         ORDER BY e.start_date DESC, e.start_time DESC
     ");
@@ -71,7 +64,7 @@ try {
             $priceStmt = $db->prepare("
                 SELECT emp.ticket_price as price, mp.name as plan_name, emp.public_display
                 FROM event_membership_plans emp
-                JOIN membership_plans mp ON emp.membership_plan_id COLLATE utf8mb4_unicode_ci = mp.id COLLATE utf8mb4_unicode_ci
+                JOIN membership_plans mp ON emp.membership_plan_id = mp.id
                 WHERE emp.event_id = :event_id
                 ORDER BY emp.ticket_price ASC
             ");
