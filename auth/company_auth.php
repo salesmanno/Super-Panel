@@ -55,10 +55,10 @@ try {
     
     $stmt = $db->prepare("
         UPDATE tenant_admin_sessions 
-        SET is_active = " . dbBool(false) . ", 
+        SET is_active = " . 0 . ", 
             logout_at = NOW()
         WHERE tenant_admin_id = ? 
-        AND is_active = " . dbBool(true) . "
+        AND is_active = " . 1 . "
         AND last_activity < $intervalCheck
     ");
     $stmt->execute([$admin['id']]);
@@ -68,7 +68,7 @@ try {
         SELECT COUNT(*) as active_sessions 
         FROM tenant_admin_sessions 
         WHERE tenant_admin_id = ? 
-        AND is_active = " . dbBool(true) . "
+        AND is_active = " . 1 . "
         AND last_activity >= $intervalCheck
     ");
     $stmt->execute([$admin['id']]);

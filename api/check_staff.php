@@ -36,7 +36,7 @@ try {
         WHERE company_id = ? AND email = ? AND is_active = ?
     ");
     
-    $activeValue = dbBool(true);
+    $activeValue = 1;
     $stmt->execute([$companyId, $email, $activeValue]);
     $staff = $stmt->fetch(PDO::FETCH_ASSOC);
     

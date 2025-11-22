@@ -25,13 +25,13 @@ try {
     if ($dbType === 'mysql') {
         $stmt = $db->prepare("
             UPDATE sales_products 
-            SET is_active = " . dbBool(false) . "
+            SET is_active = " . 0 . "
             WHERE id = ? AND company_id = ?
         ");
     } else {
         $stmt = $db->prepare("
             UPDATE sales_items 
-            SET is_active = " . dbBool(false) . "
+            SET is_active = " . 0 . "
             WHERE id = ? AND company_id = ?
         ");
     }
@@ -45,7 +45,7 @@ try {
         // Also hide the product from output_products catalog
         $hideStmt = $db->prepare("
             UPDATE output_products 
-            SET is_visible = " . dbBool(false) . ", is_public = " . dbBool(false) . "
+            SET is_visible = " . 0 . ", is_public = " . 0 . "
             WHERE product_id = ? 
             AND product_type IN ('product', 'sales_item')
             AND company_id = ?

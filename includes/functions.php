@@ -8,7 +8,7 @@ function getTenantAdminByUsername($username) {
         return false;
     }
     
-    $activeValue = dbBool(true);
+    $activeValue = 1;
     $stmt = $db->prepare("
         SELECT ta.id, ta.company_id, ta.tenant_staff_id, ta.password_hash, ta.username, ta.is_active,
                tc.name as company_name, tc.subdomain, tc.is_active as company_active,
@@ -50,7 +50,7 @@ function getTenantAdminModules($adminId) {
     if (!$db) {
         return [];
     }
-    $activeValue = dbBool(true);
+    $activeValue = 1;
     $stmt = $db->prepare("
         SELECT sm.id, sm.name, sm.module_key, sm.description, sm.icon, sm.is_active, sm.created_at
         FROM system_modules sm
@@ -67,7 +67,7 @@ function getCompanyModules($companyId) {
     if (!$db) {
         return [];
     }
-    $activeValue = dbBool(true);
+    $activeValue = 1;
     $stmt = $db->prepare("
         SELECT sm.id, sm.name, sm.module_key, sm.description, sm.icon, sm.is_active, sm.created_at
         FROM system_modules sm
@@ -85,7 +85,7 @@ function getLatestNews($limit = 5) {
         return [];
     }
     $limit = (int)$limit;
-    $publishedValue = dbBool(true);
+    $publishedValue = 1;
     $stmt = $db->prepare("
         SELECT * FROM core_sys_news 
         WHERE is_published = $publishedValue 
@@ -115,7 +115,7 @@ function sanitizeInput($data) {
 
 function getCompanyBySubdomain($subdomain) {
     $db = getDBConnection();
-    $activeValue = dbBool(true);
+    $activeValue = 1;
     $stmt = $db->prepare("
         SELECT * FROM tenant_companies 
         WHERE subdomain = ? AND is_active = $activeValue
@@ -138,7 +138,7 @@ function createTenantAdminSession($tenantAdminId, $sessionId) {
         $stmt = $db->prepare("
             INSERT INTO tenant_admin_sessions 
             (tenant_admin_id, session_id, ip_address, user_agent, login_at, last_activity, is_active)
-            VALUES (?, ?, ?, ?, NOW(), NOW(), " . dbBool(true) . ")
+            VALUES (?, ?, ?, ?, NOW(), NOW(), " . 1 . ")
         ");
         return $stmt->execute([$tenantAdminId, $sessionId, $ipAddress, $userAgent]);
     } catch (PDOException $e) {
@@ -152,7 +152,7 @@ function updateSessionActivity($sessionId) {
     if (!$db) return false;
     
     try {
-        $activeValue = dbBool(true);
+        $activeValue = 1;
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
             SET last_activity = NOW() 
@@ -170,8 +170,8 @@ function endTenantAdminSession($sessionId) {
     if (!$db) return false;
     
     try {
-        $activeValue = dbBool(true);
-        $inactiveValue = dbBool(false);
+        $activeValue = 1;
+        $inactiveValue = 0;
         
         // Get tenant_admin_id from session before ending it
         $stmt = $db->prepare("
@@ -212,7 +212,7 @@ function getTenantAdminActiveSessions($tenantAdminId) {
     if (!$db) return [];
     
     try {
-        $activeValue = dbBool(true);
+        $activeValue = 1;
         $stmt = $db->prepare("
             SELECT * FROM tenant_admin_sessions 
             WHERE tenant_admin_id = ? AND is_active = $activeValue
@@ -251,7 +251,7 @@ function getAllActiveSessions($companyId = null) {
     if (!$db) return [];
     
     try {
-        $activeValue = dbBool(true);
+        $activeValue = 1;
         if ($companyId) {
             $stmt = $db->prepare("
                 SELECT tas.*, ta.username, ta.name, ta.email
@@ -283,14 +283,14 @@ function endInactiveSessions($inactiveMinutes = 30) {
     if (!$db) return false;
     
     try {
-        $intervalSQL = dbInterval($inactiveMinutes);
+        // MySQL: Use INTERVAL syntax directly
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
-            SET is_active = " . dbBool(false) . ", logout_at = NOW() 
-            WHERE is_active = " . dbBool(true) . " 
-            AND last_activity < NOW() - {$intervalSQL}
+            SET is_active = 0, logout_at = NOW() 
+            WHERE is_active = 1 
+            AND last_activity < NOW() - INTERVAL ? MINUTE
         ");
-        return $stmt->execute();
+        return $stmt->execute([$inactiveMinutes]);
     } catch (PDOException $e) {
         error_log("Error ending inactive sessions: " . $e->getMessage());
         return false;

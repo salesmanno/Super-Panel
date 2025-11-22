@@ -194,7 +194,7 @@
                         $staff = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         
                         // Hent totalt antall aktive moduler
-                        $activeValue = dbBool(true);
+                        $activeValue = 1;
                         $stmt = $db->prepare("SELECT COUNT(*) FROM system_modules WHERE is_active = $activeValue");
                         $stmt->execute();
                         $totalModules = $stmt->fetchColumn();

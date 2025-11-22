@@ -41,7 +41,7 @@ try {
     }
     
     // Update is_public status
-    $publicValue = $isPublic ? dbBool(true) : dbBool(false);
+    $publicValue = $isPublic ? 1 : 0;
     $stmt = $db->prepare("UPDATE tenant_company_modules SET is_public = {$publicValue} WHERE company_id = ? AND module_id = ?");
     $stmt->execute([$companyId, $moduleId]);
     

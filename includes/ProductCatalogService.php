@@ -195,23 +195,23 @@ class ProductCatalogService {
             switch ($productType) {
                 case 'events':
                 case 'event': // Legacy support
-                    $stmt = $this->db->prepare("SELECT * FROM events_eventdata WHERE id = ? AND is_active = " . dbBool(true));
+                    $stmt = $this->db->prepare("SELECT * FROM events_eventdata WHERE id = ? AND is_active = " . 1);
                     break;
                     
                 case 'product':
                 case 'sales_item': // Legacy support
-                    $stmt = $this->db->prepare("SELECT * FROM sales_products WHERE id = ? AND is_active = " . dbBool(true));
+                    $stmt = $this->db->prepare("SELECT * FROM sales_products WHERE id = ? AND is_active = " . 1);
                     break;
                     
                 case 'rental':
-                    $stmt = $this->db->prepare("SELECT * FROM rental_objects WHERE id = ? AND is_available = " . dbBool(true));
+                    $stmt = $this->db->prepare("SELECT * FROM rental_objects WHERE id = ? AND is_available = " . 1);
                     break;
                     
                 case 'membership':
                     if ($dbType === 'mysql') {
-                        $stmt = $this->db->prepare("SELECT * FROM membership_plans WHERE id = ? AND is_active = " . dbBool(true));
+                        $stmt = $this->db->prepare("SELECT * FROM membership_plans WHERE id = ? AND is_active = " . 1);
                     } else {
-                        $stmt = $this->db->prepare("SELECT * FROM x_membership_plan WHERE plan_id = ? AND is_active = " . dbBool(true));
+                        $stmt = $this->db->prepare("SELECT * FROM x_membership_plan WHERE plan_id = ? AND is_active = " . 1);
                     }
                     break;
                     
