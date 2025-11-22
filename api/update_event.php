@@ -37,8 +37,8 @@ try {
     
     try {
         // Verify event exists and belongs to this company
-        $stmt = $db->prepare("SELECT id FROM events_eventdata WHERE id = ? AND company_id = ?");
-        $stmt->execute([$data['event_id'], $_SESSION['company_id']]);
+        $stmt = $db->prepare("SELECT id FROM events_eventdata WHERE id = :event_id AND company_id = :company_id");
+        $stmt->execute([':event_id' => $data['event_id'], ':company_id' => $_SESSION['company_id']]);
         if (!$stmt->fetch()) {
             throw new Exception('Arrangement ikke funnet');
         }
@@ -66,8 +66,8 @@ try {
             }
         } else {
             // Legacy flow: fetch existing values from database
-            $stmt = $db->prepare("SELECT registration_type, payment_timing FROM events_eventdata WHERE id = ? AND company_id = ?");
-            $stmt->execute([$data['event_id'], $_SESSION['company_id']]);
+            $stmt = $db->prepare("SELECT registration_type, payment_timing FROM events_eventdata WHERE id = :event_id AND company_id = :company_id");
+            $stmt->execute([':event_id' => $data['event_id'], ':company_id' => $_SESSION['company_id']]);
             $existing = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($existing) {
@@ -88,61 +88,61 @@ try {
             $data['registration_deadline'] = null;
             
             // Delete all membership pricing for this event
-            $stmt = $db->prepare("DELETE FROM event_membership_plans WHERE event_id = ?");
-            $stmt->execute([$data['event_id']]);
+            $stmt = $db->prepare("DELETE FROM event_membership_plans WHERE event_id = :event_id");
+            $stmt->execute([':event_id' => $data['event_id']]);
         }
         
         // Update the event in events_eventdata
         $stmt = $db->prepare("
             UPDATE events_eventdata SET
-                title = ?,
-                description = ?,
-                max_attendees = ?,
-                min_attendees = ?,
-                registration_deadline = ?,
-                age_limit = ?,
-                is_member_exclusive = ?,
-                event_address = ?,
-                event_city = ?,
-                event_postal = ?,
-                venue_name = ?,
-                start_time = ?,
-                start_date = ?,
-                end_time = ?,
-                end_date = ?,
-                event_image_url = ?,
-                ticket_price = ?,
-                member_ticket_price = ?,
-                default_payment_method = ?,
-                registration_type = ?,
-                payment_timing = ?
-            WHERE id = ? AND company_id = ?
+                title = :title,
+                description = :description,
+                max_attendees = :max_attendees,
+                min_attendees = :min_attendees,
+                registration_deadline = :registration_deadline,
+                age_limit = :age_limit,
+                is_member_exclusive = :is_member_exclusive,
+                event_address = :event_address,
+                event_city = :event_city,
+                event_postal = :event_postal,
+                venue_name = :venue_name,
+                start_time = :start_time,
+                start_date = :start_date,
+                end_time = :end_time,
+                end_date = :end_date,
+                event_image_url = :event_image_url,
+                ticket_price = :ticket_price,
+                member_ticket_price = :member_ticket_price,
+                default_payment_method = :default_payment_method,
+                registration_type = :registration_type,
+                payment_timing = :payment_timing
+            WHERE id = :event_id AND company_id = :company_id
         ");
         
         $stmt->execute([
-            $data['title'],
-            $data['description'] ?? null,
-            $data['max_attendees'] ?? null,
-            $data['min_attendees'] ?? null,
-            $data['registration_deadline'] ?? null,
-            $data['age_limit'] ?? null,
-            $data['is_member_exclusive'] ?? 0,
-            $data['event_address'] ?? null,
-            $data['event_city'] ?? null,
-            $data['event_postal'] ?? null,
-            $data['venue_name'] ?? null,
-            $data['start_time'],
-            $data['start_date'],
-            $data['end_time'] ?? null,
-            $data['end_date'] ?? null,
-            $data['event_image_url'] ?? null,
-            $data['ticket_price'] ?? 0,
-            $data['member_ticket_price'] ?? null,
-            $data['default_payment_method'] ?? null,
-            $registrationType,
-            $paymentTiming,
-            $data['event_id'],
-            $_SESSION['company_id']
+            ':title' => $data['title'],
+            ':description' => $data['description'] ?? null,
+            ':max_attendees' => $data['max_attendees'] ?? null,
+            ':min_attendees' => $data['min_attendees'] ?? null,
+            ':registration_deadline' => $data['registration_deadline'] ?? null,
+            ':age_limit' => $data['age_limit'] ?? null,
+            ':is_member_exclusive' => $data['is_member_exclusive'] ?? 0,
+            ':event_address' => $data['event_address'] ?? null,
+            ':event_city' => $data['event_city'] ?? null,
+            ':event_postal' => $data['event_postal'] ?? null,
+            ':venue_name' => $data['venue_name'] ?? null,
+            ':start_time' => $data['start_time'],
+            ':start_date' => $data['start_date'],
+            ':end_time' => $data['end_time'] ?? null,
+            ':end_date' => $data['end_date'] ?? null,
+            ':event_image_url' => $data['event_image_url'] ?? null,
+            ':ticket_price' => $data['ticket_price'] ?? 0,
+            ':member_ticket_price' => $data['member_ticket_price'] ?? null,
+            ':default_payment_method' => $data['default_payment_method'] ?? null,
+            ':registration_type' => $registrationType,
+            ':payment_timing' => $paymentTiming,
+            ':event_id' => $data['event_id'],
+            ':company_id' => $_SESSION['company_id']
         ]);
         
         // Update registration fields config (skip for 'none' type)
@@ -158,9 +158,9 @@ try {
             // Delete all existing fields except required name fields
             $stmt = $db->prepare("
                 DELETE FROM event_registration_fields 
-                WHERE event_id = ? AND field_name NOT IN ('first_name', 'last_name')
+                WHERE event_id = :event_id AND field_name NOT IN ('first_name', 'last_name')
             ");
-            $stmt->execute([$data['event_id']]);
+            $stmt->execute([':event_id' => $data['event_id']]);
             
             // Add contact fields (email and/or phone) - at least one required
             $contactFields = [
@@ -176,17 +176,17 @@ try {
                         INSERT INTO event_registration_fields (
                             id, event_id, field_name, field_label, field_type,
                             is_required, is_visible, display_order
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (:id, :event_id, :field_name, :field_label, :field_type, :is_required, :is_visible, :display_order)
                     ");
                     $stmt->execute([
-                        $fieldId,
-                        $data['event_id'],
-                        $fieldName,
-                        $fieldConfig['label'],
-                        $fieldConfig['type'],
-                        (int)$fieldConfig['required'],
-                        1,
-                        $displayOrder++
+                        ':id' => $fieldId,
+                        ':event_id' => $data['event_id'],
+                        ':field_name' => $fieldName,
+                        ':field_label' => $fieldConfig['label'],
+                        ':field_type' => $fieldConfig['type'],
+                        ':is_required' => (int)$fieldConfig['required'],
+                        ':is_visible' => 1,
+                        ':display_order' => $displayOrder++
                     ]);
                 }
             }
@@ -207,24 +207,24 @@ try {
                         INSERT INTO event_registration_fields (
                             id, event_id, field_name, field_label, field_type,
                             is_required, is_visible, display_order
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (:id, :event_id, :field_name, :field_label, :field_type, :is_required, :is_visible, :display_order)
                     ");
                     $stmt->execute([
-                        $fieldId,
-                        $data['event_id'],
-                        $fieldName,
-                        $fieldConfig['label'],
-                        $fieldConfig['type'],
-                        0,
-                        1,
-                        $displayOrder++
+                        ':id' => $fieldId,
+                        ':event_id' => $data['event_id'],
+                        ':field_name' => $fieldName,
+                        ':field_label' => $fieldConfig['label'],
+                        ':field_type' => $fieldConfig['type'],
+                        ':is_required' => 0,
+                        ':is_visible' => 1,
+                        ':display_order' => $displayOrder++
                     ]);
                 }
             }
         } else {
             // For 'none' type, delete all registration fields
-            $stmt = $db->prepare("DELETE FROM event_registration_fields WHERE event_id = ?");
-            $stmt->execute([$data['event_id']]);
+            $stmt = $db->prepare("DELETE FROM event_registration_fields WHERE event_id = :event_id");
+            $stmt->execute([':event_id' => $data['event_id']]);
         }
         
         // Update allowed payment methods
@@ -238,8 +238,8 @@ try {
             $paymentMethodsArray = [$data['default_payment_method']];
         } else {
             // Fallback: Use company cash setting or default to cash
-            $companyStmt = $db->prepare("SELECT Cash_payment FROM tenant_companies WHERE id = ?");
-            $companyStmt->execute([$_SESSION['company_id']]);
+            $companyStmt = $db->prepare("SELECT Cash_payment FROM tenant_companies WHERE id = :company_id");
+            $companyStmt->execute([':company_id' => $_SESSION['company_id']]);
             $company = $companyStmt->fetch(PDO::FETCH_ASSOC);
             if ($company && $company['Cash_payment']) {
                 $paymentMethodsArray = ['cash'];
@@ -262,8 +262,8 @@ try {
         $defaultPaymentMethod = $paymentMethodsArray[0]; // First method is always default (now guaranteed to be cash)
         
         // Update default_payment_method
-        $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = ? WHERE id = ? AND company_id = ?");
-        $stmt->execute([$defaultPaymentMethod, $data['event_id'], $_SESSION['company_id']]);
+        $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = :default_payment_method WHERE id = :event_id AND company_id = :company_id");
+        $stmt->execute([':default_payment_method' => $defaultPaymentMethod, ':event_id' => $data['event_id'], ':company_id' => $_SESSION['company_id']]);
         
         // Sync output_products entry using service
         $catalogService = new ProductCatalogService($db);

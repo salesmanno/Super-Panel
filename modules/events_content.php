@@ -645,37 +645,37 @@ try {
                         <textarea class="form-control" name="description" id="edit-description" rows="3"></textarea>
                     </div>
                     
-                    <div class="card border-success mb-4">
-                        <div class="card-header bg-success text-white">
-                            <h6 class="mb-0"><i class="bi bi-check-circle me-2"></i>Registreringstype</h6>
+                    <div class="card border-secondary mb-4">
+                        <div class="card-header bg-secondary text-white">
+                            <h6 class="mb-0"><i class="bi bi-lock me-2"></i>Registreringstype (kan ikke endres)</h6>
                         </div>
                         <div class="card-body">
-                            <p class="text-muted small mb-3">Velg hvordan deltakere registrerer seg til arrangementet</p>
+                            <p class="text-muted small mb-3"><i class="bi bi-info-circle me-1"></i>Registreringstypen er låst og kan ikke endres etter opprettelse</p>
                             <div class="row">
                                 <div class="col-md-4 mb-2">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-signup" value="signup">
-                                        <label class="form-check-label" for="edit-reg-signup">
-                                            <i class="bi bi-person-plus text-primary me-1"></i> <strong>Påmelding</strong><br>
-                                            <small class="text-muted">Deltakere melder seg på</small>
+                                        <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-signup" value="signup" disabled>
+                                        <label class="form-check-label text-muted" for="edit-reg-signup">
+                                            <i class="bi bi-person-plus me-1"></i> <strong>Påmelding</strong><br>
+                                            <small>Deltakere melder seg på</small>
                                         </label>
                                     </div>
                                 </div>
                                 <div class="col-md-4 mb-2">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-none" value="none">
-                                        <label class="form-check-label" for="edit-reg-none">
-                                            <i class="bi bi-x-circle text-secondary me-1"></i> <strong>Ingen påmelding</strong><br>
-                                            <small class="text-muted">Fritt arrangement uten registrering</small>
+                                        <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-none" value="none" disabled>
+                                        <label class="form-check-label text-muted" for="edit-reg-none">
+                                            <i class="bi bi-x-circle me-1"></i> <strong>Ingen påmelding</strong><br>
+                                            <small>Fritt arrangement uten registrering</small>
                                         </label>
                                     </div>
                                 </div>
                                 <div class="col-md-4 mb-2">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-binding" value="binding">
-                                        <label class="form-check-label" for="edit-reg-binding">
-                                            <i class="bi bi-lock text-warning me-1"></i> <strong>Bindende</strong><br>
-                                            <small class="text-muted">Krever betaling ved påmelding</small>
+                                        <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-binding" value="binding" disabled>
+                                        <label class="form-check-label text-muted" for="edit-reg-binding">
+                                            <i class="bi bi-lock me-1"></i> <strong>Bindende</strong><br>
+                                            <small>Krever betaling ved påmelding</small>
                                         </label>
                                     </div>
                                 </div>
