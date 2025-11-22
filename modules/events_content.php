@@ -321,16 +321,20 @@ try {
                             <label class="form-label">Maks. deltakere</label>
                             <input type="number" class="form-control" name="max_attendees">
                         </div>
+                    </div>
+
+                    <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
+                    <hr class="my-4">
+                    <h6 class="mb-3"><i class="bi bi-people-fill me-2"></i>Priser</h6>
+                    
+                    <div class="row">
                         <div class="col-md-3 mb-3" id="ticket-price-container">
                             <label class="form-label">Billettpris (NOK)</label>
                             <input type="number" step="0.01" class="form-control" name="ticket_price" id="ticket_price">
                             <small class="form-text text-muted" id="ticket-price-help">Ved "Ingen påmelding" vises pris med "(betales ved inngang)"</small>
                         </div>
                     </div>
-
-                    <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
-                    <hr class="my-4">
-                    <h6 class="mb-3"><i class="bi bi-people-fill me-2"></i>Medlemspriser</h6>
+                    
                     <div id="membership-pricing-container">
                         <div class="text-center py-2">
                             <div class="spinner-border spinner-border-sm text-primary me-2"></div>
@@ -742,15 +746,19 @@ try {
                             <label class="form-label">Maks. deltakere</label>
                             <input type="number" class="form-control" name="max_attendees" id="edit-max-attendees">
                         </div>
+                    </div>
+
+                    <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
+                    <hr class="my-4">
+                    <h6 class="mb-3"><i class="bi bi-people-fill me-2"></i>Priser</h6>
+                    
+                    <div class="row">
                         <div class="col-md-3 mb-3" id="edit-ticket-price-container">
                             <label class="form-label">Billettpris (NOK)</label>
                             <input type="number" step="0.01" class="form-control" name="ticket_price" id="edit-ticket-price">
                         </div>
                     </div>
-
-                    <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
-                    <hr class="my-4">
-                    <h6 class="mb-3"><i class="bi bi-people-fill me-2"></i>Medlemspriser</h6>
+                    
                     <div id="edit-membership-pricing-container">
                         <div class="text-center py-2">
                             <div class="spinner-border spinner-border-sm text-primary me-2"></div>
