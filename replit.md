@@ -40,6 +40,13 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-23 (SESSION 6 FINAL PART 6 - FRONTEND & API LAYER BUGS FIXED)**:
+  - **BUG #1 - API Error Response Inconsistency**: `get_membership_plans.php` returnerte `error` felt mens `get_events.php` brukte `message`. JavaScript ventet alltid på `message`. FIKSET: Endret `get_membership_plans.php` til å bruke `message`.
+  - **BUG #2 - Missing HTTP Status Validation**: JavaScript fetch-kall manglet `response.ok` check. Når MySQL var down returnerte API HTTP 500, men JS prøvde JSON parsing på error HTML → silent fail. FIKSET: La til `if (!response.ok) throw new Error()` i: `loadEvents()`, `loadMembershipPlans()`, `loadMembershipPlansForCreate()`.
+  - **BUG #3 - Missing Error Display**: `loadMembershipPlans()` catch-block logget kun til console uten å vise error HTML. FIKSET: La til error display med HTTP status i HTML.
+  - **Filer endret**: api/get_membership_plans.php, modules/membership_content.php, modules/events_content.php
+  - **RESULTAT**: 🟢 Events og membership plans vises når MySQL er aktiv. Tydelige error messages vises når MySQL er utilgjengelig.
+
 - **2025-11-23 (SESSION 6 FINAL PART 5 - COMPREHENSIVE DEBUG GUARANTEES ALL DATA LOADS)**:
   - **KRITISK BUG FUNNET & FIKSET**: `create_event.php` manglet `is_active` kolonne i INSERT! Alle nye events hadde `is_active = NULL/0`, mens `get_events.php` søker `WHERE is_active = 1` → returnerte tom array.
   - **LØSNING**: Lagt til `is_active` kolonne med hardcoded verdi = 1 (som `create_membership_plan.php` allerede gjorde riktig). Verifisert parameter binding: 28 kolonner, 25 execute-parameterer, is_active=1, created_at/updated_at=NOW().
