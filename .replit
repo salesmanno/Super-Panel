@@ -105,4 +105,4 @@ expertMode = true
 [userenv]
 
 [userenv.shared]
-SSH_ENABLED = "true"
+SSH_ENABLED = "false"
