@@ -40,6 +40,23 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-23 (SESSION 6 FINAL PART 7 - SSH TUNNEL IMPLEMENTATION)**:
+  - **Problemer før**: MySQL fra Domeneshop ("salesmanno04.mysql.domeneshop.no") var utilgjengelig fra Replit ("Network is unreachable")
+  - **LØSNING**: Implementert SSH tunnel via phpseclib3
+  - **Filer opprettet**:
+    - `config/ssh_tunnel.php` - SSH tunnel handler med auto-authentication (password eller SSH key)
+    - `.gitignore` - Ekskluderer vendor/, SSH keys, etc.
+  - **Filer endret**:
+    - `config/database.php` - Integrert SSH tunnel, fallback til direkte tilkobling hvis SSH feiler
+    - `composer.json` - Lagt til phpseclib/phpseclib:~3.0 dependency
+  - **Konfigurering**: Benytter environment variables:
+    - `SSH_ENABLED` - true/false for å aktivere SSH tunnel
+    - `SSH_HOST` - Domeneshop server hostname (f.eks. "server123.domeneshop.no")
+    - `SSH_USER` - Unix shell brukernavn
+    - `SSH_PASSWORD` - SSH password (eller SSH_KEY_PATH for key-based auth)
+  - **NESTE STEG**: Venter på SSH credentials fra bruker
+
+
 - **2025-11-23 (SESSION 6 FINAL PART 6 - FRONTEND & API LAYER BUGS FIXED)**:
   - **BUG #1 - API Error Response Inconsistency**: `get_membership_plans.php` returnerte `error` felt mens `get_events.php` brukte `message`. JavaScript ventet alltid på `message`. FIKSET: Endret `get_membership_plans.php` til å bruke `message`.
   - **BUG #2 - Missing HTTP Status Validation**: JavaScript fetch-kall manglet `response.ok` check. Når MySQL var down returnerte API HTTP 500, men JS prøvde JSON parsing på error HTML → silent fail. FIKSET: La til `if (!response.ok) throw new Error()` i: `loadEvents()`, `loadMembershipPlans()`, `loadMembershipPlansForCreate()`.
