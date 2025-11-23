@@ -101,3 +101,8 @@ externalPort = 6000
 
 [agent]
 expertMode = true
+
+[userenv]
+
+[userenv.shared]
+SSH_ENABLED = "true"
