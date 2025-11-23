@@ -48,28 +48,40 @@ try {
     
     // Then: Count attendees for each event separately (avoids LEFT JOIN duplicates)
     foreach ($events as &$event) {
-        $countStmt = $db->prepare("
-            SELECT COUNT(DISTINCT id) as attendee_count
-            FROM events_checkin
-            WHERE event_id = ?
-        ");
-        $countStmt->execute([$event['id']]);
-        $countResult = $countStmt->fetch(PDO::FETCH_ASSOC);
-        $event['current_attendees'] = $countResult['attendee_count'] ?? 0;
+        try {
+            $countStmt = $db->prepare("
+                SELECT COUNT(DISTINCT id) as attendee_count
+                FROM events_checkin
+                WHERE event_id = ?
+            ");
+            $countStmt->execute([$event['id']]);
+            $countResult = $countStmt->fetch(PDO::FETCH_ASSOC);
+            $event['current_attendees'] = intval($countResult['attendee_count'] ?? 0);
+        } catch (Exception $e) {
+            error_log("Warning: Failed to count attendees for event {$event['id']}: " . $e->getMessage());
+            $event['current_attendees'] = 0;
+        }
     }
     
     // Fetch membership prices for member-exclusive events
     foreach ($events as &$event) {
+        $event['membership_prices'] = [];
         if ($event['is_member_exclusive']) {
-            $priceStmt = $db->prepare("
-                SELECT emp.ticket_price as price, mp.name as plan_name, emp.public_display
-                FROM event_membership_plans emp
-                JOIN membership_plans mp ON emp.membership_plan_id = mp.id
-                WHERE emp.event_id = ?
-                ORDER BY emp.ticket_price ASC
-            ");
-            $priceStmt->execute([$event['id']]);
-            $event['membership_prices'] = $priceStmt->fetchAll(PDO::FETCH_ASSOC);
+            try {
+                $priceStmt = $db->prepare("
+                    SELECT emp.ticket_price as price, mp.name as plan_name, emp.public_display
+                    FROM event_membership_plans emp
+                    JOIN membership_plans mp ON emp.membership_plan_id = mp.id
+                    WHERE emp.event_id = ?
+                    ORDER BY emp.ticket_price ASC
+                ");
+                $priceStmt->execute([$event['id']]);
+                $results = $priceStmt->fetchAll(PDO::FETCH_ASSOC);
+                $event['membership_prices'] = $results ?: [];
+            } catch (Exception $e) {
+                error_log("Warning: Failed to fetch membership prices for event {$event['id']}: " . $e->getMessage());
+                $event['membership_prices'] = [];
+            }
         }
     }
     
