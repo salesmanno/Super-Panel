@@ -40,7 +40,12 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
-- **2025-11-23 (CRITICAL FIX - MySQL Parameterisering)**:
+- **2025-11-23 (CRITICAL FIX - Syntax Errors & MySQL Parameterisering)**:
+  - **FIKSET 2 SYNTAX ERRORS**: `get_membership_plans.php` og `get_members.php` hadde uventet `else` uten tilhørende `if` + duplicate SQL queries. Nå helt riktig.
+  - **FJERNET PostgreSQL FALLBACK**: Kode bruker nå MYSQL ONLY per brukerens krav. 
+  - **FIKSET 14+ APIer**: Alle hardkoderte `= 1` og `= 0` i SQL-queries erstattet med parameterisert SQL (`?`). Sikrer MySQL-kompatibilitet og forhindrer SQL-feil.
+
+- **2025-11-23 (Previous - MySQL Parameterisering)**:
   - **FJERNET PostgreSQL FALLBACK**: Kode bruker nå MYSQL ONLY per brukerens krav. Ingen PostgreSQL-fallback.
   - **FIKSET 12+ APIer for MySQL-kompatibilitet**: Alle hardkoderte `= 1` og `= 0` i SQL-queries erstattet med parameterisert SQL (`?`). Påvirker filer: `config/database.php`, `auth/company_auth.php`, `api/get_membership_plans.php`, `api/get_events.php`, `api/get_announcements.php`, `api/get_company_website.php`, `api/get_rental_objects.php`, `api/get_sales_items.php`, `api/get_staff_modules.php`, `api/get_staff.php`, `api/get_terms_conditions.php`, `api/save_website_template.php`, `api/update_permissions.php`, `api/update_staff_modules.php`, `includes/functions.php`. Dette sikrer MySQL-kompatibilitet og forhindrer SQL-feil ved parameterisert binding.
 - **2025-11-22 (Latest Session - PART 3)**:
