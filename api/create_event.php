@@ -111,6 +111,9 @@ try {
             $paymentMethodsArray = array_values($paymentMethodsArray); // Re-index
         }
         
+        // Convert payment methods array to JSON
+        $paymentMethodsJson = json_encode($paymentMethodsArray);
+        
         $stmt = $db->prepare("
             INSERT INTO events_eventdata (
                 id,
@@ -232,10 +235,18 @@ try {
             }
         }
         
-        // 4b. Create registration fields for new event (skip for 'none' type)
-        if ($registrationType !== 'none') {
+        // 4b. Create registration fields for new event
+        // LOGIC:
+        // - If registration_type = 'none': Skip creating fields (no registration at all)
+        // - If registration_type = 'signup' or 'binding': Create fields based on user selections
+        //   - REQUIRED: User must select at least one contact field (email or phone)
+        //   - Optional: User can select additional fields (street, zip, city, postal, age)
+        
+        $shouldCreateFields = ($registrationType !== 'none');
+        
+        if ($shouldCreateFields) {
             try {
-                // Validate that at least one contact field (email or phone) is selected
+                // STEP 1: Validate contact fields (at least one must be selected)
                 $hasEmail = isset($data['field_email']) && $data['field_email'];
                 $hasPhone = isset($data['field_phone']) && $data['field_phone'];
                 
@@ -243,6 +254,7 @@ try {
                     throw new Exception('Minst ett kontaktfelt (E-post eller Telefonnummer) må være valgt');
                 }
                 
+                // STEP 2: Begin creating fields (required + selected optional)
                 $displayOrder = 1;
                 
                 // Add required name fields first
@@ -271,13 +283,16 @@ try {
                     ]);
                 }
                 
-                // Add contact fields (email and/or phone) - at least one required
+                // Add contact fields (email and/or phone)
+                // Note: At least one is REQUIRED (validated above)
+                // But user can select both, or just one
                 $contactFields = [
                     'email' => ['label' => 'E-postadresse', 'type' => 'email', 'required' => false],
                     'phone' => ['label' => 'Telefonnummer', 'type' => 'tel', 'required' => false]
                 ];
                 
                 foreach ($contactFields as $fieldName => $fieldConfig) {
+                    // Only create if user explicitly selected this field
                     if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
                         $fieldId = bin2hex(random_bytes(16));
                         $stmt = $db->prepare("
@@ -299,7 +314,8 @@ try {
                     }
                 }
                 
-                // Add optional fields if selected
+                // Add optional fields (street, zip, city, postal, age)
+                // Note: These are all optional and only created if explicitly selected
                 $optionalFields = [
                     'street' => ['label' => 'Gateadresse', 'type' => 'text'],
                     'zip' => ['label' => 'Postnummer', 'type' => 'text'],
@@ -309,6 +325,7 @@ try {
                 ];
                 
                 foreach ($optionalFields as $fieldName => $fieldConfig) {
+                    // Only create if user explicitly selected this field
                     if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
                         $fieldId = bin2hex(random_bytes(16));
                         $stmt = $db->prepare("
@@ -331,8 +348,13 @@ try {
                 }
             } catch (Exception $e) {
                 error_log("Warning: Failed to create registration fields for event {$eventId}: " . $e->getMessage());
-                // Don't throw - allow event creation to proceed even if fields fail
+                // Validation error (e.g., no contact field selected) - re-throw to block event creation
+                throw $e;
             }
+        } else {
+            // No fields will be created because:
+            // - registration_type = 'none' means "Ingen påmelding" (no registration at all)
+            // - No registration = no fields needed
         }
         
         // 5. Auto-generate output_products entry using service

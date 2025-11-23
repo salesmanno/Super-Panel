@@ -42,10 +42,18 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 ## Recent Changes
 - **2025-11-23 (SESSION 6 FINAL PARTS 10 - EVENT REGISTRATION FIELDS CREATION FIX)**:
   - **2 CRITICAL BUGS FIXED**:
-    - **BUG #1 - Event Creation Missing Registration Fields**: `create_event.php` was NOT creating `event_registration_fields` when new events were created. This meant new events had no registration fields, causing editing to fail. FIKSET: Added registration fields creation to `create_event.php` (lines 238-339) with proper error handling.
+    - **BUG #1 - Event Creation Missing Registration Fields**: `create_event.php` was NOT creating `event_registration_fields` when new events were created. This meant new events had no registration fields, causing editing to fail. FIKSET: Added registration fields creation to `create_event.php` (lines 241-361) with crystal-clear logic and documentation.
     - **BUG #2 - Event Edit Too Strict**: `update_event.php` always validated and required at least one contact field (email or phone), even when user was just editing other event details without touching field selections. This caused updates to fail when frontend didn't send field_email/field_phone parameters. FIKSET: Made field updates conditional - only update/validate fields if selections were provided in request, otherwise preserve existing configuration.
   - **Filer endret**: 2 API-filer (create_event.php, update_event.php)
-  - **RESULTAT**: 🟢 Event registration fields now properly created on event creation. Event editing now works smoothly - users can edit events without modifying field configuration, and when they do update fields, proper validation applies.
+  - **Registration Fields Logic (Explicit & Clear)**:
+    - **Line 248**: `$shouldCreateFields = ($registrationType !== 'none');` - Makes it crystal clear when fields will be created
+    - **Line 250-361**: Only if `$shouldCreateFields = true`:
+      1. VALIDATE: At least one contact field (email OR phone) must be selected
+      2. CREATE: Required name fields (first_name, last_name) - always
+      3. CREATE: Contact fields (email, phone) - only if user explicitly selected them
+      4. CREATE: Optional fields (street, zip, city, postal, age) - only if user explicitly selected them
+    - **Line 357-361**: If `registration_type = 'none'` → No fields created (no registration = no fields needed)
+  - **RESULTAT**: 🟢 Event registration fields now properly created on event creation. Explicit logic makes handling crystal clear. Event editing works smoothly - users can edit events without modifying field configuration, and when they do update fields, proper validation applies.
 
 - **2025-11-23 (SESSION 6 FINAL PARTS 7-8-9 - COMPLETE EVENT & MEMBERSHIP BUGS FIXED)**:
   - **17 BUGS FUNNET OG FIKSET OVER 11 API-FILER**:
