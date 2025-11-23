@@ -58,15 +58,15 @@ try {
         // Get all objects for company
         $stmt = $db->prepare("
             SELECT ro.*, 
-                   CASE WHEN ro.is_available = 1 AND ro.is_active = 1 THEN 'available'
-                        WHEN ro.is_available = 0 THEN 'rented'
+                   CASE WHEN ro.is_available = ? AND ro.is_active = ? THEN 'available'
+                        WHEN ro.is_available = ? THEN 'rented'
                         ELSE 'inactive'
                    END as display_status
             FROM rental_objects ro
             WHERE ro.company_id = :company_id
             ORDER BY ro.created_at DESC
         ");
-        $stmt->execute([':company_id' => $admin['company_id']]);
+        $stmt->execute([1, 1, 0, ':company_id' => $admin['company_id']]);
         $objects = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Fetch type-specific data for each object

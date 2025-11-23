@@ -27,9 +27,9 @@ try {
     $stmt = $db->prepare("
         SELECT module_id 
         FROM tenant_company_modules 
-        WHERE company_id = ? AND is_active = 1
+        WHERE company_id = ? AND is_active = ?
     ");
-    $stmt->execute([$companyId]);
+    $stmt->execute([$companyId, 1]);
     $allowedModules = array_column($stmt->fetchAll(), 'module_id');
     
     $validModuleIds = array_intersect($moduleIds, $allowedModules);

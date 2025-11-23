@@ -42,7 +42,8 @@ try {
     }
     
     // Get all available modules
-    $stmt = $db->query("SELECT id FROM system_modules WHERE is_active = 1");
+    $stmt = $db->prepare("SELECT id FROM system_modules WHERE is_active = ?");
+    $stmt->execute([1]);
     $availableModules = $stmt->fetchAll(PDO::FETCH_COLUMN);
     
     // Delete existing module assignments for this admin

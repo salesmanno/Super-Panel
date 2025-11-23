@@ -24,7 +24,7 @@ try {
                 is_active,
                 is_internal
             FROM membership_plans
-            WHERE company_id = ? AND is_active = 1 AND is_internal = 0
+            WHERE company_id = ? AND is_active = ? AND is_internal = ?
             ORDER BY created_at DESC
         ");
     } else {
@@ -38,12 +38,12 @@ try {
                 features as benefits,
                 is_active
             FROM membership_plans
-            WHERE company_id = ? AND is_active = true
+            WHERE company_id = ? AND is_active = ? AND is_internal = ?
             ORDER BY created_at DESC
         ");
     }
     
-    $stmt->execute([$companyId]);
+    $stmt->execute([$companyId, 1, 0]);
     $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     echo json_encode([

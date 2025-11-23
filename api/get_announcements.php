@@ -36,17 +36,19 @@ try {
     
     // Apply filters
     if (!$showUnpublished) {
-        $sql .= " AND a.is_published = 1 
-                  AND COALESCE(a.publish_at, NOW()) <= 
-                  AND (a.expire_at IS NULL OR a.expire_at > )";
+        $sql .= " AND a.is_published = ? 
+                  AND COALESCE(a.publish_at, NOW()) <= NOW()
+                  AND (a.expire_at IS NULL OR a.expire_at > NOW())";
     }
     
     $sql .= " ORDER BY a.is_pinned DESC, a.publish_at DESC";
     
     $stmt = $db->prepare($sql);
-    $stmt->bindValue(':company_id', $companyId);
-    
-    $stmt->execute();
+    $params = [$companyId];
+    if (!$showUnpublished) {
+        $params[] = 1;
+    }
+    $stmt->execute($params);
     $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Cast boolean fields

@@ -34,12 +34,13 @@ try {
     $admins = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Get all available modules
-    $stmt = $db->query("
+    $stmt = $db->prepare("
         SELECT id, name, module_key, icon, description
         FROM system_modules
-        WHERE is_active = 1
+        WHERE is_active = ?
         ORDER BY name
     ");
+    $stmt->execute([1]);
     $modules = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // For each admin, get their module access

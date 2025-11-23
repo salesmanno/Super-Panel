@@ -68,11 +68,11 @@ try {
         LEFT JOIN sales_products sp ON op.product_type = 'product' AND op.product_id = sp.id
         LEFT JOIN " . ($dbType === 'mysql' ? "membership_plans" : "membership_plans") . " mp ON op.product_type = 'membership' AND op.product_id = " . ($dbType === 'mysql' ? "mp.id" : "mp.id") . "
         LEFT JOIN reservation_services rs ON op.product_type = 'service' AND op.product_id = rs.id
-        WHERE op.company_id = ? AND op.is_visible = 1
+        WHERE op.company_id = ? AND op.is_visible = ?
         ORDER BY item_name ASC
     ");
     
-    $stmt->execute([$company_id]);
+    $stmt->execute([$company_id, 1]);
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Duplicate events with member_price to show both regular and member pricing

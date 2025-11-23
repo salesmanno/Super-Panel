@@ -29,8 +29,8 @@ try {
         throw new Exception('Database tilkobling feilet');
     }
     
-    $stmt = $db->prepare("SELECT template_id FROM website_templates WHERE template_id = ? AND is_active = 1");
-    $stmt->execute([$templateId]);
+    $stmt = $db->prepare("SELECT template_id FROM website_templates WHERE template_id = ? AND is_active = ?");
+    $stmt->execute([$templateId, 1]);
     if (!$stmt->fetch()) {
         throw new Exception('Ugyldig mal');
     }

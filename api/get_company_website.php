@@ -17,8 +17,8 @@ try {
     }
     
     if (isset($_GET['subdomain'])) {
-        $stmt = $db->prepare("SELECT id, name, subdomain FROM tenant_companies WHERE subdomain = ? AND is_active = 1");
-        $stmt->execute([$_GET['subdomain']]);
+        $stmt = $db->prepare("SELECT id, name, subdomain FROM tenant_companies WHERE subdomain = ? AND is_active = ?");
+        $stmt->execute([$_GET['subdomain'], 1]);
         $company = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$company) {
@@ -29,8 +29,8 @@ try {
     } else {
         $companyId = intval($_GET['company_id']);
         
-        $stmt = $db->prepare("SELECT id, name, subdomain FROM tenant_companies WHERE id = ? AND is_active = 1");
-        $stmt->execute([$companyId]);
+        $stmt = $db->prepare("SELECT id, name, subdomain FROM tenant_companies WHERE id = ? AND is_active = ?");
+        $stmt->execute([$companyId, 1]);
         $company = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$company) {

@@ -39,11 +39,11 @@ try {
             e.created_by,
             e.created_at
         FROM events_eventdata e
-        WHERE e.company_id = :company_id AND e.is_active = 1
+        WHERE e.company_id = :company_id AND e.is_active = :is_active
         ORDER BY e.start_date DESC, e.start_time DESC
     ");
     
-    $stmt->execute([':company_id' => $_SESSION['company_id']]);
+    $stmt->execute([':company_id' => $_SESSION['company_id'], ':is_active' => 1]);
     $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Then: Count attendees for each event separately (avoids LEFT JOIN duplicates)

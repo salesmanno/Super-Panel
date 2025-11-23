@@ -55,23 +55,23 @@ try {
     
     $stmt = $db->prepare("
         UPDATE tenant_admin_sessions 
-        SET is_active = " . 0 . ", 
+        SET is_active = ?, 
             logout_at = NOW()
         WHERE tenant_admin_id = ? 
-        AND is_active = " . 1 . "
+        AND is_active = ?
         AND last_activity < $intervalCheck
     ");
-    $stmt->execute([$admin['id']]);
+    $stmt->execute([0, $admin['id'], 1]);
     
     // Now check for truly active sessions
     $stmt = $db->prepare("
         SELECT COUNT(*) as active_sessions 
         FROM tenant_admin_sessions 
         WHERE tenant_admin_id = ? 
-        AND is_active = " . 1 . "
+        AND is_active = ?
         AND last_activity >= $intervalCheck
     ");
-    $stmt->execute([$admin['id']]);
+    $stmt->execute([$admin['id'], 1]);
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($result['active_sessions'] > 0) {

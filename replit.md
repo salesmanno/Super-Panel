@@ -40,6 +40,9 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-23 (CRITICAL FIX - MySQL Parameterisering)**:
+  - **FJERNET PostgreSQL FALLBACK**: Kode bruker nå MYSQL ONLY per brukerens krav. Ingen PostgreSQL-fallback.
+  - **FIKSET 12+ APIer for MySQL-kompatibilitet**: Alle hardkoderte `= 1` og `= 0` i SQL-queries erstattet med parameterisert SQL (`?`). Påvirker filer: `config/database.php`, `auth/company_auth.php`, `api/get_membership_plans.php`, `api/get_events.php`, `api/get_announcements.php`, `api/get_company_website.php`, `api/get_rental_objects.php`, `api/get_sales_items.php`, `api/get_staff_modules.php`, `api/get_staff.php`, `api/get_terms_conditions.php`, `api/save_website_template.php`, `api/update_permissions.php`, `api/update_staff_modules.php`, `includes/functions.php`. Dette sikrer MySQL-kompatibilitet og forhindrer SQL-feil ved parameterisert binding.
 - **2025-11-22 (Latest Session - PART 3)**:
   - **INTERN MEDLEMSKAPSPLAN FEATURE**: Lagt til checkbox "Intern medlemskapsplan" i opprett-form for medlemskapsplaner. Når avmerket: (1) `is_internal = 1` i database, (2) INGEN output_products entry lages, (3) Planen vises IKKE i offentlige tjenester/shopping cart. Filter: `get_membership_plans.php` viser kun `WHERE is_internal = 0`. Bruk: Interne planer for intern administrasjon, eksterne for salgskanaler.
 - **2025-11-22 (Latest Session - PART 2)**:

@@ -33,11 +33,11 @@ try {
             job_title,
             is_active
         FROM tenant_staff
-        WHERE company_id = ? AND is_active = 1
+        WHERE company_id = ? AND is_active = ?
         ORDER BY first_name, last_name
     ");
     
-    $stmt->execute([$companyId]);
+    $stmt->execute([$companyId, 1]);
     $staff = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     echo json_encode([

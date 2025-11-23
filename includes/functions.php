@@ -85,16 +85,15 @@ function getLatestNews($limit = 5) {
         return [];
     }
     $limit = (int)$limit;
-    $publishedValue = 1;
     $stmt = $db->prepare("
         SELECT * FROM core_sys_news 
-        WHERE is_published = $publishedValue 
+        WHERE is_published = ? 
         AND (expire_at IS NULL OR expire_at > NOW())
         AND publish_at <= NOW()
         ORDER BY publish_at DESC 
         LIMIT " . $limit
     );
-    $stmt->execute();
+    $stmt->execute([1]);
     return $stmt->fetchAll();
 }
 
@@ -286,11 +285,11 @@ function endInactiveSessions($inactiveMinutes = 30) {
         // MySQL: Use INTERVAL syntax directly
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
-            SET is_active = 0, logout_at = NOW() 
-            WHERE is_active = 1 
+            SET is_active = ?, logout_at = NOW() 
+            WHERE is_active = ? 
             AND last_activity < NOW() - INTERVAL ? MINUTE
         ");
-        return $stmt->execute([$inactiveMinutes]);
+        return $stmt->execute([0, 1, $inactiveMinutes]);
     } catch (PDOException $e) {
         error_log("Error ending inactive sessions: " . $e->getMessage());
         return false;

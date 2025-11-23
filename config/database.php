@@ -1,6 +1,6 @@
 <?php
 
-// MySQL credentials for production (Domeneshop)
+// MySQL ONLY - Domeneshop production database
 define('DB_HOST', 'salesmanno04.mysql.domeneshop.no');
 define('DB_NAME', 'salesmanno04');
 define('DB_USER', 'salesmanno04');
@@ -9,10 +9,8 @@ define('DB_CHARSET', 'utf8mb4');
 
 function getDBConnection() {
     static $conn = null;
-    static $dbType = null;
     
     if ($conn === null) {
-        // MYSQL ONLY - Domeneshop production database
         try {
             $mysqlDsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET;
             $options = [
@@ -23,7 +21,6 @@ function getDBConnection() {
             ];
             
             $conn = new PDO($mysqlDsn, DB_USER, DB_PASS, $options);
-            $dbType = 'mysql';
             error_log("Connected to MySQL");
             
         } catch (PDOException $e) {
@@ -36,7 +33,6 @@ function getDBConnection() {
 }
 
 function getDBType() {
-    // MYSQL ONLY - No PostgreSQL fallback
     return 'mysql';
 }
 

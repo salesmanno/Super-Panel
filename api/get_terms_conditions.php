@@ -44,11 +44,11 @@ try {
             SELECT tc.*, COUNT(ta.id) as acceptance_count
             FROM tenant_terms_conditions tc
             LEFT JOIN tenant_terms_acceptances ta ON tc.id = ta.terms_conditions_id
-            WHERE tc.company_id = ? AND tc.is_active = 1
+            WHERE tc.company_id = ? AND tc.is_active = ?
             GROUP BY tc.id
             ORDER BY tc.effective_date DESC
         ");
-        $stmt->execute([$company_id]);
+        $stmt->execute([$company_id, 1]);
         $terms = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         echo json_encode(['success' => true, 'data' => $terms]);
