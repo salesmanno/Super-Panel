@@ -1209,6 +1209,9 @@ async function loadEvents() {
     
     try {
         const response = await fetch('../api/get_events.php');
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         const result = await response.json();
 
         const eventsList = document.getElementById('events-list');
@@ -2498,6 +2501,9 @@ async function loadMembershipPlansForCreate() {
     
     try {
         const response = await fetch('/api/get_membership_plans.php');
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         const result = await response.json();
         
         if (result.success && result.plans && result.plans.length > 0) {

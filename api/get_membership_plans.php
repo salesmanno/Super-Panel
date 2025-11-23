@@ -40,6 +40,6 @@ try {
     error_log("Error fetching membership plans: " . $e->getMessage());
     echo json_encode([
         'success' => false,
-        'error' => 'Kunne ikke hente medlemskapsplaner'
+        'message' => 'Kunne ikke hente medlemskapsplaner'
     ]);
 }

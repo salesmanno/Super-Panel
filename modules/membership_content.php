@@ -428,6 +428,9 @@ async function submitMembershipPlan() {
 async function loadMembershipPlans() {
     try {
         const response = await fetch('../api/get_membership_plans.php');
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         const result = await response.json();
         
         const plansList = document.getElementById('membership-plans-list');
@@ -480,6 +483,14 @@ async function loadMembershipPlans() {
         }
     } catch (error) {
         console.error('Error loading plans:', error);
+        const plansList = document.getElementById('membership-plans-list');
+        plansList.innerHTML = `
+            <div class="col-12 text-center text-danger py-4">
+                <i class="bi bi-exclamation-triangle fs-1 d-block mb-3"></i>
+                <p class="mb-0">Feil ved lasting av medlemskapsplaner</p>
+                <small class="text-muted">${error.message}</small>
+            </div>
+        `;
     }
 }
 
