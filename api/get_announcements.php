@@ -32,22 +32,20 @@ try {
                 a.created_at,
                 a.updated_at
             FROM {$tableName} a
-            WHERE a.company_id = :company_id";
+            WHERE a.company_id = ?";
     
     // Apply filters
+    $params = [$companyId];
     if (!$showUnpublished) {
         $sql .= " AND a.is_published = ? 
                   AND COALESCE(a.publish_at, NOW()) <= NOW()
                   AND (a.expire_at IS NULL OR a.expire_at > NOW())";
+        $params[] = 1;
     }
     
     $sql .= " ORDER BY a.is_pinned DESC, a.publish_at DESC";
     
     $stmt = $db->prepare($sql);
-    $params = [$companyId];
-    if (!$showUnpublished) {
-        $params[] = 1;
-    }
     $stmt->execute($params);
     $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
