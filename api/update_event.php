@@ -168,20 +168,28 @@ try {
         
         // Update registration fields config (skip for 'none' type)
         if ($registrationType !== 'none') {
-            // Validate that at least one contact field (email or phone) is selected
-            $hasEmail = isset($data['field_email']) && $data['field_email'];
-            $hasPhone = isset($data['field_phone']) && $data['field_phone'];
+            // Check if field selections were provided in the request
+            $fieldSelectionsProvided = isset($data['field_email']) || isset($data['field_phone']) || 
+                                      isset($data['field_street']) || isset($data['field_zip']) ||
+                                      isset($data['field_city']) || isset($data['field_postal']) ||
+                                      isset($data['field_age']);
             
-            if (!$hasEmail && !$hasPhone) {
-                throw new Exception('Minst ett kontaktfelt (E-post eller Telefonnummer) må være valgt');
-            }
-            
-            // Delete all existing fields except required name fields
-            $stmt = $db->prepare("
-                DELETE FROM event_registration_fields 
-                WHERE event_id = ? AND field_name NOT IN ('first_name', 'last_name')
-            ");
-            $stmt->execute([$data['event_id']]);
+            // Only update fields if selections were provided
+            if ($fieldSelectionsProvided) {
+                // Validate that at least one contact field (email or phone) is selected
+                $hasEmail = isset($data['field_email']) && $data['field_email'];
+                $hasPhone = isset($data['field_phone']) && $data['field_phone'];
+                
+                if (!$hasEmail && !$hasPhone) {
+                    throw new Exception('Minst ett kontaktfelt (E-post eller Telefonnummer) må være valgt');
+                }
+                
+                // Delete all existing fields except required name fields
+                $stmt = $db->prepare("
+                    DELETE FROM event_registration_fields 
+                    WHERE event_id = ? AND field_name NOT IN ('first_name', 'last_name')
+                ");
+                $stmt->execute([$data['event_id']]);
             
             // Add contact fields (email and/or phone) - at least one required
             $contactFields = [
@@ -242,10 +250,12 @@ try {
                     ]);
                 }
             }
-        } else {
-            // For 'none' type, delete all registration fields
-            $stmt = $db->prepare("DELETE FROM event_registration_fields WHERE event_id = ?");
-            $stmt->execute([$data['event_id']]);
+            // else: skip field updates if no field selections were provided (preserve existing config)
+            } else {
+                // For 'none' type, delete all registration fields
+                $stmt = $db->prepare("DELETE FROM event_registration_fields WHERE event_id = ?");
+                $stmt->execute([$data['event_id']]);
+            }
         }
         
         // Update allowed payment methods

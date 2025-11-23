@@ -232,6 +232,109 @@ try {
             }
         }
         
+        // 4b. Create registration fields for new event (skip for 'none' type)
+        if ($registrationType !== 'none') {
+            try {
+                // Validate that at least one contact field (email or phone) is selected
+                $hasEmail = isset($data['field_email']) && $data['field_email'];
+                $hasPhone = isset($data['field_phone']) && $data['field_phone'];
+                
+                if (!$hasEmail && !$hasPhone) {
+                    throw new Exception('Minst ett kontaktfelt (E-post eller Telefonnummer) må være valgt');
+                }
+                
+                $displayOrder = 1;
+                
+                // Add required name fields first
+                $nameFields = [
+                    'first_name' => ['label' => 'Fornavn', 'type' => 'text', 'required' => true],
+                    'last_name' => ['label' => 'Etternavn', 'type' => 'text', 'required' => true]
+                ];
+                
+                foreach ($nameFields as $fieldName => $fieldConfig) {
+                    $fieldId = bin2hex(random_bytes(16));
+                    $stmt = $db->prepare("
+                        INSERT INTO event_registration_fields (
+                            id, event_id, field_name, field_label, field_type,
+                            is_required, is_visible, display_order
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ");
+                    $stmt->execute([
+                        $fieldId,
+                        $eventId,
+                        $fieldName,
+                        $fieldConfig['label'],
+                        $fieldConfig['type'],
+                        (int)$fieldConfig['required'],
+                        1,
+                        $displayOrder++
+                    ]);
+                }
+                
+                // Add contact fields (email and/or phone) - at least one required
+                $contactFields = [
+                    'email' => ['label' => 'E-postadresse', 'type' => 'email', 'required' => false],
+                    'phone' => ['label' => 'Telefonnummer', 'type' => 'tel', 'required' => false]
+                ];
+                
+                foreach ($contactFields as $fieldName => $fieldConfig) {
+                    if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
+                        $fieldId = bin2hex(random_bytes(16));
+                        $stmt = $db->prepare("
+                            INSERT INTO event_registration_fields (
+                                id, event_id, field_name, field_label, field_type,
+                                is_required, is_visible, display_order
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        ");
+                        $stmt->execute([
+                            $fieldId,
+                            $eventId,
+                            $fieldName,
+                            $fieldConfig['label'],
+                            $fieldConfig['type'],
+                            (int)$fieldConfig['required'],
+                            1,
+                            $displayOrder++
+                        ]);
+                    }
+                }
+                
+                // Add optional fields if selected
+                $optionalFields = [
+                    'street' => ['label' => 'Gateadresse', 'type' => 'text'],
+                    'zip' => ['label' => 'Postnummer', 'type' => 'text'],
+                    'city' => ['label' => 'Poststed', 'type' => 'text'],
+                    'postal' => ['label' => 'Postboks', 'type' => 'text'],
+                    'age' => ['label' => 'Alder', 'type' => 'number']
+                ];
+                
+                foreach ($optionalFields as $fieldName => $fieldConfig) {
+                    if (isset($data['field_' . $fieldName]) && $data['field_' . $fieldName]) {
+                        $fieldId = bin2hex(random_bytes(16));
+                        $stmt = $db->prepare("
+                            INSERT INTO event_registration_fields (
+                                id, event_id, field_name, field_label, field_type,
+                                is_required, is_visible, display_order
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        ");
+                        $stmt->execute([
+                            $fieldId,
+                            $eventId,
+                            $fieldName,
+                            $fieldConfig['label'],
+                            $fieldConfig['type'],
+                            0,
+                            1,
+                            $displayOrder++
+                        ]);
+                    }
+                }
+            } catch (Exception $e) {
+                error_log("Warning: Failed to create registration fields for event {$eventId}: " . $e->getMessage());
+                // Don't throw - allow event creation to proceed even if fields fail
+            }
+        }
+        
         // 5. Auto-generate output_products entry using service
         $catalogService = new ProductCatalogService($db);
         $outputProductId = $catalogService->createProductEntry(

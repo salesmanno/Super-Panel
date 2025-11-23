@@ -40,6 +40,13 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-23 (SESSION 6 FINAL PARTS 10 - EVENT REGISTRATION FIELDS CREATION FIX)**:
+  - **2 CRITICAL BUGS FIXED**:
+    - **BUG #1 - Event Creation Missing Registration Fields**: `create_event.php` was NOT creating `event_registration_fields` when new events were created. This meant new events had no registration fields, causing editing to fail. FIKSET: Added registration fields creation to `create_event.php` (lines 238-339) with proper error handling.
+    - **BUG #2 - Event Edit Too Strict**: `update_event.php` always validated and required at least one contact field (email or phone), even when user was just editing other event details without touching field selections. This caused updates to fail when frontend didn't send field_email/field_phone parameters. FIKSET: Made field updates conditional - only update/validate fields if selections were provided in request, otherwise preserve existing configuration.
+  - **Filer endret**: 2 API-filer (create_event.php, update_event.php)
+  - **RESULTAT**: 🟢 Event registration fields now properly created on event creation. Event editing now works smoothly - users can edit events without modifying field configuration, and when they do update fields, proper validation applies.
+
 - **2025-11-23 (SESSION 6 FINAL PARTS 7-8-9 - COMPLETE EVENT & MEMBERSHIP BUGS FIXED)**:
   - **17 BUGS FUNNET OG FIKSET OVER 11 API-FILER**:
   - **MEMBERSHIP PLANS (3 bugs)**:
