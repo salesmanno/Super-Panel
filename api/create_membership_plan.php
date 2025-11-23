@@ -37,8 +37,6 @@ try {
         $planId = bin2hex(random_bytes(16));
         $planCode = 'PLAN-' . strtoupper(substr($planId, 0, 8));
         
-        $isInternal = isset($data['is_internal']) && $data['is_internal'] ? 1 : 0;
-        
         $stmt = $db->prepare("
             INSERT INTO membership_plans (
                 id,
@@ -50,9 +48,8 @@ try {
                 billing_cycle,
                 benefits,
                 is_active,
-                is_internal,
                 image_url
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
         ");
         
         $stmt->execute([
@@ -64,25 +61,21 @@ try {
             $data['price'] ?? 0,
             $billingCycle,
             $data['benefits'] ?? null,
-            $isInternal,
             $imageUrl
         ]);
         
-        // Automatically create output_products entry ONLY if NOT internal
-        $outputProductId = null;
-        if (!$isInternal) {
-            $catalogService = new ProductCatalogService($db);
-            $outputProductId = $catalogService->createProductEntry(
-                $_SESSION['company_id'],
-                'membership',
-                $planId,
-                ['is_visible' => true, 'is_public' => true],
-                $_SESSION['tenant_admin_id']
-            );
-            
-            // Sync the newly created product to ensure name and price are set
-            $catalogService->syncProductData($_SESSION['company_id'], 'membership');
-        }
+        // Automatically create output_products entry
+        $catalogService = new ProductCatalogService($db);
+        $outputProductId = $catalogService->createProductEntry(
+            $_SESSION['company_id'],
+            'membership',
+            $planId,
+            ['is_visible' => true, 'is_public' => true],
+            $_SESSION['tenant_admin_id']
+        );
+        
+        // Sync the newly created product to ensure name and price are set
+        $catalogService->syncProductData($_SESSION['company_id'], 'membership');
         
         $db->commit();
         

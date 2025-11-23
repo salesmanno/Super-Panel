@@ -40,6 +40,15 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-23 (SESSION 6 FINAL PART 7 - DATABASE SCHEMA MISMATCH FIXED)**:
+  - **KRITISK BUG FUNNET**: `get_membership_plans.php` søkte på kolonner som ikke finnes i database: `is_internal` og `deleted_at`
+  - **LØSNING**: 
+    - `get_membership_plans.php`: Fjernet `is_internal` og `deleted_at` fra WHERE-klausul. Nå kun: `WHERE company_id = ? AND is_active = ?`
+    - `create_membership_plan.php`: Fjernet `is_internal` kolonne fra INSERT statement (kolonne eksisterer ikke i schema)
+    - `update_membership_plan.php`: Fjernet `is_internal` update logikk
+  - **Filer endret**: api/get_membership_plans.php, api/create_membership_plan.php, api/update_membership_plan.php
+  - **RESULTAT**: 🟢 Medlemsplaner hentes nå korrekt fra databasen når MySQL er tilgjengelig.
+
 - **2025-11-23 (SESSION 6 FINAL PART 6 - FRONTEND & API LAYER BUGS FIXED)**:
   - **BUG #1 - API Error Response Inconsistency**: `get_membership_plans.php` returnerte `error` felt mens `get_events.php` brukte `message`. JavaScript ventet alltid på `message`. FIKSET: Endret `get_membership_plans.php` til å bruke `message`.
   - **BUG #2 - Missing HTTP Status Validation**: JavaScript fetch-kall manglet `response.ok` check. Når MySQL var down returnerte API HTTP 500, men JS prøvde JSON parsing på error HTML → silent fail. FIKSET: La til `if (!response.ok) throw new Error()` i: `loadEvents()`, `loadMembershipPlans()`, `loadMembershipPlansForCreate()`.

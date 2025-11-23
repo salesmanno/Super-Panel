@@ -21,14 +21,13 @@ try {
             price,
             billing_cycle,
             benefits,
-            is_active,
-            is_internal
+            is_active
         FROM membership_plans
-        WHERE company_id = ? AND is_active = ? AND is_internal = ? AND deleted_at IS NULL
+        WHERE company_id = ? AND is_active = ?
         ORDER BY created_at DESC
     ");
     
-    $stmt->execute([$companyId, 1, 0]);
+    $stmt->execute([$companyId, 1]);
     $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     echo json_encode([
