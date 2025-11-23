@@ -40,6 +40,19 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-23 (SESSION 7 - OUTPUT PRODUCTS COLUMN MISMATCH FIXED)**:
+  - **BUG FIXED**: `get_output_products.php` was using WRONG column names from old schema, causing new events NOT to display on frontend
+  - **Problem**: `create_event.php` inserts with modern columns (module_id, product_type, product_id, is_visible), but `get_output_products.php` searched for old columns (module_source, item_type, source_id, is_available)
+  - **Solution**: Updated `get_output_products.php` to use correct column names matching database schema:
+    - `module_source` → `module_id`
+    - `item_type` → `product_type`
+    - `source_id` → `product_id`
+    - `selling_price` → `price`
+    - `is_available` → `is_visible`
+  - Added `is_public` column to SELECT for better product filtering
+  - **Result**: 🟢 New arrangements now created with correct output_products entries and display correctly on frontend
+
+
 - **2025-11-23 (SESSION 6 FINAL PARTS 10 - EVENT REGISTRATION FIELDS CREATION FIX)**:
   - **2 CRITICAL BUGS FIXED**:
     - **BUG #1 - Event Creation Missing Registration Fields**: `create_event.php` was NOT creating `event_registration_fields` when new events were created. This meant new events had no registration fields, causing editing to fail. FIKSET: Added registration fields creation to `create_event.php` (lines 241-361) with crystal-clear logic and documentation.

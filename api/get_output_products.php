@@ -17,16 +17,17 @@ try {
     $stmt = $db->prepare("
         SELECT 
             id,
-            module_source,
-            item_type,
-            source_id,
+            module_id,
+            product_type,
+            product_id,
             name,
-            selling_price,
-            is_available,
+            price,
+            is_visible,
+            is_public,
             created_at
         FROM output_products
         WHERE company_id = ?
-        ORDER BY module_source, created_at DESC
+        ORDER BY module_id, created_at DESC
     ");
     
     $stmt->execute([$company_id]);
@@ -37,7 +38,7 @@ try {
     $totalModules = [];
     
     foreach ($products as $product) {
-        $module = $product['module_source'];
+        $module = $product['module_id'];
         if (!isset($countByModule[$module])) {
             $countByModule[$module] = 0;
         }
