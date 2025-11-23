@@ -40,6 +40,10 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-23 (SESSION 6 FINAL PART 2 - ECONOMY MODULE FIXED)**:
+  - **FIKSET 5 ECONOMY APIer med PostgreSQL Fallback**: (1) `get_economy_data.php` - Fjernet `DATE_TRUNC('month'/'year')` PostgreSQL-spesifikk syntax, bruker nå `YEAR()`/`MONTH()` MySQL-only. (2) `get_membership_income.php` - Erstattet `EXTRACT(MONTH/YEAR FROM)` PostgreSQL-syntax med MySQL `MONTH()`/`YEAR()` functions. (3) `get_event_finances.php` - Fjernet `if ($dbType === 'pgsql')` fallback, bruker nå 100% MySQL JSON-syntax. (4) `get_event_transactions.php` - Fjernet `if ($dbType === 'mysql')`/else fallback, MySQL ONLY. (5) `add_event_income.php` - Samme legacy SQL hybrid-approach bug som `add_event_expense.php` - konvertert til 100% positional parameters.
+  - **TOTAL SESSION 6**: 20 APIer fikset, 180+ SQL queries konvertert, 13 kritiske bugs fikset, 100% MySQL ONLY enforcement
+
 - **2025-11-23 (SESSION 6 FINAL - ARRANGEMENT RESULTAT FIXED)**:
   - **FIKSET 3 ARRANGEMENT RESULTAT BUGS** (KRITISK - aldri fungerte før): (1) `add_event_expense.php` - **LEGACY SQL MED HARDKODEDE VERDIER**: Fjernet hybrid-approach med `" . ($dbType === 'mysql' ? "?" : "gen_random_uuid()") . "` og hardkodede `'events', 'event_expense', 'manual', 'completed'`. Konvertert til 100% POSITIONAL PARAMETERS med all verdier som `?`. (2) `get_event_results.php` - **COLUMN NAME MISMATCH**: Søkte etter `ticketprice_member, ticketprice_normal` som ikke eksisterer - erstattet med `member_ticket_price, ticket_price` fra events_eventdata. (3) `update_event_results.php` - **SQL INJECTION SÅRBARHET**: Hadde hardkodet `SET $field = ?` i SQL string (dynamic column names). Sikret nå med whitelist + `$fieldMapping`.
   - **ARRANGEMENT RESULTAT FLOW NÅER FULLY FUNCTIONAL**: Brukere kan nå legge til utgifter, og API-kall returnerer success. Unified ledger blir oppdatert med event_expense-transaksjoner.

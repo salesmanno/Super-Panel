@@ -39,18 +39,7 @@ try {
         exit;
     }
     
-    if ($dbType === 'mysql') {
-        $entryId = sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0x0fff) | 0x4000,
-            mt_rand(0, 0x3fff) | 0x8000,
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
-        );
-    } else {
-        $entryId = null;
-    }
-    
+    $entryId = bin2hex(random_bytes(16));
     $orderId = 'EVENT_INCOME_' . time() . '_' . substr(md5(random_bytes(16)), 0, 8);
     
     $stmt = $db->prepare("
@@ -59,25 +48,17 @@ try {
             item_name, quantity, selling_price, cost_price, 
             customer_name, customer_email, payment_method, payment_status, transaction_date
         ) VALUES (
-            " . ($dbType === 'mysql' ? "?" : "gen_random_uuid()") . ", ?, ?, 'events', 'event_income', ?,
-            ?, 1, ?, 0,
-            ?, ?, 'manual', 'completed', ?
+            ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?,
+            ?, ?, ?, ?, ?
         )
     ");
     
-    if ($dbType === 'mysql') {
-        $stmt->execute([
-            $entryId, $orderId, $company_id, $event_id,
-            $description, $amount,
-            'Manuel registrering', $notes, $date
-        ]);
-    } else {
-        $stmt->execute([
-            $orderId, $company_id, $event_id,
-            $description, $amount,
-            'Manuel registrering', $notes, $date
-        ]);
-    }
+    $stmt->execute([
+        $entryId, $orderId, $company_id, 'events', 'event_income', $event_id,
+        $description, 1, $amount, 0,
+        'Manuel registrering', $notes, 'manual', 'completed', $date
+    ]);
     
     echo json_encode([
         'success' => true,

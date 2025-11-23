@@ -18,57 +18,31 @@ try {
     }
     
     $db = getDBConnection();
-    $dbType = getDBType();
     
-    // Query unified_ledger for all transactions related to this event
+    // Query unified_ledger for all transactions related to this event (MYSQL ONLY)
     // Including both ticket sales and manual income/expense entries
-    if ($dbType === 'mysql') {
-        $stmt = $db->prepare("
-            SELECT 
-                id,
-                order_id,
-                item_type,
-                item_name,
-                quantity,
-                selling_price as amount,
-                payment_method,
-                payment_status,
-                status,
-                transaction_date,
-                metadata,
-                created_at
-            FROM unified_ledger
-            WHERE company_id = ? 
-              AND module_source = 'events'
-              AND (source_id = ? OR JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.event_id')) = ?)
-              AND status = 'active'
-            ORDER BY transaction_date DESC, created_at DESC
-        ");
-        $stmt->execute([$_SESSION['company_id'], $eventId, $eventId]);
-    } else {
-        $stmt = $db->prepare("
-            SELECT 
-                id,
-                order_id,
-                item_type,
-                item_name,
-                quantity,
-                selling_price as amount,
-                payment_method,
-                payment_status,
-                status,
-                transaction_date,
-                metadata,
-                created_at
-            FROM unified_ledger
-            WHERE company_id = ? 
-              AND module_source = 'events'
-              AND (source_id::text = ? OR metadata::jsonb->>'event_id' = ?)
-              AND status = 'active'
-            ORDER BY transaction_date DESC, created_at DESC
-        ");
-        $stmt->execute([$_SESSION['company_id'], $eventId, $eventId]);
-    }
+    $stmt = $db->prepare("
+        SELECT 
+            id,
+            order_id,
+            item_type,
+            item_name,
+            quantity,
+            selling_price as amount,
+            payment_method,
+            payment_status,
+            status,
+            transaction_date,
+            metadata,
+            created_at
+        FROM unified_ledger
+        WHERE company_id = ? 
+          AND module_source = 'events'
+          AND (source_id = ? OR JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.event_id')) = ?)
+          AND status = 'active'
+        ORDER BY transaction_date DESC, created_at DESC
+    ");
+    $stmt->execute([$_SESSION['company_id'], $eventId, $eventId]);
     
     $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
     

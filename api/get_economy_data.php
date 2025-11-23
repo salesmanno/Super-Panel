@@ -47,60 +47,33 @@ try {
             $stmt->execute([$company_id]);
             $expenses = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            // Get this month's income and expenses
-            $dbType = getDBType();
-            if ($dbType === 'postgresql') {
-                $monthQuery = "
-                    SELECT 
-                        COALESCE(SUM(CASE WHEN selling_price > 0 THEN selling_price ELSE 0 END), 0) as month_income,
-                        COALESCE(SUM(CASE WHEN selling_price < 0 THEN ABS(selling_price) ELSE 0 END), 0) as month_expenses
-                    FROM unified_ledger 
-                    WHERE company_id = ? 
-                      AND status = 'active'
-                      AND payment_status = 'completed'
-                      AND DATE_TRUNC('month', transaction_date) = DATE_TRUNC('month', CURRENT_DATE)
-                ";
-            } else {
-                $monthQuery = "
-                    SELECT 
-                        COALESCE(SUM(CASE WHEN selling_price > 0 THEN selling_price ELSE 0 END), 0) as month_income,
-                        COALESCE(SUM(CASE WHEN selling_price < 0 THEN ABS(selling_price) ELSE 0 END), 0) as month_expenses
-                    FROM unified_ledger 
-                    WHERE company_id = ? 
-                      AND status = 'active'
-                      AND payment_status = 'completed'
-                      AND YEAR(transaction_date) = YEAR(CURRENT_DATE)
-                      AND MONTH(transaction_date) = MONTH(CURRENT_DATE)
-                ";
-            }
+            // Get this month's income and expenses (MYSQL ONLY)
+            $monthQuery = "
+                SELECT 
+                    COALESCE(SUM(CASE WHEN selling_price > 0 THEN selling_price ELSE 0 END), 0) as month_income,
+                    COALESCE(SUM(CASE WHEN selling_price < 0 THEN ABS(selling_price) ELSE 0 END), 0) as month_expenses
+                FROM unified_ledger 
+                WHERE company_id = ? 
+                  AND status = 'active'
+                  AND payment_status = 'completed'
+                  AND YEAR(transaction_date) = YEAR(CURRENT_DATE)
+                  AND MONTH(transaction_date) = MONTH(CURRENT_DATE)
+            ";
             $stmt = $db->prepare($monthQuery);
             $stmt->execute([$company_id]);
             $monthData = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            // Get this year's income and expenses
-            if ($dbType === 'postgresql') {
-                $yearQuery = "
-                    SELECT 
-                        COALESCE(SUM(CASE WHEN selling_price > 0 THEN selling_price ELSE 0 END), 0) as year_income,
-                        COALESCE(SUM(CASE WHEN selling_price < 0 THEN ABS(selling_price) ELSE 0 END), 0) as year_expenses
-                    FROM unified_ledger 
-                    WHERE company_id = ? 
-                      AND status = 'active'
-                      AND payment_status = 'completed'
-                      AND DATE_TRUNC('year', transaction_date) = DATE_TRUNC('year', CURRENT_DATE)
-                ";
-            } else {
-                $yearQuery = "
-                    SELECT 
-                        COALESCE(SUM(CASE WHEN selling_price > 0 THEN selling_price ELSE 0 END), 0) as year_income,
-                        COALESCE(SUM(CASE WHEN selling_price < 0 THEN ABS(selling_price) ELSE 0 END), 0) as year_expenses
-                    FROM unified_ledger 
-                    WHERE company_id = ? 
-                      AND status = 'active'
-                      AND payment_status = 'completed'
-                      AND YEAR(transaction_date) = YEAR(CURRENT_DATE)
-                ";
-            }
+            // Get this year's income and expenses (MYSQL ONLY)
+            $yearQuery = "
+                SELECT 
+                    COALESCE(SUM(CASE WHEN selling_price > 0 THEN selling_price ELSE 0 END), 0) as year_income,
+                    COALESCE(SUM(CASE WHEN selling_price < 0 THEN ABS(selling_price) ELSE 0 END), 0) as year_expenses
+                FROM unified_ledger 
+                WHERE company_id = ? 
+                  AND status = 'active'
+                  AND payment_status = 'completed'
+                  AND YEAR(transaction_date) = YEAR(CURRENT_DATE)
+            ";
             $stmt = $db->prepare($yearQuery);
             $stmt->execute([$company_id]);
             $yearData = $stmt->fetch(PDO::FETCH_ASSOC);

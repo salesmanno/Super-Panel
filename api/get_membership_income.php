@@ -14,15 +14,15 @@ $company_id = $_SESSION['company_id'];
 try {
     $db = getDBConnection();
     
-    // Get total membership income
+    // Get total membership income (MYSQL ONLY)
     $stmt = $db->prepare("
         SELECT 
             COUNT(*) as total_transactions,
             COALESCE(SUM(selling_price * quantity), 0) as total_income,
-            COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM transaction_date) = EXTRACT(MONTH FROM CURRENT_DATE) 
-                         AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE) 
+            COALESCE(SUM(CASE WHEN MONTH(transaction_date) = MONTH(CURRENT_DATE) 
+                         AND YEAR(transaction_date) = YEAR(CURRENT_DATE) 
                          THEN selling_price * quantity ELSE 0 END), 0) as month_income,
-            COALESCE(SUM(CASE WHEN EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE) 
+            COALESCE(SUM(CASE WHEN YEAR(transaction_date) = YEAR(CURRENT_DATE) 
                          THEN selling_price * quantity ELSE 0 END), 0) as year_income
         FROM unified_ledger
         WHERE company_id = ? 

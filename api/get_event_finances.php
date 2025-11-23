@@ -20,17 +20,8 @@ try {
     $db = getDBConnection();
     $company_id = $_SESSION['company_id'];
     
-    // Get database type for JSON querying
-    $dbType = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
-    
-    // Build JSON query based on database type
-    if ($dbType === 'pgsql') {
-        // PostgreSQL: Use JSONB operators
-        $jsonEventCheck = "metadata::jsonb->>'event_id' = ?";
-    } else {
-        // MySQL: Use JSON_UNQUOTE to remove quotes from JSON string
-        $jsonEventCheck = "JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.event_id')) = ?";
-    }
+    // Build JSON query (MYSQL ONLY - Use JSON_UNQUOTE to remove quotes from JSON string)
+    $jsonEventCheck = "JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.event_id')) = ?";
     
     // Get all income from unified_ledger for this event
     // Income = positive selling_price values where metadata contains event_id
