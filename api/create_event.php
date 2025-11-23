@@ -111,8 +111,6 @@ try {
             $paymentMethodsArray = array_values($paymentMethodsArray); // Re-index
         }
         
-        $paymentMethodsJson = json_encode($paymentMethodsArray);
-        
         $stmt = $db->prepare("
             INSERT INTO events_eventdata (
                 id,
@@ -175,9 +173,6 @@ try {
             )
         ");
         
-        // Prepare payment methods JSON
-        $paymentMethodsJson = json_encode($paymentMethodsArray ?? ['cash']);
-        
         $stmt->execute([
             $eventId,
             $_SESSION['company_id'],
@@ -213,23 +208,27 @@ try {
         
         // 4. Save membership pricing if provided (skip for 'none' type)
         if ($registrationType !== 'none' && isset($data['membership_pricing']) && is_array($data['membership_pricing'])) {
-            $stmt = $db->prepare("
-                INSERT INTO event_membership_plans (event_id, membership_plan_id, ticket_price, public_display, created_at)
-                VALUES (?, ?, ?, ?, NOW())
-            ");
-            
-            foreach ($data['membership_pricing'] as $pricing) {
-                if (isset($pricing['plan_id']) && isset($pricing['price'])) {
-                    // Verify membership plan belongs to company
-                    $planCheck = $db->prepare("SELECT company_id FROM membership_plans WHERE id = ?");
-                    $planCheck->execute([$pricing['plan_id']]);
-                    $plan = $planCheck->fetch(PDO::FETCH_ASSOC);
-                    
-                    if ($plan && $plan['company_id'] === $_SESSION['company_id']) {
-                        $publicDisplay = isset($pricing['public_display']) ? (int)$pricing['public_display'] : 1;
-                        $stmt->execute([$eventId, $pricing['plan_id'], $pricing['price'], $publicDisplay]);
+            try {
+                $stmt = $db->prepare("
+                    INSERT INTO event_membership_plans (event_id, membership_plan_id, ticket_price, public_display, created_at)
+                    VALUES (?, ?, ?, ?, NOW())
+                ");
+                
+                foreach ($data['membership_pricing'] as $pricing) {
+                    if (isset($pricing['plan_id']) && isset($pricing['price'])) {
+                        // Verify membership plan belongs to company
+                        $planCheck = $db->prepare("SELECT company_id FROM membership_plans WHERE id = ?");
+                        $planCheck->execute([$pricing['plan_id']]);
+                        $plan = $planCheck->fetch(PDO::FETCH_ASSOC);
+                        
+                        if ($plan && $plan['company_id'] === $_SESSION['company_id']) {
+                            $publicDisplay = isset($pricing['public_display']) ? (int)$pricing['public_display'] : 1;
+                            $stmt->execute([$eventId, $pricing['plan_id'], $pricing['price'], $publicDisplay]);
+                        }
                     }
                 }
+            } catch (Exception $e) {
+                error_log("Warning: Failed to save membership pricing for event {$eventId}: " . $e->getMessage());
             }
         }
         

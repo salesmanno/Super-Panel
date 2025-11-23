@@ -3,7 +3,7 @@ session_start();
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['tenant_admin_id'])) {
-    echo json_encode(['success' => false, 'error' => 'Ikke autentisert']);
+    echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
     exit;
 }
 
@@ -13,7 +13,7 @@ try {
     $eventId = $_GET['event_id'] ?? null;
     
     if (!$eventId) {
-        echo json_encode(['success' => false, 'error' => 'Mangler event_id']);
+        echo json_encode(['success' => false, 'message' => 'Mangler event_id']);
         exit;
     }
     
@@ -26,43 +26,36 @@ try {
     $event = $checkStmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$event || $event['company_id'] !== $companyId) {
-        echo json_encode(['success' => false, 'error' => 'Arrangement ikke funnet']);
+        echo json_encode(['success' => false, 'message' => 'Arrangement ikke funnet']);
         exit;
     }
     
-    $dbType = getDBType();
-    
-    if ($dbType === 'mysql') {
+    try {
         $stmt = $db->prepare("
             SELECT 
                 emp.membership_plan_id as plan_id,
                 emp.ticket_price,
-                mp.name as plan_name
+                mp.name as plan_name,
+                emp.public_display
             FROM event_membership_plans emp
             LEFT JOIN membership_plans mp ON emp.membership_plan_id = mp.id
             WHERE emp.event_id = ?
+            ORDER BY emp.ticket_price ASC
         ");
-    } else {
-        $stmt = $db->prepare("
-            SELECT 
-                emp.membership_plan_id as plan_id,
-                emp.ticket_price,
-                mp.plan_name
-            FROM event_membership_plans emp
-            LEFT JOIN membership_plans mp ON emp.membership_plan_id = mp.id
-            WHERE emp.event_id = ?
-        ");
+        
+        $stmt->execute([$eventId]);
+        $pricing = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        echo json_encode([
+            'success' => true,
+            'pricing' => $pricing
+        ]);
+    } catch (Exception $e) {
+        error_log("Error fetching event membership pricing: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Kunne ikke hente priser']);
     }
     
-    $stmt->execute([$eventId]);
-    $pricing = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    echo json_encode([
-        'success' => true,
-        'pricing' => $pricing
-    ]);
-    
 } catch (Exception $e) {
-    error_log("Error fetching event membership pricing: " . $e->getMessage());
-    echo json_encode(['success' => false, 'error' => 'Kunne ikke hente priser']);
+    error_log("Error in event membership pricing: " . $e->getMessage());
+    echo json_encode(['success' => false, 'message' => 'Feil ved henting av priser']);
 }

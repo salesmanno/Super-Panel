@@ -42,6 +42,7 @@ try {
             registration_deadline,
             default_payment_method,
             payment_timing,
+            payment_methods_json,
             event_image_url,
             cost_price,
             created_at
@@ -54,15 +55,22 @@ try {
     
     // Also fetch membership prices if it's a member-exclusive event
     if ($event && $event['is_member_exclusive']) {
-        $planStmt = $db->prepare("
-            SELECT emp.id, mp.name as plan_name, emp.ticket_price, emp.public_display
-            FROM event_membership_plans emp
-            JOIN membership_plans mp ON emp.membership_plan_id = mp.id
-            WHERE emp.event_id = ?
-            ORDER BY mp.name
-        ");
-        $planStmt->execute([$event_id]);
-        $event['membership_prices'] = $planStmt->fetchAll(PDO::FETCH_ASSOC);
+        try {
+            $planStmt = $db->prepare("
+                SELECT emp.id, mp.name as plan_name, emp.ticket_price, emp.public_display
+                FROM event_membership_plans emp
+                JOIN membership_plans mp ON emp.membership_plan_id = mp.id
+                WHERE emp.event_id = ?
+                ORDER BY mp.name
+            ");
+            $planStmt->execute([$event_id]);
+            $event['membership_prices'] = $planStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (Exception $e) {
+            error_log("Warning: Failed to fetch membership prices for event {$event_id}: " . $e->getMessage());
+            $event['membership_prices'] = [];
+        }
+    } else {
+        $event['membership_prices'] = [];
     }
     
     if ($event) {

@@ -37,7 +37,11 @@ try {
             e.registration_type,
             e.output_product_id,
             e.created_by,
-            e.created_at
+            e.created_at,
+            e.cost_price,
+            e.payment_methods_json,
+            e.payment_timing,
+            e.default_payment_method
         FROM events_eventdata e
         WHERE e.company_id = ? AND e.is_active = ?
         ORDER BY e.start_date DESC, e.start_time DESC

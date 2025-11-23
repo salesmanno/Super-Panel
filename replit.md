@@ -40,22 +40,29 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
-- **2025-11-23 (SESSION 6 FINAL PARTS 7-8 - COMPLETE DATABASE SCHEMA MISMATCH & ERROR HANDLING FIX)**:
-  - **9 BUGS FUNNET OG FIKSET**:
+- **2025-11-23 (SESSION 6 FINAL PARTS 7-8-9 - COMPLETE EVENT & MEMBERSHIP BUGS FIXED)**:
+  - **17 BUGS FUNNET OG FIKSET OVER 11 API-FILER**:
   - **MEMBERSHIP PLANS (3 bugs)**:
     - `get_membership_plans.php`: Fjernet `is_internal` og `deleted_at` fra WHERE
     - `create_membership_plan.php`: Fjernet `is_internal` kolonne fra INSERT
     - `update_membership_plan.php`: Fjernet `is_internal` update logikk
   - **EVENTS DATABASE SCHEMA (3 bugs)**:
-    - `get_events.php`: Fjernet `AND e.deleted_at IS NULL` fra WHERE
+    - `get_events.php`: Fjernet `AND e.deleted_at IS NULL` fra WHERE + lagt til missing columns (cost_price, payment_methods_json, payment_timing, default_payment_method)
     - `delete_event.php`: Fjernet `deleted_at = NOW()` fra UPDATE
     - `add_event_transaction.php`: Byttet fra `deleted_at IS NULL` til `is_active = 1`
   - **EVENTS ERROR HANDLING (3 bugs)**:
-    - `get_events.php` line 50-67: Lagt til try-catch rundt attendee counting loop (hvis query feiler, set default 0)
-    - `get_events.php` line 69-89: Lagt til try-catch rundt membership pricing loop (hvis JOIN feiler, set default [])
-    - `get_events.php` line 71: Initalisert `membership_prices = []` for alle events (avoid undefined)
-  - **Filer endret**: 6 API-filer totalt
-  - **RESULTAT**: 🟢 Events lastes korrekt selv om sekundærqueries feiler. Robust error handling sikrer API returnerer data.
+    - `get_events.php`: Try-catch rundt attendee counting + membership pricing loops
+    - `get_event.php`: Lagt til missing `payment_methods_json` kolonne + try-catch rundt membership pricing JOIN
+    - `create_event.php`: Fjernet duplicate `paymentMethodsJson` definition + lagt til try-catch rundt event_membership_plans INSERT
+  - **EVENTS API CONSISTENCY (4 bugs)**:
+    - `update_event.php`: Fikset `syncProductData()` parameter order (company_id, type) og lagt til error handling
+    - `get_event_membership_pricing.php`: Byttet `error` til `message` field + fjernet `getDBType()` hardkoding
+    - `save_event_membership_pricing.php`: Byttet `error` til `message` field + lagt til `public_display` kolonne + ändret til `NOW()`
+    - Alle pricing APIer: Lagt til error handling og konsistente response feltnavn
+  - **EVENTS RESULTS (1 bug)**:
+    - `get_events_results.php`: Fjernet dynamisk `deleted_at` column check (finnes ikke) + replaced with `is_active = 1` filter i alle WHERE clauses
+  - **Filer endret**: 11 API-filer totalt
+  - **RESULTAT**: 🟢 All events, membership pricing, og event data lastes korrekt. Robust error handling sikrer data returneres selv om sekundærqueries feiler. Ingen deleted_at references igjen.
 
 - **2025-11-23 (SESSION 6 FINAL PART 6 - FRONTEND & API LAYER BUGS FIXED)**:
   - **BUG #1 - API Error Response Inconsistency**: `get_membership_plans.php` returnerte `error` felt mens `get_events.php` brukte `message`. JavaScript ventet alltid på `message`. FIKSET: Endret `get_membership_plans.php` til å bruke `message`.

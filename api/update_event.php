@@ -288,7 +288,7 @@ try {
         
         // Sync output_products entry using service
         $catalogService = new ProductCatalogService($db);
-        $catalogService->syncProductData('events', $data['event_id']);
+        $catalogService->syncProductData($_SESSION['company_id'], 'events');
         
         $db->commit();
         

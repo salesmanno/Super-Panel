@@ -71,27 +71,11 @@ try {
     } else {
         // Fallback: Build from events_eventdata and unified_ledger
         
-        // Check if deleted_at column exists
-        $hasDeletedAt = false;
-        try {
-            if ($dbType === 'mysql') {
-                $stmt = $db->query("SHOW COLUMNS FROM events_eventdata LIKE 'deleted_at'");
-                $hasDeletedAt = $stmt->rowCount() > 0;
-            } else {
-                $stmt = $db->query("SELECT column_name FROM information_schema.columns WHERE table_name = 'events_eventdata' AND column_name = 'deleted_at'");
-                $hasDeletedAt = $stmt->rowCount() > 0;
-            }
-        } catch (Exception $e) {
-            // Ignore error, assume no deleted_at
-        }
-        
-        $deletedFilter = $hasDeletedAt ? " AND e.deleted_at IS NULL" : "";
-        
-        // Get total number of events
+        // Get total number of events (only active events - deleted_at column doesn't exist)
         $stmt = $db->prepare("
             SELECT COUNT(*) as total 
             FROM events_eventdata e
-            WHERE e.company_id = ?" . $deletedFilter . "
+            WHERE e.company_id = ? AND e.is_active = 1
         ");
         $stmt->execute([$company_id]);
         $totalEvents = $stmt->fetchColumn();
@@ -122,7 +106,7 @@ try {
                 SELECT COUNT(*) as total
                 FROM events_checkin ec
                 INNER JOIN events_eventdata e ON ec.event_id = e.id
-                WHERE e.company_id = ?" . $deletedFilter . "
+                WHERE e.company_id = ? AND e.is_active = 1
             ");
             $stmt->execute([$company_id]);
             $totalAttendees = $stmt->fetchColumn();
@@ -138,7 +122,7 @@ try {
         $stmt = $db->prepare("
             SELECT COUNT(*) as upcoming
             FROM events_eventdata e
-            WHERE e.company_id = ?" . $deletedFilter . "
+            WHERE e.company_id = ? AND e.is_active = 1
             AND " . $nowComparison . "
         ");
         $stmt->execute([$company_id]);
@@ -174,7 +158,7 @@ try {
                 e.start_time,
                 " . $statusCase . " as status
             FROM events_eventdata e
-            WHERE e.company_id = ?" . $deletedFilter . "
+            WHERE e.company_id = ? AND e.is_active = 1
             ORDER BY e.start_date DESC, e.start_time DESC
         ");
         $stmt->execute([$company_id]);
