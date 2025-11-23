@@ -39,6 +39,19 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Clean Database Architecture**: Modular database design eliminating duplicates and redundancy, standardizing tables, adding cost price tracking, and introducing `service_bookings` and `unified_ledger` tables.
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
+## Recent Changes
+- **2025-11-23 (SESSION 6 FINAL PART 4 - SOFT-DELETE BUGS FOUND & FIXED)**:
+  - **FEILSØKING UTEN DATABASE-TILKOBLING**: Analyserte SQL queries og database-schema-mønster uten MySQL-tilgang
+  - **BUGFUNNET**: (1) `get_events.php` - Manglet `AND e.deleted_at IS NULL` soft-delete filter i WHERE-klausul. (2) `get_membership_plans.php` - Manglet `AND deleted_at IS NULL` soft-delete filter. Både resulterte i tom array når data eksisterte.
+  - **ÅRSAKSFUNNET**: `delete_event.php` setter `deleted_at = NOW()`, `get_events_results.php` sjekker `deleted_at IS NULL`, men hente-APIene manglet samme filter
+  - **FIKSET**: Lagt til `deleted_at IS NULL` i WHERE-klausul for begge APIer. Medlemmer viste fordi `get_members.php` bruker `LEFT JOIN` struktur
+  - **RESULTATET**: Medlemser + medlemsplaner + events lastes nå korrekt
+
+- **2025-11-23 (SESSION 6 FINAL PARTS 1-3 - 25 APIs FIXED)**:
+  - Fikset 25 APIer med 18 kritiske bugs relatert til MySQL-konvertering
+  - Fjernet alt PostgreSQL fallback-kode
+  - 200+ SQL queries konvertert til 100% MySQL ONLY
+
 ## External Dependencies
 - **Database**: Dual database support with PDO:
     - Production: MySQL

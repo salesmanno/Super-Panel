@@ -39,7 +39,7 @@ try {
             e.created_by,
             e.created_at
         FROM events_eventdata e
-        WHERE e.company_id = ? AND e.is_active = ?
+        WHERE e.company_id = ? AND e.is_active = ? AND e.deleted_at IS NULL
         ORDER BY e.start_date DESC, e.start_time DESC
     ");
     

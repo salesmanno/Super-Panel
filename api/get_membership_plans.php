@@ -24,7 +24,7 @@ try {
             is_active,
             is_internal
         FROM membership_plans
-        WHERE company_id = ? AND is_active = ? AND is_internal = ?
+        WHERE company_id = ? AND is_active = ? AND is_internal = ? AND deleted_at IS NULL
         ORDER BY created_at DESC
     ");
     
