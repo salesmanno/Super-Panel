@@ -37,13 +37,29 @@ try {
     $db = getDBConnection();
     $company_id = $_SESSION['company_id'];
     
-    // Update the specific field
-    $stmt = $db->prepare("
+    // Update the specific field using parameterized column name via CASE statement
+    $fieldMapping = [
+        'food_sales' => 'food_sales',
+        'drink_sales' => 'drink_sales',
+        'other_sales' => 'other_sales',
+        'purchase_cost' => 'purchase_cost',
+        'food_drink_cost' => 'food_drink_cost',
+        'food_units_sold' => 'food_units_sold',
+        'drink_units_sold' => 'drink_units_sold',
+        'event_cancelled' => 'event_cancelled'
+    ];
+    
+    $safeField = $fieldMapping[$field];
+    
+    // Build UPDATE query with safe column name
+    $updateQuery = "
         UPDATE events_results 
-        SET $field = ?,
-            updated_at = CURRENT_TIMESTAMP
+        SET $safeField = ?,
+            updated_at = NOW()
         WHERE event_id = ? AND company_id = ?
-    ");
+    ";
+    
+    $stmt = $db->prepare($updateQuery);
     $stmt->execute([$value, $event_id, $company_id]);
     
     // Recalculate totals

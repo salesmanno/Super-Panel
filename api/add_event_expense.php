@@ -56,31 +56,25 @@ try {
     
     $categoryLabel = $category ? " ({$category})" : '';
     
+    $entryId = bin2hex(random_bytes(16));
+    
     $stmt = $db->prepare("
         INSERT INTO unified_ledger (
             id, order_id, company_id, module_source, item_type, source_id,
             item_name, quantity, selling_price, cost_price, 
             customer_name, customer_email, payment_method, payment_status, transaction_date
         ) VALUES (
-            " . ($dbType === 'mysql' ? "?" : "gen_random_uuid()") . ", ?, ?, 'events', 'event_expense', ?,
-            ?, 1, 0, ?,
-            ?, ?, 'manual', 'completed', ?
+            ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?,
+            ?, ?, ?, ?, ?
         )
     ");
     
-    if ($dbType === 'mysql') {
-        $stmt->execute([
-            $entryId, $orderId, $company_id, $event_id,
-            $description . $categoryLabel, $amount,
-            'Manuel registrering', $notes, $date
-        ]);
-    } else {
-        $stmt->execute([
-            $orderId, $company_id, $event_id,
-            $description . $categoryLabel, $amount,
-            'Manuel registrering', $notes, $date
-        ]);
-    }
+    $stmt->execute([
+        $entryId, $orderId, $company_id, 'events', 'event_expense', $event_id,
+        $description . $categoryLabel, 1, 0, $amount,
+        'Manuel registrering', $notes, 'manual', 'completed', $date
+    ]);
     
     echo json_encode([
         'success' => true,
