@@ -27,30 +27,23 @@ try {
         exit;
     }
     
-    // Beregn utløpsdato basert på plan
+    // Beregn utløpsdato basert på plan (MYSQL ONLY)
     $expiryDate = null;
     if (!empty($data['membership_plan_id'])) {
         $planStmt = $db->prepare("SELECT billing_cycle FROM membership_plans WHERE id = ? AND company_id = ?");
-        } else {
-            $planStmt = $db->prepare("SELECT duration_months FROM membership_plans WHERE plan_id = ? AND company_id = ?");
-        }
         $planStmt->execute([$data['membership_plan_id'], $_SESSION['company_id']]);
         $plan = $planStmt->fetch(PDO::FETCH_ASSOC);
         
-        if ($plan) {
-            if (isset($plan['duration_months'])) {
-                $durationMonths = $plan['duration_months'];
-            } elseif (isset($plan['billing_cycle'])) {
-                $durationMonths = match($plan['billing_cycle']) {
-                    'monthly' => 1,
-                    'quarterly' => 3,
-                    'yearly' => 12,
-                    default => 12
-                };
-            } else {
-                $durationMonths = 12;
-            }
+        if ($plan && isset($plan['billing_cycle'])) {
+            $durationMonths = match($plan['billing_cycle']) {
+                'monthly' => 1,
+                'quarterly' => 3,
+                'yearly' => 12,
+                default => 12
+            };
             $expiryDate = date('Y-m-d', strtotime("+{$durationMonths} months"));
+        } else {
+            $expiryDate = date('Y-m-d', strtotime('+12 months'));
         }
     }
     
@@ -83,6 +76,8 @@ try {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_DATE, ?, 'active', ?, ?)
     ");
     
+    $memberId = bin2hex(random_bytes(16));
+    
     $stmt->execute([
         $_SESSION['company_id'],
         !empty($data['membership_plan_id']) ? $data['membership_plan_id'] : null,
@@ -97,7 +92,6 @@ try {
         $data['notes'] ?? null,
         $imageUrl
     ]);
-    
     
     echo json_encode([
         'success' => true,

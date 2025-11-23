@@ -21,37 +21,21 @@ try {
     $db = getDBConnection();
     $db->beginTransaction();
     
-    // Get member details
+    // Get member details (MYSQL ONLY)
     $stmt = $db->prepare("
-            SELECT 
-                mm.*,
-                c.first_name,
-                c.last_name,
-                c.email,
-                p.billing_cycle,
-                p.price,
-                p.name as plan_name
-            FROM membership_members mm
-            LEFT JOIN tenant_customers c ON mm.customer_id = c.id
-            LEFT JOIN membership_plans p ON mm.membership_plan_id = p.id
-            WHERE mm.id = ? AND mm.company_id = ?
-        ");
-    } else {
-        $stmt = $db->prepare("
-            SELECT 
-                mm.*,
-                c.first_name,
-                c.last_name,
-                c.email,
-                p.duration_months,
-                p.price,
-                p.plan_name
-            FROM membership_members mm
-            LEFT JOIN tenant_customers c ON mm.customer_id = c.id
-            LEFT JOIN membership_plans p ON mm.membership_plan_id = p.plan_id
-            WHERE mm.id = ? AND mm.company_id = ?
-        ");
-    }
+        SELECT 
+            mm.*,
+            c.first_name,
+            c.last_name,
+            c.email,
+            p.billing_cycle,
+            p.price,
+            p.name as plan_name
+        FROM membership_members mm
+        LEFT JOIN tenant_customers c ON mm.customer_id = c.id
+        LEFT JOIN membership_plans p ON mm.membership_plan_id = p.id
+        WHERE mm.id = ? AND mm.company_id = ?
+    ");
     $stmt->execute([$data['member_id'], $_SESSION['company_id']]);
     $member = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -77,11 +61,10 @@ try {
     
     $newExpiryDate = date('Y-m-d', strtotime($renewalDate . " +{$durationMonths} months"));
     
-    // Update member expiry date and status
-    $expiryColumn = $dbType === 'mysql' ? 'expiration_date' : 'expiry_date';
+    // Update member expiry date and status (MYSQL ONLY)
     $stmt = $db->prepare("
         UPDATE membership_members 
-        SET $expiryColumn = ?, 
+        SET expiry_date = ?, 
             status = 'active',
             join_date = ?
         WHERE id = ? AND company_id = ?
@@ -122,13 +105,13 @@ try {
         'renewal_date' => $renewalDate
     ]);
     
-} catch (Exception $e) {
+} catch (Exception $ex) {
     if (isset($db) && $db->inTransaction()) {
         $db->rollBack();
     }
-    error_log("Error renewing membership: " . $e->getMessage());
+    error_log("Error renewing membership: " . $ex->getMessage());
     echo json_encode([
         'success' => false,
-        'message' => 'Feil ved fornyelse: ' . $e->getMessage()
+        'message' => 'Feil ved fornyelse: ' . $ex->getMessage()
     ]);
 }

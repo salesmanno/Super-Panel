@@ -15,11 +15,11 @@ $currentYear = date('Y');
 
 try {
     $db = getDBConnection();
-    $dbType = getDBType();
     
+    // MYSQL ONLY - No PostgreSQL fallback
     $stmt = $db->prepare("
         SELECT 
-            mm." . ($dbType === 'mysql' ? "id" : "member_id") . " as member_id,
+            mm.id as member_id,
             mm.first_name,
             mm.last_name,
             mm.email,
@@ -31,15 +31,15 @@ try {
             mm.expiry_date,
             mm.status as member_status,
             mm.auto_renew,
-            COALESCE(" . (mp.name) . ", 'Ingen plan') as plan_name,
+            COALESCE(mp.name, 'Ingen plan') as plan_name,
             COALESCE(mp.price, 0) as yearly_price,
             COALESCE(payment_summary.total_paid, 0) as total_paid,
             COALESCE(mp.price, 0) - COALESCE(payment_summary.total_paid, 0) as remaining,
             payment_summary.last_payment_date,
             payment_summary.payment_count
         FROM membership_members mm
-        LEFT JOIN " . ($dbType === 'mysql' ? "membership_plans" : "membership_plans") . " mp 
-            ON mm." . ($dbType === 'mysql' ? "plan_id" : "membership_plan_id") . " = " . ($dbType === 'mysql' ? "mp.id" : "mp.id") . "
+        LEFT JOIN membership_plans mp 
+            ON mm.membership_plan_id = mp.id
         LEFT JOIN (
             SELECT 
                 customer_email,
@@ -50,7 +50,7 @@ try {
             WHERE company_id = ?
             AND module_source = 'membership'
             AND payment_status = 'completed'
-            AND EXTRACT(YEAR FROM transaction_date) = ?
+            AND YEAR(transaction_date) = ?
             GROUP BY customer_email
         ) payment_summary ON mm.email = payment_summary.customer_email
         WHERE mm.company_id = ?

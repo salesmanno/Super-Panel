@@ -41,7 +41,7 @@ try {
     $params[] = $data['member_id'];
     $params[] = $_SESSION['company_id'];
     
-    $sql = "UPDATE membership_members SET " . implode(', ', $updates) . " WHERE member_id = ? AND company_id = ?";
+    $sql = "UPDATE membership_members SET " . implode(', ', $updates) . " WHERE id = ? AND company_id = ?";
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
     
