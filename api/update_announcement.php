@@ -19,8 +19,8 @@ try {
     $tableName = 'tenant_announcements';
     
     // Verify ownership
-    $stmt = $db->prepare("SELECT id FROM {$tableName} WHERE id = :id AND company_id = :company_id");
-    $stmt->execute([':id' => $data['id'], ':company_id' => $companyId]);
+    $stmt = $db->prepare("SELECT id FROM {$tableName} WHERE id = ? AND company_id = ?");
+    $stmt->execute([$data['id'], $companyId]);
     
     if (!$stmt->fetch()) {
         echo json_encode(['success' => false, 'message' => 'Kunngjøring ikke funnet']);
@@ -30,29 +30,29 @@ try {
     $db->beginTransaction();
     
     $sql = "UPDATE {$tableName} SET
-                title = :title,
-                content = :content,
-                image_url = :image_url,
-                is_published = :is_published,
-                publish_at = :publish_at,
-                expire_at = :expire_at,
-                is_pinned = :is_pinned,
-                updated_at = 
-            WHERE id = :id AND company_id = :company_id";
+                title = ?,
+                content = ?,
+                image_url = ?,
+                is_published = ?,
+                publish_at = ?,
+                expire_at = ?,
+                is_pinned = ?,
+                updated_at = NOW()
+            WHERE id = ? AND company_id = ?";
     
     $stmt = $db->prepare($sql);
     
-    $stmt->bindValue(':id', $data['id']);
-    $stmt->bindValue(':company_id', $companyId);
-    $stmt->bindValue(':title', $data['title']);
-    $stmt->bindValue(':content', $data['content']);
-    $stmt->bindValue(':image_url', $data['image_url'] ?? null);
-    $stmt->bindValue(':is_published', isset($data['is_published']) ? (int)$data['is_published'] : 0);
-    $stmt->bindValue(':publish_at', $data['publish_at'] ?? null);
-    $stmt->bindValue(':expire_at', $data['expire_at'] ?? null);
-    $stmt->bindValue(':is_pinned', isset($data['is_pinned']) ? (int)$data['is_pinned'] : 0);
-    
-    $stmt->execute();
+    $stmt->execute([
+        $data['title'],
+        $data['content'],
+        $data['image_url'] ?? null,
+        isset($data['is_published']) ? (int)$data['is_published'] : 0,
+        $data['publish_at'] ?? null,
+        $data['expire_at'] ?? null,
+        isset($data['is_pinned']) ? (int)$data['is_pinned'] : 0,
+        $data['id'],
+        $companyId
+    ]);
     
     $db->commit();
     

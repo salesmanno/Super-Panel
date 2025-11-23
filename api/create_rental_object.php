@@ -43,47 +43,45 @@ try {
             category, rental_price, weekend_price, deposit_amount, condition_notes, image_url,
             is_available, is_active, created_by
         ) VALUES (
-            :id, :company_id, :output_product_id, :object_name, :serial_number, :description,
-            :category, :rental_price, :weekend_price, :deposit_amount, :condition_notes, :image_url,
-            :is_available, :is_active, :created_by
+            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
         )
     ");
     
     $stmt->execute([
-        ':id' => $object_id,
-        ':company_id' => $admin['company_id'],
-        ':output_product_id' => $data['output_product_id'] ?? null,
-        ':object_name' => $data['object_name'],
-        ':serial_number' => $data['serial_number'] ?? null,
-        ':description' => $data['description'] ?? null,
-        ':category' => $data['category'],
-        ':rental_price' => $data['rental_price'] ?? 0,
-        ':weekend_price' => $data['weekend_price'] ?? 0,
-        ':deposit_amount' => $data['deposit_amount'] ?? 0,
-        ':condition_notes' => $data['condition_notes'] ?? null,
-        ':image_url' => $data['image_url'] ?? null,
-        ':is_available' => $data['is_available'] ?? 1,
-        ':is_active' => $data['is_active'] ?? 1,
-        ':created_by' => $admin['tenant_admin_id']
+        $object_id,
+        $admin['company_id'],
+        $data['output_product_id'] ?? null,
+        $data['object_name'],
+        $data['serial_number'] ?? null,
+        $data['description'] ?? null,
+        $data['category'],
+        $data['rental_price'] ?? 0,
+        $data['weekend_price'] ?? 0,
+        $data['deposit_amount'] ?? 0,
+        $data['condition_notes'] ?? null,
+        $data['image_url'] ?? null,
+        $data['is_available'] ?? 1,
+        $data['is_active'] ?? 1,
+        $admin['tenant_admin_id']
     ]);
     
     // INSERT into type-specific table
     if (!empty($data['type_data']) && is_array($data['type_data'])) {
         $typeTable = $schema['table'];
         $typeFields = ['object_id'];
-        $typeValues = [':object_id'];
-        $typeParams = [':object_id' => $object_id];
+        $typeValues = ['?'];
+        $typeParams = [$object_id];
         
         foreach ($data['type_data'] as $field => $value) {
             if (isset($schema['fields'][$field])) {
                 $typeFields[] = $field;
-                $typeValues[] = ":$field";
+                $typeValues[] = '?';
                 
                 // Handle checkbox (boolean) values
                 if ($schema['fields'][$field]['type'] === 'checkbox') {
-                    $typeParams[":$field"] = $value ? 1 : 0;
+                    $typeParams[] = $value ? 1 : 0;
                 } else {
-                    $typeParams[":$field"] = $value !== '' ? $value : null;
+                    $typeParams[] = $value !== '' ? $value : null;
                 }
             }
         }

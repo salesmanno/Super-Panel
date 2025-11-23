@@ -41,37 +41,31 @@ try {
                 is_published,
                 publish_at,
                 expire_at,
-                is_pinned
+                is_pinned,
+                created_at,
+                updated_at
             ) VALUES (
-                " . ($dbType === 'mysql' ? ":id," : "") . "
-                :company_id,
-                :author_id,
-                :title,
-                :content,
-                :image_url,
-                :is_published,
-                :publish_at,
-                :expire_at,
-                :is_pinned
+                " . ($dbType === 'mysql' ? "?," : "") . "
+                ?,?,?,?,?,?,?,?,?,NOW(),NOW()
+            )";
     
     $stmt = $db->prepare($sql);
     
+    $params = [];
     if ($dbType === 'mysql') {
-        $stmt->bindValue(':id', $announcementId);
+        $params[] = $announcementId;
     }
+    $params[] = $companyId;
+    $params[] = $authorId;
+    $params[] = $data['title'];
+    $params[] = $data['content'];
+    $params[] = $data['image_url'] ?? null;
+    $params[] = isset($data['is_published']) ? (int)$data['is_published'] : 0;
+    $params[] = ($data['publish_at'] ?? null) ?: date('Y-m-d H:i:s');
+    $params[] = $data['expire_at'] ?? null;
+    $params[] = isset($data['is_pinned']) ? (int)$data['is_pinned'] : 0;
     
-    $stmt->bindValue(':company_id', $companyId);
-    $stmt->bindValue(':author_id', $authorId);
-    $stmt->bindValue(':title', $data['title']);
-    $stmt->bindValue(':content', $data['content']);
-    $stmt->bindValue(':image_url', $data['image_url'] ?? null);
-    $stmt->bindValue(':is_published', isset($data['is_published']) ? (int)$data['is_published'] : 0);
-    // If publish_at is empty, set to current timestamp for immediate publishing
-    $stmt->bindValue(':publish_at', ($data['publish_at'] ?? null) ?: date('Y-m-d H:i:s'));
-    $stmt->bindValue(':expire_at', $data['expire_at'] ?? null);
-    $stmt->bindValue(':is_pinned', isset($data['is_pinned']) ? (int)$data['is_pinned'] : 0);
-    
-    $stmt->execute();
+    $stmt->execute($params);
     
     if ($dbType === 'pgsql') {
         $announcementId = $stmt->fetch(PDO::FETCH_ASSOC)['id'];

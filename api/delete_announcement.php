@@ -16,8 +16,8 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     
-    $stmt = $db->prepare("DELETE FROM tenant_announcements WHERE id = :id AND company_id = :company_id");
-    $stmt->execute([':id' => $data['id'], ':company_id' => $companyId]);
+    $stmt = $db->prepare("DELETE FROM tenant_announcements WHERE id = ? AND company_id = ?");
+    $stmt->execute([$data['id'], $companyId]);
     
     if ($stmt->rowCount() > 0) {
         echo json_encode([

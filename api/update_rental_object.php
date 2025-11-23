@@ -28,8 +28,8 @@ try {
     $db->beginTransaction();
     
     // Verify object exists and belongs to company
-    $stmt = $db->prepare("SELECT * FROM rental_objects WHERE id = :id AND company_id = :company_id");
-    $stmt->execute([':id' => $data['id'], ':company_id' => $admin['company_id']]);
+    $stmt = $db->prepare("SELECT * FROM rental_objects WHERE id = ? AND company_id = ?");
+    $stmt->execute([$data['id'], $admin['company_id']]);
     $existing = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$existing) {
@@ -43,7 +43,7 @@ try {
     
     // UPDATE base rental_objects table
     $updateFields = [];
-    $updateParams = [':id' => $data['id'], ':company_id' => $admin['company_id']];
+    $updateParams = [];
     
     $allowedFields = ['object_name', 'serial_number', 'description', 'category', 
                       'rental_price', 'weekend_price', 'deposit_amount', 'condition_notes', 'image_url',
@@ -51,14 +51,16 @@ try {
     
     foreach ($allowedFields as $field) {
         if (isset($data[$field])) {
-            $updateFields[] = "$field = :$field";
-            $updateParams[":$field"] = $data[$field];
+            $updateFields[] = "$field = ?";
+            $updateParams[] = $data[$field];
         }
     }
     
     if (!empty($updateFields)) {
+        $updateParams[] = $data['id'];
+        $updateParams[] = $admin['company_id'];
         $sql = "UPDATE rental_objects SET " . implode(', ', $updateFields) . " 
-                WHERE id = :id AND company_id = :company_id";
+                WHERE id = ? AND company_id = ?";
         $stmt = $db->prepare($sql);
         $stmt->execute($updateParams);
     }
@@ -71,49 +73,50 @@ try {
             $typeTable = $schema['table'];
             
             // Check if type data exists
-            $checkStmt = $db->prepare("SELECT object_id FROM $typeTable WHERE object_id = :object_id");
-            $checkStmt->execute([':object_id' => $data['id']]);
+            $checkStmt = $db->prepare("SELECT object_id FROM $typeTable WHERE object_id = ?");
+            $checkStmt->execute([$data['id']]);
             $typeExists = $checkStmt->fetch();
             
             if ($typeExists) {
                 // UPDATE existing type data
                 $typeUpdateFields = [];
-                $typeParams = [':object_id' => $data['id']];
+                $typeParams = [];
                 
                 foreach ($data['type_data'] as $field => $value) {
                     if (isset($schema['fields'][$field])) {
-                        $typeUpdateFields[] = "$field = :$field";
+                        $typeUpdateFields[] = "$field = ?";
                         
                         // Handle checkbox values
                         if ($schema['fields'][$field]['type'] === 'checkbox') {
-                            $typeParams[":$field"] = $value ? 1 : 0;
+                            $typeParams[] = $value ? 1 : 0;
                         } else {
-                            $typeParams[":$field"] = $value !== '' ? $value : null;
+                            $typeParams[] = $value !== '' ? $value : null;
                         }
                     }
                 }
                 
                 if (!empty($typeUpdateFields)) {
+                    $typeParams[] = $data['id'];
                     $sql = "UPDATE $typeTable SET " . implode(', ', $typeUpdateFields) . " 
-                            WHERE object_id = :object_id";
+                            WHERE object_id = ?";
                     $typeStmt = $db->prepare($sql);
                     $typeStmt->execute($typeParams);
                 }
             } else {
                 // INSERT new type data
                 $typeFields = ['object_id'];
-                $typeValues = [':object_id'];
-                $typeParams = [':object_id' => $data['id']];
+                $typeValues = ['?'];
+                $typeParams = [$data['id']];
                 
                 foreach ($data['type_data'] as $field => $value) {
                     if (isset($schema['fields'][$field])) {
                         $typeFields[] = $field;
-                        $typeValues[] = ":$field";
+                        $typeValues[] = '?';
                         
                         if ($schema['fields'][$field]['type'] === 'checkbox') {
-                            $typeParams[":$field"] = $value ? 1 : 0;
+                            $typeParams[] = $value ? 1 : 0;
                         } else {
-                            $typeParams[":$field"] = $value !== '' ? $value : null;
+                            $typeParams[] = $value !== '' ? $value : null;
                         }
                     }
                 }

@@ -28,9 +28,9 @@ try {
     // Verify object exists and belongs to company
     $stmt = $db->prepare("
         SELECT id, object_name FROM rental_objects 
-        WHERE id = :id AND company_id = :company_id
+        WHERE id = ? AND company_id = ?
     ");
-    $stmt->execute([':id' => $object_id, ':company_id' => $admin['company_id']]);
+    $stmt->execute([$object_id, $admin['company_id']]);
     $object = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$object) {
@@ -42,10 +42,10 @@ try {
     // Check if object has active bookings
     $checkStmt = $db->prepare("
         SELECT COUNT(*) as count FROM rental_schedule 
-        WHERE rental_object_id = :object_id 
+        WHERE rental_object_id = ? 
         AND status NOT IN ('completed', 'cancelled')
     ");
-    $checkStmt->execute([':object_id' => $object_id]);
+    $checkStmt->execute([$object_id]);
     $result = $checkStmt->fetch(PDO::FETCH_ASSOC);
     
     if ($result['count'] > 0) {
@@ -58,8 +58,8 @@ try {
     }
     
     // Delete object (CASCADE will delete from type-specific table and rental_schedule)
-    $deleteStmt = $db->prepare("DELETE FROM rental_objects WHERE id = :id AND company_id = :company_id");
-    $deleteStmt->execute([':id' => $object_id, ':company_id' => $admin['company_id']]);
+    $deleteStmt = $db->prepare("DELETE FROM rental_objects WHERE id = ? AND company_id = ?");
+    $deleteStmt->execute([$object_id, $admin['company_id']]);
     
     echo json_encode([
         'success' => true,

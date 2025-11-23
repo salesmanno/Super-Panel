@@ -21,12 +21,12 @@ try {
     // Toggle publish status
     $sql = "UPDATE {$tableName} 
             SET is_published = CASE WHEN is_published = 1 THEN 0 ELSE 1 END,
-                publish_at = CASE WHEN is_published = 0 THEN  ELSE publish_at END,
-                updated_at = 
-            WHERE id = :id AND company_id = :company_id";
+                publish_at = CASE WHEN is_published = 0 THEN NOW() ELSE publish_at END,
+                updated_at = NOW()
+            WHERE id = ? AND company_id = ?";
     
     $stmt = $db->prepare($sql);
-    $stmt->execute([':id' => $data['id'], ':company_id' => $companyId]);
+    $stmt->execute([$data['id'], $companyId]);
     
     if ($stmt->rowCount() > 0) {
         echo json_encode([

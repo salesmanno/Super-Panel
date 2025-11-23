@@ -21,11 +21,11 @@ try {
     // Toggle pin status
     $sql = "UPDATE {$tableName} 
             SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END,
-                updated_at = 
-            WHERE id = :id AND company_id = :company_id";
+                updated_at = NOW()
+            WHERE id = ? AND company_id = ?";
     
     $stmt = $db->prepare($sql);
-    $stmt->execute([':id' => $data['id'], ':company_id' => $companyId]);
+    $stmt->execute([$data['id'], $companyId]);
     
     if ($stmt->rowCount() > 0) {
         echo json_encode([
