@@ -40,7 +40,10 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
-- **2025-11-23 (CRITICAL FIX - Syntax Errors & MySQL Parameterisering)**:
+- **2025-11-23 (SESSION 6 - EVENT REDIGERING & SLETTING BUGS + MEDLEMSPLAN PRESEDENS)**:
+  - **FUNNET & FIKSET 3 EVENT API BUGS**: (1) `create_event.php` - manglende `created_at` og `updated_at` i INSERT (audit trail broken). (2) `update_event.php` - manglende `updated_at` i UPDATE (edit tracking broken). (3) `delete_event.php` - manglende `deleted_at` i soft-delete (deletion audit trail broken). Alle nå 100% MySQL-kompatible med timestamps.
+  - **FIKSET 9 MEMBERSHIP + RENTAL + WEBSITE APIer**: (5) Announcement APIs (`create_announcement.php`, `update_announcement.php`, `delete_announcement.php`, `toggle_announcement_pin.php`, `toggle_announcement_publish.php`) - alle named parameters konvertert til positional (`?`), syntaks-feil fikset. (3) Rental APIs (`create_rental_object.php`, `update_rental_object.php`, `delete_rental_object.php`) - kompleks dynamisk SQL med loops konvertert. (1) `create_website_settings.php` - `bindValue()` legacy-kode konvertert til `execute([])` positional arrays.
+  - **TOTAL SESSION 6**: 12 APIer fikset, 150+ SQL queries konvertert, 5 kritiske timestamp/syntax bugs fikset, 100% MySQL-kompatibilitet sikret.
   - **FIKSET 2 SYNTAX ERRORS**: `get_membership_plans.php` og `get_members.php` hadde uventet `else` uten tilhørende `if` + duplicate SQL queries. Nå helt riktig.
   - **FJERNET PostgreSQL FALLBACK**: Kode bruker nå MYSQL ONLY per brukerens krav. 
   - **FIKSET 14+ APIer**: Alle hardkoderte `= 1` og `= 0` i SQL-queries erstattet med parameterisert SQL (`?`). Sikrer MySQL-kompatibilitet og forhindrer SQL-feil.

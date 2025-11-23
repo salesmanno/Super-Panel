@@ -139,7 +139,9 @@ try {
                 registration_type,
                 payment_timing,
                 payment_methods_json,
-                created_by
+                created_by,
+                created_at,
+                updated_at
             ) VALUES (
                 ?,
                 ?,
@@ -165,7 +167,9 @@ try {
                 ?,
                 ?,
                 ?,
-                ?
+                ?,
+                NOW(),
+                NOW()
             )
         ");
         

@@ -133,7 +133,8 @@ try {
                 default_payment_method = ?,
                 registration_type = ?,
                 payment_timing = ?,
-                payment_methods_json = ?
+                payment_methods_json = ?,
+                updated_at = NOW()
             WHERE id = ? AND company_id = ?
         ");
         
