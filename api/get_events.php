@@ -39,11 +39,11 @@ try {
             e.created_by,
             e.created_at
         FROM events_eventdata e
-        WHERE e.company_id = :company_id AND e.is_active = :is_active
+        WHERE e.company_id = ? AND e.is_active = ?
         ORDER BY e.start_date DESC, e.start_time DESC
     ");
     
-    $stmt->execute([':company_id' => $_SESSION['company_id'], ':is_active' => 1]);
+    $stmt->execute([$_SESSION['company_id'], 1]);
     $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Then: Count attendees for each event separately (avoids LEFT JOIN duplicates)
@@ -51,9 +51,9 @@ try {
         $countStmt = $db->prepare("
             SELECT COUNT(DISTINCT id) as attendee_count
             FROM events_checkin
-            WHERE event_id = :event_id
+            WHERE event_id = ?
         ");
-        $countStmt->execute([':event_id' => $event['id']]);
+        $countStmt->execute([$event['id']]);
         $countResult = $countStmt->fetch(PDO::FETCH_ASSOC);
         $event['current_attendees'] = $countResult['attendee_count'] ?? 0;
     }
@@ -65,10 +65,10 @@ try {
                 SELECT emp.ticket_price as price, mp.name as plan_name, emp.public_display
                 FROM event_membership_plans emp
                 JOIN membership_plans mp ON emp.membership_plan_id = mp.id
-                WHERE emp.event_id = :event_id
+                WHERE emp.event_id = ?
                 ORDER BY emp.ticket_price ASC
             ");
-            $priceStmt->execute([':event_id' => $event['id']]);
+            $priceStmt->execute([$event['id']]);
             $event['membership_prices'] = $priceStmt->fetchAll(PDO::FETCH_ASSOC);
         }
     }

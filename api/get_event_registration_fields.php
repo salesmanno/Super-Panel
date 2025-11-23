@@ -26,11 +26,11 @@ try {
             field_name,
             is_required
         FROM event_registration_fields
-        WHERE event_id = :event_id
+        WHERE event_id = ?
         ORDER BY field_name
     ");
     
-    $stmt->execute([':event_id' => $eventId]);
+    $stmt->execute([$eventId]);
     $fields = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     echo json_encode([

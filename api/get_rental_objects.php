@@ -22,11 +22,11 @@ try {
         // Get single object with type-specific data
         $stmt = $db->prepare("
             SELECT * FROM rental_objects 
-            WHERE id = :id AND company_id = :company_id
+            WHERE id = ? AND company_id = ?
         ");
         $stmt->execute([
-            ':id' => $object_id,
-            ':company_id' => $admin['company_id']
+            $object_id,
+            $admin['company_id']
         ]);
         $object = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -40,8 +40,8 @@ try {
         if ($object['category']) {
             $schema = getRentalSchema($object['category']);
             if ($schema) {
-                $typeStmt = $db->prepare("SELECT * FROM {$schema['table']} WHERE object_id = :object_id");
-                $typeStmt->execute([':object_id' => $object_id]);
+                $typeStmt = $db->prepare("SELECT * FROM {$schema['table']} WHERE object_id = ?");
+                $typeStmt->execute([$object_id]);
                 $typeData = $typeStmt->fetch(PDO::FETCH_ASSOC);
                 
                 if ($typeData) {
@@ -63,10 +63,10 @@ try {
                         ELSE 'inactive'
                    END as display_status
             FROM rental_objects ro
-            WHERE ro.company_id = :company_id
+            WHERE ro.company_id = ?
             ORDER BY ro.created_at DESC
         ");
-        $stmt->execute([1, 1, 0, ':company_id' => $admin['company_id']]);
+        $stmt->execute([1, 1, 0, $admin['company_id']]);
         $objects = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Fetch type-specific data for each object
@@ -77,8 +77,8 @@ try {
                     $object['type_label'] = $schema['label'];
                     
                     // Get type-specific summary data (key fields only)
-                    $typeStmt = $db->prepare("SELECT * FROM {$schema['table']} WHERE object_id = :object_id");
-                    $typeStmt->execute([':object_id' => $object['id']]);
+                    $typeStmt = $db->prepare("SELECT * FROM {$schema['table']} WHERE object_id = ?");
+                    $typeStmt->execute([$object['id']]);
                     $typeData = $typeStmt->fetch(PDO::FETCH_ASSOC);
                     
                     if ($typeData) {

@@ -22,19 +22,13 @@ try {
     // Soft delete: mark as inactive instead of deleting
     // This preserves output_products and historical data
     $stmt = $db->prepare("
-            UPDATE membership_plans 
-            SET is_active = " . 0 . "
-            WHERE id = ? AND company_id = ?
-        ");
-    } else {
-        $stmt = $db->prepare("
-            UPDATE membership_plans 
-            SET is_active = " . 0 . "
-            WHERE plan_id = ? AND company_id = ?
-        ");
-    }
+        UPDATE membership_plans 
+        SET is_active = ?
+        WHERE id = ? AND company_id = ?
+    ");
     
     $stmt->execute([
+        0,
         $data['plan_id'],
         $_SESSION['company_id']
     ]);
@@ -43,12 +37,14 @@ try {
         // Also hide the product from output_products catalog
         $hideStmt = $db->prepare("
             UPDATE output_products 
-            SET is_visible = " . 0 . ", is_public = " . 0 . "
+            SET is_visible = ?, is_public = ?
             WHERE product_id = ? 
             AND product_type = 'membership'
             AND company_id = ?
         ");
         $hideStmt->execute([
+            0,
+            0,
             $data['plan_id'],
             $_SESSION['company_id']
         ]);
