@@ -43,7 +43,7 @@ try {
     $db = getDBConnection();
     
     // Verify event exists and belongs to user's company
-    $stmt = $db->prepare("SELECT id, title FROM events_eventdata WHERE id = ? AND company_id = ? AND deleted_at IS NULL");
+    $stmt = $db->prepare("SELECT id, title FROM events_eventdata WHERE id = ? AND company_id = ? AND is_active = 1");
     $stmt->execute([$eventId, $_SESSION['company_id']]);
     $event = $stmt->fetch(PDO::FETCH_ASSOC);
     

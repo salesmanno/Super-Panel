@@ -40,14 +40,18 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
-- **2025-11-23 (SESSION 6 FINAL PART 7 - DATABASE SCHEMA MISMATCH FIXED)**:
-  - **KRITISK BUG FUNNET**: `get_membership_plans.php` søkte på kolonner som ikke finnes i database: `is_internal` og `deleted_at`
-  - **LØSNING**: 
-    - `get_membership_plans.php`: Fjernet `is_internal` og `deleted_at` fra WHERE-klausul. Nå kun: `WHERE company_id = ? AND is_active = ?`
-    - `create_membership_plan.php`: Fjernet `is_internal` kolonne fra INSERT statement (kolonne eksisterer ikke i schema)
-    - `update_membership_plan.php`: Fjernet `is_internal` update logikk
-  - **Filer endret**: api/get_membership_plans.php, api/create_membership_plan.php, api/update_membership_plan.php
-  - **RESULTAT**: 🟢 Medlemsplaner hentes nå korrekt fra databasen når MySQL er tilgjengelig.
+- **2025-11-23 (SESSION 6 FINAL PARTS 7-8 - COMPLETE DATABASE SCHEMA MISMATCH FIX)**:
+  - **6 KRITISKE BUGS FUNNET OG FIKSET**: Både membership_plans og events_eventdata APIer hentet på kolonner som ikke finnes i databasen
+  - **MEMBERSHIP PLANS (3 bugs)**:
+    - `get_membership_plans.php`: Fjernet `is_internal` og `deleted_at` fra WHERE → `WHERE company_id = ? AND is_active = ?`
+    - `create_membership_plan.php`: Fjernet `is_internal` kolonne fra INSERT (finnes ikke i schema)
+    - `update_membership_plan.php`: Fjernet `is_internal` update logikk (finnes ikke i schema)
+  - **EVENTS (3 bugs)**:
+    - `get_events.php`: Fjernet `AND e.deleted_at IS NULL` (kolonne finnes ikke i events_eventdata)
+    - `delete_event.php`: Fjernet `deleted_at = NOW()` fra UPDATE (kolonne finnes ikke i events_eventdata)
+    - `add_event_transaction.php`: Byttet `AND deleted_at IS NULL` til `AND is_active = 1` (riktig filter)
+  - **Filer endret**: 6 API-filer totalt
+  - **RESULTAT**: 🟢 Både events og medlemsplaner lastes nå korrekt fra MySQL når tilgjengelig. Ingen column-not-found feil.
 
 - **2025-11-23 (SESSION 6 FINAL PART 6 - FRONTEND & API LAYER BUGS FIXED)**:
   - **BUG #1 - API Error Response Inconsistency**: `get_membership_plans.php` returnerte `error` felt mens `get_events.php` brukte `message`. JavaScript ventet alltid på `message`. FIKSET: Endret `get_membership_plans.php` til å bruke `message`.
