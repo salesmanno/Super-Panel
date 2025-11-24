@@ -98,7 +98,7 @@ function getLatestNews($limit = 5) {
                 expire_at,
                 created_at
             FROM core_sys_news 
-            WHERE is_published
+            WHERE is_published = 1
             AND (expire_at IS NULL OR expire_at > NOW())
             AND publish_at <= NOW()
             ORDER BY publish_at DESC 
