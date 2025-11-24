@@ -12,7 +12,7 @@ function getDBConnection() {
     
     if ($conn === null) {
         try {
-            $mysqlDsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET;
+            $mysqlDsn = 'salesmanno04.mysql.domeneshop.no' . DB_HOST . 'salesmanno04' . DB_NAME . 'salesmanno04' . DB_CHARSET;
             $options = [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
