@@ -9,7 +9,6 @@ ADD COLUMN revenue_tickets_cash DECIMAL(10,2) DEFAULT 0.00 COMMENT 'Billettinnte
 ADD COLUMN revenue_tickets_card DECIMAL(10,2) DEFAULT 0.00 COMMENT 'Billettinntekter - Kort (betalt)',
 ADD COLUMN revenue_tickets_vipps DECIMAL(10,2) DEFAULT 0.00 COMMENT 'Billettinntekter - Vipps (betalt)',
 ADD COLUMN revenue_tickets_invoice DECIMAL(10,2) DEFAULT 0.00 COMMENT 'Billettinntekter - Faktura (betalt)',
-ADD COLUMN expected_ticket_revenue DECIMAL(10,2) DEFAULT 0.00 COMMENT 'Forventet billettinntekter (alle billetter, betalt+ubetalt)',
 ADD COLUMN revenue_merchandise DECIMAL(10,2) DEFAULT 0.00 COMMENT 'Salg av varer/merchandise',
 ADD COLUMN revenue_donations DECIMAL(10,2) DEFAULT 0.00 COMMENT 'Donasjoner',
 -- Expenses: Cost breakdown
