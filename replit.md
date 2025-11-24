@@ -40,6 +40,19 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-24 (SESSION 10 - EVENTS_RESULTS ENHANCED COLUMNS)**:
+  - Expanded `events_results` table with comprehensive event summary columns
+  - **Revenue Tracking** (by payment method):
+    - `revenue_tickets_cash`, `revenue_tickets_card`, `revenue_tickets_vipps`, `revenue_tickets_invoice`
+    - `revenue_merchandise`, `revenue_donations`
+  - **Expense Tracking**:
+    - `expense_staff`, `expense_venue`, `expense_equipment`, `expense_materials`, `expense_other`
+  - **Attendance & Status**:
+    - `no_shows`, `attendance_rate`, `average_age`, `status`
+    - `notes`, `organizer_notes`, `finalized_at`
+  - Migration available: `api/migrate_events_results_columns.php` or SQL at `docs/migrate_events_results_columns.sql`
+  - Auto-create `events_results` when event created (linje 215-233 i `api/create_event.php`)
+
 - **2025-11-24 (SESSION 10 - AUTO-CREATE EVENTS_RESULTS ON EVENT CREATION)**:
   - Når arrangement opprettes → Auto-create `events_results` record
   - `events_results` brukes for å registrere inn- og utgifter til arrangement
