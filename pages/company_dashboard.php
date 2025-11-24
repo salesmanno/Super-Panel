@@ -477,6 +477,19 @@ try {
                     </li>
                 <?php endforeach; ?>
                 
+                <!-- Products Inventory Tab (always visible for all admins) -->
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" 
+                            id="tab-products-inventory" 
+                            data-bs-toggle="tab" 
+                            data-bs-target="#content-products-inventory" 
+                            type="button" 
+                            role="tab">
+                        <i class="bi bi-list me-2"></i>
+                        Oppføringer
+                    </button>
+                </li>
+                
                 <!-- Announcements Tab (always visible for all admins) -->
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" 
@@ -868,6 +881,13 @@ try {
                         ?>
                     </div>
                 <?php endforeach; ?>
+                
+                <!-- Products Inventory Tab Content (always available for all admins) -->
+                <div class="tab-pane fade" 
+                     id="content-products-inventory" 
+                     role="tabpanel">
+                    <?php include __DIR__ . '/../modules/products_inventory_content.php'; ?>
+                </div>
                 
                 <!-- Announcements Tab Content (always available for all admins) -->
                 <div class="tab-pane fade" 

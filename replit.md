@@ -39,6 +39,55 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Clean Database Architecture**: Modular database design eliminating duplicates and redundancy, standardizing tables, adding cost price tracking, and introducing `service_bookings` and `unified_ledger` tables.
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
+## Recent Changes
+- **2025-11-24 (SESSION 8 - PRODUCTS INVENTORY FEATURE ADDED)**:
+  - **NEW FEATURE**: Added "Oppføringer" (Products Inventory) tab in dashboard
+  - **Overview**: Shows ALL output_products with active/inactive status and counts
+  - **Functionality**:
+    - View all products from all modules in one place
+    - Filter by status (active/inactive/all)
+    - Search by product name
+    - Reactivate inactive products (set is_visible = 1)
+    - Hard delete products with confirmation
+    - Real-time statistics (total, active, inactive, modules count)
+  - **Files Created**:
+    - `api/get_output_products_inventory.php` - Fetch all products with stats
+    - `api/reactivate_product.php` - Reactivate (un-hide) products
+    - `api/delete_product.php` - Permanently delete products
+    - `modules/products_inventory_content.php` - Frontend UI with Bootstrap table
+  - **Dashboard Changes**:
+    - Added "Oppføringer" tab (📋 icon) between modules and News
+    - Always visible for all admins (like News tab)
+    - Tab content loads automatically on click
+  - **User Experience**:
+    - Stats cards show: Total, Active, Inactive, Module Count
+    - Responsive table with inline action buttons
+    - Toast notifications for success/error feedback
+    - Empty state message when no products found
+
+- **2025-11-24 (SESSION 8 - ANNOUNCEMENTS ERROR HANDLING FIXED)**:
+  - **BUG FOUND**: Only nyheter/announcements produced error messages on login (events worked fine)
+  - **ROOT CAUSE #1**: `loadAnnouncements()` frontend lacked HTTP status check (`if (!response.ok)`), so API errors (HTTP 500) were silently caught and not displayed
+  - **ROOT CAUSE #2**: `get_announcements.php` never returned `author_name` field, but frontend tried to display it (showed "Ukjent" as fallback)
+  - **Solution**:
+    - Added HTTP status validation to frontend `loadAnnouncements()`
+    - Added error toast notification showing actual error message
+    - Added error display in announcements container with warning icon
+    - Updated API to JOIN with `tenant_admins` and return `author_name` field
+  - **Why this helps**: Now if API fails (database down, etc), user sees clear error message instead of silent failure
+  - **Comparison**: All other modules (events, membership, etc) already had proper error handling - announcements was the outlier
+
+- **2025-11-24 (SESSION 8 - CHECK-IN COLUMN MISMATCH FIXED)**:
+  - **BUG FIXED**: `checkin_event.php` was trying to INSERT into non-existent columns
+  - **Problem**: Used `attendee_first_name`, `attendee_last_name`, `attendee_street`, `attendee_zip`, `attendee_city`, `attendee_postal` - but actual schema only has `attendee_name`
+  - **Solution**: 
+    - Removed non-existent columns from INSERT statement
+    - Combined first/last name into single `attendee_name` field
+    - Added `company_id` column (was missing)
+    - Removed street/zip/city/postal fields (not part of check-in schema)
+  - **Frontend**: Enhanced `loadCheckins()` with HTTP status checking and error display
+  - **Result**: Check-ins now save correctly to database
+
 ## External Dependencies
 - **Database**: Dual database support with PDO, primarily MySQL, with PostgreSQL for development/testing.
 - **UI Framework**: Bootstrap 5.
