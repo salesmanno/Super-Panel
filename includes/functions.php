@@ -85,16 +85,34 @@ function getLatestNews($limit = 5) {
         return [];
     }
     $limit = (int)$limit;
-    $stmt = $db->prepare("
-        SELECT * FROM core_sys_news 
-        WHERE is_published = ? 
-        AND (expire_at IS NULL OR expire_at > NOW())
-        AND publish_at <= NOW()
-        ORDER BY publish_at DESC 
-        LIMIT " . $limit
-    );
-    $stmt->execute([1]);
-    return $stmt->fetchAll();
+    try {
+        $stmt = $db->prepare("
+            SELECT 
+                id,
+                title,
+                content,
+                news_type,
+                severity,
+                is_published,
+                publish_at,
+                expire_at,
+                created_at
+            FROM core_sys_news 
+            WHERE is_published = true
+            AND (expire_at IS NULL OR expire_at > NOW())
+            AND publish_at <= NOW()
+            ORDER BY publish_at DESC 
+            LIMIT ?
+        ");
+        $stmt->execute([$limit]);
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        error_log("News query returned " . count($results) . " items");
+        return $results ?: [];
+    } catch (PDOException $e) {
+        error_log("News query error: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
+        return [];
+    }
 }
 
 function verifyPassword($password, $hash) {

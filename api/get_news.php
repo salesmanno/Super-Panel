@@ -18,56 +18,47 @@ function getPriorityText($severity) {
 
 try {
     // Get news from database
-    $news = [];
+    $news = getLatestNews(5);
     
-    try {
-        $news = getLatestNews(5);
-    } catch (PDOException $e) {
-        // Table might not exist yet or database connection issue - log but continue
-        error_log("News database error (table may not exist): " . $e->getMessage());
-        $news = [];
-    } catch (Exception $e) {
-        error_log("Unexpected news error: " . $e->getMessage());
-        $news = [];
-    }
-    
-    // Format news items
+    // Format news items for display
     $formatted_news = [];
-    if (!empty($news) && is_array($news)) {
-        $formatted_news = array_map(function($item) {
+    
+    if (is_array($news) && !empty($news)) {
+        foreach ($news as $item) {
             try {
-                $date = new DateTime($item['publish_at'] ?? 'now');
-                return [
-                    'id' => $item['id'] ?? null,
-                    'title' => $item['title'] ?? 'Ukjent tittel',
-                    'content' => $item['content'] ?? '',
-                    'news_type' => $item['news_type'] ?? 'general',
+                // Parse publish_at date
+                $date = DateTime::createFromFormat('Y-m-d H:i:s', $item['publish_at']) 
+                    ?: DateTime::createFromFormat('Y-m-d H:i:s.u', $item['publish_at'])
+                    ?: new DateTime($item['publish_at']);
+                
+                $formatted_news[] = [
+                    'id' => intval($item['id']),
+                    'title' => htmlspecialchars($item['title'] ?? 'Ukjent tittel'),
+                    'content' => htmlspecialchars($item['content'] ?? ''),
+                    'news_type' => $item['news_type'] ?? 'info',
                     'severity' => $item['severity'] ?? 'low',
                     'priority_text' => getPriorityText($item['severity'] ?? 'low'),
                     'formatted_date' => $date->format('d.m.Y H:i')
                 ];
             } catch (Exception $e) {
-                error_log("Error formatting news item: " . $e->getMessage());
-                return null;
+                error_log("Error formatting news item ID {$item['id']}: " . $e->getMessage());
+                // Skip malformed items but continue with others
+                continue;
             }
-        }, $news);
-        
-        // Filter out null items
-        $formatted_news = array_filter($formatted_news, fn($item) => $item !== null);
+        }
     }
     
-    // Always return success with either news or empty array
+    // Always return success
     echo json_encode([
         'success' => true,
-        'news' => array_values($formatted_news) // Reindex array
+        'news' => $formatted_news
     ]);
     
 } catch (Exception $e) {
-    error_log("Critical news API error: " . $e->getMessage());
+    error_log("News API critical error: " . $e->getMessage());
     error_log("Stack trace: " . $e->getTraceAsString());
     
-    // Even on error, return success with empty news array
-    // This prevents cascade errors on the frontend
+    // Return success with empty array to prevent cascade errors
     echo json_encode([
         'success' => true,
         'news' => []
