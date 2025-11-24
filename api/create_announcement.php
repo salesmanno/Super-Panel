@@ -26,13 +26,12 @@ try {
     $db->beginTransaction();
     
     // Generate UUID for MySQL
-    if ($dbType === 'mysql') {
-        $stmt = $db->query("SELECT UUID() as id");
-        $announcementId = $stmt->fetch(PDO::FETCH_ASSOC)['id'];
-    }
+    $stmt = $db->query("SELECT UUID() as id");
+    $announcementId = $stmt->fetch(PDO::FETCH_ASSOC)['id'];
     
+    // MySQL INSERT with explicit ID
     $sql = "INSERT INTO {$tableName} (
-                " . ($dbType === 'mysql' ? "id," : "") . "
+                id,
                 company_id,
                 author_id,
                 title,
@@ -45,31 +44,25 @@ try {
                 created_at,
                 updated_at
             ) VALUES (
-                " . ($dbType === 'mysql' ? "?," : "") . "
-                ?,?,?,?,?,?,?,?,?,NOW(),NOW()
+                ?,?,?,?,?,?,?,?,?,?,NOW(),NOW()
             )";
     
     $stmt = $db->prepare($sql);
     
-    $params = [];
-    if ($dbType === 'mysql') {
-        $params[] = $announcementId;
-    }
-    $params[] = $companyId;
-    $params[] = $authorId;
-    $params[] = $data['title'];
-    $params[] = $data['content'];
-    $params[] = $data['image_url'] ?? null;
-    $params[] = isset($data['is_published']) ? (int)$data['is_published'] : 0;
-    $params[] = ($data['publish_at'] ?? null) ?: date('Y-m-d H:i:s');
-    $params[] = $data['expire_at'] ?? null;
-    $params[] = isset($data['is_pinned']) ? (int)$data['is_pinned'] : 0;
+    $params = [
+        $announcementId,
+        $companyId,
+        $authorId,
+        $data['title'],
+        $data['content'],
+        $data['image_url'] ?? null,
+        isset($data['is_published']) ? (int)$data['is_published'] : 0,
+        ($data['publish_at'] ?? null) ?: date('Y-m-d H:i:s'),
+        $data['expire_at'] ?? null,
+        isset($data['is_pinned']) ? (int)$data['is_pinned'] : 0
+    ];
     
     $stmt->execute($params);
-    
-    if ($dbType === 'pgsql') {
-        $announcementId = $stmt->fetch(PDO::FETCH_ASSOC)['id'];
-    }
     
     $db->commit();
     

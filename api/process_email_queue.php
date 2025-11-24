@@ -78,7 +78,7 @@ function checkRateLimit($db, $companyId) {
         FROM email_queue
         WHERE company_id = ?
         AND status = 'sent'
-        AND sent_at >= NOW() - INTERVAL '1 hour'
+        AND sent_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
     ");
     $stmt->execute([$companyId]);
     $sentLastHour = $stmt->fetchColumn();
@@ -96,7 +96,7 @@ function getEmailsToSend($db, $companyId) {
         FROM email_queue
         WHERE company_id = ?
         AND status = 'sent'
-        AND sent_at >= NOW() - INTERVAL '1 hour'
+        AND sent_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
     ");
     $stmt->execute([$companyId]);
     $sentLastHour = $stmt->fetchColumn();
@@ -173,12 +173,12 @@ function processEmail($db, $email) {
                 UPDATE email_queue 
                 SET status = 'queued',
                     attempts = ?,
-                    next_retry_at = NOW() + INTERVAL '{$delayMinutes} minutes',
+                    next_retry_at = DATE_ADD(NOW(), INTERVAL ? MINUTE),
                     error_message = ?,
                     updated_at = NOW()
                 WHERE id = ?
             ");
-            $stmt->execute([$attempts, $e->getMessage(), $email['id']]);
+            $stmt->execute([$attempts, $delayMinutes, $e->getMessage(), $email['id']]);
             
             echo "✗ Email failed (attempt {$attempts}/{$maxAttempts}): {$email['id']} - {$e->getMessage()}\n";
             echo "  Retry scheduled in {$delayMinutes} minutes\n";

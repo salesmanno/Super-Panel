@@ -23,16 +23,16 @@ try {
     $stmt = $db->prepare("
         SELECT 
             id,
-            first_name || ' ' || last_name as name,
+            CONCAT(first_name, ' ', last_name) as name,
             email,
             phone
         FROM tenant_customers
         WHERE company_id = ?
         AND (
-            id::text ILIKE ?
-            OR first_name || ' ' || last_name ILIKE ?
-            OR email ILIKE ?
-            OR phone ILIKE ?
+            CAST(id AS CHAR) LIKE ?
+            OR CONCAT(first_name, ' ', last_name) LIKE ?
+            OR email LIKE ?
+            OR phone LIKE ?
         )
         LIMIT 1
     ");
