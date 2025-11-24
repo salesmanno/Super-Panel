@@ -381,10 +381,12 @@ try {
     <div class="dashboard-header">
         <div class="container" style="position: relative;">
             <h1 class="mb-2">Hei, <?= htmlspecialchars($adminName) ?>!</h1>
-            <p class="text-muted mb-0">Du har tilgang til <?= count($allUserModules) ?> modul<?= count($allUserModules) != 1 ? 'er' : '' ?></p>
-            <p class="text-muted mb-0" id="products-summary" style="font-size: 0.9rem;">
-                <i class="bi bi-hourglass-split"></i> <span id="products-text">Laster oppføringer...</span>
-                <a href="#" id="view-products-link" onclick="showProductsModal(); return false;" style="display: none; margin-left: 0.5rem;">Se og slett</a>
+            <p class="text-muted mb-0" id="modules-text">Du har tilgang til <?= count($allUserModules) ?> modul<?= count($allUserModules) != 1 ? 'er' : '' ?></p>
+            <p class="text-muted mb-0" id="products-summary" style="font-size: 0.9rem; display: none;">
+                <i class="bi bi-hourglass-split me-2"></i>
+                <a href="#" id="products-text" onclick="showProductsModal(); return false;" style="color: inherit; text-decoration: none;">
+                    <span id="products-count">Laster oppføringer...</span>
+                </a>
             </p>
             <div id="activity-summary" style="margin-top: 0.75rem; font-size: 0.9rem; color: #6c757d;">
                 <i class="bi bi-hourglass-split me-1"></i>
@@ -476,19 +478,6 @@ try {
                         </button>
                     </li>
                 <?php endforeach; ?>
-                
-                <!-- Products Inventory Tab (always visible for all admins) -->
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" 
-                            id="tab-products-inventory" 
-                            data-bs-toggle="tab" 
-                            data-bs-target="#content-products-inventory" 
-                            type="button" 
-                            role="tab">
-                        <i class="bi bi-list me-2"></i>
-                        Oppføringer
-                    </button>
-                </li>
                 
                 <!-- Announcements Tab (always visible for all admins) -->
                 <li class="nav-item" role="presentation">
@@ -881,13 +870,6 @@ try {
                         ?>
                     </div>
                 <?php endforeach; ?>
-                
-                <!-- Products Inventory Tab Content (always available for all admins) -->
-                <div class="tab-pane fade" 
-                     id="content-products-inventory" 
-                     role="tabpanel">
-                    <?php include __DIR__ . '/../modules/products_inventory_content.php'; ?>
-                </div>
                 
                 <!-- Announcements Tab Content (always available for all admins) -->
                 <div class="tab-pane fade" 
@@ -1584,17 +1566,22 @@ try {
         // Load output products summary
         async function loadProductsSummary() {
             try {
-                const response = await fetch('/api/get_output_products.php');
+                const response = await fetch('/api/get_output_products_inventory.php');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
                 const data = await response.json();
                 
-                if (data.success && data.total_products > 0) {
-                    const moduleList = data.modules.join(', ');
-                    document.getElementById('products-text').innerHTML = 
-                        `...og har <strong>${data.total_products}</strong> oppføring${data.total_products > 1 ? 'er' : ''} i <strong>${data.total_modules_with_products}</strong> modul${data.total_modules_with_products > 1 ? 'er' : ''} (${moduleList}) av disse!`;
-                    document.getElementById('view-products-link').style.display = 'inline';
+                if (data.success && data.stats.total > 0) {
+                    const activeText = data.stats.active > 0 ? ` (<strong>${data.stats.active}</strong> aktiv${data.stats.active > 1 ? 'e' : ''})` : '';
+                    document.getElementById('products-count').innerHTML = 
+                        `...og har <strong>${data.stats.total}</strong> oppføring${data.stats.total > 1 ? 'er' : ''}${activeText}`;
+                    document.getElementById('products-summary').style.display = 'block';
                     
                     // Store data for modal
-                    window.productsData = data;
+                    window.inventoryData = data;
                 } else {
                     document.getElementById('products-summary').style.display = 'none';
                 }
@@ -1606,60 +1593,58 @@ try {
         
         // Show products modal
         function showProductsModal() {
-            if (!window.productsData || window.productsData.total_products === 0) {
+            if (!window.inventoryData || window.inventoryData.stats.total === 0) {
                 alert('Ingen oppføringer å vise');
                 return;
             }
             
-            const data = window.productsData;
-            const products = data.products;
-            const moduleNames = {
-                'sales': 'Salg',
-                'events': 'Arrangementer',
-                'rental': 'Utleie',
-                'reservation': 'Reservasjoner',
-                'membership': 'Medlemskap'
-            };
+            const data = window.inventoryData;
+            const products = data.products || [];
+            const modules = data.modules || {};
             
             let html = `
                 <div class="modal fade" id="productsModal" tabindex="-1">
                     <div class="modal-dialog modal-lg">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title">Alle oppføringer (${products.length})</h5>
+                                <h5 class="modal-title">
+                                    <i class="bi bi-list me-2"></i>Alle oppføringer (${products.length})
+                                </h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
-                                <div style="max-height: 400px; overflow-y: auto;">
-                                    <table class="table table-sm">
+                                <div style="max-height: 500px; overflow-y: auto;">
+                                    <table class="table table-sm table-hover">
                                         <thead class="table-light">
                                             <tr>
-                                                <th>Modul</th>
                                                 <th>Navn</th>
+                                                <th>Modul</th>
                                                 <th>Pris</th>
                                                 <th>Status</th>
-                                                <th style="width: 80px;">Handling</th>
+                                                <th style="width: 100px;">Handlinger</th>
                                             </tr>
                                         </thead>
                                         <tbody>
             `;
             
             products.forEach(product => {
-                const moduleName = moduleNames[product.module_source] || product.module_source;
-                const statusBadge = product.is_available ? 
-                    '<span class="badge bg-success">Aktiv</span>' : 
-                    '<span class="badge bg-secondary">Inaktiv</span>';
+                const moduleName = modules[product.module_id] || product.module_id || 'Ukjent';
+                const statusBadge = product.is_visible == 1 ? 
+                    '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Aktiv</span>' : 
+                    '<span class="badge bg-warning"><i class="bi bi-exclamation-circle me-1"></i>Inaktiv</span>';
                 
                 html += `
                     <tr>
-                        <td>${moduleName}</td>
-                        <td>${product.name}</td>
-                        <td>${product.selling_price} NOK</td>
+                        <td><strong>${product.name || 'Ukjent'}</strong></td>
+                        <td><small>${moduleName}</small></td>
+                        <td>${product.price ? parseFloat(product.price).toFixed(2) + ' kr' : 'Gratis'}</td>
                         <td>${statusBadge}</td>
                         <td>
-                            <button class="btn btn-sm btn-danger" onclick="deleteProduct('${product.id}')">
-                                <i class="bi bi-trash"></i>
-                            </button>
+                            ${product.is_visible == 1 
+                                ? `<button class="btn btn-sm btn-outline-warning" onclick="toggleInventoryProduct('${product.id}', 0)" title="Deaktiver"><i class="bi bi-eye-slash"></i></button>`
+                                : `<button class="btn btn-sm btn-outline-success" onclick="toggleInventoryProduct('${product.id}', 1)" title="Reaktiver"><i class="bi bi-eye"></i></button>`
+                            }
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteInventoryProduct('${product.id}')" title="Slett"><i class="bi bi-trash"></i></button>
                         </td>
                     </tr>
                 `;
@@ -1690,14 +1675,40 @@ try {
             modal.show();
         }
         
+        // Toggle product status
+        async function toggleInventoryProduct(productId, newStatus) {
+            try {
+                const response = await fetch('/api/reactivate_product.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({product_id: productId})
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    const product = window.inventoryData.products.find(p => p.id === productId);
+                    if (product) {
+                        product.is_visible = newStatus;
+                        showProductsModal();
+                        toast.quickSuccess('Status oppdatert', newStatus == 1 ? 'Produkt reaktivert' : 'Produkt deaktivert');
+                    }
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                console.error('Error toggling product:', error);
+                toast.quickError('Feil', 'Kunne ikke oppdatere status');
+            }
+        }
+        
         // Delete product
-        async function deleteProduct(productId) {
-            if (!confirm('Er du sikker på at du vil slette denne oppføringen?')) {
+        async function deleteInventoryProduct(productId) {
+            if (!confirm('Er du sikker på at du vil slette denne oppføringen permanent?')) {
                 return;
             }
             
             try {
-                const response = await fetch('/api/delete_output_product.php', {
+                const response = await fetch('/api/delete_product.php', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({product_id: productId})
@@ -1706,20 +1717,21 @@ try {
                 const result = await response.json();
                 
                 if (result.success) {
-                    // Remove row from table
-                    document.querySelector(`button[onclick="deleteProduct('${productId}')"]`)
-                        .closest('tr').remove();
-                    
-                    // Reload summary
-                    setTimeout(() => {
+                    window.inventoryData.products = window.inventoryData.products.filter(p => p.id !== productId);
+                    window.inventoryData.stats.total--;
+                    if (window.inventoryData.products.length === 0) {
+                        document.getElementById('productsModal').closest('.modal').style.display = 'none';
                         loadProductsSummary();
-                    }, 500);
+                    } else {
+                        showProductsModal();
+                    }
+                    toast.quickSuccess('Slettet', 'Produkt ble slettet permanent');
                 } else {
-                    alert('Feil: ' + result.message);
+                    throw new Error(result.message);
                 }
             } catch (error) {
                 console.error('Error deleting product:', error);
-                alert('Feil ved sletting');
+                toast.quickError('Feil', 'Kunne ikke slette produkt');
             }
         }
         

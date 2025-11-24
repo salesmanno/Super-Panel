@@ -40,30 +40,32 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
-- **2025-11-24 (SESSION 8 - PRODUCTS INVENTORY FEATURE ADDED)**:
-  - **NEW FEATURE**: Added "Oppføringer" (Products Inventory) tab in dashboard
-  - **Overview**: Shows ALL output_products with active/inactive status and counts
-  - **Functionality**:
-    - View all products from all modules in one place
-    - Filter by status (active/inactive/all)
-    - Search by product name
-    - Reactivate inactive products (set is_visible = 1)
-    - Hard delete products with confirmation
-    - Real-time statistics (total, active, inactive, modules count)
+- **2025-11-24 (SESSION 8 - PRODUCTS INVENTORY MODAL INTEGRATED)**:
+  - **NEW FEATURE**: Products/services overview in header with clickable link
+  - **Location**: Under "Du har tilgang til X moduler" in dashboard header
+  - **Header Display**: Shows "...og har 3 oppføringer (2 aktive)" as clickable link
+  - **Modal Features**:
+    - Full inventory view when clicked
+    - Reaktivating inactive products (toggle is_visible)
+    - Hard delete with confirmation dialog
+    - Real-time updates in modal
+    - Active/inactive status badges
+    - Module names for each product
   - **Files Created**:
     - `api/get_output_products_inventory.php` - Fetch all products with stats
-    - `api/reactivate_product.php` - Reactivate (un-hide) products
+    - `api/reactivate_product.php` - Reactivate/deactivate products
     - `api/delete_product.php` - Permanently delete products
-    - `modules/products_inventory_content.php` - Frontend UI with Bootstrap table
   - **Dashboard Changes**:
-    - Added "Oppføringer" tab (📋 icon) between modules and News
-    - Always visible for all admins (like News tab)
-    - Tab content loads automatically on click
+    - Updated `loadProductsSummary()` to use inventory API
+    - Enhanced `showProductsModal()` with inline actions
+    - Added `toggleInventoryProduct()` for status changes
+    - Added `deleteInventoryProduct()` with proper cleanup
+    - Header text now clickable with underline hover effect
   - **User Experience**:
-    - Stats cards show: Total, Active, Inactive, Module Count
-    - Responsive table with inline action buttons
-    - Toast notifications for success/error feedback
-    - Empty state message when no products found
+    - Header is compact (single line)
+    - Click the product count to see full overview modal
+    - Toast notifications for all actions
+    - Removed separate "Oppføringer" tab (integrated into header instead)
 
 - **2025-11-24 (SESSION 8 - ANNOUNCEMENTS ERROR HANDLING FIXED)**:
   - **BUG FOUND**: Only nyheter/announcements produced error messages on login (events worked fine)
