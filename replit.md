@@ -40,6 +40,23 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-24 (SESSION 10 - EVENTS_CHECKIN AS AUTHORITATIVE SOURCE)**:
+  - **EventResultsService Refactored**:
+    - `getSummary()` nå beregner all innsjekk- og deltakelsesdata dynamisk fra `events_checkin`
+    - `getAttendanceDetails()` ny metode - henter raw checkin data direkte
+    - All attendance metrics (total_registered, checked_in, no_shows, member_count, attendance_rate) beregnes fra events_checkin ved hver henting
+  - **API Oppdatert**:
+    - `get_event_checkins.php` - beregner stats fra events_checkin: checked_in, no_shows, member_count, attendance_rate
+    - `get_event_results_summary.php` - returnerer enriked data med attendance fra events_checkin
+  - **Data Architecture**:
+    - events_results: Lagrer inntekter/utgifter (revenue_tickets_*, expense_*)
+    - events_checkin: Autorativ kilde for alle innsjekk- og deltakelsesdata
+    - getSummary() merger begge kilder på henting (events_results + events_checkin live stats)
+  - **Fordeler**:
+    - Real-time attendance stats - alltid oppdatert fra events_checkin
+    - Enkelt å endre check-in status - stats blir automatisk recalculated
+    - Konsolidert datakilde - ingen duplikater av attendance info
+
 - **2025-11-24 (SESSION 10 - EVENTS_RESULTS IMPLEMENTATION WITH STATS & ECONOMICS)**:
   - **EventResultsService** created (`includes/EventResultsService.php`):
     - `addTicketRevenue()` - Track revenue by payment method (cash, card, vipps, invoice)

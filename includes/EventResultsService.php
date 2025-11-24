@@ -242,22 +242,97 @@ class EventResultsService {
     }
     
     /**
-     * Get event summary
+     * Get event summary with attendance stats calculated from events_checkin
+     * All check-in and participation data comes from events_checkin table
      * 
      * @param string $eventId
      * @return array|null
      */
     public function getSummary($eventId) {
         try {
+            // Get base results from events_results
             $stmt = $this->db->prepare("
                 SELECT * FROM events_results
                 WHERE event_id = ? AND company_id = ?
             ");
             $stmt->execute([$eventId, $this->companyId]);
-            return $stmt->fetch(PDO::FETCH_ASSOC);
+            $results = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$results) {
+                return null;
+            }
+            
+            // Enrich with live attendance data from events_checkin
+            $checkinStmt = $this->db->prepare("
+                SELECT 
+                    COUNT(*) as total_registered,
+                    SUM(CASE WHEN checked_in = 1 THEN 1 ELSE 0 END) as checked_in_count,
+                    SUM(CASE WHEN checked_in = 0 THEN 1 ELSE 0 END) as no_shows_count,
+                    COUNT(DISTINCT customer_id) as unique_customers,
+                    SUM(CASE WHEN ticket_type IN ('member', 'membership') THEN 1 ELSE 0 END) as member_count,
+                    ROUND(AVG(CASE WHEN checked_in = 1 THEN 1 ELSE 0 END) * 100, 2) as attendance_rate_live,
+                    SUM(CASE WHEN payment_status = 'paid' THEN ticket_price ELSE 0 END) as total_paid_amount
+                FROM events_checkin
+                WHERE event_id = ? AND company_id = ?
+            ");
+            $checkinStmt->execute([$eventId, $this->companyId]);
+            $checkinStats = $checkinStmt->fetch(PDO::FETCH_ASSOC);
+            
+            // Merge checkin stats into results (checkin data takes precedence)
+            if ($checkinStats && $checkinStats['total_registered'] > 0) {
+                $results['total_checkins'] = $checkinStats['checked_in_count'];
+                $results['no_shows'] = $checkinStats['no_shows_count'];
+                $results['member_count'] = $checkinStats['member_count'];
+                $results['attendance_rate'] = $checkinStats['attendance_rate_live'];
+                $results['total_registered'] = $checkinStats['total_registered'];
+                $results['unique_customers'] = $checkinStats['unique_customers'];
+            } else {
+                $results['total_checkins'] = 0;
+                $results['no_shows'] = 0;
+                $results['member_count'] = 0;
+                $results['attendance_rate'] = 0;
+                $results['total_registered'] = 0;
+                $results['unique_customers'] = 0;
+            }
+            
+            return $results;
         } catch (Exception $e) {
             error_log("EventResultsService::getSummary error: " . $e->getMessage());
             return null;
+        }
+    }
+    
+    /**
+     * Get attendance details from events_checkin
+     * Returns raw checkin data with no aggregation
+     * 
+     * @param string $eventId
+     * @return array
+     */
+    public function getAttendanceDetails($eventId) {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT 
+                    id,
+                    attendee_name,
+                    attendee_email,
+                    attendee_phone,
+                    ticket_type,
+                    ticket_price,
+                    payment_status,
+                    payment_method,
+                    checked_in,
+                    check_in_time,
+                    created_at
+                FROM events_checkin
+                WHERE event_id = ? AND company_id = ?
+                ORDER BY created_at DESC
+            ");
+            $stmt->execute([$eventId, $this->companyId]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            error_log("EventResultsService::getAttendanceDetails error: " . $e->getMessage());
+            return [];
         }
     }
 }

@@ -58,16 +58,26 @@ try {
     $stmt->execute([$eventId]);
     $checkins = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Calculate summary stats
+    // Calculate summary stats from events_checkin
     $totalAttendees = count($checkins);
+    $checkedIn = count(array_filter($checkins, fn($c) => $c['checked_in'] === 1 || $c['checked_in'] === '1'));
+    $noShows = $totalAttendees - $checkedIn;
     $totalRevenue = array_sum(array_column($checkins, 'ticket_price'));
     $paidCount = count(array_filter($checkins, fn($c) => $c['payment_status'] === 'paid'));
+    $memberCount = count(array_filter($checkins, fn($c) => in_array($c['ticket_type'], ['member', 'membership'])));
+    
+    // Calculate attendance rate
+    $attendanceRate = $totalAttendees > 0 ? round(($checkedIn * 100) / $totalAttendees, 2) : 0;
     
     echo json_encode([
         'success' => true,
         'checkins' => $checkins,
         'summary' => [
             'total_attendees' => $totalAttendees,
+            'checked_in' => $checkedIn,
+            'no_shows' => $noShows,
+            'attendance_rate' => $attendanceRate,
+            'member_count' => $memberCount,
             'total_revenue' => $totalRevenue,
             'paid_count' => $paidCount,
             'pending_count' => $totalAttendees - $paidCount

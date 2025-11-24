@@ -37,7 +37,7 @@ try {
     $summary = $resultsService->getSummary($event_id);
     
     if ($summary) {
-        // Format summary data
+        // Format summary data - attendance data comes from events_checkin
         $formatted = [
             'success' => true,
             'summary' => [
@@ -59,11 +59,12 @@ try {
                     'total' => floatval($summary['total_costs'] ?? 0)
                 ],
                 'attendance' => [
-                    'total_registered' => intval($summary['total_checkins'] ?? 0) + intval($summary['no_shows'] ?? 0),
+                    'total_registered' => intval($summary['total_registered'] ?? 0),
                     'checked_in' => intval($summary['total_checkins'] ?? 0),
                     'no_shows' => intval($summary['no_shows'] ?? 0),
+                    'member_count' => intval($summary['member_count'] ?? 0),
                     'attendance_rate' => floatval($summary['attendance_rate'] ?? 0),
-                    'average_age' => intval($summary['average_age'] ?? 0)
+                    'unique_customers' => intval($summary['unique_customers'] ?? 0)
                 ],
                 'financial' => [
                     'profit_loss' => floatval($summary['profit_loss'] ?? 0)
