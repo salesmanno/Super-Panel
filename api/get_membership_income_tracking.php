@@ -16,6 +16,7 @@ $currentYear = date('Y');
 try {
     $db = getDBConnection();
     
+    // MYSQL ONLY - No PostgreSQL fallback
     $stmt = $db->prepare("
         SELECT 
             mm.id as member_id,

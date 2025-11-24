@@ -1701,25 +1701,15 @@ try {
                 </div>
             `;
             
-            // Remove existing modal if any (also remove any leftover backdrops)
+            // Remove existing modal if any
             const existing = document.getElementById('productsModal');
             if (existing) existing.remove();
-            
-            // Clean up any orphaned backdrops
-            document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
             
             // Add modal to page
             document.body.insertAdjacentHTML('beforeend', html);
             
             // Show modal
-            const modalElement = document.getElementById('productsModal');
-            const modal = new bootstrap.Modal(modalElement);
-            
-            // Clean up backdrop when modal is hidden
-            modalElement.addEventListener('hidden.bs.modal', () => {
-                document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
-            }, { once: true });
-            
+            const modal = new bootstrap.Modal(document.getElementById('productsModal'));
             modal.show();
         }
         
@@ -1729,10 +1719,7 @@ try {
                 const response = await fetch('/api/reactivate_product.php', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        product_id: productId,
-                        new_status: newStatus
-                    })
+                    body: JSON.stringify({product_id: productId})
                 });
                 
                 if (!response.ok) {
@@ -1745,7 +1732,7 @@ try {
                     if (product) {
                         product.is_visible = newStatus;
                         showProductsModal();
-                        toast.quickSuccess('Status oppdatert', result.message);
+                        toast.quickSuccess('Status oppdatert', newStatus == 1 ? 'Produkt reaktivert' : 'Produkt deaktivert');
                     }
                 } else {
                     throw new Error(result.message);

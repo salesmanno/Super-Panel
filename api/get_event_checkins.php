@@ -10,76 +10,10 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 require_once __DIR__ . '/../config/database.php';
 
 try {
-    $db = getDBConnection();
-    
-    if (!$db) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Databaseforbindelse mislyktes',
-            'events' => []
-        ]);
-        exit;
-    }
-    
     $eventId = $_GET['event_id'] ?? null;
     
-    // If no event_id, return list of all events for this company for check-in selector
     if (empty($eventId)) {
-        try {
-            $stmt = $db->prepare("
-                SELECT 
-                    id,
-                    title,
-                    start_date,
-                    start_time,
-                    ticket_price,
-                    venue_name
-                FROM events_eventdata 
-                WHERE company_id = ? AND is_active = 1
-                ORDER BY start_date DESC
-            ");
-            $stmt->execute([$_SESSION['company_id']]);
-            $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
-            error_log("Error fetching events list: " . $e->getMessage());
-            error_log("Stack trace: " . $e->getTraceAsString());
-            echo json_encode([
-                'success' => false,
-                'message' => 'Feil ved henting av arrangementer: ' . $e->getMessage(),
-                'events' => []
-            ]);
-            exit;
-        }
-        
-        // Get check-in stats for each event
-        $eventsWithStats = [];
-        foreach ($events as $event) {
-            $statsStmt = $db->prepare("
-                SELECT 
-                    COUNT(*) as total_attendees,
-                    SUM(CASE WHEN checked_in = 1 THEN 1 ELSE 0 END) as checked_in_count,
-                    SUM(CASE WHEN ticket_type IN ('member', 'membership') THEN 1 ELSE 0 END) as member_count,
-                    COUNT(CASE WHEN payment_status = 'paid' THEN 1 END) as paid_count,
-                    SUM(CASE WHEN payment_status = 'paid' THEN ticket_price ELSE 0 END) as total_revenue
-                FROM events_checkin
-                WHERE event_id = ?
-            ");
-            $statsStmt->execute([$event['id']]);
-            $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
-            
-            $event['total_attendees'] = $stats['total_attendees'] ?? 0;
-            $event['checked_in'] = $stats['checked_in_count'] ?? 0;
-            $event['member_count'] = $stats['member_count'] ?? 0;
-            $event['paid_count'] = $stats['paid_count'] ?? 0;
-            $event['total_revenue'] = $stats['total_revenue'] ?? 0;
-            
-            $eventsWithStats[] = $event;
-        }
-        
-        echo json_encode([
-            'success' => true,
-            'events' => $eventsWithStats
-        ]);
+        echo json_encode(['success' => false, 'message' => 'Mangler event_id']);
         exit;
     }
 

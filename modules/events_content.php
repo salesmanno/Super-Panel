@@ -150,103 +150,8 @@ try {
 .event-results-summary {
     background: white;
     border-radius: 8px;
-    padding: 1.5rem;
-    margin-top: 1.5rem;
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 1rem;
-}
-
-.stat-card {
-    background: white;
-    border-radius: 10px;
-    padding: 1.25rem;
-    text-align: center;
-    border: 1px solid #e5e7eb;
-    transition: all 0.3s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-}
-
-.stat-card.income {
-    background: linear-gradient(135deg, #10b98130 0%, #6ee7b730 100%);
-    border-color: #10b981;
-}
-
-.stat-card.expense {
-    background: linear-gradient(135deg, #ef444430 0%, #f8748830 100%);
-    border-color: #ef4444;
-}
-
-.stat-card.profit {
-    background: linear-gradient(135deg, #3b82f630 0%, #60a5fa30 100%);
-    border-color: #3b82f6;
-}
-
-.stat-card.loss {
-    background: linear-gradient(135deg, #f5733630 0%, #ef444430 100%);
-    border-color: #ef4444;
-}
-
-.stat-icon {
-    font-size: 1.75rem;
-    margin-bottom: 0.5rem;
-    display: inline-block;
-}
-
-.stat-label {
-    font-size: 0.875rem;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-}
-
-.stat-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin-bottom: 0.25rem;
-}
-
-.stat-card.income .stat-icon {
-    color: #10b981;
-}
-
-.stat-card.income .stat-value {
-    color: #10b981;
-}
-
-.stat-card.expense .stat-icon {
-    color: #ef4444;
-}
-
-.stat-card.expense .stat-value {
-    color: #ef4444;
-}
-
-.stat-card.profit .stat-icon {
-    color: #3b82f6;
-}
-
-.stat-card.profit .stat-value {
-    color: #3b82f6;
-}
-
-.stat-card.loss .stat-icon {
-    color: #ef4444;
-}
-
-.stat-card.loss .stat-value {
-    color: #ef4444;
-}
-
-.stat-subtitle {
-    font-size: 0.75rem;
-    color: #9ca3af;
+    padding: 1rem;
+    margin-top: 1rem;
 }
 
 .loading-events {
@@ -533,10 +438,8 @@ try {
 
     <div id="events-checkin" class="subtab-content" style="display: none;">
         <!-- Arrange Selection Cards -->
-        <div class="mb-4">
-            <div class="d-flex align-items-center mb-3">
-                <h5 class="mb-0"><i class="bi bi-hand-index me-2"></i>Velg arrangement</h5>
-            </div>
+        <div class="mb-3">
+            <h6 class="mb-2"><i class="bi bi-calendar-event me-2"></i>Velg arrangement</h6>
             <div id="checkin-event-selector-cards" class="row g-3">
                 <div class="col-md-6">
                     <div class="card text-center p-4 text-muted">
@@ -547,43 +450,37 @@ try {
             </div>
         </div>
 
-        <!-- Check-in Section (shown when event selected) -->
-        <div id="checkin-section" style="display: none;">
-            <!-- Event Stats -->
-            <div id="checkin-stats" class="row g-2 mb-4">
-                <div class="col-md-3">
-                    <div class="card p-3 text-center border-light">
-                        <div class="text-muted small fw-500">Påmeldte</div>
-                        <div class="fs-5 fw-bold" id="checkin-total-attendees">0</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card p-3 text-center border-light">
-                        <div class="text-muted small fw-500">Medlemmer</div>
-                        <div class="fs-5 fw-bold text-info" id="checkin-member-count">0</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card p-3 text-center border-light">
-                        <div class="text-muted small fw-500">Betalt</div>
-                        <div class="fs-5 fw-bold text-success" id="checkin-paid-count">0</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card p-3 text-center border-light">
-                        <div class="text-muted small fw-500">Inntekt</div>
-                        <div class="fs-5 fw-bold text-primary" id="checkin-total-revenue">0 kr</div>
-                    </div>
+        <!-- Check-in Stats (shown when event selected) -->
+        <div id="checkin-stats" class="row g-2 mb-3" style="display: none;">
+            <div class="col-md-3">
+                <div class="card p-2 text-center">
+                    <div class="text-muted small">Påmeldte</div>
+                    <div class="fs-5 fw-bold" id="checkin-total-attendees">0</div>
                 </div>
             </div>
+            <div class="col-md-3">
+                <div class="card p-2 text-center">
+                    <div class="text-muted small">Medlemmer</div>
+                    <div class="fs-5 fw-bold text-info" id="checkin-member-count">0</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-2 text-center">
+                    <div class="text-muted small">Betalt</div>
+                    <div class="fs-5 fw-bold text-success" id="checkin-paid-count">0</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-2 text-center">
+                    <div class="text-muted small">Inntekt</div>
+                    <div class="fs-5 fw-bold text-primary" id="checkin-total-revenue">0 kr</div>
+                </div>
+            </div>
+        </div>
 
-            <!-- Attendees Section -->
-            <div id="checkin-attendees-section">
-                <h6 class="mb-3"><i class="bi bi-check-circle me-2"></i>Deltakere</h6>
-                <div id="checkin-events-cards" class="row g-2">
-                    <!-- Cards rendered here -->
-                </div>
-            </div>
+        <!-- Check-in Cards for Attendees -->
+        <div id="checkin-events-cards" class="row g-3" style="display: none;">
+            <!-- Cards rendered here -->
         </div>
 
         <!-- Empty State -->
@@ -1480,36 +1377,19 @@ async function loadEvents() {
                                         </div>
                                     </div>
                                     
-                                    <!-- Summary Stats -->
+                                    <!-- Summary -->
                                     <div class="event-results-summary">
-                                        <!-- Income Card -->
-                                        <div class="stat-card income">
-                                            <div class="stat-icon">
-                                                <i class="bi bi-arrow-down-circle"></i>
-                                            </div>
-                                            <div class="stat-label">Inntekter</div>
-                                            <div class="stat-value" id="event-total-income-${event.id}">0 NOK</div>
-                                            <div class="stat-subtitle">Totalt registrert</div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Total inntekt:</span>
+                                            <span class="text-success fw-bold" id="event-total-income-${event.id}">0 NOK</span>
                                         </div>
-                                        
-                                        <!-- Expense Card -->
-                                        <div class="stat-card expense">
-                                            <div class="stat-icon">
-                                                <i class="bi bi-arrow-up-circle"></i>
-                                            </div>
-                                            <div class="stat-label">Utgifter</div>
-                                            <div class="stat-value" id="event-total-expense-${event.id}">0 NOK</div>
-                                            <div class="stat-subtitle">Totalt registrert</div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Total utgift:</span>
+                                            <span class="text-danger fw-bold" id="event-total-expense-${event.id}">0 NOK</span>
                                         </div>
-                                        
-                                        <!-- Net Result Card -->
-                                        <div class="stat-card profit" id="event-result-card-${event.id}">
-                                            <div class="stat-icon">
-                                                <i class="bi bi-cash-coin"></i>
-                                            </div>
-                                            <div class="stat-label">Netto Resultat</div>
-                                            <div class="stat-value" id="event-net-result-${event.id}">0 NOK</div>
-                                            <div class="stat-subtitle" id="event-result-status-${event.id}">Ingen data</div>
+                                        <div class="d-flex justify-content-between border-top pt-2 mt-2">
+                                            <strong>Netto resultat:</strong>
+                                            <strong id="event-net-result-${event.id}">0 NOK</strong>
                                         </div>
                                     </div>
                                 </div>
@@ -1652,69 +1532,52 @@ async function loadCheckinEventSelector() {
         }
         
         const result = await response.json();
-        console.log('Check-in events API response:', result);
         
-        if (result.success) {
-            if (!result.events) {
-                result.events = [];
-            }
-            
-            if (result.events.length > 0) {
-                container.innerHTML = result.events.map(event => `
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card cursor-pointer h-100" onclick="selectCheckinEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}')">
-                            <div class="card-body">
-                                <h6 class="card-title mb-2">${event.title}</h6>
-                                <small class="text-muted d-block mb-3">
-                                    <i class="bi bi-calendar me-1"></i>${event.start_date} ${event.start_time}
-                                </small>
-                                <div class="row g-2 text-center small">
-                                    <div class="col-6">
-                                        <div class="p-2 bg-light rounded">
-                                            <div class="text-muted">Påmeldte</div>
-                                            <strong>${event.total_attendees || 0}</strong>
-                                        </div>
+        if (result.success && result.events && result.events.length > 0) {
+            container.innerHTML = result.events.map(event => `
+                <div class="col-md-6 col-lg-4">
+                    <div class="card cursor-pointer h-100" onclick="selectCheckinEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}')">
+                        <div class="card-body">
+                            <h6 class="card-title mb-2">${event.title}</h6>
+                            <small class="text-muted d-block mb-3">
+                                <i class="bi bi-calendar me-1"></i>${event.start_date} ${event.start_time}
+                            </small>
+                            <div class="row g-2 text-center small">
+                                <div class="col-6">
+                                    <div class="p-2 bg-light rounded">
+                                        <div class="text-muted">Påmeldte</div>
+                                        <strong>${event.total_attendees || 0}</strong>
                                     </div>
-                                    <div class="col-6">
-                                        <div class="p-2 bg-light rounded">
-                                            <div class="text-muted">Medlemmer</div>
-                                            <strong class="text-info">${event.member_count || 0}</strong>
-                                        </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="p-2 bg-light rounded">
+                                        <div class="text-muted">Medlemmer</div>
+                                        <strong class="text-info">${event.member_count || 0}</strong>
                                     </div>
-                                    <div class="col-6">
-                                        <div class="p-2 bg-light rounded">
-                                            <div class="text-muted">Betalt</div>
-                                            <strong class="text-success">${event.paid_count || 0}</strong>
-                                        </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="p-2 bg-light rounded">
+                                        <div class="text-muted">Betalt</div>
+                                        <strong class="text-success">${event.paid_count || 0}</strong>
                                     </div>
-                                    <div class="col-6">
-                                        <div class="p-2 bg-light rounded">
-                                            <div class="text-muted">Inntekt</div>
-                                            <strong class="text-primary">${event.total_revenue || 0} kr</strong>
-                                        </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="p-2 bg-light rounded">
+                                        <div class="text-muted">Inntekt</div>
+                                        <strong class="text-primary">${event.total_revenue || 0} kr</strong>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                `).join('');
-            } else {
-                container.innerHTML = `
-                    <div class="col-md-6">
-                        <div class="card text-center p-4 text-muted">
-                            <i class="bi bi-inbox fs-1 mb-2"></i>
-                            <small>Ingen arrangementer tilgjengelig</small>
-                        </div>
-                    </div>
-                `;
-            }
+                </div>
+            `).join('');
         } else {
-            console.error('API returned error:', result.message);
             container.innerHTML = `
                 <div class="col-md-6">
-                    <div class="card text-center p-4 text-warning">
-                        <i class="bi bi-exclamation-triangle fs-1 mb-2"></i>
-                        <small>${result.message || 'Feil ved lasting av arrangementer'}</small>
+                    <div class="card text-center p-4 text-muted">
+                        <i class="bi bi-inbox fs-1 mb-2"></i>
+                        <small>Ingen arrangementer tilgjengelig</small>
                     </div>
                 </div>
             `;
@@ -1725,7 +1588,7 @@ async function loadCheckinEventSelector() {
             <div class="col-md-6">
                 <div class="card text-center p-4 text-danger">
                     <i class="bi bi-exclamation-triangle fs-1 mb-2"></i>
-                    <small>Feil ved lasting av arrangementer: ${error.message}</small>
+                    <small>Feil ved lasting av arrangementer</small>
                 </div>
             </div>
         `;
@@ -1736,8 +1599,8 @@ async function loadCheckinEventSelector() {
 async function selectCheckinEvent(eventId, eventTitle) {
     selectedEventId = eventId;
     
-    // Show checkin section and hide empty state
-    document.getElementById('checkin-section').style.display = 'block';
+    // Show stats and hide empty state
+    document.getElementById('checkin-stats').style.display = 'block';
     document.getElementById('quick-guest-registration').style.display = 'block';
     document.getElementById('checkin-empty-state').style.display = 'none';
     
@@ -2380,20 +2243,7 @@ async function loadEventFinances(eventId) {
             
             const netResultEl = document.getElementById(`event-net-result-${eventId}`);
             netResultEl.textContent = `${result.summary.net_result.toFixed(2)} NOK`;
-            
-            // Update result card style and status based on profit/loss
-            const resultCard = document.getElementById(`event-result-card-${eventId}`);
-            const statusSubtitle = document.getElementById(`event-result-status-${eventId}`);
-            
-            if (result.summary.net_result >= 0) {
-                resultCard.className = 'stat-card profit';
-                statusSubtitle.textContent = 'Overskudd ✓';
-                statusSubtitle.style.color = '#10b981';
-            } else {
-                resultCard.className = 'stat-card loss';
-                statusSubtitle.textContent = 'Underskudd';
-                statusSubtitle.style.color = '#ef4444';
-            }
+            netResultEl.className = result.summary.net_result >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold';
         }
     } catch (error) {
         console.error('Error loading event finances:', error);
@@ -2685,7 +2535,7 @@ async function saveEventChanges() {
     };
 
     try {
-        const response = await fetch('/api/update_event.php', {
+        const response = await fetch('../api/update_event.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

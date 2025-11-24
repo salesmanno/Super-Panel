@@ -60,17 +60,27 @@ try {
         $moduleStmt->execute();
         
         if (!$reservationsModuleId) {
-            // Module doesn't exist - create it (MySQL)
-            $insertModuleStmt = $db->prepare("
-                INSERT INTO system_modules (id, module_key, name, description, icon, is_active, created_at) 
-                VALUES (UUID(), 'reservations', 'Reservasjoner', 'Reservasjonssystem', 'calendar-check', 1, NOW())
-            ");
+            // Module doesn't exist - create it
+            $dbType = getDBType();
+            
+            if ($dbType === 'mysql') {
+                // MySQL uses UUID
+                $insertModuleStmt = $db->prepare("
+                    INSERT INTO system_modules (id, module_key, name, description, icon, is_active, created_at) 
+                    VALUES (UUID(), 'reservations', 'Reservasjoner', 'Reservasjonssystem', 'calendar-check', 1, NOW())
+                ");
+            } else {
+                // PostgreSQL uses auto-increment
+                $insertModuleStmt = $db->prepare("
+                    INSERT INTO system_modules (module_key, name, description, icon, is_active, created_at) 
+                    VALUES ('reservations', 'Reservasjoner', 'Reservasjonssystem', 'calendar-check', true, NOW())
+                ");
+            }
+            
             $insertModuleStmt->execute();
             
             // Fetch the newly created module ID
             $moduleStmt->execute();
-            $reservationsModuleIdResult = $moduleStmt->fetch(PDO::FETCH_ASSOC);
-            $reservationsModuleId = $reservationsModuleIdResult['id'] ?? null;
             
             if (!$reservationsModuleId) {
                 throw new Exception("Failed to create reservations module");

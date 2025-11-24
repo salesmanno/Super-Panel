@@ -79,8 +79,12 @@ try {
             break;
             
         case 'membership':
-            // MySQL membership plans
-            $stmt = $db->prepare("SELECT id as plan_id, name as service_name, price, billing_cycle FROM membership_plans WHERE id = ?");
+            $dbType = getDBType();
+            if ($dbType === 'mysql') {
+                $stmt = $db->prepare("SELECT id as plan_id, name as service_name, price, billing_cycle FROM membership_plans WHERE id = ?");
+            } else {
+                $stmt = $db->prepare("SELECT plan_id, plan_name as service_name, price, duration_months FROM membership_plans WHERE plan_id = ?");
+            }
             $stmt->execute([$product_id]);
             $service = $stmt->fetch();
             break;
@@ -270,23 +274,43 @@ try {
                 $customer_id
             ]);
             
-            // Insert membership record - MySQL
-            $stmt = $db->prepare("
-                INSERT INTO membership_members 
-                (company_id, customer_id, membership_plan_id, member_code, 
-                 join_date, expiration_date, auto_renew, status, created_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())
-            ");
-            $stmt->execute([
-                $company_id,
-                $customer_id,
-                $product_id,
-                $member_code,
-                $finalJoinDate,
-                $finalExpiryDate,
-                $auto_renew ? 1 : 0
-            ]);
-            $transactionId = $db->lastInsertId();
+            // Insert membership record with correct column names
+            if ($dbType === 'mysql') {
+                $stmt = $db->prepare("
+                    INSERT INTO membership_members 
+                    (company_id, customer_id, membership_plan_id, member_code, 
+                     join_date, expiration_date, auto_renew, status, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+                ");
+                $stmt->execute([
+                    $company_id,
+                    $customer_id,
+                    $product_id,
+                    $member_code,
+                    $finalJoinDate,
+                    $finalExpiryDate,
+                    $auto_renew ? 1 : 0
+                ]);
+                $transactionId = $db->lastInsertId();
+            } else {
+                $stmt = $db->prepare("
+                    INSERT INTO membership_members 
+                    (company_id, customer_id, membership_plan_id, member_code, 
+                     join_date, expiration_date, auto_renew, status, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+                ");
+                $stmt->execute([
+                    $company_id,
+                    $customer_id,
+                    $product_id,
+                    $member_code,
+                    $finalJoinDate,
+                    $finalExpiryDate,
+                    $auto_renew
+                ]);
+                $memberResult = $stmt->fetch(PDO::FETCH_ASSOC);
+                $transactionId = $memberResult['id'] ?? bin2hex(random_bytes(16));
+            }
             
             // membership_plans doesn't have cost_price field
             $costPrice = null;
@@ -321,7 +345,7 @@ try {
                 INSERT INTO rental_reservations 
                 (company_id, object_id, customer_name, customer_email, customer_phone, 
                  start_date, end_date, daily_price, total_price, deposit_paid, status, notes, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), ?, ?, 0, 'confirmed', ?, NOW(), NOW())
+                VALUES (?, ?, ?, ?, ?, NOW(), NOW() + INTERVAL '1 day', ?, ?, 0, 'confirmed', ?, NOW(), NOW())
             ");
             
             // Calculate daily price from total (assuming 1 day rental by default)

@@ -38,6 +38,7 @@ try {
     
     if ($stmt->rowCount() > 0) {
         // PHASE 2: Create events_checkin entry from approved registration
+        $dbType = getDBType();
         try {
             // Get registration details
             $stmt = $db->prepare("
@@ -50,15 +51,20 @@ try {
             $registration = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($registration) {
-                // Generate UUID for MySQL
-                $checkin_id = sprintf(
-                    '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-                    mt_rand(0, 0xffff), mt_rand(0, 0xffff),
-                    mt_rand(0, 0xffff),
-                    mt_rand(0, 0x0fff) | 0x4000,
-                    mt_rand(0, 0x3fff) | 0x8000,
-                    mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
-                );
+                // Generate checkin ID
+                if ($dbType === 'postgresql') {
+                    $stmt = $db->query("SELECT gen_random_uuid()");
+                    $checkin_id = $stmt->fetchColumn();
+                } else {
+                    $checkin_id = sprintf(
+                        '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+                        mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+                        mt_rand(0, 0xffff),
+                        mt_rand(0, 0x0fff) | 0x4000,
+                        mt_rand(0, 0x3fff) | 0x8000,
+                        mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+                    );
+                }
                 
                 // Create events_checkin with event_registration_id FK
                 $stmt = $db->prepare("

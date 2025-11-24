@@ -1,9 +1,0 @@
-.env
-.env.local
-.env.*.local
-node_modules/
-vendor/
-.cache/
-*.log
-.DS_Store
-Thumbs.db

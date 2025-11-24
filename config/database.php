@@ -1,17 +1,18 @@
 <?php
 
+// MySQL ONLY - Domeneshop production database
+define('DB_HOST', 'salesmanno04.mysql.domeneshop.no');
+define('DB_NAME', 'salesmanno04');
+define('DB_USER', 'salesmanno04');
+define('DB_PASS', 'samle-lime-2Salgs-kd');
+define('DB_CHARSET', 'utf8mb4');
+
 function getDBConnection() {
     static $conn = null;
     
     if ($conn === null) {
         try {
-            // Get credentials from environment variables
-            $host = getenv('DB_HOST') ?: $_ENV['DB_HOST'] ?? 'salesmanno04.mysql.domeneshop.no';
-            $dbname = getenv('DB_NAME') ?: $_ENV['DB_NAME'] ?? 'salesmanno04';
-            $user = getenv('DB_USER') ?: $_ENV['DB_USER'] ?? 'salesmanno04';
-            $password = getenv('DB_PASSWORD') ?: $_ENV['DB_PASSWORD'] ?? '';
-            
-            $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
+            $mysqlDsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET;
             $options = [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -19,11 +20,12 @@ function getDBConnection() {
                 PDO::ATTR_TIMEOUT => 5,
             ];
             
-            $conn = new PDO($dsn, $user, $password, $options);
+            $conn = new PDO($mysqlDsn, DB_USER, DB_PASS, $options);
+            error_log("Connected to MySQL");
             
         } catch (PDOException $e) {
-            error_log("Database connection failed: " . $e->getMessage());
-            throw new Exception("KRITISK FEIL: Kan ikke koble til database.\n\nFeil: " . $e->getMessage());
+            error_log("MySQL connection FAILED: " . $e->getMessage());
+            throw new Exception("KRITISK FEIL: Kan ikke koble til MySQL på Domeneshop. Sjekk databasetilkoblingen.\n\nFeil: " . $e->getMessage());
         }
     }
     

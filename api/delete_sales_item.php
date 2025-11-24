@@ -21,11 +21,20 @@ try {
     
     // Soft delete: mark as inactive instead of deleting
     // This preserves output_products and historical data
-    $stmt = $db->prepare("
-        UPDATE sales_products 
-        SET is_active = 0
-        WHERE id = ? AND company_id = ?
-    ");
+    $dbType = getDBType();
+    if ($dbType === 'mysql') {
+        $stmt = $db->prepare("
+            UPDATE sales_products 
+            SET is_active = " . 0 . "
+            WHERE id = ? AND company_id = ?
+        ");
+    } else {
+        $stmt = $db->prepare("
+            UPDATE sales_items 
+            SET is_active = " . 0 . "
+            WHERE id = ? AND company_id = ?
+        ");
+    }
     
     $stmt->execute([
         $data['item_id'],

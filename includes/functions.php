@@ -85,35 +85,16 @@ function getLatestNews($limit = 5) {
         return [];
     }
     $limit = (int)$limit;
-    try {
-        $stmt = $db->prepare("
-            SELECT 
-                id,
-                title,
-                content,
-                news_type,
-                severity,
-                is_published,
-                publish_at,
-                expire_at,
-                created_at
-            FROM core_sys_news 
-            WHERE is_published = 1
-            AND (expire_at IS NULL OR expire_at > NOW())
-            AND publish_at <= NOW()
-            ORDER BY publish_at DESC 
-            LIMIT ?
-        ");
-        $stmt->execute([$limit]);
-        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        if (is_array($results) && !empty($results)) {
-            return $results;
-        }
-        return [];
-    } catch (PDOException $e) {
-        error_log("News query error: " . $e->getMessage());
-        return [];
-    }
+    $stmt = $db->prepare("
+        SELECT * FROM core_sys_news 
+        WHERE is_published = ? 
+        AND (expire_at IS NULL OR expire_at > NOW())
+        AND publish_at <= NOW()
+        ORDER BY publish_at DESC 
+        LIMIT " . $limit
+    );
+    $stmt->execute([1]);
+    return $stmt->fetchAll();
 }
 
 function verifyPassword($password, $hash) {
@@ -301,12 +282,12 @@ function endInactiveSessions($inactiveMinutes = 30) {
     if (!$db) return false;
     
     try {
-        // MySQL: Use DATE_SUB for INTERVAL arithmetic
+        // MySQL: Use INTERVAL syntax directly
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
             SET is_active = ?, logout_at = NOW() 
             WHERE is_active = ? 
-            AND last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE)
+            AND last_activity < NOW() - INTERVAL ? MINUTE
         ");
         return $stmt->execute([0, 1, $inactiveMinutes]);
     } catch (PDOException $e) {

@@ -27,8 +27,8 @@ try {
             e.start_date,
             e.start_time
         FROM event_registrations r
-        INNER JOIN events_eventdata e ON r.event_id = e.id
-        INNER JOIN tenant_customers c ON r.customer_id = c.id
+        INNER JOIN events_eventdata e ON r.event_id = e.id COLLATE utf8mb4_unicode_ci
+        INNER JOIN tenant_customers c ON r.customer_id = c.id COLLATE utf8mb4_unicode_ci
         WHERE r.company_id = ?
         AND r.approval_status = 'pending'
         ORDER BY r.created_at DESC

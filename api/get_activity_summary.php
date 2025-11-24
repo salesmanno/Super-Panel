@@ -16,6 +16,8 @@ try {
     $db = getDBConnection();
     
     // Get baseline timestamp for "new" activity
+    // Try last_logout first (preferred), fall back to last_login, then 7 days ago
+    // This handles schema differences between MySQL (no last_logout) and PostgreSQL (has last_logout)
     try {
         $stmt = $db->prepare("
             SELECT last_login 

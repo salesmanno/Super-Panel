@@ -12,12 +12,18 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 try {
     $db = getDBConnection();
     $company_id = $_SESSION['company_id'];
+    $dbType = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
     
     // Check if events_results table exists (MySQL production data)
     $hasEventsResults = false;
     try {
-        $stmt = $db->query("SHOW TABLES LIKE 'events_results'");
-        $hasEventsResults = $stmt->rowCount() > 0;
+        if ($dbType === 'mysql') {
+            $stmt = $db->query("SHOW TABLES LIKE 'events_results'");
+            $hasEventsResults = $stmt->rowCount() > 0;
+        } else {
+            $stmt = $db->query("SELECT 1 FROM information_schema.tables WHERE table_name = 'events_results'");
+            $hasEventsResults = $stmt->rowCount() > 0;
+        }
     } catch (Exception $e) {
         // Table doesn't exist
     }
@@ -74,8 +80,12 @@ try {
         $stmt->execute([$company_id]);
         $totalEvents = $stmt->fetchColumn();
         
-        // MySQL JSON query
-        $jsonEventCheck = "JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.event_id'))";
+        // Build JSON query based on database type
+        if ($dbType === 'pgsql') {
+            $jsonEventCheck = "metadata::jsonb->>'event_id'";
+        } else {
+            $jsonEventCheck = "JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.event_id'))";
+        }
         
         // Get total revenue from unified_ledger
         $stmt = $db->prepare("
@@ -105,11 +115,15 @@ try {
         }
         
         // Get upcoming events
+        $nowComparison = $dbType === 'pgsql' 
+            ? "(e.start_date || ' ' || e.start_time)::timestamp > NOW()"
+            : "CONCAT(e.start_date, ' ', e.start_time) > NOW()";
+        
         $stmt = $db->prepare("
             SELECT COUNT(*) as upcoming
             FROM events_eventdata e
             WHERE e.company_id = ? AND e.is_active = 1
-            AND CONCAT(e.start_date, ' ', e.start_time) > NOW()
+            AND " . $nowComparison . "
         ");
         $stmt->execute([$company_id]);
         $upcomingEvents = $stmt->fetchColumn();
@@ -122,18 +136,27 @@ try {
         ];
         
         // Get detailed list of events
+        $statusCase = $dbType === 'pgsql' 
+            ? "CASE 
+                WHEN (e.start_date || ' ' || e.start_time)::timestamp > NOW() THEN 'Kommende'
+                WHEN (e.start_date || ' ' || e.start_time)::timestamp <= NOW() AND 
+                     (e.end_date IS NULL OR (e.end_date || ' ' || COALESCE(e.end_time, '23:59:59'))::timestamp >= NOW()) THEN 'Pågår'
+                ELSE 'Avsluttet'
+            END"
+            : "CASE 
+                WHEN CONCAT(e.start_date, ' ', e.start_time) > NOW() THEN 'Kommende'
+                WHEN CONCAT(e.start_date, ' ', e.start_time) <= NOW() AND 
+                     (e.end_date IS NULL OR CONCAT(e.end_date, ' ', COALESCE(e.end_time, '23:59:59')) >= NOW()) THEN 'Pågår'
+                ELSE 'Avsluttet'
+            END";
+        
         $stmt = $db->prepare("
             SELECT 
                 e.id,
                 e.title,
                 e.start_date,
                 e.start_time,
-                CASE 
-                    WHEN CONCAT(e.start_date, ' ', e.start_time) > NOW() THEN 'Kommende'
-                    WHEN CONCAT(e.start_date, ' ', e.start_time) <= NOW() AND 
-                         (e.end_date IS NULL OR CONCAT(e.end_date, ' ', COALESCE(e.end_time, '23:59:59')) >= NOW()) THEN 'Pågår'
-                    ELSE 'Avsluttet'
-                END as status
+                " . $statusCase . " as status
             FROM events_eventdata e
             WHERE e.company_id = ? AND e.is_active = 1
             ORDER BY e.start_date DESC, e.start_time DESC

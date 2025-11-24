@@ -208,8 +208,11 @@ class ProductCatalogService {
                     break;
                     
                 case 'membership':
-                    // MySQL
-                    $stmt = $this->db->prepare("SELECT * FROM membership_plans WHERE id = ? AND is_active = 1");
+                    if ($dbType === 'mysql') {
+                        $stmt = $this->db->prepare("SELECT * FROM membership_plans WHERE id = ? AND is_active = " . 1);
+                    } else {
+                        $stmt = $this->db->prepare("SELECT * FROM x_membership_plan WHERE plan_id = ? AND is_active = " . 1);
+                    }
                     break;
                     
                 case 'service':
@@ -366,30 +369,57 @@ class ProductCatalogService {
                     
                 case 'product':
                 case 'sales_item':
-                    // MySQL
-                    $stmt = $this->db->prepare("
-                        SELECT name, selling_price as price 
-                        FROM sales_products 
-                        WHERE id = ?
-                    ");
+                    // Support both MySQL (sales_products) and PostgreSQL (sales_items)
+                    $dbType = getDBType();
+                    if ($dbType === 'mysql') {
+                        $stmt = $this->db->prepare("
+                            SELECT name, selling_price as price 
+                            FROM sales_products 
+                            WHERE id = ?
+                        ");
+                    } else {
+                        $stmt = $this->db->prepare("
+                            SELECT item_name as name, price 
+                            FROM sales_items 
+                            WHERE id = ?
+                        ");
+                    }
                     break;
                     
                 case 'membership':
-                    // MySQL
-                    $stmt = $this->db->prepare("
-                        SELECT name, price 
-                        FROM membership_plans 
-                        WHERE id = ?
-                    ");
+                    // Support both MySQL (membership_plans) and PostgreSQL (x_membership_plan)
+                    $dbType = getDBType();
+                    if ($dbType === 'mysql') {
+                        $stmt = $this->db->prepare("
+                            SELECT name, price 
+                            FROM membership_plans 
+                            WHERE id = ?
+                        ");
+                    } else {
+                        $stmt = $this->db->prepare("
+                            SELECT plan_name as name, price 
+                            FROM x_membership_plan 
+                            WHERE plan_id = ?
+                        ");
+                    }
                     break;
                     
                 case 'rental':
-                    // MySQL
-                    $stmt = $this->db->prepare("
-                        SELECT name, daily_rate as price 
-                        FROM rental_objects 
-                        WHERE id = ?
-                    ");
+                    // Support both MySQL (rental_objects with id) and PostgreSQL (rental_objects with object_id)
+                    $dbType = getDBType();
+                    if ($dbType === 'mysql') {
+                        $stmt = $this->db->prepare("
+                            SELECT name, daily_rate as price 
+                            FROM rental_objects 
+                            WHERE id = ?
+                        ");
+                    } else {
+                        $stmt = $this->db->prepare("
+                            SELECT object_name as name, daily_price as price 
+                            FROM rental_objects 
+                            WHERE object_id = ?
+                        ");
+                    }
                     break;
                     
                 default:

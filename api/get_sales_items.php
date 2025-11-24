@@ -13,6 +13,8 @@ try {
     $db = getDBConnection();
     $company_id = $_SESSION['company_id'];
     
+    $dbType = getDBType();
+    
     $stmt = $db->prepare("
         SELECT 
             op.id,
@@ -22,7 +24,7 @@ try {
                 CASE 
                     WHEN op.product_type = 'events' THEN e.title
                     WHEN op.product_type = 'product' THEN sp.name
-                    WHEN op.product_type = 'membership' THEN mp.name
+                    WHEN op.product_type = 'membership' THEN " . (mp.name) . "
                     WHEN op.product_type = 'service' THEN rs.service_name
                     ELSE NULL
                 END,
@@ -43,16 +45,18 @@ try {
                 ELSE NULL
             END as member_price,
             CASE 
-                WHEN op.product_type = 'membership' AND mp.billing_cycle IS NOT NULL THEN 
-                    CASE mp.billing_cycle 
-                        WHEN 'monthly' THEN 1 
-                        WHEN 'quarterly' THEN 3 
-                        WHEN 'yearly' THEN 12 
-                        ELSE 12 
-                    END
+                WHEN op.product_type = 'membership' AND " . ($dbType === 'mysql' ? "mp.billing_cycle IS NOT NULL" : "mp.duration_months IS NOT NULL") . " THEN 
+                    " . ($dbType === 'mysql' ? 
+                        "CASE mp.billing_cycle 
+                            WHEN 'monthly' THEN 1 
+                            WHEN 'quarterly' THEN 3 
+                            WHEN 'yearly' THEN 12 
+                            ELSE 12 
+                        END" : 
+                        "mp.duration_months") . "
                 ELSE NULL
             END as duration_months,
-            mp.billing_cycle,
+            " . ($dbType === 'mysql' ? "mp.billing_cycle" : "NULL") . " as billing_cycle,
             sp.img_product,
             sp.item_taxable,
             sp.sku,
@@ -62,7 +66,7 @@ try {
         FROM output_products op
         LEFT JOIN events_eventdata e ON op.product_type = 'events' AND op.product_id = e.id
         LEFT JOIN sales_products sp ON op.product_type = 'product' AND op.product_id = sp.id
-        LEFT JOIN membership_plans mp ON op.product_type = 'membership' AND op.product_id = mp.id
+        LEFT JOIN " . ($dbType === 'mysql' ? "membership_plans" : "membership_plans") . " mp ON op.product_type = 'membership' AND op.product_id = " . ($dbType === 'mysql' ? "mp.id" : "mp.id") . "
         LEFT JOIN reservation_services rs ON op.product_type = 'service' AND op.product_id = rs.id
         WHERE op.company_id = ? AND op.is_visible = ?
         ORDER BY item_name ASC

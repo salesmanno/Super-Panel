@@ -1,6 +1,5 @@
 <?php
 session_start();
-header('Content-Type: text/html; charset=utf-8');
 require_once __DIR__ . '/../config/database.php';
 
 // Sjekk at bruker er innlogget
@@ -22,29 +21,12 @@ if (!isset($_SESSION['ditt_nettsted_unlocked']) ||
 // Last inn innholdet
 try {
     $db = getDBConnection();
-    $contentFile = __DIR__ . '/../modules/deres_firma_content.php';
-    
-    if (!file_exists($contentFile)) {
-        throw new Exception("Innholdsfil ikke funnet: {$contentFile}");
-    }
-    
     ob_start();
-    $result = include $contentFile;
+    include __DIR__ . '/../modules/deres_firma_content.php';
     $content = ob_get_clean();
-    
-    if ($content === false) {
-        throw new Exception("Kunne ikke laste innhold fra deres_firma_content.php");
-    }
-    
-    if (empty($content)) {
-        // If content is empty, output a basic message
-        echo '<div class="alert alert-info">Ingen innhold tilgjengelig</div>';
-    } else {
-        echo $content;
-    }
+    echo $content;
 } catch (Exception $e) {
     error_log("Load ditt nettsted content error: " . $e->getMessage());
-    error_log("Stack trace: " . $e->getTraceAsString());
     http_response_code(500);
-    echo '<div class="alert alert-danger">En feil oppstod ved lasting av innhold: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    echo '<div class="alert alert-danger">En feil oppstod ved lasting av innhold</div>';
 }
