@@ -39,6 +39,28 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Clean Database Architecture**: Modular database design eliminating duplicates and redundancy, standardizing tables, adding cost price tracking, and introducing `service_bookings` and `unified_ledger` tables.
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
+## Recent Changes
+- **2025-11-24 (SESSION 9 - INNSJEKKING REDESIGNED KOMPLETT)**:
+  - **Event Selection → Cards Layout**:
+    - Arrangement selector endret fra dropdown til cards
+    - Hver card viser stats: Påmeldte, Medlemmer, Betalt, Inntekt
+    - Clickable cards for å velge arrangement
+  - **Check-in View → Individual Cards**:
+    - Deltakere vises som individuelle cards (ikke tabeller)
+    - Fargekoding: ⚠️ Gul border (nye), ✅ Grønn border (sjekket inn)
+    - Nyeste registreringer øverst
+    - Quick "Sjekk inn" button på hver card
+  - **Modal: Alle Reservasjoner**:
+    - Klikk på arrangement → Modal med alle reservasjoner
+    - Viser: Navn, Kontakt, Type, Pris, Betalingsstatus, Registreringsdato
+    - Table layout for full oversikt
+  - **Functions Added**:
+    - `loadCheckinEventSelector()` - Load events as cards with stats
+    - `selectCheckinEvent()` - Handle event card selection
+    - `showAllRegistrations()` - Open modal with all registrations
+    - `quickCheckin()` - Check-in with event.stopPropagation()
+  - **Stats Updated**: Added "Medlemmer" count to check-in stats
+
 ## External Dependencies
 - **Database**: Dual database support with PDO, primarily MySQL, with PostgreSQL for development/testing.
 - **UI Framework**: Bootstrap 5.

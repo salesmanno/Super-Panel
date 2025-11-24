@@ -437,20 +437,31 @@ try {
     </div>
 
     <div id="events-checkin" class="subtab-content" style="display: none;">
-        <!-- Event Selection -->
+        <!-- Arrange Selection Cards -->
         <div class="mb-3">
-            <label class="form-label"><i class="bi bi-calendar-event me-2"></i>Velg arrangement</label>
-            <select class="form-select" id="checkin-event-selector">
-                <option value="">Laster...</option>
-            </select>
+            <h6 class="mb-2"><i class="bi bi-calendar-event me-2"></i>Velg arrangement</h6>
+            <div id="checkin-event-selector-cards" class="row g-3">
+                <div class="col-md-6">
+                    <div class="card text-center p-4 text-muted">
+                        <i class="bi bi-hourglass-split fs-1 mb-2"></i>
+                        <small>Laster arrangementer...</small>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- Quick Stats -->
+        <!-- Check-in Stats (shown when event selected) -->
         <div id="checkin-stats" class="row g-2 mb-3" style="display: none;">
             <div class="col-md-3">
                 <div class="card p-2 text-center">
                     <div class="text-muted small">Påmeldte</div>
                     <div class="fs-5 fw-bold" id="checkin-total-attendees">0</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-2 text-center">
+                    <div class="text-muted small">Medlemmer</div>
+                    <div class="fs-5 fw-bold text-info" id="checkin-member-count">0</div>
                 </div>
             </div>
             <div class="col-md-3">
@@ -461,27 +472,54 @@ try {
             </div>
             <div class="col-md-3">
                 <div class="card p-2 text-center">
-                    <div class="text-muted small">Venter</div>
-                    <div class="fs-5 fw-bold text-warning" id="checkin-pending-count">0</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card p-2 text-center">
                     <div class="text-muted small">Inntekt</div>
                     <div class="fs-5 fw-bold text-primary" id="checkin-total-revenue">0 kr</div>
                 </div>
             </div>
         </div>
 
-        <!-- Event Cards with Check-ins -->
+        <!-- Check-in Cards for Attendees -->
         <div id="checkin-events-cards" class="row g-3" style="display: none;">
             <!-- Cards rendered here -->
         </div>
 
         <!-- Empty State -->
         <div class="text-center text-muted py-5" id="checkin-empty-state">
-            <i class="bi bi-people fs-1"></i>
+            <i class="bi bi-calendar-event fs-1"></i>
             <p class="mt-2">Velg et arrangement for å se deltakere</p>
+        </div>
+
+        <!-- Modal: All Registrations -->
+        <div class="modal fade" id="allRegistrationsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="bi bi-list-check me-2"></i><span id="modal-event-title">Alle reservasjoner</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="all-registrations-list" class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Navn</th>
+                                        <th>Kontakt</th>
+                                        <th>Type</th>
+                                        <th>Pris</th>
+                                        <th>Betaling</th>
+                                        <th>Registrert</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="all-registrations-tbody">
+                                    <tr><td colspan="6" class="text-center text-muted">Laster...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Quick Guest Registration -->
@@ -1482,12 +1520,12 @@ function performDeleteEvent(eventId, deleteMode) {
 
 let selectedEventId = null;
 
-// Load events into check-in selector
+// Load events into check-in selector as cards
 async function loadCheckinEventSelector() {
-    const selector = document.getElementById('checkin-event-selector');
+    const container = document.getElementById('checkin-event-selector-cards');
     
     try {
-        const response = await fetch('/api/get_events.php');
+        const response = await fetch('/api/get_event_checkins.php');
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1495,24 +1533,112 @@ async function loadCheckinEventSelector() {
         
         const result = await response.json();
         
-        console.log('[Check-in Loader] API Response:', { success: result.success, eventsCount: result.events?.length ?? 0 });
-        
         if (result.success && result.events && result.events.length > 0) {
-            console.log(`[Check-in Loader] Found ${result.events.length} events, populating selector`);
-            selector.innerHTML = '<option value="">-- Velg arrangement --</option>' + 
-                result.events.map(event => `
-                    <option value="${event.id}">
-                        ${event.title} - ${event.start_date} ${event.start_time}
-                    </option>
-                `).join('');
+            container.innerHTML = result.events.map(event => `
+                <div class="col-md-6 col-lg-4">
+                    <div class="card cursor-pointer h-100" onclick="selectCheckinEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}')">
+                        <div class="card-body">
+                            <h6 class="card-title mb-2">${event.title}</h6>
+                            <small class="text-muted d-block mb-3">
+                                <i class="bi bi-calendar me-1"></i>${event.start_date} ${event.start_time}
+                            </small>
+                            <div class="row g-2 text-center small">
+                                <div class="col-6">
+                                    <div class="p-2 bg-light rounded">
+                                        <div class="text-muted">Påmeldte</div>
+                                        <strong>${event.total_attendees || 0}</strong>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="p-2 bg-light rounded">
+                                        <div class="text-muted">Medlemmer</div>
+                                        <strong class="text-info">${event.member_count || 0}</strong>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="p-2 bg-light rounded">
+                                        <div class="text-muted">Betalt</div>
+                                        <strong class="text-success">${event.paid_count || 0}</strong>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="p-2 bg-light rounded">
+                                        <div class="text-muted">Inntekt</div>
+                                        <strong class="text-primary">${event.total_revenue || 0} kr</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
         } else {
-            console.warn('[Check-in Loader] No events returned from API:', result.message || 'unknown reason');
-            selector.innerHTML = '<option value="">Ingen arrangementer tilgjengelig</option>';
+            container.innerHTML = `
+                <div class="col-md-6">
+                    <div class="card text-center p-4 text-muted">
+                        <i class="bi bi-inbox fs-1 mb-2"></i>
+                        <small>Ingen arrangementer tilgjengelig</small>
+                    </div>
+                </div>
+            `;
         }
     } catch (error) {
-        console.error('[Check-in Loader] CRITICAL ERROR fetching events:', error);
-        selector.innerHTML = '<option value="">⚠️ Feil ved lasting av arrangementer</option>';
+        console.error('Error loading check-in events:', error);
+        container.innerHTML = `
+            <div class="col-md-6">
+                <div class="card text-center p-4 text-danger">
+                    <i class="bi bi-exclamation-triangle fs-1 mb-2"></i>
+                    <small>Feil ved lasting av arrangementer</small>
+                </div>
+            </div>
+        `;
     }
+}
+
+// Select event from card
+async function selectCheckinEvent(eventId, eventTitle) {
+    selectedEventId = eventId;
+    
+    // Show stats and hide empty state
+    document.getElementById('checkin-stats').style.display = 'block';
+    document.getElementById('quick-guest-registration').style.display = 'block';
+    document.getElementById('checkin-empty-state').style.display = 'none';
+    
+    // Load event details
+    try {
+        const response = await fetch(`/api/get_event.php?id=${eventId}`);
+        const result = await response.json();
+        
+        if (result.success && result.event) {
+            document.getElementById('guest-price').value = result.event.ticket_price || 0;
+            
+            // Load payment methods
+            const paymentMethodSelect = document.getElementById('guest-payment-method');
+            paymentMethodSelect.innerHTML = '';
+            const paymentMethods = result.event.payment_methods_json ? JSON.parse(result.event.payment_methods_json) : ['cash'];
+            const methodNames = {
+                'cash': 'Kontant',
+                'card': 'Kort',
+                'vipps': 'Vipps',
+                'invoice': 'Faktura',
+                'bank_transfer': 'Bankoverføring'
+            };
+            paymentMethods.forEach(method => {
+                const option = document.createElement('option');
+                option.value = method;
+                option.textContent = methodNames[method] || method;
+                paymentMethodSelect.appendChild(option);
+            });
+            
+            // Load membership plans
+            loadMembershipPlansForGuest(eventId);
+        }
+    } catch (error) {
+        console.error('Error loading event details:', error);
+    }
+    
+    // Load check-ins
+    await loadCheckins(eventId);
 }
 
 // Handle payment toggle
@@ -1550,59 +1676,6 @@ document.querySelector('[name="attendee_email"]')?.addEventListener('blur', asyn
     }
 });
 
-// Handle event selection
-document.getElementById('checkin-event-selector')?.addEventListener('change', async function(e) {
-    selectedEventId = e.target.value;
-    
-    if (selectedEventId) {
-        document.getElementById('checkin-stats').style.display = 'block';
-        document.getElementById('quick-guest-registration').style.display = 'block';
-        document.getElementById('checkin-list-container').style.display = 'block';
-        document.getElementById('checkin-empty-state').style.display = 'none';
-        
-        // Load event details and populate form
-        try {
-            const response = await fetch(`/api/get_event.php?id=${selectedEventId}`);
-            const result = await response.json();
-            if (result.success && result.event) {
-                // Set default price
-                document.getElementById('guest-price').value = result.event.ticket_price || 0;
-                
-                // Load payment methods
-                const paymentMethodSelect = document.getElementById('guest-payment-method');
-                paymentMethodSelect.innerHTML = '';
-                const paymentMethods = result.event.payment_methods_json ? JSON.parse(result.event.payment_methods_json) : ['cash'];
-                const methodNames = {
-                    'cash': 'Kontant',
-                    'card': 'Kort',
-                    'vipps': 'Vipps',
-                    'invoice': 'Faktura',
-                    'bank_transfer': 'Bankoverføring'
-                };
-                paymentMethods.forEach(method => {
-                    const option = document.createElement('option');
-                    option.value = method;
-                    option.textContent = methodNames[method] || method;
-                    if (method === result.event.default_payment_method) {
-                        option.selected = true;
-                    }
-                    paymentMethodSelect.appendChild(option);
-                });
-                
-                // Load membership plans if available
-                loadMembershipPlansForGuest(selectedEventId);
-            }
-        } catch (error) {
-            console.error('Error loading event details:', error);
-        }
-        
-        loadCheckins(selectedEventId);
-    } else {
-        document.getElementById('checkin-stats').style.display = 'none';
-        document.getElementById('quick-guest-registration').style.display = 'none';
-        document.getElementById('checkin-list-container').style.display = 'none';
-    }
-});
 
 // Load membership plans for guest registration
 async function loadMembershipPlansForGuest(eventId) {
@@ -1881,8 +1954,8 @@ async function loadCheckins(eventId) {
         if (result.success) {
             // Update statistics
             document.getElementById('checkin-total-attendees').textContent = result.summary.total_attendees;
+            document.getElementById('checkin-member-count').textContent = result.summary.member_count || 0;
             document.getElementById('checkin-paid-count').textContent = result.summary.paid_count;
-            document.getElementById('checkin-pending-count').textContent = result.summary.pending_count;
             document.getElementById('checkin-total-revenue').textContent = result.summary.total_revenue.toFixed(2) + ' kr';
             
             const cardsContainer = document.getElementById('checkin-events-cards');
@@ -1908,9 +1981,9 @@ async function loadCheckins(eventId) {
                     
                     return `
                         <div class="col-md-6 col-lg-4">
-                            <div class="card h-100 ${isCheckedIn ? 'border-success' : 'border-warning'}">
+                            <div class="card h-100 ${isCheckedIn ? 'border-success' : 'border-warning'}" onclick="showAllRegistrations('${eventId}', event)">
                                 <div class="card-body">
-                                    <h6 class="card-title mb-2">${name}</h6>
+                                    <h6 class="card-title mb-2" style="cursor: pointer;">${name}</h6>
                                     <div class="small text-muted mb-2">
                                         <i class="bi bi-envelope me-1"></i>${contact}
                                     </div>
@@ -1920,7 +1993,7 @@ async function loadCheckins(eventId) {
                                     </div>
                                     <div class="fw-bold text-primary mb-3">${checkin.ticket_price} kr</div>
                                     ${!isCheckedIn ? `
-                                        <button class="btn btn-primary btn-sm w-100" onclick="quickCheckin('${checkin.id}', '${name.replace(/'/g, "\\'")}')">
+                                        <button class="btn btn-primary btn-sm w-100" onclick="quickCheckin('${checkin.id}', '${name.replace(/'/g, "\\'")}', event)">
                                             <i class="bi bi-check-circle me-1"></i>Sjekk inn
                                         </button>
                                     ` : ''}
@@ -1950,8 +2023,65 @@ async function loadCheckins(eventId) {
     }
 }
 
+// Show all registrations modal
+async function showAllRegistrations(eventId, event) {
+    if (event) event.stopPropagation();
+    
+    try {
+        const response = await fetch(`/api/get_event_checkins.php?event_id=${eventId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            // Get event title from selector
+            const titleEl = document.querySelector(`#checkin-event-selector-cards [onclick*="${eventId}"]`);
+            const eventTitle = titleEl ? titleEl.innerText.split('\n')[0] : 'Arrangement';
+            
+            document.getElementById('modal-event-title').textContent = eventTitle;
+            
+            const tbody = document.getElementById('all-registrations-tbody');
+            const methodNames = {
+                'cash': 'Kontant',
+                'card': 'Kort',
+                'vipps': 'Vipps',
+                'invoice': 'Faktura',
+                'bank_transfer': 'Bankoverføring'
+            };
+            
+            tbody.innerHTML = result.checkins.map(checkin => {
+                const name = checkin.attendee_name || (checkin.first_name && checkin.last_name ? checkin.first_name + ' ' + checkin.last_name : 'Ukjent');
+                const contact = checkin.attendee_email || checkin.attendee_phone || '-';
+                const registeredDate = new Date(checkin.created_at).toLocaleDateString('no-NO');
+                
+                const paymentBadge = checkin.payment_status === 'paid' 
+                    ? '<span class="badge bg-success">Betalt</span>' 
+                    : '<span class="badge bg-warning">Venter</span>';
+                
+                return `
+                    <tr>
+                        <td><strong>${name}</strong></td>
+                        <td><small>${contact}</small></td>
+                        <td><small>${checkin.ticket_type || 'Ordinær'}</small></td>
+                        <td>${checkin.ticket_price} kr</td>
+                        <td>${paymentBadge}</td>
+                        <td><small>${registeredDate}</small></td>
+                    </tr>
+                `;
+            }).join('');
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('allRegistrationsModal'));
+            modal.show();
+        }
+    } catch (error) {
+        console.error('Error loading registrations:', error);
+        toast.quickError('Feil', 'Kunne ikke laste reservasjoner');
+    }
+}
+
 // Quick check-in from list
-async function quickCheckin(checkinId, name) {
+async function quickCheckin(checkinId, name, event) {
+    if (event) event.stopPropagation();
+    
     if (!confirm(`Er du sikker på at du vil sjekke inn ${name}?`)) {
         return;
     }
