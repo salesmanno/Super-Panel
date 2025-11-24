@@ -209,6 +209,26 @@ try {
         $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = ? WHERE id = ?");
         $stmt->execute([$defaultPaymentMethod, $eventId]);
         
+        // 3c. Auto-create events_results for income/expense tracking
+        try {
+            $stmt = $db->prepare("
+                INSERT INTO events_results (
+                    event_id, company_id, date_start, date_end,
+                    ticketprice_member, ticketprice_normal
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $eventId,
+                $_SESSION['company_id'],
+                $data['start_date'],
+                $data['end_date'] ?? $data['start_date'],
+                $data['member_ticket_price'] ?? 0,
+                $data['ticket_price'] ?? 0
+            ]);
+        } catch (Exception $e) {
+            error_log("Warning: Failed to create events_results for event {$eventId}: " . $e->getMessage());
+        }
+        
         // 4. Save membership pricing if provided (skip for 'none' type)
         if ($registrationType !== 'none' && isset($data['membership_pricing']) && is_array($data['membership_pricing'])) {
             try {

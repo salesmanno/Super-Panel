@@ -40,6 +40,14 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-24 (SESSION 10 - AUTO-CREATE EVENTS_RESULTS ON EVENT CREATION)**:
+  - Når arrangement opprettes → Auto-create `events_results` record
+  - `events_results` brukes for å registrere inn- og utgifter til arrangement
+  - Implementert i `api/create_event.php` (linje 215-233)
+  - Setter ticket price og dato fra arrangement automatisk
+  - Åpner for å spore event-spesifikk ekonomi separate fra unified_ledger
+  - Feasibility-vurdering: events_results eksisterte allerede, nå brukes den konsekvent
+
 - **2025-11-24 (SESSION 9 - INNSJEKKING REDESIGNED KOMPLETT)**:
   - **Event Selection → Cards Layout**:
     - Arrangement selector endret fra dropdown til cards
