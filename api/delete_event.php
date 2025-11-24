@@ -18,43 +18,121 @@ try {
     }
 
     $db = getDBConnection();
+    $deleteMode = $data['delete_mode'] ?? 'soft'; // 'soft' or 'hard'
     
-    // Soft delete: mark as inactive instead of deleting
-    // This preserves output_products and historical data
-    $stmt = $db->prepare("
-        UPDATE events_eventdata 
-        SET is_active = 0
-        WHERE id = ? AND company_id = ?
-    ");
-    
-    $stmt->execute([
-        $data['event_id'],
-        $_SESSION['company_id']
-    ]);
-    
-    if ($stmt->rowCount() > 0) {
-        // Also hide the product from output_products catalog
-        $hideStmt = $db->prepare("
-            UPDATE output_products 
-            SET is_visible = 0, is_public = 0
-            WHERE product_id = ? 
-            AND product_type = 'events'
-            AND company_id = ?
+    if ($deleteMode === 'hard') {
+        // HARD DELETE: Completely remove from database
+        // WARNING: This also removes all related data (registrations, transactions, etc.)
+        $db->beginTransaction();
+        
+        try {
+            // 1. Delete from output_products
+            $stmt = $db->prepare("
+                DELETE FROM output_products 
+                WHERE product_id = ? 
+                AND product_type = 'events'
+                AND company_id = ?
+            ");
+            $stmt->execute([$data['event_id'], $_SESSION['company_id']]);
+            
+            // 2. Delete event registrations and check-ins
+            $stmt = $db->prepare("
+                DELETE FROM event_registrations 
+                WHERE event_id = ? AND company_id = ?
+            ");
+            $stmt->execute([$data['event_id'], $_SESSION['company_id']]);
+            
+            $stmt = $db->prepare("
+                DELETE FROM events_checkin 
+                WHERE event_id = ? AND company_id = ?
+            ");
+            $stmt->execute([$data['event_id'], $_SESSION['company_id']]);
+            
+            // 3. Delete registration fields
+            $stmt = $db->prepare("
+                DELETE FROM event_registration_fields 
+                WHERE event_id = ?
+            ");
+            $stmt->execute([$data['event_id']]);
+            
+            // 4. Delete membership pricing
+            $stmt = $db->prepare("
+                DELETE FROM event_membership_plans 
+                WHERE event_id = ?
+            ");
+            $stmt->execute([$data['event_id']]);
+            
+            // 5. Delete from unified_ledger (event transactions)
+            $stmt = $db->prepare("
+                DELETE FROM unified_ledger 
+                WHERE reference_id = ? AND reference_type = 'event' AND company_id = ?
+            ");
+            $stmt->execute([$data['event_id'], $_SESSION['company_id']]);
+            
+            // 6. Delete the event itself
+            $stmt = $db->prepare("
+                DELETE FROM events_eventdata 
+                WHERE id = ? AND company_id = ?
+            ");
+            $stmt->execute([$data['event_id'], $_SESSION['company_id']]);
+            
+            $rowCount = $stmt->rowCount();
+            
+            $db->commit();
+            
+            if ($rowCount > 0) {
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Arrangement og all tilknyttet data slettet permanent'
+                ]);
+            } else {
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Kunne ikke slette arrangement'
+                ]);
+            }
+        } catch (Exception $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    } else {
+        // SOFT DELETE: Mark as inactive instead of deleting
+        // This preserves output_products and historical data
+        $stmt = $db->prepare("
+            UPDATE events_eventdata 
+            SET is_active = 0
+            WHERE id = ? AND company_id = ?
         ");
-        $hideStmt->execute([
+        
+        $stmt->execute([
             $data['event_id'],
             $_SESSION['company_id']
         ]);
         
-        echo json_encode([
-            'success' => true,
-            'message' => 'Arrangement slettet'
-        ]);
-    } else {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Kunne ikke slette arrangement'
-        ]);
+        if ($stmt->rowCount() > 0) {
+            // Also hide the product from output_products catalog
+            $hideStmt = $db->prepare("
+                UPDATE output_products 
+                SET is_visible = 0, is_public = 0
+                WHERE product_id = ? 
+                AND product_type = 'events'
+                AND company_id = ?
+            ");
+            $hideStmt->execute([
+                $data['event_id'],
+                $_SESSION['company_id']
+            ]);
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Arrangement gjort usynlig (data bevart)'
+            ]);
+        } else {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Kunne ikke slette arrangement'
+            ]);
+        }
     }
     
 } catch (Exception $e) {

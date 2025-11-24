@@ -40,6 +40,20 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-23 (SESSION 7 - DELETE MODE SELECTOR ADDED)**:
+  - **FEATURE ADDED**: Users can now choose between two delete modes when deleting arrangements
+  - **Soft Delete**: Arrangement marked as inactive (is_active = 0), data preserved in database for historical reference
+  - **Hard Delete**: Complete removal of arrangement + all related data (registrations, check-ins, fields, membership pricing, transactions)
+  - **Frontend**: Modal dialog shows two clear options with descriptions
+  - **Backend**: `delete_event.php` handles both modes with proper transaction management for hard delete
+  - **Files changed**: api/delete_event.php, modules/events_content.php
+
+- **2025-11-23 (SESSION 7 - OUTPUT PRODUCTS BOOLEAN FIX)**:
+  - **BUG FIXED**: `ProductCatalogService.php` was sending PHP boolean (true/false) instead of MySQL integers (1/0)
+  - **Problem**: INSERT into output_products failed silently when creating new events
+  - **Solution**: Changed boolean conversion to `$isVisible = $options['is_visible'] ? 1 : 0`
+  - **Result**: New event arrangements now correctly create output_products entries
+
 - **2025-11-23 (SESSION 7 - OUTPUT PRODUCTS COLUMN MISMATCH FIXED)**:
   - **BUG FIXED**: `get_output_products.php` was using WRONG column names from old schema, causing new events NOT to display on frontend
   - **Problem**: `create_event.php` inserts with modern columns (module_id, product_type, product_id, is_visible), but `get_output_products.php` searched for old columns (module_source, item_type, source_id, is_available)

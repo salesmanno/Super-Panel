@@ -1416,28 +1416,85 @@ function viewEvent(eventId) {
 }
 
 function deleteEvent(eventId) {
-    if (confirm('Er du sikker på at du vil slette dette arrangementet?')) {
-        fetch('../api/delete_event.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ event_id: eventId })
+    // Show modal to choose delete mode
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'deleteEventModal';
+    modal.setAttribute('tabindex', '-1');
+    modal.innerHTML = `
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="bi bi-trash me-2"></i>Slett arrangement</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Velg hvordan du ønsker å slette dette arrangementet:</p>
+                    <div class="row">
+                        <div class="col-6">
+                            <button class="btn btn-outline-warning w-100" onclick="performDeleteEvent('${eventId}', 'soft')">
+                                <i class="bi bi-eye-slash me-2"></i>
+                                <strong>Gjør usynlig</strong>
+                                <br>
+                                <small class="text-muted">Data bevart i databasen</small>
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button class="btn btn-outline-danger w-100" onclick="performDeleteEvent('${eventId}', 'hard')">
+                                <i class="bi bi-trash me-2"></i>
+                                <strong>Slett permanent</strong>
+                                <br>
+                                <small class="text-muted">Alt fjernes fra DB</small>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="alert alert-info mt-3 mb-0">
+                        <strong>Tips:</strong> Velg "Gjør usynlig" for å bevare historikk. Velg "Slett permanent" kun når du ønsker fullstendig sletting.
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+    
+    // Clean up modal when hidden
+    modal.addEventListener('hidden.bs.modal', () => {
+        modal.remove();
+    });
+}
+
+function performDeleteEvent(eventId, deleteMode) {
+    const deleteTypeLabel = deleteMode === 'soft' ? 'gjort usynlig' : 'slettet permanent';
+    
+    fetch('../api/delete_event.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+            event_id: eventId,
+            delete_mode: deleteMode
         })
-        .then(res => res.json())
-        .then(result => {
-            if (result.success) {
-                toast.quickSuccess('Arrangement', 'Arrangement slettet');
-                loadEvents();
-            } else {
-                toast.quickError('Feil', result.message || 'Kunne ikke slette');
-            }
-        })
-        .catch(error => {
-            console.error('Error deleting event:', error);
-            toast.quickError('Feil', 'Feil ved sletting');
-        });
-    }
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            toast.quickSuccess('Arrangement', 'Arrangement ' + deleteTypeLabel);
+            // Close the modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteEventModal'));
+            if (modal) modal.hide();
+            loadEvents();
+        } else {
+            toast.quickError('Feil', result.message || 'Kunne ikke slette');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting event:', error);
+        toast.quickError('Feil', 'Feil ved sletting');
+    });
 }
 
 // ========== CHECK-IN FUNCTIONALITY ==========
