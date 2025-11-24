@@ -10,26 +10,46 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 require_once __DIR__ . '/../config/database.php';
 
 try {
+    $db = getDBConnection();
+    
+    if (!$db) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Databaseforbindelse mislyktes',
+            'events' => []
+        ]);
+        exit;
+    }
+    
     $eventId = $_GET['event_id'] ?? null;
     
     // If no event_id, return list of all events for this company for check-in selector
     if (empty($eventId)) {
-        $db = getDBConnection();
-        
-        $stmt = $db->prepare("
-            SELECT 
-                id,
-                title,
-                start_date,
-                start_time,
-                ticket_price,
-                venue_name
-            FROM events_eventdata 
-            WHERE company_id = ? AND is_active = 1
-            ORDER BY start_date DESC
-        ");
-        $stmt->execute([$_SESSION['company_id']]);
-        $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        try {
+            $stmt = $db->prepare("
+                SELECT 
+                    id,
+                    title,
+                    start_date,
+                    start_time,
+                    ticket_price,
+                    venue_name
+                FROM events_eventdata 
+                WHERE company_id = ? AND is_active = 1
+                ORDER BY start_date DESC
+            ");
+            $stmt->execute([$_SESSION['company_id']]);
+            $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error fetching events list: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            echo json_encode([
+                'success' => false,
+                'message' => 'Feil ved henting av arrangementer: ' . $e->getMessage(),
+                'events' => []
+            ]);
+            exit;
+        }
         
         // Get check-in stats for each event
         $eventsWithStats = [];

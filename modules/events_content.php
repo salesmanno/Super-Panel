@@ -1532,52 +1532,69 @@ async function loadCheckinEventSelector() {
         }
         
         const result = await response.json();
+        console.log('Check-in events API response:', result);
         
-        if (result.success && result.events && result.events.length > 0) {
-            container.innerHTML = result.events.map(event => `
-                <div class="col-md-6 col-lg-4">
-                    <div class="card cursor-pointer h-100" onclick="selectCheckinEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}')">
-                        <div class="card-body">
-                            <h6 class="card-title mb-2">${event.title}</h6>
-                            <small class="text-muted d-block mb-3">
-                                <i class="bi bi-calendar me-1"></i>${event.start_date} ${event.start_time}
-                            </small>
-                            <div class="row g-2 text-center small">
-                                <div class="col-6">
-                                    <div class="p-2 bg-light rounded">
-                                        <div class="text-muted">Påmeldte</div>
-                                        <strong>${event.total_attendees || 0}</strong>
+        if (result.success) {
+            if (!result.events) {
+                result.events = [];
+            }
+            
+            if (result.events.length > 0) {
+                container.innerHTML = result.events.map(event => `
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card cursor-pointer h-100" onclick="selectCheckinEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}')">
+                            <div class="card-body">
+                                <h6 class="card-title mb-2">${event.title}</h6>
+                                <small class="text-muted d-block mb-3">
+                                    <i class="bi bi-calendar me-1"></i>${event.start_date} ${event.start_time}
+                                </small>
+                                <div class="row g-2 text-center small">
+                                    <div class="col-6">
+                                        <div class="p-2 bg-light rounded">
+                                            <div class="text-muted">Påmeldte</div>
+                                            <strong>${event.total_attendees || 0}</strong>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="p-2 bg-light rounded">
-                                        <div class="text-muted">Medlemmer</div>
-                                        <strong class="text-info">${event.member_count || 0}</strong>
+                                    <div class="col-6">
+                                        <div class="p-2 bg-light rounded">
+                                            <div class="text-muted">Medlemmer</div>
+                                            <strong class="text-info">${event.member_count || 0}</strong>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="p-2 bg-light rounded">
-                                        <div class="text-muted">Betalt</div>
-                                        <strong class="text-success">${event.paid_count || 0}</strong>
+                                    <div class="col-6">
+                                        <div class="p-2 bg-light rounded">
+                                            <div class="text-muted">Betalt</div>
+                                            <strong class="text-success">${event.paid_count || 0}</strong>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="p-2 bg-light rounded">
-                                        <div class="text-muted">Inntekt</div>
-                                        <strong class="text-primary">${event.total_revenue || 0} kr</strong>
+                                    <div class="col-6">
+                                        <div class="p-2 bg-light rounded">
+                                            <div class="text-muted">Inntekt</div>
+                                            <strong class="text-primary">${event.total_revenue || 0} kr</strong>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            `).join('');
+                `).join('');
+            } else {
+                container.innerHTML = `
+                    <div class="col-md-6">
+                        <div class="card text-center p-4 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2"></i>
+                            <small>Ingen arrangementer tilgjengelig</small>
+                        </div>
+                    </div>
+                `;
+            }
         } else {
+            console.error('API returned error:', result.message);
             container.innerHTML = `
                 <div class="col-md-6">
-                    <div class="card text-center p-4 text-muted">
-                        <i class="bi bi-inbox fs-1 mb-2"></i>
-                        <small>Ingen arrangementer tilgjengelig</small>
+                    <div class="card text-center p-4 text-warning">
+                        <i class="bi bi-exclamation-triangle fs-1 mb-2"></i>
+                        <small>${result.message || 'Feil ved lasting av arrangementer'}</small>
                     </div>
                 </div>
             `;
@@ -1588,7 +1605,7 @@ async function loadCheckinEventSelector() {
             <div class="col-md-6">
                 <div class="card text-center p-4 text-danger">
                     <i class="bi bi-exclamation-triangle fs-1 mb-2"></i>
-                    <small>Feil ved lasting av arrangementer</small>
+                    <small>Feil ved lasting av arrangementer: ${error.message}</small>
                 </div>
             </div>
         `;

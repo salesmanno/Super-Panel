@@ -40,6 +40,17 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-24 (SESSION 11 - DEBUGGING: CHECKIN EVENTS NOT LOADING)**:
+  - **Innsjekk Event Selector - Enhanced Debugging**:
+    - `api/get_event_checkins.php` - Added error handling for database connection failures
+    - Now returns clear error messages if connection fails
+    - Validates $db connection before attempting queries
+    - Logs stack trace on PDOException
+    - `modules/events_content.php loadCheckinEventSelector()` - Added console logging
+    - Shows API response in browser console for debugging
+    - Displays error messages from API in UI (not just "Ingen arrangementer")
+    - **Next steps**: Check browser console (F12) when innsjekking loads to see API response
+
 - **2025-11-24 (SESSION 11 - BUGFIXES: CHECKIN SELECTOR, CREATOR NAME, HTML LOADING, PRODUCT TOGGLE, NEWS & MODAL)**:
   - **Innsjekk-Selector Fixed**:
     - `get_event_checkins.php` nå returnerer LIST av arrangementer når event_id mangler
