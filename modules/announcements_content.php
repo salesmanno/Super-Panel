@@ -1,11 +1,11 @@
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="mb-1">📢 Kunngjøringer</h4>
-            <p class="text-muted mb-0">Administrer firmaets kunngjøringer og meldinger</p>
+            <h4 class="mb-1">📢 Nyheter</h4>
+            <p class="text-muted mb-0">Administrer firmaets nyheter og meldinger</p>
         </div>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#announcementModal" onclick="openNewAnnouncementModal()">
-            <i class="bi bi-plus-lg me-2"></i>Ny kunngjøring
+            <i class="bi bi-plus-lg me-2"></i>Ny nyhet
         </button>
     </div>
 
@@ -30,7 +30,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="announcementModalTitle">Ny kunngjøring</h5>
+                <h5 class="modal-title" id="announcementModalTitle">Ny nyhet</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -123,7 +123,7 @@ function displayAnnouncements(announcements) {
             <div class="card shadow-sm">
                 <div class="card-body text-center py-5">
                     <i class="bi bi-megaphone text-muted" style="font-size: 3rem;"></i>
-                    <p class="text-muted mt-3 mb-0">Ingen kunngjøringer funnet</p>
+                    <p class="text-muted mt-3 mb-0">Ingen nyheter funnet</p>
                 </div>
             </div>
         `;
@@ -177,7 +177,7 @@ function displayAnnouncements(announcements) {
 
 
 function openNewAnnouncementModal() {
-    document.getElementById('announcementModalTitle').textContent = 'Ny kunngjøring';
+    document.getElementById('announcementModalTitle').textContent = 'Ny nyhet';
     document.getElementById('announcementForm').reset();
     document.getElementById('announcement-id').value = '';
     
@@ -191,7 +191,7 @@ function editAnnouncement(id) {
     const announcement = currentAnnouncements.find(a => a.id === id);
     if (!announcement) return;
 
-    document.getElementById('announcementModalTitle').textContent = 'Rediger kunngjøring';
+    document.getElementById('announcementModalTitle').textContent = 'Rediger nyhet';
     document.getElementById('announcement-id').value = announcement.id;
     document.getElementById('announcement-title').value = announcement.title;
     document.getElementById('announcement-content').value = announcement.content;
@@ -251,18 +251,18 @@ async function saveAnnouncement() {
         if (result.success) {
             bootstrap.Modal.getInstance(document.getElementById('announcementModal')).hide();
             await loadAnnouncements();
-            toast.quickSuccess('Kunngjøring', result.message);
+            toast.quickSuccess('Nyhet', result.message);
         } else {
             toast.quickError('Feil', result.message);
         }
     } catch (error) {
         console.error('Save announcement error:', error);
-        toast.quickError('Feil', 'Kunne ikke lagre kunngjøring');
+        toast.quickError('Feil', 'Kunne ikke lagre nyhet');
     }
 }
 
 async function togglePublish(id) {
-    if (!confirm('Vil du endre publiseringsstatus for denne kunngjøringen?')) return;
+    if (!confirm('Vil du endre publiseringsstatus for denne nyheten?')) return;
 
     try {
         const response = await fetch('/api/toggle_announcement_publish.php', {
@@ -304,7 +304,7 @@ async function togglePin(id) {
 }
 
 async function deleteAnnouncement(id) {
-    if (!confirm('Er du sikker på at du vil slette denne kunngjøringen? Dette kan ikke angres.')) return;
+    if (!confirm('Er du sikker på at du vil slette denne nyheten? Dette kan ikke angres.')) return;
 
     try {
         const response = await fetch('/api/delete_announcement.php', {
@@ -317,7 +317,7 @@ async function deleteAnnouncement(id) {
 
         if (result.success) {
             await loadAnnouncements();
-            toast.quickSuccess('Kunngjøring', result.message);
+            toast.quickSuccess('Nyhet', result.message);
         } else {
             toast.quickError('Feil', result.message);
         }

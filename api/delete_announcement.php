@@ -9,7 +9,7 @@ try {
     $data = json_decode(file_get_contents('php://input'), true);
     
     if (!isset($data['id'])) {
-        echo json_encode(['success' => false, 'message' => 'Kunngjørings-ID mangler']);
+        echo json_encode(['success' => false, 'message' => 'Nyhet-ID mangler']);
         exit;
     }
     
@@ -22,12 +22,12 @@ try {
     if ($stmt->rowCount() > 0) {
         echo json_encode([
             'success' => true,
-            'message' => 'Kunngjøring slettet'
+            'message' => 'Nyhet slettet'
         ]);
     } else {
         echo json_encode([
             'success' => false,
-            'message' => 'Kunngjøring ikke funnet'
+            'message' => 'Nyhet ikke funnet'
         ]);
     }
     
@@ -36,6 +36,6 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Kunne ikke slette kunngjøring'
+        'message' => 'Kunne ikke slette nyhet'
     ]);
 }

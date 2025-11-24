@@ -75,7 +75,7 @@ try {
     
     echo json_encode([
         'success' => true,
-        'message' => 'Kunngjøring opprettet',
+        'message' => 'Nyhet opprettet',
         'announcement_id' => $announcementId
     ]);
     
@@ -87,6 +87,6 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Kunne ikke opprette kunngjøring'
+        'message' => 'Kunne ikke opprette nyhet'
     ]);
 }

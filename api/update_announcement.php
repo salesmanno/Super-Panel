@@ -9,7 +9,7 @@ try {
     $data = json_decode(file_get_contents('php://input'), true);
     
     if (!isset($data['id'])) {
-        echo json_encode(['success' => false, 'message' => 'Kunngjørings-ID mangler']);
+        echo json_encode(['success' => false, 'message' => 'Nyhet-ID mangler']);
         exit;
     }
     
@@ -23,7 +23,7 @@ try {
     $stmt->execute([$data['id'], $companyId]);
     
     if (!$stmt->fetch()) {
-        echo json_encode(['success' => false, 'message' => 'Kunngjøring ikke funnet']);
+        echo json_encode(['success' => false, 'message' => 'Nyhet ikke funnet']);
         exit;
     }
     
@@ -58,7 +58,7 @@ try {
     
     echo json_encode([
         'success' => true,
-        'message' => 'Kunngjøring oppdatert'
+        'message' => 'Nyhet oppdatert'
     ]);
     
 } catch (Exception $e) {
@@ -69,6 +69,6 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Kunne ikke oppdatere kunngjøring'
+        'message' => 'Kunne ikke oppdatere nyhet'
     ]);
 }
