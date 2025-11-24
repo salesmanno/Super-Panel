@@ -1574,7 +1574,15 @@ try {
                 
                 const data = await response.json();
                 
-                if (data.success && data.stats.total > 0) {
+                if (!data.success) {
+                    console.error('Error loading products inventory:', data.message);
+                    document.getElementById('products-count').innerHTML = 
+                        `<i class="bi bi-exclamation-triangle me-1 text-warning"></i>Kunne ikke laste oppføringer`;
+                    document.getElementById('products-summary').style.display = 'block';
+                    return;
+                }
+                
+                if (data.stats.total > 0) {
                     const activeText = data.stats.active > 0 ? ` (<strong>${data.stats.active}</strong> aktiv${data.stats.active > 1 ? 'e' : ''})` : '';
                     document.getElementById('products-count').innerHTML = 
                         `...og har <strong>${data.stats.total}</strong> oppføring${data.stats.total > 1 ? 'er' : ''}${activeText}`;
@@ -1587,7 +1595,9 @@ try {
                 }
             } catch (error) {
                 console.error('Error loading products summary:', error);
-                document.getElementById('products-summary').style.display = 'none';
+                document.getElementById('products-count').innerHTML = 
+                    `<i class="bi bi-exclamation-triangle me-1 text-danger"></i>Feil ved lasting av oppføringer`;
+                document.getElementById('products-summary').style.display = 'block';
             }
         }
         
@@ -1684,6 +1694,10 @@ try {
                     body: JSON.stringify({product_id: productId})
                 });
                 
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const result = await response.json();
                 if (result.success) {
                     const product = window.inventoryData.products.find(p => p.id === productId);
@@ -1697,7 +1711,7 @@ try {
                 }
             } catch (error) {
                 console.error('Error toggling product:', error);
-                toast.quickError('Feil', 'Kunne ikke oppdatere status');
+                toast.quickError('Feil', error.message || 'Kunne ikke oppdatere status');
             }
         }
         
@@ -1713,6 +1727,10 @@ try {
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({product_id: productId})
                 });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
                 
                 const result = await response.json();
                 
@@ -1731,7 +1749,7 @@ try {
                 }
             } catch (error) {
                 console.error('Error deleting product:', error);
-                toast.quickError('Feil', 'Kunne ikke slette produkt');
+                toast.quickError('Feil', error.message || 'Kunne ikke slette produkt');
             }
         }
         

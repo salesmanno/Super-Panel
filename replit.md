@@ -40,6 +40,18 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-24 (SESSION 8+ - PRODUCT CATALOGUE ERROR HANDLING FIXED)**:
+  - **ISSUE**: Product catalogue silently disappeared when loading failed (no error message shown)
+  - **ROOT CAUSE**: Frontend checked `data.success` but only hid section without showing error
+  - **Problem**: When API failed (MySQL not reachable), products just vanished silently
+  - **Solution Applied**:
+    - Added explicit error message display in `loadProductsSummary()`
+    - Shows "Kunne ikke laste oppføringer" with warning icon when API fails
+    - Added HTTP status validation to `toggleInventoryProduct()` function
+    - Added HTTP status validation to `deleteInventoryProduct()` function
+    - All functions now show actual error messages to user
+  - **Result**: Users now see clear error feedback instead of silent failures
+
 - **2025-11-24 (SESSION 8+ - EVENT DELETE ERROR HANDLING FIXED)**:
   - **BUG FOUND**: Delete event showed generic "Feil ved sletting" without actual error details
   - **ROOT CAUSE**: Frontend `performDeleteEvent()` lacked HTTP status check (`if (!res.ok)`)
