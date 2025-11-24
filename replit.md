@@ -40,6 +40,18 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-24 (SESSION 8 - EVENT CHECK-IN CONSISTENCY FIXED)**:
+  - **BUG FOUND**: `api/register_guest.php` lagret i `attendee_first_name`/`attendee_last_name`, mens `api/checkin_event.php` lagret i `attendee_name` 
+  - **PROBLEM**: Data-inkonsistens - guest registrations og check-ins i ulike formater
+  - **Root Cause**: `register_guest.php` brukte feil INSERT kolonner
+  - **Solution Applied**:
+    - Fikset `api/register_guest.php` til å kombinere first+last name til `attendee_name`
+    - Lagt til `company_id` i INSERT (var manglende)
+    - Lagt til `check_in_time` kolonne (NOW())
+    - Nå konsistent med `api/checkin_event.php`
+  - **Database**: Schema har redundante kolonner (attendee_first_name, attendee_last_name, etc) som ikke lenger brukes - kan ryddes senere
+  - **Result**: Check-ins og guest registrations nå i samme format
+
 - **2025-11-24 (SESSION 8 - EVENT FORM FIELD ORGANIZATION FIXED)**:
   - **FIXED**: Reordered location fields in both create and edit event forms
   - **Previous order**: Stedsnavn, By, Postnummer, Adresse → **New order**: Stedsnavn, Gateadresse, Postnummer, Poststed
