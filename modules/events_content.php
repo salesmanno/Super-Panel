@@ -291,20 +291,23 @@ try {
                             <label class="form-label">Stedsnavn</label>
                             <input type="text" class="form-control" name="venue_name">
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">By</label>
-                            <input type="text" class="form-control" name="event_city">
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Postnummer</label>
-                            <input type="text" class="form-control" name="event_postal">
-                        </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-12 mb-3">
-                            <label class="form-label">Adresse</label>
+                            <label class="form-label">Gateadresse</label>
                             <input type="text" class="form-control" name="event_address">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Postnummer</label>
+                            <input type="text" class="form-control" name="event_postal">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Poststed</label>
+                            <input type="text" class="form-control" name="event_city">
                         </div>
                     </div>
 
@@ -387,7 +390,25 @@ try {
                                 <div class="form-check mb-2">
                                     <input class="form-check-input" type="checkbox" name="field_street" id="field_street">
                                     <label class="form-check-label" for="field_street">
-                                        <i class="bi bi-house me-1"></i> Adresse
+                                        <i class="bi bi-house me-1"></i> Gateadresse
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="field_zip" id="field_zip">
+                                    <label class="form-check-label" for="field_zip">
+                                        <i class="bi bi-mailbox me-1"></i> Postnummer
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="field_city" id="field_city">
+                                    <label class="form-check-label" for="field_city">
+                                        <i class="bi bi-geo-alt me-1"></i> Poststed
                                     </label>
                                 </div>
                             </div>
@@ -716,20 +737,23 @@ try {
                             <label class="form-label">Stedsnavn</label>
                             <input type="text" class="form-control" name="venue_name" id="edit-venue-name">
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">By</label>
-                            <input type="text" class="form-control" name="event_city" id="edit-event-city">
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Postnummer</label>
-                            <input type="text" class="form-control" name="event_postal" id="edit-event-postal">
-                        </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-12 mb-3">
-                            <label class="form-label">Adresse</label>
+                            <label class="form-label">Gateadresse</label>
                             <input type="text" class="form-control" name="event_address" id="edit-event-address">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Postnummer</label>
+                            <input type="text" class="form-control" name="event_postal" id="edit-event-postal">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Poststed</label>
+                            <input type="text" class="form-control" name="event_city" id="edit-event-city">
                         </div>
                     </div>
 
@@ -838,14 +862,6 @@ try {
                                 <input class="form-check-input" type="checkbox" name="field_city" id="edit-field-city">
                                 <label class="form-check-label" for="edit-field-city">
                                     <i class="bi bi-geo-alt text-primary me-1"></i> Poststed
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="field_postal" id="edit-field-postal">
-                                <label class="form-check-label" for="edit-field-postal">
-                                    <i class="bi bi-box text-primary me-1"></i> Postboks
                                 </label>
                             </div>
                         </div>

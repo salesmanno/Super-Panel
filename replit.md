@@ -40,6 +40,16 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-24 (SESSION 8 - EVENT FORM FIELD ORGANIZATION FIXED)**:
+  - **FIXED**: Reordered location fields in both create and edit event forms
+  - **Previous order**: Stedsnavn, By, Postnummer, Adresse → **New order**: Stedsnavn, Gateadresse, Postnummer, Poststed
+  - **Create form**: Added missing `field_zip` and `field_city` checkboxes in registration fields section
+  - **Edit form**: Removed unnecessary `field_postal` checkbox (only zip and city needed)
+  - **Location fields**: Gateadresse now full-width, Postnummer + Poststed on same row
+  - **Contact fields**: E-post, Telefon, Gateadresse, Postnummer (row 1) → Poststed, Alder (row 2)
+  - **Database alignment**: All form fields now properly match `events_eventdata` columns (street, postal, city)
+  - **Verified**: PHP syntax checked, workflow restarted successfully
+
 - **2025-11-24 (SESSION 8 - PRODUCTS INVENTORY MODAL INTEGRATED)**:
   - **NEW FEATURE**: Products/services overview in header with clickable link
   - **Location**: Under "Du har tilgang til X moduler" in dashboard header
