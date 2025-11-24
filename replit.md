@@ -40,7 +40,7 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
-- **2025-11-24 (SESSION 11 - BUGFIXES: CHECKIN SELECTOR & CREATOR NAME)**:
+- **2025-11-24 (SESSION 11 - BUGFIXES: CHECKIN SELECTOR, CREATOR NAME & HTML LOADING)**:
   - **Innsjekk-Selector Fixed**:
     - `get_event_checkins.php` nå returnerer LIST av arrangementer når event_id mangler
     - Viser Påmeldte, Medlemmer, Betalt, Inntekt per arrangement
@@ -49,6 +49,13 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
     - `get_event.php` nå JOIN med tenant_admins for created_by_name
     - Viser "Opprettet av [Navn]" eller "Opprettet av Ukjent bruker" hvis admin slettet
     - Forhindrer "opprettet av ukjent bruker" feilen
+  - **HTML 500 Error Fixed**:
+    - `api/load_ditt_nettsted_content.php` - Bedre error handling
+    - Added explicit Content-Type header
+    - File existence check before include
+    - Stack trace logging for debugging on production
+    - Clearer error messages instead of generic 500s
+    - Prevents cascade errors from hidden PHP exceptions
 
 - **2025-11-24 (SESSION 10 - EVENTS_CHECKIN AS AUTHORITATIVE SOURCE)**:
   - **EventResultsService Refactored**:
