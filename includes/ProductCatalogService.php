@@ -99,10 +99,10 @@ class ProductCatalogService {
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             
-            // Ensure booleans are properly typed for PostgreSQL
-            $isVisible = isset($options['is_visible']) ? (bool)$options['is_visible'] : true;
-            $isPublic = isset($options['is_public']) ? (bool)$options['is_public'] : true;
-            $isFeatured = isset($options['is_marketplace_featured']) ? (bool)$options['is_marketplace_featured'] : false;
+            // MySQL requires 1/0 for boolean columns (not PHP true/false)
+            $isVisible = isset($options['is_visible']) ? ($options['is_visible'] ? 1 : 0) : 1;
+            $isPublic = isset($options['is_public']) ? ($options['is_public'] ? 1 : 0) : 1;
+            $isFeatured = isset($options['is_marketplace_featured']) ? ($options['is_marketplace_featured'] ? 1 : 0) : 0;
             
             $stmt->execute([
                 $outputProductId,
