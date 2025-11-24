@@ -40,6 +40,21 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-24 (SESSION 8+ - EVENT REGISTRATION FIELDS CRITICAL BUG FIXED)**:
+  - **ISSUE**: `event_registration_fields` table was completely empty - no fields saved when events created
+  - **ROOT CAUSE**: Checkboxes in create/edit event forms lacked `value="1"` attributes
+    - Checkboxes without `value` attributes submit "on" when checked
+    - Form used: `formData.get('field_email') ? 1 : 0` to convert truthy/falsy to 1/0
+    - However, this approach was unreliable with missing value attributes
+    - Result: Registration field preferences not consistently sent to API
+  - **SOLUTION**:
+    - Added explicit `value="1"` to ALL registration field checkboxes in create form (lines 378, 386, 394, 402, 412, 420)
+    - Added explicit `value="1"` to ALL registration field checkboxes in edit form (lines 831, 839, 847, 855, 865, 873)
+    - Now FormData explicitly sends "1" when checked, null when unchecked
+    - JavaScript correctly converts: "1" (truthy) → 1, null (falsy) → 0
+  - **Impact**: Going forward, all events will properly save their registration field configuration
+  - **Database**: Existing event (Julefest) needs to be recreated with registration fields now that form is fixed
+
 - **2025-11-24 (SESSION 8 - EVENT CHECK-IN CONSISTENCY FIXED)**:
   - **BUG FOUND**: `api/register_guest.php` lagret i `attendee_first_name`/`attendee_last_name`, mens `api/checkin_event.php` lagret i `attendee_name` 
   - **PROBLEM**: Data-inkonsistens - guest registrations og check-ins i ulike formater

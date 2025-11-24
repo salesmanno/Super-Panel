@@ -372,7 +372,7 @@ try {
                         <div class="row">
                             <div class="col-md-3">
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input contact-field-required" type="checkbox" name="field_email" id="field_email" checked>
+                                    <input class="form-check-input contact-field-required" type="checkbox" name="field_email" id="field_email" value="1" checked>
                                     <label class="form-check-label" for="field_email">
                                         <i class="bi bi-envelope me-1"></i> E-post
                                     </label>
@@ -380,7 +380,7 @@ try {
                             </div>
                             <div class="col-md-3">
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input contact-field-required" type="checkbox" name="field_phone" id="field_phone" checked>
+                                    <input class="form-check-input contact-field-required" type="checkbox" name="field_phone" id="field_phone" value="1" checked>
                                     <label class="form-check-label" for="field_phone">
                                         <i class="bi bi-telephone me-1"></i> Telefon
                                     </label>
@@ -388,7 +388,7 @@ try {
                             </div>
                             <div class="col-md-3">
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_street" id="field_street">
+                                    <input class="form-check-input" type="checkbox" name="field_street" id="field_street" value="1">
                                     <label class="form-check-label" for="field_street">
                                         <i class="bi bi-house me-1"></i> Gateadresse
                                     </label>
@@ -396,7 +396,7 @@ try {
                             </div>
                             <div class="col-md-3">
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_zip" id="field_zip">
+                                    <input class="form-check-input" type="checkbox" name="field_zip" id="field_zip" value="1">
                                     <label class="form-check-label" for="field_zip">
                                         <i class="bi bi-mailbox me-1"></i> Postnummer
                                     </label>
@@ -406,7 +406,7 @@ try {
                         <div class="row">
                             <div class="col-md-3">
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_city" id="field_city">
+                                    <input class="form-check-input" type="checkbox" name="field_city" id="field_city" value="1">
                                     <label class="form-check-label" for="field_city">
                                         <i class="bi bi-geo-alt me-1"></i> Poststed
                                     </label>
@@ -414,7 +414,7 @@ try {
                             </div>
                             <div class="col-md-3">
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_age" id="field_age">
+                                    <input class="form-check-input" type="checkbox" name="field_age" id="field_age" value="1">
                                     <label class="form-check-label" for="field_age">
                                         <i class="bi bi-person-badge me-1"></i> Alder
                                     </label>
@@ -825,7 +825,7 @@ try {
                     <div class="row">
                         <div class="col-md-3 mb-2">
                             <div class="form-check">
-                                <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_email" id="edit-field-email">
+                                <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_email" id="edit-field-email" value="1">
                                 <label class="form-check-label" for="edit-field-email">
                                     <i class="bi bi-envelope text-primary me-1"></i> E-post
                                 </label>
@@ -833,7 +833,7 @@ try {
                         </div>
                         <div class="col-md-3 mb-2">
                             <div class="form-check">
-                                <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_phone" id="edit-field-phone">
+                                <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_phone" id="edit-field-phone" value="1">
                                 <label class="form-check-label" for="edit-field-phone">
                                     <i class="bi bi-telephone text-primary me-1"></i> Telefon
                                 </label>
@@ -841,7 +841,7 @@ try {
                         </div>
                         <div class="col-md-3 mb-2">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="field_street" id="edit-field-street">
+                                <input class="form-check-input" type="checkbox" name="field_street" id="edit-field-street" value="1">
                                 <label class="form-check-label" for="edit-field-street">
                                     <i class="bi bi-house text-primary me-1"></i> Gateadresse
                                 </label>
@@ -849,7 +849,7 @@ try {
                         </div>
                         <div class="col-md-3 mb-2">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="field_zip" id="edit-field-zip">
+                                <input class="form-check-input" type="checkbox" name="field_zip" id="edit-field-zip" value="1">
                                 <label class="form-check-label" for="edit-field-zip">
                                     <i class="bi bi-mailbox text-primary me-1"></i> Postnummer
                                 </label>
@@ -859,7 +859,7 @@ try {
                     <div class="row">
                         <div class="col-md-3 mb-2">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="field_city" id="edit-field-city">
+                                <input class="form-check-input" type="checkbox" name="field_city" id="edit-field-city" value="1">
                                 <label class="form-check-label" for="edit-field-city">
                                     <i class="bi bi-geo-alt text-primary me-1"></i> Poststed
                                 </label>
@@ -867,7 +867,7 @@ try {
                         </div>
                         <div class="col-md-3 mb-2">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="field_age" id="edit-field-age">
+                                <input class="form-check-input" type="checkbox" name="field_age" id="edit-field-age" value="1">
                                 <label class="form-check-label" for="edit-field-age">
                                     <i class="bi bi-person-badge text-primary me-1"></i> Alder
                                 </label>
