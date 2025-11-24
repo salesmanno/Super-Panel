@@ -1890,6 +1890,11 @@ document.getElementById('checkin-form')?.addEventListener('submit', async functi
 async function loadCheckins(eventId) {
     try {
         const response = await fetch(`/api/get_event_checkins.php?event_id=${eventId}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const result = await response.json();
         
         if (result.success) {
@@ -1903,7 +1908,7 @@ async function loadCheckins(eventId) {
             const list = document.getElementById('checkin-attendees-list');
             if (result.checkins && result.checkins.length > 0) {
                 list.innerHTML = result.checkins.map(checkin => {
-                    const name = checkin.attendee_name || (checkin.first_name + ' ' + checkin.last_name);
+                    const name = checkin.attendee_name || (checkin.first_name && checkin.last_name ? checkin.first_name + ' ' + checkin.last_name : 'Ukjent');
                     const contact = checkin.attendee_email || checkin.attendee_phone || '-';
                     const checkinTime = checkin.check_in_time ? new Date(checkin.check_in_time).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) : '-';
                     
@@ -1931,9 +1936,21 @@ async function loadCheckins(eventId) {
                     </tr>
                 `;
             }
+        } else {
+            throw new Error(result.message || 'Kunne ikke laste innsjekkinger');
         }
     } catch (error) {
         console.error('Error loading check-ins:', error);
+        const list = document.getElementById('checkin-attendees-list');
+        if (list) {
+            list.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-danger py-4">
+                        Feil ved lasting av innsjekkinger
+                    </td>
+                </tr>
+            `;
+        }
     }
 }
 

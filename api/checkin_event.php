@@ -68,19 +68,28 @@ try {
     // Create check-in record
     $checkinId = bin2hex(random_bytes(16));
     
+    // Payment status logic for accurate financial tracking:
+    // - on_arrival: Always pending (payment not received yet)
+    // - cash: Paid only if explicitly confirmed
+    // - other methods: Pending until confirmed
+    if ($paymentMethod === 'on_arrival') {
+        $paymentStatus = 'pending';  // Never mark as paid - money not received
+    } else {
+        $paymentStatus = ($paymentMethod === 'cash' && isset($data['paid']) && $data['paid']) ? 'paid' : 'pending';
+    }
+    
+    // Build attendee name (combine first and last name)
+    $attendeeName = trim(($data['attendee_first_name'] ?? '') . ' ' . ($data['attendee_last_name'] ?? ''));
+    
     $stmt = $db->prepare("
         INSERT INTO events_checkin (
             id,
+            company_id,
             event_id,
             customer_id,
-            attendee_first_name,
-            attendee_last_name,
+            attendee_name,
             attendee_email,
             attendee_phone,
-            attendee_street,
-            attendee_zip,
-            attendee_city,
-            attendee_postal,
             ticket_type,
             ticket_price,
             payment_status,
@@ -103,10 +112,6 @@ try {
             ?,
             ?,
             ?,
-            ?,
-            ?,
-            ?,
-            ?,
             1,
             NOW(),
             ?,
@@ -116,34 +121,14 @@ try {
         )
     ");
     
-    // Payment status logic for accurate financial tracking:
-    // - on_arrival: Always pending (payment not received yet)
-    // - cash: Paid only if explicitly confirmed
-    // - other methods: Pending until confirmed
-    if ($paymentMethod === 'on_arrival') {
-        $paymentStatus = 'pending';  // Never mark as paid - money not received
-    } else {
-        $paymentStatus = ($paymentMethod === 'cash' && isset($data['paid']) && $data['paid']) ? 'paid' : 'pending';
-    }
-    
-    // Normalize dynamic fields (blank-to-null for consistency)
-    $street = $data['field_street'] ?? null;
-    $zip = $data['field_zip'] ?? null;
-    $city = $data['field_city'] ?? null;
-    $postal = $data['field_postal'] ?? null;
-    
     $stmt->execute([
         $checkinId,
+        $_SESSION['company_id'],
         $data['event_id'],
         $data['customer_id'] ?? null,
-        $data['attendee_first_name'],
-        $data['attendee_last_name'],
+        $attendeeName,
         $data['attendee_email'] ?? null,
         $data['attendee_phone'] ?? null,
-        $street,
-        $zip,
-        $city,
-        $postal,
         $ticketType,
         $ticketPrice,
         $paymentStatus,

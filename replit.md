@@ -40,6 +40,17 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-24 (SESSION 8 - CHECK-IN COLUMN MISMATCH FIXED)**:
+  - **BUG FIXED**: `checkin_event.php` was trying to INSERT into non-existent columns
+  - **Problem**: Used `attendee_first_name`, `attendee_last_name`, `attendee_street`, `attendee_zip`, `attendee_city`, `attendee_postal` - but actual schema only has `attendee_name`
+  - **Solution**: 
+    - Removed non-existent columns from INSERT statement
+    - Combined first/last name into single `attendee_name` field
+    - Added `company_id` column (was missing)
+    - Removed street/zip/city/postal fields (not part of check-in schema)
+  - **Frontend**: Enhanced `loadCheckins()` with HTTP status checking and error display
+  - **Result**: Check-ins now save correctly to database
+
 - **2025-11-23 (SESSION 7 - DELETE MODE SELECTOR ADDED)**:
   - **FEATURE ADDED**: Users can now choose between two delete modes when deleting arrangements
   - **Soft Delete**: Arrangement marked as inactive (is_active = 0), data preserved in database for historical reference
