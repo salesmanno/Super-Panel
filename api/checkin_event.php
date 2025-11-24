@@ -137,8 +137,10 @@ try {
         $data['notes'] ?? null
     ]);
     
-    // Log to unified_ledger when payment is completed
+    // Log to unified_ledger and update events_results when payment is completed
     if ($paymentStatus === 'paid') {
+        require_once __DIR__ . '/../includes/EventResultsService.php';
+        
         $ledgerService = new UnifiedLedgerService($db, $_SESSION['company_id']);
         
         // Get event cost_price for profit tracking
@@ -172,6 +174,10 @@ try {
                 'checkin_id' => $checkinId
             ]
         ]);
+        
+        // Update events_results with ticket revenue by payment method
+        $resultsService = new EventResultsService($db, $_SESSION['company_id']);
+        $resultsService->addTicketRevenue($data['event_id'], $paymentMethod, $ticketPrice, $ticketType);
     }
     
     // Send confirmation email if attendee email is provided

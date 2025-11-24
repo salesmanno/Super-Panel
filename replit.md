@@ -40,6 +40,29 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-24 (SESSION 10 - EVENTS_RESULTS IMPLEMENTATION WITH STATS & ECONOMICS)**:
+  - **EventResultsService** created (`includes/EventResultsService.php`):
+    - `addTicketRevenue()` - Track revenue by payment method (cash, card, vipps, invoice)
+    - `addOtherRevenue()` - Track merchandise and donations
+    - `addExpense()` - Register expenses (staff, venue, equipment, materials, other)
+    - `updateAttendanceStats()` - Auto-calculate no_shows, attendance_rate, average_age
+    - `updateStatus()` - Update event status and notes
+    - `finalize()` - Mark event completed with finalized_at timestamp
+    - `getSummary()` - Retrieve complete event summary
+  - **Integration Points**:
+    - `api/register_guest.php` - Auto-update revenue_tickets_* when guest registered with payment
+    - `api/checkin_event.php` - Auto-update revenue_tickets_* when check-in paid
+    - `api/add_event_expense.php` - Register expenses by type with profit/loss calculation
+  - **New APIs**:
+    - `api/finalize_event_results.php` - Mark event completed, finalize stats
+    - `api/get_event_results_summary.php` - Get formatted event summary with all metrics
+  - **Key Features**:
+    - Revenue separated by payment method (not lumped together)
+    - Expenses categorized by type for detailed tracking
+    - Automatic profit/loss calculation (total_revenue - total_costs)
+    - Attendance metrics auto-calculated from check-ins
+    - Ready for MySQL production deployment
+
 - **2025-11-24 (SESSION 10 - EVENTS_RESULTS ENHANCED COLUMNS)**:
   - Expanded `events_results` table with comprehensive event summary columns
   - **Revenue Tracking** (by payment method):

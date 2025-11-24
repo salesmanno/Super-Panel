@@ -91,9 +91,10 @@ try {
         $admin_id
     ]);
     
-    // If payment is completed (paid), create unified_ledger entry
+    // If payment is completed (paid), create unified_ledger entry and update events_results
     if ($payment_status === 'paid' && $ticket_price > 0) {
         require_once '../includes/UnifiedLedgerService.php';
+        require_once '../includes/EventResultsService.php';
         
         $ledgerService = new UnifiedLedgerService($db, $company_id);
         $ledgerService->logTransaction([
@@ -117,6 +118,10 @@ try {
                 'membership_plan_id' => $membership_plan_id
             ]
         ]);
+        
+        // Update events_results with ticket revenue by payment method
+        $resultsService = new EventResultsService($db, $company_id);
+        $resultsService->addTicketRevenue($event_id, $payment_method, $ticket_price, $ticket_type);
     }
     
     echo json_encode([
