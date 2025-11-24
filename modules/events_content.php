@@ -150,8 +150,103 @@ try {
 .event-results-summary {
     background: white;
     border-radius: 8px;
-    padding: 1rem;
-    margin-top: 1rem;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 10px;
+    padding: 1.25rem;
+    text-align: center;
+    border: 1px solid #e5e7eb;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.stat-card.income {
+    background: linear-gradient(135deg, #10b98130 0%, #6ee7b730 100%);
+    border-color: #10b981;
+}
+
+.stat-card.expense {
+    background: linear-gradient(135deg, #ef444430 0%, #f8748830 100%);
+    border-color: #ef4444;
+}
+
+.stat-card.profit {
+    background: linear-gradient(135deg, #3b82f630 0%, #60a5fa30 100%);
+    border-color: #3b82f6;
+}
+
+.stat-card.loss {
+    background: linear-gradient(135deg, #f5733630 0%, #ef444430 100%);
+    border-color: #ef4444;
+}
+
+.stat-icon {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+    display: inline-block;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.stat-card.income .stat-icon {
+    color: #10b981;
+}
+
+.stat-card.income .stat-value {
+    color: #10b981;
+}
+
+.stat-card.expense .stat-icon {
+    color: #ef4444;
+}
+
+.stat-card.expense .stat-value {
+    color: #ef4444;
+}
+
+.stat-card.profit .stat-icon {
+    color: #3b82f6;
+}
+
+.stat-card.profit .stat-value {
+    color: #3b82f6;
+}
+
+.stat-card.loss .stat-icon {
+    color: #ef4444;
+}
+
+.stat-card.loss .stat-value {
+    color: #ef4444;
+}
+
+.stat-subtitle {
+    font-size: 0.75rem;
+    color: #9ca3af;
 }
 
 .loading-events {
@@ -1377,19 +1472,36 @@ async function loadEvents() {
                                         </div>
                                     </div>
                                     
-                                    <!-- Summary -->
+                                    <!-- Summary Stats -->
                                     <div class="event-results-summary">
-                                        <div class="d-flex justify-content-between">
-                                            <span>Total inntekt:</span>
-                                            <span class="text-success fw-bold" id="event-total-income-${event.id}">0 NOK</span>
+                                        <!-- Income Card -->
+                                        <div class="stat-card income">
+                                            <div class="stat-icon">
+                                                <i class="bi bi-arrow-down-circle"></i>
+                                            </div>
+                                            <div class="stat-label">Inntekter</div>
+                                            <div class="stat-value" id="event-total-income-${event.id}">0 NOK</div>
+                                            <div class="stat-subtitle">Totalt registrert</div>
                                         </div>
-                                        <div class="d-flex justify-content-between">
-                                            <span>Total utgift:</span>
-                                            <span class="text-danger fw-bold" id="event-total-expense-${event.id}">0 NOK</span>
+                                        
+                                        <!-- Expense Card -->
+                                        <div class="stat-card expense">
+                                            <div class="stat-icon">
+                                                <i class="bi bi-arrow-up-circle"></i>
+                                            </div>
+                                            <div class="stat-label">Utgifter</div>
+                                            <div class="stat-value" id="event-total-expense-${event.id}">0 NOK</div>
+                                            <div class="stat-subtitle">Totalt registrert</div>
                                         </div>
-                                        <div class="d-flex justify-content-between border-top pt-2 mt-2">
-                                            <strong>Netto resultat:</strong>
-                                            <strong id="event-net-result-${event.id}">0 NOK</strong>
+                                        
+                                        <!-- Net Result Card -->
+                                        <div class="stat-card profit" id="event-result-card-${event.id}">
+                                            <div class="stat-icon">
+                                                <i class="bi bi-cash-coin"></i>
+                                            </div>
+                                            <div class="stat-label">Netto Resultat</div>
+                                            <div class="stat-value" id="event-net-result-${event.id}">0 NOK</div>
+                                            <div class="stat-subtitle" id="event-result-status-${event.id}">Ingen data</div>
                                         </div>
                                     </div>
                                 </div>
@@ -2260,7 +2372,20 @@ async function loadEventFinances(eventId) {
             
             const netResultEl = document.getElementById(`event-net-result-${eventId}`);
             netResultEl.textContent = `${result.summary.net_result.toFixed(2)} NOK`;
-            netResultEl.className = result.summary.net_result >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold';
+            
+            // Update result card style and status based on profit/loss
+            const resultCard = document.getElementById(`event-result-card-${eventId}`);
+            const statusSubtitle = document.getElementById(`event-result-status-${eventId}`);
+            
+            if (result.summary.net_result >= 0) {
+                resultCard.className = 'stat-card profit';
+                statusSubtitle.textContent = 'Overskudd ✓';
+                statusSubtitle.style.color = '#10b981';
+            } else {
+                resultCard.className = 'stat-card loss';
+                statusSubtitle.textContent = 'Underskudd';
+                statusSubtitle.style.color = '#ef4444';
+            }
         }
     } catch (error) {
         console.error('Error loading event finances:', error);

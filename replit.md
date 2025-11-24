@@ -40,6 +40,27 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-24 (SESSION 12 - NEWS API FIXED + OUTPUT PRODUCTS ENRICHMENT + EVENT RESULTS UI)**:
+  - **News System Fixed** ✅:
+    - `includes/functions.php` - getLatestNews() nå bruker explicit column list (id, title, content, news_type, severity, is_published, publish_at, expire_at, created_at)
+    - `api/get_news.php` - Enhanced error handling med try/catch blocks, robust DateTime parsing
+    - Supports både PostgreSQL timestamp formats (Y-m-d H:i:s og Y-m-d H:i:s.u)
+    - Returnerer alltid success=true for å unngå cascade-errors
+    - Nyheter vises nå korrekt i dashboard
+  - **Output Products Name Enrichment**:
+    - `api/get_output_products_inventory.php` - Auto-enricher produkt navn hvis empty i output_products
+    - Mapper product_type til source tables: membership_plans.plan_name, sales_products.name, rental_objects.object_name, osv
+    - Viser "Kilk" (fra sales_products) i stedet for "Ukjent" når name mangler i output_products
+    - Dashboard produkt-liste nå komplett med alle navn
+  - **Event Results UI Redesigned** ✨:
+    - Moderne 3-kolonne stat-card layout med gradient backgrounds
+    - Inntekter: Grønn gradient (10b981) med icon
+    - Utgifter: Rød gradient (ef4444) med icon
+    - Netto Resultat: Blå gradient hvis overskudd, rød hvis underskudd
+    - Dynamisk klasseoppdatering basert på profit/loss: `stat-card profit` eller `stat-card loss`
+    - Status subtitle viser "Overskudd ✓" eller "Underskudd" med color-coding
+    - Hover-effekt med transform og skygge for moderne feel
+
 - **2025-11-24 (SESSION 11 - DEBUGGING: CHECKIN EVENTS NOT LOADING)**:
   - **Innsjekk Event Selector - Enhanced Debugging**:
     - `api/get_event_checkins.php` - Added error handling for database connection failures
