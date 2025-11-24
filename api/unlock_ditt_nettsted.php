@@ -24,7 +24,6 @@ if (empty($password)) {
 
 try {
     $db = getDBConnection();
-    $db->query("SET collation_connection='utf8mb4_general_ci'");
     
     // Hent admin password hash fra tenant_companies
     $stmt = $db->prepare("SELECT admin_password_hash FROM tenant_companies WHERE id = ?");

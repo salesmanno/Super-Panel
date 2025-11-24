@@ -19,9 +19,6 @@ try {
         throw new Exception('Database connection failed');
     }
     
-    // Fix collation mismatch
-    $db->exec("SET collation_connection = 'utf8mb4_general_ci'");
-    
     $companyId = $_SESSION['company_id'];
     
     $stmt = $db->prepare("

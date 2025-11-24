@@ -437,23 +437,17 @@ async function loadMembershipPlans() {
         
         if (result.success && result.plans && result.plans.length > 0) {
             plansList.innerHTML = result.plans.map(plan => {
-                // Support both billing_cycle (MySQL) and duration_months (PostgreSQL)
+                // billing_cycle handling
                 let billingLabel = '';
                 if (plan.billing_cycle) {
                     billingLabel = plan.billing_cycle === 'monthly' ? 'Månedlig' : 
                                   plan.billing_cycle === 'quarterly' ? 'Kvartalsvis' : 
                                   plan.billing_cycle === 'yearly' ? 'Årlig' : plan.billing_cycle;
-                } else if (plan.duration_months) {
-                    const durationMonths = plan.duration_months;
-                    billingLabel = durationMonths === 1 ? 'Månedlig' : 
-                                  durationMonths === 3 ? 'Kvartalsvis' : 
-                                  durationMonths === 12 ? 'Årlig' : 
-                                  `${durationMonths} måneder`;
                 } else {
                     billingLabel = 'Årlig';
                 }
                 
-                const planId = plan.id || plan.plan_id;
+                const planId = plan.id;
                 return `
                     <div class="col-md-4 mb-3">
                         <div class="card border">

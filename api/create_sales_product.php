@@ -107,8 +107,8 @@ try {
         $company_id,
         $module_id,
         $product_id,
-        (bool)true,  // PostgreSQL boolean compatibility
-        (bool)true,  // PostgreSQL boolean compatibility
+        1,
+        1,
         $admin_id
     ]);
     

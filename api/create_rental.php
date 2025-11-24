@@ -55,7 +55,7 @@ try {
             $data['condition_notes'] ?? null
         ]);
         
-        // Get last insert ID (works in both MySQL and PostgreSQL)
+        // Get last insert ID
         $rentalId = $db->lastInsertId();
         
         // 2. Auto-generate output_products entry

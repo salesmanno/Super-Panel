@@ -301,12 +301,12 @@ function endInactiveSessions($inactiveMinutes = 30) {
     if (!$db) return false;
     
     try {
-        // MySQL: Use INTERVAL syntax directly
+        // MySQL: Use DATE_SUB for INTERVAL arithmetic
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
             SET is_active = ?, logout_at = NOW() 
             WHERE is_active = ? 
-            AND last_activity < NOW() - INTERVAL ? MINUTE
+            AND last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE)
         ");
         return $stmt->execute([0, 1, $inactiveMinutes]);
     } catch (PDOException $e) {
