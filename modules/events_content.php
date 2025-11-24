@@ -1867,7 +1867,7 @@ document.getElementById('checkin-form')?.addEventListener('submit', async functi
     }
 });
 
-// Load check-ins for selected event - Display as event cards with dropdown
+// Load check-ins for selected event - Display as individual cards
 async function loadCheckins(eventId) {
     try {
         const response = await fetch(`/api/get_event_checkins.php?event_id=${eventId}`);
@@ -1889,105 +1889,46 @@ async function loadCheckins(eventId) {
             const emptyState = document.getElementById('checkin-empty-state');
             
             if (result.checkins && result.checkins.length > 0) {
-                // Separate new (not checked in) and old (checked in) registrations
-                const newCheckins = result.checkins.filter(c => !c.check_in_time);
-                const oldCheckins = result.checkins.filter(c => c.check_in_time);
+                // Sort by newest first, separate checked in from not checked in
+                const sorted = result.checkins.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
                 
-                let cardsHtml = '';
-                
-                // NEW REGISTRATIONS CARD
-                if (newCheckins.length > 0) {
-                    cardsHtml += `
-                        <div class="col-12">
-                            <div class="card border-2 border-warning">
-                                <div class="card-header bg-warning bg-opacity-10 border-warning">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <h6 class="mb-0">
-                                            <i class="bi bi-person-plus text-warning me-2"></i>
-                                            Nye påmeldinger (${newCheckins.length})
-                                        </h6>
-                                        <button class="btn btn-sm btn-outline-warning" onclick="toggleCheckinGroup('new-checkins')">
-                                            <i class="bi bi-chevron-down"></i>
+                let cardsHtml = sorted.map(checkin => {
+                    const name = checkin.attendee_name || (checkin.first_name && checkin.last_name ? checkin.first_name + ' ' + checkin.last_name : 'Ukjent');
+                    const contact = checkin.attendee_email || checkin.attendee_phone || '-';
+                    const isCheckedIn = !!checkin.check_in_time;
+                    const checkinTime = isCheckedIn ? new Date(checkin.check_in_time).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) : null;
+                    
+                    const paymentBadge = checkin.payment_status === 'paid' 
+                        ? '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Betalt</span>' 
+                        : '<span class="badge bg-warning"><i class="bi bi-clock me-1"></i>Venter</span>';
+                    
+                    const checkinBadge = isCheckedIn
+                        ? `<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>${checkinTime}</span>`
+                        : '<span class="badge bg-warning"><i class="bi bi-exclamation-circle me-1"></i>Venter sjekk inn</span>';
+                    
+                    return `
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card h-100 ${isCheckedIn ? 'border-success' : 'border-warning'}">
+                                <div class="card-body">
+                                    <h6 class="card-title mb-2">${name}</h6>
+                                    <div class="small text-muted mb-2">
+                                        <i class="bi bi-envelope me-1"></i>${contact}
+                                    </div>
+                                    <div class="mb-2">
+                                        ${paymentBadge}
+                                        ${checkinBadge}
+                                    </div>
+                                    <div class="fw-bold text-primary mb-3">${checkin.ticket_price} kr</div>
+                                    ${!isCheckedIn ? `
+                                        <button class="btn btn-primary btn-sm w-100" onclick="quickCheckin('${checkin.id}', '${name.replace(/'/g, "\\'")}')">
+                                            <i class="bi bi-check-circle me-1"></i>Sjekk inn
                                         </button>
-                                    </div>
-                                </div>
-                                <div id="new-checkins" class="card-body p-0">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-hover mb-0">
-                                            <tbody>
-                                                ${newCheckins.map(checkin => {
-                                                    const name = checkin.attendee_name || (checkin.first_name && checkin.last_name ? checkin.first_name + ' ' + checkin.last_name : 'Ukjent');
-                                                    const contact = checkin.attendee_email || checkin.attendee_phone || '-';
-                                                    const paymentBadge = checkin.payment_status === 'paid' 
-                                                        ? '<span class="badge bg-success">Betalt</span>' 
-                                                        : '<span class="badge bg-warning">Venter</span>';
-                                                    
-                                                    return `
-                                                        <tr>
-                                                            <td><strong>${name}</strong></td>
-                                                            <td><small>${contact}</small></td>
-                                                            <td>${paymentBadge}</td>
-                                                            <td><small>${checkin.ticket_price} kr</small></td>
-                                                            <td>
-                                                                <button class="btn btn-sm btn-primary" onclick="quickCheckin('${checkin.id}', '${name}')">
-                                                                    <i class="bi bi-check-circle me-1"></i>Sjekk inn
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    `;
-                                                }).join('')}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                    ` : ''}
                                 </div>
                             </div>
                         </div>
                     `;
-                }
-                
-                // OLD (CHECKED IN) REGISTRATIONS CARD
-                if (oldCheckins.length > 0) {
-                    cardsHtml += `
-                        <div class="col-12">
-                            <div class="card border-2 border-success border-opacity-50">
-                                <div class="card-header bg-success bg-opacity-10 border-success">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <h6 class="mb-0">
-                                            <i class="bi bi-check-circle text-success me-2"></i>
-                                            Innsjekket (${oldCheckins.length})
-                                        </h6>
-                                        <button class="btn btn-sm btn-outline-success" onclick="toggleCheckinGroup('old-checkins')">
-                                            <i class="bi bi-chevron-down"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div id="old-checkins" class="card-body p-0" style="display: none;">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-hover mb-0">
-                                            <tbody>
-                                                ${oldCheckins.map(checkin => {
-                                                    const name = checkin.attendee_name || (checkin.first_name && checkin.last_name ? checkin.first_name + ' ' + checkin.last_name : 'Ukjent');
-                                                    const contact = checkin.attendee_email || checkin.attendee_phone || '-';
-                                                    const checkinTime = new Date(checkin.check_in_time).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'});
-                                                    
-                                                    return `
-                                                        <tr>
-                                                            <td><strong>${name}</strong></td>
-                                                            <td><small>${contact}</small></td>
-                                                            <td><span class="badge bg-success">✓</span></td>
-                                                            <td><small>${checkin.ticket_price} kr</small></td>
-                                                            <td><small class="text-muted">${checkinTime}</small></td>
-                                                        </tr>
-                                                    `;
-                                                }).join('')}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }
+                }).join('');
                 
                 cardsContainer.innerHTML = cardsHtml;
                 cardsContainer.style.display = 'block';
@@ -2006,15 +1947,6 @@ async function loadCheckins(eventId) {
         cardsContainer.innerHTML = `<div class="col-12"><div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>${error.message}</div></div>`;
         cardsContainer.style.display = 'block';
         emptyState.style.display = 'none';
-    }
-}
-
-// Toggle check-in group (new vs old)
-function toggleCheckinGroup(groupId) {
-    const group = document.getElementById(groupId);
-    if (group) {
-        const isHidden = group.style.display === 'none';
-        group.style.display = isHidden ? 'block' : 'none';
     }
 }
 
