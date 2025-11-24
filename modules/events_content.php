@@ -533,8 +533,10 @@ try {
 
     <div id="events-checkin" class="subtab-content" style="display: none;">
         <!-- Arrange Selection Cards -->
-        <div class="mb-3">
-            <h6 class="mb-2"><i class="bi bi-calendar-event me-2"></i>Velg arrangement</h6>
+        <div class="mb-4">
+            <div class="d-flex align-items-center mb-3">
+                <h5 class="mb-0"><i class="bi bi-hand-index me-2"></i>Velg arrangement</h5>
+            </div>
             <div id="checkin-event-selector-cards" class="row g-3">
                 <div class="col-md-6">
                     <div class="card text-center p-4 text-muted">
@@ -545,37 +547,43 @@ try {
             </div>
         </div>
 
-        <!-- Check-in Stats (shown when event selected) -->
-        <div id="checkin-stats" class="row g-2 mb-3" style="display: none;">
-            <div class="col-md-3">
-                <div class="card p-2 text-center">
-                    <div class="text-muted small">Påmeldte</div>
-                    <div class="fs-5 fw-bold" id="checkin-total-attendees">0</div>
+        <!-- Check-in Section (shown when event selected) -->
+        <div id="checkin-section" style="display: none;">
+            <!-- Event Stats -->
+            <div id="checkin-stats" class="row g-2 mb-4">
+                <div class="col-md-3">
+                    <div class="card p-3 text-center border-light">
+                        <div class="text-muted small fw-500">Påmeldte</div>
+                        <div class="fs-5 fw-bold" id="checkin-total-attendees">0</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card p-3 text-center border-light">
+                        <div class="text-muted small fw-500">Medlemmer</div>
+                        <div class="fs-5 fw-bold text-info" id="checkin-member-count">0</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card p-3 text-center border-light">
+                        <div class="text-muted small fw-500">Betalt</div>
+                        <div class="fs-5 fw-bold text-success" id="checkin-paid-count">0</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card p-3 text-center border-light">
+                        <div class="text-muted small fw-500">Inntekt</div>
+                        <div class="fs-5 fw-bold text-primary" id="checkin-total-revenue">0 kr</div>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card p-2 text-center">
-                    <div class="text-muted small">Medlemmer</div>
-                    <div class="fs-5 fw-bold text-info" id="checkin-member-count">0</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card p-2 text-center">
-                    <div class="text-muted small">Betalt</div>
-                    <div class="fs-5 fw-bold text-success" id="checkin-paid-count">0</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card p-2 text-center">
-                    <div class="text-muted small">Inntekt</div>
-                    <div class="fs-5 fw-bold text-primary" id="checkin-total-revenue">0 kr</div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Check-in Cards for Attendees -->
-        <div id="checkin-events-cards" class="row g-3" style="display: none;">
-            <!-- Cards rendered here -->
+            <!-- Attendees Section -->
+            <div id="checkin-attendees-section">
+                <h6 class="mb-3"><i class="bi bi-check-circle me-2"></i>Deltakere</h6>
+                <div id="checkin-events-cards" class="row g-2">
+                    <!-- Cards rendered here -->
+                </div>
+            </div>
         </div>
 
         <!-- Empty State -->
@@ -1728,8 +1736,8 @@ async function loadCheckinEventSelector() {
 async function selectCheckinEvent(eventId, eventTitle) {
     selectedEventId = eventId;
     
-    // Show stats and hide empty state
-    document.getElementById('checkin-stats').style.display = 'block';
+    // Show checkin section and hide empty state
+    document.getElementById('checkin-section').style.display = 'block';
     document.getElementById('quick-guest-registration').style.display = 'block';
     document.getElementById('checkin-empty-state').style.display = 'none';
     
@@ -2677,7 +2685,7 @@ async function saveEventChanges() {
     };
 
     try {
-        const response = await fetch('../api/update_event.php', {
+        const response = await fetch('/api/update_event.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

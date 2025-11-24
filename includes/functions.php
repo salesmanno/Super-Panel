@@ -98,7 +98,7 @@ function getLatestNews($limit = 5) {
                 expire_at,
                 created_at
             FROM core_sys_news 
-            WHERE is_published = true
+            WHERE is_published
             AND (expire_at IS NULL OR expire_at > NOW())
             AND publish_at <= NOW()
             ORDER BY publish_at DESC 
@@ -106,11 +106,12 @@ function getLatestNews($limit = 5) {
         ");
         $stmt->execute([$limit]);
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        error_log("News query returned " . count($results) . " items");
-        return $results ?: [];
+        if (is_array($results) && !empty($results)) {
+            return $results;
+        }
+        return [];
     } catch (PDOException $e) {
         error_log("News query error: " . $e->getMessage());
-        error_log("Stack trace: " . $e->getTraceAsString());
         return [];
     }
 }

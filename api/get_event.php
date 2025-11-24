@@ -47,9 +47,10 @@ try {
             e.cost_price,
             e.created_at,
             e.created_by,
-            COALESCE(ta.name, 'Ukjent bruker') as created_by_name
+            COALESCE(CONCAT(ts.first_name, ' ', ts.last_name), ta.username, 'Ukjent bruker') as created_by_name
         FROM events_eventdata e
         LEFT JOIN tenant_admins ta ON e.created_by = ta.id
+        LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
         WHERE e.id = ? AND e.company_id = ?
         LIMIT 1
     ");
