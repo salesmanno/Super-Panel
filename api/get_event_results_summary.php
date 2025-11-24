@@ -48,7 +48,8 @@ try {
                     'tickets_invoice' => floatval($summary['revenue_tickets_invoice'] ?? 0),
                     'merchandise' => floatval($summary['revenue_merchandise'] ?? 0),
                     'donations' => floatval($summary['revenue_donations'] ?? 0),
-                    'total' => floatval($summary['total_revenue'] ?? 0)
+                    'total_actual' => floatval($summary['total_revenue'] ?? 0),
+                    'expected_tickets' => floatval($summary['expected_ticket_revenue'] ?? 0)
                 ],
                 'expenses' => [
                     'staff' => floatval($summary['expense_staff'] ?? 0),

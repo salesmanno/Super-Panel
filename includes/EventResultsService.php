@@ -271,7 +271,8 @@ class EventResultsService {
                     COUNT(DISTINCT customer_id) as unique_customers,
                     SUM(CASE WHEN ticket_type IN ('member', 'membership') THEN 1 ELSE 0 END) as member_count,
                     ROUND(AVG(CASE WHEN checked_in = 1 THEN 1 ELSE 0 END) * 100, 2) as attendance_rate_live,
-                    SUM(CASE WHEN payment_status = 'paid' THEN ticket_price ELSE 0 END) as total_paid_amount
+                    SUM(CASE WHEN payment_status = 'paid' THEN ticket_price ELSE 0 END) as total_paid_amount,
+                    SUM(ticket_price) as expected_revenue_amount
                 FROM events_checkin
                 WHERE event_id = ? AND company_id = ?
             ");
@@ -286,6 +287,7 @@ class EventResultsService {
                 $results['attendance_rate'] = $checkinStats['attendance_rate_live'];
                 $results['total_registered'] = $checkinStats['total_registered'];
                 $results['unique_customers'] = $checkinStats['unique_customers'];
+                $results['expected_ticket_revenue'] = floatval($checkinStats['expected_revenue_amount'] ?? 0);
             } else {
                 $results['total_checkins'] = 0;
                 $results['no_shows'] = 0;
@@ -293,6 +295,7 @@ class EventResultsService {
                 $results['attendance_rate'] = 0;
                 $results['total_registered'] = 0;
                 $results['unique_customers'] = 0;
+                $results['expected_ticket_revenue'] = 0;
             }
             
             return $results;
