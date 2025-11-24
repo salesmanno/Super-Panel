@@ -1701,15 +1701,25 @@ try {
                 </div>
             `;
             
-            // Remove existing modal if any
+            // Remove existing modal if any (also remove any leftover backdrops)
             const existing = document.getElementById('productsModal');
             if (existing) existing.remove();
+            
+            // Clean up any orphaned backdrops
+            document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
             
             // Add modal to page
             document.body.insertAdjacentHTML('beforeend', html);
             
             // Show modal
-            const modal = new bootstrap.Modal(document.getElementById('productsModal'));
+            const modalElement = document.getElementById('productsModal');
+            const modal = new bootstrap.Modal(modalElement);
+            
+            // Clean up backdrop when modal is hidden
+            modalElement.addEventListener('hidden.bs.modal', () => {
+                document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+            }, { once: true });
+            
             modal.show();
         }
         

@@ -40,7 +40,7 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
-- **2025-11-24 (SESSION 11 - BUGFIXES: CHECKIN SELECTOR, CREATOR NAME, HTML LOADING & PRODUCT TOGGLE)**:
+- **2025-11-24 (SESSION 11 - BUGFIXES: CHECKIN SELECTOR, CREATOR NAME, HTML LOADING, PRODUCT TOGGLE, NEWS & MODAL)**:
   - **Innsjekk-Selector Fixed**:
     - `get_event_checkins.php` nå returnerer LIST av arrangementer når event_id mangler
     - Viser Påmeldte, Medlemmer, Betalt, Inntekt per arrangement
@@ -61,6 +61,14 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
     - `pages/company_dashboard.php` - toggleInventoryProduct() nå sender new_status korrekt
     - Produkt deaktivering/aktivering lagres nå korrekt
     - Siden blir ikke lenger svart etter toggle
+  - **News API Fixed**:
+    - `api/get_news.php` - Robust error handling, ikke krashes hvis core_sys_news table mangler
+    - Returnerer alltid `{success: true, news: []}` selv ved feil, forhindrer cascade-errors
+    - Logs stack trace for debugging på produksjon
+  - **Modal Backdrop Fixed**:
+    - `pages/company_dashboard.php` showProductsModal() - Fjerner orphaned backdrops før og etter modal
+    - Legger til event listener for backdrop cleanup når modal lukkes
+    - Mørkefeltet forsvinner nå korrekt når modal lukkes
 
 - **2025-11-24 (SESSION 10 - EVENTS_CHECKIN AS AUTHORITATIVE SOURCE)**:
   - **EventResultsService Refactored**:
