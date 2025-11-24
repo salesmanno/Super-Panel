@@ -3003,17 +3003,25 @@ async function approveRegistration(registrationId) {
             body: JSON.stringify({ registration_id: registrationId })
         });
         
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const result = await response.json();
         
         if (result.success) {
-            toast.quickSuccess('Påmelding', 'Påmelding godkjent!');
+            toast.quickSuccess('Påmelding', result.message || 'Påmelding godkjent!');
             loadPendingRegistrations();
+            // Reload events to update check-in list
+            if (typeof loadCheckins === 'function') {
+                loadCheckins();
+            }
         } else {
             toast.quickError('Feil', result.message || 'Kunne ikke godkjenne påmelding');
         }
     } catch (error) {
         console.error('Error approving registration:', error);
-        toast.quickError('Feil', 'Feil ved godkjenning av påmelding');
+        toast.quickError('Feil', error.message || 'Feil ved godkjenning av påmelding');
     }
 }
 
@@ -3036,17 +3044,21 @@ async function rejectRegistration(registrationId) {
             })
         });
         
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const result = await response.json();
         
         if (result.success) {
-            toast.quickSuccess('Påmelding', 'Påmelding avvist');
+            toast.quickSuccess('Påmelding', result.message || 'Påmelding avvist');
             loadPendingRegistrations();
         } else {
             toast.quickError('Feil', result.message || 'Kunne ikke avvise påmelding');
         }
     } catch (error) {
         console.error('Error rejecting registration:', error);
-        toast.quickError('Feil', 'Feil ved avvisning av påmelding');
+        toast.quickError('Feil', error.message || 'Feil ved avvisning av påmelding');
     }
 }
 

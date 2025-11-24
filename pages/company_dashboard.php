@@ -1545,14 +1545,42 @@ try {
                 const activityText = document.getElementById('activity-text');
                 
                 if (data.success && data.activities && data.activities.length > 0) {
-                    const summaries = data.activities.map(a => `${a.count} i ${a.module}`).join(', ');
-                    activityText.innerHTML = `<i class="bi bi-bell-fill me-1"></i>Det er <strong>${data.total_count}</strong> nye hendelse${data.total_count > 1 ? 'r' : ''} siden sist: ${summaries}`;
+                    // Build activity summaries with clickability for pending registrations
+                    let htmlContent = `<i class="bi bi-bell-fill me-1"></i>Det er <strong>${data.total_count}</strong> nye hendelse${data.total_count > 1 ? 'r' : ''} siden sist: `;
+                    
+                    const summaryLinks = data.activities.map(a => {
+                        // If this is pending registrations, make it clickable
+                        if (a.priority === 'high' && a.module_action === 'eventmottak') {
+                            return `<span style="cursor:pointer; text-decoration:underline; color:#dc3545;" onclick="navigateToEventmottak()">${a.count} i ${a.module}</span>`;
+                        }
+                        // Regular activities (not clickable)
+                        return `${a.count} i ${a.module}`;
+                    }).join(', ');
+                    
+                    htmlContent += summaryLinks;
+                    activityText.innerHTML = htmlContent;
                 } else {
                     activityText.innerHTML = '<i class="bi bi-check-circle me-1"></i>Ingen nye hendelser siden sist';
                 }
             } catch (error) {
                 console.error('Error loading activity summary:', error);
                 document.getElementById('activity-summary').style.display = 'none';
+            }
+        }
+        
+        // Navigate to eventmottak (pending registrations) tab
+        function navigateToEventmottak() {
+            // Click on events module first
+            const eventsTab = document.querySelector('[href="#events"]');
+            if (eventsTab) {
+                eventsTab.click();
+                // Then click on registrations subtab
+                setTimeout(() => {
+                    const registrationsTab = document.querySelector('[href="#events-registrations"]');
+                    if (registrationsTab) {
+                        registrationsTab.click();
+                    }
+                }, 100);
             }
         }
         

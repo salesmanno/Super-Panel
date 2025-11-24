@@ -40,6 +40,28 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-24 (SESSION 9 - GODKJENNINGSLOGIKK & VARSLER IMPLEMENTERT)**:
+  - **Event Registration Hierarchy**: Established clean structure `tenant_customers → event_registrations → events_checkin`
+  - **Godkjenningslogikk Implementert**:
+    - Updated `approve_registration.php` to create `events_checkin` entry when registration approved
+    - Added HTTP status validation to both approve/reject functions
+    - Functions now show actual error messages instead of generic ones
+  - **Activity Summary Enhancements**:
+    - Modified `get_activity_summary.php` to track PENDING registrations separately with `priority: 'high'`
+    - Added `module_action: 'eventmottak'` to pending registrations for navigation
+    - Pending registrations now appear as HIGH PRIORITY in activity feed
+    - Separated "new approved" registrations from pending ones
+  - **Frontend Varsler - Clickable**:
+    - Activity summary now shows clickable link for pending registrations (red underlined text)
+    - Clicking "X påmeldinger venter godkjenning" navigates directly to eventmottak tab
+    - Added `navigateToEventmottak()` function that auto-opens events module → registrations subtab
+  - **Eventmottak Tab - Approval UI**:
+    - Registrations tab displays pending registrations with approve/reject buttons
+    - Approve button: Creates events_checkin entry + updates approval_status
+    - Reject button: Asks for optional reason + updates approval_status
+    - Table shows: Name, Event, Contact (email/phone), Payment status, Membership, Registration date, Actions
+  - **Result**: Complete registration approval workflow from `event_registrations → events_checkin` with user-friendly navigation
+
 - **2025-11-24 (SESSION 8+ - PRODUCT CATALOGUE ERROR HANDLING FIXED)**:
   - **ISSUE**: Product catalogue silently disappeared when loading failed (no error message shown)
   - **ROOT CAUSE**: Frontend checked `data.success` but only hid section without showing error
