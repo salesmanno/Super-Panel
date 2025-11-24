@@ -40,7 +40,7 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
-- **2025-11-24 (SESSION 11 - BUGFIXES: CHECKIN SELECTOR, CREATOR NAME & HTML LOADING)**:
+- **2025-11-24 (SESSION 11 - BUGFIXES: CHECKIN SELECTOR, CREATOR NAME, HTML LOADING & PRODUCT TOGGLE)**:
   - **Innsjekk-Selector Fixed**:
     - `get_event_checkins.php` nå returnerer LIST av arrangementer når event_id mangler
     - Viser Påmeldte, Medlemmer, Betalt, Inntekt per arrangement
@@ -56,6 +56,11 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
     - Stack trace logging for debugging on production
     - Clearer error messages instead of generic 500s
     - Prevents cascade errors from hidden PHP exceptions
+  - **Product Toggle Fixed** (oppføringer lagrer seg nå):
+    - `api/reactivate_product.php` - Nå accepted `new_status` parameter (0=inaktiv, 1=aktiv)
+    - `pages/company_dashboard.php` - toggleInventoryProduct() nå sender new_status korrekt
+    - Produkt deaktivering/aktivering lagres nå korrekt
+    - Siden blir ikke lenger svart etter toggle
 
 - **2025-11-24 (SESSION 10 - EVENTS_CHECKIN AS AUTHORITATIVE SOURCE)**:
   - **EventResultsService Refactored**:

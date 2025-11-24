@@ -1719,7 +1719,10 @@ try {
                 const response = await fetch('/api/reactivate_product.php', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({product_id: productId})
+                    body: JSON.stringify({
+                        product_id: productId,
+                        new_status: newStatus
+                    })
                 });
                 
                 if (!response.ok) {
@@ -1732,7 +1735,7 @@ try {
                     if (product) {
                         product.is_visible = newStatus;
                         showProductsModal();
-                        toast.quickSuccess('Status oppdatert', newStatus == 1 ? 'Produkt reaktivert' : 'Produkt deaktivert');
+                        toast.quickSuccess('Status oppdatert', result.message);
                     }
                 } else {
                     throw new Error(result.message);

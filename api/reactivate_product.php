@@ -17,36 +17,57 @@ try {
         exit;
     }
     
+    // Get new status from request (default to 1 for backward compatibility)
+    $newStatus = isset($data['new_status']) ? intval($data['new_status']) : 1;
+    
     $db = getDBConnection();
     
     // Verify product belongs to user's company
-    $stmt = $db->prepare("SELECT id FROM output_products WHERE id = ? AND company_id = ?");
+    $stmt = $db->prepare("SELECT id, is_visible FROM output_products WHERE id = ? AND company_id = ?");
     $stmt->execute([$data['product_id'], $_SESSION['company_id']]);
+    $product = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    if (!$stmt->fetch()) {
+    if (!$product) {
         echo json_encode(['success' => false, 'message' => 'Produkt ikke funnet']);
         exit;
     }
     
-    // Reactivate product (set is_visible = 1)
+    // Check if status is already set (prevent unnecessary updates)
+    if ($product['is_visible'] == $newStatus) {
+        echo json_encode([
+            'success' => true,
+            'message' => $newStatus == 1 ? 'Produkt er allerede aktivt' : 'Produkt er allerede deaktivert'
+        ]);
+        exit;
+    }
+    
+    // Update product visibility status
     $updateStmt = $db->prepare("
         UPDATE output_products 
-        SET is_visible = 1, updated_at = NOW()
+        SET is_visible = ?, updated_at = NOW()
         WHERE id = ?
     ");
     
-    $updateStmt->execute([$data['product_id']]);
+    $result = $updateStmt->execute([$newStatus, $data['product_id']]);
+    
+    if (!$result) {
+        throw new Exception("Databaseupdate mislyktes");
+    }
+    
+    $statusMessage = $newStatus == 1 ? 'Produkt aktivert' : 'Produkt deaktivert';
     
     echo json_encode([
         'success' => true,
-        'message' => 'Produkt reaktivert'
+        'message' => $statusMessage,
+        'new_status' => $newStatus
     ]);
     
 } catch (Exception $e) {
-    error_log("Reactivate product error: " . $e->getMessage());
+    error_log("Toggle product status error: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
     echo json_encode([
         'success' => false,
-        'message' => 'Feil ved reaktivering av produkt'
+        'message' => 'Feil ved oppdatering av produktstatus: ' . $e->getMessage()
     ]);
 }
 ?>
