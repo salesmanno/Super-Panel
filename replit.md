@@ -40,6 +40,17 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-24 (SESSION 8+ - EVENT DELETE ERROR HANDLING FIXED)**:
+  - **BUG FOUND**: Delete event showed generic "Feil ved sletting" without actual error details
+  - **ROOT CAUSE**: Frontend `performDeleteEvent()` lacked HTTP status check (`if (!res.ok)`)
+  - **Problem**: If API returned HTTP 500, error silently caught without showing details
+  - **Solution Applied**:
+    - Added HTTP status validation in `performDeleteEvent()` function
+    - Now throws proper error if response status is not OK
+    - Error message now shows actual HTTP error in catch block
+    - Follows same pattern as announcements and other modules
+  - **Result**: Users now see actual API error messages instead of generic "Feil ved sletting"
+
 - **2025-11-24 (SESSION 8+ - EVENT REGISTRATION FIELDS CRITICAL BUG FIXED)**:
   - **ISSUE**: `event_registration_fields` table was completely empty - no fields saved when events created
   - **ROOT CAUSE**: Checkboxes in create/edit event forms lacked `value="1"` attributes

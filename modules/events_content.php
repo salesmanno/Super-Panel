@@ -1495,7 +1495,12 @@ function performDeleteEvent(eventId, deleteMode) {
             delete_mode: deleteMode
         })
     })
-    .then(res => res.json())
+    .then(res => {
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        return res.json();
+    })
     .then(result => {
         if (result.success) {
             toast.quickSuccess('Arrangement', 'Arrangement ' + deleteTypeLabel);
@@ -1509,7 +1514,7 @@ function performDeleteEvent(eventId, deleteMode) {
     })
     .catch(error => {
         console.error('Error deleting event:', error);
-        toast.quickError('Feil', 'Feil ved sletting');
+        toast.quickError('Feil', error.message || 'Feil ved sletting');
     });
 }
 
