@@ -21,33 +21,36 @@ try {
     
     $stmt = $db->prepare("
         SELECT 
-            id, 
-            title, 
-            description,
-            ticket_price, 
-            member_ticket_price,
-            is_member_exclusive,
-            start_date,
-            start_time,
-            end_date,
-            end_time,
-            age_limit,
-            venue_name,
-            event_city,
-            event_postal,
-            event_address,
-            min_attendees,
-            max_attendees,
-            registration_type,
-            registration_deadline,
-            default_payment_method,
-            payment_timing,
-            payment_methods_json,
-            event_image_url,
-            cost_price,
-            created_at
-        FROM events_eventdata 
-        WHERE id = ? AND company_id = ?
+            e.id, 
+            e.title, 
+            e.description,
+            e.ticket_price, 
+            e.member_ticket_price,
+            e.is_member_exclusive,
+            e.start_date,
+            e.start_time,
+            e.end_date,
+            e.end_time,
+            e.age_limit,
+            e.venue_name,
+            e.event_city,
+            e.event_postal,
+            e.event_address,
+            e.min_attendees,
+            e.max_attendees,
+            e.registration_type,
+            e.registration_deadline,
+            e.default_payment_method,
+            e.payment_timing,
+            e.payment_methods_json,
+            e.event_image_url,
+            e.cost_price,
+            e.created_at,
+            e.created_by,
+            COALESCE(ta.name, 'Ukjent bruker') as created_by_name
+        FROM events_eventdata e
+        LEFT JOIN tenant_admins ta ON e.created_by = ta.id
+        WHERE e.id = ? AND e.company_id = ?
         LIMIT 1
     ");
     $stmt->execute([$event_id, $company_id]);

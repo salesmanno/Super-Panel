@@ -40,6 +40,16 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## Recent Changes
+- **2025-11-24 (SESSION 11 - BUGFIXES: CHECKIN SELECTOR & CREATOR NAME)**:
+  - **Innsjekk-Selector Fixed**:
+    - `get_event_checkins.php` nå returnerer LIST av arrangementer når event_id mangler
+    - Viser Påmeldte, Medlemmer, Betalt, Inntekt per arrangement
+    - modules/events_content.php loadCheckinEventSelector() fungerer nå
+  - **Creator Attribution Fixed**:
+    - `get_event.php` nå JOIN med tenant_admins for created_by_name
+    - Viser "Opprettet av [Navn]" eller "Opprettet av Ukjent bruker" hvis admin slettet
+    - Forhindrer "opprettet av ukjent bruker" feilen
+
 - **2025-11-24 (SESSION 10 - EVENTS_CHECKIN AS AUTHORITATIVE SOURCE)**:
   - **EventResultsService Refactored**:
     - `getSummary()` nå beregner all innsjekk- og deltakelsesdata dynamisk fra `events_checkin`
