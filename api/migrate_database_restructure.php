@@ -8,12 +8,10 @@ require_once '../config/database.php';
 
 header('Content-Type: application/json');
 
-// Security: Only allow from localhost or authorized admins
-if ($_SERVER['REMOTE_ADDR'] !== '127.0.0.1' && $_SERVER['REMOTE_ADDR'] !== '::1') {
-    session_start();
-    if (!isset($_SESSION['tenant_admin_id'])) {
-        die(json_encode(['success' => false, 'message' => 'Unauthorized']));
-    }
+// Security: Require admin authentication
+session_start();
+if (!isset($_SESSION['tenant_admin_id'])) {
+    die(json_encode(['success' => false, 'message' => 'Unauthorized - must be logged in as admin']));
 }
 
 $db = getDBConnection();

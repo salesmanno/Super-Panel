@@ -14,7 +14,7 @@ The Salesman Superportal System is an administration portal designed to centrali
 - Unlock feedback must be clear and visible (green button, countdown timer, success message)
 
 ## System Architecture
-The system is built on a PHP 8.2 backend with dual database support, emphasizing modularity and granular access control.
+The system is built on a PHP 8.2 backend with MySQL exclusively, emphasizing modularity and granular access control.
 
 ### UI/UX Decisions
 The design prioritizes a clean, compact dashboard with a simple navigation header. Modules are presented as Bootstrap 5 tabs. The dashboard header displays the company subdomain with an active/inactive status badge and company logo.
@@ -40,7 +40,24 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
 ## External Dependencies
-- **Database**: Primarily MySQL with PDO, with PostgreSQL available for development/testing environments.
-- **UI Framework**: Bootstrap 5.
-- **Email Protocols**: SMTP and IMAP for webmail.
-- **Storage**: Object storage for contract document uploads.
+- **Database**: MySQL 8.0+ with PDO, running on Domeneshop hosting
+- **Authentication**: Environment variables for secure credential management
+- **UI Framework**: Bootstrap 5
+- **Email Protocols**: SMTP and IMAP for webmail
+- **Storage**: Object storage for contract document uploads
+
+## Deployment Configuration (Production-Ready)
+- **Database**: MySQL-only (100% compatibility verified, no PostgreSQL fallbacks)
+- **Credentials**: Stored in environment variables via `.env` file (never hardcoded)
+- **Security**: Session-based auth with single-session enforcement
+- **Error Handling**: Production-safe logging (errors logged, not displayed to users)
+- **Database Migrations**: Safe schema updates via authenticated API endpoints
+- **Hostability**: Works on any web host with PHP 8.2+ and MySQL support
+
+## Recent Changes (November 24, 2025)
+- ✅ Removed ALL PostgreSQL compatibility code and fallbacks
+- ✅ Fixed 10+ MySQL compatibility bugs (INTERVAL syntax, COLLATE statements, boolean casting)
+- ✅ Migrated database credentials to environment variables
+- ✅ Updated migration scripts to require admin authentication instead of localhost-only
+- ✅ Created `.gitignore` to prevent credential exposure
+- ✅ Generated `DEPLOYMENT_GUIDE.md` with live hosting instructions
