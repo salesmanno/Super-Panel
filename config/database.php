@@ -40,3 +40,4 @@ function closeDBConnection() {
     global $conn;
     $conn = null;
 }
+?>
