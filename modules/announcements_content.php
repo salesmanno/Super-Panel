@@ -102,16 +102,35 @@ async function loadAnnouncements() {
         if (showUnpublished) params.append('show_unpublished', 'true');
 
         const response = await fetch(`/api/get_announcements.php?${params.toString()}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const result = await response.json();
 
         if (result.success) {
             currentAnnouncements = result.announcements;
             displayAnnouncements(result.announcements);
         } else {
-            toast.quickError('Feil', result.message);
+            throw new Error(result.message || 'Kunne ikke laste nyheter');
         }
     } catch (error) {
         console.error('Load announcements error:', error);
+        toast.quickError('Feil', 'Kunne ikke laste nyheter: ' + error.message);
+        
+        const container = document.getElementById('announcements-list');
+        if (container) {
+            container.innerHTML = `
+                <div class="card shadow-sm">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+                        <p class="text-danger mt-3 mb-0">Feil ved lasting av nyheter</p>
+                        <small class="text-muted d-block mt-2">${error.message}</small>
+                    </div>
+                </div>
+            `;
+        }
     }
 }
 
