@@ -8,29 +8,22 @@ function getTenantAdminByUsername($username) {
         return false;
     }
     
-    $activeValue = 1;
+    // Search by email (username parameter is actually the email)
     $stmt = $db->prepare("
-        SELECT ta.id, ta.company_id, ta.tenant_staff_id, ta.password_hash, ta.username, ta.is_active,
-               tc.name as company_name, tc.subdomain, tc.is_active as company_active,
-               ts.first_name, ts.last_name, ts.email as staff_email, ts.phone, ts.job_title
+        SELECT ta.id, ta.company_id, ta.email, ta.password_hash, ta.role, ta.is_active,
+               tc.company_name, tc.is_active as company_active
         FROM tenant_admins ta
         INNER JOIN tenant_companies tc ON ta.company_id = tc.id
-        LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
-        WHERE ta.username = ? AND ta.is_active = $activeValue
+        WHERE ta.email = ? AND ta.is_active = 1
     ");
     $stmt->execute([$username]);
     $admin = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($admin) {
-        if (empty($admin['first_name'])) {
-            $admin['first_name'] = '';
-        }
-        if (empty($admin['last_name'])) {
-            $admin['last_name'] = '';
-        }
-        if (empty($admin['staff_email'])) {
-            $admin['staff_email'] = '';
-        }
+        $admin['first_name'] = '';
+        $admin['last_name'] = '';
+        $admin['staff_email'] = $admin['email'];
+        $admin['subdomain'] = '';
     }
     
     return $admin;
