@@ -20,10 +20,7 @@ function getTenantAdminByUsername($username) {
     $admin = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($admin) {
-        $admin['first_name'] = '';
-        $admin['last_name'] = '';
         $admin['staff_email'] = $admin['email'];
-        $admin['subdomain'] = '';
     }
     
     return $admin;
@@ -90,7 +87,6 @@ function getLatestNews($limit = 5) {
         $stmt->execute([1]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
-        // Table doesn't exist or query failed - return empty array
         return [];
     }
 }
@@ -131,11 +127,10 @@ function createTenantAdminSession($tenantAdminId, $sessionId) {
     $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
     
     try {
-        // Create new session (existing sessions are now blocked in auth/company_auth.php)
         $stmt = $db->prepare("
             INSERT INTO tenant_admin_sessions 
-            (tenant_admin_id, session_id, ip_address, user_agent, login_at, last_activity, is_active)
-            VALUES (?, ?, ?, ?, NOW(), NOW(), " . 1 . ")
+            (id, tenant_admin_id, session_id, ip_address, user_agent, login_at, last_activity, is_active)
+            VALUES (UUID(), ?, ?, ?, ?, NOW(), NOW(), 1)
         ");
         return $stmt->execute([$tenantAdminId, $sessionId, $ipAddress, $userAgent]);
     } catch (PDOException $e) {
@@ -149,11 +144,10 @@ function updateSessionActivity($sessionId) {
     if (!$db) return false;
     
     try {
-        $activeValue = 1;
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
             SET last_activity = NOW() 
-            WHERE session_id = ? AND is_active = $activeValue
+            WHERE session_id = ?
         ");
         return $stmt->execute([$sessionId]);
     } catch (PDOException $e) {
@@ -167,37 +161,12 @@ function endTenantAdminSession($sessionId) {
     if (!$db) return false;
     
     try {
-        $activeValue = 1;
-        $inactiveValue = 0;
-        
-        // Get tenant_admin_id from session before ending it
-        $stmt = $db->prepare("
-            SELECT tenant_admin_id 
-            FROM tenant_admin_sessions 
-            WHERE session_id = ? AND is_active = $activeValue
-        ");
-        $stmt->execute([$sessionId]);
-        $session = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        // End the session
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
-            SET logout_at = NOW(), is_active = $inactiveValue 
-            WHERE session_id = ? AND is_active = $activeValue
+            SET logout_at = NOW(), is_active = 0
+            WHERE session_id = ?
         ");
-        $stmt->execute([$sessionId]);
-        
-        // Update last_logout in tenant_admins
-        if ($session && isset($session['tenant_admin_id'])) {
-            $stmt = $db->prepare("
-                UPDATE tenant_admins 
-                SET last_logout = NOW() 
-                WHERE id = ?
-            ");
-            $stmt->execute([$session['tenant_admin_id']]);
-        }
-        
-        return true;
+        return $stmt->execute([$sessionId]);
     } catch (PDOException $e) {
         error_log("Error ending session: " . $e->getMessage());
         return false;
@@ -209,10 +178,9 @@ function getTenantAdminActiveSessions($tenantAdminId) {
     if (!$db) return [];
     
     try {
-        $activeValue = 1;
         $stmt = $db->prepare("
             SELECT * FROM tenant_admin_sessions 
-            WHERE tenant_admin_id = ? AND is_active = $activeValue
+            WHERE tenant_admin_id = ? AND is_active = 1
             ORDER BY last_activity DESC
         ");
         $stmt->execute([$tenantAdminId]);
@@ -248,23 +216,22 @@ function getAllActiveSessions($companyId = null) {
     if (!$db) return [];
     
     try {
-        $activeValue = 1;
         if ($companyId) {
             $stmt = $db->prepare("
-                SELECT tas.*, ta.username, ta.name, ta.email
+                SELECT tas.*, ta.username, ta.email
                 FROM tenant_admin_sessions tas
                 INNER JOIN tenant_admins ta ON tas.tenant_admin_id = ta.id
-                WHERE ta.company_id = ? AND tas.is_active = $activeValue
+                WHERE ta.company_id = ? AND tas.is_active = 1
                 ORDER BY tas.last_activity DESC
             ");
             $stmt->execute([$companyId]);
         } else {
             $stmt = $db->query("
-                SELECT tas.*, ta.username, ta.name, ta.email, tc.name as company_name
+                SELECT tas.*, ta.username, ta.email, tc.company_name
                 FROM tenant_admin_sessions tas
                 INNER JOIN tenant_admins ta ON tas.tenant_admin_id = ta.id
                 INNER JOIN tenant_companies tc ON ta.company_id = tc.id
-                WHERE tas.is_active = $activeValue
+                WHERE tas.is_active = 1
                 ORDER BY tas.last_activity DESC
             ");
         }
@@ -280,14 +247,13 @@ function endInactiveSessions($inactiveMinutes = 30) {
     if (!$db) return false;
     
     try {
-        // MySQL: Use DATE_SUB for dynamic INTERVAL
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
-            SET is_active = ?, logout_at = NOW() 
-            WHERE is_active = ? 
+            SET is_active = 0, logout_at = NOW() 
+            WHERE is_active = 1 
             AND last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE)
         ");
-        return $stmt->execute([0, 1, $inactiveMinutes]);
+        return $stmt->execute([$inactiveMinutes]);
     } catch (PDOException $e) {
         error_log("Error ending inactive sessions: " . $e->getMessage());
         return false;
