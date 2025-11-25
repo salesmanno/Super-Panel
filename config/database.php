@@ -1,23 +1,22 @@
 <?php
 
-// Load local config for webhost deployments (MySQL only)
+// Load local config first (for webhost deployments)
 if (file_exists(__DIR__ . '/database.local.php')) {
     require __DIR__ . '/database.local.php';
 } else {
-    // Default fallback - configure with your MySQL host
-    define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
-    define('DB_NAME', getenv('DB_NAME') ?: 'salesman');
-    define('DB_USER', getenv('DB_USER') ?: 'root');
-    define('DB_PASS', getenv('DB_PASS') ?: '');
+    // Fall back to environment variables or defaults
+    define('DB_HOST', $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?? 'salesmanno04.mysql.domeneshop.no');
+    define('DB_NAME', $_ENV['DB_NAME'] ?? getenv('DB_NAME') ?? 'salesmanno04');
+    define('DB_USER', $_ENV['DB_USER'] ?? getenv('DB_USER') ?? 'salesmanno04');
+    define('DB_PASS', $_ENV['DB_PASS'] ?? getenv('DB_PASS') ?? 'samle-lime-2Salgs-kd');
 }
 
 define('DB_CHARSET', 'utf8mb4');
 
 function getDBConnection() {
     static $conn = null;
-    static $error = null;
     
-    if ($conn === null && $error === null) {
+    if ($conn === null) {
         try {
             $mysqlDsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET;
             $options = [
@@ -27,17 +26,9 @@ function getDBConnection() {
                 PDO::ATTR_TIMEOUT => 5,
             ];
             
-            // Enable SSL for PlanetScale and other SSL-required hosts
-            if (strpos(DB_HOST, 'psdb.cloud') !== false || getenv('DB_SSL') === 'true') {
-                $options[PDO::MYSQL_ATTR_SSL_CA] = '/etc/ssl/certs/ca-certificates.crt';
-            }
-            
             $conn = new PDO($mysqlDsn, DB_USER, DB_PASS, $options);
         } catch (PDOException $e) {
-            $error = $e->getMessage();
-            error_log("DATABASE CONNECTION ERROR: " . $e->getMessage());
-            error_log("DB_HOST: " . DB_HOST . ", DB_NAME: " . DB_NAME . ", DB_USER: " . DB_USER);
-            return null;
+            throw new Exception($e->getMessage());
         }
     }
     
