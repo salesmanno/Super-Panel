@@ -42,11 +42,11 @@ function getTenantAdminModules($adminId) {
     }
     $activeValue = 1;
     $stmt = $db->prepare("
-        SELECT sm.id, sm.name, sm.module_key, sm.description, sm.icon, sm.is_active, sm.created_at
+        SELECT sm.id, sm.module_name, sm.display_name, sm.description, sm.icon, sm.is_active, sm.sort_order
         FROM system_modules sm
         INNER JOIN tenant_admin_modules tam ON sm.id = tam.module_id
         WHERE tam.tenant_admin_id = ? AND sm.is_active = $activeValue
-        ORDER BY sm.name
+        ORDER BY sm.sort_order
     ");
     $stmt->execute([$adminId]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -59,11 +59,11 @@ function getCompanyModules($companyId) {
     }
     $activeValue = 1;
     $stmt = $db->prepare("
-        SELECT sm.id, sm.name, sm.module_key, sm.description, sm.icon, sm.is_active, sm.created_at
+        SELECT sm.id, sm.module_name, sm.display_name, sm.description, sm.icon, sm.is_active, sm.sort_order
         FROM system_modules sm
         INNER JOIN tenant_company_modules tcm ON sm.id = tcm.module_id
-        WHERE tcm.company_id = ? AND tcm.is_active = $activeValue AND sm.is_active = $activeValue
-        ORDER BY sm.name
+        WHERE tcm.company_id = ? AND sm.is_active = $activeValue
+        ORDER BY sm.sort_order
     ");
     $stmt->execute([$companyId]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
