@@ -251,7 +251,7 @@ try {
                     address_city = COALESCE(address_city, ?),
                     notes = CASE 
                         WHEN notes IS NULL OR notes = '' THEN ? 
-                        ELSE CONCAT(notes, '\n', ?) 
+                        ELSE GROUP_CONCAT(notes, '\n', ?) 
                     END,
                     updated_at = NOW()
                 WHERE id = ?

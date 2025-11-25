@@ -85,16 +85,21 @@ function getLatestNews($limit = 5) {
         return [];
     }
     $limit = (int)$limit;
-    $stmt = $db->prepare("
-        SELECT * FROM core_sys_news 
-        WHERE is_published = ? 
-        AND (expire_at IS NULL OR expire_at > NOW())
-        AND publish_at <= NOW()
-        ORDER BY publish_at DESC 
-        LIMIT " . $limit
-    );
-    $stmt->execute([1]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    try {
+        $stmt = $db->prepare("
+            SELECT * FROM core_sys_news 
+            WHERE is_published = ? 
+            AND (expire_at IS NULL OR expire_at > NOW())
+            AND publish_at <= NOW()
+            ORDER BY publish_at DESC 
+            LIMIT " . $limit
+        );
+        $stmt->execute([1]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        // Table doesn't exist or query failed - return empty array
+        return [];
+    }
 }
 
 function verifyPassword($password, $hash) {
