@@ -39,7 +39,28 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Clean Database Architecture**: Modular database design eliminating duplicates and redundancy, standardizing tables, adding cost price tracking, and introducing `service_bookings` and `unified_ledger` tables.
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
+## Database Configuration
+- **MySQL Host**: PlanetScale (gcp.connect.psdb.cloud)
+- **Database**: salesmanps
+- **Connection**: SSL/TLS required (auto-configured in config/database.php)
+- **Credentials**: Stored in config/database.local.php (not committed to git)
+- **Schema**: 8 core tables created (companies, products, orders, events, memberships, reservations, email, news)
+- **Setup**: Database automatically uses SSL for PlanetScale connections
+
+### Configuration Details
+- `config/database.php`: Main connection handler with SSL auto-detection
+- `config/database.local.php`: Local credentials (use when deploying to web host)
+- System automatically enables SSL when hostname contains 'psdb.cloud'
+
 ## Recent Changes
+- **2025-11-25 (SESSION 11 - PLANETSCALE MYSQL SETUP)**:
+  - Migrated from Domeneshop (unreachable) to PlanetScale MySQL
+  - Fixed PDO connection to support SSL/TLS required by PlanetScale
+  - Database credentials stored securely in config/database.local.php
+  - Created minimal schema with 8 core tables (no foreign keys due to Vitess limitations)
+  - All HTTP endpoints returning 200, database connected and operational
+  - Configured .gitignore to protect database.local.php
+
 - **2025-11-24 (SESSION 10 - EVENTS_CHECKIN AS AUTHORITATIVE SOURCE)**:
   - **EventResultsService Refactored**:
     - `getSummary()` nå beregner all innsjekk- og deltakelsesdata dynamisk fra `events_checkin`

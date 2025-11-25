@@ -27,10 +27,15 @@ function getDBConnection() {
                 PDO::ATTR_TIMEOUT => 5,
             ];
             
+            // Enable SSL for PlanetScale and other SSL-required hosts
+            if (strpos(DB_HOST, 'psdb.cloud') !== false || getenv('DB_SSL') === 'true') {
+                $options[PDO::MYSQL_ATTR_SSL_CA] = '/etc/ssl/certs/ca-certificates.crt';
+            }
+            
             $conn = new PDO($mysqlDsn, DB_USER, DB_PASS, $options);
         } catch (PDOException $e) {
             $error = $e->getMessage();
-            error_log("DATABASE CONNECTION ERROR: " . $error);
+            error_log("DATABASE CONNECTION ERROR: " . $e->getMessage());
             error_log("DB_HOST: " . DB_HOST . ", DB_NAME: " . DB_NAME . ", DB_USER: " . DB_USER);
             return null;
         }

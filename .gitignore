@@ -1,0 +1,30 @@
+# Database configuration with credentials
+config/database.local.php
+
+# IDE and editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# PHP
+composer.lock
+vendor/
+*.log
+
+# Node modules (if any frontend build)
+node_modules/
+dist/
+build/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Environment
+.env
+.env.local
+*.env.*.local
