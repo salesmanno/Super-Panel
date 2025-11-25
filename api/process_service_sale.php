@@ -45,7 +45,7 @@ try {
     $is_member_price = false;
     $actual_output_product_id = $output_product_id;
     
-    if (str_ends_with($output_product_id, '_member')) {
+    if (substr($output_product_id, -7) === '_member') {
         $is_member_price = true;
         $actual_output_product_id = str_replace('_member', '', $output_product_id);
     }

@@ -19,7 +19,7 @@ function getTenantAdminByUsername($username) {
         WHERE ta.username = ? AND ta.is_active = $activeValue
     ");
     $stmt->execute([$username]);
-    $admin = $stmt->fetch();
+    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($admin) {
         if (empty($admin['first_name'])) {
@@ -59,7 +59,7 @@ function getTenantAdminModules($adminId) {
         ORDER BY sm.name
     ");
     $stmt->execute([$adminId]);
-    return $stmt->fetchAll();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 function getCompanyModules($companyId) {
@@ -76,7 +76,7 @@ function getCompanyModules($companyId) {
         ORDER BY sm.name
     ");
     $stmt->execute([$companyId]);
-    return $stmt->fetchAll();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 function getLatestNews($limit = 5) {
@@ -94,7 +94,7 @@ function getLatestNews($limit = 5) {
         LIMIT " . $limit
     );
     $stmt->execute([1]);
-    return $stmt->fetchAll();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 function verifyPassword($password, $hash) {
@@ -120,7 +120,7 @@ function getCompanyBySubdomain($subdomain) {
         WHERE subdomain = ? AND is_active = $activeValue
     ");
     $stmt->execute([$subdomain]);
-    return $stmt->fetch();
+    return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
 // ==================== SESSION TRACKING FUNCTIONS ====================
@@ -218,7 +218,7 @@ function getTenantAdminActiveSessions($tenantAdminId) {
             ORDER BY last_activity DESC
         ");
         $stmt->execute([$tenantAdminId]);
-        return $stmt->fetchAll();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         error_log("Error getting active sessions: " . $e->getMessage());
         return [];
@@ -238,7 +238,7 @@ function getTenantAdminSessionHistory($tenantAdminId, $limit = 50) {
             LIMIT " . $limit
         );
         $stmt->execute([$tenantAdminId]);
-        return $stmt->fetchAll();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         error_log("Error getting session history: " . $e->getMessage());
         return [];
@@ -270,7 +270,7 @@ function getAllActiveSessions($companyId = null) {
                 ORDER BY tas.last_activity DESC
             ");
         }
-        return $stmt->fetchAll();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         error_log("Error getting all active sessions: " . $e->getMessage());
         return [];
@@ -282,12 +282,12 @@ function endInactiveSessions($inactiveMinutes = 30) {
     if (!$db) return false;
     
     try {
-        // MySQL: Use INTERVAL syntax directly
+        // MySQL: Use DATE_SUB for dynamic INTERVAL
         $stmt = $db->prepare("
             UPDATE tenant_admin_sessions 
             SET is_active = ?, logout_at = NOW() 
             WHERE is_active = ? 
-            AND last_activity < NOW() - INTERVAL ? MINUTE
+            AND last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE)
         ");
         return $stmt->execute([0, 1, $inactiveMinutes]);
     } catch (PDOException $e) {

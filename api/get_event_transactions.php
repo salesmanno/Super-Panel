@@ -56,7 +56,7 @@ try {
         $type = 'income'; // default to income
         
         // Determine transaction type
-        if (str_contains($transaction['item_type'], 'expense')) {
+        if (stripos($transaction['item_type'], 'expense') !== false) {
             $type = 'expense';
             $expense += abs($transaction['amount']);
         } else {
