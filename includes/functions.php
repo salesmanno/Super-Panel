@@ -45,7 +45,7 @@ function getTenantAdminModules($adminId) {
         SELECT sm.id, sm.module_name, sm.display_name, sm.description, sm.icon, sm.is_active, sm.sort_order
         FROM system_modules sm
         INNER JOIN tenant_admin_modules tam ON sm.id = tam.module_id
-        WHERE tam.tenant_admin_id = ? AND sm.is_active = $activeValue
+        WHERE tam.admin_id = ? AND sm.is_active = $activeValue
         ORDER BY sm.sort_order
     ");
     $stmt->execute([$adminId]);
