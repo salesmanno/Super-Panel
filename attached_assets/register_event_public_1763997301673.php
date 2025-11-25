@@ -88,11 +88,10 @@ try {
     }
     
     // Fetch registration fields for validation
-    $dbType = getDBType();
     $stmt = $db->prepare("
         SELECT field_name, field_label, is_required 
         FROM event_registration_fields 
-        WHERE event_id = ? AND is_visible = " . ($dbType === 'postgresql' ? 'TRUE' : '1') . "
+        WHERE event_id = ? AND is_visible = 1
     ");
     $stmt->execute([$event_id]);
     $registrationFields = $stmt->fetchAll(PDO::FETCH_ASSOC);

@@ -20,21 +20,12 @@ try {
     $db = getDBConnection();
     
     // Soft delete: mark as inactive instead of deleting
-    // This preserves output_products and historical data
-    $dbType = getDBType();
-    if ($dbType === 'mysql') {
-        $stmt = $db->prepare("
-            UPDATE sales_products 
-            SET is_active = " . 0 . "
-            WHERE id = ? AND company_id = ?
-        ");
-    } else {
-        $stmt = $db->prepare("
-            UPDATE sales_items 
-            SET is_active = " . 0 . "
-            WHERE id = ? AND company_id = ?
-        ");
-    }
+    // This preserves output_products and historical data (MySQL only)
+    $stmt = $db->prepare("
+        UPDATE sales_products 
+        SET is_active = 0
+        WHERE id = ? AND company_id = ?
+    ");
     
     $stmt->execute([
         $data['item_id'],
@@ -45,7 +36,7 @@ try {
         // Also hide the product from output_products catalog
         $hideStmt = $db->prepare("
             UPDATE output_products 
-            SET is_visible = " . 0 . ", is_public = " . 0 . "
+            SET is_visible = 0, is_public = 0
             WHERE product_id = ? 
             AND product_type IN ('product', 'sales_item')
             AND company_id = ?
