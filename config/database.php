@@ -15,8 +15,9 @@ define('DB_CHARSET', 'utf8mb4');
 
 function getDBConnection() {
     static $conn = null;
+    static $error = null;
     
-    if ($conn === null) {
+    if ($conn === null && $error === null) {
         try {
             $mysqlDsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET;
             $options = [
@@ -28,7 +29,10 @@ function getDBConnection() {
             
             $conn = new PDO($mysqlDsn, DB_USER, DB_PASS, $options);
         } catch (PDOException $e) {
-            throw new Exception($e->getMessage());
+            $error = $e->getMessage();
+            error_log("DATABASE CONNECTION ERROR: " . $error);
+            error_log("DB_HOST: " . DB_HOST . ", DB_NAME: " . DB_NAME . ", DB_USER: " . DB_USER);
+            return null;
         }
     }
     
