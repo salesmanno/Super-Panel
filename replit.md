@@ -44,13 +44,22 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database**: salesmanps
 - **Connection**: SSL/TLS required (auto-configured in config/database.php)
 - **Credentials**: Stored in config/database.local.php (not committed to git)
-- **Schema**: 8 core tables created (companies, products, orders, events, memberships, reservations, email, news)
+- **Schema**: 18 tables imported from Domeneshop backup
 - **Setup**: Database automatically uses SSL for PlanetScale connections
 
+### Table Structure (18 Tables)
+Core tables successfully imported:
+- **Rental**: `rental_cabins`, `rental_containers`, `rental_event_items`, `rental_object_fields`, `rental_offices`, `rental_parking`, `rental_residences`, `rental_rvs`, `rental_sports_equipment`, `rental_tools`, `rental_trailers`, `rental_vehicles`, `rental_venues`
+- **Sales**: `sales_cart`, `sales_transactions`
+- **Email**: `email_queue`
+- **Tenant**: `tenant_admin_sessions`, `tenant_email_config`
+- **Note**: Some tables with complex FK constraints from original schema not imported due to PlanetScale/Vitess limitations (no FK support)
+
 ### Configuration Details
-- `config/database.php`: Main connection handler with SSL auto-detection
-- `config/database.local.php`: Local credentials (use when deploying to web host)
+- `config/database.php`: Main connection handler with SSL auto-detection for PlanetScale
+- `config/database.local.php`: Local credentials (protected by .gitignore)
 - System automatically enables SSL when hostname contains 'psdb.cloud'
+- Additional tables can be created manually as needed
 
 ## Recent Changes
 - **2025-11-25 (SESSION 11 - PLANETSCALE MYSQL SETUP)**:
