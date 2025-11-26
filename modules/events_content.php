@@ -2164,9 +2164,8 @@ async function editEvent(eventId) {
         
         console.log('API returned:', result);
         
-        if (!result.success) {
-            toast.quickError('Arrangement', result.message || 'Kunne ikke laste arrangement');
-            return;
+        if (!result || !result.success) {
+            throw new Error(result?.message || 'API returnerte feildata');
         }
         
         const event = result.event;

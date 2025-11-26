@@ -86,8 +86,9 @@ try {
     
 } catch (Exception $e) {
     error_log("Error fetching event: " . $e->getMessage());
+    http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Kunne ikke hente arrangement'
+        'message' => 'Kunne ikke hente arrangement: ' . $e->getMessage()
     ]);
 }
