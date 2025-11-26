@@ -63,7 +63,7 @@ try {
         if ($pricing) {
             $ticketPrice = $pricing['ticket_price'];
             $ticketType = $pricing['plan_name'];
-            $membershipPlanId = (int)$pricing['emp_id']; // Store FK reference to event_membership_plans.id (INT)
+            $membershipPlanId = $pricing['emp_id']; // Store FK reference to event_membership_plans.id (CHAR(36) UUID)
         }
     }
     
