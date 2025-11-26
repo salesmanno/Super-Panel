@@ -511,37 +511,83 @@ try {
                 </div>
             </div>
 
-            <!-- Right Column: Attendee List -->
+            <!-- Right Column: Attendee List - Two Columns -->
             <div class="col-md-8">
-                <div class="card">
-                    <div class="card-header">
-                        <h6 class="mb-0"><i class="bi bi-people me-2"></i>Påmeldte deltakere</h6>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive" id="checkin-list-container" style="display: none;">
-                            <table class="table table-sm table-hover mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Navn</th>
-                                        <th>Kontakt</th>
-                                        <th>Type</th>
-                                        <th>Pris</th>
-                                        <th>Status</th>
-                                        <th>Tid</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="checkin-attendees-list">
-                                    <tr>
-                                        <td colspan="6" class="text-center text-muted py-4">
-                                            Ingen deltakere ennå
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                <ul class="nav nav-tabs mb-3" role="tablist" id="checkin-tabs">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#checkin-confirmed-tab" type="button">
+                            <i class="bi bi-check-circle me-2 text-success"></i>Innsjekket
+                            <span class="badge bg-success ms-1" id="checkin-confirmed-count">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#checkin-pending-tab" type="button">
+                            <i class="bi bi-clock me-2 text-warning"></i>Ikke innsjekket
+                            <span class="badge bg-warning ms-1" id="checkin-pending-count">0</span>
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="checkin-tabs-content">
+                    <!-- Checked In Tab -->
+                    <div class="tab-pane fade show active" id="checkin-confirmed-tab" role="tabpanel">
+                        <div class="card">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0"><i class="bi bi-check-circle me-2"></i>Innsjekket</h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive" id="checkin-confirmed-container">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Navn</th>
+                                                <th>Innsjekket av</th>
+                                                <th>Kontakt</th>
+                                                <th>Pris</th>
+                                                <th>Tid</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="checkin-confirmed-list">
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted py-4">
+                                                    Velg arrangement for å se innsjekket
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
-                        <div class="text-center text-muted py-5" id="checkin-empty-state">
-                            <i class="bi bi-people fs-1"></i>
-                            <p class="mt-2">Velg et arrangement for å se deltakere</p>
+                    </div>
+
+                    <!-- Not Checked In Tab -->
+                    <div class="tab-pane fade" id="checkin-pending-tab" role="tabpanel">
+                        <div class="card">
+                            <div class="card-header bg-warning text-dark">
+                                <h6 class="mb-0"><i class="bi bi-clock me-2"></i>Ikke innsjekket</h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive" id="checkin-pending-container">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Navn</th>
+                                                <th>Kontakt</th>
+                                                <th>Type</th>
+                                                <th>Pris</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="checkin-pending-list">
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted py-4">
+                                                    Velg arrangement for å se ikke innsjekket
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
