@@ -1611,22 +1611,22 @@ try {
             
             let html = `
                 <div class="modal fade" id="productsModal" tabindex="-1">
-                    <div class="modal-dialog modal-lg">
+                    <div class="modal-dialog modal-xl">
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h5 class="modal-title">Alle oppføringer (${products.length})</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
-                                <div style="max-height: 400px; overflow-y: auto;">
-                                    <table class="table table-sm">
-                                        <thead class="table-light">
+                                <div style="max-height: 500px; overflow-y: auto; overflow-x: auto;">
+                                    <table class="table table-sm" style="table-layout: auto; word-break: break-word;">
+                                        <thead class="table-light" style="position: sticky; top: 0;">
                                             <tr>
-                                                <th>Modul</th>
-                                                <th>Navn</th>
-                                                <th>Pris</th>
-                                                <th>Status</th>
-                                                <th style="width: 80px;">Handling</th>
+                                                <th style="min-width: 100px; word-break: break-word;">Modul</th>
+                                                <th style="min-width: 150px; word-break: break-word;">Navn</th>
+                                                <th style="min-width: 80px; word-break: break-word;">Pris</th>
+                                                <th style="min-width: 80px; word-break: break-word;">Status</th>
+                                                <th style="width: 100px; min-width: 100px; word-break: break-word;">Handling</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1641,12 +1641,12 @@ try {
                 const toggleButtonText = product.is_visible ? 'Deaktiver' : 'Aktiver';
                 
                 html += `
-                    <tr>
-                        <td>${moduleName}</td>
-                        <td>${product.name || 'Ingen navn'}</td>
-                        <td>${product.price || 0} NOK</td>
-                        <td>${statusBadge}</td>
-                        <td style="display: flex; gap: 5px;">
+                    <tr style="vertical-align: middle;">
+                        <td style="word-break: break-word;">${moduleName}</td>
+                        <td style="word-break: break-word; max-width: 200px;">${product.name || 'Ingen navn'}</td>
+                        <td style="word-break: break-word;">${product.price || 0} NOK</td>
+                        <td style="word-break: break-word;">${statusBadge}</td>
+                        <td style="display: flex; gap: 5px; flex-wrap: wrap;">
                             <button class="btn btn-sm ${toggleButtonClass}" onclick="toggleProductVisibility('${product.id}', ${product.is_visible})" title="${toggleButtonText}">
                                 <i class="bi ${product.is_visible ? 'bi-toggle-on' : 'bi-toggle-off'}"></i>
                             </button>
