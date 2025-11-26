@@ -332,15 +332,13 @@ async function deleteAnnouncement(id) {
     }
 }
 
-// Initialize on load
+// Initialize on load - defer loading until tab is actually visible
 document.addEventListener('DOMContentLoaded', function() {
-    // Only load if the announcements module is visible
-    if (document.getElementById('announcements-list')) {
-        loadAnnouncements();
-    }
+    // Don't load on page load - wait until user clicks the announcements tab
+    // This prevents errors on login when the announcements tab isn't visible
 });
 
-// Also load when tab becomes visible
+// Load when tab becomes visible
 document.addEventListener('shown.bs.tab', function(event) {
     if (event.target.getAttribute('data-bs-target') === '#content-announcements') {
         loadAnnouncements();
