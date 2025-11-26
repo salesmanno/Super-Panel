@@ -1980,63 +1980,63 @@ async function loadEventsResults() {
             document.getElementById('summary-upcoming-events').textContent = result.summary.upcoming_events;
         }
         
-        // Render event cards
+        // Render event results as table per arrangement
         const resultsList = document.getElementById('events-results-list');
         
         if (result.events && result.events.length > 0) {
-            resultsList.innerHTML = result.events.map(event => {
-                const netColor = event.net_result >= 0 ? 'text-success' : 'text-danger';
-                const statusBadge = event.status === 'Kommende' ? 'bg-info' : event.status === 'Pågår' ? 'bg-warning' : 'bg-secondary';
-                const startDate = new Date(event.start_date).toLocaleDateString('no-NO', { day: 'numeric', month: 'short', year: 'numeric' });
-                
-                return `
-                    <div class="col-md-6 col-lg-4 mb-4">
-                        <div class="card h-100 shadow-sm">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <h6 class="card-title mb-0">${event.title}</h6>
-                                    <span class="badge ${statusBadge} text-white">${event.status}</span>
-                                </div>
-                                
-                                <div class="text-muted small mb-3">
-                                    <i class="bi bi-calendar3 me-1"></i>${startDate}
-                                    ${event.start_time ? `<span class="ms-2"><i class="bi bi-clock me-1"></i>${event.start_time}</span>` : ''}
-                                </div>
-                                
-                                <div class="row g-2 mb-3">
-                                    <div class="col-6">
-                                        <div class="p-2 bg-light rounded text-center">
-                                            <div class="text-muted small">Deltakere</div>
-                                            <div class="fw-bold text-primary">${event.attendee_count || 0}</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="p-2 bg-light rounded text-center">
-                                            <div class="text-muted small">Inntekt</div>
-                                            <div class="fw-bold text-success">${parseFloat(event.income || 0).toFixed(0)} kr</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="row g-2 mb-3">
-                                    <div class="col-6">
-                                        <div class="p-2 bg-light rounded text-center">
-                                            <div class="text-muted small">Utgift</div>
-                                            <div class="fw-bold text-danger">${parseFloat(event.expense || 0).toFixed(0)} kr</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="p-2 bg-light rounded text-center">
-                                            <div class="text-muted small">Netto</div>
-                                            <div class="fw-bold ${netColor}">${parseFloat(event.net_result || 0).toFixed(0)} kr</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+            resultsList.innerHTML = `
+                <div class="col-12">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Arrangement</th>
+                                    <th>Dato</th>
+                                    <th>Status</th>
+                                    <th class="text-center">Deltakere</th>
+                                    <th class="text-end">Inntekt</th>
+                                    <th class="text-end">Utgift</th>
+                                    <th class="text-end">Netto resultat</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${result.events.map(event => {
+                                    const statusBadge = event.status === 'Kommende' ? 'bg-info' : event.status === 'Pågår' ? 'bg-warning' : 'bg-secondary';
+                                    const startDate = new Date(event.start_date).toLocaleDateString('no-NO', { day: 'numeric', month: 'short', year: 'numeric' });
+                                    const netColor = event.net_result >= 0 ? 'text-success' : 'text-danger';
+                                    
+                                    return `
+                                        <tr>
+                                            <td>
+                                                <strong>${event.title}</strong>
+                                            </td>
+                                            <td>
+                                                ${startDate}
+                                                ${event.start_time ? `<br><small class="text-muted">${event.start_time}</small>` : ''}
+                                            </td>
+                                            <td>
+                                                <span class="badge ${statusBadge}">${event.status}</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-primary">${event.attendee_count || 0}</span>
+                                            </td>
+                                            <td class="text-end text-success">
+                                                <strong>${parseFloat(event.income || 0).toFixed(0)} kr</strong>
+                                            </td>
+                                            <td class="text-end text-danger">
+                                                ${parseFloat(event.expense || 0).toFixed(0)} kr
+                                            </td>
+                                            <td class="text-end fw-bold ${netColor}">
+                                                ${parseFloat(event.net_result || 0).toFixed(0)} kr
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
                     </div>
-                `;
-            }).join('');
+                </div>
+            `;
         } else {
             resultsList.innerHTML = `
                 <div class="col-12">
