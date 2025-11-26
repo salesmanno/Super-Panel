@@ -208,11 +208,7 @@ class ProductCatalogService {
                     break;
                     
                 case 'membership':
-                    if ($dbType === 'mysql') {
-                        $stmt = $this->db->prepare("SELECT * FROM membership_plans WHERE id = ? AND is_active = " . 1);
-                    } else {
-                        $stmt = $this->db->prepare("SELECT * FROM x_membership_plan WHERE plan_id = ? AND is_active = " . 1);
-                    }
+                    $stmt = $this->db->prepare("SELECT * FROM membership_plans WHERE id = ? AND is_active = " . 1);
                     break;
                     
                 case 'service':
