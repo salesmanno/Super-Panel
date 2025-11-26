@@ -2223,32 +2223,36 @@ async function editEvent(eventId) {
             editDeadlineContainer.style.display = 'none';
         }
         
-        // Fetch and set registration fields
-        const fieldsResponse = await fetch(`/api/get_event_registration_fields.php?event_id=${eventId}`);
-        
-        if (!fieldsResponse.ok) {
-            console.warn(`HTTP ${fieldsResponse.status}: Kunne ikke hente registreringsfelt`);
-            // Continue anyway - registration fields might fail but event edit should still work
-        }
-        
-        const fieldsResult = await fieldsResponse.json();
-        
-        // Reset all optional field checkboxes
-        document.getElementById('edit-field-email').checked = false;
-        document.getElementById('edit-field-phone').checked = false;
-        document.getElementById('edit-field-street').checked = false;
-        document.getElementById('edit-field-zip').checked = false;
-        document.getElementById('edit-field-city').checked = false;
-        document.getElementById('edit-field-postal').checked = false;
-        document.getElementById('edit-field-age').checked = false;
-        
-        if (fieldsResult.success && fieldsResult.fields) {
-            fieldsResult.fields.forEach(field => {
-                const checkbox = document.getElementById(`edit-field-${field.field_name}`);
-                if (checkbox) {
-                    checkbox.checked = true;
+        // Fetch and set registration fields - safe parsing
+        try {
+            const fieldsResponse = await fetch(`/api/get_event_registration_fields.php?event_id=${eventId}`);
+            
+            if (fieldsResponse.ok) {
+                const fieldsResult = await fieldsResponse.json();
+                
+                // Reset all optional field checkboxes
+                document.getElementById('edit-field-email').checked = false;
+                document.getElementById('edit-field-phone').checked = false;
+                document.getElementById('edit-field-street').checked = false;
+                document.getElementById('edit-field-zip').checked = false;
+                document.getElementById('edit-field-city').checked = false;
+                document.getElementById('edit-field-postal').checked = false;
+                document.getElementById('edit-field-age').checked = false;
+                
+                if (fieldsResult.success && fieldsResult.fields) {
+                    fieldsResult.fields.forEach(field => {
+                        const checkbox = document.getElementById(`edit-field-${field.field_name}`);
+                        if (checkbox) {
+                            checkbox.checked = true;
+                        }
+                    });
                 }
-            });
+            } else {
+                console.warn(`HTTP ${fieldsResponse.status}: Kunne ikke hente registreringsfelt - fortsetter likevel`);
+            }
+        } catch (fieldError) {
+            console.warn('Error loading registration fields:', fieldError);
+            // Continue - registration fields are optional for modal to open
         }
         
         // Load payment methods with current selection
