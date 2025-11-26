@@ -610,7 +610,7 @@ try {
                 </div>
             </div>
         </div>
-    </div>
+        </div>
 
     <div id="events-results" class="subtab-content" style="display: none;">
         <!-- Summary Stats - Horizontal Layout -->
