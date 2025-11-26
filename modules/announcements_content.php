@@ -102,6 +102,11 @@ async function loadAnnouncements() {
         if (showUnpublished) params.append('show_unpublished', 'true');
 
         const response = await fetch(`/api/get_announcements.php?${params.toString()}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: Kunne ikke hente nyheter`);
+        }
+        
         const result = await response.json();
 
         if (result.success) {
@@ -112,6 +117,7 @@ async function loadAnnouncements() {
         }
     } catch (error) {
         console.error('Load announcements error:', error);
+        toast.quickError('Nyheter', error.message || 'Kunne ikke hente nyheter');
     }
 }
 
