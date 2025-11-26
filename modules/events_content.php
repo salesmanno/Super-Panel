@@ -2176,26 +2176,31 @@ async function editEvent(eventId) {
             return;
         }
         
-        // Populate form fields
-        document.getElementById('edit-event-id').value = event.id;
-        document.getElementById('edit-title').value = event.title || '';
-        document.getElementById('edit-description').value = event.description || '';
-        document.getElementById('edit-start-date').value = event.start_date || '';
-        document.getElementById('edit-start-time').value = event.start_time || '';
-        document.getElementById('edit-end-date').value = event.end_date || '';
-        document.getElementById('edit-end-time').value = event.end_time || '';
-        document.getElementById('edit-age-limit').value = event.age_limit || '';
-        document.getElementById('edit-venue-name').value = event.venue_name || '';
-        document.getElementById('edit-event-address').value = event.event_address || '';
-        document.getElementById('edit-event-city').value = event.event_city || '';
-        document.getElementById('edit-event-postal').value = event.event_postal || '';
-        document.getElementById('edit-min-attendees').value = event.min_attendees || '';
-        document.getElementById('edit-registration-deadline').value = event.registration_deadline || '';
-        document.getElementById('edit-max-attendees').value = event.max_attendees || '';
-        document.getElementById('edit-ticket-price').value = event.ticket_price || 0;
-        document.getElementById('edit-member-ticket-price').value = event.member_ticket_price || '';
-        document.getElementById('edit-default-payment-method').value = event.default_payment_method || '';
-        document.getElementById('edit-event-image-url').value = event.event_image_url || '';
+        // Populate form fields - with defensive checks for optional elements
+        const setFieldValue = (id, value) => {
+            const element = document.getElementById(id);
+            if (element) element.value = value || '';
+        };
+        
+        setFieldValue('edit-event-id', event.id);
+        setFieldValue('edit-title', event.title);
+        setFieldValue('edit-description', event.description);
+        setFieldValue('edit-start-date', event.start_date);
+        setFieldValue('edit-start-time', event.start_time);
+        setFieldValue('edit-end-date', event.end_date);
+        setFieldValue('edit-end-time', event.end_time);
+        setFieldValue('edit-age-limit', event.age_limit);
+        setFieldValue('edit-venue-name', event.venue_name);
+        setFieldValue('edit-event-address', event.event_address);
+        setFieldValue('edit-event-city', event.event_city);
+        setFieldValue('edit-event-postal', event.event_postal);
+        setFieldValue('edit-min-attendees', event.min_attendees);
+        setFieldValue('edit-registration-deadline', event.registration_deadline);
+        setFieldValue('edit-max-attendees', event.max_attendees);
+        setFieldValue('edit-ticket-price', event.ticket_price || 0);
+        setFieldValue('edit-member-ticket-price', event.member_ticket_price);
+        setFieldValue('edit-default-payment-method', event.default_payment_method);
+        setFieldValue('edit-event-image-url', event.event_image_url);
         
         // Set registration type radio button
         const registrationType = event.registration_type || 'signup';
