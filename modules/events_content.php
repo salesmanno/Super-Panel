@@ -1957,12 +1957,18 @@ document.querySelector('[href="#events-checkin"]')?.addEventListener('click', fu
 
 // Load events results with cards layout
 async function loadEventsResults() {
+    console.log('loadEventsResults() called');
+    const resultsList = document.getElementById('events-results-list');
+    resultsList.innerHTML = '<div class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>Laster resultater...</div>';
+    
     try {
         const response = await fetch('/api/get_events_results.php');
+        console.log('API response status:', response.status);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const result = await response.json();
+        console.log('API result:', result);
         
-        if (!result.success) throw new Error(result.message);
+        if (!result.success) throw new Error(result.message || 'Ukjent feil');
         
         // Show/update summary
         const summaryDiv = document.getElementById('events-results-summary');
@@ -2053,9 +2059,17 @@ async function loadEventsResults() {
 }
 
 // Load results when results tab is shown
-document.querySelector('[href="#events-results"]')?.addEventListener('shown.bs.tab', function() {
-    loadEventsResults();
-});
+const resultsTabLink = document.querySelector('[href="#events-results"]');
+if (resultsTabLink) {
+    resultsTabLink.addEventListener('shown.bs.tab', function() {
+        loadEventsResults();
+    });
+    // Also try click event as fallback
+    resultsTabLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        setTimeout(() => loadEventsResults(), 100);
+    });
+}
 
 // Toggle event results dropdown
 async function toggleEventResults(eventId) {
