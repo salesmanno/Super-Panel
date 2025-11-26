@@ -14,8 +14,11 @@ try {
     
     $hasCreatedByColumns = false;
     try {
-        $testStmt = $db->query("SELECT created_by_admin FROM event_registrations LIMIT 0");
-        $hasCreatedByColumns = true;
+        $testStmt = $db->query("
+            SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME='event_registrations' AND COLUMN_NAME='created_by_admin'
+        ");
+        $hasCreatedByColumns = $testStmt->rowCount() > 0;
     } catch (Exception $e) {
         $hasCreatedByColumns = false;
     }
