@@ -86,33 +86,12 @@ try {
         ];
     }
     
-    // 4. PENDING event registrations (event_registrations awaiting approval)
+    // 4. New event registrations (event_registrations)
     $stmt = $db->prepare("
         SELECT COUNT(*) as count 
         FROM event_registrations er
         INNER JOIN events_eventdata ee ON er.event_id = ee.id
         WHERE ee.company_id = ? 
-        AND er.approval_status = 'pending'
-    ");
-    $stmt->execute([$company_id]);
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($result['count'] > 0) {
-        $activities[] = [
-            'module' => 'Arrangementer',
-            'module_action' => 'eventmottak',
-            'count' => $result['count'],
-            'description' => $result['count'] . ' påmelding' . ($result['count'] > 1 ? 'er' : '') . ' venter godkjenning',
-            'priority' => 'high'
-        ];
-    }
-    
-    // 4b. New APPROVED event registrations (created since last login)
-    $stmt = $db->prepare("
-        SELECT COUNT(*) as count 
-        FROM event_registrations er
-        INNER JOIN events_eventdata ee ON er.event_id = ee.id
-        WHERE ee.company_id = ? 
-        AND er.approval_status = 'approved'
         AND er.created_at > ?
     ");
     $stmt->execute([$company_id, $baselineTime]);
@@ -121,7 +100,7 @@ try {
         $activities[] = [
             'module' => 'Arrangementer',
             'count' => $result['count'],
-            'description' => $result['count'] . ' ny' . ($result['count'] > 1 ? 'e godkjente påmeldinger' : ' godkjent påmelding')
+            'description' => $result['count'] . ' ny' . ($result['count'] > 1 ? 'e påmeldinger' : ' påmelding')
         ];
     }
     

@@ -46,16 +46,52 @@ try {
         exit;
     }
     
+    // SINGLE SESSION ENFORCEMENT: Check if user has an active session with recent activity (within 30 min)
+    // First, clean up stale sessions (inactive for more than 30 minutes)
+    $dbType = getDBType();
+    $intervalCheck = $dbType === 'mysql' 
+        ? "DATE_SUB(NOW(), INTERVAL 30 MINUTE)" 
+        : "NOW() - INTERVAL '30 MINUTE'";
+    
+    $stmt = $db->prepare("
+        UPDATE tenant_admin_sessions 
+        SET is_active = ?, 
+            logout_at = NOW()
+        WHERE tenant_admin_id = ? 
+        AND is_active = ?
+        AND last_activity < $intervalCheck
+    ");
+    $stmt->execute([0, $admin['id'], 1]);
+    
+    // Now check for truly active sessions
+    $stmt = $db->prepare("
+        SELECT COUNT(*) as active_sessions 
+        FROM tenant_admin_sessions 
+        WHERE tenant_admin_id = ? 
+        AND is_active = ?
+        AND last_activity >= $intervalCheck
+    ");
+    $stmt->execute([$admin['id'], 1]);
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($result['active_sessions'] > 0) {
+        header('Location: ../index.php?error=already_logged_in');
+        exit;
+    }
+    
     updateTenantAdminLastLogin($admin['id']);
+    
     session_regenerate_id(true);
     
     $_SESSION['tenant_admin_id'] = $admin['id'];
     $_SESSION['company_id'] = $admin['company_id'];
-    $_SESSION['username'] = $admin['username'];
-    $_SESSION['admin_email'] = $admin['staff_email'] ?? $admin['email'];
-    $_SESSION['admin_name'] = $admin['username'];
+    $_SESSION['admin_email'] = $admin['staff_email'] ?? '';
+    $_SESSION['admin_first_name'] = $admin['first_name'] ?? '';
+    $_SESSION['db_type'] = getDBType();
+    $_SESSION['admin_last_name'] = $admin['last_name'] ?? '';
+    $_SESSION['admin_name'] = $admin['first_name'] ?? 'Bruker';
     $_SESSION['company_name'] = $admin['company_name'];
-    $_SESSION['role'] = $admin['role'];
+    $_SESSION['subdomain'] = $admin['subdomain'];
     $_SESSION['logged_in_at'] = time();
     $_SESSION['session_id'] = session_id();
     

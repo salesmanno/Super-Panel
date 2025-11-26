@@ -25,6 +25,7 @@ if (!$event_id || !$description || $amount <= 0) {
 try {
     $db = getDBConnection();
     $company_id = $_SESSION['company_id'];
+    $dbType = getDBType();
     
     $stmt = $db->prepare("
         SELECT id, title FROM events_eventdata 

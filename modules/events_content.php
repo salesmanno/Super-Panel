@@ -291,23 +291,20 @@ try {
                             <label class="form-label">Stedsnavn</label>
                             <input type="text" class="form-control" name="venue_name">
                         </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Gateadresse</label>
-                            <input type="text" class="form-control" name="event_address">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">By</label>
+                            <input type="text" class="form-control" name="event_city">
                         </div>
-                    </div>
-
-                    <div class="row">
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Postnummer</label>
                             <input type="text" class="form-control" name="event_postal">
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Poststed</label>
-                            <input type="text" class="form-control" name="event_city">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Adresse</label>
+                            <input type="text" class="form-control" name="event_address">
                         </div>
                     </div>
 
@@ -372,7 +369,7 @@ try {
                         <div class="row">
                             <div class="col-md-3">
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input contact-field-required" type="checkbox" name="field_email" id="field_email" value="1" checked>
+                                    <input class="form-check-input contact-field-required" type="checkbox" name="field_email" id="field_email" checked>
                                     <label class="form-check-label" for="field_email">
                                         <i class="bi bi-envelope me-1"></i> E-post
                                     </label>
@@ -380,7 +377,7 @@ try {
                             </div>
                             <div class="col-md-3">
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input contact-field-required" type="checkbox" name="field_phone" id="field_phone" value="1" checked>
+                                    <input class="form-check-input contact-field-required" type="checkbox" name="field_phone" id="field_phone" checked>
                                     <label class="form-check-label" for="field_phone">
                                         <i class="bi bi-telephone me-1"></i> Telefon
                                     </label>
@@ -388,33 +385,15 @@ try {
                             </div>
                             <div class="col-md-3">
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_street" id="field_street" value="1">
+                                    <input class="form-check-input" type="checkbox" name="field_street" id="field_street">
                                     <label class="form-check-label" for="field_street">
-                                        <i class="bi bi-house me-1"></i> Gateadresse
+                                        <i class="bi bi-house me-1"></i> Adresse
                                     </label>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_zip" id="field_zip" value="1">
-                                    <label class="form-check-label" for="field_zip">
-                                        <i class="bi bi-mailbox me-1"></i> Postnummer
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-3">
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_city" id="field_city" value="1">
-                                    <label class="form-check-label" for="field_city">
-                                        <i class="bi bi-geo-alt me-1"></i> Poststed
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_age" id="field_age" value="1">
+                                    <input class="form-check-input" type="checkbox" name="field_age" id="field_age">
                                     <label class="form-check-label" for="field_age">
                                         <i class="bi bi-person-badge me-1"></i> Alder
                                     </label>
@@ -437,133 +416,135 @@ try {
     </div>
 
     <div id="events-checkin" class="subtab-content" style="display: none;">
-        <!-- Arrange Selection Cards -->
-        <div class="mb-3">
-            <h6 class="mb-2"><i class="bi bi-calendar-event me-2"></i>Velg arrangement</h6>
-            <div id="checkin-event-selector-cards" class="row g-3">
-                <div class="col-md-6">
-                    <div class="card text-center p-4 text-muted">
-                        <i class="bi bi-hourglass-split fs-1 mb-2"></i>
-                        <small>Laster arrangementer...</small>
+        <div class="row g-3">
+            <!-- Left Column: Event Selection & Scanner -->
+            <div class="col-md-4">
+                <div class="card mb-3">
+                    <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <h6 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Velg arrangement</h6>
+                    </div>
+                    <div class="card-body">
+                        <select class="form-select" id="checkin-event-selector">
+                            <option value="">Laster...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div id="checkin-stats" class="card mb-3" style="display: none;">
+                    <div class="card-body p-2">
+                        <div class="row g-2 text-center small">
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded">
+                                    <div class="text-muted">Påmeldte</div>
+                                    <div class="fs-5 fw-bold" id="checkin-total-attendees">0</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded">
+                                    <div class="text-muted">Betalt</div>
+                                    <div class="fs-5 fw-bold text-success" id="checkin-paid-count">0</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded">
+                                    <div class="text-muted">Venter</div>
+                                    <div class="fs-5 fw-bold text-warning" id="checkin-pending-count">0</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded">
+                                    <div class="text-muted">Inntekt</div>
+                                    <div class="fs-5 fw-bold text-primary" id="checkin-total-revenue">0 kr</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Guest Registration -->
+                <div id="quick-guest-registration" class="card" style="display: none;">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="bi bi-person-plus me-2"></i>Registrer gjest</h6>
+                    </div>
+                    <div class="card-body">
+                        <form id="quick-guest-form">
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Fornavn *</label>
+                                <input type="text" class="form-control form-control-sm" id="guest-fornavn" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Etternavn *</label>
+                                <input type="text" class="form-control form-control-sm" id="guest-etternavn" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">E-post</label>
+                                <input type="email" class="form-control form-control-sm" id="guest-email">
+                            </div>
+                            <div class="mb-2" id="guest-membership-container" style="display: none;">
+                                <label class="form-label small mb-1">Medlemsplan</label>
+                                <select class="form-select form-select-sm" id="guest-membership-plan">
+                                    <option value="">Ingen (ordinær pris)</option>
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Pris (kr)</label>
+                                <input type="number" class="form-control form-control-sm" id="guest-price" min="0" step="0.01" required readonly>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Betalingsmetode</label>
+                                <select class="form-select form-select-sm" id="guest-payment-method" required>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small mb-1">Status</label>
+                                <select class="form-select form-select-sm" id="guest-payment-status" required>
+                                    <option value="paid">Betalt</option>
+                                    <option value="pending">Venter betaling</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-success btn-sm w-100">
+                                <i class="bi bi-check-circle me-1"></i>Registrer
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Check-in Stats (shown when event selected) -->
-        <div id="checkin-stats" class="row g-2 mb-3" style="display: none;">
-            <div class="col-md-3">
-                <div class="card p-2 text-center">
-                    <div class="text-muted small">Påmeldte</div>
-                    <div class="fs-5 fw-bold" id="checkin-total-attendees">0</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card p-2 text-center">
-                    <div class="text-muted small">Medlemmer</div>
-                    <div class="fs-5 fw-bold text-info" id="checkin-member-count">0</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card p-2 text-center">
-                    <div class="text-muted small">Betalt</div>
-                    <div class="fs-5 fw-bold text-success" id="checkin-paid-count">0</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card p-2 text-center">
-                    <div class="text-muted small">Inntekt</div>
-                    <div class="fs-5 fw-bold text-primary" id="checkin-total-revenue">0 kr</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Check-in Cards for Attendees -->
-        <div id="checkin-events-cards" class="row g-3" style="display: none;">
-            <!-- Cards rendered here -->
-        </div>
-
-        <!-- Empty State -->
-        <div class="text-center text-muted py-5" id="checkin-empty-state">
-            <i class="bi bi-calendar-event fs-1"></i>
-            <p class="mt-2">Velg et arrangement for å se deltakere</p>
-        </div>
-
-        <!-- Modal: All Registrations -->
-        <div class="modal fade" id="allRegistrationsModal" tabindex="-1">
-            <div class="modal-dialog modal-lg modal-dialog-scrollable">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">
-                            <i class="bi bi-list-check me-2"></i><span id="modal-event-title">Alle reservasjoner</span>
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <!-- Right Column: Attendee List -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-people me-2"></i>Påmeldte deltakere</h6>
                     </div>
-                    <div class="modal-body">
-                        <div id="all-registrations-list" class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
+                    <div class="card-body p-0">
+                        <div class="table-responsive" id="checkin-list-container" style="display: none;">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
                                     <tr>
                                         <th>Navn</th>
                                         <th>Kontakt</th>
                                         <th>Type</th>
                                         <th>Pris</th>
-                                        <th>Betaling</th>
-                                        <th>Registrert</th>
+                                        <th>Status</th>
+                                        <th>Tid</th>
                                     </tr>
                                 </thead>
-                                <tbody id="all-registrations-tbody">
-                                    <tr><td colspan="6" class="text-center text-muted">Laster...</td></tr>
+                                <tbody id="checkin-attendees-list">
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-4">
+                                            Ingen deltakere ennå
+                                        </td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
+                        <div class="text-center text-muted py-5" id="checkin-empty-state">
+                            <i class="bi bi-people fs-1"></i>
+                            <p class="mt-2">Velg et arrangement for å se deltakere</p>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Quick Guest Registration -->
-        <div id="quick-guest-registration" class="card mt-4" style="display: none;">
-            <div class="card-header bg-success text-white">
-                <h6 class="mb-0"><i class="bi bi-person-plus me-2"></i>Registrer gjest</h6>
-            </div>
-            <div class="card-body">
-                <form id="quick-guest-form">
-                    <div class="row">
-                        <div class="col-md-2">
-                            <label class="form-label small mb-1">Fornavn *</label>
-                            <input type="text" class="form-control form-control-sm" id="guest-fornavn" required>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small mb-1">Etternavn *</label>
-                            <input type="text" class="form-control form-control-sm" id="guest-etternavn" required>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small mb-1">E-post</label>
-                            <input type="email" class="form-control form-control-sm" id="guest-email">
-                        </div>
-                        <div class="col-md-2" id="guest-membership-container" style="display: none;">
-                            <label class="form-label small mb-1">Medlemsplan</label>
-                            <select class="form-select form-select-sm" id="guest-membership-plan">
-                                <option value="">Ingen (ordinær pris)</option>
-                            </select>
-                        </div>
-                        <div class="col-md-1">
-                            <label class="form-label small mb-1">Pris (kr)</label>
-                            <input type="number" class="form-control form-control-sm" id="guest-price" min="0" step="0.01" required readonly>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small mb-1">Betalingsmetode</label>
-                            <select class="form-select form-select-sm" id="guest-payment-method" required>
-                            </select>
-                        </div>
-                        <div class="col-md-1 d-flex align-items-end">
-                            <button type="submit" class="btn btn-success btn-sm w-100">
-                                <i class="bi bi-check-circle me-1"></i>Registrer
-                            </button>
-                        </div>
-                    </div>
-                </form>
             </div>
         </div>
     </div>
@@ -735,23 +716,20 @@ try {
                             <label class="form-label">Stedsnavn</label>
                             <input type="text" class="form-control" name="venue_name" id="edit-venue-name">
                         </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Gateadresse</label>
-                            <input type="text" class="form-control" name="event_address" id="edit-event-address">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">By</label>
+                            <input type="text" class="form-control" name="event_city" id="edit-event-city">
                         </div>
-                    </div>
-
-                    <div class="row">
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Postnummer</label>
                             <input type="text" class="form-control" name="event_postal" id="edit-event-postal">
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Poststed</label>
-                            <input type="text" class="form-control" name="event_city" id="edit-event-city">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Adresse</label>
+                            <input type="text" class="form-control" name="event_address" id="edit-event-address">
                         </div>
                     </div>
 
@@ -823,7 +801,7 @@ try {
                     <div class="row">
                         <div class="col-md-3 mb-2">
                             <div class="form-check">
-                                <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_email" id="edit-field-email" value="1">
+                                <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_email" id="edit-field-email">
                                 <label class="form-check-label" for="edit-field-email">
                                     <i class="bi bi-envelope text-primary me-1"></i> E-post
                                 </label>
@@ -831,7 +809,7 @@ try {
                         </div>
                         <div class="col-md-3 mb-2">
                             <div class="form-check">
-                                <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_phone" id="edit-field-phone" value="1">
+                                <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_phone" id="edit-field-phone">
                                 <label class="form-check-label" for="edit-field-phone">
                                     <i class="bi bi-telephone text-primary me-1"></i> Telefon
                                 </label>
@@ -839,7 +817,7 @@ try {
                         </div>
                         <div class="col-md-3 mb-2">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="field_street" id="edit-field-street" value="1">
+                                <input class="form-check-input" type="checkbox" name="field_street" id="edit-field-street">
                                 <label class="form-check-label" for="edit-field-street">
                                     <i class="bi bi-house text-primary me-1"></i> Gateadresse
                                 </label>
@@ -847,7 +825,7 @@ try {
                         </div>
                         <div class="col-md-3 mb-2">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="field_zip" id="edit-field-zip" value="1">
+                                <input class="form-check-input" type="checkbox" name="field_zip" id="edit-field-zip">
                                 <label class="form-check-label" for="edit-field-zip">
                                     <i class="bi bi-mailbox text-primary me-1"></i> Postnummer
                                 </label>
@@ -857,7 +835,7 @@ try {
                     <div class="row">
                         <div class="col-md-3 mb-2">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="field_city" id="edit-field-city" value="1">
+                                <input class="form-check-input" type="checkbox" name="field_city" id="edit-field-city">
                                 <label class="form-check-label" for="edit-field-city">
                                     <i class="bi bi-geo-alt text-primary me-1"></i> Poststed
                                 </label>
@@ -865,7 +843,15 @@ try {
                         </div>
                         <div class="col-md-3 mb-2">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="field_age" id="edit-field-age" value="1">
+                                <input class="form-check-input" type="checkbox" name="field_postal" id="edit-field-postal">
+                                <label class="form-check-label" for="edit-field-postal">
+                                    <i class="bi bi-box text-primary me-1"></i> Postboks
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="field_age" id="edit-field-age">
                                 <label class="form-check-label" for="edit-field-age">
                                     <i class="bi bi-person-badge text-primary me-1"></i> Alder
                                 </label>
@@ -1493,12 +1479,7 @@ function performDeleteEvent(eventId, deleteMode) {
             delete_mode: deleteMode
         })
     })
-    .then(res => {
-        if (!res.ok) {
-            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        }
-        return res.json();
-    })
+    .then(res => res.json())
     .then(result => {
         if (result.success) {
             toast.quickSuccess('Arrangement', 'Arrangement ' + deleteTypeLabel);
@@ -1512,7 +1493,7 @@ function performDeleteEvent(eventId, deleteMode) {
     })
     .catch(error => {
         console.error('Error deleting event:', error);
-        toast.quickError('Feil', error.message || 'Feil ved sletting');
+        toast.quickError('Feil', 'Feil ved sletting');
     });
 }
 
@@ -1520,12 +1501,12 @@ function performDeleteEvent(eventId, deleteMode) {
 
 let selectedEventId = null;
 
-// Load events into check-in selector as cards
+// Load events into check-in selector
 async function loadCheckinEventSelector() {
-    const container = document.getElementById('checkin-event-selector-cards');
+    const selector = document.getElementById('checkin-event-selector');
     
     try {
-        const response = await fetch('/api/get_event_checkins.php');
+        const response = await fetch('/api/get_events.php');
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1533,112 +1514,24 @@ async function loadCheckinEventSelector() {
         
         const result = await response.json();
         
-        if (result.success && result.events && result.events.length > 0) {
-            container.innerHTML = result.events.map(event => `
-                <div class="col-md-6 col-lg-4">
-                    <div class="card cursor-pointer h-100" onclick="selectCheckinEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}')">
-                        <div class="card-body">
-                            <h6 class="card-title mb-2">${event.title}</h6>
-                            <small class="text-muted d-block mb-3">
-                                <i class="bi bi-calendar me-1"></i>${event.start_date} ${event.start_time}
-                            </small>
-                            <div class="row g-2 text-center small">
-                                <div class="col-6">
-                                    <div class="p-2 bg-light rounded">
-                                        <div class="text-muted">Påmeldte</div>
-                                        <strong>${event.total_attendees || 0}</strong>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="p-2 bg-light rounded">
-                                        <div class="text-muted">Medlemmer</div>
-                                        <strong class="text-info">${event.member_count || 0}</strong>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="p-2 bg-light rounded">
-                                        <div class="text-muted">Betalt</div>
-                                        <strong class="text-success">${event.paid_count || 0}</strong>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="p-2 bg-light rounded">
-                                        <div class="text-muted">Inntekt</div>
-                                        <strong class="text-primary">${event.total_revenue || 0} kr</strong>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        } else {
-            container.innerHTML = `
-                <div class="col-md-6">
-                    <div class="card text-center p-4 text-muted">
-                        <i class="bi bi-inbox fs-1 mb-2"></i>
-                        <small>Ingen arrangementer tilgjengelig</small>
-                    </div>
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('Error loading check-in events:', error);
-        container.innerHTML = `
-            <div class="col-md-6">
-                <div class="card text-center p-4 text-danger">
-                    <i class="bi bi-exclamation-triangle fs-1 mb-2"></i>
-                    <small>Feil ved lasting av arrangementer</small>
-                </div>
-            </div>
-        `;
-    }
-}
-
-// Select event from card
-async function selectCheckinEvent(eventId, eventTitle) {
-    selectedEventId = eventId;
-    
-    // Show stats and hide empty state
-    document.getElementById('checkin-stats').style.display = 'block';
-    document.getElementById('quick-guest-registration').style.display = 'block';
-    document.getElementById('checkin-empty-state').style.display = 'none';
-    
-    // Load event details
-    try {
-        const response = await fetch(`/api/get_event.php?id=${eventId}`);
-        const result = await response.json();
+        console.log('[Check-in Loader] API Response:', { success: result.success, eventsCount: result.events?.length ?? 0 });
         
-        if (result.success && result.event) {
-            document.getElementById('guest-price').value = result.event.ticket_price || 0;
-            
-            // Load payment methods
-            const paymentMethodSelect = document.getElementById('guest-payment-method');
-            paymentMethodSelect.innerHTML = '';
-            const paymentMethods = result.event.payment_methods_json ? JSON.parse(result.event.payment_methods_json) : ['cash'];
-            const methodNames = {
-                'cash': 'Kontant',
-                'card': 'Kort',
-                'vipps': 'Vipps',
-                'invoice': 'Faktura',
-                'bank_transfer': 'Bankoverføring'
-            };
-            paymentMethods.forEach(method => {
-                const option = document.createElement('option');
-                option.value = method;
-                option.textContent = methodNames[method] || method;
-                paymentMethodSelect.appendChild(option);
-            });
-            
-            // Load membership plans
-            loadMembershipPlansForGuest(eventId);
+        if (result.success && result.events && result.events.length > 0) {
+            console.log(`[Check-in Loader] Found ${result.events.length} events, populating selector`);
+            selector.innerHTML = '<option value="">-- Velg arrangement --</option>' + 
+                result.events.map(event => `
+                    <option value="${event.id}">
+                        ${event.title} - ${event.start_date} ${event.start_time}
+                    </option>
+                `).join('');
+        } else {
+            console.warn('[Check-in Loader] No events returned from API:', result.message || 'unknown reason');
+            selector.innerHTML = '<option value="">Ingen arrangementer tilgjengelig</option>';
         }
     } catch (error) {
-        console.error('Error loading event details:', error);
+        console.error('[Check-in Loader] CRITICAL ERROR fetching events:', error);
+        selector.innerHTML = '<option value="">⚠️ Feil ved lasting av arrangementer</option>';
     }
-    
-    // Load check-ins
-    await loadCheckins(eventId);
 }
 
 // Handle payment toggle
@@ -1676,6 +1569,59 @@ document.querySelector('[name="attendee_email"]')?.addEventListener('blur', asyn
     }
 });
 
+// Handle event selection
+document.getElementById('checkin-event-selector')?.addEventListener('change', async function(e) {
+    selectedEventId = e.target.value;
+    
+    if (selectedEventId) {
+        document.getElementById('checkin-stats').style.display = 'block';
+        document.getElementById('quick-guest-registration').style.display = 'block';
+        document.getElementById('checkin-list-container').style.display = 'block';
+        document.getElementById('checkin-empty-state').style.display = 'none';
+        
+        // Load event details and populate form
+        try {
+            const response = await fetch(`/api/get_event.php?id=${selectedEventId}`);
+            const result = await response.json();
+            if (result.success && result.event) {
+                // Set default price
+                document.getElementById('guest-price').value = result.event.ticket_price || 0;
+                
+                // Load payment methods
+                const paymentMethodSelect = document.getElementById('guest-payment-method');
+                paymentMethodSelect.innerHTML = '';
+                const paymentMethods = result.event.payment_methods_json ? JSON.parse(result.event.payment_methods_json) : ['cash'];
+                const methodNames = {
+                    'cash': 'Kontant',
+                    'card': 'Kort',
+                    'vipps': 'Vipps',
+                    'invoice': 'Faktura',
+                    'bank_transfer': 'Bankoverføring'
+                };
+                paymentMethods.forEach(method => {
+                    const option = document.createElement('option');
+                    option.value = method;
+                    option.textContent = methodNames[method] || method;
+                    if (method === result.event.default_payment_method) {
+                        option.selected = true;
+                    }
+                    paymentMethodSelect.appendChild(option);
+                });
+                
+                // Load membership plans if available
+                loadMembershipPlansForGuest(selectedEventId);
+            }
+        } catch (error) {
+            console.error('Error loading event details:', error);
+        }
+        
+        loadCheckins(selectedEventId);
+    } else {
+        document.getElementById('checkin-stats').style.display = 'none';
+        document.getElementById('quick-guest-registration').style.display = 'none';
+        document.getElementById('checkin-list-container').style.display = 'none';
+    }
+});
 
 // Load membership plans for guest registration
 async function loadMembershipPlansForGuest(eventId) {
@@ -1940,178 +1886,54 @@ document.getElementById('checkin-form')?.addEventListener('submit', async functi
     }
 });
 
-// Load check-ins for selected event - Display as individual cards
+// Load check-ins for selected event
 async function loadCheckins(eventId) {
     try {
         const response = await fetch(`/api/get_event_checkins.php?event_id=${eventId}`);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
         const result = await response.json();
         
         if (result.success) {
             // Update statistics
             document.getElementById('checkin-total-attendees').textContent = result.summary.total_attendees;
-            document.getElementById('checkin-member-count').textContent = result.summary.member_count || 0;
             document.getElementById('checkin-paid-count').textContent = result.summary.paid_count;
+            document.getElementById('checkin-pending-count').textContent = result.summary.pending_count;
             document.getElementById('checkin-total-revenue').textContent = result.summary.total_revenue.toFixed(2) + ' kr';
             
-            const cardsContainer = document.getElementById('checkin-events-cards');
-            const emptyState = document.getElementById('checkin-empty-state');
-            
+            // Update attendee list
+            const list = document.getElementById('checkin-attendees-list');
             if (result.checkins && result.checkins.length > 0) {
-                // Sort by newest first, separate checked in from not checked in
-                const sorted = result.checkins.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                
-                let cardsHtml = sorted.map(checkin => {
-                    const name = checkin.attendee_name || (checkin.first_name && checkin.last_name ? checkin.first_name + ' ' + checkin.last_name : 'Ukjent');
+                list.innerHTML = result.checkins.map(checkin => {
+                    const name = checkin.attendee_name || (checkin.first_name + ' ' + checkin.last_name);
                     const contact = checkin.attendee_email || checkin.attendee_phone || '-';
-                    const isCheckedIn = !!checkin.check_in_time;
-                    const checkinTime = isCheckedIn ? new Date(checkin.check_in_time).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) : null;
+                    const checkinTime = checkin.check_in_time ? new Date(checkin.check_in_time).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) : '-';
                     
                     const paymentBadge = checkin.payment_status === 'paid' 
-                        ? '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Betalt</span>' 
-                        : '<span class="badge bg-warning"><i class="bi bi-clock me-1"></i>Venter</span>';
-                    
-                    const checkinBadge = isCheckedIn
-                        ? `<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>${checkinTime}</span>`
-                        : '<span class="badge bg-warning"><i class="bi bi-exclamation-circle me-1"></i>Venter sjekk inn</span>';
+                        ? '<span class="badge bg-success">Betalt</span>' 
+                        : '<span class="badge bg-warning">Venter</span>';
                     
                     return `
-                        <div class="col-md-6 col-lg-4">
-                            <div class="card h-100 ${isCheckedIn ? 'border-success' : 'border-warning'}" onclick="showAllRegistrations('${eventId}', event)">
-                                <div class="card-body">
-                                    <h6 class="card-title mb-2" style="cursor: pointer;">${name}</h6>
-                                    <div class="small text-muted mb-2">
-                                        <i class="bi bi-envelope me-1"></i>${contact}
-                                    </div>
-                                    <div class="mb-2">
-                                        ${paymentBadge}
-                                        ${checkinBadge}
-                                    </div>
-                                    <div class="fw-bold text-primary mb-3">${checkin.ticket_price} kr</div>
-                                    ${!isCheckedIn ? `
-                                        <button class="btn btn-primary btn-sm w-100" onclick="quickCheckin('${checkin.id}', '${name.replace(/'/g, "\\'")}', event)">
-                                            <i class="bi bi-check-circle me-1"></i>Sjekk inn
-                                        </button>
-                                    ` : ''}
-                                </div>
-                            </div>
-                        </div>
+                        <tr>
+                            <td>${name}</td>
+                            <td><small>${contact}</small></td>
+                            <td><small>${checkin.ticket_type}</small></td>
+                            <td>${checkin.ticket_price} kr</td>
+                            <td>${paymentBadge}</td>
+                            <td><small class="text-muted">${checkinTime}</small></td>
+                        </tr>
                     `;
                 }).join('');
-                
-                cardsContainer.innerHTML = cardsHtml;
-                cardsContainer.style.display = 'block';
-                emptyState.style.display = 'none';
             } else {
-                cardsContainer.style.display = 'none';
-                emptyState.style.display = 'block';
+                list.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            Ingen deltakere ennå
+                        </td>
+                    </tr>
+                `;
             }
-        } else {
-            throw new Error(result.message || 'Kunne ikke laste innsjekkinger');
         }
     } catch (error) {
         console.error('Error loading check-ins:', error);
-        const cardsContainer = document.getElementById('checkin-events-cards');
-        const emptyState = document.getElementById('checkin-empty-state');
-        cardsContainer.innerHTML = `<div class="col-12"><div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>${error.message}</div></div>`;
-        cardsContainer.style.display = 'block';
-        emptyState.style.display = 'none';
-    }
-}
-
-// Show all registrations modal
-async function showAllRegistrations(eventId, event) {
-    if (event) event.stopPropagation();
-    
-    try {
-        const response = await fetch(`/api/get_event_checkins.php?event_id=${eventId}`);
-        const result = await response.json();
-        
-        if (result.success) {
-            // Get event title from selector
-            const titleEl = document.querySelector(`#checkin-event-selector-cards [onclick*="${eventId}"]`);
-            const eventTitle = titleEl ? titleEl.innerText.split('\n')[0] : 'Arrangement';
-            
-            document.getElementById('modal-event-title').textContent = eventTitle;
-            
-            const tbody = document.getElementById('all-registrations-tbody');
-            const methodNames = {
-                'cash': 'Kontant',
-                'card': 'Kort',
-                'vipps': 'Vipps',
-                'invoice': 'Faktura',
-                'bank_transfer': 'Bankoverføring'
-            };
-            
-            tbody.innerHTML = result.checkins.map(checkin => {
-                const name = checkin.attendee_name || (checkin.first_name && checkin.last_name ? checkin.first_name + ' ' + checkin.last_name : 'Ukjent');
-                const contact = checkin.attendee_email || checkin.attendee_phone || '-';
-                const registeredDate = new Date(checkin.created_at).toLocaleDateString('no-NO');
-                
-                const paymentBadge = checkin.payment_status === 'paid' 
-                    ? '<span class="badge bg-success">Betalt</span>' 
-                    : '<span class="badge bg-warning">Venter</span>';
-                
-                return `
-                    <tr>
-                        <td><strong>${name}</strong></td>
-                        <td><small>${contact}</small></td>
-                        <td><small>${checkin.ticket_type || 'Ordinær'}</small></td>
-                        <td>${checkin.ticket_price} kr</td>
-                        <td>${paymentBadge}</td>
-                        <td><small>${registeredDate}</small></td>
-                    </tr>
-                `;
-            }).join('');
-            
-            // Show modal
-            const modal = new bootstrap.Modal(document.getElementById('allRegistrationsModal'));
-            modal.show();
-        }
-    } catch (error) {
-        console.error('Error loading registrations:', error);
-        toast.quickError('Feil', 'Kunne ikke laste reservasjoner');
-    }
-}
-
-// Quick check-in from list
-async function quickCheckin(checkinId, name, event) {
-    if (event) event.stopPropagation();
-    
-    if (!confirm(`Er du sikker på at du vil sjekke inn ${name}?`)) {
-        return;
-    }
-    
-    try {
-        const response = await fetch('../api/checkin_event.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ checkin_id: checkinId })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            toast.quickSuccess('Innsjekking', `${name} sjekket inn!`);
-            // Reload check-ins
-            const eventSelector = document.getElementById('checkin-event-selector');
-            if (eventSelector.value) {
-                loadCheckins(eventSelector.value);
-            }
-        } else {
-            toast.quickError('Feil', result.message || 'Kunne ikke sjekke inn');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        toast.quickError('Feil', 'Feil ved innsjekking');
     }
 }
 
@@ -3143,25 +2965,17 @@ async function approveRegistration(registrationId) {
             body: JSON.stringify({ registration_id: registrationId })
         });
         
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
         const result = await response.json();
         
         if (result.success) {
-            toast.quickSuccess('Påmelding', result.message || 'Påmelding godkjent!');
+            toast.quickSuccess('Påmelding', 'Påmelding godkjent!');
             loadPendingRegistrations();
-            // Reload events to update check-in list
-            if (typeof loadCheckins === 'function') {
-                loadCheckins();
-            }
         } else {
             toast.quickError('Feil', result.message || 'Kunne ikke godkjenne påmelding');
         }
     } catch (error) {
         console.error('Error approving registration:', error);
-        toast.quickError('Feil', error.message || 'Feil ved godkjenning av påmelding');
+        toast.quickError('Feil', 'Feil ved godkjenning av påmelding');
     }
 }
 
@@ -3184,21 +2998,17 @@ async function rejectRegistration(registrationId) {
             })
         });
         
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
         const result = await response.json();
         
         if (result.success) {
-            toast.quickSuccess('Påmelding', result.message || 'Påmelding avvist');
+            toast.quickSuccess('Påmelding', 'Påmelding avvist');
             loadPendingRegistrations();
         } else {
             toast.quickError('Feil', result.message || 'Kunne ikke avvise påmelding');
         }
     } catch (error) {
         console.error('Error rejecting registration:', error);
-        toast.quickError('Feil', error.message || 'Feil ved avvisning av påmelding');
+        toast.quickError('Feil', 'Feil ved avvisning av påmelding');
     }
 }
 

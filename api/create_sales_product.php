@@ -42,11 +42,22 @@ try {
     $salesModule = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$salesModule) {
-        // Module doesn't exist - create it (MySQL only)
-        $insertModuleStmt = $db->prepare("
-            INSERT INTO system_modules (id, module_key, name, description, icon, is_active, created_at) 
-            VALUES (UUID(), 'sales', 'Salg', 'Salgsmodul', 'cart', 1, NOW())
-        ");
+        // Module doesn't exist - create it
+        $dbType = getDBType();
+        
+        if ($dbType === 'mysql') {
+            // MySQL uses UUID
+            $insertModuleStmt = $db->prepare("
+                INSERT INTO system_modules (id, module_key, name, description, icon, is_active, created_at) 
+                VALUES (UUID(), 'sales', 'Salg', 'Salgsmodul', 'cart', 1, NOW())
+            ");
+        } else {
+            // PostgreSQL uses auto-increment
+            $insertModuleStmt = $db->prepare("
+                INSERT INTO system_modules (module_key, name, description, icon, is_active, created_at) 
+                VALUES ('sales', 'Salg', 'Salgsmodul', 'cart', true, NOW())
+            ");
+        }
         
         $insertModuleStmt->execute();
         

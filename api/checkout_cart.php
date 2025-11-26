@@ -40,7 +40,7 @@ try {
         WHERE sc.admin_id = ? AND sc.company_id = ?
     ");
     $stmt->execute([$admin_id, $company_id]);
-    $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $items = $stmt->fetchAll();
     
     if (empty($items)) {
         $db->rollBack();

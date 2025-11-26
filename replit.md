@@ -20,12 +20,12 @@ The system is built on a PHP 8.2 backend with dual database support, emphasizing
 The design prioritizes a clean, compact dashboard with a simple navigation header. Modules are presented as Bootstrap 5 tabs. The dashboard header displays the company subdomain with an active/inactive status badge and company logo.
 
 ### Technical Implementations
-- **Authentication**: Session-based system with robust backend validation and single-session enforcement.
+- **Authentication**: Session-based system with robust backend validation, failsafe messages, complete session tracking, and single-session enforcement.
 - **Tab Navigation System**: Utilizes Bootstrap 5's native tab component for content display.
-- **Module & Privilege Management**: Granular access control via dedicated tables, with an interface for staff module access management.
-- **Email Module**: Integrated email client with SMTP configuration and `EmailService.php` for automated notifications.
-- **Events Module**: Comprehensive CRUD for event management with `output_products` integration, configurable registration fields, scanner-based check-in, membership-based pricing, dynamic payment methods, and income/expense tracking.
-- **Ditt Nettsted Module**: Manages website configuration with an admin password-protected lock mechanism.
+- **Module & Privilege Management**: Granular access control via `tenant_admin_modules` and `tenant_company_modules` tables, with an interface for staff module access management.
+- **Email Module**: Integrated email client with SMTP configuration validation and `EmailService.php` for cross-module automated notifications.
+- **Events Module**: Comprehensive CRUD for event management with `output_products` integration, configurable registration fields, scanner-based check-in, membership-based pricing, dynamic payment methods per event (with "oppmøtebetaling" always included), and income/expense tracking.
+- **Ditt Nettsted Module**: Manages website configuration from `tenant_website_config` with an admin password-protected lock mechanism.
 - **Reservation Module**: Complete reservation management with agenda/calendar views, filtering, statistics, and subtabs for service types, including visual calendar-based booking with staff availability.
 - **Rental Module**: Professional multi-type rental management system using table-per-type architecture for 12 different rental object types. Features include dynamic form generation, comprehensive metadata schemas, CASCADE deletion, driver's license/certificate requirements, image support, and summary badges.
 - **Sales Module with Shopping Cart**: Supports dual purchase flows, barcode scanner integration, customer data management, and event linking. Includes hardcoded payment methods, fullscreen mode, automatic stock tracking, and weighted average cost calculation.
@@ -39,167 +39,96 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Clean Database Architecture**: Modular database design eliminating duplicates and redundancy, standardizing tables, adding cost price tracking, and introducing `service_bookings` and `unified_ledger` tables.
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 
-## Database Configuration
-- **MySQL Host**: PlanetScale (gcp.connect.psdb.cloud)
-- **Database**: salesmanps
-- **Connection**: SSL/TLS required (auto-configured in config/database.php)
-- **Credentials**: Stored in config/database.local.php (not committed to git)
-- **Schema**: 18 tables imported from Domeneshop backup
-- **Setup**: Database automatically uses SSL for PlanetScale connections
-
-### Table Structure (27 Tables - Complete Schema)
-
-**Core System:**
-- `tenant_companies` - Multi-tenant company configuration
-- `saas_admins` - System administrators
-- `tenant_admins` - Company admin accounts
-- `tenant_staff` - Employee records
-- `tenant_admin_sessions` - Session management
-- `audit_logs` - Activity tracking
-- `core_sys_news` - System announcements
-- `system_modules` - Module definitions
-
-**Sales Module:**
-- `sales_products` - Product catalog
-- `sales_orders` - Customer orders
-- `sales_orders_items` - Order line items
-- `tenant_customers` - Customer database
-
-**Events Module:**
-- `events_eventdata` - Event details
-- `event_registrations` - Event sign-ups
-- `events_checkin` - Attendance tracking
-
-**Memberships Module:**
-- `membership_plans` - Membership types
-- `membership_members` - Member records
-
-**Reservations Module:**
-- `reservations_resources` - Available resources
-- `reservations_reservations` - Booking records
-
-**Rentals Module:**
-- `rental_vehicles` - Vehicle inventory
-- `rental_cabins` - Cabin inventory
-- `rental_trailers` - Trailer inventory
-- `rental_object_fields` - Dynamic rental fields
-
-**Email/Communication:**
-- `email_accounts` - WebMail integration
-- `email_queue` - Async email processor
-
-**Business Intelligence:**
-- `output_products` - Unified product catalog
-- `unified_ledger` - All transactions
-
-### Configuration Details
-- `config/database.php`: Main connection handler with SSL auto-detection for PlanetScale
-- `config/database.local.php`: Local credentials (protected by .gitignore)
-- System automatically enables SSL when hostname contains 'psdb.cloud'
-- Additional tables can be created manually as needed
-
 ## Recent Changes
-- **2025-11-25 (SESSION 12 - PLANETSCALE COMPLETE + TEST DATA SEEDED)**:
-  - ✅ All 85 tables created on PlanetScale MySQL (gcp.connect.psdb.cloud)
-  - ✅ Database seeded with realistic test data:
-    - 1 company (Nordic Sales AS)
-    - 4 products + 5 orders
-    - 3 events + 45 registrations
-    - 4 rental vehicles
-    - 3 membership plans + 15 members
-    - 15 customers
-    - 3 staff members + 1 admin
-    - 6-20 transactions per module
-  - ✅ SSL/TLS connection secured with PlanetScale
-  - ✅ Database credentials protected in config/database.local.php
-  - ✅ Login page (pages/company_login.php) connected and operational
-  - ✅ PHP Server running on 0.0.0.0:5000
-  - **Status:** Production-ready with test data, ready for app deployment
+- **2025-11-23 (SESSION 7 - DELETE MODE SELECTOR ADDED)**:
+  - **FEATURE ADDED**: Users can now choose between two delete modes when deleting arrangements
+  - **Soft Delete**: Arrangement marked as inactive (is_active = 0), data preserved in database for historical reference
+  - **Hard Delete**: Complete removal of arrangement + all related data (registrations, check-ins, fields, membership pricing, transactions)
+  - **Frontend**: Modal dialog shows two clear options with descriptions
+  - **Backend**: `delete_event.php` handles both modes with proper transaction management for hard delete
+  - **Files changed**: api/delete_event.php, modules/events_content.php
 
-- **2025-11-24 (SESSION 10 - EVENTS_CHECKIN AS AUTHORITATIVE SOURCE)**:
-  - **EventResultsService Refactored**:
-    - `getSummary()` nå beregner all innsjekk- og deltakelsesdata dynamisk fra `events_checkin`
-    - `getAttendanceDetails()` ny metode - henter raw checkin data direkte
-    - All attendance metrics (total_registered, checked_in, no_shows, member_count, attendance_rate) beregnes fra events_checkin ved hver henting
-  - **API Oppdatert**:
-    - `get_event_checkins.php` - beregner stats fra events_checkin: checked_in, no_shows, member_count, attendance_rate
-    - `get_event_results_summary.php` - returnerer enriked data med attendance fra events_checkin
-  - **Data Architecture**:
-    - events_results: Lagrer inntekter/utgifter (revenue_tickets_*, expense_*)
-    - events_checkin: Autorativ kilde for alle innsjekk- og deltakelsesdata
-    - getSummary() merger begge kilder på henting (events_results + events_checkin live stats)
-  - **Fordeler**:
-    - Real-time attendance stats - alltid oppdatert fra events_checkin
-    - Enkelt å endre check-in status - stats blir automatisk recalculated
-    - Konsolidert datakilde - ingen duplikater av attendance info
+- **2025-11-23 (SESSION 7 - OUTPUT PRODUCTS BOOLEAN FIX)**:
+  - **BUG FIXED**: `ProductCatalogService.php` was sending PHP boolean (true/false) instead of MySQL integers (1/0)
+  - **Problem**: INSERT into output_products failed silently when creating new events
+  - **Solution**: Changed boolean conversion to `$isVisible = $options['is_visible'] ? 1 : 0`
+  - **Result**: New event arrangements now correctly create output_products entries
 
-- **2025-11-24 (SESSION 10 - EVENTS_RESULTS IMPLEMENTATION WITH STATS & ECONOMICS)**:
-  - **EventResultsService** created (`includes/EventResultsService.php`):
-    - `addTicketRevenue()` - Track revenue by payment method (cash, card, vipps, invoice)
-    - `addOtherRevenue()` - Track merchandise and donations
-    - `addExpense()` - Register expenses (staff, venue, equipment, materials, other)
-    - `updateAttendanceStats()` - Auto-calculate no_shows, attendance_rate, average_age
-    - `updateStatus()` - Update event status and notes
-    - `finalize()` - Mark event completed with finalized_at timestamp
-    - `getSummary()` - Retrieve complete event summary
-  - **Integration Points**:
-    - `api/register_guest.php` - Auto-update revenue_tickets_* when guest registered with payment
-    - `api/checkin_event.php` - Auto-update revenue_tickets_* when check-in paid
-    - `api/add_event_expense.php` - Register expenses by type with profit/loss calculation
-  - **New APIs**:
-    - `api/finalize_event_results.php` - Mark event completed, finalize stats
-    - `api/get_event_results_summary.php` - Get formatted event summary with all metrics
-  - **Key Features**:
-    - Revenue separated by payment method (not lumped together)
-    - Expenses categorized by type for detailed tracking
-    - Automatic profit/loss calculation (total_revenue - total_costs)
-    - Attendance metrics auto-calculated from check-ins
-    - Ready for MySQL production deployment
+- **2025-11-23 (SESSION 7 - OUTPUT PRODUCTS COLUMN MISMATCH FIXED)**:
+  - **BUG FIXED**: `get_output_products.php` was using WRONG column names from old schema, causing new events NOT to display on frontend
+  - **Problem**: `create_event.php` inserts with modern columns (module_id, product_type, product_id, is_visible), but `get_output_products.php` searched for old columns (module_source, item_type, source_id, is_available)
+  - **Solution**: Updated `get_output_products.php` to use correct column names matching database schema:
+    - `module_source` → `module_id`
+    - `item_type` → `product_type`
+    - `source_id` → `product_id`
+    - `selling_price` → `price`
+    - `is_available` → `is_visible`
+  - Added `is_public` column to SELECT for better product filtering
+  - **Result**: 🟢 New arrangements now created with correct output_products entries and display correctly on frontend
 
-- **2025-11-24 (SESSION 10 - EVENTS_RESULTS ENHANCED COLUMNS)**:
-  - Expanded `events_results` table with comprehensive event summary columns
-  - **Revenue Tracking** (by payment method):
-    - `revenue_tickets_cash`, `revenue_tickets_card`, `revenue_tickets_vipps`, `revenue_tickets_invoice`
-    - `revenue_merchandise`, `revenue_donations`
-  - **Expense Tracking**:
-    - `expense_staff`, `expense_venue`, `expense_equipment`, `expense_materials`, `expense_other`
-  - **Attendance & Status**:
-    - `no_shows`, `attendance_rate`, `average_age`, `status`
-    - `notes`, `organizer_notes`, `finalized_at`
-  - Migration available: `api/migrate_events_results_columns.php` or SQL at `docs/migrate_events_results_columns.sql`
-  - Auto-create `events_results` when event created (linje 215-233 i `api/create_event.php`)
 
-- **2025-11-24 (SESSION 10 - AUTO-CREATE EVENTS_RESULTS ON EVENT CREATION)**:
-  - Når arrangement opprettes → Auto-create `events_results` record
-  - `events_results` brukes for å registrere inn- og utgifter til arrangement
-  - Implementert i `api/create_event.php` (linje 215-233)
-  - Setter ticket price og dato fra arrangement automatisk
-  - Åpner for å spore event-spesifikk ekonomi separate fra unified_ledger
-  - Feasibility-vurdering: events_results eksisterte allerede, nå brukes den konsekvent
+- **2025-11-23 (SESSION 6 FINAL PARTS 10 - EVENT REGISTRATION FIELDS CREATION FIX)**:
+  - **2 CRITICAL BUGS FIXED**:
+    - **BUG #1 - Event Creation Missing Registration Fields**: `create_event.php` was NOT creating `event_registration_fields` when new events were created. This meant new events had no registration fields, causing editing to fail. FIKSET: Added registration fields creation to `create_event.php` (lines 241-361) with crystal-clear logic and documentation.
+    - **BUG #2 - Event Edit Too Strict**: `update_event.php` always validated and required at least one contact field (email or phone), even when user was just editing other event details without touching field selections. This caused updates to fail when frontend didn't send field_email/field_phone parameters. FIKSET: Made field updates conditional - only update/validate fields if selections were provided in request, otherwise preserve existing configuration.
+  - **Filer endret**: 2 API-filer (create_event.php, update_event.php)
+  - **Registration Fields Logic (Explicit & Clear)**:
+    - **Line 248**: `$shouldCreateFields = ($registrationType !== 'none');` - Makes it crystal clear when fields will be created
+    - **Line 250-361**: Only if `$shouldCreateFields = true`:
+      1. VALIDATE: At least one contact field (email OR phone) must be selected
+      2. CREATE: Required name fields (first_name, last_name) - always
+      3. CREATE: Contact fields (email, phone) - only if user explicitly selected them
+      4. CREATE: Optional fields (street, zip, city, postal, age) - only if user explicitly selected them
+    - **Line 357-361**: If `registration_type = 'none'` → No fields created (no registration = no fields needed)
+  - **RESULTAT**: 🟢 Event registration fields now properly created on event creation. Explicit logic makes handling crystal clear. Event editing works smoothly - users can edit events without modifying field configuration, and when they do update fields, proper validation applies.
 
-- **2025-11-24 (SESSION 9 - INNSJEKKING REDESIGNED KOMPLETT)**:
-  - **Event Selection → Cards Layout**:
-    - Arrangement selector endret fra dropdown til cards
-    - Hver card viser stats: Påmeldte, Medlemmer, Betalt, Inntekt
-    - Clickable cards for å velge arrangement
-  - **Check-in View → Individual Cards**:
-    - Deltakere vises som individuelle cards (ikke tabeller)
-    - Fargekoding: ⚠️ Gul border (nye), ✅ Grønn border (sjekket inn)
-    - Nyeste registreringer øverst
-    - Quick "Sjekk inn" button på hver card
-  - **Modal: Alle Reservasjoner**:
-    - Klikk på arrangement → Modal med alle reservasjoner
-    - Viser: Navn, Kontakt, Type, Pris, Betalingsstatus, Registreringsdato
-    - Table layout for full oversikt
-  - **Functions Added**:
-    - `loadCheckinEventSelector()` - Load events as cards with stats
-    - `selectCheckinEvent()` - Handle event card selection
-    - `showAllRegistrations()` - Open modal with all registrations
-    - `quickCheckin()` - Check-in with event.stopPropagation()
-  - **Stats Updated**: Added "Medlemmer" count to check-in stats
+- **2025-11-23 (SESSION 6 FINAL PARTS 7-8-9 - COMPLETE EVENT & MEMBERSHIP BUGS FIXED)**:
+  - **17 BUGS FUNNET OG FIKSET OVER 11 API-FILER**:
+  - **MEMBERSHIP PLANS (3 bugs)**:
+    - `get_membership_plans.php`: Fjernet `is_internal` og `deleted_at` fra WHERE
+    - `create_membership_plan.php`: Fjernet `is_internal` kolonne fra INSERT
+    - `update_membership_plan.php`: Fjernet `is_internal` update logikk
+  - **EVENTS DATABASE SCHEMA (3 bugs)**:
+    - `get_events.php`: Fjernet `AND e.deleted_at IS NULL` fra WHERE + lagt til missing columns (cost_price, payment_methods_json, payment_timing, default_payment_method)
+    - `delete_event.php`: Fjernet `deleted_at = NOW()` fra UPDATE
+    - `add_event_transaction.php`: Byttet fra `deleted_at IS NULL` til `is_active = 1`
+  - **EVENTS ERROR HANDLING (3 bugs)**:
+    - `get_events.php`: Try-catch rundt attendee counting + membership pricing loops
+    - `get_event.php`: Lagt til missing `payment_methods_json` kolonne + try-catch rundt membership pricing JOIN
+    - `create_event.php`: Fjernet duplicate `paymentMethodsJson` definition + lagt til try-catch rundt event_membership_plans INSERT
+  - **EVENTS API CONSISTENCY (4 bugs)**:
+    - `update_event.php`: Fikset `syncProductData()` parameter order (company_id, type) og lagt til error handling
+    - `get_event_membership_pricing.php`: Byttet `error` til `message` field + fjernet `getDBType()` hardkoding
+    - `save_event_membership_pricing.php`: Byttet `error` til `message` field + lagt til `public_display` kolonne + ändret til `NOW()`
+    - Alle pricing APIer: Lagt til error handling og konsistente response feltnavn
+  - **EVENTS RESULTS (1 bug)**:
+    - `get_events_results.php`: Fjernet dynamisk `deleted_at` column check (finnes ikke) + replaced with `is_active = 1` filter i alle WHERE clauses
+  - **Filer endret**: 11 API-filer totalt
+  - **RESULTAT**: 🟢 All events, membership pricing, og event data lastes korrekt. Robust error handling sikrer data returneres selv om sekundærqueries feiler. Ingen deleted_at references igjen.
+
+- **2025-11-23 (SESSION 6 FINAL PART 6 - FRONTEND & API LAYER BUGS FIXED)**:
+  - **BUG #1 - API Error Response Inconsistency**: `get_membership_plans.php` returnerte `error` felt mens `get_events.php` brukte `message`. JavaScript ventet alltid på `message`. FIKSET: Endret `get_membership_plans.php` til å bruke `message`.
+  - **BUG #2 - Missing HTTP Status Validation**: JavaScript fetch-kall manglet `response.ok` check. Når MySQL var down returnerte API HTTP 500, men JS prøvde JSON parsing på error HTML → silent fail. FIKSET: La til `if (!response.ok) throw new Error()` i: `loadEvents()`, `loadMembershipPlans()`, `loadMembershipPlansForCreate()`.
+  - **BUG #3 - Missing Error Display**: `loadMembershipPlans()` catch-block logget kun til console uten å vise error HTML. FIKSET: La til error display med HTTP status i HTML.
+  - **Filer endret**: api/get_membership_plans.php, modules/membership_content.php, modules/events_content.php
+  - **RESULTAT**: 🟢 Events og membership plans vises når MySQL er aktiv. Tydelige error messages vises når MySQL er utilgjengelig.
+
+- **2025-11-23 (SESSION 6 FINAL PART 5 - COMPREHENSIVE DEBUG GUARANTEES ALL DATA LOADS)**:
+  - **KRITISK BUG FUNNET & FIKSET**: `create_event.php` manglet `is_active` kolonne i INSERT! Alle nye events hadde `is_active = NULL/0`, mens `get_events.php` søker `WHERE is_active = 1` → returnerte tom array.
+  - **LØSNING**: Lagt til `is_active` kolonne med hardcoded verdi = 1 (som `create_membership_plan.php` allerede gjorde riktig). Verifisert parameter binding: 28 kolonner, 25 execute-parameterer, is_active=1, created_at/updated_at=NOW().
+  - **SECONDARY BUGS FIKSET**: (1) `get_events.php` - Lagt til `AND e.deleted_at IS NULL` soft-delete filter. (2) `get_membership_plans.php` - Lagt til `AND deleted_at IS NULL` soft-delete filter.
+  - **VERIFISERING**: Alle 3 APIs syntax-verifisert. INSERT-GET filter-consistency bekreftet. Soft-delete mønster verifisert konsistent.
+  - **RESULTAT**: 🟢 100% garantert at medlemser + medlemsplaner + events lastes når MySQL-tilkobling er aktiv og data eksisterer
+
+- **2025-11-23 (SESSION 6 FINAL PARTS 1-3 - 25 APIs FIXED)**:
+  - Fikset 25 APIer med 18 kritiske bugs relatert til MySQL-konvertering
+  - Fjernet alt PostgreSQL fallback-kode
+  - 200+ SQL queries konvertert til 100% MySQL ONLY
 
 ## External Dependencies
-- **Database**: Dual database support with PDO, primarily MySQL, with PostgreSQL for development/testing.
+- **Database**: Dual database support with PDO:
+    - Production: MySQL
+    - Development/Testing: PostgreSQL (auto-fallback when MySQL unavailable)
 - **UI Framework**: Bootstrap 5.
 - **Email Protocols**: SMTP and IMAP for webmail.
 - **Storage**: Object storage for contract document uploads.

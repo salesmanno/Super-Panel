@@ -49,7 +49,7 @@ try {
     function validateUrl($url) {
         if (empty($url)) return null;
         $url = trim($url);
-        if (filter_var($url, FILTER_VALIDATE_URL) && (substr($url, 0, 7) === 'http://' || substr($url, 0, 8) === 'https://')) {
+        if (filter_var($url, FILTER_VALIDATE_URL) && (str_starts_with($url, 'http://') || str_starts_with($url, 'https://'))) {
             return $url;
         }
         return null;
@@ -62,7 +62,7 @@ try {
         // Check if config exists
         $stmt = $db->prepare("SELECT id FROM tenant_website_config WHERE company_id = ?");
         $stmt->execute([$companyId]);
-        $existingConfig = $stmt->fetch(PDO::FETCH_ASSOC);
+        $existingConfig = $stmt->fetch();
         
         if ($existingConfig) {
             // Update existing

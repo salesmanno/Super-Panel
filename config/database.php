@@ -1,16 +1,10 @@
 <?php
 
-// Load local config first (for webhost deployments)
-if (file_exists(__DIR__ . '/database.local.php')) {
-    require __DIR__ . '/database.local.php';
-} else {
-    // Fall back to environment variables or defaults
-    define('DB_HOST', $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?? 'salesmanno04.mysql.domeneshop.no');
-    define('DB_NAME', $_ENV['DB_NAME'] ?? getenv('DB_NAME') ?? 'salesmanno04');
-    define('DB_USER', $_ENV['DB_USER'] ?? getenv('DB_USER') ?? 'salesmanno04');
-    define('DB_PASS', $_ENV['DB_PASS'] ?? getenv('DB_PASS') ?? 'samle-lime-2Salgs-kd');
-}
-
+// MySQL ONLY - Domeneshop production database
+define('DB_HOST', 'salesmanno04.mysql.domeneshop.no');
+define('DB_NAME', 'salesmanno04');
+define('DB_USER', 'salesmanno04');
+define('DB_PASS', 'samle-lime-2Salgs-kd');
 define('DB_CHARSET', 'utf8mb4');
 
 function getDBConnection() {
@@ -27,8 +21,11 @@ function getDBConnection() {
             ];
             
             $conn = new PDO($mysqlDsn, DB_USER, DB_PASS, $options);
+            error_log("Connected to MySQL");
+            
         } catch (PDOException $e) {
-            throw new Exception($e->getMessage());
+            error_log("MySQL connection FAILED: " . $e->getMessage());
+            throw new Exception("KRITISK FEIL: Kan ikke koble til MySQL på Domeneshop. Sjekk databasetilkoblingen.\n\nFeil: " . $e->getMessage());
         }
     }
     
@@ -37,14 +34,6 @@ function getDBConnection() {
 
 function getDBType() {
     return 'mysql';
-}
-
-function dbBool($value) {
-    return $value ? '1' : '0';
-}
-
-function dbInterval($amount, $unit = 'MINUTE') {
-    return "INTERVAL {$amount} {$unit}";
 }
 
 function closeDBConnection() {

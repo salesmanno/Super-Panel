@@ -67,22 +67,19 @@ try {
     // Generate UUID
     $checkin_id = bin2hex(random_bytes(16));
     
-    // Combine first and last name for storage (consistent with checkin_event.php)
-    $attendee_name = trim($first_name . ' ' . $last_name);
-    
     // Insert guest into events_checkin
     $stmt = $db->prepare("
         INSERT INTO events_checkin 
-        (id, company_id, event_id, attendee_name, attendee_email,
+        (id, event_id, attendee_first_name, attendee_last_name, attendee_email,
          ticket_type, ticket_price, payment_status, payment_method, 
-         checked_in, check_in_time, checked_in_by, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), ?, NOW(), NOW())
+         checked_in, checked_in_by, created_at, updated_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NOW(), NOW())
     ");
     $stmt->execute([
         $checkin_id,
-        $company_id,
         $event_id,
-        $attendee_name,
+        $first_name,
+        $last_name,
         $email,
         $ticket_type,
         $ticket_price,
@@ -91,11 +88,11 @@ try {
         $admin_id
     ]);
     
-    // If payment is completed (paid), create unified_ledger entry and update events_results
+    // If payment is completed (paid), create unified_ledger entry
     if ($payment_status === 'paid' && $ticket_price > 0) {
         require_once '../includes/UnifiedLedgerService.php';
-        require_once '../includes/EventResultsService.php';
         
+        $attendee_name = trim($first_name . ' ' . $last_name);
         $ledgerService = new UnifiedLedgerService($db, $company_id);
         $ledgerService->logTransaction([
             'order_id' => $checkin_id,
@@ -118,10 +115,6 @@ try {
                 'membership_plan_id' => $membership_plan_id
             ]
         ]);
-        
-        // Update events_results with ticket revenue by payment method
-        $resultsService = new EventResultsService($db, $company_id);
-        $resultsService->addTicketRevenue($event_id, $payment_method, $ticket_price, $ticket_type);
     }
     
     echo json_encode([
