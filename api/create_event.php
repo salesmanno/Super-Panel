@@ -371,6 +371,22 @@ try {
             $_SESSION['tenant_admin_id']
         );
         
+        // Sync name, description, and price to output_products
+        $stmt = $db->prepare("
+            UPDATE output_products 
+            SET name = ?, 
+                description = ?,
+                price = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ");
+        $stmt->execute([
+            $data['title'],
+            $data['description'] ?? null,
+            $data['ticket_price'] ?? 0,
+            $outputProductId
+        ]);
+        
         $db->commit();
         
         echo json_encode([

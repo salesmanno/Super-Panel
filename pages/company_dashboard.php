@@ -1634,15 +1634,15 @@ try {
             
             products.forEach(product => {
                 const moduleName = moduleNames[product.module_source] || product.module_source;
-                const statusBadge = product.is_available ? 
+                const statusBadge = product.is_visible ? 
                     '<span class="badge bg-success">Aktiv</span>' : 
                     '<span class="badge bg-secondary">Inaktiv</span>';
                 
                 html += `
                     <tr>
                         <td>${moduleName}</td>
-                        <td>${product.name}</td>
-                        <td>${product.selling_price} NOK</td>
+                        <td>${product.name || 'Ingen navn'}</td>
+                        <td>${product.price || 0} NOK</td>
                         <td>${statusBadge}</td>
                         <td>
                             <button class="btn btn-sm btn-danger" onclick="deleteProduct('${product.id}')">

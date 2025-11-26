@@ -322,6 +322,7 @@ class ProductCatalogService {
                         $updateStmt = $this->db->prepare("
                             UPDATE output_products 
                             SET name = ?, 
+                                description = ?,
                                 price = ?,
                                 updated_at = CURRENT_TIMESTAMP
                             WHERE id = ?
@@ -329,6 +330,7 @@ class ProductCatalogService {
                         
                         $updateStmt->execute([
                             $sourceData['name'],
+                            $sourceData['description'] ?? null,
                             $sourceData['price'],
                             $op['id']
                         ]);
@@ -360,8 +362,9 @@ class ProductCatalogService {
         try {
             switch ($productType) {
                 case 'event':
+                case 'events':
                     $stmt = $this->db->prepare("
-                        SELECT title as name, ticket_price as price 
+                        SELECT title as name, description, ticket_price as price 
                         FROM events_eventdata 
                         WHERE id = ?
                     ");

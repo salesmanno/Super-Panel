@@ -13,21 +13,24 @@ try {
     $db = getDBConnection();
     $company_id = $_SESSION['company_id'];
     
-    // Get all output_products for this company
+    // Get all output_products for this company with module info
     $stmt = $db->prepare("
         SELECT 
-            id,
-            module_id,
-            product_type,
-            product_id,
-            name,
-            price,
-            is_visible,
-            is_public,
-            created_at
-        FROM output_products
-        WHERE company_id = ?
-        ORDER BY module_id, created_at DESC
+            op.id,
+            op.module_id,
+            op.product_type,
+            op.product_id,
+            op.name,
+            op.description,
+            op.price,
+            op.is_visible,
+            op.is_public,
+            op.created_at,
+            sm.module_key as module_source
+        FROM output_products op
+        LEFT JOIN system_modules sm ON op.module_id = sm.id
+        WHERE op.company_id = ?
+        ORDER BY op.module_id, op.created_at DESC
     ");
     
     $stmt->execute([$company_id]);
