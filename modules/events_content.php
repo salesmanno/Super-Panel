@@ -550,37 +550,66 @@ try {
     </div>
 
     <div id="events-results" class="subtab-content" style="display: none;">
-        <!-- Summary Stats -->
-        <div class="row mb-4" id="events-results-summary" style="display: none;">
-            <div class="col-md-3">
-                <div class="card bg-light">
-                    <div class="card-body text-center">
-                        <div class="text-muted small">Total Arrangementer</div>
-                        <div class="fs-4 fw-bold text-primary" id="summary-total-events">0</div>
+        <!-- Summary Stats - Horizontal Layout -->
+        <div class="mb-4" id="events-results-summary" style="display: none;">
+            <div class="row g-2">
+                <div class="col-md-2">
+                    <div class="card bg-light h-100">
+                        <div class="card-body text-center p-2">
+                            <div class="text-muted small">Arrangementer</div>
+                            <div class="fs-5 fw-bold text-primary" id="summary-total-events">0</div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-light">
-                    <div class="card-body text-center">
-                        <div class="text-muted small">Total Inntekt</div>
-                        <div class="fs-4 fw-bold text-success" id="summary-total-revenue">0 kr</div>
+                <div class="col-md-2">
+                    <div class="card bg-light h-100">
+                        <div class="card-body text-center p-2">
+                            <div class="text-muted small">Inntekt</div>
+                            <div class="fs-5 fw-bold text-success" id="summary-total-revenue">0 kr</div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-light">
-                    <div class="card-body text-center">
-                        <div class="text-muted small">Total Deltakere</div>
-                        <div class="fs-4 fw-bold text-info" id="summary-total-attendees">0</div>
+                <div class="col-md-2">
+                    <div class="card bg-light h-100">
+                        <div class="card-body text-center p-2">
+                            <div class="text-muted small">Deltakere</div>
+                            <div class="fs-5 fw-bold text-info" id="summary-total-attendees">0</div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-light">
-                    <div class="card-body text-center">
-                        <div class="text-muted small">Kommende</div>
-                        <div class="fs-4 fw-bold text-warning" id="summary-upcoming-events">0</div>
+                <div class="col-md-2">
+                    <div class="card bg-light h-100">
+                        <div class="card-body text-center p-2">
+                            <div class="text-muted small">Kommende</div>
+                            <div class="fs-5 fw-bold text-warning" id="summary-upcoming-events">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card bg-light h-100">
+                        <div class="card-body text-center p-2">
+                            <div class="text-muted small">Mest lønnsom</div>
+                            <div class="fs-6 fw-bold text-primary" id="summary-most-profitable">-</div>
+                            <div class="small text-muted" id="summary-most-profitable-value">0 kr</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card bg-light h-100">
+                        <div class="card-body text-center p-2">
+                            <div class="text-muted small">Dyreste</div>
+                            <div class="fs-6 fw-bold text-danger" id="summary-most-expensive">-</div>
+                            <div class="small text-muted" id="summary-most-expensive-value">0 kr</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card bg-light h-100">
+                        <div class="card-body text-center p-2">
+                            <div class="text-muted small">Mest besøkt</div>
+                            <div class="fs-6 fw-bold text-info" id="summary-most-attended">-</div>
+                            <div class="small text-muted" id="summary-most-attended-value">0 deltakere</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2008,11 +2037,25 @@ async function loadEventsResults() {
         // Show/update summary
         const summaryDiv = document.getElementById('events-results-summary');
         if (summaryDiv && result.summary) {
-            summaryDiv.style.display = 'grid';
+            summaryDiv.style.display = 'block';
             document.getElementById('summary-total-events').textContent = result.summary.total_events;
             document.getElementById('summary-total-revenue').textContent = parseFloat(result.summary.total_revenue).toFixed(0) + ' kr';
             document.getElementById('summary-total-attendees').textContent = result.summary.total_attendees;
             document.getElementById('summary-upcoming-events').textContent = result.summary.upcoming_events;
+            
+            // New stats
+            const mostProf = result.summary.most_profitable || {title: 'N/A', profit: 0};
+            const mostExp = result.summary.most_expensive || {title: 'N/A', price: 0};
+            const mostAtt = result.summary.most_attended || {title: 'N/A', attendees: 0};
+            
+            document.getElementById('summary-most-profitable').textContent = mostProf.title ? mostProf.title.substring(0, 15) : '-';
+            document.getElementById('summary-most-profitable-value').textContent = parseFloat(mostProf.profit || 0).toFixed(0) + ' kr';
+            
+            document.getElementById('summary-most-expensive').textContent = mostExp.title ? mostExp.title.substring(0, 15) : '-';
+            document.getElementById('summary-most-expensive-value').textContent = parseFloat(mostExp.price || 0).toFixed(0) + ' kr';
+            
+            document.getElementById('summary-most-attended').textContent = mostAtt.title ? mostAtt.title.substring(0, 15) : '-';
+            document.getElementById('summary-most-attended-value').textContent = (mostAtt.attendees || 0) + ' deltakere';
         }
         
         // Render event results as table per arrangement
