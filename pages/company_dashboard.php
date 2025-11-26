@@ -1637,6 +1637,8 @@ try {
                 const statusBadge = product.is_visible ? 
                     '<span class="badge bg-success">Aktiv</span>' : 
                     '<span class="badge bg-secondary">Inaktiv</span>';
+                const toggleButtonClass = product.is_visible ? 'btn-warning' : 'btn-success';
+                const toggleButtonText = product.is_visible ? 'Deaktiver' : 'Aktiver';
                 
                 html += `
                     <tr>
@@ -1644,8 +1646,11 @@ try {
                         <td>${product.name || 'Ingen navn'}</td>
                         <td>${product.price || 0} NOK</td>
                         <td>${statusBadge}</td>
-                        <td>
-                            <button class="btn btn-sm btn-danger" onclick="deleteProduct('${product.id}')">
+                        <td style="display: flex; gap: 5px;">
+                            <button class="btn btn-sm ${toggleButtonClass}" onclick="toggleProductVisibility('${product.id}', ${product.is_visible})" title="${toggleButtonText}">
+                                <i class="bi ${product.is_visible ? 'bi-toggle-on' : 'bi-toggle-off'}"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteProduct('${product.id}')" title="Slett">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </td>
@@ -1676,6 +1681,30 @@ try {
             // Show modal
             const modal = new bootstrap.Modal(document.getElementById('productsModal'));
             modal.show();
+        }
+        
+        // Toggle product visibility
+        async function toggleProductVisibility(productId, isCurrentlyVisible) {
+            try {
+                const response = await fetch('/api/toggle_product_visibility.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({product_id: productId})
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    setTimeout(() => {
+                        loadProductsSummary();
+                    }, 300);
+                } else {
+                    alert('Feil: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error toggling product visibility:', error);
+                alert('Feil ved endring av status');
+            }
         }
         
         // Delete product

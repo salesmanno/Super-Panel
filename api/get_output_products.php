@@ -36,6 +36,58 @@ try {
     $stmt->execute([$company_id]);
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    // Fetch names from source tables if empty
+    foreach ($products as &$product) {
+        if (empty($product['name'])) {
+            try {
+                switch ($product['product_type']) {
+                    case 'events':
+                        $nameStmt = $db->prepare("SELECT title FROM events_eventdata WHERE id = ?");
+                        $nameStmt->execute([$product['product_id']]);
+                        $row = $nameStmt->fetch(PDO::FETCH_ASSOC);
+                        if ($row) {
+                            $product['name'] = $row['title'];
+                            $updateStmt = $db->prepare("UPDATE output_products SET name = ? WHERE id = ?");
+                            $updateStmt->execute([$row['title'], $product['id']]);
+                        }
+                        break;
+                    case 'product':
+                        $nameStmt = $db->prepare("SELECT name FROM sales_products WHERE id = ?");
+                        $nameStmt->execute([$product['product_id']]);
+                        $row = $nameStmt->fetch(PDO::FETCH_ASSOC);
+                        if ($row) {
+                            $product['name'] = $row['name'];
+                            $updateStmt = $db->prepare("UPDATE output_products SET name = ? WHERE id = ?");
+                            $updateStmt->execute([$row['name'], $product['id']]);
+                        }
+                        break;
+                    case 'membership':
+                        $nameStmt = $db->prepare("SELECT name FROM membership_plans WHERE id = ?");
+                        $nameStmt->execute([$product['product_id']]);
+                        $row = $nameStmt->fetch(PDO::FETCH_ASSOC);
+                        if ($row) {
+                            $product['name'] = $row['name'];
+                            $updateStmt = $db->prepare("UPDATE output_products SET name = ? WHERE id = ?");
+                            $updateStmt->execute([$row['name'], $product['id']]);
+                        }
+                        break;
+                    case 'rental':
+                        $nameStmt = $db->prepare("SELECT name FROM rental_objects WHERE id = ?");
+                        $nameStmt->execute([$product['product_id']]);
+                        $row = $nameStmt->fetch(PDO::FETCH_ASSOC);
+                        if ($row) {
+                            $product['name'] = $row['name'];
+                            $updateStmt = $db->prepare("UPDATE output_products SET name = ? WHERE id = ?");
+                            $updateStmt->execute([$row['name'], $product['id']]);
+                        }
+                        break;
+                }
+            } catch (Exception $e) {
+                error_log("Error fetching product name: " . $e->getMessage());
+            }
+        }
+    }
+    
     // Count by module
     $countByModule = [];
     $totalModules = [];
