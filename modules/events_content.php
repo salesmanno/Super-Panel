@@ -416,17 +416,30 @@ try {
     </div>
 
     <div id="events-checkin" class="subtab-content" style="display: none;">
+        <!-- Event Cards Selector -->
+        <div class="mb-4">
+            <h5 class="mb-3"><i class="bi bi-calendar-event me-2"></i>Velg arrangement</h5>
+            <div class="row g-3" id="checkin-event-cards">
+                <div class="col-12 text-center text-muted py-5">
+                    <div class="spinner-border spinner-border-sm me-2"></div>
+                    Laster arrangementer...
+                </div>
+            </div>
+        </div>
+
+        <!-- Event Details & Check-in Panel -->
+        <div id="event-details-panel" style="display: none;">
         <div class="row g-3">
             <!-- Left Column: Event Selection & Scanner -->
             <div class="col-md-4">
                 <div class="card mb-3">
                     <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <h6 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Velg arrangement</h6>
+                        <h6 class="mb-0" id="selected-event-title"><i class="bi bi-calendar-event me-2"></i>Valgt arrangement</h6>
                     </div>
                     <div class="card-body">
-                        <select class="form-select" id="checkin-event-selector">
-                            <option value="">Laster...</option>
-                        </select>
+                        <button class="btn btn-outline-secondary btn-sm w-100" onclick="document.getElementById('event-details-panel').style.display='none'; document.getElementById('checkin-event-cards').parentElement.style.display='block'">
+                            <i class="bi bi-chevron-left me-2"></i>Tilbake til oversikt
+                        </button>
                     </div>
                 </div>
 
@@ -486,6 +499,10 @@ try {
                                 <select class="form-select form-select-sm" id="guest-membership-plan">
                                     <option value="">Ingen (ordinær pris)</option>
                                 </select>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Barcode</label>
+                                <input type="text" class="form-control form-control-sm" id="guest-barcode" placeholder="Scan eller skriv inn">
                             </div>
                             <div class="mb-2">
                                 <label class="form-label small mb-1">Pris (kr)</label>
@@ -1624,36 +1641,112 @@ function performDeleteEvent(eventId, deleteMode) {
 
 let selectedEventId = null;
 
-// Load events into check-in selector
+// Load events into check-in selector as cards
 async function loadCheckinEventSelector() {
-    const selector = document.getElementById('checkin-event-selector');
+    const cardsContainer = document.getElementById('checkin-event-cards');
     
     try {
         const response = await fetch('/api/get_events.php');
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         const result = await response.json();
         
-        console.log('[Check-in Loader] API Response:', { success: result.success, eventsCount: result.events?.length ?? 0 });
-        
         if (result.success && result.events && result.events.length > 0) {
-            console.log(`[Check-in Loader] Found ${result.events.length} events, populating selector`);
-            selector.innerHTML = '<option value="">-- Velg arrangement --</option>' + 
-                result.events.map(event => `
-                    <option value="${event.id}">
-                        ${event.title} - ${event.start_date} ${event.start_time}
-                    </option>
-                `).join('');
+            cardsContainer.innerHTML = result.events.map(event => {
+                const dateStr = new Date(event.start_date + ' ' + event.start_time).toLocaleDateString('no-NO', { 
+                    day: 'numeric', 
+                    month: 'short', 
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                return `
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card h-100 cursor-pointer" style="cursor: pointer;" onclick="openEventDetail('${event.id}', '${event.title}')">
+                            <div class="card-body">
+                                <h6 class="card-title text-truncate">${event.title}</h6>
+                                <small class="text-muted d-block mb-2">
+                                    <i class="bi bi-calendar me-1"></i>${dateStr}
+                                </small>
+                                <div class="row g-2 small">
+                                    <div class="col-6">
+                                        <div class="bg-light p-2 rounded text-center">
+                                            <small class="d-block text-muted">Påmeldte</small>
+                                            <strong>${event.current_attendees || 0}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="bg-light p-2 rounded text-center">
+                                            <small class="d-block text-muted">Innsjekket</small>
+                                            <strong id="checked-${event.id}">-</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Load check-in counts for each event
+            result.events.forEach(event => {
+                loadEventCheckInCount(event.id);
+            });
         } else {
-            console.warn('[Check-in Loader] No events returned from API:', result.message || 'unknown reason');
-            selector.innerHTML = '<option value="">Ingen arrangementer tilgjengelig</option>';
+            cardsContainer.innerHTML = '<div class="col-12 text-center text-muted py-4">Ingen arrangementer tilgjengelig</div>';
         }
     } catch (error) {
-        console.error('[Check-in Loader] CRITICAL ERROR fetching events:', error);
-        selector.innerHTML = '<option value="">⚠️ Feil ved lasting av arrangementer</option>';
+        console.error('Error loading events:', error);
+        cardsContainer.innerHTML = '<div class="col-12 text-center text-danger py-4"><i class="bi bi-exclamation-triangle me-2"></i>Feil ved lasting</div>';
+    }
+}
+
+async function loadEventCheckInCount(eventId) {
+    try {
+        const response = await fetch(`/api/get_event_checkins.php?event_id=${eventId}`);
+        const result = await response.json();
+        if (result.success && result.summary) {
+            document.getElementById(`checked-${eventId}`).textContent = result.summary.checked_in_count || 0;
+        }
+    } catch (error) {
+        console.error('Error loading check-in count:', error);
+    }
+}
+
+function openEventDetail(eventId, eventTitle) {
+    selectedEventId = eventId;
+    document.getElementById('selected-event-title').textContent = '<i class="bi bi-calendar-event me-2"></i>' + eventTitle;
+    document.getElementById('checkin-event-cards').parentElement.style.display = 'none';
+    document.getElementById('event-details-panel').style.display = 'block';
+    document.getElementById('checkin-stats').style.display = 'block';
+    document.getElementById('quick-guest-registration').style.display = 'block';
+    
+    // Load checkins and event details
+    loadCheckins(eventId);
+    loadEventDetailsForCheckin(eventId);
+}
+
+async function loadEventDetailsForCheckin(eventId) {
+    try {
+        const response = await fetch(`/api/get_event.php?id=${eventId}`);
+        const result = await response.json();
+        if (result.success && result.event) {
+            document.getElementById('guest-price').value = result.event.ticket_price || 0;
+            const paymentMethodSelect = document.getElementById('guest-payment-method');
+            paymentMethodSelect.innerHTML = '';
+            const paymentMethods = result.event.payment_methods_json ? JSON.parse(result.event.payment_methods_json) : ['cash'];
+            const methodNames = { 'cash': 'Kontant', 'card': 'Kort', 'vipps': 'Vipps', 'invoice': 'Faktura', 'bank_transfer': 'Bankoverføring' };
+            paymentMethods.forEach(method => {
+                const option = document.createElement('option');
+                option.value = method;
+                option.textContent = methodNames[method] || method;
+                if (method === result.event.default_payment_method) option.selected = true;
+                paymentMethodSelect.appendChild(option);
+            });
+            loadMembershipPlansForGuest(eventId);
+        }
+    } catch (error) {
+        console.error('Error loading event details:', error);
     }
 }
 
@@ -1692,59 +1785,6 @@ document.querySelector('[name="attendee_email"]')?.addEventListener('blur', asyn
     }
 });
 
-// Handle event selection
-document.getElementById('checkin-event-selector')?.addEventListener('change', async function(e) {
-    selectedEventId = e.target.value;
-    
-    if (selectedEventId) {
-        document.getElementById('checkin-stats').style.display = 'block';
-        document.getElementById('quick-guest-registration').style.display = 'block';
-        document.getElementById('checkin-list-container').style.display = 'block';
-        document.getElementById('checkin-empty-state').style.display = 'none';
-        
-        // Load event details and populate form
-        try {
-            const response = await fetch(`/api/get_event.php?id=${selectedEventId}`);
-            const result = await response.json();
-            if (result.success && result.event) {
-                // Set default price
-                document.getElementById('guest-price').value = result.event.ticket_price || 0;
-                
-                // Load payment methods
-                const paymentMethodSelect = document.getElementById('guest-payment-method');
-                paymentMethodSelect.innerHTML = '';
-                const paymentMethods = result.event.payment_methods_json ? JSON.parse(result.event.payment_methods_json) : ['cash'];
-                const methodNames = {
-                    'cash': 'Kontant',
-                    'card': 'Kort',
-                    'vipps': 'Vipps',
-                    'invoice': 'Faktura',
-                    'bank_transfer': 'Bankoverføring'
-                };
-                paymentMethods.forEach(method => {
-                    const option = document.createElement('option');
-                    option.value = method;
-                    option.textContent = methodNames[method] || method;
-                    if (method === result.event.default_payment_method) {
-                        option.selected = true;
-                    }
-                    paymentMethodSelect.appendChild(option);
-                });
-                
-                // Load membership plans if available
-                loadMembershipPlansForGuest(selectedEventId);
-            }
-        } catch (error) {
-            console.error('Error loading event details:', error);
-        }
-        
-        loadCheckins(selectedEventId);
-    } else {
-        document.getElementById('checkin-stats').style.display = 'none';
-        document.getElementById('quick-guest-registration').style.display = 'none';
-        document.getElementById('checkin-list-container').style.display = 'none';
-    }
-});
 
 // Load membership plans for guest registration
 async function loadMembershipPlansForGuest(eventId) {
