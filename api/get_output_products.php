@@ -88,11 +88,22 @@ try {
         }
     }
     
+    // DEDUPLICATE: Remove duplicate products by (product_type, product_id) - keep the most recent
+    $seen = [];
+    $uniqueProducts = [];
+    foreach ($products as $product) {
+        $key = $product['product_type'] . '::' . $product['product_id'];
+        if (!isset($seen[$key])) {
+            $seen[$key] = true;
+            $uniqueProducts[] = $product;
+        }
+    }
+    
     // Count by module
     $countByModule = [];
     $totalModules = [];
     
-    foreach ($products as $product) {
+    foreach ($uniqueProducts as $product) {
         $module = $product['module_id'];
         if (!isset($countByModule[$module])) {
             $countByModule[$module] = 0;
@@ -106,9 +117,9 @@ try {
     
     echo json_encode([
         'success' => true,
-        'products' => $products,
+        'products' => $uniqueProducts,
         'count_by_module' => $countByModule,
-        'total_products' => count($products),
+        'total_products' => count($uniqueProducts),
         'total_modules_with_products' => count($totalModules),
         'modules' => $totalModules
     ]);

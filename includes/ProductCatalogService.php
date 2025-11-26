@@ -65,9 +65,6 @@ class ProductCatalogService {
      */
     public function createProductEntry($companyId, $moduleKey, $productId, $options = [], $createdBy = null) {
         try {
-            // Get or create module
-            $moduleId = $this->getOrCreateModule($moduleKey);
-            
             // Map module_key to product_type (MySQL only)
             $productTypeMap = [
                 'events' => 'events',
@@ -79,6 +76,23 @@ class ProductCatalogService {
             ];
             
             $productType = $productTypeMap[$moduleKey] ?? $moduleKey;
+            
+            // CHECK: Prevent duplicate entries - if product already exists, return existing ID
+            $existingStmt = $this->db->prepare("
+                SELECT id FROM output_products 
+                WHERE company_id = ? AND product_type = ? AND product_id = ?
+                LIMIT 1
+            ");
+            $existingStmt->execute([$companyId, $productType, $productId]);
+            $existingId = $existingStmt->fetchColumn();
+            
+            if ($existingId) {
+                error_log("ProductCatalogService: Product already exists (type=$productType, id=$productId), returning existing entry: $existingId");
+                return $existingId;
+            }
+            
+            // Get or create module
+            $moduleId = $this->getOrCreateModule($moduleKey);
             
             // Generate output_product_id
             $outputProductId = bin2hex(random_bytes(16));
