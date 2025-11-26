@@ -3158,4 +3158,157 @@ async function rejectRegistration(registrationId) {
     }
 }
 
+// Load all registrations when "Alle påmeldinger" tab is shown
+document.getElementById('all-reg-tab')?.addEventListener('click', function() {
+    loadAllRegistrations();
+});
+
+async function loadAllRegistrations() {
+    try {
+        const container = document.getElementById('all-registrations-container');
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                <span class="text-muted">Laster alle påmeldinger...</span>
+            </div>
+        `;
+        
+        const response = await fetch('../api/get_all_registrations.php');
+        const result = await response.json();
+        
+        if (!result.success) {
+            container.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    ${result.message || 'Feil ved lasting av påmeldinger'}
+                </div>
+            `;
+            return;
+        }
+        
+        if (!result.grouped_by_event || result.grouped_by_event.length === 0) {
+            container.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Ingen påmeldinger registrert ennå
+                </div>
+            `;
+            return;
+        }
+        
+        // Build HTML for all registrations grouped by event
+        let html = '';
+        
+        result.grouped_by_event.forEach((eventGroup, index) => {
+            const eventDate = new Date(eventGroup.start_date + ' ' + eventGroup.start_time);
+            const dateStr = eventDate.toLocaleDateString('no-NO', { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric'
+            });
+            const timeStr = eventDate.toLocaleTimeString('no-NO', { 
+                hour: '2-digit', 
+                minute: '2-digit'
+            });
+            
+            html += `
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-calendar-event me-2"></i>${eventGroup.event_title}
+                                </h6>
+                                <small>${dateStr} kl. ${timeStr}</small>
+                            </div>
+                            <div class="col-auto">
+                                <span class="badge bg-light text-dark">
+                                    ${eventGroup.registrations.length} påmelding${eventGroup.registrations.length !== 1 ? 'er' : ''}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Navn</th>
+                                    <th>E-post / Telefon</th>
+                                    <th>Status</th>
+                                    <th>Godkjent av</th>
+                                    <th>Godkjent dato</th>
+                                    <th>Medlemskap</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            eventGroup.registrations.forEach(reg => {
+                const createdDate = new Date(reg.created_at);
+                const createdStr = createdDate.toLocaleDateString('no-NO', { 
+                    day: 'numeric', 
+                    month: 'short', 
+                    year: 'numeric'
+                });
+                
+                const approvalStatusBadge = reg.approval_status === 'approved' 
+                    ? '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Godkjent</span>'
+                    : reg.approval_status === 'rejected'
+                    ? '<span class="badge bg-danger"><i class="bi bi-x-circle"></i> Avvist</span>'
+                    : '<span class="badge bg-warning"><i class="bi bi-hourglass-split"></i> Venter</span>';
+                
+                const approverName = reg.approver_first_name && reg.approver_last_name
+                    ? `${reg.approver_first_name} ${reg.approver_last_name}`
+                    : reg.approval_status === 'pending' ? '—' : 'Ukjent bruker';
+                
+                const approvedDate = reg.approved_at 
+                    ? new Date(reg.approved_at).toLocaleDateString('no-NO', { 
+                        day: 'numeric', 
+                        month: 'short', 
+                        year: 'numeric'
+                    })
+                    : '—';
+                
+                const contact = [
+                    reg.email ? `<i class="bi bi-envelope"></i> ${reg.email}` : '',
+                    reg.phone ? `<i class="bi bi-telephone"></i> ${reg.phone}` : ''
+                ].filter(Boolean).join('<br>');
+                
+                const memberBadge = reg.has_valid_membership 
+                    ? '<span class="badge bg-primary"><i class="bi bi-star"></i> Medlem</span>' 
+                    : '<span class="badge bg-secondary">Ikke medlem</span>';
+                
+                html += `
+                    <tr>
+                        <td><strong>${reg.first_name} ${reg.last_name}</strong></td>
+                        <td><small>${contact}</small></td>
+                        <td>${approvalStatusBadge}</td>
+                        <td><small>${approverName}</small></td>
+                        <td><small>${approvedDate}</small></td>
+                        <td>${memberBadge}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error loading all registrations:', error);
+        document.getElementById('all-registrations-container').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Feil ved lasting av påmeldinger
+            </div>
+        `;
+    }
+}
+
 </script>
