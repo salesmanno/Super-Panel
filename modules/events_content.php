@@ -597,33 +597,68 @@ try {
 
     <!-- Event Registrations Approval Tab -->
     <div id="events-registrations" class="subtab-content" style="display: none;">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title"><i class="bi bi-clipboard-check me-2"></i>Eventbestillinger</h5>
-                <p class="text-muted">Godkjenn eller avvis ventende bestillinger</p>
-                
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Navn</th>
-                                <th>Arrangement</th>
-                                <th>Kontakt</th>
-                                <th>Betalt</th>
-                                <th>Medlemskap</th>
-                                <th>Registrert</th>
-                                <th>Handlinger</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pending-registrations-list">
-                            <tr>
-                                <td colspan="7" class="text-center text-muted py-4">
-                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                                    Laster påmeldinger...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+        <ul class="nav nav-tabs mb-3" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="pending-reg-tab" data-bs-toggle="tab" data-bs-target="#pending-registrations-panel" type="button">
+                    <i class="bi bi-hourglass-split me-2"></i>Ventende (Godkjenning)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="all-reg-tab" data-bs-toggle="tab" data-bs-target="#all-registrations-panel" type="button">
+                    <i class="bi bi-list-ul me-2"></i>Alle påmeldinger
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+            <!-- Pending Registrations Panel -->
+            <div class="tab-pane fade show active" id="pending-registrations-panel" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-clipboard-check me-2"></i>Eventbestillinger</h5>
+                        <p class="text-muted">Godkjenn eller avvis ventende bestillinger</p>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Navn</th>
+                                        <th>Arrangement</th>
+                                        <th>Kontakt</th>
+                                        <th>Betalt</th>
+                                        <th>Medlemskap</th>
+                                        <th>Registrert</th>
+                                        <th>Handlinger</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pending-registrations-list">
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                            Laster påmeldinger...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- All Registrations Panel -->
+            <div class="tab-pane fade" id="all-registrations-panel" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-list-ul me-2"></i>Alle påmeldinger per arrangement</h5>
+                        <p class="text-muted">Se alle påmeldinger gruppert etter arrangement med godkjenningsinformasjon</p>
+                        
+                        <div id="all-registrations-container">
+                            <div class="text-center py-5">
+                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                <span class="text-muted">Laster alle påmeldinger...</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
