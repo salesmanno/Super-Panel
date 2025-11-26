@@ -2255,16 +2255,21 @@ async function editEvent(eventId) {
             // Continue - registration fields are optional for modal to open
         }
         
-        // Load payment methods with current selection
-        let selectedPaymentMethods = [];
-        if (event.payment_methods_json) {
-            try {
-                selectedPaymentMethods = JSON.parse(event.payment_methods_json);
-            } catch (e) {
-                console.error('Error parsing payment_methods_json:', e);
+        // Load payment methods with current selection - safe loading
+        try {
+            let selectedPaymentMethods = [];
+            if (event.payment_methods_json) {
+                try {
+                    selectedPaymentMethods = JSON.parse(event.payment_methods_json);
+                } catch (e) {
+                    console.error('Error parsing payment_methods_json:', e);
+                }
             }
+            await loadPaymentMethodsForEdit(selectedPaymentMethods);
+        } catch (paymentError) {
+            console.warn('Error loading payment methods:', paymentError);
+            // Continue - payment methods are optional for modal to open
         }
-        await loadPaymentMethodsForEdit(selectedPaymentMethods);
         
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('editEventModal'));
