@@ -1517,7 +1517,7 @@ function deleteEvent(eventId) {
 function performDeleteEvent(eventId, deleteMode) {
     const deleteTypeLabel = deleteMode === 'soft' ? 'gjort usynlig' : 'slettet permanent';
     
-    fetch('../api/delete_event.php', {
+    fetch('/api/delete_event.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
