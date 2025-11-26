@@ -52,6 +52,9 @@ try {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
         ");
         
+        // Get for_sale value (default to 1/true if not provided)
+        $forSale = isset($data['for_sale']) ? $data['for_sale'] : 1;
+        
         $stmt->execute([
             $planId,
             $_SESSION['company_id'],
@@ -64,18 +67,21 @@ try {
             $imageUrl
         ]);
         
-        // Automatically create output_products entry
-        $catalogService = new ProductCatalogService($db);
-        $outputProductId = $catalogService->createProductEntry(
-            $_SESSION['company_id'],
-            'membership',
-            $planId,
-            ['is_visible' => true, 'is_public' => true],
-            $_SESSION['tenant_admin_id']
-        );
-        
-        // Sync the newly created product to ensure name and price are set
-        $catalogService->syncProductData($_SESSION['company_id'], 'membership');
+        // Only create output_products entry if for_sale is true
+        $outputProductId = null;
+        if ($forSale) {
+            $catalogService = new ProductCatalogService($db);
+            $outputProductId = $catalogService->createProductEntry(
+                $_SESSION['company_id'],
+                'membership',
+                $planId,
+                ['is_visible' => true, 'is_public' => true],
+                $_SESSION['tenant_admin_id']
+            );
+            
+            // Sync the newly created product to ensure name and price are set
+            $catalogService->syncProductData($_SESSION['company_id'], 'membership');
+        }
         
         $db->commit();
         

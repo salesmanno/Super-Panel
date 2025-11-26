@@ -55,6 +55,10 @@ try {
             $params[] = $data['is_active'];
         }
         
+        if (isset($data['for_sale'])) {
+            $updateFields[] = "for_sale = ?";
+            $params[] = $data['for_sale'];
+        }
         
         if (empty($updateFields)) {
             echo json_encode(['success' => false, 'message' => 'Ingen felter å oppdatere']);
@@ -72,8 +76,39 @@ try {
         
         $stmt->execute($params);
         
-        // Automatically sync output_products after update
+        // Handle output_products sync based on for_sale status
         $catalogService = new ProductCatalogService($db);
+        
+        if (isset($data['for_sale'])) {
+            if ($data['for_sale']) {
+                // Ensure product entry exists if for_sale is now true
+                $checkStmt = $db->prepare("
+                    SELECT id FROM output_products 
+                    WHERE company_id = ? AND product_type = 'membership' AND product_id = ?
+                ");
+                $checkStmt->execute([$_SESSION['company_id'], $data['plan_id']]);
+                
+                if (!$checkStmt->fetch()) {
+                    // Create product entry if it doesn't exist
+                    $catalogService->createProductEntry(
+                        $_SESSION['company_id'],
+                        'membership',
+                        $data['plan_id'],
+                        ['is_visible' => true, 'is_public' => true],
+                        $_SESSION['tenant_admin_id']
+                    );
+                }
+            } else {
+                // Delete product entry if for_sale is now false
+                $deleteStmt = $db->prepare("
+                    DELETE FROM output_products 
+                    WHERE company_id = ? AND product_type = 'membership' AND product_id = ?
+                ");
+                $deleteStmt->execute([$_SESSION['company_id'], $data['plan_id']]);
+            }
+        }
+        
+        // Sync output_products after update
         $catalogService->syncProductData($_SESSION['company_id'], 'membership');
         
         $db->commit();

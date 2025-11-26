@@ -368,6 +368,13 @@
                         <input type="url" class="form-control" name="plan_image_url" placeholder="https://example.com/plan-bilde.jpg">
                         <small class="text-muted">URL til bilde for denne planen</small>
                     </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="for_sale" id="for_sale" checked>
+                        <label class="form-check-label" for="for_sale">
+                            Til salgs / tilbys
+                        </label>
+                        <small class="text-muted d-block">Hvis avmerket, kan denne planen selges og tilbys til kunder</small>
+                    </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="is_internal" id="is_internal">
                         <label class="form-check-label" for="is_internal">
@@ -397,6 +404,7 @@ async function submitMembershipPlan() {
         billing_cycle: formData.get('billing_cycle'),
         benefits: formData.get('benefits'),
         image_url: formData.get('plan_image_url') || null,
+        for_sale: document.getElementById('for_sale')?.checked ? 1 : 0,
         is_internal: document.getElementById('is_internal')?.checked ? 1 : 0
     };
     
@@ -454,6 +462,7 @@ async function loadMembershipPlans() {
                 }
                 
                 const planId = plan.id || plan.plan_id;
+                const forSaleChecked = plan.for_sale ? 'checked' : '';
                 return `
                     <div class="col-md-4 mb-3">
                         <div class="card border">
@@ -462,6 +471,12 @@ async function loadMembershipPlans() {
                                 <p class="text-muted small">${billingLabel}</p>
                                 <h4 class="text-primary">${plan.price} NOK</h4>
                                 ${plan.benefits ? '<div class="small text-muted mt-2">' + plan.benefits.split('\n').slice(0, 2).join('<br>') + '</div>' : ''}
+                                <div class="form-check mt-3 mb-2">
+                                    <input class="form-check-input" type="checkbox" id="for_sale_${planId}" ${forSaleChecked} onchange="togglePlanForSale('${planId}', this.checked)">
+                                    <label class="form-check-label small" for="for_sale_${planId}">
+                                        Til salgs / tilbys
+                                    </label>
+                                </div>
                                 <div class="d-flex gap-2 mt-2">
                                     <button class="btn btn-outline-primary btn-sm flex-fill">Rediger</button>
                                     <button class="btn btn-outline-danger btn-sm" onclick="deleteMembershipPlan('${planId}')">
@@ -496,6 +511,31 @@ async function loadMembershipPlans() {
 
 // Last inn planer når medlemskap-tab vises
 document.getElementById('tab-membership')?.addEventListener('shown.bs.tab', loadMembershipPlans);
+
+async function togglePlanForSale(planId, forSale) {
+    const toastId = toast.loading(forSale ? 'Aktiverer salg...' : 'Deaktiverer salg...');
+    
+    try {
+        const response = await fetch('/api/update_membership_plan.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plan_id: planId, for_sale: forSale ? 1 : 0 })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            toast.success(toastId, '', forSale ? 'Planen er nå til salgs' : 'Planen er nå bare intern');
+        } else {
+            toast.error(toastId, 'Oppdatering av plan', result.message || 'Kunne ikke oppdatere');
+            loadMembershipPlans(); // Reload to reflect actual state
+        }
+    } catch (error) {
+        console.error('Error toggling plan for_sale:', error);
+        toast.error(toastId, 'Oppdatering av plan', 'Kunne ikke oppdatere');
+        loadMembershipPlans(); // Reload to reflect actual state
+    }
+}
 
 async function deleteMembershipPlan(planId) {
     if (!confirm('Er du sikker på at du vil slette denne medlemskapsplanen?')) {
