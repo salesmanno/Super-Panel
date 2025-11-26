@@ -47,11 +47,12 @@ try {
     // Determine ticket price based on membership plan
     $ticketType = 'regular';
     $ticketPrice = $event['ticket_price'];
+    $membershipPlanId = null;
     
     if (!empty($data['membership_plan_id'])) {
         // Check for membership-specific pricing
         $pricingStmt = $db->prepare("
-            SELECT emp.ticket_price, mp.name as plan_name
+            SELECT id, ticket_price, mp.name as plan_name
             FROM event_membership_plans emp
             JOIN membership_plans mp ON emp.membership_plan_id = mp.id
             WHERE emp.event_id = ? AND emp.membership_plan_id = ? AND mp.company_id = ?
@@ -62,6 +63,7 @@ try {
         if ($pricing) {
             $ticketPrice = $pricing['ticket_price'];
             $ticketType = $pricing['plan_name'];
+            $membershipPlanId = $pricing['id']; // Store FK reference
         }
     }
     
@@ -82,6 +84,7 @@ try {
             attendee_city,
             attendee_postal,
             ticket_type,
+            membership_plan_id,
             ticket_price,
             payment_status,
             payment_method,
@@ -92,6 +95,7 @@ try {
             created_at,
             updated_at
         ) VALUES (
+            ?,
             ?,
             ?,
             ?,
@@ -145,6 +149,7 @@ try {
         $city,
         $postal,
         $ticketType,
+        $membershipPlanId,
         $ticketPrice,
         $paymentStatus,
         $paymentMethod,
