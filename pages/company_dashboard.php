@@ -1568,7 +1568,15 @@ try {
                 const data = await response.json();
                 
                 if (data.success && data.total_products > 0) {
-                    const moduleList = data.modules.join(', ');
+                    const moduleNames = {
+                        'sales': 'Salg',
+                        'events': 'Arrangementer',
+                        'rental': 'Utleie',
+                        'reservation': 'Reservasjoner',
+                        'membership': 'Medlemskap'
+                    };
+                    
+                    const moduleList = (data.modules || []).map(m => moduleNames[m] || m).join(', ');
                     document.getElementById('products-text').innerHTML = 
                         `...og har <strong>${data.total_products}</strong> oppføring${data.total_products > 1 ? 'er' : ''} i <strong>${data.total_modules_with_products}</strong> modul${data.total_modules_with_products > 1 ? 'er' : ''} (${moduleList}) av disse!`;
                     document.getElementById('view-products-link').style.display = 'inline';
