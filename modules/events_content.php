@@ -2155,6 +2155,11 @@ async function editEvent(eventId) {
     try {
         // Fetch specific event details using dedicated endpoint
         const response = await fetch(`/api/get_event.php?id=${eventId}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: Kunne ikke hente arrangement data`);
+        }
+        
         const result = await response.json();
         
         console.log('API returned:', result);
@@ -2215,6 +2220,12 @@ async function editEvent(eventId) {
         
         // Fetch and set registration fields
         const fieldsResponse = await fetch(`/api/get_event_registration_fields.php?event_id=${eventId}`);
+        
+        if (!fieldsResponse.ok) {
+            console.warn(`HTTP ${fieldsResponse.status}: Kunne ikke hente registreringsfelt`);
+            // Continue anyway - registration fields might fail but event edit should still work
+        }
+        
         const fieldsResult = await fieldsResponse.json();
         
         // Reset all optional field checkboxes
