@@ -114,11 +114,63 @@ try {
         $stmt->execute([$company_id]);
         $upcomingEvents = $stmt->fetchColumn();
         
+        // Get most profitable event
+        $mostProfitable = ['title' => 'N/A', 'profit' => 0];
+        $stmt = $db->prepare("
+            SELECT e.id, e.title, COALESCE(SUM(CASE WHEN ul.selling_price > 0 THEN ul.selling_price ELSE 0 END), 0) as profit
+            FROM events_eventdata e
+            LEFT JOIN unified_ledger ul ON (ul.source_id = e.id OR JSON_UNQUOTE(JSON_EXTRACT(ul.metadata, '$.event_id')) = e.id)
+            WHERE e.company_id = ? AND e.is_active = 1
+            GROUP BY e.id
+            ORDER BY profit DESC
+            LIMIT 1
+        ");
+        $stmt->execute([$company_id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            $mostProfitable = ['title' => $row['title'], 'profit' => round($row['profit'], 2)];
+        }
+        
+        // Get most expensive event (highest ticket price)
+        $mostExpensive = ['title' => 'N/A', 'price' => 0];
+        $stmt = $db->prepare("
+            SELECT id, title, ticket_price
+            FROM events_eventdata
+            WHERE company_id = ? AND is_active = 1
+            ORDER BY ticket_price DESC
+            LIMIT 1
+        ");
+        $stmt->execute([$company_id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            $mostExpensive = ['title' => $row['title'], 'price' => $row['ticket_price']];
+        }
+        
+        // Get most attended event
+        $mostAttended = ['title' => 'N/A', 'attendees' => 0];
+        $stmt = $db->prepare("
+            SELECT e.id, e.title, COUNT(ec.id) as attendee_count
+            FROM events_eventdata e
+            LEFT JOIN events_checkin ec ON e.id = ec.event_id
+            WHERE e.company_id = ? AND e.is_active = 1
+            GROUP BY e.id
+            ORDER BY attendee_count DESC
+            LIMIT 1
+        ");
+        $stmt->execute([$company_id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            $mostAttended = ['title' => $row['title'], 'attendees' => $row['attendee_count']];
+        }
+        
         $summary = [
             'total_events' => $totalEvents,
             'total_revenue' => $totalRevenue,
             'total_attendees' => $totalAttendees,
-            'upcoming_events' => $upcomingEvents
+            'upcoming_events' => $upcomingEvents,
+            'most_profitable' => $mostProfitable,
+            'most_expensive' => $mostExpensive,
+            'most_attended' => $mostAttended
         ];
         
         // Get detailed list of events
@@ -207,7 +259,10 @@ try {
             'total_events' => $summary['total_events'],
             'total_revenue' => number_format($summary['total_revenue'], 2, '.', ''),
             'total_attendees' => $summary['total_attendees'],
-            'upcoming_events' => $summary['upcoming_events']
+            'upcoming_events' => $summary['upcoming_events'],
+            'most_profitable' => $summary['most_profitable'] ?? ['title' => 'N/A', 'profit' => 0],
+            'most_expensive' => $summary['most_expensive'] ?? ['title' => 'N/A', 'price' => 0],
+            'most_attended' => $summary['most_attended'] ?? ['title' => 'N/A', 'attendees' => 0]
         ],
         'events' => $eventsList
     ]);

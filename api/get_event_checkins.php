@@ -45,29 +45,41 @@ try {
             c.payment_method,
             c.checked_in,
             c.check_in_time,
+            c.checked_in_by,
             c.notes,
             c.created_at,
             tc.first_name,
-            tc.last_name
+            tc.last_name,
+            ta.first_name as admin_first_name,
+            ta.last_name as admin_last_name
         FROM events_checkin c
         LEFT JOIN tenant_customers tc ON c.customer_id = tc.id
+        LEFT JOIN tenant_admins ta ON c.checked_in_by = ta.id
         WHERE c.event_id = ?
-        ORDER BY c.created_at DESC, c.check_in_time DESC
+        ORDER BY c.checked_in DESC, c.check_in_time DESC, c.created_at DESC
     ");
     
     $stmt->execute([$eventId]);
-    $checkins = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $allCheckins = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Split into checked_in and not checked_in
+    $checkedIn = array_filter($allCheckins, fn($c) => $c['checked_in'] == 1);
+    $notCheckedIn = array_filter($allCheckins, fn($c) => $c['checked_in'] == 0);
     
     // Calculate summary stats
-    $totalAttendees = count($checkins);
-    $totalRevenue = array_sum(array_column($checkins, 'ticket_price'));
-    $paidCount = count(array_filter($checkins, fn($c) => $c['payment_status'] === 'paid'));
+    $totalAttendees = count($allCheckins);
+    $totalRevenue = array_sum(array_column($allCheckins, 'ticket_price'));
+    $paidCount = count(array_filter($allCheckins, fn($c) => $c['payment_status'] === 'paid'));
+    $checkedInCount = count($checkedIn);
     
     echo json_encode([
         'success' => true,
-        'checkins' => $checkins,
+        'checked_in' => array_values($checkedIn),
+        'not_checked_in' => array_values($notCheckedIn),
         'summary' => [
             'total_attendees' => $totalAttendees,
+            'checked_in_count' => $checkedInCount,
+            'not_checked_in_count' => count($notCheckedIn),
             'total_revenue' => $totalRevenue,
             'paid_count' => $paidCount,
             'pending_count' => $totalAttendees - $paidCount
