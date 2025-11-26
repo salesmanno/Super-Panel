@@ -2022,34 +2022,70 @@ async function loadCheckins(eventId) {
             document.getElementById('checkin-pending-count').textContent = result.summary.pending_count;
             document.getElementById('checkin-total-revenue').textContent = result.summary.total_revenue.toFixed(2) + ' kr';
             
-            // Update attendee list
-            const list = document.getElementById('checkin-attendees-list');
-            if (result.checkins && result.checkins.length > 0) {
-                list.innerHTML = result.checkins.map(checkin => {
+            // Update confirmed list (innsjekket)
+            const confirmedList = document.getElementById('checkin-confirmed-list');
+            const confirmedCount = document.getElementById('checkin-confirmed-count');
+            
+            if (result.checked_in && result.checked_in.length > 0) {
+                confirmedCount.textContent = result.checked_in.length;
+                confirmedList.innerHTML = result.checked_in.map(checkin => {
                     const name = checkin.attendee_name || (checkin.first_name + ' ' + checkin.last_name);
+                    const adminName = checkin.admin_first_name && checkin.admin_last_name 
+                        ? checkin.admin_first_name + ' ' + checkin.admin_last_name 
+                        : '-';
                     const contact = checkin.attendee_email || checkin.attendee_phone || '-';
                     const checkinTime = checkin.check_in_time ? new Date(checkin.check_in_time).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) : '-';
                     
+                    return `
+                        <tr>
+                            <td><strong>${name}</strong></td>
+                            <td><small>${adminName}</small></td>
+                            <td><small>${contact}</small></td>
+                            <td>${checkin.ticket_price} kr</td>
+                            <td><small class="text-muted">${checkinTime}</small></td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                confirmedCount.textContent = '0';
+                confirmedList.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            Ingen innsjekket ennå
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            // Update pending list (ikke innsjekket)
+            const pendingList = document.getElementById('checkin-pending-list');
+            const pendingCount = document.getElementById('checkin-pending-count');
+            
+            if (result.not_checked_in && result.not_checked_in.length > 0) {
+                pendingCount.textContent = result.not_checked_in.length;
+                pendingList.innerHTML = result.not_checked_in.map(checkin => {
+                    const name = checkin.attendee_name || (checkin.first_name + ' ' + checkin.last_name);
+                    const contact = checkin.attendee_email || checkin.attendee_phone || '-';
                     const paymentBadge = checkin.payment_status === 'paid' 
                         ? '<span class="badge bg-success">Betalt</span>' 
                         : '<span class="badge bg-warning">Venter</span>';
                     
                     return `
                         <tr>
-                            <td>${name}</td>
+                            <td><strong>${name}</strong></td>
                             <td><small>${contact}</small></td>
-                            <td><small>${checkin.ticket_type}</small></td>
+                            <td><small>${checkin.ticket_type || '-'}</small></td>
                             <td>${checkin.ticket_price} kr</td>
                             <td>${paymentBadge}</td>
-                            <td><small class="text-muted">${checkinTime}</small></td>
                         </tr>
                     `;
                 }).join('');
             } else {
-                list.innerHTML = `
+                pendingCount.textContent = '0';
+                pendingList.innerHTML = `
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">
-                            Ingen deltakere ennå
+                        <td colspan="5" class="text-center text-muted py-4">
+                            Alle har sjekket inn! ✓
                         </td>
                     </tr>
                 `;
