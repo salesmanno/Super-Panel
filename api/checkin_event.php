@@ -52,7 +52,7 @@ try {
     if (!empty($data['membership_plan_id'])) {
         // Check for membership-specific pricing
         $pricingStmt = $db->prepare("
-            SELECT id, ticket_price, mp.name as plan_name
+            SELECT emp.id as emp_id, emp.ticket_price, mp.name as plan_name
             FROM event_membership_plans emp
             JOIN membership_plans mp ON emp.membership_plan_id = mp.id
             WHERE emp.event_id = ? AND emp.membership_plan_id = ? AND mp.company_id = ?
@@ -63,7 +63,7 @@ try {
         if ($pricing) {
             $ticketPrice = $pricing['ticket_price'];
             $ticketType = $pricing['plan_name'];
-            $membershipPlanId = $pricing['id']; // Store FK reference
+            $membershipPlanId = (int)$pricing['emp_id']; // Store FK reference to event_membership_plans.id (INT)
         }
     }
     
