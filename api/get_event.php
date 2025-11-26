@@ -40,7 +40,6 @@ try {
             max_attendees,
             registration_type,
             registration_deadline,
-            default_payment_method,
             payment_timing,
             payment_methods_json,
             event_image_url,
