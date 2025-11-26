@@ -12,18 +12,8 @@ require_once __DIR__ . '/../config/database.php';
 try {
     $db = getDBConnection();
     
-    $hasCreatedByColumns = false;
+    $stmt = null;
     try {
-        $testStmt = $db->query("
-            SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
-            WHERE TABLE_NAME='event_registrations' AND COLUMN_NAME='created_by_admin'
-        ");
-        $hasCreatedByColumns = $testStmt->rowCount() > 0;
-    } catch (Exception $e) {
-        $hasCreatedByColumns = false;
-    }
-    
-    if ($hasCreatedByColumns) {
         $stmt = $db->prepare("
             SELECT 
                 r.id,
@@ -53,38 +43,43 @@ try {
             AND r.approval_status = 'pending'
             ORDER BY e.title ASC, r.created_at DESC
         ");
-    } else {
-        $stmt = $db->prepare("
-            SELECT 
-                r.id,
-                r.event_id,
-                r.customer_id,
-                c.first_name,
-                c.last_name,
-                c.email,
-                c.phone,
-                c.is_member AS has_valid_membership,
-                r.created_at,
-                NULL AS created_by_admin,
-                NULL AS created_by_staff,
-                NULL AS admin_creator_first_name,
-                NULL AS admin_creator_last_name,
-                NULL AS staff_creator_first_name,
-                NULL AS staff_creator_last_name,
-                e.title AS event_title,
-                e.start_date,
-                e.start_time
-            FROM event_registrations r
-            INNER JOIN events_eventdata e ON r.event_id = e.id COLLATE utf8mb4_unicode_ci
-            INNER JOIN tenant_customers c ON r.customer_id = c.id COLLATE utf8mb4_unicode_ci
-            WHERE r.company_id = ?
-            AND r.approval_status = 'pending'
-            ORDER BY e.title ASC, r.created_at DESC
-        ");
+        $stmt->execute([$_SESSION['company_id']]);
+        $registrations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        if (strpos($e->getMessage(), 'Unknown column') !== false || strpos($e->getMessage(), 'Column not found') !== false) {
+            $stmt = $db->prepare("
+                SELECT 
+                    r.id,
+                    r.event_id,
+                    r.customer_id,
+                    c.first_name,
+                    c.last_name,
+                    c.email,
+                    c.phone,
+                    c.is_member AS has_valid_membership,
+                    r.created_at,
+                    NULL AS created_by_admin,
+                    NULL AS created_by_staff,
+                    NULL AS admin_creator_first_name,
+                    NULL AS admin_creator_last_name,
+                    NULL AS staff_creator_first_name,
+                    NULL AS staff_creator_last_name,
+                    e.title AS event_title,
+                    e.start_date,
+                    e.start_time
+                FROM event_registrations r
+                INNER JOIN events_eventdata e ON r.event_id = e.id COLLATE utf8mb4_unicode_ci
+                INNER JOIN tenant_customers c ON r.customer_id = c.id COLLATE utf8mb4_unicode_ci
+                WHERE r.company_id = ?
+                AND r.approval_status = 'pending'
+                ORDER BY e.title ASC, r.created_at DESC
+            ");
+            $stmt->execute([$_SESSION['company_id']]);
+            $registrations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } else {
+            throw $e;
+        }
     }
-    
-    $stmt->execute([$_SESSION['company_id']]);
-    $registrations = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     $groupedByEvent = [];
     foreach ($registrations as $reg) {
