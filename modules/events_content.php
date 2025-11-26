@@ -550,34 +550,47 @@ try {
     </div>
 
     <div id="events-results" class="subtab-content" style="display: none;">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title"><i class="bi bi-graph-up me-2"></i>Arrangement Resultat</h5>
-                <p class="text-muted">Se og administrer inntekter og utgifter for arrangementer</p>
-                
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Arrangement</th>
-                                <th>Dato</th>
-                                <th>Påmeldte</th>
-                                <th class="text-end">Inntekt</th>
-                                <th class="text-end">Utgift</th>
-                                <th class="text-end">Netto</th>
-                                <th>Handling</th>
-                            </tr>
-                        </thead>
-                        <tbody id="events-results-list">
-                            <tr>
-                                <td colspan="7" class="text-center text-muted py-4">
-                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                                    Laster arrangementer...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+        <!-- Summary Stats -->
+        <div class="row mb-4" id="events-results-summary" style="display: none;">
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <div class="text-muted small">Total Arrangementer</div>
+                        <div class="fs-4 fw-bold text-primary" id="summary-total-events">0</div>
+                    </div>
                 </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <div class="text-muted small">Total Inntekt</div>
+                        <div class="fs-4 fw-bold text-success" id="summary-total-revenue">0 kr</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <div class="text-muted small">Total Deltakere</div>
+                        <div class="fs-4 fw-bold text-info" id="summary-total-attendees">0</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <div class="text-muted small">Kommende</div>
+                        <div class="fs-4 fw-bold text-warning" id="summary-upcoming-events">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Cards -->
+        <div class="row" id="events-results-list">
+            <div class="col-12 text-center py-5">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                <span class="text-muted">Laster arrangementer...</span>
             </div>
         </div>
     </div>
@@ -1942,54 +1955,99 @@ document.querySelector('[href="#events-checkin"]')?.addEventListener('click', fu
     loadCheckinEventSelector();
 });
 
-// Load events results
+// Load events results with cards layout
 async function loadEventsResults() {
     try {
         const response = await fetch('/api/get_events_results.php');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const result = await response.json();
         
-        if (result.success) {
-            // Oppdater arrangement liste
-            const resultsList = document.getElementById('events-results-list');
-            
-            if (result.events && result.events.length > 0) {
-                resultsList.innerHTML = result.events.map(event => {
-                    const netColor = event.net_result >= 0 ? 'text-success' : 'text-danger';
-                    
-                    return `
-                        <tr>
-                            <td><strong>${event.title}</strong></td>
-                            <td>${event.start_date} ${event.start_time || ''}</td>
-                            <td>${event.attendee_count || 0}</td>
-                            <td class="text-success">${parseFloat(event.income || 0).toFixed(2)} NOK</td>
-                            <td class="text-danger">${parseFloat(event.expense || 0).toFixed(2)} NOK</td>
-                            <td class="${netColor}"><strong>${parseFloat(event.net_result || 0).toFixed(2)} NOK</strong></td>
-                            <td>
-                                <button class="btn btn-sm btn-primary" onclick="viewEventDetails(${event.id}, '${event.title.replace(/'/g, "\\'")}')">
-                                    <i class="bi bi-eye me-1"></i>Detaljer
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-            } else {
-                resultsList.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center text-muted py-4">
-                            Ingen resultater tilgjengelig
-                        </td>
-                    </tr>
+        if (!result.success) throw new Error(result.message);
+        
+        // Show/update summary
+        const summaryDiv = document.getElementById('events-results-summary');
+        if (summaryDiv && result.summary) {
+            summaryDiv.style.display = 'grid';
+            document.getElementById('summary-total-events').textContent = result.summary.total_events;
+            document.getElementById('summary-total-revenue').textContent = parseFloat(result.summary.total_revenue).toFixed(0) + ' kr';
+            document.getElementById('summary-total-attendees').textContent = result.summary.total_attendees;
+            document.getElementById('summary-upcoming-events').textContent = result.summary.upcoming_events;
+        }
+        
+        // Render event cards
+        const resultsList = document.getElementById('events-results-list');
+        
+        if (result.events && result.events.length > 0) {
+            resultsList.innerHTML = result.events.map(event => {
+                const netColor = event.net_result >= 0 ? 'text-success' : 'text-danger';
+                const statusBadge = event.status === 'Kommende' ? 'bg-info' : event.status === 'Pågår' ? 'bg-warning' : 'bg-secondary';
+                const startDate = new Date(event.start_date).toLocaleDateString('no-NO', { day: 'numeric', month: 'short', year: 'numeric' });
+                
+                return `
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title mb-0">${event.title}</h6>
+                                    <span class="badge ${statusBadge} text-white">${event.status}</span>
+                                </div>
+                                
+                                <div class="text-muted small mb-3">
+                                    <i class="bi bi-calendar3 me-1"></i>${startDate}
+                                    ${event.start_time ? `<span class="ms-2"><i class="bi bi-clock me-1"></i>${event.start_time}</span>` : ''}
+                                </div>
+                                
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <div class="p-2 bg-light rounded text-center">
+                                            <div class="text-muted small">Deltakere</div>
+                                            <div class="fw-bold text-primary">${event.attendee_count || 0}</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="p-2 bg-light rounded text-center">
+                                            <div class="text-muted small">Inntekt</div>
+                                            <div class="fw-bold text-success">${parseFloat(event.income || 0).toFixed(0)} kr</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <div class="p-2 bg-light rounded text-center">
+                                            <div class="text-muted small">Utgift</div>
+                                            <div class="fw-bold text-danger">${parseFloat(event.expense || 0).toFixed(0)} kr</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="p-2 bg-light rounded text-center">
+                                            <div class="text-muted small">Netto</div>
+                                            <div class="fw-bold ${netColor}">${parseFloat(event.net_result || 0).toFixed(0)} kr</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 `;
-            }
+            }).join('');
+        } else {
+            resultsList.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-info text-center mb-0">
+                        <i class="bi bi-info-circle me-2"></i>Ingen resultat tilgjengelig ennå
+                    </div>
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Error loading events results:', error);
         document.getElementById('events-results-list').innerHTML = `
-            <tr>
-                <td colspan="7" class="text-center text-danger py-4">
-                    Feil ved lasting av resultater
-                </td>
-            </tr>
+            <div class="col-12">
+                <div class="alert alert-danger text-center mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Feil ved lasting av resultater
+                </div>
+            </div>
         `;
     }
 }
