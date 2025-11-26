@@ -1322,7 +1322,7 @@ async function loadEvents() {
                                     <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); viewEvent('${event.id}')" title="Vis detaljer">
                                         <i class="bi bi-eye"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-warning" onclick="event.stopPropagation(); editEvent('${event.id}')" title="Rediger">
+                                    <button class="btn btn-sm btn-outline-warning" data-event='${JSON.stringify(event).replace(/'/g, "&apos;")}' onclick="event.stopPropagation(); editEvent('${event.id}')" title="Rediger">
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteEvent('${event.id}')" title="Slett">
@@ -2153,22 +2153,37 @@ async function editEvent(eventId) {
     console.log('editEvent called with ID:', eventId, 'Type:', typeof eventId);
     
     try {
-        // Fetch specific event details using dedicated endpoint
-        const response = await fetch(`/api/get_event.php?id=${eventId}`);
+        // Try to get event data from button data attribute first (avoids API call)
+        let event = null;
+        const editBtn = document.querySelector(`button[data-event][onclick*="editEvent('${eventId}')"]`);
         
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: Kunne ikke hente arrangement data`);
+        if (editBtn && editBtn.dataset.event) {
+            try {
+                event = JSON.parse(editBtn.dataset.event);
+                console.log('Using event data from button attribute');
+            } catch (e) {
+                console.warn('Failed to parse button event data:', e);
+                event = null;
+            }
         }
         
-        const result = await response.json();
-        
-        console.log('API returned:', result);
-        
-        if (!result || !result.success) {
-            throw new Error(result?.message || 'API returnerte feildata');
+        // If no button data or parsing failed, fall back to API
+        if (!event) {
+            console.log('Fetching event from API...');
+            const response = await fetch(`/api/get_event.php?id=${eventId}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: Kunne ikke hente arrangement data`);
+            }
+            
+            const result = await response.json();
+            
+            if (!result || !result.success) {
+                throw new Error(result?.message || 'API returnerte feildata');
+            }
+            
+            event = result.event;
         }
-        
-        const event = result.event;
         
         if (!event) {
             toast.quickError('Arrangement', 'Arrangement ikke funnet');
