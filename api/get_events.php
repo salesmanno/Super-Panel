@@ -75,7 +75,7 @@ try {
         if ($event['is_member_exclusive']) {
             try {
                 $priceStmt = $db->prepare("
-                    SELECT emp.ticket_price as price, mp.name as plan_name, emp.public_display
+                    SELECT emp.ticket_price as price, mp.name as plan_name, mp.id as plan_id
                     FROM event_membership_plans emp
                     JOIN membership_plans mp ON emp.membership_plan_id = mp.id
                     WHERE emp.event_id = ?

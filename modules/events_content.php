@@ -1392,15 +1392,16 @@ async function loadEvents() {
                 
                 // Check if member-exclusive event
                 if (event.is_member_exclusive && event.membership_prices && event.membership_prices.length > 0) {
-                    // Show membership prices (shortened plan names)
-                    const prices = event.membership_prices
-                        .filter(mp => mp.public_display !== 0)
+                    // Show all membership prices in a clean list
+                    const priceList = event.membership_prices
                         .map(mp => {
-                            const shortName = mp.plan_name.length > 15 ? mp.plan_name.substring(0, 15) + '...' : mp.plan_name;
-                            return `${mp.price} kr (${shortName})`;
+                            return `<div class="d-flex justify-content-between align-items-center mb-1">
+                                <small>${mp.plan_name}</small>
+                                <strong class="text-primary">${mp.price} kr</strong>
+                            </div>`;
                         })
-                        .join('<br>');
-                    priceDisplay = prices ? `<span class="event-price">${prices}</span>` : '<span class="event-price event-price-free">Kun medlemmer</span>';
+                        .join('');
+                    priceDisplay = `<span class="event-price" style="display: block; padding: 8px 0;">${priceList}</span>`;
                 } else if (event.ticket_price > 0) {
                     // Show price - if no registration, add "(betales ved inngang)"
                     if (isNoRegistration) {
