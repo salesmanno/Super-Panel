@@ -3,6 +3,7 @@ session_start();
 require_once '../config/database.php';
 require_once '../includes/EmailService.php';
 require_once '../includes/UnifiedLedgerService.php';
+require_once '../includes/GlobalIncomeExpenseService.php';
 
 header('Content-Type: application/json');
 
@@ -163,7 +164,7 @@ try {
         // "on_arrival" (Oppmøte) means payment will be confirmed later at check-in
         $payment_status = ($payment_method === 'on_arrival') ? 'pending' : 'completed';
         
-        $ledgerService->logTransaction([
+        $ledgerResult = $ledgerService->logTransaction([
             'order_id' => $orderId,
             'module_source' => 'sales',
             'item_type' => 'product',
@@ -180,6 +181,21 @@ try {
             'transaction_date' => $currentTimestamp,
             'metadata' => $metadata
         ]);
+        
+        // Also log to global_income_expenses (only if payment completed)
+        if ($ledgerResult['success'] && $payment_status === 'completed') {
+            $globalService = new GlobalIncomeExpenseService($db, $company_id);
+            $globalService->log([
+                'transaction_type' => 'income',
+                'amount' => $itemTotal,
+                'module_source' => 'sales',
+                'source_id' => $itemTransactionId,
+                'unified_ledger_id' => $ledgerResult['ledger_id'],
+                'description' => $item['product_name'],
+                'category' => 'Salg',
+                'created_by' => $admin_id
+            ]);
+        }
     }
     
     // Clear cart
