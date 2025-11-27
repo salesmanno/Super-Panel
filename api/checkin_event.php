@@ -73,7 +73,7 @@ try {
     // Generate barcode
     require_once '../includes/BarcodeService.php';
     $barcodeService = new BarcodeService();
-    $barcode = $barcodeService->generateEAN13($checkinId);
+    $barcode = $barcodeService->generateEAN13($checkinId, $data['event_id']);
     
     $stmt = $db->prepare("
         INSERT INTO events_checkin (
