@@ -291,20 +291,25 @@ try {
                             <label class="form-label">Stedsnavn</label>
                             <input type="text" class="form-control" name="venue_name">
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">By</label>
-                            <input type="text" class="form-control" name="event_city">
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Postnummer</label>
-                            <input type="text" class="form-control" name="event_postal">
-                        </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Adresse</label>
-                            <input type="text" class="form-control" name="event_address">
+                    <div class="card bg-light mb-4 p-3">
+                        <h6 class="mb-3"><i class="bi bi-geo-alt me-2"></i>Lokasjon</h6>
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Gateadresse</label>
+                                <input type="text" class="form-control address-field" name="event_address" placeholder="f.eks. Hovedgaten 42">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">By</label>
+                                <input type="text" class="form-control city-field" name="event_city" placeholder="f.eks. Oslo">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Postnummer</label>
+                                <input type="text" class="form-control zip-field" name="event_postal" placeholder="f.eks. 0150" maxlength="4">
+                            </div>
                         </div>
                     </div>
 
@@ -857,20 +862,25 @@ try {
                             <label class="form-label">Stedsnavn</label>
                             <input type="text" class="form-control" name="venue_name" id="edit-venue-name">
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">By</label>
-                            <input type="text" class="form-control" name="event_city" id="edit-event-city">
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Postnummer</label>
-                            <input type="text" class="form-control" name="event_postal" id="edit-event-postal">
-                        </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Adresse</label>
-                            <input type="text" class="form-control" name="event_address" id="edit-event-address">
+                    <div class="card bg-light mb-4 p-3">
+                        <h6 class="mb-3"><i class="bi bi-geo-alt me-2"></i>Lokasjon</h6>
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Gateadresse</label>
+                                <input type="text" class="form-control address-field" name="event_address" id="edit-event-address" placeholder="f.eks. Hovedgaten 42">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">By</label>
+                                <input type="text" class="form-control city-field" name="event_city" id="edit-event-city" placeholder="f.eks. Oslo">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Postnummer</label>
+                                <input type="text" class="form-control zip-field" name="event_postal" id="edit-event-postal" placeholder="f.eks. 0150" maxlength="4">
+                            </div>
                         </div>
                     </div>
 
@@ -1637,6 +1647,37 @@ function performDeleteEvent(eventId, deleteMode) {
         toast.quickError('Feil', 'Feil ved sletting');
     });
 }
+
+// ========== ADDRESS FIELD FORMATTING ==========
+function formatAddressFields() {
+    // Format Street Address - Title Case
+    document.querySelectorAll('.address-field').forEach(field => {
+        field.addEventListener('blur', function() {
+            this.value = this.value.trim().split(' ').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            ).join(' ');
+        });
+    });
+    
+    // Format City - Title Case
+    document.querySelectorAll('.city-field').forEach(field => {
+        field.addEventListener('blur', function() {
+            this.value = this.value.trim().split(' ').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            ).join(' ');
+        });
+    });
+    
+    // Format Zip - Digits Only
+    document.querySelectorAll('.zip-field').forEach(field => {
+        field.addEventListener('blur', function() {
+            this.value = this.value.trim().replace(/\D/g, '').slice(0, 4);
+        });
+    });
+}
+
+// Run formatting on page load
+document.addEventListener('DOMContentLoaded', formatAddressFields);
 
 // ========== CHECK-IN FUNCTIONALITY ==========
 
