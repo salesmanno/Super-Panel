@@ -712,20 +712,24 @@ try {
 
     <!-- Event Registrations Approval Tab -->
     <div id="events-registrations" class="subtab-content" style="display: none;">
-        <ul class="nav nav-tabs mb-3" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="pending-reg-tab" data-bs-toggle="tab" data-bs-target="#pending-registrations-panel" type="button">
-                    <i class="bi bi-hourglass-split me-2"></i>Ventende (Godkjenning)
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="all-reg-tab" data-bs-toggle="tab" data-bs-target="#all-registrations-panel" type="button">
-                    <i class="bi bi-list-ul me-2"></i>Alle påmeldinger
-                </button>
-            </li>
-        </ul>
+        <div class="card mb-3">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs mb-0" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="pending-reg-tab" data-bs-toggle="tab" data-bs-target="#pending-registrations-panel" type="button">
+                            <i class="bi bi-hourglass-split me-2"></i>Ventende (Godkjenning)
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="all-reg-tab" data-bs-toggle="tab" data-bs-target="#all-registrations-panel" type="button">
+                            <i class="bi bi-list-ul me-2"></i>Alle påmeldinger
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
 
-        <div class="tab-content">
+        <div class="tab-content" id="registrations-tab-content">
             <!-- Pending Registrations Panel -->
             <div class="tab-pane fade show active" id="pending-registrations-panel" role="tabpanel">
                 <div class="card">
@@ -3257,7 +3261,12 @@ if (editMemberExclusiveCheckbox && editTicketPriceContainer && editTicketPriceIn
 
 // Load pending registrations when tab is shown
 document.querySelector('[href="#events-registrations"]')?.addEventListener('click', function() {
-    loadPendingRegistrations();
+    setTimeout(() => loadPendingRegistrations(), 100);
+});
+
+// Ensure pending registrations load when pending tab is clicked
+document.getElementById('pending-reg-tab')?.addEventListener('click', function() {
+    setTimeout(() => loadPendingRegistrations(), 100);
 });
 
 async function loadPendingRegistrations() {
@@ -3419,7 +3428,7 @@ async function rejectRegistration(registrationId) {
 
 // Load all registrations when "Alle påmeldinger" tab is shown
 document.getElementById('all-reg-tab')?.addEventListener('click', function() {
-    loadAllRegistrations();
+    setTimeout(() => loadAllRegistrations(), 100);
 });
 
 async function loadAllRegistrations() {
