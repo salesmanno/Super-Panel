@@ -2118,12 +2118,14 @@ async function loadCheckins(eventId) {
                         : '-';
                     const contact = checkin.attendee_email || checkin.attendee_phone || '-';
                     const checkinTime = checkin.check_in_time ? new Date(checkin.check_in_time).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) : '-';
+                    const barcode = checkin.barcode || '-';
                     
                     return `
                         <tr>
                             <td><strong>${name}</strong></td>
                             <td><small>${adminName}</small></td>
                             <td><small>${contact}</small></td>
+                            <td><small class="font-monospace">${barcode}</small></td>
                             <td>${checkin.ticket_price} kr</td>
                             <td><small class="text-muted">${checkinTime}</small></td>
                         </tr>
@@ -2149,6 +2151,7 @@ async function loadCheckins(eventId) {
                 pendingList.innerHTML = result.not_checked_in.map(checkin => {
                     const name = checkin.attendee_name || (checkin.first_name + ' ' + checkin.last_name);
                     const contact = checkin.attendee_email || checkin.attendee_phone || '-';
+                    const barcode = checkin.barcode || '-';
                     const paymentBadge = checkin.payment_status === 'paid' 
                         ? '<span class="badge bg-success">Betalt</span>' 
                         : '<span class="badge bg-warning">Venter</span>';
@@ -2157,6 +2160,7 @@ async function loadCheckins(eventId) {
                         <tr>
                             <td><strong>${name}</strong></td>
                             <td><small>${contact}</small></td>
+                            <td><small class="font-monospace">${barcode}</small></td>
                             <td><small>${checkin.ticket_type || '-'}</small></td>
                             <td>${checkin.ticket_price} kr</td>
                             <td>${paymentBadge}</td>
