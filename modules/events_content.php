@@ -3219,7 +3219,7 @@ document.querySelector('[href="#events-registrations"]')?.addEventListener('clic
 
 async function loadPendingRegistrations() {
     try {
-        const response = await fetch('../api/get_pending_registrations.php');
+        const response = await fetch('/api/get_pending_registrations.php');
         const result = await response.json();
         
         const tbody = document.getElementById('pending-registrations-list');
@@ -3319,7 +3319,7 @@ async function approveRegistration(registrationId) {
     }
     
     try {
-        const response = await fetch('../api/approve_registration.php', {
+        const response = await fetch('/api/approve_registration.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
