@@ -1758,7 +1758,7 @@ async function loadEventCheckInCount(eventId) {
 
 function openEventDetail(eventId, eventTitle) {
     selectedEventId = eventId;
-    document.getElementById('selected-event-title').textContent = '<i class="bi bi-calendar-event me-2"></i>' + eventTitle;
+    document.getElementById('selected-event-title').innerHTML = '<i class="bi bi-calendar-event me-2"></i>' + eventTitle;
     document.getElementById('checkin-event-cards').parentElement.style.display = 'none';
     document.getElementById('event-details-panel').style.display = 'block';
     document.getElementById('checkin-stats').style.display = 'block';
