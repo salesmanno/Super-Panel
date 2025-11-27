@@ -24,7 +24,8 @@ try {
     $stmt = $db->prepare("
         SELECT 
             field_name,
-            is_required
+            is_required,
+            memberverification
         FROM event_registration_fields
         WHERE event_id = ?
         ORDER BY field_name

@@ -405,6 +405,18 @@ try {
                                 </div>
                             </div>
                         </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="memberverification" id="memberverification">
+                                    <label class="form-check-label" for="memberverification">
+                                        <i class="bi bi-shield-check text-success me-1"></i>Verifiser medlemskap
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted d-block mt-2">Sjekk medlemskapskilder ved registrering</small>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="d-flex gap-2">
@@ -902,12 +914,21 @@ try {
 
                     <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
                     <hr class="my-4">
-                    <h6 class="mb-3"><i class="bi bi-people-fill me-2"></i>Priser</h6>
+                    <h6 class="mb-3"><i class="bi bi-people-fill me-2"></i>Priser og medlemskap</h6>
                     
                     <div class="row">
                         <div class="col-md-3 mb-3" id="edit-ticket-price-container">
                             <label class="form-label">Billettpris (NOK)</label>
                             <input type="number" step="0.01" class="form-control" name="ticket_price" id="edit-ticket-price">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" name="memberverification" id="edit-memberverification">
+                                <label class="form-check-label" for="edit-memberverification">
+                                    <i class="bi bi-shield-check text-success me-1"></i>Verifiser medlemskap
+                                </label>
+                            </div>
+                            <small class="form-text text-muted d-block mt-2">Sjekk medlemskapskilder ved registrering</small>
                         </div>
                     </div>
                     
@@ -2575,12 +2596,17 @@ async function editEvent(eventId) {
                 document.getElementById('edit-field-city').checked = false;
                 document.getElementById('edit-field-postal').checked = false;
                 document.getElementById('edit-field-age').checked = false;
+                document.getElementById('edit-memberverification').checked = false;
                 
                 if (fieldsResult.success && fieldsResult.fields) {
                     fieldsResult.fields.forEach(field => {
                         const checkbox = document.getElementById(`edit-field-${field.field_name}`);
                         if (checkbox) {
                             checkbox.checked = true;
+                        }
+                        // Handle memberverification separately
+                        if (field.field_name === 'memberverification' && field.memberverification) {
+                            document.getElementById('edit-memberverification').checked = true;
                         }
                     });
                 }
