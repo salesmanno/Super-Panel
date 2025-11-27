@@ -44,8 +44,8 @@ try {
             $groupedByEvent[$eventKey] = [
                 'event_id' => $reg['event_id'],
                 'event_title' => $reg['event_title'],
-                'event_start_date' => $reg['event_start_date'],
-                'event_start_time' => $reg['event_start_time'],
+                'event_start_date' => $reg['start_date'],
+                'event_start_time' => $reg['start_time'],
                 'count' => 0,
                 'registrations' => []
             ];
