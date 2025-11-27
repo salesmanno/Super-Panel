@@ -161,6 +161,7 @@ try {
         $paymentStatus,
         $paymentMethod,
         $_SESSION['tenant_admin_id'],
+        $barcode,
         $data['notes'] ?? null
     ]);
     

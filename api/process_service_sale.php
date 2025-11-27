@@ -156,6 +156,11 @@ try {
             $checkin_id = bin2hex(random_bytes(16));
             $transactionId = $checkin_id;
             
+            // Generate barcode
+            require_once '../includes/BarcodeService.php';
+            $barcodeService = new BarcodeService();
+            $barcode = $barcodeService->generateEAN13($checkin_id, $product_id);
+            
             // Add member price indicator to notes
             $event_notes = $notes;
             if ($is_member_price) {
@@ -170,8 +175,8 @@ try {
                 INSERT INTO events_checkin 
                 (id, event_id, customer_id, attendee_name, attendee_email, attendee_phone, 
                  ticket_price, payment_method, payment_status, checked_in, 
-                 checked_in_by, notes, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                 checked_in_by, barcode, notes, created_at, updated_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
             ");
             $stmt->execute([
                 $checkin_id,
@@ -185,6 +190,7 @@ try {
                 $event_payment_status,
                 false, // not checked in yet
                 $admin_id,
+                $barcode,
                 $event_notes
             ]);
             

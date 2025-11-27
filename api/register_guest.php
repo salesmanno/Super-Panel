@@ -67,13 +67,18 @@ try {
     // Generate UUID
     $checkin_id = bin2hex(random_bytes(16));
     
+    // Generate barcode
+    require_once '../includes/BarcodeService.php';
+    $barcodeService = new BarcodeService();
+    $barcode = $barcodeService->generateEAN13($checkin_id, $event_id);
+    
     // Insert guest into events_checkin
     $stmt = $db->prepare("
         INSERT INTO events_checkin 
         (id, event_id, attendee_first_name, attendee_last_name, attendee_email,
          ticket_type, ticket_price, payment_status, payment_method, 
-         checked_in, checked_in_by, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NOW(), NOW())
+         checked_in, checked_in_by, barcode, created_at, updated_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, NOW(), NOW())
     ");
     $stmt->execute([
         $checkin_id,
@@ -85,7 +90,8 @@ try {
         $ticket_price,
         $payment_status,
         $payment_method,
-        $admin_id
+        $admin_id,
+        $barcode
     ]);
     
     // If payment is completed (paid), create unified_ledger entry
