@@ -2,7 +2,6 @@
 session_start();
 require_once '../config/database.php';
 require_once '../includes/UnifiedLedgerService.php';
-require_once '../includes/GlobalIncomeExpenseService.php';
 
 header('Content-Type: application/json');
 
@@ -67,6 +66,8 @@ try {
         'payment_method' => $payment_method,
         'payment_status' => 'completed',
         'status' => 'active',
+        'transaction_type' => $type,
+        'category' => 'Arrangement',
         'metadata' => [
             'event_id' => $event_id,
             'event_title' => $event['title'],
@@ -76,7 +77,7 @@ try {
     ]);
     
     if ($result['success']) {
-        // Also update events_results with the finance entry
+        // Update events_results
         try {
             $updateResultsStmt = $db->prepare("
                 INSERT INTO events_results (event_id, company_id, status, created_at, updated_at)
@@ -86,23 +87,6 @@ try {
             $updateResultsStmt->execute([$event_id, $company_id]);
         } catch (Exception $resultsErr) {
             error_log("Warning: Could not create events_results record: " . $resultsErr->getMessage());
-        }
-        
-        // Log to global_income_expenses
-        $globalService = new GlobalIncomeExpenseService($db, $_SESSION['company_id']);
-        $globalResult = $globalService->log([
-            'transaction_type' => $type,
-            'amount' => abs($amount),
-            'module_source' => 'events',
-            'source_id' => $event_id,
-            'unified_ledger_id' => $result['ledger_id'],
-            'description' => $item_name,
-            'category' => 'Arrangement',
-            'created_by' => $_SESSION['tenant_admin_id']
-        ]);
-        
-        if (!$globalResult['success']) {
-            error_log("Warning: Failed to log to global_income_expenses: " . $globalResult['message']);
         }
         
         echo json_encode([
