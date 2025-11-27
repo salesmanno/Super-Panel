@@ -114,14 +114,13 @@ try {
         $stmt->execute([$company_id]);
         $upcomingEvents = $stmt->fetchColumn();
         
-        // Get most profitable event
+        // Get most profitable event (from events_results profit_loss)
         $mostProfitable = ['title' => 'N/A', 'profit' => 0];
         $stmt = $db->prepare("
-            SELECT e.id, e.title, COALESCE(SUM(CASE WHEN ul.selling_price > 0 THEN ul.selling_price ELSE 0 END), 0) as profit
+            SELECT e.id, e.title, COALESCE(er.profit_loss, 0) as profit
             FROM events_eventdata e
-            LEFT JOIN unified_ledger ul ON (ul.source_id = e.id OR JSON_UNQUOTE(JSON_EXTRACT(ul.metadata, '$.event_id')) = e.id)
+            LEFT JOIN events_results er ON e.id = er.event_id AND e.company_id = er.company_id
             WHERE e.company_id = ? AND e.is_active = 1
-            GROUP BY e.id
             ORDER BY profit DESC
             LIMIT 1
         ");
