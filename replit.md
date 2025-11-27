@@ -42,14 +42,16 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 - **Event Check-in Data Integrity**: `events_checkin` stores both `membership_plan_id` (FK reference to `event_membership_plans` for auditability) and `ticket_price` (snapshot of price at time of check-in for historical accuracy). Added `barcode` (VARCHAR(13)) and `qrcode` (LONGBLOB) columns for EAN13 and QR code storage.
 
-## Recent Changes (Nov 27, 2025)
-**Critical SQL & Event System Fixes:**
-1. **Removed profit column from UnifiedLedgerService** - Fixed "Unknown column 'profit'" INSERT error by removing non-existent profit column from `unified_ledger` INSERT statement. Profit now calculated as `selling_price - cost_price` in application layer.
-2. **Fixed event creator display ("Ukjent bruker")** - Added LEFT JOIN to `tenant_staff` table in `get_events.php` to fetch `first_name` and `last_name` of event creator. Creator names now display correctly instead of "Ukjent bruker".
-3. **Prevented duplicate events_results records** - Implemented atomic `ON DUPLICATE KEY UPDATE` in three locations (`add_event_finance.php`, `get_event_results.php`, `update_event_results.php`) to eliminate race conditions and duplicate record creation.
-4. **Redirected "most profitable" metric** - Changed `get_events_results.php` to pull "most profitable event" data from `events_results.profit_loss` column instead of non-existent profit column, ensuring accurate calculations.
-5. **Show all membership plan prices** - Removed `public_display` filter in `get_events.php` API query and simplified frontend display to show ALL membership prices in clean flex layout without truncation.
-6. **Added barcode field to check-in tables** - Enhanced both "Innsjekket" and "Ikke innsjekket" check-in display tables to show barcode column with monospace font for better readability.
+## Recent Changes (Nov 27, 2025 - COMPLETE SESSION)
+**Barcode & Financial System - FULLY IMPLEMENTED:**
+1. **Automatic EAN13 Barcode Generation** - Implemented `BarcodeService::generateEAN13()` integration in all 3 check-in creation points (`checkin_event.php`, `register_guest.php`, `process_service_sale.php`). Barcodes now auto-assign on record creation with format: MD5-hash-based 12 digits + Luhn check digit.
+2. **Removed profit column from UnifiedLedgerService** - Fixed "Unknown column 'profit'" error by removing non-existent profit column from INSERT. Profit now calculated as `selling_price - cost_price` in application layer.
+3. **Fixed event creator display ("Ukjent bruker")** - Added LEFT JOIN to `tenant_staff` in `get_events.php` to fetch creator's `first_name` and `last_name`.
+4. **Prevented duplicate events_results records** - Implemented atomic `ON DUPLICATE KEY UPDATE` in three locations to eliminate race conditions.
+5. **Fixed expenses logging bug** - Removed `UNIQUE KEY unique_transaction` constraint from `unified_ledger` table that blocked multiple transactions per event. Now supports both income and expense entries per arrangement.
+6. **Fixed event title HTML rendering** - Changed `.textContent` to `.innerHTML` in event detail modal so Bootstrap icons render correctly (e.g., `📅 Julenissefest`).
+7. **Fixed event bookings ("eventbestillinger") loading** - Corrected all relative API paths from `../api/` to `/api/` (8 occurrences) in `modules/events_content.php`. Affected functions: `loadPendingRegistrations()`, `approveRegistration()`, `rejectRegistration()`, and all event CRUD operations.
+8. **Added barcode columns to check-in display** - Both "Innsjekket" and "Ikke innsjekket" tables now show barcode column with monospace font.
 
 ## Earlier Changes (Nov 26, 2025)
 - Todelt Check-in Layout, Horisontale Event Stats, EAN13 Barcode Service, Barcode Assignment API, Check-in API Enhancement, JavaScript Check-in Rendering, Database Schema Updates

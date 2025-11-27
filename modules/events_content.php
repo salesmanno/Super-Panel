@@ -1319,7 +1319,7 @@ document.addEventListener('DOMContentLoaded', function() {
             };
 
             try {
-                const response = await fetch('../api/create_event.php', {
+                const response = await fetch('/api/create_event.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1359,7 +1359,7 @@ async function loadEvents() {
     loadEventsRunning = true;
     
     try {
-        const response = await fetch('../api/get_events.php');
+        const response = await fetch('/api/get_events.php');
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -2069,7 +2069,7 @@ document.getElementById('checkin-form')?.addEventListener('submit', async functi
     }
     
     try {
-        const response = await fetch('../api/checkin_event.php', {
+        const response = await fetch('/api/checkin_event.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -2719,7 +2719,7 @@ async function saveEventChanges() {
     };
 
     try {
-        const response = await fetch('../api/update_event.php', {
+        const response = await fetch('/api/update_event.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -3349,7 +3349,7 @@ async function rejectRegistration(registrationId) {
     }
     
     try {
-        const response = await fetch('../api/reject_registration.php', {
+        const response = await fetch('/api/reject_registration.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -3389,7 +3389,7 @@ async function loadAllRegistrations() {
             </div>
         `;
         
-        const response = await fetch('../api/get_all_registrations.php');
+        const response = await fetch('/api/get_all_registrations.php');
         const result = await response.json();
         
         if (!result.success) {
