@@ -511,6 +511,11 @@ try {
                                 <label class="form-label small mb-1">E-post</label>
                                 <input type="email" class="form-control form-control-sm" id="guest-email">
                             </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Antall personer (1-10)</label>
+                                <input type="number" class="form-control form-control-sm" id="guest-number-of-people" min="1" max="10" value="1" required>
+                                <small class="text-muted">Oppretter en registrering per person</small>
+                            </div>
                             <div class="mb-2" id="guest-membership-container" style="display: none;">
                                 <label class="form-label small mb-1">Medlemsplan</label>
                                 <select class="form-select form-select-sm" id="guest-membership-plan">
@@ -1909,6 +1914,13 @@ document.getElementById('quick-guest-form')?.addEventListener('submit', async fu
         return;
     }
     
+    const numberOfPeople = parseInt(document.getElementById('guest-number-of-people').value) || 1;
+    
+    if (numberOfPeople < 1 || numberOfPeople > 10) {
+        toast.quickWarning('Validering', 'Antall personer må være mellom 1 og 10');
+        return;
+    }
+    
     const formData = {
         event_id: selectedEventId,
         attendee_first_name: document.getElementById('guest-fornavn').value.trim(),
@@ -1916,7 +1928,8 @@ document.getElementById('quick-guest-form')?.addEventListener('submit', async fu
         attendee_email: document.getElementById('guest-email').value.trim() || null,
         membership_plan_id: document.getElementById('guest-membership-plan').value || null,
         payment_method: document.getElementById('guest-payment-method').value,
-        payment_status: document.getElementById('guest-payment-status').value
+        payment_status: document.getElementById('guest-payment-status').value,
+        number_of_people: numberOfPeople
     };
     
     try {
@@ -1931,6 +1944,7 @@ document.getElementById('quick-guest-form')?.addEventListener('submit', async fu
         if (result.success) {
             // Reset form
             document.getElementById('quick-guest-form').reset();
+            document.getElementById('guest-number-of-people').value = '1';
             
             // Reload event price
             try {
@@ -1946,7 +1960,10 @@ document.getElementById('quick-guest-form')?.addEventListener('submit', async fu
             // Reload checkins
             await loadCheckins(selectedEventId);
             
-            toast.quickSuccess('Gjest', 'Gjest registrert!');
+            const messageText = numberOfPeople > 1 
+                ? `${numberOfPeople} gjester registrert!` 
+                : 'Gjest registrert!';
+            toast.quickSuccess('Gjest', messageText);
         } else {
             toast.quickError('Feil', result.message || 'Kunne ikke registrere gjest');
         }

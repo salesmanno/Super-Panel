@@ -28,6 +28,13 @@ try {
     $membership_plan_id = isset($input['membership_plan_id']) ? $input['membership_plan_id'] : null;
     $payment_method = isset($input['payment_method']) ? $input['payment_method'] : 'cash';
     $payment_status = isset($input['payment_status']) ? $input['payment_status'] : 'paid';
+    $number_of_people = isset($input['number_of_people']) ? (int)$input['number_of_people'] : 1;
+    
+    // Validate number_of_people
+    if ($number_of_people < 1 || $number_of_people > 10) {
+        echo json_encode(['success' => false, 'message' => 'Antall personer må være mellom 1 og 10']);
+        exit;
+    }
     
     // Verify event belongs to company and get pricing info
     $stmt = $db->prepare("SELECT ticket_price, default_payment_method FROM events_eventdata WHERE id = ? AND company_id = ?");
@@ -64,69 +71,76 @@ try {
         $payment_method = $event['default_payment_method'] ?? 'cash';
     }
     
-    // Generate UUID
-    $checkin_id = bin2hex(random_bytes(16));
-    
     // Generate barcode
     require_once '../includes/BarcodeService.php';
     $barcodeService = new BarcodeService();
-    $barcode = $barcodeService->generateEAN13($checkin_id, $event_id);
     
-    // Insert guest into events_checkin
-    $stmt = $db->prepare("
-        INSERT INTO events_checkin 
-        (id, event_id, attendee_first_name, attendee_last_name, attendee_email,
-         ticket_type, ticket_price, payment_status, payment_method, 
-         checked_in, checked_in_by, barcode, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, NOW(), NOW())
-    ");
-    $stmt->execute([
-        $checkin_id,
-        $event_id,
-        $first_name,
-        $last_name,
-        $email,
-        $ticket_type,
-        $ticket_price,
-        $payment_status,
-        $payment_method,
-        $admin_id,
-        $barcode
-    ]);
+    require_once '../includes/UnifiedLedgerService.php';
+    $ledgerService = new UnifiedLedgerService($db, $company_id);
     
-    // If payment is completed (paid), create unified_ledger entry
-    if ($payment_status === 'paid' && $ticket_price > 0) {
-        require_once '../includes/UnifiedLedgerService.php';
+    // Loop through number_of_people and create separate registrations
+    $createdIds = [];
+    for ($i = 0; $i < $number_of_people; $i++) {
+        // Generate UUID for each person
+        $checkin_id = bin2hex(random_bytes(16));
+        $barcode = $barcodeService->generateEAN13($checkin_id, $event_id);
         
-        $attendee_name = trim($first_name . ' ' . $last_name);
-        $ledgerService = new UnifiedLedgerService($db, $company_id);
-        $ledgerService->logTransaction([
-            'order_id' => $checkin_id,
-            'module_source' => 'events',
-            'item_type' => 'event',
-            'source_id' => $event_id,
-            'item_name' => 'Walk-in Registration',
-            'quantity' => 1,
-            'selling_price' => $ticket_price,
-            'cost_price' => 0,
-            'customer_name' => $attendee_name,
-            'customer_email' => $email,
-            'payment_method' => $payment_method,
-            'payment_status' => 'completed',
-            'status' => 'active',
-            'metadata' => [
-                'event_id' => $event_id,
-                'checkin_id' => $checkin_id,
-                'guest_type' => 'walk-in',
-                'membership_plan_id' => $membership_plan_id
-            ]
+        // Insert guest into events_checkin
+        $stmt = $db->prepare("
+            INSERT INTO events_checkin 
+            (id, event_id, attendee_first_name, attendee_last_name, attendee_email,
+             ticket_type, ticket_price, payment_status, payment_method, 
+             checked_in, checked_in_by, barcode, created_at, updated_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, NOW(), NOW())
+        ");
+        $stmt->execute([
+            $checkin_id,
+            $event_id,
+            $first_name,
+            $last_name,
+            $email,
+            $ticket_type,
+            $ticket_price,
+            $payment_status,
+            $payment_method,
+            $admin_id,
+            $barcode
         ]);
+        
+        $createdIds[] = $checkin_id;
+        
+        // If payment is completed (paid), create unified_ledger entry
+        if ($payment_status === 'paid' && $ticket_price > 0) {
+            $attendee_name = trim($first_name . ' ' . $last_name);
+            $ledgerService->logTransaction([
+                'order_id' => $checkin_id,
+                'module_source' => 'events',
+                'item_type' => 'event',
+                'source_id' => $event_id,
+                'item_name' => 'Walk-in Registration',
+                'quantity' => 1,
+                'selling_price' => $ticket_price,
+                'cost_price' => 0,
+                'customer_name' => $attendee_name,
+                'customer_email' => $email,
+                'payment_method' => $payment_method,
+                'payment_status' => 'completed',
+                'status' => 'active',
+                'metadata' => [
+                    'event_id' => $event_id,
+                    'checkin_id' => $checkin_id,
+                    'guest_type' => 'walk-in',
+                    'membership_plan_id' => $membership_plan_id,
+                    'group_booking' => $number_of_people > 1 ? 'yes' : 'no'
+                ]
+            ]);
+        }
     }
     
     echo json_encode([
         'success' => true,
-        'message' => 'Gjest registrert',
-        'checkin_id' => $checkin_id
+        'message' => $number_of_people > 1 ? "{$number_of_people} gjester registrert" : 'Gjest registrert',
+        'checkin_ids' => $createdIds
     ]);
     
 } catch (Exception $e) {
