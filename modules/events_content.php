@@ -411,10 +411,10 @@ try {
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="memberverification" id="memberverification">
                                     <label class="form-check-label" for="memberverification">
-                                        <i class="bi bi-shield-check text-success me-1"></i>Verifiser medlemskap
+                                        <i class="bi bi-shield-check text-success me-1"></i>Autofyll og bekreft medlemmer
                                     </label>
                                 </div>
-                                <small class="form-text text-muted d-block mt-2">Sjekk medlemskapskilder ved registrering</small>
+                                <small class="form-text text-muted d-block mt-2">Autofyller medlemsinformasjon og bekrefter medlemskap ved registrering</small>
                             </div>
                         </div>
                     </div>
@@ -925,10 +925,10 @@ try {
                             <div class="form-check mt-4">
                                 <input class="form-check-input" type="checkbox" name="memberverification" id="edit-memberverification">
                                 <label class="form-check-label" for="edit-memberverification">
-                                    <i class="bi bi-shield-check text-success me-1"></i>Verifiser medlemskap
+                                    <i class="bi bi-shield-check text-success me-1"></i>Autofyll og bekreft medlemmer
                                 </label>
                             </div>
-                            <small class="form-text text-muted d-block mt-2">Sjekk medlemskapskilder ved registrering</small>
+                            <small class="form-text text-muted d-block mt-2">Autofyller medlemsinformasjon og bekrefter medlemskap ved registrering</small>
                         </div>
                     </div>
                     
