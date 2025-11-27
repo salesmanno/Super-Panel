@@ -62,18 +62,18 @@ try {
         INSERT INTO unified_ledger (
             id, order_id, company_id, module_source, item_type, source_id,
             item_name, quantity, selling_price, cost_price, 
-            customer_name, customer_email, payment_method, payment_status, transaction_date
+            customer_name, customer_email, payment_method, payment_status, transaction_date, notes
         ) VALUES (
             ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?,
-            ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?
         )
     ");
     
     $stmt->execute([
         $entryId, $orderId, $company_id, 'events', 'event_expense', $event_id,
         $description . $categoryLabel, 1, 0, $amount,
-        'Manuel registrering', $notes, 'manual', 'completed', $date
+        'Manuel registrering', '', 'manual', 'completed', $date, $notes
     ]);
     
     echo json_encode([

@@ -40,8 +40,11 @@ try {
             e.cost_price,
             e.payment_methods_json,
             e.payment_timing,
-            e.default_payment_method
+            e.default_payment_method,
+            ts.first_name,
+            ts.last_name
         FROM events_eventdata e
+        LEFT JOIN tenant_staff ts ON e.created_by = ts.id
         WHERE e.company_id = ? AND e.is_active = ?
         ORDER BY e.start_date DESC, e.start_time DESC
     ");
