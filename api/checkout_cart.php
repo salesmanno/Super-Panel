@@ -185,7 +185,7 @@ try {
         // Also log to global_income_expenses (only if payment completed)
         if ($ledgerResult['success'] && $payment_status === 'completed') {
             $globalService = new GlobalIncomeExpenseService($db, $company_id);
-            $globalService->log([
+            $globalResult = $globalService->log([
                 'transaction_type' => 'income',
                 'amount' => $itemTotal,
                 'module_source' => 'sales',
@@ -195,6 +195,16 @@ try {
                 'category' => 'Salg',
                 'created_by' => $admin_id
             ]);
+            
+            if (!$globalResult['success']) {
+                $db->rollBack();
+                // Clear cart even on error so user can retry
+                $stmt = $db->prepare("DELETE FROM sales_cart WHERE admin_id = ? AND company_id = ?");
+                $stmt->execute([$admin_id, $company_id]);
+                error_log("Failed to log to global_income_expenses: " . $globalResult['message']);
+                echo json_encode(['success' => false, 'message' => 'Feil ved logging av inntekt']);
+                exit;
+            }
         }
     }
     

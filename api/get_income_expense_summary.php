@@ -1,18 +1,18 @@
 <?php
 session_start();
-require_once __DIR__ . '/../includes/Database.php';
+require_once __DIR__ . '/../config/database.php';
 
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['tenant_id'])) {
+if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
 }
 
 try {
-    $db = Database::connect();
-    $tenant_id = $_SESSION['tenant_id'];
+    $db = getDBConnection();
+    $company_id = $_SESSION['company_id'];
     
     // Sammendrag per modul
     $stmt = $db->prepare("
@@ -28,7 +28,7 @@ try {
         ORDER BY module_source, source_id
     ");
     
-    $stmt->execute([$tenant_id]);
+    $stmt->execute([$company_id]);
     $summary = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Samlet oversikt
@@ -42,7 +42,7 @@ try {
         GROUP BY transaction_type
     ");
     
-    $total_stmt->execute([$tenant_id]);
+    $total_stmt->execute([$company_id]);
     $totals = $total_stmt->fetchAll(PDO::FETCH_ASSOC);
     
     $total_income = 0;

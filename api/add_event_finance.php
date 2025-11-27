@@ -90,7 +90,7 @@ try {
         
         // Log to global_income_expenses
         $globalService = new GlobalIncomeExpenseService($db, $_SESSION['company_id']);
-        $globalService->log([
+        $globalResult = $globalService->log([
             'transaction_type' => $type,
             'amount' => abs($amount),
             'module_source' => 'events',
@@ -100,6 +100,10 @@ try {
             'category' => 'Arrangement',
             'created_by' => $_SESSION['tenant_admin_id']
         ]);
+        
+        if (!$globalResult['success']) {
+            error_log("Warning: Failed to log to global_income_expenses: " . $globalResult['message']);
+        }
         
         echo json_encode([
             'success' => true,

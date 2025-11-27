@@ -229,7 +229,7 @@ try {
             // Also log to global_income_expenses (only if payment completed)
             if ($ledgerResult['success'] && $ledger_payment_status === 'completed') {
                 $globalService = new GlobalIncomeExpenseService($db, $company_id);
-                $globalService->log([
+                $globalResult = $globalService->log([
                     'transaction_type' => 'income',
                     'amount' => $total,
                     'module_source' => 'events',
@@ -239,6 +239,13 @@ try {
                     'category' => 'Arrangement',
                     'created_by' => $admin_id
                 ]);
+                
+                if (!$globalResult['success']) {
+                    $db->rollBack();
+                    error_log("Failed to log to global_income_expenses (events): " . $globalResult['message']);
+                    echo json_encode(['success' => false, 'message' => 'Feil ved logging av inntekt']);
+                    exit;
+                }
             }
             break;
             
@@ -363,7 +370,7 @@ try {
             // Also log to global_income_expenses (only if payment completed)
             if ($ledgerResult['success'] && $ledger_payment_status === 'completed') {
                 $globalService = new GlobalIncomeExpenseService($db, $company_id);
-                $globalService->log([
+                $globalResult = $globalService->log([
                     'transaction_type' => 'income',
                     'amount' => $total,
                     'module_source' => 'membership',
@@ -373,6 +380,13 @@ try {
                     'category' => 'Medlemskap',
                     'created_by' => $admin_id
                 ]);
+                
+                if (!$globalResult['success']) {
+                    $db->rollBack();
+                    error_log("Failed to log to global_income_expenses (membership): " . $globalResult['message']);
+                    echo json_encode(['success' => false, 'message' => 'Feil ved logging av inntekt']);
+                    exit;
+                }
             }
             break;
             
@@ -435,7 +449,7 @@ try {
             // Also log to global_income_expenses (only if payment completed)
             if ($ledgerResult['success'] && $ledger_payment_status === 'completed') {
                 $globalService = new GlobalIncomeExpenseService($db, $company_id);
-                $globalService->log([
+                $globalResult = $globalService->log([
                     'transaction_type' => 'income',
                     'amount' => $total,
                     'module_source' => 'rental',
@@ -445,6 +459,13 @@ try {
                     'category' => 'Utleie',
                     'created_by' => $admin_id
                 ]);
+                
+                if (!$globalResult['success']) {
+                    $db->rollBack();
+                    error_log("Failed to log to global_income_expenses (rental): " . $globalResult['message']);
+                    echo json_encode(['success' => false, 'message' => 'Feil ved logging av inntekt']);
+                    exit;
+                }
             }
             break;
             
@@ -603,7 +624,7 @@ try {
             // Also log to global_income_expenses (only if payment completed)
             if ($ledgerResult['success'] && $ledger_payment_status === 'completed') {
                 $globalService = new GlobalIncomeExpenseService($db, $company_id);
-                $globalService->log([
+                $globalResult = $globalService->log([
                     'transaction_type' => 'income',
                     'amount' => $total,
                     'module_source' => 'reservations',
@@ -613,6 +634,13 @@ try {
                     'category' => 'Reservasjon',
                     'created_by' => $admin_id
                 ]);
+                
+                if (!$globalResult['success']) {
+                    $db->rollBack();
+                    error_log("Failed to log to global_income_expenses (reservations): " . $globalResult['message']);
+                    echo json_encode(['success' => false, 'message' => 'Feil ved logging av inntekt']);
+                    exit;
+                }
             }
             break;
             

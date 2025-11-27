@@ -1,6 +1,7 @@
 <?php
 session_start();
-require_once __DIR__ . '/../includes/Database.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/GlobalIncomeExpenseService.php';
 
 header('Content-Type: application/json');
 
@@ -10,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-if (!isset($_SESSION['tenant_id'])) {
+if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
@@ -25,21 +26,17 @@ try {
         exit;
     }
     
-    $db = Database::connect();
-    $tenant_id = $_SESSION['tenant_id'];
+    $db = getDBConnection();
+    $company_id = $_SESSION['company_id'];
     
-    $stmt = $db->prepare("
-        DELETE FROM global_income_expenses
-        WHERE id = ? AND tenant_id = ?
-    ");
+    $globalService = new GlobalIncomeExpenseService($db, $company_id);
+    $result = $globalService->delete($data['id']);
     
-    $stmt->execute([$data['id'], $tenant_id]);
-    
-    if ($stmt->rowCount() > 0) {
-        echo json_encode(['success' => true, 'message' => 'Inntekt/utgift slettet']);
+    if ($result['success']) {
+        echo json_encode($result);
     } else {
         http_response_code(404);
-        echo json_encode(['success' => false, 'message' => 'Record not found']);
+        echo json_encode($result);
     }
     
 } catch (Exception $e) {

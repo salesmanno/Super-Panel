@@ -43,7 +43,18 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Event Check-in Data Integrity**: `events_checkin` stores both `membership_plan_id` (FK reference to `event_membership_plans` for auditability) and `ticket_price` (snapshot of price at time of check-in for historical accuracy). Added `barcode` (VARCHAR(13)) and `qrcode` (LONGBLOB) columns for EAN13 and QR code storage.
 
 ## Recent Changes (Nov 27, 2025 - COMPLETE SESSION)
-**Barcode & Financial System - FULLY IMPLEMENTED:**
+**Global Income/Expense System - FULLY IMPLEMENTED:**
+1. **Created global_income_expenses table** - New dedicated table for tracking global income and expenses with reference to `unified_ledger`. Supports tracking by `module_source` (events, sales, rental, reservations) and `source_id` for granular reporting.
+2. **Built GlobalIncomeExpenseService** - PHP service class for logging, deleting, and querying global income/expense records with automatic tenant isolation and summary calculations.
+3. **Created 4 API endpoints** - Added `/api/add_global_income_expense.php`, `/api/get_global_income_expenses.php`, `/api/delete_global_income_expense.php`, and `/api/get_income_expense_summary.php` for full CRUD operations.
+4. **Integrated Events module** - Added global income/expense logging in `add_event_finance.php` (manual income/expenses) and `checkin_event.php` (ticket sales).
+5. **Integrated Sales module** - Added global income logging in `checkout_cart.php` for all completed product sales.
+6. **Integrated Rental module** - Added global income logging in `process_service_sale.php` for rental transactions.
+7. **Integrated Reservations module** - Added global income logging in `process_service_sale.php` for service bookings.
+8. **Integrated Membership module** - Added global income logging in `process_service_sale.php` for membership sales.
+
+## Earlier Changes (Nov 27, 2025)
+**Barcode & Financial System:**
 1. **Automatic EAN13 Barcode Generation** - Implemented `BarcodeService::generateEAN13()` integration in all 3 check-in creation points (`checkin_event.php`, `register_guest.php`, `process_service_sale.php`). Barcodes now auto-assign on record creation with format: MD5-hash-based 12 digits + Luhn check digit.
 2. **Removed profit column from UnifiedLedgerService** - Fixed "Unknown column 'profit'" error by removing non-existent profit column from INSERT. Profit now calculated as `selling_price - cost_price` in application layer.
 3. **Fixed event creator display ("Ukjent bruker")** - Added LEFT JOIN to `tenant_staff` in `get_events.php` to fetch creator's `first_name` and `last_name`.
