@@ -3476,10 +3476,10 @@ async function loadAllRegistrations() {
                                 <tr>
                                     <th>Navn</th>
                                     <th>E-post / Telefon</th>
-                                    <th>Status</th>
-                                    <th>Godkjent av</th>
-                                    <th>Godkjent dato</th>
+                                    <th>Betalt</th>
                                     <th>Medlemskap</th>
+                                    <th>Status</th>
+                                    <th>Handlinger</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -3499,35 +3499,28 @@ async function loadAllRegistrations() {
                     ? '<span class="badge bg-danger"><i class="bi bi-x-circle"></i> Avvist</span>'
                     : '<span class="badge bg-warning"><i class="bi bi-hourglass-split"></i> Venter</span>';
                 
-                const approverName = reg.approver_first_name && reg.approver_last_name
-                    ? `${reg.approver_first_name} ${reg.approver_last_name}`
-                    : reg.approval_status === 'pending' ? '—' : 'Ukjent bruker';
-                
-                const approvedDate = reg.approved_at 
-                    ? new Date(reg.approved_at).toLocaleDateString('no-NO', { 
-                        day: 'numeric', 
-                        month: 'short', 
-                        year: 'numeric'
-                    })
-                    : '—';
-                
                 const contact = [
                     reg.email ? `<i class="bi bi-envelope"></i> ${reg.email}` : '',
                     reg.phone ? `<i class="bi bi-telephone"></i> ${reg.phone}` : ''
                 ].filter(Boolean).join('<br>');
                 
-                const memberBadge = reg.has_valid_membership 
-                    ? '<span class="badge bg-primary"><i class="bi bi-star"></i> Medlem</span>' 
-                    : '<span class="badge bg-secondary">Ikke medlem</span>';
+                const membershipBadge = reg.membership_plan_name && reg.membership_ticket_price
+                    ? `<span class="badge bg-info"><i class="bi bi-star-fill"></i> ${reg.membership_plan_name}</span><br><small class="text-muted">${reg.membership_ticket_price} kr</small>`
+                    : '<span class="badge bg-secondary">Ordinær pris</span>';
+                
+                const actionButtons = reg.approval_status === 'pending' 
+                    ? `<button class="btn btn-sm btn-success me-2" onclick="approveRegistration('${reg.id}', '${eventGroup.event_id}')"><i class="bi bi-check"></i> Godkjenn</button>
+                       <button class="btn btn-sm btn-danger" onclick="rejectRegistration('${reg.id}', '${eventGroup.event_id}')"><i class="bi bi-x"></i> Avvis</button>`
+                    : '—';
                 
                 html += `
                     <tr>
                         <td><strong>${reg.first_name} ${reg.last_name}</strong></td>
                         <td><small>${contact}</small></td>
+                        <td>${reg.has_valid_membership ? '<span class="badge bg-success"><i class="bi bi-check"></i> Ja</span>' : '<span class="badge bg-secondary">Nei</span>'}</td>
+                        <td><small>${membershipBadge}</small></td>
                         <td>${approvalStatusBadge}</td>
-                        <td><small>${approverName}</small></td>
-                        <td><small>${approvedDate}</small></td>
-                        <td>${memberBadge}</td>
+                        <td>${actionButtons}</td>
                     </tr>
                 `;
             });
