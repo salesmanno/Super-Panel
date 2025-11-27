@@ -12,24 +12,12 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 $data = json_decode(file_get_contents('php://input'), true);
 
 $event_id = $data['event_id'] ?? null;
-$field = $data['field'] ?? null;
-$value = $data['value'] ?? 0;
+$type = $data['type'] ?? null; // 'income' or 'expense'
+$amount = $data['amount'] ?? 0;
+$category = $data['category'] ?? null;
 
-if (!$event_id || !$field) {
-    echo json_encode(['success' => false, 'message' => 'Event ID eller felt mangler']);
-    exit;
-}
-
-// Whitelist of allowed fields to update
-$allowedFields = [
-    'food_sales', 'drink_sales', 'other_sales',
-    'purchase_cost', 'food_drink_cost',
-    'food_units_sold', 'drink_units_sold',
-    'event_cancelled'
-];
-
-if (!in_array($field, $allowedFields)) {
-    echo json_encode(['success' => false, 'message' => 'Ugyldig felt']);
+if (!$event_id || !$type) {
+    echo json_encode(['success' => false, 'message' => 'Mangler event_id eller type']);
     exit;
 }
 
@@ -37,54 +25,108 @@ try {
     $db = getDBConnection();
     $company_id = $_SESSION['company_id'];
     
-    // Update the specific field using parameterized column name via CASE statement
-    $fieldMapping = [
-        'food_sales' => 'food_sales',
-        'drink_sales' => 'drink_sales',
-        'other_sales' => 'other_sales',
-        'purchase_cost' => 'purchase_cost',
-        'food_drink_cost' => 'food_drink_cost',
-        'food_units_sold' => 'food_units_sold',
-        'drink_units_sold' => 'drink_units_sold',
-        'event_cancelled' => 'event_cancelled'
-    ];
+    // Verify event exists
+    $eventStmt = $db->prepare("
+        SELECT id FROM events_eventdata 
+        WHERE id = ? AND company_id = ? AND is_active = 1
+    ");
+    $eventStmt->execute([$event_id, $company_id]);
+    if (!$eventStmt->fetch(PDO::FETCH_ASSOC)) {
+        echo json_encode(['success' => false, 'message' => 'Arrangement ikke funnet']);
+        exit;
+    }
     
-    $safeField = $fieldMapping[$field];
+    // Get or create event results record
+    $resultsStmt = $db->prepare("
+        SELECT id FROM events_results 
+        WHERE event_id = ? AND company_id = ?
+    ");
+    $resultsStmt->execute([$event_id, $company_id]);
+    $results = $resultsStmt->fetch(PDO::FETCH_ASSOC);
     
-    // Build UPDATE query with safe column name
-    $updateQuery = "
+    if (!$results) {
+        // Create new results record
+        $insertStmt = $db->prepare("
+            INSERT INTO events_results (
+                event_id, company_id, status, created_at, updated_at
+            ) VALUES (?, ?, 'active', NOW(), NOW())
+        ");
+        $insertStmt->execute([$event_id, $company_id]);
+    }
+    
+    // Map category to column name
+    if ($type === 'income') {
+        $columnMap = [
+            'cash' => 'revenue_tickets_cash',
+            'card' => 'revenue_tickets_card',
+            'vipps' => 'revenue_tickets_vipps',
+            'invoice' => 'revenue_tickets_invoice',
+            'merchandise' => 'revenue_merchandise',
+            'donation' => 'revenue_donations'
+        ];
+    } else {
+        $columnMap = [
+            'staff' => 'expense_staff',
+            'venue' => 'expense_venue',
+            'equipment' => 'expense_equipment',
+            'other' => 'expense_other'
+        ];
+    }
+    
+    $column = $columnMap[$category] ?? ($type === 'income' ? 'total_revenue' : 'total_costs');
+    
+    // Update the specific column (add to existing value)
+    $updateStmt = $db->prepare("
         UPDATE events_results 
-        SET $safeField = ?,
+        SET 
+            {$column} = COALESCE({$column}, 0) + ?,
             updated_at = NOW()
         WHERE event_id = ? AND company_id = ?
-    ";
+    ");
     
-    $stmt = $db->prepare($updateQuery);
-    $stmt->execute([$value, $event_id, $company_id]);
+    $updateStmt->execute([$amount, $event_id, $company_id]);
     
-    // Recalculate totals
+    // Recalculate totals and profit_loss
     $recalcStmt = $db->prepare("
         UPDATE events_results
         SET 
-            total_ticket_sales = member_amount + guest_amount,
-            total_food_drink_sales = food_sales + drink_sales + other_sales,
-            total_revenue = (member_amount + guest_amount) + (food_sales + drink_sales + other_sales),
-            total_costs = purchase_cost + food_drink_cost,
-            profit_loss = ((member_amount + guest_amount) + (food_sales + drink_sales + other_sales)) - (purchase_cost + food_drink_cost),
-            updated_at = CURRENT_TIMESTAMP
+            total_revenue = COALESCE(total_ticket_sales, 0) 
+                + COALESCE(revenue_tickets_cash, 0)
+                + COALESCE(revenue_tickets_card, 0)
+                + COALESCE(revenue_tickets_vipps, 0)
+                + COALESCE(revenue_tickets_invoice, 0)
+                + COALESCE(revenue_merchandise, 0)
+                + COALESCE(revenue_donations, 0),
+            total_costs = COALESCE(purchase_cost, 0) 
+                + COALESCE(food_drink_cost, 0)
+                + COALESCE(expense_staff, 0)
+                + COALESCE(expense_venue, 0)
+                + COALESCE(expense_equipment, 0)
+                + COALESCE(expense_other, 0),
+            profit_loss = (
+                COALESCE(total_ticket_sales, 0) 
+                + COALESCE(revenue_tickets_cash, 0)
+                + COALESCE(revenue_tickets_card, 0)
+                + COALESCE(revenue_tickets_vipps, 0)
+                + COALESCE(revenue_tickets_invoice, 0)
+                + COALESCE(revenue_merchandise, 0)
+                + COALESCE(revenue_donations, 0)
+            ) - (
+                COALESCE(purchase_cost, 0) 
+                + COALESCE(food_drink_cost, 0)
+                + COALESCE(expense_staff, 0)
+                + COALESCE(expense_venue, 0)
+                + COALESCE(expense_equipment, 0)
+                + COALESCE(expense_other, 0)
+            ),
+            updated_at = NOW()
         WHERE event_id = ? AND company_id = ?
     ");
     $recalcStmt->execute([$event_id, $company_id]);
     
-    // Fetch updated results
-    $fetchStmt = $db->prepare("SELECT * FROM events_results WHERE event_id = ? AND company_id = ?");
-    $fetchStmt->execute([$event_id, $company_id]);
-    $results = $fetchStmt->fetch(PDO::FETCH_ASSOC);
-    
     echo json_encode([
         'success' => true,
-        'message' => 'Oppdatert',
-        'results' => $results
+        'message' => $type === 'income' ? 'Inntekt lagt til' : 'Utgift lagt til'
     ]);
     
 } catch (Exception $e) {
