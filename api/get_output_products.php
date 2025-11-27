@@ -102,9 +102,12 @@ try {
     // Count by module
     $countByModule = [];
     $totalModules = [];
+    $moduleKeys = [];
     
     foreach ($uniqueProducts as $product) {
         $module = $product['module_id'];
+        $moduleKey = $product['module_source'];
+        
         if (!isset($countByModule[$module])) {
             $countByModule[$module] = 0;
         }
@@ -112,6 +115,10 @@ try {
         
         if (!in_array($module, $totalModules)) {
             $totalModules[] = $module;
+        }
+        
+        if (!in_array($moduleKey, $moduleKeys) && !empty($moduleKey)) {
+            $moduleKeys[] = $moduleKey;
         }
     }
     
@@ -121,7 +128,7 @@ try {
         'count_by_module' => $countByModule,
         'total_products' => count($uniqueProducts),
         'total_modules_with_products' => count($totalModules),
-        'modules' => $totalModules
+        'modules' => $moduleKeys
     ]);
     
 } catch (Exception $e) {
