@@ -3509,8 +3509,8 @@ async function loadAllRegistrations() {
                     : '<span class="badge bg-secondary">Ordinær pris</span>';
                 
                 const actionButtons = reg.approval_status === 'pending' 
-                    ? `<button class="btn btn-sm btn-success me-2" onclick="approveRegistration('${reg.id}', '${eventGroup.event_id}')"><i class="bi bi-check"></i> Godkjenn</button>
-                       <button class="btn btn-sm btn-danger" onclick="rejectRegistration('${reg.id}', '${eventGroup.event_id}')"><i class="bi bi-x"></i> Avvis</button>`
+                    ? `<button class="btn btn-sm btn-success me-2" onclick="approveRegistration('${reg.id}')"><i class="bi bi-check"></i> Godkjenn</button>
+                       <button class="btn btn-sm btn-danger" onclick="rejectRegistration('${reg.id}')"><i class="bi bi-x"></i> Avvis</button>`
                     : '—';
                 
                 html += `
