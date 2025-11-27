@@ -2,6 +2,7 @@
 session_start();
 require_once '../config/database.php';
 require_once '../includes/UnifiedLedgerService.php';
+require_once '../includes/GlobalIncomeExpenseService.php';
 
 header('Content-Type: application/json');
 
@@ -204,7 +205,7 @@ try {
             // Set ledger payment_status based on payment_method
             $ledger_payment_status = ($payment_method === 'on_arrival') ? 'pending' : 'completed';
             
-            $ledgerService->logTransaction([
+            $ledgerResult = $ledgerService->logTransaction([
                 'order_id' => $orderId,
                 'module_source' => 'events',
                 'item_type' => 'event',
@@ -224,6 +225,21 @@ try {
                     'is_member_price' => $is_member_price
                 ]
             ]);
+            
+            // Also log to global_income_expenses (only if payment completed)
+            if ($ledgerResult['success'] && $ledger_payment_status === 'completed') {
+                $globalService = new GlobalIncomeExpenseService($db, $company_id);
+                $globalService->log([
+                    'transaction_type' => 'income',
+                    'amount' => $total,
+                    'module_source' => 'events',
+                    'source_id' => $product_id,
+                    'unified_ledger_id' => $ledgerResult['ledger_id'],
+                    'description' => $service['service_name'],
+                    'category' => 'Arrangement',
+                    'created_by' => $admin_id
+                ]);
+            }
             break;
             
         case 'membership':
@@ -324,7 +340,7 @@ try {
             // Set ledger payment_status based on payment_method
             $ledger_payment_status = ($payment_method === 'on_arrival') ? 'pending' : 'completed';
             
-            $ledgerService->logTransaction([
+            $ledgerResult = $ledgerService->logTransaction([
                 'order_id' => $orderId,
                 'module_source' => 'membership',
                 'item_type' => 'membership',
@@ -343,6 +359,21 @@ try {
                     'plan_id' => $product_id
                 ]
             ]);
+            
+            // Also log to global_income_expenses (only if payment completed)
+            if ($ledgerResult['success'] && $ledger_payment_status === 'completed') {
+                $globalService = new GlobalIncomeExpenseService($db, $company_id);
+                $globalService->log([
+                    'transaction_type' => 'income',
+                    'amount' => $total,
+                    'module_source' => 'membership',
+                    'source_id' => $product_id,
+                    'unified_ledger_id' => $ledgerResult['ledger_id'],
+                    'description' => $service['service_name'],
+                    'category' => 'Medlemskap',
+                    'created_by' => $admin_id
+                ]);
+            }
             break;
             
         case 'rental':
@@ -380,7 +411,7 @@ try {
             // Set ledger payment_status based on payment_method
             $ledger_payment_status = ($payment_method === 'on_arrival') ? 'pending' : 'completed';
             
-            $ledgerService->logTransaction([
+            $ledgerResult = $ledgerService->logTransaction([
                 'order_id' => $orderId,
                 'module_source' => 'rental',
                 'item_type' => 'rental',
@@ -400,6 +431,21 @@ try {
                     'daily_price' => $daily_price
                 ]
             ]);
+            
+            // Also log to global_income_expenses (only if payment completed)
+            if ($ledgerResult['success'] && $ledger_payment_status === 'completed') {
+                $globalService = new GlobalIncomeExpenseService($db, $company_id);
+                $globalService->log([
+                    'transaction_type' => 'income',
+                    'amount' => $total,
+                    'module_source' => 'rental',
+                    'source_id' => $product_id,
+                    'unified_ledger_id' => $ledgerResult['ledger_id'],
+                    'description' => $service['service_name'],
+                    'category' => 'Utleie',
+                    'created_by' => $admin_id
+                ]);
+            }
             break;
             
         case 'service':
@@ -530,7 +576,7 @@ try {
             // Log to unified_ledger
             $ledger_payment_status = ($payment_method === 'on_arrival') ? 'pending' : 'completed';
             
-            $ledgerService->logTransaction([
+            $ledgerResult = $ledgerService->logTransaction([
                 'order_id' => $orderId,
                 'module_source' => 'reservations',
                 'item_type' => 'service',
@@ -553,6 +599,21 @@ try {
                     'duration_minutes' => $reservation_duration
                 ]
             ]);
+            
+            // Also log to global_income_expenses (only if payment completed)
+            if ($ledgerResult['success'] && $ledger_payment_status === 'completed') {
+                $globalService = new GlobalIncomeExpenseService($db, $company_id);
+                $globalService->log([
+                    'transaction_type' => 'income',
+                    'amount' => $total,
+                    'module_source' => 'reservations',
+                    'source_id' => $booking_id,
+                    'unified_ledger_id' => $ledgerResult['ledger_id'],
+                    'description' => $service['service_name'],
+                    'category' => 'Reservasjon',
+                    'created_by' => $admin_id
+                ]);
+            }
             break;
             
         default:
