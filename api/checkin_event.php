@@ -70,6 +70,11 @@ try {
     // Create check-in record
     $checkinId = bin2hex(random_bytes(16));
     
+    // Generate barcode
+    require_once '../includes/BarcodeService.php';
+    $barcodeService = new BarcodeService();
+    $barcode = $barcodeService->generateEAN13($checkinId);
+    
     $stmt = $db->prepare("
         INSERT INTO events_checkin (
             id,
@@ -91,6 +96,7 @@ try {
             checked_in,
             check_in_time,
             checked_in_by,
+            barcode,
             notes,
             created_at,
             updated_at
@@ -113,6 +119,7 @@ try {
             ?,
             1,
             NOW(),
+            ?,
             ?,
             ?,
             NOW(),
