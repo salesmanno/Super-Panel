@@ -37,27 +37,10 @@ try {
     $stmt->execute([$_SESSION['company_id']]);
     $registrations = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    $groupedByEvent = [];
-    foreach ($registrations as $reg) {
-        $eventKey = $reg['event_id'];
-        if (!isset($groupedByEvent[$eventKey])) {
-            $groupedByEvent[$eventKey] = [
-                'event_id' => $reg['event_id'],
-                'event_title' => $reg['event_title'],
-                'event_start_date' => $reg['start_date'],
-                'event_start_time' => $reg['start_time'],
-                'count' => 0,
-                'registrations' => []
-            ];
-        }
-        $groupedByEvent[$eventKey]['registrations'][] = $reg;
-        $groupedByEvent[$eventKey]['count']++;
-    }
-    
     echo json_encode([
         'success' => true,
         'total_pending' => count($registrations),
-        'grouped_by_event' => array_values($groupedByEvent)
+        'registrations' => $registrations
     ]);
     
 } catch (Exception $e) {
