@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/EmailService.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
+require_once __DIR__ . '/../includes/GlobalIncomeExpenseService.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -179,7 +180,7 @@ try {
         $orderId = 'EVT-' . date('Ymd') . '-' . strtoupper(substr($checkinId, 0, 6));
         
         $attendeeName = trim($data['attendee_first_name'] . ' ' . $data['attendee_last_name']);
-        $ledgerService->logTransaction([
+        $ledgerResult = $ledgerService->logTransaction([
             'order_id' => $orderId,
             'module_source' => 'events',
             'item_type' => 'event',
@@ -200,6 +201,21 @@ try {
                 'checkin_id' => $checkinId
             ]
         ]);
+        
+        // Also log to global_income_expenses
+        if ($ledgerResult['success']) {
+            $globalService = new GlobalIncomeExpenseService($db, $_SESSION['company_id']);
+            $globalService->log([
+                'transaction_type' => 'income',
+                'amount' => $ticketPrice,
+                'module_source' => 'events',
+                'source_id' => $data['event_id'],
+                'unified_ledger_id' => $ledgerResult['ledger_id'],
+                'description' => 'Billett: ' . $event['title'],
+                'category' => 'Arrangement',
+                'created_by' => $_SESSION['tenant_admin_id']
+            ]);
+        }
     }
     
     // Send confirmation email if attendee email is provided

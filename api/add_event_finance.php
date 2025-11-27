@@ -2,6 +2,7 @@
 session_start();
 require_once '../config/database.php';
 require_once '../includes/UnifiedLedgerService.php';
+require_once '../includes/GlobalIncomeExpenseService.php';
 
 header('Content-Type: application/json');
 
@@ -86,6 +87,19 @@ try {
         } catch (Exception $resultsErr) {
             error_log("Warning: Could not create events_results record: " . $resultsErr->getMessage());
         }
+        
+        // Log to global_income_expenses
+        $globalService = new GlobalIncomeExpenseService($db, $_SESSION['company_id']);
+        $globalService->log([
+            'transaction_type' => $type,
+            'amount' => abs($amount),
+            'module_source' => 'events',
+            'source_id' => $event_id,
+            'unified_ledger_id' => $result['ledger_id'],
+            'description' => $item_name,
+            'category' => 'Arrangement',
+            'created_by' => $_SESSION['tenant_admin_id']
+        ]);
         
         echo json_encode([
             'success' => true,
