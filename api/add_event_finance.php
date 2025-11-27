@@ -75,6 +75,18 @@ try {
     ]);
     
     if ($result['success']) {
+        // Also update events_results with the finance entry
+        try {
+            $updateResultsStmt = $db->prepare("
+                INSERT INTO events_results (event_id, company_id, status, created_at, updated_at)
+                VALUES (?, ?, 'active', NOW(), NOW())
+                ON DUPLICATE KEY UPDATE updated_at = NOW()
+            ");
+            $updateResultsStmt->execute([$event_id, $company_id]);
+        } catch (Exception $resultsErr) {
+            error_log("Warning: Could not create events_results record: " . $resultsErr->getMessage());
+        }
+        
         echo json_encode([
             'success' => true,
             'message' => $type === 'expense' ? 'Utgift lagt til' : 'Inntekt lagt til',

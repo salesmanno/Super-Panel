@@ -2414,6 +2414,8 @@ async function addEventIncome(eventId) {
         
         if (result.success) {
             toast.quickSuccess('Inntekt', 'Inntekt lagt til');
+            // Reload finances to show updated results
+            await new Promise(resolve => setTimeout(resolve, 300));
             await loadEventFinances(eventId);
         } else {
             toast.quickError('Feil', result.message);
@@ -2452,6 +2454,8 @@ async function addEventExpense(eventId) {
         
         if (result.success) {
             toast.quickSuccess('Utgift', 'Utgift lagt til');
+            // Reload finances to show updated results
+            await new Promise(resolve => setTimeout(resolve, 300));
             await loadEventFinances(eventId);
         } else {
             toast.quickError('Feil', result.message);
