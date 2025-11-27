@@ -2,7 +2,6 @@
 session_start();
 require_once '../config/database.php';
 require_once '../includes/UnifiedLedgerService.php';
-require_once '../includes/GlobalIncomeExpenseService.php';
 
 header('Content-Type: application/json');
 
