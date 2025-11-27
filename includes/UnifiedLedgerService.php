@@ -36,6 +36,8 @@ class UnifiedLedgerService {
      *   payment_method: string|null
      *   payment_status: string ('completed', 'pending', 'failed')
      *   status: string ('active', 'cancelled', 'refunded')
+     *   transaction_type: string|null ('income', 'expense')
+     *   category: string|null ('Salg', 'Arrangement', 'Medlemskap', 'Utleie', 'Reservasjon')
      *   transaction_date: string|null (ISO datetime, defaults to now)
      *   metadata: array|null (additional module-specific data)
      * }
@@ -65,6 +67,8 @@ class UnifiedLedgerService {
             $paymentStatus = $params['payment_status'] ?? 'completed';
             $status = $params['status'] ?? 'active';
             $transactionDate = $params['transaction_date'] ?? date('Y-m-d H:i:s');
+            $transactionType = $params['transaction_type'] ?? null;
+            $category = $params['category'] ?? null;
             
             // Calculate profit
             $profit = $costPrice !== null 
@@ -80,8 +84,8 @@ class UnifiedLedgerService {
                     selling_price, cost_price,
                     customer_name, customer_email,
                     payment_method, payment_status,
-                    status, transaction_date, metadata
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    status, transaction_date, transaction_type, category, metadata
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             
             $result = $stmt->execute([
@@ -101,6 +105,8 @@ class UnifiedLedgerService {
                 $paymentStatus,
                 $status,
                 $transactionDate,
+                $transactionType,
+                $category,
                 $metadata
             ]);
             

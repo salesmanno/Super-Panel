@@ -220,32 +220,19 @@ try {
                 'payment_status' => $ledger_payment_status,
                 'status' => 'active',
                 'transaction_date' => date('Y-m-d H:i:s'),
+                'transaction_type' => $ledger_payment_status === 'completed' ? 'income' : null,
+                'category' => 'Arrangement',
                 'metadata' => [
                     'event_id' => $product_id,
                     'is_member_price' => $is_member_price
                 ]
             ]);
             
-            // Also log to global_income_expenses (only if payment completed)
-            if ($ledgerResult['success'] && $ledger_payment_status === 'completed') {
-                $globalService = new GlobalIncomeExpenseService($db, $company_id);
-                $globalResult = $globalService->log([
-                    'transaction_type' => 'income',
-                    'amount' => $total,
-                    'module_source' => 'events',
-                    'source_id' => $product_id,
-                    'unified_ledger_id' => $ledgerResult['ledger_id'],
-                    'description' => $service['service_name'],
-                    'category' => 'Arrangement',
-                    'created_by' => $admin_id
-                ]);
-                
-                if (!$globalResult['success']) {
-                    $db->rollBack();
-                    error_log("Failed to log to global_income_expenses (events): " . $globalResult['message']);
-                    echo json_encode(['success' => false, 'message' => 'Feil ved logging av inntekt']);
-                    exit;
-                }
+            if (!$ledgerResult['success']) {
+                $db->rollBack();
+                error_log("Failed to log transaction (events): " . $ledgerResult['message']);
+                echo json_encode(['success' => false, 'message' => 'Feil ved logging']);
+                exit;
             }
             break;
             

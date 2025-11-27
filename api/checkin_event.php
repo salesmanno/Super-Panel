@@ -10,7 +10,6 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/EmailService.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
-require_once __DIR__ . '/../includes/GlobalIncomeExpenseService.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -195,6 +194,8 @@ try {
             'payment_status' => 'completed',
             'status' => 'active',
             'transaction_date' => date('Y-m-d H:i:s'),
+            'transaction_type' => 'income',
+            'category' => 'Arrangement',
             'metadata' => [
                 'event_id' => $data['event_id'],
                 'ticket_type' => $ticketType,
@@ -202,23 +203,8 @@ try {
             ]
         ]);
         
-        // Also log to global_income_expenses
-        if ($ledgerResult['success']) {
-            $globalService = new GlobalIncomeExpenseService($db, $_SESSION['company_id']);
-            $globalResult = $globalService->log([
-                'transaction_type' => 'income',
-                'amount' => $ticketPrice,
-                'module_source' => 'events',
-                'source_id' => $data['event_id'],
-                'unified_ledger_id' => $ledgerResult['ledger_id'],
-                'description' => 'Billett: ' . $event['title'],
-                'category' => 'Arrangement',
-                'created_by' => $_SESSION['tenant_admin_id']
-            ]);
-            
-            if (!$globalResult['success']) {
-                error_log("Warning: Failed to log to global_income_expenses: " . $globalResult['message']);
-            }
+        if (!$ledgerResult['success']) {
+            error_log("Failed to log transaction: " . $ledgerResult['message']);
         }
     }
     

@@ -3,7 +3,6 @@ session_start();
 require_once '../config/database.php';
 require_once '../includes/EmailService.php';
 require_once '../includes/UnifiedLedgerService.php';
-require_once '../includes/GlobalIncomeExpenseService.php';
 
 header('Content-Type: application/json');
 
@@ -179,32 +178,18 @@ try {
             'payment_status' => $payment_status,
             'status' => 'active',
             'transaction_date' => $currentTimestamp,
+            'transaction_type' => $payment_status === 'completed' ? 'income' : null,
+            'category' => 'Salg',
             'metadata' => $metadata
         ]);
         
-        // Also log to global_income_expenses (only if payment completed)
-        if ($ledgerResult['success'] && $payment_status === 'completed') {
-            $globalService = new GlobalIncomeExpenseService($db, $company_id);
-            $globalResult = $globalService->log([
-                'transaction_type' => 'income',
-                'amount' => $itemTotal,
-                'module_source' => 'sales',
-                'source_id' => $itemTransactionId,
-                'unified_ledger_id' => $ledgerResult['ledger_id'],
-                'description' => $item['product_name'],
-                'category' => 'Salg',
-                'created_by' => $admin_id
-            ]);
-            
-            if (!$globalResult['success']) {
-                $db->rollBack();
-                // Clear cart even on error so user can retry
-                $stmt = $db->prepare("DELETE FROM sales_cart WHERE admin_id = ? AND company_id = ?");
-                $stmt->execute([$admin_id, $company_id]);
-                error_log("Failed to log to global_income_expenses: " . $globalResult['message']);
-                echo json_encode(['success' => false, 'message' => 'Feil ved logging av inntekt']);
-                exit;
-            }
+        if (!$ledgerResult['success']) {
+            $db->rollBack();
+            $stmt = $db->prepare("DELETE FROM sales_cart WHERE admin_id = ? AND company_id = ?");
+            $stmt->execute([$admin_id, $company_id]);
+            error_log("Failed to log transaction: " . $ledgerResult['message']);
+            echo json_encode(['success' => false, 'message' => 'Feil ved logging']);
+            exit;
         }
     }
     
