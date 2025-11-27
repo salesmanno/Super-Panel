@@ -36,23 +36,14 @@ try {
         exit;
     }
     
-    // Get or create event results record
-    $resultsStmt = $db->prepare("
-        SELECT id FROM events_results 
-        WHERE event_id = ? AND company_id = ?
+    // Ensure event results record exists using ON DUPLICATE KEY to prevent race conditions
+    $ensureStmt = $db->prepare("
+        INSERT INTO events_results (
+            event_id, company_id, status, created_at, updated_at
+        ) VALUES (?, ?, 'active', NOW(), NOW())
+        ON DUPLICATE KEY UPDATE updated_at = NOW()
     ");
-    $resultsStmt->execute([$event_id, $company_id]);
-    $results = $resultsStmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$results) {
-        // Create new results record
-        $insertStmt = $db->prepare("
-            INSERT INTO events_results (
-                event_id, company_id, status, created_at, updated_at
-            ) VALUES (?, ?, 'active', NOW(), NOW())
-        ");
-        $insertStmt->execute([$event_id, $company_id]);
-    }
+    $ensureStmt->execute([$event_id, $company_id]);
     
     // Map category to column name
     if ($type === 'income') {

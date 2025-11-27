@@ -29,7 +29,7 @@ try {
     $results = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$results) {
-        // Auto-create results entry for this event
+        // Auto-create results entry for this event using ON DUPLICATE KEY to prevent race conditions
         $eventStmt = $db->prepare("
             SELECT 
                 start_date, 
@@ -46,8 +46,9 @@ try {
             $createStmt = $db->prepare("
                 INSERT INTO events_results (
                     event_id, company_id, date_start, date_end,
-                    ticketprice_member, ticketprice_normal
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    ticketprice_member, ticketprice_normal, status, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+                ON DUPLICATE KEY UPDATE updated_at = NOW()
             ");
             $createStmt->execute([
                 $event_id,
@@ -58,7 +59,7 @@ try {
                 $event['ticket_price'] ?? 0
             ]);
             
-            // Fetch the newly created results
+            // Fetch the results (newly created or existing)
             $stmt->execute([$event_id, $company_id]);
             $results = $stmt->fetch(PDO::FETCH_ASSOC);
         }
