@@ -29,8 +29,8 @@ try {
             r.membership_plan_id,
             COALESCE(tpm.name, '') AS membership_plan_name,
             COALESCE(emp.ticket_price, 0) AS membership_ticket_price,
-            approver.first_name AS approver_first_name,
-            approver.last_name AS approver_last_name,
+            approver_staff.first_name AS approver_first_name,
+            approver_staff.last_name AS approver_last_name,
             r.rejected_by,
             r.rejected_at,
             r.approval_reason,
@@ -44,6 +44,7 @@ try {
         LEFT JOIN membership_plans tpm ON r.membership_plan_id = tpm.id
         LEFT JOIN event_membership_plans emp ON emp.event_id = r.event_id AND emp.membership_plan_id = r.membership_plan_id
         LEFT JOIN tenant_admins approver ON r.approved_by = approver.id
+        LEFT JOIN tenant_staff approver_staff ON approver.tenant_staff_id = approver_staff.id
         WHERE r.company_id = ?
         ORDER BY e.title ASC, r.created_at DESC
     ");
