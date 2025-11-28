@@ -2983,7 +2983,7 @@ async function loadMembershipPlansForCreate() {
                                name="plan_price_${plan.plan_id}" 
                                data-plan-id="${plan.plan_id}"
                                placeholder="Standard pris">
-                        <span class="input-group-text text-muted">${plan.price} kr/mnd</span>
+                        <span class="input-group-text text-muted">${plan.price} kr/år</span>
                     </div>
                     <div class="form-check form-check-sm">
                         <input class="form-check-input" type="checkbox" 
