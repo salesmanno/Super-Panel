@@ -712,22 +712,18 @@ try {
 
     <!-- Event Registrations Approval Tab -->
     <div id="events-registrations" class="subtab-content" style="display: none;">
-        <div class="card mb-3">
-            <div class="card-header">
-                <ul class="nav nav-tabs card-header-tabs mb-0" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="pending-reg-tab" data-bs-toggle="tab" data-bs-target="#pending-registrations-panel" type="button">
-                            <i class="bi bi-hourglass-split me-2"></i>Ventende (Godkjenning)
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="all-reg-tab" data-bs-toggle="tab" data-bs-target="#all-registrations-panel" type="button">
-                            <i class="bi bi-list-ul me-2"></i>Alle påmeldinger
-                        </button>
-                    </li>
-                </ul>
-            </div>
-        </div>
+        <ul class="nav nav-tabs mb-3" role="tablist" id="registrations-nav-tabs">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="pending-reg-tab" data-bs-toggle="tab" data-bs-target="#pending-registrations-panel" type="button" role="tab">
+                    <i class="bi bi-hourglass-split me-2"></i>Ventende (Godkjenning)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="all-reg-tab" data-bs-toggle="tab" data-bs-target="#all-registrations-panel" type="button" role="tab">
+                    <i class="bi bi-list-ul me-2"></i>Alle påmeldinger
+                </button>
+            </li>
+        </ul>
 
         <div class="tab-content" id="registrations-tab-content">
             <!-- Pending Registrations Panel -->
@@ -3426,9 +3422,27 @@ async function rejectRegistration(registrationId) {
     }
 }
 
+// Reinitialize Bootstrap tabs when registrations tab is shown
+document.querySelector('[href="#events-registrations"]')?.addEventListener('click', function() {
+    // Reinitialize tab functionality
+    setTimeout(() => {
+        document.getElementById('pending-reg-tab')?.classList.add('active');
+        document.getElementById('pending-registrations-panel')?.classList.add('active', 'show');
+        document.getElementById('all-reg-tab')?.classList.remove('active');
+        document.getElementById('all-registrations-panel')?.classList.remove('active', 'show');
+    }, 50);
+});
+
 // Load all registrations when "Alle påmeldinger" tab is shown
 document.getElementById('all-reg-tab')?.addEventListener('click', function() {
-    setTimeout(() => loadAllRegistrations(), 100);
+    setTimeout(() => {
+        // Ensure active class is set
+        document.getElementById('pending-reg-tab').classList.remove('active');
+        document.getElementById('pending-registrations-panel').classList.remove('active', 'show');
+        this.classList.add('active');
+        document.getElementById('all-registrations-panel').classList.add('active', 'show');
+        loadAllRegistrations();
+    }, 50);
 });
 
 async function loadAllRegistrations() {
