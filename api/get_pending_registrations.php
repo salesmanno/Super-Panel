@@ -30,6 +30,7 @@ try {
             e.start_date,
             e.start_time,
             COALESCE(tpm.name, '') AS membership_plan_name,
+            COALESCE(tpm.image_url, '') AS membership_plan_image,
             COALESCE(emp.ticket_price, 0) AS membership_ticket_price,
             ts.first_name AS approver_first_name,
             ts.last_name AS approver_last_name

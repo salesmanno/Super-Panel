@@ -3316,6 +3316,12 @@ async function loadPendingRegistrations() {
                     reg.phone ? `<i class="bi bi-telephone"></i> ${reg.phone}` : ''
                 ].filter(Boolean).join('<br>');
                 
+                const membershipDisplay = reg.membership_plan_name
+                    ? (reg.membership_plan_image 
+                        ? `<img src="${reg.membership_plan_image}" alt="${reg.membership_plan_name}" style="height: 24px; width: auto; max-width: 80px; object-fit: contain;" title="${reg.membership_plan_name}">`
+                        : `<small>${reg.membership_plan_name}</small>`)
+                    : '<small>Ordinær pris</small>';
+                
                 return `
                     <tr>
                         <td><strong>${reg.first_name} ${reg.last_name}</strong></td>
@@ -3324,7 +3330,7 @@ async function loadPendingRegistrations() {
                             <small class="text-muted">${reg.start_date} ${reg.start_time}</small>
                         </td>
                         <td><small>${contact}</small></td>
-                        <td><span class="badge bg-info">Medlemskap brukt</span></td>
+                        <td>${membershipDisplay}</td>
                         <td>${memberBadge}</td>
                         <td><small>${dateStr}</small></td>
                         <td>
@@ -3545,7 +3551,9 @@ async function loadAllRegistrations() {
                 ].filter(Boolean).join('<br>');
                 
                 const membershipBadge = reg.membership_plan_name && reg.membership_ticket_price
-                    ? `<span class="badge bg-info"><i class="bi bi-star-fill"></i> ${reg.membership_plan_name}</span><br><small class="text-muted">${reg.membership_ticket_price} kr</small>`
+                    ? (reg.membership_plan_image
+                        ? `<img src="${reg.membership_plan_image}" alt="${reg.membership_plan_name}" style="height: 28px; width: auto; max-width: 100px; object-fit: contain; margin-right: 6px;" title="${reg.membership_plan_name}"><br><small class="text-muted">${reg.membership_ticket_price} kr</small>`
+                        : `<span class="badge bg-info"><i class="bi bi-star-fill"></i> ${reg.membership_plan_name}</span><br><small class="text-muted">${reg.membership_ticket_price} kr</small>`)
                     : '<span class="badge bg-secondary">Ordinær pris</span>';
                 
                 const actionButtons = reg.approval_status === 'pending' 

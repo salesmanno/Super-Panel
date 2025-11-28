@@ -28,6 +28,7 @@ try {
             r.approved_by,
             r.membership_plan_id,
             COALESCE(tpm.name, '') AS membership_plan_name,
+            COALESCE(tpm.image_url, '') AS membership_plan_image,
             COALESCE(emp.ticket_price, 0) AS membership_ticket_price,
             approver_staff.first_name AS approver_first_name,
             approver_staff.last_name AS approver_last_name,
