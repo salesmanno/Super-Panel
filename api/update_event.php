@@ -109,6 +109,8 @@ try {
         }
         
         // Update the event in events_eventdata
+        $memberverification = (isset($data['memberverification']) && $data['memberverification']) ? 1 : 0;
+        
         $stmt = $db->prepare("
             UPDATE events_eventdata SET
                 title = ?,
@@ -134,6 +136,7 @@ try {
                 registration_type = ?,
                 payment_timing = ?,
                 payment_methods_json = ?,
+                memberverification = ?,
                 updated_at = NOW()
             WHERE id = ? AND company_id = ?
         ");
@@ -162,6 +165,7 @@ try {
             $registrationType,
             $paymentTiming,
             $paymentMethodsJson,
+            $memberverification,
             $data['event_id'],
             $_SESSION['company_id']
         ]);

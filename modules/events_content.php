@@ -2626,11 +2626,12 @@ async function editEvent(eventId) {
                         if (checkbox) {
                             checkbox.checked = true;
                         }
-                        // Handle memberverification separately
-                        if (field.field_name === 'memberverification' && field.memberverification) {
-                            document.getElementById('edit-memberverification').checked = true;
-                        }
                     });
+                }
+                
+                // Load memberverification from events_eventdata directly
+                if (event.memberverification) {
+                    document.getElementById('edit-memberverification').checked = true;
                 }
             } else {
                 console.warn(`HTTP ${fieldsResponse.status}: Kunne ikke hente registreringsfelt - fortsetter likevel`);
