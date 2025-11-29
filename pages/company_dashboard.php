@@ -414,10 +414,12 @@ try {
             $db = getDBConnection();
             if ($db) {
                 $stmt = $db->prepare("
-                    SELECT title, content, publish_at 
-                    FROM x_tenant_announcements 
+                    SELECT id, title, content, image_url, priority, announcement_type, publish_at 
+                    FROM tenant_announcements 
                     WHERE company_id = ? AND is_published = 1 
-                    ORDER BY publish_at DESC 
+                    AND (expire_at IS NULL OR expire_at > NOW())
+                    AND publish_at <= NOW()
+                    ORDER BY is_pinned DESC, publish_at DESC 
                     LIMIT 5
                 ");
                 $stmt->execute([$_SESSION['company_id']]);
@@ -429,9 +431,20 @@ try {
             <h5 class="mb-3"><i class="bi bi-megaphone me-2"></i>Nyheter</h5>
             <?php foreach ($newsItems as $news): ?>
             <div class="news-item-card">
-                <div class="news-item-title"><?= htmlspecialchars($news['title']) ?></div>
+                <?php if (!empty($news['image_url'])): ?>
+                    <img src="<?= htmlspecialchars($news['image_url']) ?>" alt="News image" style="max-width: 100%; height: auto; margin-bottom: 10px;">
+                <?php endif; ?>
+                <div class="news-item-title">
+                    <?= htmlspecialchars($news['title']) ?>
+                    <button class="btn btn-sm btn-outline-danger float-end" style="padding: 2px 6px; font-size: 12px;" onclick="deleteAnnouncement('<?= $news['id'] ?>')" title="Slett">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
                 <div class="news-item-content"><?= nl2br(htmlspecialchars($news['content'])) ?></div>
                 <div class="news-item-date">
+                    <span class="badge bg-<?= $news['priority'] === 'critical' ? 'danger' : ($news['priority'] === 'high' ? 'warning' : 'info') ?> me-2">
+                        <?= ucfirst($news['priority'] ?? 'info') ?>
+                    </span>
                     <i class="bi bi-calendar me-1"></i>
                     <?php 
                         $date = new DateTime($news['publish_at']);
