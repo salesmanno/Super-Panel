@@ -609,9 +609,6 @@ if (isset($_GET['message'])) {
                         <div class="news-item">
                             <div class="news-item-title">
                                 ${escapeHtml(item.title)}
-                                <button class="btn btn-sm btn-outline-danger float-end" style="padding: 2px 6px; font-size: 12px;" onclick="deleteNews('${item.id}')" title="Slett">
-                                    <i class="bi bi-trash"></i>
-                                </button>
                             </div>
                             <div class="news-item-content">
                                 ${escapeHtml(item.content)}
@@ -686,31 +683,6 @@ if (isset($_GET['message'])) {
                 'bug': 'Feilretting'
             };
             return labels[type] || type;
-        }
-        
-        function deleteNews(newsId) {
-            if (!confirm('Er du sikker på at du vil slette denne nyheten?')) {
-                return;
-            }
-            
-            fetch('/api/delete_news.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ news_id: newsId })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    loadNews();
-                    alert('Nyheten ble slettet');
-                } else {
-                    alert('Feil: ' + (data.message || 'Kunne ikke slette nyheten'));
-                }
-            })
-            .catch(error => {
-                console.error('Error deleting news:', error);
-                alert('Feil ved sletting av nyheten');
-            });
         }
     </script>
 </body>
