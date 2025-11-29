@@ -2668,8 +2668,8 @@ async function editEvent(eventId) {
                     
                     pricingResult.pricing.forEach((pricing, index) => {
                         const priceDiv = document.createElement('div');
-                        priceDiv.className = 'card mb-2 border-1';
                         const isPublic = pricing.public_display == 1 || pricing.public_display === true;
+                        priceDiv.className = `card mb-2 border-1 ${!isPublic ? 'opacity-50 bg-light' : ''}`;
                         const publicBadge = isPublic ? '<span class="badge bg-success ms-2">Offentlig</span>' : '<span class="badge bg-warning ms-2">Privat (skjult)</span>';
                         
                         priceDiv.innerHTML = `
