@@ -347,6 +347,19 @@ try {
                             <small class="text-muted">Laster medlemsplaner...</small>
                         </div>
                     </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="memberverification" id="memberverification">
+                                <label class="form-check-label" for="memberverification">
+                                    <i class="bi bi-shield-check text-success me-1"></i>Autogodkjenning og Autofyll for medlemmer for dette arrangement
+                                </label>
+                            </div>
+                            <small class="form-text text-muted d-block mt-2">Medlemmer blir automatisk godkjent og får autofylt informasjon ved registrering</small>
+                        </div>
+                    </div>
+
                     <?php endif; ?>
 
                     <hr class="my-4" id="payment-section">
@@ -406,17 +419,6 @@ try {
                             </div>
                         </div>
                         
-                        <div class="row mt-3">
-                            <div class="col-md-6">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="memberverification" id="memberverification">
-                                    <label class="form-check-label" for="memberverification">
-                                        <i class="bi bi-shield-check text-success me-1"></i>Autofyll og bekreft medlemmer
-                                    </label>
-                                </div>
-                                <small class="form-text text-muted d-block mt-2">Autofyller medlemsinformasjon og bekrefter medlemskap ved registrering</small>
-                            </div>
-                        </div>
                     </div>
 
                     <div class="d-flex gap-2">
@@ -926,14 +928,17 @@ try {
                             <label class="form-label">Billettpris (NOK)</label>
                             <input type="number" step="0.01" class="form-control" name="ticket_price" id="edit-ticket-price">
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <div class="form-check mt-4">
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="memberverification" id="edit-memberverification">
                                 <label class="form-check-label" for="edit-memberverification">
-                                    <i class="bi bi-shield-check text-success me-1"></i>Autofyll og bekreft medlemmer
+                                    <i class="bi bi-shield-check text-success me-1"></i>Autogodkjenning og Autofyll for medlemmer for dette arrangement
                                 </label>
                             </div>
-                            <small class="form-text text-muted d-block mt-2">Autofyller medlemsinformasjon og bekrefter medlemskap ved registrering</small>
+                            <small class="form-text text-muted d-block mt-2">Medlemmer blir automatisk godkjent og får autofylt informasjon ved registrering</small>
                         </div>
                     </div>
                     
