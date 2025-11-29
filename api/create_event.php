@@ -114,6 +114,8 @@ try {
         // Convert payment methods array to JSON
         $paymentMethodsJson = json_encode($paymentMethodsArray);
         
+        $memberverification = (isset($data['memberverification']) && $data['memberverification']) ? 1 : 0;
+        
         $stmt = $db->prepare("
             INSERT INTO events_eventdata (
                 id,
@@ -140,11 +142,13 @@ try {
                 registration_type,
                 payment_timing,
                 payment_methods_json,
+                memberverification,
                 is_active,
                 created_by,
                 created_at,
                 updated_at
             ) VALUES (
+                ?,
                 ?,
                 ?,
                 ?,
@@ -201,6 +205,7 @@ try {
             $registrationType,
             $paymentTiming,
             $paymentMethodsJson,
+            $memberverification,
             $_SESSION['tenant_admin_id']
         ]);
         
