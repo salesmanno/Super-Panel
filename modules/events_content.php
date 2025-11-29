@@ -2657,6 +2657,40 @@ async function editEvent(eventId) {
             // Continue - payment methods are optional for modal to open
         }
         
+        // Load membership pricing for edit modal
+        try {
+            const pricingResponse = await fetch(`/api/get_event_membership_pricing.php?event_id=${eventId}`);
+            if (pricingResponse.ok) {
+                const pricingResult = await pricingResponse.json();
+                if (pricingResult.success && pricingResult.pricing && pricingResult.pricing.length > 0) {
+                    const container = document.getElementById('edit-membership-pricing-container');
+                    container.innerHTML = '';
+                    
+                    pricingResult.pricing.forEach((pricing, index) => {
+                        const priceDiv = document.createElement('div');
+                        priceDiv.className = 'card mb-2';
+                        priceDiv.innerHTML = `
+                            <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>${pricing.plan_name}</strong><br>
+                                    <small class="text-muted">Pris: ${pricing.ticket_price} kr</small>
+                                </div>
+                                <div>
+                                    <input type="hidden" class="edit-membership-plan-id" value="${pricing.plan_id}">
+                                    <input type="hidden" class="edit-membership-price" value="${pricing.ticket_price}">
+                                    <span class="badge bg-primary">${pricing.ticket_price} kr</span>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(priceDiv);
+                    });
+                }
+            }
+        } catch (pricingError) {
+            console.warn('Error loading membership pricing:', pricingError);
+            // Continue - membership pricing is optional
+        }
+        
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('editEventModal'));
         modal.show();
