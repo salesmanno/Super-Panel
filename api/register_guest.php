@@ -24,6 +24,7 @@ try {
     $event_id = $input['event_id'];
     $first_name = trim($input['attendee_first_name']);
     $last_name = trim($input['attendee_last_name']);
+    $attendee_name = trim($first_name . ' ' . $last_name);
     $email = isset($input['attendee_email']) ? trim($input['attendee_email']) : null;
     $membership_plan_id = isset($input['membership_plan_id']) ? $input['membership_plan_id'] : null;
     $payment_method = isset($input['payment_method']) ? $input['payment_method'] : 'cash';
@@ -88,16 +89,15 @@ try {
         // Insert guest into events_checkin
         $stmt = $db->prepare("
             INSERT INTO events_checkin 
-            (id, event_id, attendee_first_name, attendee_last_name, attendee_email,
+            (id, event_id, attendee_name, attendee_email,
              ticket_type, ticket_price, payment_status, payment_method, 
              checked_in, checked_in_by, barcode, created_at, updated_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, NOW(), NOW())
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, NOW(), NOW())
         ");
         $stmt->execute([
             $checkin_id,
             $event_id,
-            $first_name,
-            $last_name,
+            $attendee_name,
             $email,
             $ticket_type,
             $ticket_price,

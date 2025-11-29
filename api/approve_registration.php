@@ -63,18 +63,20 @@ try {
     $paymentStatus = $registration['payment_status'] ?? 'pending';
     $paymentMethod = $registration['payment_method'] ?? $registration['default_payment_method'] ?? 'cash';
     
+    // Combine first and last name into attendee_name
+    $attendeeName = trim(($registration['first_name'] ?? '') . ' ' . ($registration['last_name'] ?? ''));
+    
     $checkinStmt = $db->prepare("
         INSERT INTO events_checkin 
-        (id, event_id, attendee_first_name, attendee_last_name, attendee_email, attendee_phone,
+        (id, event_id, attendee_name, attendee_email, attendee_phone,
          ticket_type, ticket_price, payment_status, payment_method, 
          checked_in, checked_in_by, barcode, membership_plan_id, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, NOW(), NOW())
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, NOW(), NOW())
     ");
     $checkinStmt->execute([
         $checkinId,
         $registration['event_id'],
-        $registration['first_name'],
-        $registration['last_name'],
+        $attendeeName,
         $registration['email'],
         $registration['phone'],
         $ticketType,

@@ -22,7 +22,8 @@ try {
     $db = getDBConnection();
     
     // Validate required fields
-    if (empty($data['attendee_first_name']) || empty($data['attendee_last_name'])) {
+    $attendeeName = trim(($data['attendee_first_name'] ?? '') . ' ' . ($data['attendee_last_name'] ?? ''));
+    if (empty($attendeeName)) {
         echo json_encode(['success' => false, 'message' => 'Fornavn og etternavn er påkrevd']);
         exit;
     }
@@ -80,8 +81,7 @@ try {
             id,
             event_id,
             customer_id,
-            attendee_first_name,
-            attendee_last_name,
+            attendee_name,
             attendee_email,
             attendee_phone,
             attendee_street,
@@ -101,7 +101,6 @@ try {
             created_at,
             updated_at
         ) VALUES (
-            ?,
             ?,
             ?,
             ?,
@@ -147,8 +146,7 @@ try {
         $checkinId,
         $data['event_id'],
         $data['customer_id'] ?? null,
-        $data['attendee_first_name'],
-        $data['attendee_last_name'],
+        $attendeeName,
         $data['attendee_email'] ?? null,
         $data['attendee_phone'] ?? null,
         $street,
@@ -178,7 +176,6 @@ try {
         // Generate order ID for this event checkin
         $orderId = 'EVT-' . date('Ymd') . '-' . strtoupper(substr($checkinId, 0, 6));
         
-        $attendeeName = trim($data['attendee_first_name'] . ' ' . $data['attendee_last_name']);
         $ledgerResult = $ledgerService->logTransaction([
             'order_id' => $orderId,
             'module_source' => 'events',
@@ -212,7 +209,6 @@ try {
     $emailSent = false;
     if (!empty($data['attendee_email'])) {
         try {
-            $attendeeName = trim($data['attendee_first_name'] . ' ' . $data['attendee_last_name']);
             $emailService = new EmailService($db, $_SESSION['company_id']);
             $emailResult = $emailService->send([
                 'template' => 'event_confirmation',
