@@ -5,13 +5,8 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 
 try {
-    // Get company ID from query string if provided (for logged-in users)
-    $companyId = isset($_GET['company_id']) ? $_GET['company_id'] : null;
-    
-    // Fetch core_sys_news filtered by target_audience
-    // On login page: shows 'all' audience only
-    // For logged-in users: shows 'all' + company-specific news
-    $news = getLatestNews(10, $companyId);
+    // Fetch all published core_sys_news
+    $news = getLatestNews(10);
     
     if (!$news) {
         echo json_encode([
