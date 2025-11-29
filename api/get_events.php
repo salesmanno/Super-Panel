@@ -49,7 +49,7 @@ try {
         ORDER BY e.start_date DESC, e.start_time DESC
     ");
     
-    $stmt->execute([$_SESSION['company_id'], 1]);
+    $stmt->execute([$_SESSION['company_id']]);
     $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Then: Count attendees for each event separately (avoids LEFT JOIN duplicates)
