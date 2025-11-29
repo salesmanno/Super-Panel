@@ -3428,27 +3428,13 @@ async function rejectRegistration(registrationId) {
     }
 }
 
-// Reinitialize Bootstrap tabs when registrations tab is shown
-document.querySelector('[href="#events-registrations"]')?.addEventListener('click', function() {
-    // Reinitialize tab functionality
-    setTimeout(() => {
-        document.getElementById('pending-reg-tab')?.classList.add('active');
-        document.getElementById('pending-registrations-panel')?.classList.add('active', 'show');
-        document.getElementById('all-reg-tab')?.classList.remove('active');
-        document.getElementById('all-registrations-panel')?.classList.remove('active', 'show');
-    }, 50);
-});
-
-// Load all registrations when "Alle påmeldinger" tab is shown
-document.getElementById('all-reg-tab')?.addEventListener('click', function() {
-    setTimeout(() => {
-        // Ensure active class is set
-        document.getElementById('pending-reg-tab').classList.remove('active');
-        document.getElementById('pending-registrations-panel').classList.remove('active', 'show');
-        this.classList.add('active');
-        document.getElementById('all-registrations-panel').classList.add('active', 'show');
-        loadAllRegistrations();
-    }, 50);
+// Load pending registrations when tab is initialized
+document.addEventListener('shown.bs.tab', function(e) {
+    if (e.target.id === 'pending-reg-tab') {
+        setTimeout(() => loadPendingRegistrations(), 100);
+    } else if (e.target.id === 'all-reg-tab') {
+        setTimeout(() => loadAllRegistrations(), 100);
+    }
 });
 
 async function loadAllRegistrations() {
