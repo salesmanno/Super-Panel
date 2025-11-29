@@ -35,7 +35,7 @@ try {
             'info' => 'Info'
         ];
         
-        $severity = isset($item['priority']) ? strtolower($item['priority']) : 'medium';
+        $severity = isset($item['severity']) ? strtolower($item['severity']) : 'low';
         $newsType = isset($item['news_type']) ? strtolower($item['news_type']) : 'info';
         
         $publishDate = new DateTime($item['publish_at']);
