@@ -130,7 +130,6 @@ try {
                 end_date = ?,
                 event_image_url = ?,
                 ticket_price = ?,
-                ,
                 cost_price = ?,
                 default_payment_method = ?,
                 registration_type = ?,
