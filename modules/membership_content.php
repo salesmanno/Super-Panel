@@ -335,7 +335,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="create-plan-form">
+                <form id="create-plan-form" autocomplete="off">
                     <div class="mb-3">
                         <label class="form-label">Plan navn *</label>
                         <input type="text" class="form-control" name="name" required>
@@ -392,7 +392,133 @@
     </div>
 </div>
 
+<!-- Modal for rediger medlemskapsplan -->
+<div class="modal fade" id="editPlanModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Rediger medlemskapsplan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-plan-form" autocomplete="off">
+                    <input type="hidden" name="plan_id" id="edit-plan-id">
+                    <div class="mb-3">
+                        <label class="form-label">Plan navn *</label>
+                        <input type="text" class="form-control" name="name" id="edit-plan-name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Beskrivelse</label>
+                        <textarea class="form-control" name="description" id="edit-plan-description" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Pris (NOK) *</label>
+                            <input type="number" step="0.01" class="form-control" name="price" id="edit-plan-price" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Faktureringsperiode *</label>
+                            <select class="form-select" name="billing_cycle" id="edit-plan-billing" required>
+                                <option value="monthly">Månedlig</option>
+                                <option value="quarterly">Kvartalsvis</option>
+                                <option value="yearly">Årlig</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Fordeler</label>
+                        <textarea class="form-control" name="benefits" id="edit-plan-benefits" rows="4"></textarea>
+                        <small class="text-muted">Skriv en fordel per linje</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Bilde-URL</label>
+                        <input type="url" class="form-control" name="plan_image_url" id="edit-plan-image" placeholder="https://example.com/plan-bilde.jpg">
+                        <small class="text-muted">URL til bilde for denne planen</small>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="for_sale" id="edit-for-sale">
+                        <label class="form-check-label" for="edit-for-sale">
+                            Til salgs / tilbys
+                        </label>
+                        <small class="text-muted d-block">Hvis avmerket, kan denne planen selges og tilbys til kunder</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditPlan()">
+                    <i class="bi bi-check-circle me-1"></i>Lagre endringer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+async function editMembershipPlan(planId) {
+    try {
+        const response = await fetch(`/api/get_membership_plans.php?plan_id=${planId}`);
+        const result = await response.json();
+        
+        if (result.success && result.plans && result.plans.length > 0) {
+            const plan = result.plans[0];
+            document.getElementById('edit-plan-id').value = plan.id || plan.plan_id;
+            document.getElementById('edit-plan-name').value = plan.name || '';
+            document.getElementById('edit-plan-description').value = plan.description || '';
+            document.getElementById('edit-plan-price').value = plan.price || '';
+            document.getElementById('edit-plan-billing').value = plan.billing_cycle || 'yearly';
+            document.getElementById('edit-plan-benefits').value = plan.benefits || '';
+            document.getElementById('edit-plan-image').value = plan.image_url || '';
+            document.getElementById('edit-for-sale').checked = plan.for_sale ? true : false;
+            
+            const modal = new bootstrap.Modal(document.getElementById('editPlanModal'));
+            modal.show();
+        }
+    } catch (error) {
+        console.error('Error loading plan:', error);
+        toast.error('Feil', 'Kunne ikke laste medlemskapsplan');
+    }
+}
+
+async function submitEditPlan() {
+    const form = document.getElementById('edit-plan-form');
+    const planId = document.getElementById('edit-plan-id').value;
+    
+    const planData = {
+        plan_id: planId,
+        name: document.getElementById('edit-plan-name').value,
+        description: document.getElementById('edit-plan-description').value,
+        price: parseFloat(document.getElementById('edit-plan-price').value),
+        billing_cycle: document.getElementById('edit-plan-billing').value,
+        benefits: document.getElementById('edit-plan-benefits').value,
+        image_url: document.getElementById('edit-plan-image').value || null,
+        for_sale: document.getElementById('edit-for-sale').checked ? 1 : 0
+    };
+    
+    const toastId = toast.loading('Lagrer endringer...');
+    
+    try {
+        const response = await fetch('/api/update_membership_plan.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(planData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            toast.success(toastId, 'Medlemskapsplan', 'Planen er oppdatert');
+            bootstrap.Modal.getInstance(document.getElementById('editPlanModal')).hide();
+            loadMembershipPlans();
+        } else {
+            toast.error(toastId, 'Oppdatering av medlemskapsplan', result.message || 'Kunne ikke lagre endringer');
+        }
+    } catch (error) {
+        console.error('Error updating plan:', error);
+        toast.error(toastId, 'Oppdatering av medlemskapsplan', 'Kunne ikke lagre endringer');
+    }
+}
+
 async function submitMembershipPlan() {
     const form = document.getElementById('create-plan-form');
     const formData = new FormData(form);
@@ -478,7 +604,7 @@ async function loadMembershipPlans() {
                                     </label>
                                 </div>
                                 <div class="d-flex gap-2 mt-2">
-                                    <button class="btn btn-outline-primary btn-sm flex-fill">Rediger</button>
+                                    <button class="btn btn-outline-primary btn-sm flex-fill" onclick="editMembershipPlan('${planId}')">Rediger</button>
                                     <button class="btn btn-outline-danger btn-sm" onclick="deleteMembershipPlan('${planId}')">
                                         <i class="bi bi-trash"></i>
                                     </button>
