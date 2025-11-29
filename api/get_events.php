@@ -40,13 +40,12 @@ try {
             e.payment_methods_json,
             e.payment_timing,
             e.default_payment_method,
-            e.memberverification,
-            ts.first_name,
-            ts.last_name
+            COALESCE(ts.first_name, 'Ukjent') as first_name,
+            COALESCE(ts.last_name, 'bruker') as last_name
         FROM events_eventdata e
         LEFT JOIN tenant_admins ta ON e.created_by = ta.id
         LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
-        WHERE e.company_id = ? AND e.is_active = ?
+        WHERE e.company_id = ? AND e.is_active = 1
         ORDER BY e.start_date DESC, e.start_time DESC
     ");
     

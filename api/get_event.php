@@ -43,7 +43,6 @@ try {
             payment_methods_json,
             event_image_url,
             cost_price,
-            memberverification,
             created_at
         FROM events_eventdata 
         WHERE id = ? AND company_id = ?

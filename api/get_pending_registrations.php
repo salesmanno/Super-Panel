@@ -32,11 +32,11 @@ try {
             COALESCE(tpm.name, '') AS membership_plan_name,
             COALESCE(tpm.image_url, '') AS membership_plan_image,
             COALESCE(emp.ticket_price, 0) AS membership_ticket_price,
-            ts.first_name AS approver_first_name,
-            ts.last_name AS approver_last_name
+            COALESCE(ts.first_name, 'Ukjent') AS approver_first_name,
+            COALESCE(ts.last_name, 'bruker') AS approver_last_name
         FROM event_registrations r
-        INNER JOIN events_eventdata e ON r.event_id = e.id COLLATE utf8mb4_unicode_ci
-        INNER JOIN tenant_customers c ON r.customer_id = c.id COLLATE utf8mb4_unicode_ci
+        INNER JOIN events_eventdata e ON r.event_id = e.id
+        INNER JOIN tenant_customers c ON r.customer_id = c.id
         LEFT JOIN membership_plans tpm ON r.membership_plan_id = tpm.id
         LEFT JOIN event_membership_plans emp ON emp.event_id = r.event_id AND emp.membership_plan_id = r.membership_plan_id
         LEFT JOIN tenant_admins ta ON r.approved_by = ta.id
