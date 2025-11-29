@@ -34,7 +34,6 @@ try {
             SELECT 
                 start_date, 
                 end_date,
-                
                 ticket_price
             FROM events_eventdata 
             WHERE id = ? AND company_id = ?
@@ -55,7 +54,7 @@ try {
                 $company_id,
                 $event['start_date'],
                 $event['end_date'],
-                $event['member_ticket_price'] ?? 0,
+                $event['ticket_price'] ?? 0,
                 $event['ticket_price'] ?? 0
             ]);
             

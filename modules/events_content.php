@@ -1439,9 +1439,6 @@ async function loadEvents() {
                         priceDisplay = `<span class="event-price">${event.ticket_price} kr (betales ved inngang)</span>`;
                     } else {
                         priceDisplay = `<span class="event-price">${event.ticket_price} kr</span>`;
-                        if (event.member_ticket_price !== null && event.member_ticket_price !== undefined && event.member_ticket_price > 0) {
-                            priceDisplay += `<br><small class="text-muted">${event.member_ticket_price} kr (medlem)</small>`;
-                        }
                     }
                 } else {
                     // For events with no price, show nothing (not "Gratis")
@@ -2578,7 +2575,6 @@ async function editEvent(eventId) {
         setFieldValue('edit-registration-deadline', event.registration_deadline);
         setFieldValue('edit-max-attendees', event.max_attendees);
         setFieldValue('edit-ticket-price', event.ticket_price || 0);
-        setFieldValue('edit-member-ticket-price', event.member_ticket_price);
         setFieldValue('edit-default-payment-method', event.default_payment_method);
         setFieldValue('edit-event-image-url', event.event_image_url);
         
@@ -2795,7 +2791,6 @@ async function saveEventChanges() {
         max_attendees: formData.get('max_attendees') || null,
         age_limit: formData.get('age_limit') || null,
         ticket_price: formData.get('ticket_price') || 0,
-        member_ticket_price: formData.get('member_ticket_price') || null,
         event_image_url: formData.get('event_image_url') || null,
         default_payment_method: formData.get('default_payment_method') || null,
         is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
