@@ -2669,16 +2669,20 @@ async function editEvent(eventId) {
                     pricingResult.pricing.forEach((pricing, index) => {
                         const priceDiv = document.createElement('div');
                         priceDiv.className = 'card mb-2';
+                        const isPublic = pricing.public_display == 1 || pricing.public_display === true;
+                        const publicBadge = isPublic ? '<span class="badge bg-success">Offentlig</span>' : '<span class="badge bg-warning">Privat</span>';
+                        
                         priceDiv.innerHTML = `
                             <div class="card-body p-3 d-flex justify-content-between align-items-center">
                                 <div>
                                     <strong>${pricing.plan_name}</strong><br>
                                     <small class="text-muted">Pris: ${pricing.ticket_price} kr</small>
                                 </div>
-                                <div>
+                                <div class="text-end">
                                     <input type="hidden" class="edit-membership-plan-id" value="${pricing.plan_id}">
                                     <input type="hidden" class="edit-membership-price" value="${pricing.ticket_price}">
-                                    <span class="badge bg-primary">${pricing.ticket_price} kr</span>
+                                    <span class="badge bg-primary me-2">${pricing.ticket_price} kr</span>
+                                    ${publicBadge}
                                 </div>
                             </div>
                         `;
