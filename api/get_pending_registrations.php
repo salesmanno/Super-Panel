@@ -49,6 +49,28 @@ try {
     $stmt->execute([$_SESSION['company_id']]);
     $registrations = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    // Get registration fields for each event
+    $eventFields = [];
+    $fieldsStmt = $db->prepare("
+        SELECT event_id, field_name, field_label, is_required, is_visible
+        FROM event_registration_fields
+        WHERE is_visible = 1
+        ORDER BY display_order ASC
+    ");
+    $fieldsStmt->execute();
+    foreach ($fieldsStmt->fetchAll(PDO::FETCH_ASSOC) as $field) {
+        $eventId = $field['event_id'];
+        if (!isset($eventFields[$eventId])) {
+            $eventFields[$eventId] = [];
+        }
+        $eventFields[$eventId][] = $field;
+    }
+    
+    // Add fields to each registration
+    foreach ($registrations as &$reg) {
+        $reg['required_fields'] = $eventFields[$reg['event_id']] ?? [];
+    }
+    
     echo json_encode([
         'success' => true,
         'total_pending' => count($registrations),

@@ -3303,10 +3303,6 @@ async function loadPendingRegistrations() {
                     minute: '2-digit'
                 });
                 
-                const paidBadge = reg.is_paid 
-                    ? '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Betalt</span>' 
-                    : '<span class="badge bg-warning"><i class="bi bi-clock"></i> Ubetalt</span>';
-                
                 const memberBadge = reg.has_valid_membership 
                     ? '<span class="badge bg-primary"><i class="bi bi-star"></i> Medlem</span>' 
                     : '<span class="badge bg-secondary">Ikke medlem</span>';
@@ -3322,6 +3318,30 @@ async function loadPendingRegistrations() {
                         : `<small>${reg.membership_plan_name}</small>`)
                     : '<small>Ordinær pris</small>';
                 
+                // Build dynamic field display
+                let fieldsHtml = '';
+                if (reg.required_fields && reg.required_fields.length > 0) {
+                    const fieldValues = {
+                        'fornavn': reg.first_name,
+                        'first_name': reg.first_name,
+                        'etternavn': reg.last_name,
+                        'last_name': reg.last_name,
+                        'email': reg.email,
+                        'telefon': reg.phone,
+                        'phone': reg.phone
+                    };
+                    
+                    reg.required_fields.forEach(field => {
+                        const value = fieldValues[field.field_name] || '-';
+                        const icon = field.field_name.includes('email') ? 'envelope' 
+                                   : field.field_name.includes('telefon') || field.field_name.includes('phone') ? 'telephone'
+                                   : field.field_name.includes('adresse') || field.field_name.includes('street') ? 'geo-alt'
+                                   : field.field_name.includes('alder') || field.field_name.includes('age') ? 'calendar'
+                                   : 'check';
+                        fieldsHtml += `<div class="small"><i class="bi bi-${icon} me-1"></i>${value}</div>`;
+                    });
+                }
+                
                 return `
                     <tr>
                         <td><strong>${reg.first_name} ${reg.last_name}</strong></td>
@@ -3330,6 +3350,7 @@ async function loadPendingRegistrations() {
                             <small class="text-muted">${reg.start_date} ${reg.start_time}</small>
                         </td>
                         <td><small>${contact}</small></td>
+                        <td><small>${fieldsHtml || contact}</small></td>
                         <td>${membershipDisplay}</td>
                         <td>${memberBadge}</td>
                         <td><small>${dateStr}</small></td>
