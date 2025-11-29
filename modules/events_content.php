@@ -3314,8 +3314,8 @@ async function loadPendingRegistrations() {
                 
                 const membershipDisplay = reg.membership_plan_name
                     ? (reg.membership_plan_image 
-                        ? `<img src="${reg.membership_plan_image}" alt="${reg.membership_plan_name}" style="height: 24px; width: auto; max-width: 80px; object-fit: contain;" title="${reg.membership_plan_name}">`
-                        : `<small>${reg.membership_plan_name}</small>`)
+                        ? `<div style="display: flex; align-items: center; gap: 6px;"><img src="${reg.membership_plan_image}" alt="${reg.membership_plan_name}" style="height: 18px; width: auto; object-fit: contain;" title="${reg.membership_plan_name}"><small>${reg.membership_ticket_price} kr</small></div>`
+                        : `<small>${reg.membership_plan_name} (${reg.membership_ticket_price} kr)</small>`)
                     : '<small>Ordinær pris</small>';
                 
                 // Build dynamic field display
@@ -3559,8 +3559,8 @@ async function loadAllRegistrations() {
                 
                 const membershipBadge = reg.membership_plan_name && reg.membership_ticket_price
                     ? (reg.membership_plan_image
-                        ? `<img src="${reg.membership_plan_image}" alt="${reg.membership_plan_name}" style="height: 28px; width: auto; max-width: 100px; object-fit: contain; margin-right: 6px;" title="${reg.membership_plan_name}"><br><small class="text-muted">${reg.membership_ticket_price} kr</small>`
-                        : `<span class="badge bg-info"><i class="bi bi-star-fill"></i> ${reg.membership_plan_name}</span><br><small class="text-muted">${reg.membership_ticket_price} kr</small>`)
+                        ? `<div style="display: flex; align-items: center; gap: 8px;"><img src="${reg.membership_plan_image}" alt="${reg.membership_plan_name}" style="height: 20px; width: auto; object-fit: contain;" title="${reg.membership_plan_name}"><small>${reg.membership_ticket_price} kr</small></div>`
+                        : `<small>${reg.membership_plan_name} • ${reg.membership_ticket_price} kr</small>`)
                     : '<span class="badge bg-secondary">Ordinær pris</span>';
                 
                 const actionButtons = reg.approval_status === 'pending' 
