@@ -79,21 +79,42 @@ function getCompanyModules($companyId) {
     return $stmt->fetchAll();
 }
 
-function getLatestNews($limit = 5) {
+function getLatestNews($limit = 5, $companyId = null) {
     $db = getDBConnection();
     if (!$db) {
         return [];
     }
     $limit = (int)$limit;
+    
+    // Build query - filter by target_audience (all = system-wide, or specific company)
+    $whereConditions = [
+        "is_published = 1",
+        "(expire_at IS NULL OR expire_at > NOW())",
+        "publish_at <= NOW()"
+    ];
+    
+    // Add audience filter
+    if ($companyId) {
+        $whereConditions[] = "(target_audience = 'all' OR target_audience = ?)";
+    } else {
+        $whereConditions[] = "target_audience = 'all'";
+    }
+    
+    $whereClause = implode(" AND ", $whereConditions);
+    
     $stmt = $db->prepare("
         SELECT * FROM core_sys_news 
-        WHERE is_published = ? 
-        AND (expire_at IS NULL OR expire_at > NOW())
-        AND publish_at <= NOW()
+        WHERE " . $whereClause . "
         ORDER BY publish_at DESC 
         LIMIT " . $limit
     );
-    $stmt->execute([1]);
+    
+    if ($companyId) {
+        $stmt->execute([$companyId]);
+    } else {
+        $stmt->execute();
+    }
+    
     return $stmt->fetchAll();
 }
 
