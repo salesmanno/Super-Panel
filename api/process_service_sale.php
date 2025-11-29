@@ -67,13 +67,13 @@ try {
     // Fetch service details based on type (separate queries to avoid column conflicts)
     switch ($service_type) {
         case 'event':
-            $stmt = $db->prepare("SELECT id, title as service_name, ticket_price as price, member_ticket_price FROM events_eventdata WHERE id = ?");
+            $stmt = $db->prepare("SELECT id, title as service_name, ticket_price as price FROM events_eventdata WHERE id = ?");
             $stmt->execute([$product_id]);
             $service = $stmt->fetch();
             
             // Use member price if this is a member purchase
-            if ($is_member_price && !empty($service['member_ticket_price'])) {
-                $service['price'] = $service['member_ticket_price'];
+            if ($is_member_price && !empty($service['ticket_price'])) {
+                $service['price'] = $service['ticket_price'];
                 $service['service_name'] .= ' (Medlemspris)';
             }
             break;

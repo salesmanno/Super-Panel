@@ -41,7 +41,7 @@ try {
                 op.price
             ) as price,
             CASE 
-                WHEN op.product_type = 'events' THEN e.member_ticket_price
+                WHEN op.product_type = 'events' THEN e.ticket_price
                 ELSE NULL
             END as member_price,
             CASE 

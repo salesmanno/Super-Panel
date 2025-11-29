@@ -32,7 +32,6 @@ try {
             e.end_date,
             e.event_image_url,
             e.ticket_price,
-            e.member_ticket_price,
             e.registration_type,
             e.output_product_id,
             e.created_by,
@@ -41,6 +40,7 @@ try {
             e.payment_methods_json,
             e.payment_timing,
             e.default_payment_method,
+            e.memberverification,
             ts.first_name,
             ts.last_name
         FROM events_eventdata e

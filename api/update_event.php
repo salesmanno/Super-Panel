@@ -82,7 +82,7 @@ try {
         // ENFORCE: "Ingen påmelding" must be free (no pricing, no participant limits)
         if ($registrationType === 'none') {
             $data['ticket_price'] = 0;
-            $data['member_ticket_price'] = null;
+            $data['ticket_price'] = null;
             $data['max_attendees'] = null;
             $data['min_attendees'] = null;
             $data['registration_deadline'] = null;
@@ -130,7 +130,7 @@ try {
                 end_date = ?,
                 event_image_url = ?,
                 ticket_price = ?,
-                member_ticket_price = ?,
+                ,
                 cost_price = ?,
                 default_payment_method = ?,
                 registration_type = ?,
@@ -159,7 +159,7 @@ try {
             $data['end_date'] ?? null,
             $data['event_image_url'] ?? null,
             $data['ticket_price'] ?? 0,
-            $data['member_ticket_price'] ?? null,
+            $data['ticket_price'] ?? null,
             $data['cost_price'] ?? 0,
             $data['default_payment_method'] ?? null,
             $registrationType,

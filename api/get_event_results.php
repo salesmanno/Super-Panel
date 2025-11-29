@@ -34,7 +34,7 @@ try {
             SELECT 
                 start_date, 
                 end_date,
-                member_ticket_price,
+                
                 ticket_price
             FROM events_eventdata 
             WHERE id = ? AND company_id = ?
