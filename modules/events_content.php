@@ -2152,19 +2152,17 @@ async function loadCheckins(eventId) {
             if (result.checked_in && result.checked_in.length > 0) {
                 confirmedCount.textContent = result.checked_in.length;
                 confirmedList.innerHTML = result.checked_in.map(checkin => {
-                    const name = checkin.attendee_name || (checkin.first_name + ' ' + checkin.last_name);
                     const adminName = checkin.admin_first_name && checkin.admin_last_name 
                         ? checkin.admin_first_name + ' ' + checkin.admin_last_name 
-                        : '-';
-                    const contact = checkin.attendee_email || checkin.attendee_phone || '-';
+                        : 'System';
                     const checkinTime = checkin.check_in_time ? new Date(checkin.check_in_time).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) : '-';
                     const barcode = checkin.barcode || '-';
+                    const ticketType = checkin.ticket_type || 'regular';
                     
                     return `
                         <tr>
-                            <td><strong>${name}</strong></td>
+                            <td><strong>${ticketType}</strong></td>
                             <td><small>${adminName}</small></td>
-                            <td><small>${contact}</small></td>
                             <td><small class="font-monospace">${barcode}</small></td>
                             <td>${checkin.ticket_price} kr</td>
                             <td><small class="text-muted">${checkinTime}</small></td>
@@ -2182,10 +2180,10 @@ async function loadCheckins(eventId) {
                 `;
             }
             
-            // Update pending list (ikke innsjekket)
+            // Update pending list (ikke innsjekket - removed since events_checkin no longer stores attendee data)
             const pendingList = document.getElementById('checkin-pending-list');
             const pendingCount = document.getElementById('checkin-pending-count');
-            
+            // Note: Pending list is empty as events_checkin stores checked_in=0 for not-yet-checked-in entries            
             if (result.not_checked_in && result.not_checked_in.length > 0) {
                 pendingCount.textContent = result.not_checked_in.length;
                 pendingList.innerHTML = result.not_checked_in.map(checkin => {
