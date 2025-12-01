@@ -2616,13 +2616,16 @@ async function editEvent(eventId) {
                 document.getElementById('edit-field-age').checked = false;
                 document.getElementById('edit-memberverification').checked = false;
                 
-                if (fieldsResult.success && fieldsResult.fields) {
+                if (fieldsResult.success && fieldsResult.fields && fieldsResult.fields.length > 0) {
                     fieldsResult.fields.forEach(field => {
                         const checkbox = document.getElementById(`edit-field-${field.field_name}`);
                         if (checkbox) {
                             checkbox.checked = true;
                         }
                     });
+                    console.log('Loaded registration fields:', fieldsResult.fields);
+                } else {
+                    console.log('No registration fields returned for this event');
                 }
                 
                 // Load memberverification from events_eventdata directly
@@ -2658,10 +2661,10 @@ async function editEvent(eventId) {
             const pricingResponse = await fetch(`/api/get_event_membership_pricing.php?event_id=${eventId}`);
             if (pricingResponse.ok) {
                 const pricingResult = await pricingResponse.json();
+                const container = document.getElementById('edit-membership-pricing-container');
+                container.innerHTML = '';
+                
                 if (pricingResult.success && pricingResult.pricing && pricingResult.pricing.length > 0) {
-                    const container = document.getElementById('edit-membership-pricing-container');
-                    container.innerHTML = '';
-                    
                     pricingResult.pricing.forEach((pricing, index) => {
                         const priceDiv = document.createElement('div');
                         const isPublic = pricing.public_display == 1 || pricing.public_display === true;
@@ -2690,6 +2693,8 @@ async function editEvent(eventId) {
                         `;
                         container.appendChild(priceDiv);
                     });
+                } else {
+                    container.innerHTML = '<div class="alert alert-info small mb-0"><i class="bi bi-info-circle me-2"></i>Ingen medlemskapspriser konfigurert for dette arrangementet</div>';
                 }
             }
         } catch (pricingError) {
