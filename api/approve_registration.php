@@ -58,7 +58,7 @@ try {
     $barcode = $barcodeService->generateEAN13($checkinId, $registration['event_id']);
     
     // Determine ticket type and price - use membership plan name if available
-    $ticketType = $registration['membership_plan_name'] ?? 'Ordinær'; // Membership plan name as ticket type
+    $ticketType = $registration['membership_plan_name'] ?? 'regular'; // Membership plan name as ticket type, or 'regular' if no specific membership price
     $ticketPrice = $registration['member_ticket_price'] ?? $registration['ticket_price'] ?? 0;
     $paymentStatus = $registration['payment_status'] ?? 'pending';
     $paymentMethod = $registration['payment_method'] ?? $registration['default_payment_method'] ?? 'cash';

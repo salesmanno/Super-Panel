@@ -48,7 +48,7 @@ try {
     // Determine ticket price based on membership plan
     $ticketPrice = $event['ticket_price'];
     $membershipPlanId = null;
-    $ticketType = 'Ordinær'; // Default for non-members
+    $ticketType = 'regular'; // Default for non-members without specific membership price
     
     if (!empty($data['membership_plan_id'])) {
         // Check for membership-specific pricing
