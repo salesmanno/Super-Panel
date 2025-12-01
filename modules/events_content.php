@@ -2227,8 +2227,15 @@ async function loadCheckins(eventId) {
 }
 
 // Load check-in selector when check-in tab is shown
+document.addEventListener('shown.bs.tab', function(e) {
+    if (e.target.id === 'events-checkin-tab' || (e.target.getAttribute('data-bs-target') === '#events-checkin')) {
+        loadCheckinEventSelector();
+    }
+});
+
+// Also support old click behavior as fallback
 document.querySelector('[href="#events-checkin"]')?.addEventListener('click', function() {
-    loadCheckinEventSelector();
+    setTimeout(() => loadCheckinEventSelector(), 100);
 });
 
 // Load events results with cards layout
