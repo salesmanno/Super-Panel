@@ -81,13 +81,6 @@ try {
             id,
             event_id,
             customer_id,
-            attendee_name,
-            attendee_email,
-            attendee_phone,
-            attendee_street,
-            attendee_zip,
-            attendee_city,
-            attendee_postal,
             ticket_type,
             membership_plan_id,
             ticket_price,
@@ -101,13 +94,6 @@ try {
             created_at,
             updated_at
         ) VALUES (
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
             ?,
             ?,
             ?,
@@ -136,23 +122,10 @@ try {
         $paymentStatus = ($paymentMethod === 'cash' && isset($data['paid']) && $data['paid']) ? 'paid' : 'pending';
     }
     
-    // Normalize dynamic fields (blank-to-null for consistency)
-    $street = $data['field_street'] ?? null;
-    $zip = $data['field_zip'] ?? null;
-    $city = $data['field_city'] ?? null;
-    $postal = $data['field_postal'] ?? null;
-    
     $stmt->execute([
         $checkinId,
         $data['event_id'],
         $data['customer_id'] ?? null,
-        $attendeeName,
-        $data['attendee_email'] ?? null,
-        $data['attendee_phone'] ?? null,
-        $street,
-        $zip,
-        $city,
-        $postal,
         $ticketType,
         $membershipPlanId,
         $ticketPrice,

@@ -173,22 +173,17 @@ try {
             
             $stmt = $db->prepare("
                 INSERT INTO events_checkin 
-                (id, event_id, customer_id, attendee_name, attendee_email, attendee_phone, 
-                 ticket_price, payment_method, payment_status, checked_in, 
-                 checked_in_by, barcode, notes, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                (id, event_id, customer_id, ticket_price, payment_method, payment_status, 
+                 checked_in, checked_in_by, barcode, notes, created_at, updated_at) 
+                VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, NOW(), NOW())
             ");
             $stmt->execute([
                 $checkin_id,
                 $product_id,
                 $customer_id,
-                $customer_full_name,
-                $customer_email,
-                $customer_phone,
                 $total,
                 $payment_method,
                 $event_payment_status,
-                false, // not checked in yet
                 $admin_id,
                 $barcode,
                 $event_notes

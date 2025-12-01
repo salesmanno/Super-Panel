@@ -89,16 +89,13 @@ try {
         // Insert guest into events_checkin
         $stmt = $db->prepare("
             INSERT INTO events_checkin 
-            (id, event_id, attendee_name, attendee_email,
-             ticket_type, ticket_price, payment_status, payment_method, 
+            (id, event_id, ticket_type, ticket_price, payment_status, payment_method, 
              checked_in, checked_in_by, barcode, created_at, updated_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, NOW(), NOW())
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, NOW(), NOW())
         ");
         $stmt->execute([
             $checkin_id,
             $event_id,
-            $attendee_name,
-            $email,
             $ticket_type,
             $ticket_price,
             $payment_status,

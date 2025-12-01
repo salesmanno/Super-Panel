@@ -68,24 +68,20 @@ try {
     
     $checkinStmt = $db->prepare("
         INSERT INTO events_checkin 
-        (id, event_id, attendee_name, attendee_email, attendee_phone,
-         ticket_type, ticket_price, payment_status, payment_method, 
+        (id, event_id, ticket_type, ticket_price, payment_status, payment_method, 
          checked_in, checked_in_by, barcode, membership_plan_id, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, NOW(), NOW())
+        VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, NOW(), NOW())
     ");
     $checkinStmt->execute([
         $checkinId,
         $registration['event_id'],
-        $attendeeName,
-        $registration['email'],
-        $registration['phone'],
         $ticketType,
         $ticketPrice,
         $paymentStatus,
         $paymentMethod,
         $adminId,
         $barcode,
-        $registration['membership_plan_id']
+        $registration['membership_plan_id'] ?? null
     ]);
     
     // Log transaction if payment is completed
