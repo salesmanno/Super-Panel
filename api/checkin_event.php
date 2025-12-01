@@ -46,9 +46,9 @@ try {
     $paymentMethod = $data['payment_method'] ?? $event['default_payment_method'] ?? 'cash';
     
     // Determine ticket price based on membership plan
-    $ticketType = 'regular';
     $ticketPrice = $event['ticket_price'];
     $membershipPlanId = null;
+    $ticketType = 'Ordinær'; // Default for non-members
     
     if (!empty($data['membership_plan_id'])) {
         // Check for membership-specific pricing
@@ -63,7 +63,7 @@ try {
         
         if ($pricing) {
             $ticketPrice = $pricing['ticket_price'];
-            $ticketType = $pricing['plan_name'];
+            $ticketType = $pricing['plan_name']; // Use membership plan name as ticket type
             $membershipPlanId = $pricing['emp_id']; // Store FK reference to event_membership_plans.id (CHAR(36) UUID)
         }
     }

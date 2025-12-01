@@ -48,7 +48,7 @@ try {
     }
     
     // Determine ticket price based on membership plan
-    $ticket_type = 'walk-in';
+    $ticket_type = 'Ordinær'; // Default for walk-in/non-members
     $ticket_price = $event['ticket_price'];
     
     if ($membership_plan_id) {
@@ -63,7 +63,7 @@ try {
         
         if ($pricing) {
             $ticket_price = $pricing['ticket_price'];
-            $ticket_type = $pricing['plan_name'];
+            $ticket_type = $pricing['plan_name']; // Use membership plan name as ticket type
         }
     }
     
