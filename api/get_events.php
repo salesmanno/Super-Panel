@@ -69,25 +69,23 @@ try {
         }
     }
     
-    // Fetch membership prices for member-exclusive events
+    // Fetch ALL membership prices for events (including private/non-public ones)
     foreach ($events as &$event) {
         $event['membership_prices'] = [];
-        if ($event['is_member_exclusive']) {
-            try {
-                $priceStmt = $db->prepare("
-                    SELECT emp.ticket_price as price, mp.name as plan_name, mp.id as plan_id
-                    FROM event_membership_plans emp
-                    JOIN membership_plans mp ON emp.membership_plan_id = mp.id
-                    WHERE emp.event_id = ?
-                    ORDER BY emp.ticket_price ASC
-                ");
-                $priceStmt->execute([$event['id']]);
-                $results = $priceStmt->fetchAll(PDO::FETCH_ASSOC);
-                $event['membership_prices'] = $results ?: [];
-            } catch (Exception $e) {
-                error_log("Warning: Failed to fetch membership prices for event {$event['id']}: " . $e->getMessage());
-                $event['membership_prices'] = [];
-            }
+        try {
+            $priceStmt = $db->prepare("
+                SELECT emp.ticket_price as price, mp.name as plan_name, mp.id as plan_id, emp.public_display
+                FROM event_membership_plans emp
+                JOIN membership_plans mp ON emp.membership_plan_id = mp.id
+                WHERE emp.event_id = ?
+                ORDER BY emp.ticket_price ASC
+            ");
+            $priceStmt->execute([$event['id']]);
+            $results = $priceStmt->fetchAll(PDO::FETCH_ASSOC);
+            $event['membership_prices'] = $results ?: [];
+        } catch (Exception $e) {
+            error_log("Warning: Failed to fetch membership prices for event {$event['id']}: " . $e->getMessage());
+            $event['membership_prices'] = [];
         }
     }
     

@@ -21,9 +21,10 @@ try {
     $db->beginTransaction();
     
     try {
-        $stmt = $db->prepare("SELECT id FROM events_eventdata WHERE id = ? AND company_id = ? AND is_active = 1");
+        $stmt = $db->prepare("SELECT id, max_attendees FROM events_eventdata WHERE id = ? AND company_id = ? AND is_active = 1");
         $stmt->execute([$data['event_id'], $_SESSION['company_id']]);
-        if (!$stmt->fetch()) {
+        $eventData = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$eventData) {
             throw new Exception('Arrangement ikke funnet');
         }
         
@@ -40,6 +41,18 @@ try {
         $stmt->execute([$data['event_id'], $data['customer_id']]);
         if ($stmt->fetch()) {
             throw new Exception('Kunden er allerede påmeldt dette arrangementet');
+        }
+        
+        // Check if event has max_attendees limit and if it's reached
+        if ($eventData['max_attendees']) {
+            $countStmt = $db->prepare("SELECT COUNT(*) as total FROM event_registrations WHERE event_id = ? AND approval_status IN ('approved', 'pending')");
+            $countStmt->execute([$data['event_id']]);
+            $countResult = $countStmt->fetch(PDO::FETCH_ASSOC);
+            $currentRegistrations = intval($countResult['total'] ?? 0);
+            
+            if ($currentRegistrations >= $eventData['max_attendees']) {
+                throw new Exception('Arrangementet er fullt - maksimalt ' . $eventData['max_attendees'] . ' deltakere');
+            }
         }
         
         $registrationId = bin2hex(random_bytes(16));
