@@ -2092,8 +2092,12 @@ document.getElementById('checkin-form')?.addEventListener('submit', async functi
     const isPaying = document.getElementById('isPayingCheckbox').checked;
     const data = {
         event_id: selectedEventId,
-        attendee_name: formData.get('attendee_name'),
+        attendee_first_name: formData.get('attendee_first_name') || '',
+        attendee_last_name: formData.get('attendee_last_name') || '',
         attendee_email: formData.get('attendee_email'),
+        customer_id: formData.get('customer_id') || null,
+        registration_id: formData.get('registration_id') || null,
+        membership_plan_id: formData.get('membership_plan_id') || null,
         ticket_type: formData.get('ticket_type'),
         payment_method: isPaying ? formData.get('payment_method') : 'free',
         is_paying: isPaying,

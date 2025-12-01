@@ -20,9 +20,40 @@ try {
     }
 
     $db = getDBConnection();
+    $customerId = $data['customer_id'] ?? null;
+    $registrationId = $data['registration_id'] ?? null;
     
-    // Validate required fields
-    $attendeeName = trim(($data['attendee_first_name'] ?? '') . ' ' . ($data['attendee_last_name'] ?? ''));
+    // If registration_id provided, load registration data
+    $registrationData = null;
+    if (!empty($registrationId)) {
+        $regStmt = $db->prepare("
+            SELECT er.customer_id, er.number_of_attendees
+            FROM event_registrations er
+            WHERE er.id = ? AND er.event_id = ? AND er.company_id = ?
+        ");
+        $regStmt->execute([$registrationId, $data['event_id'], $_SESSION['company_id']]);
+        $registrationData = $regStmt->fetch(PDO::FETCH_ASSOC);
+        if ($registrationData && !$customerId) {
+            $customerId = $registrationData['customer_id'];
+        }
+    }
+    
+    // Load customer data if available
+    $customerData = null;
+    if (!empty($customerId)) {
+        $custStmt = $db->prepare("
+            SELECT first_name, last_name, email, phone FROM tenant_customers
+            WHERE id = ? AND company_id = ?
+        ");
+        $custStmt->execute([$customerId, $_SESSION['company_id']]);
+        $customerData = $custStmt->fetch(PDO::FETCH_ASSOC);
+    }
+    
+    // Validate required fields - use customer data if available
+    $firstName = $data['attendee_first_name'] ?? $customerData['first_name'] ?? '';
+    $lastName = $data['attendee_last_name'] ?? $customerData['last_name'] ?? '';
+    $attendeeName = trim($firstName . ' ' . $lastName);
+    
     if (empty($attendeeName)) {
         echo json_encode(['success' => false, 'message' => 'Fornavn og etternavn er påkrevd']);
         exit;
