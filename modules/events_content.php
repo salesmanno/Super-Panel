@@ -3246,25 +3246,18 @@ if (registrationTypeRadios.length > 0) {
     handleRegistrationTypeChange();
 }
 
-// Handle "Kun medlemmer" checkbox - gray out/hide ticket price when checked (CREATE FORM)
+// Handle "Kun medlemmer" checkbox - DO NOT disable ticket price (CREATE FORM)
+// Member-exclusive events can still have a regular price for non-members
 const memberExclusiveCheckbox = document.getElementById('memberExclusive');
 const ticketPriceContainer = document.getElementById('ticket-price-container');
 const ticketPriceInput = document.getElementById('ticket_price');
 
 if (memberExclusiveCheckbox && ticketPriceContainer && ticketPriceInput) {
     function handleMemberExclusiveChange() {
-        const isMemberOnly = memberExclusiveCheckbox.checked;
-        
-        if (isMemberOnly) {
-            // Gray out and disable the ticket price field
-            ticketPriceInput.disabled = true;
-            ticketPriceInput.classList.add('bg-light', 'text-muted');
-            ticketPriceInput.value = '0';
-        } else {
-            // Re-enable the ticket price field
-            ticketPriceInput.disabled = false;
-            ticketPriceInput.classList.remove('bg-light', 'text-muted');
-        }
+        // Keep ticket price field active regardless of member-exclusive status
+        // Membership prices are handled separately in event_membership_plans
+        ticketPriceInput.disabled = false;
+        ticketPriceInput.classList.remove('bg-light', 'text-muted');
     }
     
     memberExclusiveCheckbox.addEventListener('change', handleMemberExclusiveChange);
@@ -3273,25 +3266,18 @@ if (memberExclusiveCheckbox && ticketPriceContainer && ticketPriceInput) {
     handleMemberExclusiveChange();
 }
 
-// Handle "Kun medlemmer" checkbox - gray out/hide ticket price when checked (EDIT FORM)
+// Handle "Kun medlemmer" checkbox - DO NOT disable ticket price (EDIT FORM)
+// Member-exclusive events can still have a regular price for non-members
 const editMemberExclusiveCheckbox = document.getElementById('edit-member-exclusive');
 const editTicketPriceContainer = document.getElementById('edit-ticket-price-container');
 const editTicketPriceInput = document.getElementById('edit-ticket-price');
 
 if (editMemberExclusiveCheckbox && editTicketPriceContainer && editTicketPriceInput) {
     function handleEditMemberExclusiveChange() {
-        const isMemberOnly = editMemberExclusiveCheckbox.checked;
-        
-        if (isMemberOnly) {
-            // Gray out and disable the ticket price field
-            editTicketPriceInput.disabled = true;
-            editTicketPriceInput.classList.add('bg-light', 'text-muted');
-            editTicketPriceInput.value = '0';
-        } else {
-            // Re-enable the ticket price field
-            editTicketPriceInput.disabled = false;
-            editTicketPriceInput.classList.remove('bg-light', 'text-muted');
-        }
+        // Keep ticket price field active regardless of member-exclusive status
+        // Membership prices are handled separately in event_membership_plans
+        editTicketPriceInput.disabled = false;
+        editTicketPriceInput.classList.remove('bg-light', 'text-muted');
     }
     
     editMemberExclusiveCheckbox.addEventListener('change', handleEditMemberExclusiveChange);
