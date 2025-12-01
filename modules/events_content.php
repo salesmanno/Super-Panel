@@ -1419,6 +1419,7 @@ async function loadEvents() {
                 const isNoRegistration = event.registration_type === 'none';
                 
                 let priceDisplay = '';
+                let priceMetaItem = '';
                 
                 // Check if member-exclusive event
                 if (event.is_member_exclusive && event.membership_prices && event.membership_prices.length > 0) {
@@ -1432,16 +1433,19 @@ async function loadEvents() {
                         })
                         .join('');
                     priceDisplay = `<span class="event-price" style="display: block; padding: 8px 0;">${priceList}</span>`;
-                } else if (event.ticket_price > 0) {
+                    priceMetaItem = `<div class="event-meta-item"><i class="bi bi-tag"></i><span>Medlemspriser konfigurert</span></div>`;
+                } else if (event.ticket_price && event.ticket_price > 0) {
                     // Show price - if no registration, add "(betales ved inngang)"
                     if (isNoRegistration) {
                         priceDisplay = `<span class="event-price">${event.ticket_price} kr (betales ved inngang)</span>`;
+                        priceMetaItem = `<div class="event-meta-item"><i class="bi bi-tag"></i><span>${event.ticket_price} kr (betales ved inngang)</span></div>`;
                     } else {
                         priceDisplay = `<span class="event-price">${event.ticket_price} kr</span>`;
+                        priceMetaItem = `<div class="event-meta-item"><i class="bi bi-tag"></i><span>${event.ticket_price} kr</span></div>`;
                     }
                 } else {
-                    // For events with no price, show nothing (not "Gratis")
                     priceDisplay = '';
+                    priceMetaItem = `<div class="event-meta-item"><i class="bi bi-tag"></i><span>Gratis</span></div>`;
                 }
                 
                 const imageHtml = event.event_image_url 
@@ -1464,6 +1468,7 @@ async function loadEvents() {
                         <i class="bi bi-calendar3"></i>
                         <span>${dateStr} ${timeStr}</span>
                     </div>
+                    ${priceMetaItem}
                     <div class="event-meta-item">
                         <i class="bi bi-geo-alt"></i>
                         <span>${location}</span>
