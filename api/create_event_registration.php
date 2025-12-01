@@ -21,7 +21,7 @@ try {
     $db->beginTransaction();
     
     try {
-        $stmt = $db->prepare("SELECT id, max_attendees FROM events_eventdata WHERE id = ? AND company_id = ? AND is_active = 1");
+        $stmt = $db->prepare("SELECT id, max_attendees, is_member_exclusive FROM events_eventdata WHERE id = ? AND company_id = ? AND is_active = 1");
         $stmt->execute([$data['event_id'], $_SESSION['company_id']]);
         $eventData = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$eventData) {
@@ -32,6 +32,21 @@ try {
         $stmt->execute([$data['customer_id'], $_SESSION['company_id']]);
         if (!$stmt->fetch()) {
             throw new Exception('Kunde ikke funnet');
+        }
+        
+        // Check if event is member-only and validate customer has active membership
+        if ($eventData['is_member_exclusive']) {
+            $membershipStmt = $db->prepare("
+                SELECT id FROM tenant_memberships 
+                WHERE customer_id = ? AND company_id = ? 
+                AND (end_date IS NULL OR end_date >= CURDATE())
+                AND (start_date IS NULL OR start_date <= CURDATE())
+                LIMIT 1
+            ");
+            $membershipStmt->execute([$data['customer_id'], $_SESSION['company_id']]);
+            if (!$membershipStmt->fetch()) {
+                throw new Exception('Dette arrangementet er kun for medlemmer. Kunden har ikke aktivt medlemskap');
+            }
         }
         
         $stmt = $db->prepare("

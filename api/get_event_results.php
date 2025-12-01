@@ -49,6 +49,8 @@ try {
                 ) VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
                 ON DUPLICATE KEY UPDATE updated_at = NOW()
             ");
+            // Note: ticketprice_member and ticketprice_normal both use ticket_price from events_eventdata
+            // Membership-specific prices are stored in event_membership_plans table separately
             $createStmt->execute([
                 $event_id,
                 $company_id,
