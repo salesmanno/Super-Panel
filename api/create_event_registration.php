@@ -63,13 +63,11 @@ try {
                 event_id,
                 company_id,
                 customer_id,
-                created_by_admin,
-                created_by_staff,
                 approval_status,
                 approved_by,
                 approved_at,
                 created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
         ");
         
         $approvedBy = ($approvalStatus === 'approved') ? $_SESSION['tenant_admin_id'] : null;
@@ -80,8 +78,6 @@ try {
             $data['event_id'],
             $_SESSION['company_id'],
             $data['customer_id'],
-            $createdByAdmin,
-            $createdByStaff,
             $approvalStatus,
             $approvedBy,
             $approvedAt
