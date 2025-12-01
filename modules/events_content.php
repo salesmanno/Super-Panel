@@ -3546,32 +3546,32 @@ async function loadAllRegistrations() {
             });
             
             html += `
-                <div class="card mb-4">
-                    <div class="card-header bg-primary text-white">
+                <div class="card mb-4 border-0 shadow-sm">
+                    <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: 0;">
                         <div class="row align-items-center">
                             <div class="col">
-                                <h6 class="mb-0">
-                                    <i class="bi bi-calendar-event me-2"></i>${eventGroup.event_title}
+                                <h6 class="mb-0" style="font-weight: 600; font-size: 1rem;">
+                                    <i class="bi bi-calendar-event me-2" style="opacity: 0.9;"></i>${eventGroup.event_title}
                                 </h6>
-                                <small>${dateStr} kl. ${timeStr}</small>
+                                <small style="opacity: 0.85; margin-top: 0.25rem; display: block;">${dateStr} kl. ${timeStr}</small>
                             </div>
                             <div class="col-auto">
-                                <span class="badge bg-light text-dark">
-                                    ${eventGroup.registrations.length} påmelding${eventGroup.registrations.length !== 1 ? 'er' : ''}
+                                <span class="badge" style="background-color: rgba(255,255,255,0.25); color: white; padding: 0.5rem 0.75rem; font-weight: 500;">
+                                    <i class="bi bi-people me-1"></i>${eventGroup.registrations.length} påmelding${eventGroup.registrations.length !== 1 ? 'er' : ''}
                                 </span>
                             </div>
                         </div>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-sm table-hover mb-0">
-                            <thead class="table-light">
+                            <thead style="background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
                                 <tr>
-                                    <th>Navn</th>
-                                    <th>E-post / Telefon</th>
-                                    <th>Betalt</th>
-                                    <th>Medlemskap</th>
-                                    <th>Status</th>
-                                    <th>Handlinger</th>
+                                    <th style="padding: 12px; font-weight: 600; color: #495057;">Navn</th>
+                                    <th style="padding: 12px; font-weight: 600; color: #495057;">E-post / Telefon</th>
+                                    <th style="padding: 12px; font-weight: 600; color: #495057;">Betalt</th>
+                                    <th style="padding: 12px; font-weight: 600; color: #495057;">Medlemskap</th>
+                                    <th style="padding: 12px; font-weight: 600; color: #495057;">Status</th>
+                                    <th style="padding: 12px; font-weight: 600; color: #495057;">Handlinger</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -3608,13 +3608,13 @@ async function loadAllRegistrations() {
                     : '—';
                 
                 html += `
-                    <tr>
-                        <td><strong>${reg.first_name} ${reg.last_name}</strong></td>
-                        <td><small>${contact}</small></td>
-                        <td>${reg.has_valid_membership ? '<span class="badge bg-success"><i class="bi bi-check"></i> Ja</span>' : '<span class="badge bg-secondary">Nei</span>'}</td>
-                        <td><small>${membershipBadge}</small></td>
-                        <td>${approvalStatusBadge}</td>
-                        <td>${actionButtons}</td>
+                    <tr style="border-bottom: 1px solid #e9ecef;">
+                        <td style="padding: 12px; vertical-align: middle;"><strong style="color: #2c3e50;">${reg.first_name} ${reg.last_name}</strong></td>
+                        <td style="padding: 12px; vertical-align: middle;"><small style="color: #6c757d;">${contact}</small></td>
+                        <td style="padding: 12px; vertical-align: middle;">${reg.has_valid_membership ? '<span class="badge" style="background-color: #d4edda; color: #155724;"><i class="bi bi-check"></i> Ja</span>' : '<span class="badge" style="background-color: #e2e3e5; color: #383d41;">Nei</span>'}</td>
+                        <td style="padding: 12px; vertical-align: middle;"><small>${membershipBadge}</small></td>
+                        <td style="padding: 12px; vertical-align: middle;">${approvalStatusBadge}</td>
+                        <td style="padding: 12px; vertical-align: middle; text-align: right;">${actionButtons}</td>
                     </tr>
                 `;
             });
