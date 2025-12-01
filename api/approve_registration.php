@@ -26,11 +26,9 @@ try {
     
     // Fetch registration data
     $regStmt = $db->prepare("
-        SELECT er.*, ee.ticket_price, ee.default_payment_method, emp.ticket_price as member_ticket_price, mp.name as membership_plan_name
+        SELECT er.*, ee.ticket_price, ee.default_payment_method
         FROM event_registrations er
         JOIN events_eventdata ee ON er.event_id = ee.id
-        LEFT JOIN event_membership_plans emp ON ee.id = emp.event_id AND er.membership_plan_id = emp.membership_plan_id
-        LEFT JOIN membership_plans mp ON er.membership_plan_id = mp.id
         WHERE er.id = ? AND er.company_id = ? AND er.approval_status = 'pending'
     ");
     $regStmt->execute([$registrationId, $companyId]);
@@ -57,9 +55,9 @@ try {
     $barcodeService = new BarcodeService();
     $barcode = $barcodeService->generateEAN13($checkinId, $registration['event_id']);
     
-    // Determine ticket type and price - use membership plan name if available
-    $ticketType = $registration['membership_plan_name'] ?? 'regular'; // Membership plan name as ticket type, or 'regular' if no specific membership price
-    $ticketPrice = $registration['member_ticket_price'] ?? $registration['ticket_price'] ?? 0;
+    // Determine ticket type and price - use 'regular' by default
+    $ticketType = 'regular'; // Default ticket type for approved registrations
+    $ticketPrice = $registration['ticket_price'] ?? 0;
     $paymentStatus = $registration['payment_status'] ?? 'pending';
     $paymentMethod = $registration['payment_method'] ?? $registration['default_payment_method'] ?? 'cash';
     
@@ -81,7 +79,7 @@ try {
         $paymentMethod,
         $adminId,
         $barcode,
-        $registration['membership_plan_id'] ?? null
+        null
     ]);
     
     // Log transaction if payment is completed
@@ -105,8 +103,7 @@ try {
             'metadata' => [
                 'event_id' => $registration['event_id'],
                 'checkin_id' => $checkinId,
-                'registration_id' => $registrationId,
-                'membership_plan_id' => $registration['membership_plan_id']
+                'registration_id' => $registrationId
             ]
         ]);
     }
