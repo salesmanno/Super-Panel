@@ -581,9 +581,9 @@ try {
                                     <table class="table table-sm table-hover mb-0">
                                         <thead class="table-light">
                                             <tr>
-                                                <th>Navn</th>
+                                                <th>Billetttype</th>
                                                 <th>Innsjekket av</th>
-                                                <th>Kontakt</th>
+                                                <th>Barcode</th>
                                                 <th>Pris</th>
                                                 <th>Tid</th>
                                             </tr>
@@ -612,9 +612,8 @@ try {
                                     <table class="table table-sm table-hover mb-0">
                                         <thead class="table-light">
                                             <tr>
-                                                <th>Navn</th>
-                                                <th>Kontakt</th>
-                                                <th>Type</th>
+                                                <th>Billetttype</th>
+                                                <th>Barcode</th>
                                                 <th>Pris</th>
                                                 <th>Status</th>
                                             </tr>
@@ -2187,20 +2186,17 @@ async function loadCheckins(eventId) {
             if (result.not_checked_in && result.not_checked_in.length > 0) {
                 pendingCount.textContent = result.not_checked_in.length;
                 pendingList.innerHTML = result.not_checked_in.map(checkin => {
-                    const name = checkin.attendee_name || (checkin.first_name + ' ' + checkin.last_name);
-                    const contact = checkin.attendee_email || checkin.attendee_phone || '-';
                     const barcode = checkin.barcode || '-';
                     const paymentBadge = checkin.payment_status === 'paid' 
                         ? '<span class="badge bg-success">Betalt</span>' 
                         : '<span class="badge bg-warning">Venter</span>';
+                    const ticketType = checkin.ticket_type || 'regular';
                     
                     return `
                         <tr>
-                            <td><strong>${name}</strong></td>
-                            <td><small>${contact}</small></td>
+                            <td><strong>${ticketType}</strong></td>
                             <td><small class="font-monospace">${barcode}</small></td>
-                            <td><small>${checkin.ticket_type || '-'}</small></td>
-                            <td>${checkin.ticket_price} kr</td>
+                            <td><small>${checkin.ticket_price} kr</small></td>
                             <td>${paymentBadge}</td>
                         </tr>
                     `;

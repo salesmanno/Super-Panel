@@ -32,13 +32,11 @@ try {
     }
     
     // Get all check-ins for the event
+    // Note: attendee_name, attendee_email, attendee_phone columns were dropped - use ticket_type and customer data instead
     $stmt = $db->prepare("
         SELECT 
             c.id,
             c.customer_id,
-            c.attendee_name,
-            c.attendee_email,
-            c.attendee_phone,
             c.ticket_type,
             c.ticket_price,
             c.payment_status,
@@ -46,6 +44,8 @@ try {
             c.checked_in,
             c.check_in_time,
             c.checked_in_by,
+            c.barcode,
+            c.membership_plan_id,
             c.notes,
             c.created_at,
             tc.first_name,
