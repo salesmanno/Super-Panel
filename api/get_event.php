@@ -51,15 +51,15 @@ try {
     $stmt->execute([$event_id, $company_id]);
     $event = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    // Also fetch membership prices if it's a member-exclusive event
-    if ($event && $event['is_member_exclusive']) {
+    // Fetch ALL membership prices from event_membership_plans (not just for member-exclusive events)
+    if ($event) {
         try {
             $planStmt = $db->prepare("
-                SELECT emp.id, mp.name as plan_name, emp.ticket_price, emp.public_display
+                SELECT emp.membership_plan_id as plan_id, mp.name as plan_name, emp.ticket_price, emp.public_display
                 FROM event_membership_plans emp
                 JOIN membership_plans mp ON emp.membership_plan_id = mp.id
                 WHERE emp.event_id = ?
-                ORDER BY mp.name
+                ORDER BY emp.ticket_price ASC
             ");
             $planStmt->execute([$event_id]);
             $event['membership_prices'] = $planStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -67,8 +67,6 @@ try {
             error_log("Warning: Failed to fetch membership prices for event {$event_id}: " . $e->getMessage());
             $event['membership_prices'] = [];
         }
-    } else {
-        $event['membership_prices'] = [];
     }
     
     if ($event) {
