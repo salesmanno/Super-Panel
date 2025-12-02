@@ -735,21 +735,18 @@ try {
                         <p class="text-muted">Godkjenn eller avvis ventende bestillinger</p>
                         
                         <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
                                     <tr>
-                                        <th>Navn</th>
+                                        <th style="min-width: 250px;">Påmeldingsdata</th>
+                                        <th class="text-center" style="min-width: 100px;">Pris</th>
                                         <th>Arrangement</th>
-                                        <th>Kontakt</th>
-                                        <th>Betalt</th>
-                                        <th>Medlemskap</th>
-                                        <th>Registrert</th>
-                                        <th>Handlinger</th>
+                                        <th class="text-end" style="min-width: 160px;">Handlinger</th>
                                     </tr>
                                 </thead>
                                 <tbody id="pending-registrations-list">
                                     <tr>
-                                        <td colspan="7" class="text-center text-muted py-4">
+                                        <td colspan="4" class="text-center text-muted py-4">
                                             <div class="spinner-border spinner-border-sm me-2" role="status"></div>
                                             Laster påmeldinger...
                                         </td>
@@ -3322,7 +3319,7 @@ async function loadPendingRegistrations() {
         if (!result.success) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="text-center text-danger py-4">
+                    <td colspan="5" class="text-center text-danger py-4">
                         ${result.message || 'Feil ved lasting av påmeldinger'}
                     </td>
                 </tr>
@@ -3340,76 +3337,64 @@ async function loadPendingRegistrations() {
         
         if (result.registrations && result.registrations.length > 0) {
             tbody.innerHTML = result.registrations.map(reg => {
-                const registeredDate = new Date(reg.created_at);
-                const dateStr = registeredDate.toLocaleDateString('no-NO', { 
-                    day: 'numeric', 
-                    month: 'short', 
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-                
-                const memberBadge = reg.has_valid_membership 
-                    ? '<span class="badge bg-primary"><i class="bi bi-star"></i> Medlem</span>' 
-                    : '<span class="badge bg-secondary">Ikke medlem</span>';
-                
-                const contact = [
-                    reg.email ? `<i class="bi bi-envelope"></i> ${reg.email}` : '',
-                    reg.phone ? `<i class="bi bi-telephone"></i> ${reg.phone}` : ''
-                ].filter(Boolean).join('<br>');
-                
-                const membershipDisplay = reg.membership_plan_name
-                    ? (reg.membership_plan_image 
-                        ? `<div style="display: flex; align-items: center; gap: 6px;"><img src="${reg.membership_plan_image}" alt="${reg.membership_plan_name}" style="height: 18px; width: auto; object-fit: contain;" title="${reg.membership_plan_name}"><small>${reg.membership_ticket_price} kr</small></div>`
-                        : `<small>${reg.membership_plan_name} (${reg.membership_ticket_price} kr)</small>`)
-                    : '<small>Ordinær pris</small>';
-                
-                // Build dynamic field display
-                let fieldsHtml = '';
-                if (reg.required_fields && reg.required_fields.length > 0) {
-                    const fieldValues = {
-                        'fornavn': reg.first_name,
-                        'first_name': reg.first_name,
-                        'etternavn': reg.last_name,
-                        'last_name': reg.last_name,
-                        'email': reg.email,
-                        'telefon': reg.phone,
-                        'phone': reg.phone
-                    };
-                    
-                    reg.required_fields.forEach(field => {
-                        const value = fieldValues[field.field_name] || '-';
-                        const icon = field.field_name.includes('email') ? 'envelope' 
-                                   : field.field_name.includes('telefon') || field.field_name.includes('phone') ? 'telephone'
-                                   : field.field_name.includes('adresse') || field.field_name.includes('street') ? 'geo-alt'
-                                   : field.field_name.includes('alder') || field.field_name.includes('age') ? 'calendar'
-                                   : 'check';
-                        fieldsHtml += `<div class="small"><i class="bi bi-${icon} me-1"></i>${value}</div>`;
-                    });
+                // Build dynamic fields display (max 4)
+                let dynamicFieldsHtml = '';
+                if (reg.dynamic_fields && reg.dynamic_fields.length > 0) {
+                    dynamicFieldsHtml = reg.dynamic_fields.map(field => {
+                        const value = field.value || '-';
+                        return `
+                            <div class="d-inline-block me-2 mb-1">
+                                <span class="badge bg-light text-dark border" style="font-weight: 400;">
+                                    <small class="text-muted">${field.label}:</small> 
+                                    <span class="editable-field" data-reg-id="${reg.id}" data-field="${field.field_name}">${value}</span>
+                                </span>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    // Fallback to basic info
+                    dynamicFieldsHtml = `
+                        <div class="d-inline-block me-2 mb-1">
+                            <span class="badge bg-light text-dark border" style="font-weight: 400;">
+                                <small class="text-muted">Navn:</small> 
+                                <span>${reg.first_name} ${reg.last_name}</span>
+                            </span>
+                        </div>
+                        <div class="d-inline-block me-2 mb-1">
+                            <span class="badge bg-light text-dark border" style="font-weight: 400;">
+                                <small class="text-muted">E-post:</small> 
+                                <span>${reg.email || '-'}</span>
+                            </span>
+                        </div>
+                    `;
                 }
                 
-                const paymentBadge = reg.payment_status === 'completed' 
-                    ? '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Betalt</span>'
-                    : '<span class="badge bg-warning"><i class="bi bi-hourglass"></i> Venter</span>';
+                // Price with membership indicator
+                const priceInfo = reg.price_info || {};
+                const isMember = priceInfo.is_member;
+                const displayPrice = priceInfo.display_price || 0;
+                const memberIcon = isMember ? '✅' : '❌';
+                const priceHtml = `
+                    <span class="fw-bold" style="font-size: 1rem;">
+                        ${memberIcon} ${displayPrice} kr
+                    </span>
+                    ${isMember && priceInfo.member_plan ? `<br><small class="text-muted">${priceInfo.member_plan}</small>` : ''}
+                `;
                 
                 return `
-                    <tr>
-                        <td><strong>${reg.first_name} ${reg.last_name}</strong></td>
+                    <tr data-registration-id="${reg.id}">
+                        <td style="min-width: 250px;">${dynamicFieldsHtml}</td>
+                        <td class="text-center" style="min-width: 100px;">${priceHtml}</td>
                         <td>
-                            <div>${reg.event_title}</div>
-                            <small class="text-muted">${reg.start_date} ${reg.start_time}</small>
+                            <div><strong>${reg.event_title}</strong></div>
+                            <small class="text-muted">${reg.start_date} ${reg.start_time || ''}</small>
                         </td>
-                        <td><small>${contact}</small></td>
-                        <td>${paymentBadge}</td>
-                        <td>${membershipDisplay}</td>
-                        <td>${memberBadge}</td>
-                        <td><small>${dateStr}</small></td>
-                        <td>
-                            <button class="btn btn-sm btn-success me-1" onclick="approveRegistration('${reg.id}')" title="Godkjenn">
-                                <i class="bi bi-check-circle"></i>
+                        <td class="text-end" style="min-width: 160px;">
+                            <button class="btn btn-sm btn-success me-1" onclick="approveRegistrationWithReason('${reg.id}')" title="Godkjenn">
+                                <i class="bi bi-check-circle me-1"></i>Godkjenn
                             </button>
-                            <button class="btn btn-sm btn-danger" onclick="rejectRegistration('${reg.id}')" title="Avvis">
-                                <i class="bi bi-x-circle"></i>
+                            <button class="btn btn-sm btn-danger" onclick="rejectRegistrationWithReason('${reg.id}')" title="Avvis">
+                                <i class="bi bi-x-circle me-1"></i>Avvis
                             </button>
                         </td>
                     </tr>
@@ -3418,7 +3403,7 @@ async function loadPendingRegistrations() {
         } else {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="text-center text-muted py-4">
+                    <td colspan="4" class="text-center text-muted py-4">
                         <i class="bi bi-check-circle fs-1 d-block mb-2"></i>
                         Ingen ventende påmeldinger
                     </td>
@@ -3430,7 +3415,7 @@ async function loadPendingRegistrations() {
         console.error('Error loading pending registrations:', error);
         document.getElementById('pending-registrations-list').innerHTML = `
             <tr>
-                <td colspan="7" class="text-center text-danger py-4">
+                <td colspan="4" class="text-center text-danger py-4">
                     Feil ved lasting av påmeldinger
                 </td>
             </tr>
@@ -3438,9 +3423,11 @@ async function loadPendingRegistrations() {
     }
 }
 
-async function approveRegistration(registrationId) {
-    if (!confirm('Er du sikker på at du vil godkjenne denne påmeldingen?')) {
-        return;
+async function approveRegistrationWithReason(registrationId) {
+    const approvalReason = prompt('Årsak til godkjenning (valgfritt, trykk OK for å fortsette):');
+    
+    if (approvalReason === null) {
+        return; // User cancelled
     }
     
     try {
@@ -3449,13 +3436,16 @@ async function approveRegistration(registrationId) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ registration_id: registrationId })
+            body: JSON.stringify({ 
+                registration_id: registrationId,
+                approval_reason: approvalReason || 'Manuell godkjenning'
+            })
         });
         
         const result = await response.json();
         
         if (result.success) {
-            toast.quickSuccess('Påmelding', 'Påmelding godkjent! Innsjekking opprettet med barcode.');
+            toast.quickSuccess('Påmelding godkjent', `Innsjekking opprettet. Billettpris: ${result.ticket_price} kr`);
             // Refresh both views
             setTimeout(() => {
                 loadPendingRegistrations();
@@ -3470,11 +3460,16 @@ async function approveRegistration(registrationId) {
     }
 }
 
-async function rejectRegistration(registrationId) {
-    const reason = prompt('Årsak til avvisning (valgfritt):');
+async function rejectRegistrationWithReason(registrationId) {
+    const rejectionReason = prompt('Årsak til avvisning (påkrevd):');
     
-    if (reason === null) {
+    if (rejectionReason === null) {
         return; // User cancelled
+    }
+    
+    if (!rejectionReason.trim()) {
+        toast.quickError('Mangler årsak', 'Du må oppgi en årsak for avvisning');
+        return;
     }
     
     try {
@@ -3485,14 +3480,14 @@ async function rejectRegistration(registrationId) {
             },
             body: JSON.stringify({ 
                 registration_id: registrationId,
-                reason: reason || null
+                rejection_reason: rejectionReason
             })
         });
         
         const result = await response.json();
         
         if (result.success) {
-            toast.quickSuccess('Påmelding', 'Påmelding avvist!');
+            toast.quickSuccess('Påmelding avvist', 'Påmeldingen er nå avvist.');
             // Refresh both views
             setTimeout(() => {
                 loadPendingRegistrations();
@@ -3505,6 +3500,15 @@ async function rejectRegistration(registrationId) {
         console.error('Error rejecting registration:', error);
         toast.quickError('Feil', 'Feil ved avvisning av påmelding');
     }
+}
+
+// Legacy functions for backward compatibility
+async function approveRegistration(registrationId) {
+    return approveRegistrationWithReason(registrationId);
+}
+
+async function rejectRegistration(registrationId) {
+    return rejectRegistrationWithReason(registrationId);
 }
 
 // Load pending registrations when tab is initialized
