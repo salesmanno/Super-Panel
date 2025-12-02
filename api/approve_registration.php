@@ -26,12 +26,17 @@ try {
     $approvalReason = $data['approval_reason'] ?? 'manual approval';
     
     // Fetch registration data with customer info (base data)
+    // Note: event_registrations only has: id, event_id, company_id, customer_id, approval_status, approved_by, approved_at, created_at
+    // Membership info comes from membership_members table
     $regStmt = $db->prepare("
-        SELECT er.*, ee.ticket_price AS event_ticket_price, ee.default_payment_method,
-               c.first_name, c.last_name, c.email, c.phone, c.is_member, c.membership_plan_id AS customer_membership_plan_id
+        SELECT er.id, er.event_id, er.customer_id, er.approval_status, er.created_at,
+               ee.ticket_price AS event_ticket_price, ee.default_payment_method,
+               c.first_name, c.last_name, c.email, c.phone, c.is_member,
+               mm.membership_plan_id AS customer_membership_plan_id
         FROM event_registrations er
         JOIN events_eventdata ee ON er.event_id = ee.id
         JOIN tenant_customers c ON er.customer_id = c.id
+        LEFT JOIN membership_members mm ON mm.customer_id = c.id AND mm.company_id = er.company_id AND mm.status = 'active'
         WHERE er.id = ? AND er.company_id = ? AND er.approval_status = 'pending'
     ");
     $regStmt->execute([$registrationId, $companyId]);
@@ -84,8 +89,10 @@ try {
             ? floatval($membershipPriceInfo['ticket_price'])
             : floatval($registration['event_ticket_price'] ?? 0);
         
-        $paymentStatus = $registration['payment_status'] ?? 'pending';
-        $paymentMethod = $registration['payment_method'] ?? $registration['default_payment_method'] ?? 'cash';
+        // Payment status and method - registration table no longer has these columns
+        // Default to 'pending' for payment_status (will be updated when actually paid)
+        $paymentStatus = 'pending';
+        $paymentMethod = $registration['default_payment_method'] ?? 'cash';
         $membershipPlanId = $isMember ? $membershipPriceInfo['membership_plan_id'] : null;
         
         // Insert into events_checkin with checked_in=0 (will be checked in later)

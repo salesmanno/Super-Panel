@@ -37,7 +37,7 @@ try {
         FROM event_registrations r
         INNER JOIN events_eventdata e ON r.event_id = e.id
         INNER JOIN tenant_customers c ON r.customer_id = c.id
-        LEFT JOIN membership_members mm ON mm.customer_id = c.id AND mm.status = 'active'
+        LEFT JOIN membership_members mm ON mm.customer_id = c.id AND mm.company_id = r.company_id AND mm.status = 'active'
         WHERE r.company_id = ?
         AND r.approval_status = 'pending'
         ORDER BY r.created_at DESC

@@ -38,7 +38,7 @@ try {
         FROM event_registrations r
         INNER JOIN events_eventdata e ON r.event_id = e.id
         INNER JOIN tenant_customers c ON r.customer_id = c.id
-        LEFT JOIN membership_members mm ON mm.customer_id = c.id AND mm.status = 'active'
+        LEFT JOIN membership_members mm ON mm.customer_id = c.id AND mm.company_id = r.company_id AND mm.status = 'active'
         LEFT JOIN tenant_admins approver ON r.approved_by = approver.id
         LEFT JOIN tenant_staff approver_staff ON approver.tenant_staff_id = approver_staff.id
         WHERE r.company_id = ? AND r.approval_status != 'pending'

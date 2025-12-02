@@ -182,7 +182,7 @@ try {
             $data['age_limit'] ?? null,
             $data['is_member_exclusive'] ?? 0,
             $data['ticket_price'] ?? 0,
-            $data['cost_price'] ?? 0,
+            isset($data['cost_price']) && $data['cost_price'] !== '' ? $data['cost_price'] : null,
             $data['event_image_url'] ?? null,
             $_SESSION['tenant_admin_id'],
             $defaultPaymentMethod,

@@ -3575,8 +3575,8 @@ async function loadAllRegistrations() {
             return;
         }
         
-        // Build HTML for all registrations grouped by event
-        let html = '';
+        // Build HTML for all registrations grouped by event with collapsible accordion
+        let html = '<div class="accordion" id="registrationsAccordion">';
         
         result.grouped_by_event.forEach((eventGroup, index) => {
             const eventDate = new Date(eventGroup.start_date + ' ' + eventGroup.start_time);
@@ -3590,89 +3590,112 @@ async function loadAllRegistrations() {
                 minute: '2-digit'
             });
             
+            const collapseId = `collapse-${eventGroup.event_id}`;
+            const isFirst = index === 0;
+            
+            // Status badges for header
+            const approvedCount = eventGroup.approved_count || 0;
+            const rejectedCount = eventGroup.rejected_count || 0;
+            const totalCount = eventGroup.registrations.length;
+            
             html += `
-                <div class="card mb-4 border-0 shadow-sm">
-                    <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: 0;">
-                        <div class="row align-items-center">
-                            <div class="col">
-                                <h6 class="mb-0" style="font-weight: 600; font-size: 1rem;">
-                                    <i class="bi bi-calendar-event me-2" style="opacity: 0.9;"></i>${eventGroup.event_title}
-                                </h6>
-                                <small style="opacity: 0.85; margin-top: 0.25rem; display: block;">${dateStr} kl. ${timeStr}</small>
+                <div class="accordion-item border-0 mb-2 shadow-sm" style="border-radius: 8px; overflow: hidden;">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button ${isFirst ? '' : 'collapsed'}" type="button" 
+                                data-bs-toggle="collapse" data-bs-target="#${collapseId}" 
+                                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem 1.25rem;">
+                            <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                <div>
+                                    <span style="font-weight: 600; font-size: 1rem;">
+                                        <i class="bi bi-calendar-event me-2" style="opacity: 0.9;"></i>${eventGroup.event_title}
+                                    </span>
+                                    <small style="opacity: 0.85; margin-left: 1rem;">${dateStr} kl. ${timeStr}</small>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <span class="badge" style="background-color: rgba(255,255,255,0.25); color: white;">
+                                        <i class="bi bi-people me-1"></i>${totalCount}
+                                    </span>
+                                    ${approvedCount > 0 ? `<span class="badge bg-success">${approvedCount} godkjent</span>` : ''}
+                                    ${rejectedCount > 0 ? `<span class="badge bg-danger">${rejectedCount} avvist</span>` : ''}
+                                </div>
                             </div>
-                            <div class="col-auto">
-                                <span class="badge" style="background-color: rgba(255,255,255,0.25); color: white; padding: 0.5rem 0.75rem; font-weight: 500;">
-                                    <i class="bi bi-people me-1"></i>${eventGroup.registrations.length} påmelding${eventGroup.registrations.length !== 1 ? 'er' : ''}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover mb-0">
-                            <thead style="background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
-                                <tr>
-                                    <th style="padding: 12px; font-weight: 600; color: #495057;">Navn</th>
-                                    <th style="padding: 12px; font-weight: 600; color: #495057;">E-post / Telefon</th>
-                                    <th style="padding: 12px; font-weight: 600; color: #495057;">Betalt</th>
-                                    <th style="padding: 12px; font-weight: 600; color: #495057;">Medlemskap</th>
-                                    <th style="padding: 12px; font-weight: 600; color: #495057;">Status</th>
-                                    <th style="padding: 12px; font-weight: 600; color: #495057;">Handlinger</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                        </button>
+                    </h2>
+                    <div id="${collapseId}" class="accordion-collapse collapse ${isFirst ? 'show' : ''}" 
+                         data-bs-parent="#registrationsAccordion">
+                        <div class="accordion-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead style="background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+                                        <tr>
+                                            <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Navn</th>
+                                            <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Kontakt</th>
+                                            <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Medlem</th>
+                                            <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
             `;
             
             eventGroup.registrations.forEach(reg => {
-                const createdDate = new Date(reg.created_at);
-                const createdStr = createdDate.toLocaleDateString('no-NO', { 
-                    day: 'numeric', 
-                    month: 'short', 
-                    year: 'numeric'
-                });
-                
                 const approvalStatusBadge = reg.approval_status === 'approved' 
                     ? '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Godkjent</span>'
                     : reg.approval_status === 'rejected'
                     ? '<span class="badge bg-danger"><i class="bi bi-x-circle"></i> Avvist</span>'
                     : '<span class="badge bg-warning"><i class="bi bi-hourglass-split"></i> Venter</span>';
                 
-                const contact = [
-                    reg.email ? `<i class="bi bi-envelope"></i> ${reg.email}` : '',
-                    reg.phone ? `<i class="bi bi-telephone"></i> ${reg.phone}` : ''
-                ].filter(Boolean).join('<br>');
-                
-                const membershipBadge = reg.membership_plan_name && reg.membership_ticket_price
-                    ? (reg.membership_plan_image
-                        ? `<div style="display: flex; align-items: center; gap: 8px;"><img src="${reg.membership_plan_image}" alt="${reg.membership_plan_name}" style="height: 20px; width: auto; object-fit: contain;" title="${reg.membership_plan_name}"><small>${reg.membership_ticket_price} kr</small></div>`
-                        : `<small>${reg.membership_plan_name} • ${reg.membership_ticket_price} kr</small>`)
-                    : '<span class="badge bg-secondary">Ordinær pris</span>';
-                
-                const actionButtons = reg.approval_status === 'pending' 
-                    ? `<button class="btn btn-sm btn-success me-2" onclick="approveRegistration('${reg.id}')"><i class="bi bi-check"></i> Godkjenn</button>
-                       <button class="btn btn-sm btn-danger" onclick="rejectRegistration('${reg.id}')"><i class="bi bi-x"></i> Avvis</button>`
-                    : '—';
+                const contact = reg.email || reg.phone || '-';
+                const memberBadge = reg.has_valid_membership 
+                    ? '<span class="badge bg-success-subtle text-success"><i class="bi bi-star-fill"></i></span>' 
+                    : '<span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-dash"></i></span>';
                 
                 html += `
                     <tr style="border-bottom: 1px solid #e9ecef;">
-                        <td style="padding: 12px; vertical-align: middle;"><strong style="color: #2c3e50;">${reg.first_name} ${reg.last_name}</strong></td>
-                        <td style="padding: 12px; vertical-align: middle;"><small style="color: #6c757d;">${contact}</small></td>
-                        <td style="padding: 12px; vertical-align: middle;">${reg.has_valid_membership ? '<span class="badge" style="background-color: #d4edda; color: #155724;"><i class="bi bi-check"></i> Ja</span>' : '<span class="badge" style="background-color: #e2e3e5; color: #383d41;">Nei</span>'}</td>
-                        <td style="padding: 12px; vertical-align: middle;"><small>${membershipBadge}</small></td>
-                        <td style="padding: 12px; vertical-align: middle;">${approvalStatusBadge}</td>
-                        <td style="padding: 12px; vertical-align: middle; text-align: right;">${actionButtons}</td>
+                        <td style="padding: 10px 12px; vertical-align: middle;">
+                            <strong style="color: #2c3e50; font-size: 0.9rem;">${reg.first_name} ${reg.last_name}</strong>
+                        </td>
+                        <td style="padding: 10px 12px; vertical-align: middle;">
+                            <small style="color: #6c757d;">${contact}</small>
+                        </td>
+                        <td style="padding: 10px 12px; vertical-align: middle; text-align: center;">
+                            ${memberBadge}
+                        </td>
+                        <td style="padding: 10px 12px; vertical-align: middle;">
+                            ${approvalStatusBadge}
+                        </td>
                     </tr>
                 `;
             });
             
             html += `
-                            </tbody>
-                        </table>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
         });
         
-        container.innerHTML = html;
+        html += '</div>';
+        
+        // Add expand/collapse all buttons
+        const controlsHtml = `
+            <div class="mb-3 d-flex gap-2">
+                <button class="btn btn-sm btn-outline-secondary" onclick="expandAllRegistrations()">
+                    <i class="bi bi-arrows-expand me-1"></i>Utvid alle
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="collapseAllRegistrations()">
+                    <i class="bi bi-arrows-collapse me-1"></i>Skjul alle
+                </button>
+                <span class="ms-auto text-muted small align-self-center">
+                    ${result.total_registrations} påmeldinger totalt 
+                    (${result.total_approved} godkjent, ${result.total_rejected} avvist)
+                </span>
+            </div>
+        `;
+        
+        container.innerHTML = controlsHtml + html;
         
     } catch (error) {
         console.error('Error loading all registrations:', error);
@@ -3683,6 +3706,21 @@ async function loadAllRegistrations() {
             </div>
         `;
     }
+}
+
+// Expand/collapse all registrations accordion
+function expandAllRegistrations() {
+    document.querySelectorAll('#registrationsAccordion .accordion-collapse').forEach(collapse => {
+        const bsCollapse = new bootstrap.Collapse(collapse, { toggle: false });
+        bsCollapse.show();
+    });
+}
+
+function collapseAllRegistrations() {
+    document.querySelectorAll('#registrationsAccordion .accordion-collapse').forEach(collapse => {
+        const bsCollapse = new bootstrap.Collapse(collapse, { toggle: false });
+        bsCollapse.hide();
+    });
 }
 
 </script>
