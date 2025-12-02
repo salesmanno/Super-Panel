@@ -40,7 +40,7 @@ try {
         INNER JOIN tenant_customers c ON r.customer_id = c.id
         LEFT JOIN tenant_admins approver ON r.approved_by = approver.id
         LEFT JOIN tenant_staff approver_staff ON approver.tenant_staff_id = approver_staff.id
-        WHERE r.company_id = ?
+        WHERE r.company_id = ? AND r.approval_status != 'pending'
         ORDER BY e.title ASC, r.created_at DESC
     ");
     
