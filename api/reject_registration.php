@@ -18,6 +18,10 @@ try {
     }
     
     $db = getDBConnection();
+    $adminId = $_SESSION['tenant_admin_id'];
+    $companyId = $_SESSION['company_id'];
+    $registrationId = $data['registration_id'];
+    $rejectionReason = $data['rejection_reason'] ?? $data['reason'] ?? null;
     
     $stmt = $db->prepare("
         UPDATE event_registrations
@@ -25,23 +29,24 @@ try {
             approval_status = 'rejected',
             rejected_by = ?,
             rejected_at = NOW(),
-            approval_reason = ?
+            rejection_reason = ?
         WHERE id = ?
         AND company_id = ?
         AND approval_status = 'pending'
     ");
     
     $stmt->execute([
-        $_SESSION['tenant_admin_id'],
-        $data['reason'] ?? null,
-        $data['registration_id'],
-        $_SESSION['company_id']
+        $adminId,
+        $rejectionReason,
+        $registrationId,
+        $companyId
     ]);
     
     if ($stmt->rowCount() > 0) {
         echo json_encode([
             'success' => true,
-            'message' => 'Påmelding avvist'
+            'message' => 'Påmelding avvist',
+            'rejection_reason' => $rejectionReason
         ]);
     } else {
         echo json_encode([
