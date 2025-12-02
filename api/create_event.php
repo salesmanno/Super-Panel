@@ -116,67 +116,50 @@ try {
         
         $memberverification = (isset($data['memberverification']) && $data['memberverification']) ? 1 : 0;
         
+        // default_payment_method is always 'cash'
+        $defaultPaymentMethod = 'cash';
+        
+        // INSERT order matches actual table schema:
+        // id, company_id, title, description, start_date, start_time, end_date, end_time,
+        // venue_name, event_address, event_city, event_postal, max_attendees, registration_deadline,
+        // min_attendees, age_limit, is_member_exclusive, ticket_price, cost_price, event_image_url,
+        // is_active, created_by, created_at, updated_at, default_payment_method, payment_timing,
+        // registration_type, payment_methods_json, memberverification
         $stmt = $db->prepare("
             INSERT INTO events_eventdata (
                 id,
                 company_id,
                 title,
                 description,
-                max_attendees,
-                min_attendees,
-                registration_deadline,
-                age_limit,
-                is_member_exclusive,
+                start_date,
+                start_time,
+                end_date,
+                end_time,
+                venue_name,
                 event_address,
                 event_city,
                 event_postal,
-                venue_name,
-                start_time,
-                start_date,
-                end_time,
-                end_date,
-                event_image_url,
+                max_attendees,
+                registration_deadline,
+                min_attendees,
+                age_limit,
+                is_member_exclusive,
                 ticket_price,
-                
                 cost_price,
-                registration_type,
-                payment_timing,
-                payment_methods_json,
-                memberverification,
+                event_image_url,
                 is_active,
                 created_by,
                 created_at,
-                updated_at
+                updated_at,
+                default_payment_method,
+                payment_timing,
+                registration_type,
+                payment_methods_json,
+                memberverification
             ) VALUES (
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                1,
-                ?,
-                NOW(),
-                NOW()
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                1, ?, NOW(), NOW(), ?, ?, ?, ?, ?
             )
         ");
         
@@ -185,33 +168,29 @@ try {
             $_SESSION['company_id'],
             $data['title'],
             $data['description'] ?? null,
-            $data['max_attendees'] ?? null,
-            $data['min_attendees'] ?? null,
-            $data['registration_deadline'] ?? null,
-            $data['age_limit'] ?? null,
-            $data['is_member_exclusive'] ?? 0,
+            $data['start_date'],
+            $data['start_time'],
+            $data['end_date'] ?? null,
+            $data['end_time'] ?? null,
+            $data['venue_name'] ?? null,
             $data['event_address'] ?? null,
             $data['event_city'] ?? null,
             $data['event_postal'] ?? null,
-            $data['venue_name'] ?? null,
-            $data['start_time'],
-            $data['start_date'],
-            $data['end_time'] ?? null,
-            $data['end_date'] ?? null,
-            $data['event_image_url'] ?? null,
+            $data['max_attendees'] ?? null,
+            $data['registration_deadline'] ?? null,
+            $data['min_attendees'] ?? null,
+            $data['age_limit'] ?? null,
+            $data['is_member_exclusive'] ?? 0,
             $data['ticket_price'] ?? 0,
             $data['cost_price'] ?? 0,
-            $registrationType,
+            $data['event_image_url'] ?? null,
+            $_SESSION['tenant_admin_id'],
+            $defaultPaymentMethod,
             $paymentTiming,
+            $registrationType,
             $paymentMethodsJson,
-            $memberverification,
-            $_SESSION['tenant_admin_id']
+            $memberverification
         ]);
-        
-        // 3b. Save default payment method (first of the array, always cash)
-        $defaultPaymentMethod = $paymentMethodsArray[0];
-        $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = ? WHERE id = ?");
-        $stmt->execute([$defaultPaymentMethod, $eventId]);
         
         // 4. Save membership pricing if provided (skip for 'none' type)
         if ($registrationType !== 'none' && isset($data['membership_pricing']) && is_array($data['membership_pricing'])) {
