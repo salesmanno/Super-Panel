@@ -47,6 +47,18 @@ try {
     $stmt->execute([$_SESSION['company_id']]);
     $registrations = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    // Count approved registrations for summary
+    $approvedCount = 0;
+    $rejectedCount = 0;
+    
+    foreach ($registrations as $reg) {
+        if ($reg['approval_status'] === 'approved') {
+            $approvedCount++;
+        } elseif ($reg['approval_status'] === 'rejected') {
+            $rejectedCount++;
+        }
+    }
+    
     // Group by arrangement
     $groupedByEvent = [];
     foreach ($registrations as $reg) {
@@ -57,8 +69,15 @@ try {
                 'event_title' => $reg['event_title'],
                 'start_date' => $reg['start_date'],
                 'start_time' => $reg['start_time'],
+                'approved_count' => 0,
+                'rejected_count' => 0,
                 'registrations' => []
             ];
+        }
+        if ($reg['approval_status'] === 'approved') {
+            $groupedByEvent[$eventKey]['approved_count']++;
+        } elseif ($reg['approval_status'] === 'rejected') {
+            $groupedByEvent[$eventKey]['rejected_count']++;
         }
         $groupedByEvent[$eventKey]['registrations'][] = $reg;
     }
@@ -66,6 +85,8 @@ try {
     echo json_encode([
         'success' => true,
         'total_registrations' => count($registrations),
+        'total_approved' => $approvedCount,
+        'total_rejected' => $rejectedCount,
         'grouped_by_event' => array_values($groupedByEvent)
     ]);
     

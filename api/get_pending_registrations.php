@@ -28,6 +28,7 @@ try {
             c.email,
             c.phone,
             c.is_member AS has_valid_membership,
+            c.membership_plan_id AS customer_membership_plan_id,
             r.created_at,
             r.approval_status,
             e.title AS event_title,
@@ -45,7 +46,7 @@ try {
     $stmt->execute([$companyId]);
     $registrations = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Get membership prices for all events
+    // Get membership prices for all events, indexed by event_id AND membership_plan_id
     $membershipPrices = [];
     $mpStmt = $db->prepare("
         SELECT emp.event_id, emp.membership_plan_id, emp.ticket_price, mp.plan_name
@@ -54,10 +55,8 @@ try {
     ");
     $mpStmt->execute();
     foreach ($mpStmt->fetchAll(PDO::FETCH_ASSOC) as $mp) {
-        if (!isset($membershipPrices[$mp['event_id']])) {
-            $membershipPrices[$mp['event_id']] = [];
-        }
-        $membershipPrices[$mp['event_id']][] = $mp;
+        $key = $mp['event_id'] . '_' . $mp['membership_plan_id'];
+        $membershipPrices[$key] = $mp;
     }
     
     // Get registration fields for each event (max 4)
@@ -97,24 +96,26 @@ try {
         }
         $reg['dynamic_fields'] = $dynamicFields;
         
-        // Calculate price based on membership
+        // Calculate price based on membership - match customer's specific plan to event's membership pricing
         $regularPrice = floatval($reg['regular_price'] ?? 0);
         $memberPrice = null;
         $memberPlanName = null;
+        $hasValidMemberPrice = false;
         
-        if ($reg['has_valid_membership'] && isset($membershipPrices[$reg['event_id']])) {
-            $mp = $membershipPrices[$reg['event_id']][0] ?? null;
-            if ($mp) {
+        // Only check membership price if customer is a member AND has a membership plan
+        if ($reg['has_valid_membership'] && $reg['customer_membership_plan_id']) {
+            $priceKey = $reg['event_id'] . '_' . $reg['customer_membership_plan_id'];
+            if (isset($membershipPrices[$priceKey])) {
+                $mp = $membershipPrices[$priceKey];
                 $memberPrice = floatval($mp['ticket_price']);
                 $memberPlanName = $mp['plan_name'];
+                $hasValidMemberPrice = true;
             }
         }
         
         $reg['price_info'] = [
-            'is_member' => (bool)$reg['has_valid_membership'],
-            'display_price' => ($reg['has_valid_membership'] && $memberPrice !== null) 
-                ? $memberPrice 
-                : $regularPrice,
+            'is_member' => $hasValidMemberPrice,
+            'display_price' => $hasValidMemberPrice ? $memberPrice : $regularPrice,
             'regular_price' => $regularPrice,
             'member_price' => $memberPrice,
             'member_plan' => $memberPlanName

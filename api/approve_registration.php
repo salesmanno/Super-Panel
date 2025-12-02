@@ -25,17 +25,13 @@ try {
     $adminId = $_SESSION['tenant_admin_id'];
     $approvalReason = $data['approval_reason'] ?? 'manual approval';
     
-    // Fetch registration data with customer info and membership pricing
+    // Fetch registration data with customer info (base data)
     $regStmt = $db->prepare("
         SELECT er.*, ee.ticket_price AS event_ticket_price, ee.default_payment_method,
-               c.first_name, c.last_name, c.email, c.phone, c.is_member,
-               emp.ticket_price AS membership_ticket_price, emp.membership_plan_id,
-               mp.plan_name AS membership_plan_name
+               c.first_name, c.last_name, c.email, c.phone, c.is_member, c.membership_plan_id AS customer_membership_plan_id
         FROM event_registrations er
         JOIN events_eventdata ee ON er.event_id = ee.id
         JOIN tenant_customers c ON er.customer_id = c.id
-        LEFT JOIN event_membership_plans emp ON ee.id = emp.event_id
-        LEFT JOIN membership_plans mp ON emp.membership_plan_id = mp.id AND c.is_member = 1
         WHERE er.id = ? AND er.company_id = ? AND er.approval_status = 'pending'
     ");
     $regStmt->execute([$registrationId, $companyId]);
@@ -44,6 +40,20 @@ try {
     if (!$registration) {
         echo json_encode(['success' => false, 'message' => 'Fant ikke påmelding eller allerede behandlet']);
         exit;
+    }
+    
+    // Determine membership pricing - only if customer is a member AND has a valid membership plan
+    $membershipPriceInfo = null;
+    if ($registration['is_member'] && $registration['customer_membership_plan_id']) {
+        // Check if this event has a special price for the customer's membership plan
+        $mpStmt = $db->prepare("
+            SELECT emp.ticket_price, emp.membership_plan_id, mp.plan_name
+            FROM event_membership_plans emp
+            JOIN membership_plans mp ON emp.membership_plan_id = mp.id
+            WHERE emp.event_id = ? AND emp.membership_plan_id = ?
+        ");
+        $mpStmt->execute([$registration['event_id'], $registration['customer_membership_plan_id']]);
+        $membershipPriceInfo = $mpStmt->fetch(PDO::FETCH_ASSOC);
     }
     
     $db->beginTransaction();
@@ -67,15 +77,16 @@ try {
         $barcode = $barcodeService->generateEAN13($checkinId, $registration['event_id']);
         
         // Determine ticket type and price based on membership
-        $isMember = $registration['is_member'] && $registration['membership_plan_id'];
-        $ticketType = $isMember ? ($registration['membership_plan_name'] ?? 'member') : 'regular';
+        // Only use membership price if customer is a member AND event has pricing for their specific plan
+        $isMember = $registration['is_member'] && $membershipPriceInfo !== null;
+        $ticketType = $isMember ? ($membershipPriceInfo['plan_name'] ?? 'member') : 'regular';
         $ticketPrice = $isMember 
-            ? ($registration['membership_ticket_price'] ?? $registration['event_ticket_price'] ?? 0)
-            : ($registration['event_ticket_price'] ?? 0);
+            ? floatval($membershipPriceInfo['ticket_price'])
+            : floatval($registration['event_ticket_price'] ?? 0);
         
         $paymentStatus = $registration['payment_status'] ?? 'pending';
         $paymentMethod = $registration['payment_method'] ?? $registration['default_payment_method'] ?? 'cash';
-        $membershipPlanId = $isMember ? $registration['membership_plan_id'] : null;
+        $membershipPlanId = $isMember ? $membershipPriceInfo['membership_plan_id'] : null;
         
         // Insert into events_checkin with checked_in=0 (will be checked in later)
         $checkinStmt = $db->prepare("
