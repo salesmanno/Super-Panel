@@ -44,6 +44,7 @@ try {
         UPDATE event_registrations
         SET 
             approval_status = 'approved',
+            approval_reason = 'manual approval',
             approved_by = ?,
             approved_at = NOW()
         WHERE id = ?
