@@ -3388,6 +3388,10 @@ async function loadPendingRegistrations() {
                     });
                 }
                 
+                const paymentBadge = reg.payment_status === 'completed' 
+                    ? '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Betalt</span>'
+                    : '<span class="badge bg-warning"><i class="bi bi-hourglass"></i> Venter</span>';
+                
                 return `
                     <tr>
                         <td><strong>${reg.first_name} ${reg.last_name}</strong></td>
@@ -3396,7 +3400,7 @@ async function loadPendingRegistrations() {
                             <small class="text-muted">${reg.start_date} ${reg.start_time}</small>
                         </td>
                         <td><small>${contact}</small></td>
-                        <td><small>${fieldsHtml || contact}</small></td>
+                        <td>${paymentBadge}</td>
                         <td>${membershipDisplay}</td>
                         <td>${memberBadge}</td>
                         <td><small>${dateStr}</small></td>
