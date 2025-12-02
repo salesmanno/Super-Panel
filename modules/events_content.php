@@ -3455,8 +3455,12 @@ async function approveRegistration(registrationId) {
         const result = await response.json();
         
         if (result.success) {
-            toast.quickSuccess('Påmelding', 'Påmelding godkjent!');
-            loadPendingRegistrations();
+            toast.quickSuccess('Påmelding', 'Påmelding godkjent! Innsjekking opprettet med barcode.');
+            // Refresh both views
+            setTimeout(() => {
+                loadPendingRegistrations();
+                loadAllRegistrations();
+            }, 300);
         } else {
             toast.quickError('Feil', result.message || 'Kunne ikke godkjenne påmelding');
         }
@@ -3488,8 +3492,12 @@ async function rejectRegistration(registrationId) {
         const result = await response.json();
         
         if (result.success) {
-            toast.quickSuccess('Påmelding', 'Påmelding avvist');
-            loadPendingRegistrations();
+            toast.quickSuccess('Påmelding', 'Påmelding avvist!');
+            // Refresh both views
+            setTimeout(() => {
+                loadPendingRegistrations();
+                loadAllRegistrations();
+            }, 300);
         } else {
             toast.quickError('Feil', result.message || 'Kunne ikke avvise påmelding');
         }
