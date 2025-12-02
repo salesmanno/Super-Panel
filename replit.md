@@ -43,7 +43,17 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 - **Event Check-in Data Integrity**: `events_checkin` stores both `membership_plan_id` (FK reference to `event_membership_plans` for auditability) and `ticket_price` (snapshot of price at time of check-in for historical accuracy). Added `barcode` (VARCHAR(13)) and `qrcode` (LONGBLOB) columns for EAN13 and QR code storage.
 
-## Recent Changes (Nov 27, 2025 - FINAL SESSION)
+## Recent Changes (Dec 02, 2025)
+**Event Registration Approval System - Comprehensive Restructuring:**
+1. **Ventende vs Alle påmeldinger separation** - "Ventende (Godkjenning)" only shows `pending` registrations, "Alle påmeldinger" only shows `approved` + `rejected` registrations.
+2. **New table layout for Eventbestillinger** - Restructured: Påmeldingsdata (dynamic fields, max 4) → Pris (with membership icon ✅/❌) → Arrangement → Handlinger.
+3. **Deterministic membership pricing** - Fixed `approve_registration.php` and `get_pending_registrations.php` to use customer's specific `membership_plan_id` when looking up event membership prices. Non-members never inherit member pricing.
+4. **events_checkin creation on approval** - Approval creates `events_checkin` with: `customer_id`, `registration_id`, `ticket_type`, `ticket_price`, `payment_status`, `payment_method`, `checked_in=0`, `barcode`.
+5. **Approval/rejection with reasons** - `approveRegistrationWithReason()` and `rejectRegistrationWithReason()` functions with prompts. Uses `approval_reason` and `rejection_reason` columns.
+6. **Reservation counting** - Approved registrations now automatically count via `events_checkin` entries across innsjekking, dine arrangement, and eventbestillinger views.
+7. **Improved rejection workflow** - `reject_registration.php` now uses `rejection_reason` column (not `approval_reason`).
+
+## Previous Changes (Nov 27, 2025)
 **System Stabilization & Bug Fixes - COMPLETE:**
 1. **Fixed event creator display** - Corrected JOIN in `api/get_events.php` to properly traverse from `events_eventdata.created_by` → `tenant_admins` → `tenant_staff` via `tenant_admin.tenant_staff_id`. Now correctly displays admin name instead of "Ukjent bruker".
 2. **Fixed event registrations display** - Corrected API response structure in `api/get_pending_registrations.php` from grouped format to flat array matching frontend expectations. Eventbestillinger now load and display correctly.
