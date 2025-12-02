@@ -19,7 +19,6 @@ try {
             r.id,
             r.event_id,
             r.customer_id,
-            r.registration_data,
             r.number_of_attendees,
             r.payment_status,
             r.payment_method,
@@ -80,17 +79,14 @@ try {
     
     // Process each registration
     foreach ($registrations as &$reg) {
-        // Parse registration_data JSON
-        $regData = json_decode($reg['registration_data'] ?? '{}', true) ?: [];
-        
-        // Get dynamic fields (max 4)
+        // Get dynamic fields (max 4) - note: registration_data column removed
         $fields = $eventFields[$reg['event_id']] ?? [];
         $dynamicFields = [];
         foreach ($fields as $field) {
             $fieldName = $field['field_name'];
             $dynamicFields[] = [
                 'label' => $field['field_label'],
-                'value' => $regData[$fieldName] ?? '',
+                'value' => '',
                 'field_name' => $fieldName
             ];
         }
@@ -122,7 +118,6 @@ try {
         ];
         
         // Clean up redundant data
-        unset($reg['registration_data']);
         unset($reg['regular_price']);
     }
     

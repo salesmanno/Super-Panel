@@ -3526,6 +3526,13 @@ async function rejectRegistration(registrationId) {
     return rejectRegistrationWithReason(registrationId);
 }
 
+// Prevent nested tab clicks from bubbling to parent subtab navigation
+document.querySelectorAll('#registrations-nav-tabs .nav-link').forEach(tab => {
+    tab.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+});
+
 // Load pending registrations when tab is initialized
 document.addEventListener('shown.bs.tab', function(e) {
     if (e.target.id === 'pending-reg-tab') {
