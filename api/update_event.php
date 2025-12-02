@@ -158,7 +158,6 @@ try {
             $data['end_date'] ?? null,
             $data['event_image_url'] ?? null,
             $data['ticket_price'] ?? 0,
-            $data['ticket_price'] ?? null,
             $data['cost_price'] ?? 0,
             $data['default_payment_method'] ?? null,
             $registrationType,
