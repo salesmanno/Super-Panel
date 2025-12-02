@@ -44,6 +44,12 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Event Check-in Data Integrity**: `events_checkin` stores both `membership_plan_id` (FK reference to `event_membership_plans` for auditability) and `ticket_price` (snapshot of price at time of check-in for historical accuracy). Added `barcode` (VARCHAR(13)) and `qrcode` (LONGBLOB) columns for EAN13 and QR code storage.
 
 ## Recent Changes (Dec 02, 2025)
+**Event Creation System - Full Restoration:**
+1. **Fixed create_event.php INSERT order** - Reordered all 29 columns to match actual `events_eventdata` table schema exactly.
+2. **Added cost_price field** - Both create and edit forms now include "Innkjøpspris" field with proper database persistence.
+3. **Fixed default_payment_method** - Now included directly in INSERT statement with hardcoded value 'cash' (removed redundant UPDATE).
+4. **Corrected parameter alignment** - All 26 parameters now map 1:1 with column placeholders in correct order.
+
 **Event Registration Approval System - Comprehensive Restructuring:**
 1. **Ventende vs Alle påmeldinger separation** - "Ventende (Godkjenning)" only shows `pending` registrations, "Alle påmeldinger" only shows `approved` + `rejected` registrations.
 2. **New table layout for Eventbestillinger** - Restructured: Påmeldingsdata (dynamic fields, max 4) → Pris (with membership icon ✅/❌) → Arrangement → Handlinger.
