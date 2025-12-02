@@ -14,22 +14,22 @@ try {
     $companyId = $_SESSION['company_id'];
     
     // Get pending registrations with event, customer, and pricing info
+    // Note: event_registrations table only has: id, event_id, company_id, customer_id, 
+    //       approval_status, approved_by, approved_at, created_at
+    // Membership info is in membership_members table, not tenant_customers
     $stmt = $db->prepare("
         SELECT 
             r.id,
             r.event_id,
             r.customer_id,
-            r.number_of_attendees,
-            r.payment_status,
-            r.payment_method,
+            r.created_at,
+            r.approval_status,
             c.first_name,
             c.last_name,
             c.email,
             c.phone,
             c.is_member AS has_valid_membership,
-            c.membership_plan_id AS customer_membership_plan_id,
-            r.created_at,
-            r.approval_status,
+            mm.membership_plan_id AS customer_membership_plan_id,
             e.title AS event_title,
             e.start_date,
             e.start_time,
@@ -37,6 +37,7 @@ try {
         FROM event_registrations r
         INNER JOIN events_eventdata e ON r.event_id = e.id
         INNER JOIN tenant_customers c ON r.customer_id = c.id
+        LEFT JOIN membership_members mm ON mm.customer_id = c.id AND mm.status = 'active'
         WHERE r.company_id = ?
         AND r.approval_status = 'pending'
         ORDER BY r.created_at DESC
@@ -46,9 +47,10 @@ try {
     $registrations = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Get membership prices for all events, indexed by event_id AND membership_plan_id
+    // Note: membership_plans table uses 'name' column, not 'plan_name'
     $membershipPrices = [];
     $mpStmt = $db->prepare("
-        SELECT emp.event_id, emp.membership_plan_id, emp.ticket_price, mp.plan_name
+        SELECT emp.event_id, emp.membership_plan_id, emp.ticket_price, mp.name AS plan_name
         FROM event_membership_plans emp
         LEFT JOIN membership_plans mp ON emp.membership_plan_id = mp.id
     ");

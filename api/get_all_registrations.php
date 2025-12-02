@@ -12,6 +12,9 @@ require_once __DIR__ . '/../config/database.php';
 try {
     $db = getDBConnection();
     
+    // Note: event_registrations table only has: id, event_id, company_id, customer_id, 
+    //       approval_status, approved_by, approved_at, created_at
+    // Membership info is in membership_members table, not tenant_customers
     $stmt = $db->prepare("
         SELECT 
             r.id,
@@ -22,22 +25,20 @@ try {
             c.email,
             c.phone,
             c.is_member AS has_valid_membership,
+            mm.membership_plan_id AS customer_membership_plan_id,
             r.created_at,
             r.approval_status,
             r.approved_at,
             r.approved_by,
-            r.number_of_attendees,
             approver_staff.first_name AS approver_first_name,
             approver_staff.last_name AS approver_last_name,
-            r.rejected_by,
-            r.rejected_at,
-            r.approval_reason,
             e.title AS event_title,
             e.start_date,
             e.start_time
         FROM event_registrations r
         INNER JOIN events_eventdata e ON r.event_id = e.id
         INNER JOIN tenant_customers c ON r.customer_id = c.id
+        LEFT JOIN membership_members mm ON mm.customer_id = c.id AND mm.status = 'active'
         LEFT JOIN tenant_admins approver ON r.approved_by = approver.id
         LEFT JOIN tenant_staff approver_staff ON approver.tenant_staff_id = approver_staff.id
         WHERE r.company_id = ? AND r.approval_status != 'pending'
