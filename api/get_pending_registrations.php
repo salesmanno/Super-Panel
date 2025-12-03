@@ -29,10 +29,10 @@ try {
             c.phone,
             c.customer_code,
             c.customer_type,
-            c.address,
-            c.postal_code,
-            c.city,
-            c.country,
+            c.address_street,
+            c.address_zip,
+            c.address_city,
+            c.address_country,
             c.date_of_birth,
             c.gender,
             c.notes AS customer_notes,
@@ -95,9 +95,9 @@ try {
             'last_name' => $reg['last_name'] ?? '',
             'email' => $reg['email'] ?? '',
             'phone' => $reg['phone'] ?? '',
-            'address' => $reg['address'] ?? '',
-            'city' => $reg['city'] ?? '',
-            'postal_code' => $reg['postal_code'] ?? '',
+            'address' => $reg['address_street'] ?? '',
+            'city' => $reg['address_city'] ?? '',
+            'postal_code' => $reg['address_zip'] ?? '',
             'date_of_birth' => $reg['date_of_birth'] ?? ''
         ];
         
