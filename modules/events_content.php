@@ -718,64 +718,54 @@ try {
 
     <!-- Event Registrations Approval Tab -->
     <div id="events-registrations" class="subtab-content" style="display: none;">
-        <ul class="nav nav-tabs mb-3" role="tablist" id="registrations-nav-tabs">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="pending-reg-tab" data-bs-toggle="tab" data-bs-target="#pending-registrations-panel" type="button" role="tab">
-                    <i class="bi bi-hourglass-split me-2"></i>Ventende (Godkjenning)
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="all-reg-tab" data-bs-toggle="tab" data-bs-target="#all-registrations-panel" type="button" role="tab">
-                    <i class="bi bi-list-ul me-2"></i>Alle påmeldinger
-                </button>
-            </li>
-        </ul>
-
-        <div class="tab-content" id="registrations-tab-content">
-            <!-- Pending Registrations Panel -->
-            <div class="tab-pane fade show active" id="pending-registrations-panel" role="tabpanel">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title"><i class="bi bi-clipboard-check me-2"></i>Eventbestillinger</h5>
-                        <p class="text-muted">Godkjenn eller avvis ventende bestillinger</p>
-                        
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th style="min-width: 250px;">Påmeldingsdata</th>
-                                        <th class="text-center" style="min-width: 100px;">Pris</th>
-                                        <th>Arrangement</th>
-                                        <th class="text-end" style="min-width: 160px;">Handlinger</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="pending-registrations-list">
-                                    <tr>
-                                        <td colspan="4" class="text-center text-muted py-4">
-                                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                                            Laster påmeldinger...
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+        <!-- Ventende påmeldinger (Godkjenning) -->
+        <div class="card mb-4">
+            <div class="card-header bg-warning bg-opacity-10">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-hourglass-split me-2 text-warning"></i>Ventende påmeldinger
+                    <span class="badge bg-warning text-dark ms-2" id="pending-count-badge" style="display: none;">0</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Godkjenn eller avvis ventende bestillinger</p>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="min-width: 250px;">Påmeldingsdata</th>
+                                <th class="text-center" style="min-width: 100px;">Pris</th>
+                                <th>Arrangement</th>
+                                <th class="text-end" style="min-width: 160px;">Handlinger</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pending-registrations-list">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    Laster påmeldinger...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
+        </div>
 
-            <!-- All Registrations Panel -->
-            <div class="tab-pane fade" id="all-registrations-panel" role="tabpanel">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title"><i class="bi bi-list-ul me-2"></i>Alle påmeldinger per arrangement</h5>
-                        <p class="text-muted">Se alle påmeldinger gruppert etter arrangement med godkjenningsinformasjon</p>
-                        
-                        <div id="all-registrations-container">
-                            <div class="text-center py-5">
-                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                                <span class="text-muted">Laster alle påmeldinger...</span>
-                            </div>
-                        </div>
+        <!-- Alle påmeldinger per arrangement -->
+        <div class="card">
+            <div class="card-header bg-primary bg-opacity-10">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-list-ul me-2 text-primary"></i>Alle påmeldinger
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Alle påmeldinger gruppert etter arrangement</p>
+                
+                <div id="all-registrations-container">
+                    <div class="text-center py-5">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        <span class="text-muted">Laster alle påmeldinger...</span>
                     </div>
                 </div>
             </div>
@@ -3313,14 +3303,12 @@ if (editMemberExclusiveCheckbox && editTicketPriceContainer && editTicketPriceIn
 
 // ========== REGISTRATIONS APPROVAL FUNCTIONALITY ==========
 
-// Load pending registrations when tab is shown
+// Load both registration lists when tab is shown
 document.querySelector('[href="#events-registrations"]')?.addEventListener('click', function() {
-    setTimeout(() => loadPendingRegistrations(), 100);
-});
-
-// Ensure pending registrations load when pending tab is clicked
-document.getElementById('pending-reg-tab')?.addEventListener('click', function() {
-    setTimeout(() => loadPendingRegistrations(), 100);
+    setTimeout(() => {
+        loadPendingRegistrations();
+        loadAllRegistrations();
+    }, 100);
 });
 
 async function loadPendingRegistrations() {
@@ -3532,21 +3520,6 @@ async function rejectRegistration(registrationId) {
     return rejectRegistrationWithReason(registrationId);
 }
 
-// Prevent nested tab clicks from bubbling to parent subtab navigation
-document.querySelectorAll('#registrations-nav-tabs .nav-link').forEach(tab => {
-    tab.addEventListener('click', function(e) {
-        e.stopPropagation();
-    });
-});
-
-// Load pending registrations when tab is initialized
-document.addEventListener('shown.bs.tab', function(e) {
-    if (e.target.id === 'pending-reg-tab') {
-        setTimeout(() => loadPendingRegistrations(), 100);
-    } else if (e.target.id === 'all-reg-tab') {
-        setTimeout(() => loadAllRegistrations(), 100);
-    }
-});
 
 async function loadAllRegistrations() {
     try {
