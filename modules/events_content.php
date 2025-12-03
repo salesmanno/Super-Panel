@@ -2357,11 +2357,16 @@ async function loadCheckinEventSelector() {
                 const escapedTitle = event.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
                 const escapedDateStr = dateStr.replace(/'/g, "\\'");
                 
+                const hasImage = event.event_image_url && event.event_image_url.trim() !== '';
+                const imageStyle = hasImage 
+                    ? `background-image: url('${event.event_image_url}'); background-size: cover; background-position: center;`
+                    : 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);';
+                
                 return `
                     <div class="col-md-6 col-lg-4 col-xl-3">
                         <div class="checkin-event-card" onclick="openEventDetail('${event.id}', '${escapedTitle}', '${escapedDateStr}')">
-                            <div class="card-img-top d-flex align-items-center justify-content-center">
-                                <i class="bi bi-calendar-event text-white" style="font-size: 2.5rem; opacity: 0.8;"></i>
+                            <div class="card-img-top d-flex align-items-center justify-content-center" style="${imageStyle}">
+                                ${!hasImage ? '<i class="bi bi-calendar-event text-white" style="font-size: 2.5rem; opacity: 0.8;"></i>' : ''}
                             </div>
                             <div class="card-body">
                                 <div class="event-title text-truncate">${event.title}</div>
