@@ -170,6 +170,445 @@ try {
     color: #d1d5db;
     margin-bottom: 1rem;
 }
+
+/* ========== CHECK-IN FULLSCREEN STYLES ========== */
+#fullscreen-checkin-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #f8f9fa;
+    z-index: 9999;
+    overflow-y: auto;
+    display: none;
+}
+
+#fullscreen-checkin-overlay.active {
+    display: block;
+}
+
+.fullscreen-checkin-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem 2rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+}
+
+.fullscreen-checkin-header h4 {
+    margin: 0;
+    font-weight: 600;
+}
+
+/* Enhanced Event Cards for Check-in Selector */
+.checkin-event-card {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.checkin-event-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.2);
+    border-color: #667eea;
+}
+
+.checkin-event-card .card-img-top {
+    height: 120px;
+    object-fit: cover;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.checkin-event-card .card-body {
+    padding: 1.25rem;
+}
+
+.checkin-event-card .event-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #1f2937;
+}
+
+.checkin-event-card .event-date {
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+.checkin-event-card .event-stats {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #f3f4f6;
+}
+
+.checkin-event-card .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: #6b7280;
+}
+
+.checkin-event-card .stat-item i {
+    color: #667eea;
+}
+
+/* Scanner Card Styling */
+.checkin-scanner-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+}
+
+.checkin-scanner-card .form-control {
+    border: none;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    font-size: 1.1rem;
+    background: rgba(255,255,255,0.95);
+}
+
+.checkin-scanner-card .form-control:focus {
+    box-shadow: 0 0 0 4px rgba(255,255,255,0.3);
+}
+
+.checkin-scanner-card .form-control::placeholder {
+    color: #9ca3af;
+}
+
+/* Stats Cards */
+.checkin-stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: all 0.2s ease;
+}
+
+.checkin-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.checkin-stat-card .stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.checkin-stat-card .stat-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 0.25rem;
+}
+
+.checkin-stat-card.stat-success {
+    border-left: 4px solid #10b981;
+}
+
+.checkin-stat-card.stat-warning {
+    border-left: 4px solid #f59e0b;
+}
+
+.checkin-stat-card.stat-secondary {
+    border-left: 4px solid #6b7280;
+}
+
+.checkin-stat-card.stat-primary {
+    border-left: 4px solid #667eea;
+}
+
+.checkin-stat-card.stat-revenue {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.checkin-stat-card.stat-revenue .stat-label {
+    color: rgba(255,255,255,0.8);
+}
+
+.checkin-stat-card.stat-expected {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.checkin-stat-card.stat-expected .stat-label {
+    color: rgba(255,255,255,0.8);
+}
+
+/* Attendee Lists */
+.checkin-list-card {
+    border: none;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.checkin-list-card .card-header {
+    padding: 1rem 1.5rem;
+    font-weight: 600;
+    border: none;
+}
+
+.checkin-list-card .card-header.bg-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+}
+
+.checkin-list-card .card-header.bg-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+    color: white !important;
+}
+
+.checkin-list-card .table {
+    margin-bottom: 0;
+}
+
+.checkin-list-card .table thead th {
+    background: #f9fafb;
+    border-bottom: 2px solid #e5e7eb;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+    padding: 0.875rem 1rem;
+}
+
+.checkin-list-card .table tbody td {
+    padding: 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.checkin-list-card .table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.checkin-list-card .table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Attendee Row Styling */
+.attendee-name {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.attendee-email {
+    font-size: 0.8rem;
+    color: #6b7280;
+}
+
+.ticket-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.ticket-badge.member {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.ticket-badge.regular {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.price-display {
+    font-weight: 600;
+    color: #10b981;
+}
+
+/* Action Buttons */
+.checkin-action-btn {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.checkin-action-btn.btn-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border: none;
+}
+
+.checkin-action-btn.btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.checkin-action-btn.btn-outline-secondary:hover {
+    background: #374151;
+    border-color: #374151;
+}
+
+/* Search Results */
+.search-result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: white;
+    border-radius: 10px;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: all 0.2s ease;
+}
+
+.search-result-item:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.search-result-item.match-found {
+    border-left: 4px solid #10b981;
+}
+
+/* Guest Registration Card */
+.guest-registration-card {
+    border: none;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.guest-registration-card .card-header {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border: none;
+    padding: 1rem 1.25rem;
+}
+
+/* Fullscreen Specific Styles */
+.fullscreen-scanner-container {
+    max-width: 800px;
+    margin: 0 auto 2rem;
+}
+
+.fullscreen-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 1200px) {
+    .fullscreen-stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .fullscreen-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.fullscreen-lists-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+@media (max-width: 992px) {
+    .fullscreen-lists-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Empty State */
+.checkin-empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: #9ca3af;
+}
+
+.checkin-empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+/* Animations */
+@keyframes pulse-success {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+}
+
+.checkin-success-pulse {
+    animation: pulse-success 0.6s ease-out;
+}
+
+/* Back Button */
+.checkin-back-btn {
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    color: #374151;
+    transition: all 0.2s ease;
+}
+
+.checkin-back-btn:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    color: #1f2937;
+}
+
+/* Event Info Header */
+.event-info-header {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.event-info-header .event-icon {
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+}
+
+.event-info-header .event-details h5 {
+    margin: 0 0 0.25rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.event-info-header .event-details p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 0.9rem;
+}
 </style>
 
 <div class="module-content">
@@ -441,8 +880,13 @@ try {
 
     <div id="events-checkin" class="subtab-content" style="display: none;">
         <!-- Event Cards Selector -->
-        <div class="mb-4">
-            <h5 class="mb-3"><i class="bi bi-calendar-event me-2"></i>Velg arrangement</h5>
+        <div class="mb-4" id="checkin-event-selector">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h4 class="mb-1"><i class="bi bi-qr-code-scan me-2"></i>Innsjekking</h4>
+                    <p class="text-muted mb-0">Velg et arrangement for å starte innsjekking</p>
+                </div>
+            </div>
             <div class="row g-3" id="checkin-event-cards">
                 <div class="col-12 text-center text-muted py-5">
                     <div class="spinner-border spinner-border-sm me-2"></div>
@@ -453,220 +897,368 @@ try {
 
         <!-- Event Details & Check-in Panel -->
         <div id="event-details-panel" style="display: none;">
-        <div class="row g-3">
-            <!-- Left Column: Event Selection & Scanner -->
-            <div class="col-md-4">
-                <div class="card mb-3">
-                    <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <h6 class="mb-0" id="selected-event-title"><i class="bi bi-calendar-event me-2"></i>Valgt arrangement</h6>
-                    </div>
-                    <div class="card-body">
-                        <button class="btn btn-outline-secondary btn-sm w-100" onclick="goBackToEventList()">
-                            <i class="bi bi-chevron-left me-2"></i>Tilbake til oversikt
-                        </button>
-                    </div>
+            <!-- Event Info Header with Fullscreen Button -->
+            <div class="event-info-header">
+                <div class="event-icon">
+                    <i class="bi bi-calendar-event"></i>
                 </div>
+                <div class="event-details flex-grow-1">
+                    <h5 id="selected-event-title">Valgt arrangement</h5>
+                    <p id="selected-event-date"></p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" id="open-fullscreen-checkin">
+                        <i class="bi bi-arrows-fullscreen me-2"></i>Fullskjerm
+                    </button>
+                    <button class="checkin-back-btn" onclick="goBackToEventList()">
+                        <i class="bi bi-chevron-left me-2"></i>Tilbake
+                    </button>
+                </div>
+            </div>
 
-                <!-- Barcode Scanner / Search -->
-                <div id="checkin-scanner" class="card mb-3" style="display: none;">
-                    <div class="card-header bg-info text-white">
-                        <h6 class="mb-0"><i class="bi bi-upc-scan me-2"></i>Søk / Scan strekkode</h6>
+            <div class="row g-4">
+                <!-- Left Column: Scanner & Stats -->
+                <div class="col-lg-4">
+                    <!-- Barcode Scanner / Search -->
+                    <div id="checkin-scanner" class="card checkin-scanner-card mb-4">
+                        <div class="card-body py-4 px-4">
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                <i class="bi bi-upc-scan text-white" style="font-size: 2rem;"></i>
+                                <div class="text-white">
+                                    <h6 class="mb-0 fw-bold">Søk / Scan</h6>
+                                    <small class="opacity-75">Navn, e-post eller strekkode</small>
+                                </div>
+                            </div>
+                            <input type="text" class="form-control" id="checkin-barcode-search" 
+                                   placeholder="Skriv eller scan..." 
+                                   autocomplete="off" autofocus>
+                            <div id="checkin-search-results" class="mt-3" style="display: none;"></div>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <input type="text" class="form-control" id="checkin-barcode-search" 
-                               placeholder="Scan strekkode eller søk på navn..." 
-                               autocomplete="off" autofocus>
-                        <small class="text-muted">Søk på navn, e-post eller strekkode</small>
-                        <div id="checkin-search-results" class="mt-2" style="display: none;">
+
+                    <!-- Quick Stats -->
+                    <div id="checkin-stats" class="mb-4">
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <div class="checkin-stat-card stat-primary">
+                                    <div class="stat-value" id="checkin-total-attendees">0</div>
+                                    <div class="stat-label">Registrerte</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="checkin-stat-card stat-success">
+                                    <div class="stat-value text-success" id="checkin-checked-in-stat">0</div>
+                                    <div class="stat-label">Innsjekket</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="checkin-stat-card stat-warning">
+                                    <div class="stat-value text-warning" id="checkin-pending-count-stat">0</div>
+                                    <div class="stat-label">Venter</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="checkin-stat-card stat-secondary">
+                                    <div class="stat-value text-secondary" id="checkin-noshow-count">0</div>
+                                    <div class="stat-label">No-show</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="checkin-stat-card stat-revenue">
+                                    <div class="stat-value" id="checkin-revenue">0 kr</div>
+                                    <div class="stat-label">Innsjekket inntekt</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="checkin-stat-card stat-expected">
+                                    <div class="stat-value" id="checkin-expected-revenue">0 kr</div>
+                                    <div class="stat-label">Forventet</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Guest Registration -->
+                    <div id="quick-guest-registration" class="card guest-registration-card">
+                        <div class="card-header text-white">
+                            <h6 class="mb-0"><i class="bi bi-person-plus me-2"></i>Registrer gjest</h6>
+                        </div>
+                        <div class="card-body">
+                            <form id="quick-guest-form">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label class="form-label small mb-1">Fornavn *</label>
+                                        <input type="text" class="form-control form-control-sm" id="guest-fornavn" required>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small mb-1">Etternavn *</label>
+                                        <input type="text" class="form-control form-control-sm" id="guest-etternavn" required>
+                                    </div>
+                                </div>
+                                <div class="mb-2 mt-2">
+                                    <label class="form-label small mb-1">E-post</label>
+                                    <input type="email" class="form-control form-control-sm" id="guest-email">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-1">Antall personer</label>
+                                    <input type="number" class="form-control form-control-sm" id="guest-number-of-people" min="1" max="10" value="1" required>
+                                </div>
+                                <div class="mb-2" id="guest-membership-container" style="display: none;">
+                                    <label class="form-label small mb-1">Medlemsplan</label>
+                                    <select class="form-select form-select-sm" id="guest-membership-plan">
+                                        <option value="">Ingen (ordinær pris)</option>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-1">Barcode</label>
+                                    <input type="text" class="form-control form-control-sm" id="guest-barcode" placeholder="Scan eller skriv inn">
+                                </div>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <label class="form-label small mb-1">Pris (kr)</label>
+                                        <input type="number" class="form-control form-control-sm" id="guest-price" min="0" step="0.01" required readonly>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small mb-1">Betaling</label>
+                                        <select class="form-select form-select-sm" id="guest-payment-method" required></select>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small mb-1">Status</label>
+                                    <select class="form-select form-select-sm" id="guest-payment-status" required>
+                                        <option value="paid">Betalt</option>
+                                        <option value="pending">Venter betaling</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-success w-100 checkin-action-btn">
+                                    <i class="bi bi-check-circle me-1"></i>Registrer og sjekk inn
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
 
-                <!-- Quick Stats -->
-                <div id="checkin-stats" class="card mb-3" style="display: none;">
-                    <div class="card-body p-2">
-                        <div class="row g-2 text-center small">
-                            <div class="col-6">
-                                <div class="p-2 bg-light rounded">
-                                    <div class="text-muted">Registrerte</div>
-                                    <div class="fs-5 fw-bold" id="checkin-total-attendees">0</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="p-2 bg-light rounded">
-                                    <div class="text-muted">Innsjekket</div>
-                                    <div class="fs-5 fw-bold text-success" id="checkin-checked-in-stat">0</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="p-2 bg-light rounded">
-                                    <div class="text-muted">No-show</div>
-                                    <div class="fs-5 fw-bold text-secondary" id="checkin-noshow-count">0</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="p-2 bg-light rounded">
-                                    <div class="text-muted">Venter</div>
-                                    <div class="fs-5 fw-bold text-warning" id="checkin-pending-count">0</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="p-2 bg-light rounded border border-success">
-                                    <div class="text-muted">Innsjekket inntekt</div>
-                                    <div class="fs-6 fw-bold text-success" id="checkin-revenue">0 kr</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="p-2 bg-light rounded border border-primary">
-                                    <div class="text-muted">Forventet inntekt</div>
-                                    <div class="fs-6 fw-bold text-primary" id="checkin-expected-revenue">0 kr</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Quick Guest Registration -->
-                <div id="quick-guest-registration" class="card" style="display: none;">
-                    <div class="card-header bg-success text-white">
-                        <h6 class="mb-0"><i class="bi bi-person-plus me-2"></i>Registrer gjest</h6>
-                    </div>
-                    <div class="card-body">
-                        <form id="quick-guest-form">
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">Fornavn *</label>
-                                <input type="text" class="form-control form-control-sm" id="guest-fornavn" required>
-                            </div>
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">Etternavn *</label>
-                                <input type="text" class="form-control form-control-sm" id="guest-etternavn" required>
-                            </div>
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">E-post</label>
-                                <input type="email" class="form-control form-control-sm" id="guest-email">
-                            </div>
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">Antall personer (1-10)</label>
-                                <input type="number" class="form-control form-control-sm" id="guest-number-of-people" min="1" max="10" value="1" required>
-                                <small class="text-muted">Oppretter en registrering per person</small>
-                            </div>
-                            <div class="mb-2" id="guest-membership-container" style="display: none;">
-                                <label class="form-label small mb-1">Medlemsplan</label>
-                                <select class="form-select form-select-sm" id="guest-membership-plan">
-                                    <option value="">Ingen (ordinær pris)</option>
-                                </select>
-                            </div>
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">Barcode</label>
-                                <input type="text" class="form-control form-control-sm" id="guest-barcode" placeholder="Scan eller skriv inn">
-                            </div>
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">Pris (kr)</label>
-                                <input type="number" class="form-control form-control-sm" id="guest-price" min="0" step="0.01" required readonly>
-                            </div>
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">Betalingsmetode</label>
-                                <select class="form-select form-select-sm" id="guest-payment-method" required>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label small mb-1">Status</label>
-                                <select class="form-select form-select-sm" id="guest-payment-status" required>
-                                    <option value="paid">Betalt</option>
-                                    <option value="pending">Venter betaling</option>
-                                </select>
-                            </div>
-                            <button type="submit" class="btn btn-success btn-sm w-100">
-                                <i class="bi bi-check-circle me-1"></i>Registrer
+                <!-- Right Column: Attendee Lists -->
+                <div class="col-lg-8">
+                    <ul class="nav nav-tabs mb-3" role="tablist" id="checkin-tabs">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#checkin-confirmed-tab" type="button">
+                                <i class="bi bi-check-circle-fill me-2 text-success"></i>Innsjekket
+                                <span class="badge bg-success ms-2" id="checkin-confirmed-count">0</span>
                             </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#checkin-pending-tab" type="button">
+                                <i class="bi bi-clock-fill me-2 text-warning"></i>Ikke innsjekket
+                                <span class="badge bg-warning text-dark ms-2" id="checkin-pending-count">0</span>
+                            </button>
+                        </li>
+                    </ul>
 
-            <!-- Right Column: Attendee List - Two Columns -->
-            <div class="col-md-8">
-                <ul class="nav nav-tabs mb-3" role="tablist" id="checkin-tabs">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#checkin-confirmed-tab" type="button">
-                            <i class="bi bi-check-circle me-2 text-success"></i>Innsjekket
-                            <span class="badge bg-success ms-1" id="checkin-confirmed-count">0</span>
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#checkin-pending-tab" type="button">
-                            <i class="bi bi-clock me-2 text-warning"></i>Ikke innsjekket
-                            <span class="badge bg-warning ms-1" id="checkin-pending-count">0</span>
-                        </button>
-                    </li>
-                </ul>
-
-                <div class="tab-content" id="checkin-tabs-content">
-                    <!-- Checked In Tab -->
-                    <div class="tab-pane fade show active" id="checkin-confirmed-tab" role="tabpanel">
-                        <div class="card">
-                            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0"><i class="bi bi-check-circle me-2"></i>Ankommet / Innsjekket</h6>
-                            </div>
-                            <div class="card-body p-0">
-                                <div class="table-responsive" id="checkin-confirmed-container">
-                                    <table class="table table-sm table-hover mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Navn</th>
-                                                <th>Type</th>
-                                                <th>Pris</th>
-                                                <th>Betaling</th>
-                                                <th>Tid</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="checkin-confirmed-list">
-                                            <tr>
-                                                <td colspan="5" class="text-center text-muted py-4">
-                                                    Velg arrangement for å se ankomne
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                    <div class="tab-content" id="checkin-tabs-content">
+                        <!-- Checked In Tab -->
+                        <div class="tab-pane fade show active" id="checkin-confirmed-tab" role="tabpanel">
+                            <div class="card checkin-list-card">
+                                <div class="card-header bg-success text-white">
+                                    <i class="bi bi-check-circle-fill me-2"></i>Ankommet / Innsjekket
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive" id="checkin-confirmed-container">
+                                        <table class="table table-hover mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Deltaker</th>
+                                                    <th>Type</th>
+                                                    <th>Pris</th>
+                                                    <th>Betaling</th>
+                                                    <th>Tid</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="checkin-confirmed-list">
+                                                <tr>
+                                                    <td colspan="5">
+                                                        <div class="checkin-empty-state">
+                                                            <i class="bi bi-inbox"></i>
+                                                            <p class="mb-0">Ingen innsjekket ennå</p>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Not Checked In Tab -->
-                    <div class="tab-pane fade" id="checkin-pending-tab" role="tabpanel">
-                        <div class="card">
-                            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0"><i class="bi bi-clock me-2"></i>Ikke innsjekket</h6>
-                            </div>
-                            <div class="card-body p-0">
-                                <div class="table-responsive" id="checkin-pending-container">
-                                    <table class="table table-sm table-hover mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Navn</th>
-                                                <th>Type</th>
-                                                <th>Pris</th>
-                                                <th>Handlinger</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="checkin-pending-list">
-                                            <tr>
-                                                <td colspan="4" class="text-center text-muted py-4">
-                                                    Velg arrangement for å se ventende
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                        <!-- Not Checked In Tab -->
+                        <div class="tab-pane fade" id="checkin-pending-tab" role="tabpanel">
+                            <div class="card checkin-list-card">
+                                <div class="card-header bg-warning text-white">
+                                    <i class="bi bi-clock-fill me-2"></i>Venter på innsjekking
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive" id="checkin-pending-container">
+                                        <table class="table table-hover mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Deltaker</th>
+                                                    <th>Type</th>
+                                                    <th>Pris</th>
+                                                    <th>Handlinger</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="checkin-pending-list">
+                                                <tr>
+                                                    <td colspan="4">
+                                                        <div class="checkin-empty-state">
+                                                            <i class="bi bi-inbox"></i>
+                                                            <p class="mb-0">Alle er innsjekket!</p>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
         </div>
     </div>
+
+<!-- Fullscreen Check-in Overlay -->
+<div id="fullscreen-checkin-overlay">
+    <div class="fullscreen-checkin-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+            <i class="bi bi-qr-code-scan" style="font-size: 1.5rem;"></i>
+            <div>
+                <h4 class="mb-0" id="fullscreen-event-title">Innsjekking</h4>
+                <small class="opacity-75" id="fullscreen-event-date"></small>
+            </div>
+        </div>
+        <button class="btn btn-light btn-sm" id="close-fullscreen-checkin">
+            <i class="bi bi-x-lg me-1"></i>Lukk fullskjerm
+        </button>
+    </div>
+    
+    <div class="container-fluid p-4">
+        <!-- Fullscreen Scanner -->
+        <div class="fullscreen-scanner-container">
+            <div class="card checkin-scanner-card">
+                <div class="card-body py-4 px-4">
+                    <div class="d-flex align-items-center gap-3">
+                        <i class="bi bi-upc-scan text-white" style="font-size: 2.5rem;"></i>
+                        <div style="flex: 1;">
+                            <input type="text" class="form-control form-control-lg" 
+                                   id="fullscreen-barcode-input" 
+                                   placeholder="Scan strekkode eller søk på navn/e-post..."
+                                   autocomplete="off">
+                        </div>
+                        <div id="fullscreen-barcode-feedback" class="text-white" style="min-width: 200px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fullscreen Stats Grid -->
+        <div class="fullscreen-stats-grid">
+            <div class="checkin-stat-card stat-primary">
+                <div class="stat-value" id="fullscreen-total-attendees">0</div>
+                <div class="stat-label">Registrerte</div>
+            </div>
+            <div class="checkin-stat-card stat-success">
+                <div class="stat-value text-success" id="fullscreen-checked-in">0</div>
+                <div class="stat-label">Innsjekket</div>
+            </div>
+            <div class="checkin-stat-card stat-warning">
+                <div class="stat-value text-warning" id="fullscreen-pending-count">0</div>
+                <div class="stat-label">Venter</div>
+            </div>
+            <div class="checkin-stat-card stat-secondary">
+                <div class="stat-value text-secondary" id="fullscreen-noshow">0</div>
+                <div class="stat-label">No-show</div>
+            </div>
+            <div class="checkin-stat-card stat-revenue">
+                <div class="stat-value" id="fullscreen-revenue">0 kr</div>
+                <div class="stat-label">Innsjekket inntekt</div>
+            </div>
+            <div class="checkin-stat-card stat-expected">
+                <div class="stat-value" id="fullscreen-expected">0 kr</div>
+                <div class="stat-label">Forventet</div>
+            </div>
+        </div>
+
+        <!-- Fullscreen Lists Side by Side -->
+        <div class="fullscreen-lists-container">
+            <!-- Not Checked In List -->
+            <div class="card checkin-list-card">
+                <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-clock-fill me-2"></i>Ikke innsjekket</span>
+                    <span class="badge bg-light text-dark" id="fullscreen-pending-badge">0</span>
+                </div>
+                <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Deltaker</th>
+                                    <th>Type</th>
+                                    <th>Pris</th>
+                                    <th>Handling</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fullscreen-pending-list">
+                                <tr>
+                                    <td colspan="4">
+                                        <div class="checkin-empty-state">
+                                            <i class="bi bi-check-circle"></i>
+                                            <p class="mb-0">Alle er innsjekket!</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Checked In List -->
+            <div class="card checkin-list-card">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-check-circle-fill me-2"></i>Innsjekket</span>
+                    <span class="badge bg-light text-dark" id="fullscreen-confirmed-badge">0</span>
+                </div>
+                <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Deltaker</th>
+                                    <th>Type</th>
+                                    <th>Pris</th>
+                                    <th>Betaling</th>
+                                    <th>Tid</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fullscreen-checked-list">
+                                <tr>
+                                    <td colspan="5">
+                                        <div class="checkin-empty-state">
+                                            <i class="bi bi-inbox"></i>
+                                            <p class="mb-0">Ingen innsjekket ennå</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
     <div id="events-results" class="subtab-content" style="display: none;">
         <!-- Summary Stats - Horizontal Layout -->
@@ -1753,7 +2345,8 @@ async function loadCheckinEventSelector() {
         
         if (result.success && result.events && result.events.length > 0) {
             cardsContainer.innerHTML = result.events.map(event => {
-                const dateStr = new Date(event.start_date + ' ' + event.start_time).toLocaleDateString('no-NO', { 
+                const eventDate = new Date(event.start_date + ' ' + event.start_time);
+                const dateStr = eventDate.toLocaleDateString('no-NO', { 
                     day: 'numeric', 
                     month: 'short', 
                     year: 'numeric',
@@ -1761,26 +2354,28 @@ async function loadCheckinEventSelector() {
                     minute: '2-digit'
                 });
                 
+                const escapedTitle = event.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
+                const escapedDateStr = dateStr.replace(/'/g, "\\'");
+                
                 return `
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card h-100 cursor-pointer" style="cursor: pointer;" onclick="openEventDetail('${event.id}', '${event.title}')">
+                    <div class="col-md-6 col-lg-4 col-xl-3">
+                        <div class="checkin-event-card" onclick="openEventDetail('${event.id}', '${escapedTitle}', '${escapedDateStr}')">
+                            <div class="card-img-top d-flex align-items-center justify-content-center">
+                                <i class="bi bi-calendar-event text-white" style="font-size: 2.5rem; opacity: 0.8;"></i>
+                            </div>
                             <div class="card-body">
-                                <h6 class="card-title text-truncate">${event.title}</h6>
-                                <small class="text-muted d-block mb-2">
-                                    <i class="bi bi-calendar me-1"></i>${dateStr}
-                                </small>
-                                <div class="row g-2 small">
-                                    <div class="col-6">
-                                        <div class="bg-light p-2 rounded text-center">
-                                            <small class="d-block text-muted">Påmeldte</small>
-                                            <strong>${event.current_attendees || 0}</strong>
-                                        </div>
+                                <div class="event-title text-truncate">${event.title}</div>
+                                <div class="event-date">
+                                    <i class="bi bi-clock me-1"></i>${dateStr}
+                                </div>
+                                <div class="event-stats">
+                                    <div class="stat-item">
+                                        <i class="bi bi-people"></i>
+                                        <span>${event.current_attendees || 0} påmeldt</span>
                                     </div>
-                                    <div class="col-6">
-                                        <div class="bg-light p-2 rounded text-center">
-                                            <small class="d-block text-muted">Innsjekket</small>
-                                            <strong id="checked-${event.id}">-</strong>
-                                        </div>
+                                    <div class="stat-item">
+                                        <i class="bi bi-check-circle"></i>
+                                        <span id="checked-${event.id}">-</span> innsjekket
                                     </div>
                                 </div>
                             </div>
@@ -1794,11 +2389,23 @@ async function loadCheckinEventSelector() {
                 loadEventCheckInCount(event.id);
             });
         } else {
-            cardsContainer.innerHTML = '<div class="col-12 text-center text-muted py-4">Ingen arrangementer tilgjengelig</div>';
+            cardsContainer.innerHTML = `
+                <div class="col-12">
+                    <div class="checkin-empty-state">
+                        <i class="bi bi-calendar-x"></i>
+                        <p class="mb-0">Ingen arrangementer tilgjengelig</p>
+                    </div>
+                </div>`;
         }
     } catch (error) {
         console.error('Error loading events:', error);
-        cardsContainer.innerHTML = '<div class="col-12 text-center text-danger py-4"><i class="bi bi-exclamation-triangle me-2"></i>Feil ved lasting</div>';
+        cardsContainer.innerHTML = `
+            <div class="col-12">
+                <div class="checkin-empty-state">
+                    <i class="bi bi-exclamation-triangle text-danger"></i>
+                    <p class="mb-0 text-danger">Feil ved lasting av arrangementer</p>
+                </div>
+            </div>`;
     }
 }
 
@@ -1814,14 +2421,18 @@ async function loadEventCheckInCount(eventId) {
     }
 }
 
-function openEventDetail(eventId, eventTitle) {
+let currentEventTitle = '';
+let currentEventDate = '';
+
+function openEventDetail(eventId, eventTitle, eventDate) {
     selectedEventId = eventId;
-    document.getElementById('selected-event-title').innerHTML = '<i class="bi bi-calendar-event me-2"></i>' + eventTitle;
-    document.getElementById('checkin-event-cards').parentElement.style.display = 'none';
+    currentEventTitle = eventTitle;
+    currentEventDate = eventDate || '';
+    
+    document.getElementById('selected-event-title').textContent = eventTitle;
+    document.getElementById('selected-event-date').textContent = eventDate || '';
+    document.getElementById('checkin-event-selector').style.display = 'none';
     document.getElementById('event-details-panel').style.display = 'block';
-    document.getElementById('checkin-stats').style.display = 'block';
-    document.getElementById('checkin-scanner').style.display = 'block';
-    document.getElementById('quick-guest-registration').style.display = 'block';
     
     // Focus on barcode scanner
     setTimeout(() => {
@@ -1835,11 +2446,10 @@ function openEventDetail(eventId, eventTitle) {
 
 function goBackToEventList() {
     selectedEventId = null;
+    currentEventTitle = '';
+    currentEventDate = '';
     document.getElementById('event-details-panel').style.display = 'none';
-    document.getElementById('checkin-stats').style.display = 'none';
-    document.getElementById('checkin-scanner').style.display = 'none';
-    document.getElementById('quick-guest-registration').style.display = 'none';
-    document.getElementById('checkin-event-cards').parentElement.style.display = 'block';
+    document.getElementById('checkin-event-selector').style.display = 'block';
     document.getElementById('checkin-search-results').style.display = 'none';
     document.getElementById('checkin-barcode-search').value = '';
     loadCheckinEventSelector();
@@ -2196,6 +2806,7 @@ async function loadCheckins(eventId) {
             document.getElementById('checkin-checked-in-stat').textContent = result.summary.checked_in_count;
             document.getElementById('checkin-noshow-count').textContent = result.summary.no_show_count || 0;
             document.getElementById('checkin-pending-count').textContent = result.summary.not_checked_in_count;
+            document.getElementById('checkin-pending-count-stat').textContent = result.summary.not_checked_in_count;
             document.getElementById('checkin-revenue').textContent = result.summary.checkin_revenue.toFixed(0) + ' kr';
             document.getElementById('checkin-expected-revenue').textContent = result.summary.expected_revenue.toFixed(0) + ' kr';
             
@@ -2219,6 +2830,7 @@ async function loadCheckins(eventId) {
                 confirmedCount.textContent = result.checked_in.length;
                 confirmedList.innerHTML = result.checked_in.map(checkin => {
                     const customerName = checkin.customer_name || 'Ukjent';
+                    const customerEmail = checkin.customer_email || '';
                     const checkinTime = checkin.check_in_time 
                         ? new Date(checkin.check_in_time).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) 
                         : '-';
@@ -2226,31 +2838,31 @@ async function loadCheckins(eventId) {
                     const isNoShow = checkin.payment_status === 'no_show';
                     const isMember = ticketType !== 'regular';
                     
-                    // Type badge
+                    // Type badge with new styling
                     const typeBadge = isMember 
-                        ? `<span class="badge bg-primary">${ticketType}</span>` 
-                        : `<span class="badge bg-secondary">Regular</span>`;
+                        ? `<span class="ticket-badge member"><i class="bi bi-star-fill"></i>${ticketType}</span>` 
+                        : `<span class="ticket-badge regular">Ordinær</span>`;
                     
                     // Payment badge
                     let paymentBadge;
                     if (isNoShow) {
-                        paymentBadge = '<span class="badge bg-dark">No-show</span>';
+                        paymentBadge = '<span class="badge bg-dark"><i class="bi bi-x-circle me-1"></i>No-show</span>';
                     } else if (checkin.payment_status === 'paid') {
-                        paymentBadge = `<span class="badge bg-success">${paymentMethodNames[checkin.payment_method] || checkin.payment_method}</span>`;
+                        paymentBadge = `<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>${paymentMethodNames[checkin.payment_method] || checkin.payment_method}</span>`;
                     } else {
-                        paymentBadge = '<span class="badge bg-warning">Venter</span>';
+                        paymentBadge = '<span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Venter</span>';
                     }
                     
                     return `
                         <tr class="${isNoShow ? 'table-secondary' : ''}">
                             <td>
-                                <strong>${customerName}</strong>
-                                ${checkin.barcode ? `<br><small class="font-monospace text-muted">${checkin.barcode}</small>` : ''}
+                                <div class="attendee-name">${customerName}</div>
+                                ${customerEmail ? `<div class="attendee-email">${customerEmail}</div>` : ''}
                             </td>
                             <td>${typeBadge}</td>
-                            <td>${isNoShow ? '<s class="text-muted">' + checkin.ticket_price + ' kr</s>' : checkin.ticket_price + ' kr'}</td>
+                            <td><span class="price-display">${isNoShow ? '<s class="text-muted">' + checkin.ticket_price + ' kr</s>' : checkin.ticket_price + ' kr'}</span></td>
                             <td>${paymentBadge}</td>
-                            <td><small class="text-muted">${checkinTime}</small></td>
+                            <td><span class="text-muted">${checkinTime}</span></td>
                         </tr>
                     `;
                 }).join('');
@@ -2258,8 +2870,11 @@ async function loadCheckins(eventId) {
                 confirmedCount.textContent = '0';
                 confirmedList.innerHTML = `
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-4">
-                            Ingen ankommet ennå
+                        <td colspan="5">
+                            <div class="checkin-empty-state">
+                                <i class="bi bi-inbox"></i>
+                                <p class="mb-0">Ingen ankommet ennå</p>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -2273,29 +2888,30 @@ async function loadCheckins(eventId) {
                 if (pendingTabCount) pendingTabCount.textContent = result.not_checked_in.length;
                 pendingList.innerHTML = result.not_checked_in.map(checkin => {
                     const customerName = checkin.customer_name || 'Ukjent';
+                    const customerEmail = checkin.customer_email || '';
                     const ticketType = checkin.ticket_type || 'regular';
                     const isMember = ticketType !== 'regular';
                     
-                    // Type badge
+                    // Type badge with new styling
                     const typeBadge = isMember 
-                        ? `<span class="badge bg-primary">${ticketType}</span>` 
-                        : `<span class="badge bg-secondary">Regular</span>`;
+                        ? `<span class="ticket-badge member"><i class="bi bi-star-fill"></i>${ticketType}</span>` 
+                        : `<span class="ticket-badge regular">Ordinær</span>`;
                     
                     return `
                         <tr>
                             <td>
-                                <strong>${customerName}</strong>
-                                ${checkin.barcode ? `<br><small class="font-monospace text-muted">${checkin.barcode}</small>` : ''}
+                                <div class="attendee-name">${customerName}</div>
+                                ${customerEmail ? `<div class="attendee-email">${customerEmail}</div>` : ''}
                             </td>
                             <td>${typeBadge}</td>
-                            <td>${checkin.ticket_price} kr</td>
+                            <td><span class="price-display">${checkin.ticket_price} kr</span></td>
                             <td>
-                                <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-success" onclick="performCheckin('${checkin.id}')" title="Sjekk inn med betaling">
-                                        <i class="bi bi-check-circle"></i> Sjekk inn
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-success checkin-action-btn" onclick="performCheckin('${checkin.id}')" title="Sjekk inn med betaling">
+                                        <i class="bi bi-check-circle me-1"></i>Sjekk inn
                                     </button>
-                                    <button class="btn btn-outline-secondary" onclick="markNoShow('${checkin.id}', '${customerName.replace(/'/g, "\\'")}')" title="Marker som no-show">
-                                        <i class="bi bi-x-circle"></i> No-show
+                                    <button class="btn btn-outline-secondary checkin-action-btn" onclick="markNoShow('${checkin.id}', '${customerName.replace(/'/g, "\\'")}')" title="Marker som no-show">
+                                        <i class="bi bi-x-circle"></i>
                                     </button>
                                 </div>
                             </td>
@@ -2306,9 +2922,11 @@ async function loadCheckins(eventId) {
                 if (pendingTabCount) pendingTabCount.textContent = '0';
                 pendingList.innerHTML = `
                     <tr>
-                        <td colspan="4" class="text-center text-muted py-4">
-                            <i class="bi bi-check-circle-fill text-success fs-3 d-block mb-2"></i>
-                            Alle er innsjekket!
+                        <td colspan="4">
+                            <div class="checkin-empty-state">
+                                <i class="bi bi-check-circle-fill text-success"></i>
+                                <p class="mb-0">Alle er innsjekket!</p>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -3987,5 +4605,273 @@ async function deleteEventRegistration(registrationId, customerName) {
         toast.quickError('Feil', 'Kunne ikke slette påmeldingen');
     }
 }
+
+// ============================================
+// FULLSCREEN CHECK-IN FUNCTIONALITY
+// ============================================
+
+let fullscreenEventId = null;
+
+// Initialize fullscreen check-in
+function initFullscreenCheckin() {
+    const openBtn = document.getElementById('open-fullscreen-checkin');
+    const closeBtn = document.getElementById('close-fullscreen-checkin');
+    const overlay = document.getElementById('fullscreen-checkin-overlay');
+    
+    if (openBtn) {
+        openBtn.addEventListener('click', openFullscreenCheckin);
+    }
+    
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeFullscreenCheckin);
+    }
+    
+    // ESC key to close fullscreen
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && overlay && overlay.classList.contains('active')) {
+            closeFullscreenCheckin();
+        }
+    });
+}
+
+// Open fullscreen check-in overlay
+function openFullscreenCheckin() {
+    const overlay = document.getElementById('fullscreen-checkin-overlay');
+    if (!overlay || !selectedEventId) return;
+    
+    fullscreenEventId = selectedEventId;
+    
+    // Update overlay header (uses currentEventTitle/currentEventDate set by openEventDetail)
+    document.getElementById('fullscreen-event-title').textContent = currentEventTitle || 'Innsjekking';
+    document.getElementById('fullscreen-event-date').textContent = currentEventDate || '';
+    
+    // Show overlay
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    
+    // Initialize fullscreen barcode scanner
+    initFullscreenBarcodeScanner();
+    
+    // Sync current data to fullscreen
+    syncCheckinToFullscreen();
+    
+    // Focus scanner input
+    setTimeout(() => {
+        const scannerInput = document.getElementById('fullscreen-barcode-input');
+        if (scannerInput) scannerInput.focus();
+    }, 100);
+}
+
+// Close fullscreen check-in overlay
+function closeFullscreenCheckin() {
+    const overlay = document.getElementById('fullscreen-checkin-overlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+    
+    // Refresh main checkin data
+    if (selectedEventId) {
+        loadCheckins(selectedEventId);
+    }
+}
+
+// Initialize fullscreen barcode scanner
+function initFullscreenBarcodeScanner() {
+    const input = document.getElementById('fullscreen-barcode-input');
+    if (!input) return;
+    
+    input.value = '';
+    
+    input.addEventListener('input', function() {
+        searchFullscreenCheckins(this.value);
+    });
+    
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            quickCheckinFromFullscreen(this.value);
+        }
+    });
+}
+
+// Search check-ins in fullscreen mode
+function searchFullscreenCheckins(query) {
+    const feedback = document.getElementById('fullscreen-barcode-feedback');
+    const checkedList = document.getElementById('fullscreen-checked-list');
+    const pendingList = document.getElementById('fullscreen-pending-list');
+    
+    if (!query || query.length < 2) {
+        if (feedback) feedback.innerHTML = '';
+        return;
+    }
+    
+    const queryLower = query.toLowerCase();
+    let matchCount = 0;
+    
+    // Search in checked-in list
+    const checkedRows = checkedList?.querySelectorAll('tr') || [];
+    checkedRows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const matches = text.includes(queryLower);
+        row.style.display = matches ? '' : 'none';
+        if (matches && !row.classList.contains('empty-state')) matchCount++;
+    });
+    
+    // Search in pending list
+    const pendingRows = pendingList?.querySelectorAll('tr') || [];
+    pendingRows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const matches = text.includes(queryLower);
+        row.style.display = matches ? '' : 'none';
+        if (matches && !row.classList.contains('empty-state')) matchCount++;
+    });
+    
+    // Show feedback
+    if (feedback) {
+        if (matchCount === 1) {
+            feedback.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>1 treff - trykk Enter for å sjekke inn</span>';
+        } else if (matchCount > 1) {
+            feedback.innerHTML = `<span class="text-info"><i class="bi bi-search me-1"></i>${matchCount} treff funnet</span>`;
+        } else {
+            feedback.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-circle me-1"></i>Ingen treff</span>';
+        }
+    }
+}
+
+// Quick check-in from fullscreen on Enter key
+async function quickCheckinFromFullscreen(query) {
+    if (!query || query.length < 2) return;
+    
+    const queryLower = query.toLowerCase();
+    const pendingList = document.getElementById('fullscreen-pending-list');
+    const pendingRows = pendingList?.querySelectorAll('tr') || [];
+    
+    let matchingRow = null;
+    let matchCount = 0;
+    
+    pendingRows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (text.includes(queryLower) && !row.classList.contains('empty-state')) {
+            matchingRow = row;
+            matchCount++;
+        }
+    });
+    
+    if (matchCount === 1 && matchingRow) {
+        const checkinBtn = matchingRow.querySelector('.btn-success');
+        if (checkinBtn) {
+            checkinBtn.click();
+            
+            // Clear input and feedback
+            const input = document.getElementById('fullscreen-barcode-input');
+            const feedback = document.getElementById('fullscreen-barcode-feedback');
+            if (input) input.value = '';
+            if (feedback) feedback.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Sjekket inn!</span>';
+            
+            // Refresh fullscreen after short delay
+            setTimeout(() => {
+                syncCheckinToFullscreen();
+                if (input) input.focus();
+            }, 500);
+        }
+    } else if (matchCount > 1) {
+        const feedback = document.getElementById('fullscreen-barcode-feedback');
+        if (feedback) {
+            feedback.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-circle me-1"></i>Flere treff - vennligst presiser søket</span>';
+        }
+    }
+}
+
+// Sync main checkin data to fullscreen overlay
+async function syncCheckinToFullscreen() {
+    if (!fullscreenEventId) return;
+    
+    try {
+        const response = await fetch(`/api/get_event_checkins.php?event_id=${fullscreenEventId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            // Update fullscreen stats
+            document.getElementById('fullscreen-checked-in').textContent = result.summary.checked_in_count;
+            document.getElementById('fullscreen-pending-count').textContent = result.summary.not_checked_in_count;
+            document.getElementById('fullscreen-revenue').textContent = result.summary.checkin_revenue.toFixed(0) + ' kr';
+            document.getElementById('fullscreen-expected').textContent = result.summary.expected_revenue.toFixed(0) + ' kr';
+            
+            // Payment method names
+            const paymentMethodNames = {
+                'cash': 'Kontant', 'card': 'Kort', 'vipps': 'Vipps',
+                'invoice': 'Faktura', 'bank_transfer': 'Bank',
+                'on_arrival': 'Ved oppmøte', 'free': 'Gratis', 'no_show': 'No-show'
+            };
+            
+            // Render checked-in list
+            const checkedList = document.getElementById('fullscreen-checked-list');
+            if (result.checked_in && result.checked_in.length > 0) {
+                checkedList.innerHTML = result.checked_in.map(c => {
+                    const time = c.check_in_time ? new Date(c.check_in_time).toLocaleTimeString('no-NO', {hour:'2-digit', minute:'2-digit'}) : '-';
+                    const isNoShow = c.payment_status === 'no_show';
+                    const isMember = c.ticket_type !== 'regular';
+                    const typeBadge = isMember ? `<span class="ticket-badge member"><i class="bi bi-star-fill"></i>${c.ticket_type}</span>` : '<span class="ticket-badge regular">Ordinær</span>';
+                    let paymentBadge = isNoShow ? '<span class="badge bg-dark">No-show</span>' :
+                        c.payment_status === 'paid' ? `<span class="badge bg-success">${paymentMethodNames[c.payment_method] || c.payment_method}</span>` :
+                        '<span class="badge bg-warning text-dark">Venter</span>';
+                    
+                    return `<tr class="${isNoShow ? 'table-secondary' : ''}">
+                        <td><div class="attendee-name">${c.customer_name || 'Ukjent'}</div>${c.customer_email ? `<div class="attendee-email">${c.customer_email}</div>` : ''}</td>
+                        <td>${typeBadge}</td>
+                        <td>${isNoShow ? `<s class="text-muted">${c.ticket_price} kr</s>` : `${c.ticket_price} kr`}</td>
+                        <td>${paymentBadge}</td>
+                        <td>${time}</td>
+                    </tr>`;
+                }).join('');
+            } else {
+                checkedList.innerHTML = '<tr><td colspan="5"><div class="checkin-empty-state"><i class="bi bi-inbox"></i><p class="mb-0">Ingen ankommet ennå</p></div></td></tr>';
+            }
+            
+            // Render pending list
+            const pendingList = document.getElementById('fullscreen-pending-list');
+            if (result.not_checked_in && result.not_checked_in.length > 0) {
+                pendingList.innerHTML = result.not_checked_in.map(c => {
+                    const isMember = c.ticket_type !== 'regular';
+                    const typeBadge = isMember ? `<span class="ticket-badge member"><i class="bi bi-star-fill"></i>${c.ticket_type}</span>` : '<span class="ticket-badge regular">Ordinær</span>';
+                    const escapedName = (c.customer_name || 'Ukjent').replace(/'/g, "\\'");
+                    
+                    return `<tr>
+                        <td><div class="attendee-name">${c.customer_name || 'Ukjent'}</div>${c.customer_email ? `<div class="attendee-email">${c.customer_email}</div>` : ''}</td>
+                        <td>${typeBadge}</td>
+                        <td>${c.ticket_price} kr</td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-success btn-sm" onclick="performFullscreenCheckin('${c.id}')"><i class="bi bi-check-circle me-1"></i>Sjekk inn</button>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="markNoShow('${c.id}', '${escapedName}'); syncCheckinToFullscreen();"><i class="bi bi-x-circle"></i></button>
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join('');
+            } else {
+                pendingList.innerHTML = '<tr><td colspan="4"><div class="checkin-empty-state"><i class="bi bi-check-circle-fill text-success"></i><p class="mb-0">Alle er innsjekket!</p></div></td></tr>';
+            }
+        }
+    } catch (error) {
+        console.error('Error syncing fullscreen checkin:', error);
+    }
+}
+
+// Perform check-in from fullscreen
+async function performFullscreenCheckin(checkinId) {
+    await performCheckin(checkinId);
+    syncCheckinToFullscreen();
+    
+    // Focus scanner input again
+    const input = document.getElementById('fullscreen-barcode-input');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+}
+
+// Initialize fullscreen on page load
+document.addEventListener('DOMContentLoaded', initFullscreenCheckin);
 
 </script>
