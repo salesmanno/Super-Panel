@@ -461,9 +461,24 @@ try {
                         <h6 class="mb-0" id="selected-event-title"><i class="bi bi-calendar-event me-2"></i>Valgt arrangement</h6>
                     </div>
                     <div class="card-body">
-                        <button class="btn btn-outline-secondary btn-sm w-100" onclick="document.getElementById('event-details-panel').style.display='none'; document.getElementById('checkin-event-cards').parentElement.style.display='block'">
+                        <button class="btn btn-outline-secondary btn-sm w-100" onclick="goBackToEventList()">
                             <i class="bi bi-chevron-left me-2"></i>Tilbake til oversikt
                         </button>
+                    </div>
+                </div>
+
+                <!-- Barcode Scanner / Search -->
+                <div id="checkin-scanner" class="card mb-3" style="display: none;">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0"><i class="bi bi-upc-scan me-2"></i>Søk / Scan strekkode</h6>
+                    </div>
+                    <div class="card-body">
+                        <input type="text" class="form-control" id="checkin-barcode-search" 
+                               placeholder="Scan strekkode eller søk på navn..." 
+                               autocomplete="off" autofocus>
+                        <small class="text-muted">Søk på navn, e-post eller strekkode</small>
+                        <div id="checkin-search-results" class="mt-2" style="display: none;">
+                        </div>
                     </div>
                 </div>
 
@@ -473,14 +488,20 @@ try {
                         <div class="row g-2 text-center small">
                             <div class="col-6">
                                 <div class="p-2 bg-light rounded">
-                                    <div class="text-muted">Påmeldte</div>
+                                    <div class="text-muted">Registrerte</div>
                                     <div class="fs-5 fw-bold" id="checkin-total-attendees">0</div>
                                 </div>
                             </div>
                             <div class="col-6">
                                 <div class="p-2 bg-light rounded">
-                                    <div class="text-muted">Betalt</div>
-                                    <div class="fs-5 fw-bold text-success" id="checkin-paid-count">0</div>
+                                    <div class="text-muted">Innsjekket</div>
+                                    <div class="fs-5 fw-bold text-success" id="checkin-checked-in-stat">0</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded">
+                                    <div class="text-muted">No-show</div>
+                                    <div class="fs-5 fw-bold text-secondary" id="checkin-noshow-count">0</div>
                                 </div>
                             </div>
                             <div class="col-6">
@@ -490,9 +511,15 @@ try {
                                 </div>
                             </div>
                             <div class="col-6">
-                                <div class="p-2 bg-light rounded">
-                                    <div class="text-muted">Inntekt</div>
-                                    <div class="fs-5 fw-bold text-primary" id="checkin-total-revenue">0 kr</div>
+                                <div class="p-2 bg-light rounded border border-success">
+                                    <div class="text-muted">Innsjekket inntekt</div>
+                                    <div class="fs-6 fw-bold text-success" id="checkin-revenue">0 kr</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded border border-primary">
+                                    <div class="text-muted">Forventet inntekt</div>
+                                    <div class="fs-6 fw-bold text-primary" id="checkin-expected-revenue">0 kr</div>
                                 </div>
                             </div>
                         </div>
@@ -578,25 +605,25 @@ try {
                     <!-- Checked In Tab -->
                     <div class="tab-pane fade show active" id="checkin-confirmed-tab" role="tabpanel">
                         <div class="card">
-                            <div class="card-header bg-success text-white">
-                                <h6 class="mb-0"><i class="bi bi-check-circle me-2"></i>Innsjekket</h6>
+                            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0"><i class="bi bi-check-circle me-2"></i>Ankommet / Innsjekket</h6>
                             </div>
                             <div class="card-body p-0">
                                 <div class="table-responsive" id="checkin-confirmed-container">
                                     <table class="table table-sm table-hover mb-0">
                                         <thead class="table-light">
                                             <tr>
-                                                <th>Billetttype</th>
-                                                <th>Innsjekket av</th>
-                                                <th>Barcode</th>
+                                                <th>Navn</th>
+                                                <th>Type</th>
                                                 <th>Pris</th>
+                                                <th>Betaling</th>
                                                 <th>Tid</th>
                                             </tr>
                                         </thead>
                                         <tbody id="checkin-confirmed-list">
                                             <tr>
                                                 <td colspan="5" class="text-center text-muted py-4">
-                                                    Velg arrangement for å se innsjekket
+                                                    Velg arrangement for å se ankomne
                                                 </td>
                                             </tr>
                                         </tbody>
@@ -609,7 +636,7 @@ try {
                     <!-- Not Checked In Tab -->
                     <div class="tab-pane fade" id="checkin-pending-tab" role="tabpanel">
                         <div class="card">
-                            <div class="card-header bg-warning text-dark">
+                            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
                                 <h6 class="mb-0"><i class="bi bi-clock me-2"></i>Ikke innsjekket</h6>
                             </div>
                             <div class="card-body p-0">
@@ -617,16 +644,16 @@ try {
                                     <table class="table table-sm table-hover mb-0">
                                         <thead class="table-light">
                                             <tr>
-                                                <th>Billetttype</th>
-                                                <th>Barcode</th>
+                                                <th>Navn</th>
+                                                <th>Type</th>
                                                 <th>Pris</th>
-                                                <th>Status</th>
+                                                <th>Handlinger</th>
                                             </tr>
                                         </thead>
                                         <tbody id="checkin-pending-list">
                                             <tr>
-                                                <td colspan="5" class="text-center text-muted py-4">
-                                                    Velg arrangement for å se ikke innsjekket
+                                                <td colspan="4" class="text-center text-muted py-4">
+                                                    Velg arrangement for å se ventende
                                                 </td>
                                             </tr>
                                         </tbody>
@@ -1793,11 +1820,29 @@ function openEventDetail(eventId, eventTitle) {
     document.getElementById('checkin-event-cards').parentElement.style.display = 'none';
     document.getElementById('event-details-panel').style.display = 'block';
     document.getElementById('checkin-stats').style.display = 'block';
+    document.getElementById('checkin-scanner').style.display = 'block';
     document.getElementById('quick-guest-registration').style.display = 'block';
+    
+    // Focus on barcode scanner
+    setTimeout(() => {
+        document.getElementById('checkin-barcode-search')?.focus();
+    }, 100);
     
     // Load checkins and event details
     loadCheckins(eventId);
     loadEventDetailsForCheckin(eventId);
+}
+
+function goBackToEventList() {
+    selectedEventId = null;
+    document.getElementById('event-details-panel').style.display = 'none';
+    document.getElementById('checkin-stats').style.display = 'none';
+    document.getElementById('checkin-scanner').style.display = 'none';
+    document.getElementById('quick-guest-registration').style.display = 'none';
+    document.getElementById('checkin-event-cards').parentElement.style.display = 'block';
+    document.getElementById('checkin-search-results').style.display = 'none';
+    document.getElementById('checkin-barcode-search').value = '';
+    loadCheckinEventSelector();
 }
 
 async function loadEventDetailsForCheckin(eventId) {
@@ -2146,32 +2191,65 @@ async function loadCheckins(eventId) {
         const result = await response.json();
         
         if (result.success) {
-            // Update statistics
+            // Update statistics with new fields
             document.getElementById('checkin-total-attendees').textContent = result.summary.total_attendees;
-            document.getElementById('checkin-paid-count').textContent = result.summary.paid_count;
-            document.getElementById('checkin-pending-count').textContent = result.summary.pending_count;
-            document.getElementById('checkin-total-revenue').textContent = result.summary.total_revenue.toFixed(2) + ' kr';
+            document.getElementById('checkin-checked-in-stat').textContent = result.summary.checked_in_count;
+            document.getElementById('checkin-noshow-count').textContent = result.summary.no_show_count || 0;
+            document.getElementById('checkin-pending-count').textContent = result.summary.not_checked_in_count;
+            document.getElementById('checkin-revenue').textContent = result.summary.checkin_revenue.toFixed(0) + ' kr';
+            document.getElementById('checkin-expected-revenue').textContent = result.summary.expected_revenue.toFixed(0) + ' kr';
             
-            // Update confirmed list (innsjekket)
+            // Payment method names for display
+            const paymentMethodNames = {
+                'cash': 'Kontant',
+                'card': 'Kort',
+                'vipps': 'Vipps',
+                'invoice': 'Faktura',
+                'bank_transfer': 'Bank',
+                'on_arrival': 'Ved oppmøte',
+                'free': 'Gratis',
+                'no_show': 'No-show'
+            };
+            
+            // Update confirmed list (ankommet/innsjekket)
             const confirmedList = document.getElementById('checkin-confirmed-list');
             const confirmedCount = document.getElementById('checkin-confirmed-count');
             
             if (result.checked_in && result.checked_in.length > 0) {
                 confirmedCount.textContent = result.checked_in.length;
                 confirmedList.innerHTML = result.checked_in.map(checkin => {
-                    const adminName = checkin.admin_first_name && checkin.admin_last_name 
-                        ? checkin.admin_first_name + ' ' + checkin.admin_last_name 
-                        : 'System';
-                    const checkinTime = checkin.check_in_time ? new Date(checkin.check_in_time).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) : '-';
-                    const barcode = checkin.barcode || '-';
+                    const customerName = checkin.customer_name || 'Ukjent';
+                    const checkinTime = checkin.check_in_time 
+                        ? new Date(checkin.check_in_time).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) 
+                        : '-';
                     const ticketType = checkin.ticket_type || 'regular';
+                    const isNoShow = checkin.payment_status === 'no_show';
+                    const isMember = ticketType !== 'regular';
+                    
+                    // Type badge
+                    const typeBadge = isMember 
+                        ? `<span class="badge bg-primary">${ticketType}</span>` 
+                        : `<span class="badge bg-secondary">Regular</span>`;
+                    
+                    // Payment badge
+                    let paymentBadge;
+                    if (isNoShow) {
+                        paymentBadge = '<span class="badge bg-dark">No-show</span>';
+                    } else if (checkin.payment_status === 'paid') {
+                        paymentBadge = `<span class="badge bg-success">${paymentMethodNames[checkin.payment_method] || checkin.payment_method}</span>`;
+                    } else {
+                        paymentBadge = '<span class="badge bg-warning">Venter</span>';
+                    }
                     
                     return `
-                        <tr>
-                            <td><strong>${ticketType}</strong></td>
-                            <td><small>${adminName}</small></td>
-                            <td><small class="font-monospace">${barcode}</small></td>
-                            <td>${checkin.ticket_price} kr</td>
+                        <tr class="${isNoShow ? 'table-secondary' : ''}">
+                            <td>
+                                <strong>${customerName}</strong>
+                                ${checkin.barcode ? `<br><small class="font-monospace text-muted">${checkin.barcode}</small>` : ''}
+                            </td>
+                            <td>${typeBadge}</td>
+                            <td>${isNoShow ? '<s class="text-muted">' + checkin.ticket_price + ' kr</s>' : checkin.ticket_price + ' kr'}</td>
+                            <td>${paymentBadge}</td>
                             <td><small class="text-muted">${checkinTime}</small></td>
                         </tr>
                     `;
@@ -2181,40 +2259,56 @@ async function loadCheckins(eventId) {
                 confirmedList.innerHTML = `
                     <tr>
                         <td colspan="5" class="text-center text-muted py-4">
-                            Ingen innsjekket ennå
+                            Ingen ankommet ennå
                         </td>
                     </tr>
                 `;
             }
             
-            // Update pending list (ikke innsjekket - removed since events_checkin no longer stores attendee data)
+            // Update pending list (ikke innsjekket)
             const pendingList = document.getElementById('checkin-pending-list');
-            const pendingCount = document.getElementById('checkin-pending-count');
-            // Note: Pending list is empty as events_checkin stores checked_in=0 for not-yet-checked-in entries            
+            const pendingTabCount = document.querySelector('#checkin-tabs .nav-link:nth-child(2) .badge');
+            
             if (result.not_checked_in && result.not_checked_in.length > 0) {
-                pendingCount.textContent = result.not_checked_in.length;
+                if (pendingTabCount) pendingTabCount.textContent = result.not_checked_in.length;
                 pendingList.innerHTML = result.not_checked_in.map(checkin => {
-                    const barcode = checkin.barcode || '-';
-                    const paymentBadge = checkin.payment_status === 'paid' 
-                        ? '<span class="badge bg-success">Betalt</span>' 
-                        : '<span class="badge bg-warning">Venter</span>';
+                    const customerName = checkin.customer_name || 'Ukjent';
                     const ticketType = checkin.ticket_type || 'regular';
+                    const isMember = ticketType !== 'regular';
+                    
+                    // Type badge
+                    const typeBadge = isMember 
+                        ? `<span class="badge bg-primary">${ticketType}</span>` 
+                        : `<span class="badge bg-secondary">Regular</span>`;
                     
                     return `
                         <tr>
-                            <td><strong>${ticketType}</strong></td>
-                            <td><small class="font-monospace">${barcode}</small></td>
-                            <td><small>${checkin.ticket_price} kr</small></td>
-                            <td>${paymentBadge}</td>
+                            <td>
+                                <strong>${customerName}</strong>
+                                ${checkin.barcode ? `<br><small class="font-monospace text-muted">${checkin.barcode}</small>` : ''}
+                            </td>
+                            <td>${typeBadge}</td>
+                            <td>${checkin.ticket_price} kr</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-success" onclick="performCheckin('${checkin.id}')" title="Sjekk inn med betaling">
+                                        <i class="bi bi-check-circle"></i> Sjekk inn
+                                    </button>
+                                    <button class="btn btn-outline-secondary" onclick="markNoShow('${checkin.id}', '${customerName.replace(/'/g, "\\'")}')" title="Marker som no-show">
+                                        <i class="bi bi-x-circle"></i> No-show
+                                    </button>
+                                </div>
+                            </td>
                         </tr>
                     `;
                 }).join('');
             } else {
-                pendingCount.textContent = '0';
+                if (pendingTabCount) pendingTabCount.textContent = '0';
                 pendingList.innerHTML = `
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-4">
-                            Alle har sjekket inn! ✓
+                        <td colspan="4" class="text-center text-muted py-4">
+                            <i class="bi bi-check-circle-fill text-success fs-3 d-block mb-2"></i>
+                            Alle er innsjekket!
                         </td>
                     </tr>
                 `;
@@ -2222,6 +2316,154 @@ async function loadCheckins(eventId) {
         }
     } catch (error) {
         console.error('Error loading check-ins:', error);
+    }
+}
+
+// Perform check-in with payment
+async function performCheckin(checkinId, skipPayment = false) {
+    const paymentMethod = document.getElementById('guest-payment-method')?.value || 'cash';
+    
+    try {
+        const response = await fetch('/api/perform_checkin.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                checkin_id: checkinId,
+                payment_method: paymentMethod,
+                skip_payment: skipPayment
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            toast.quickSuccess('Innsjekking', `${result.customer_name} sjekket inn!`);
+            loadCheckins(selectedEventId);
+            document.getElementById('checkin-barcode-search').value = '';
+            document.getElementById('checkin-barcode-search').focus();
+        } else {
+            toast.quickError('Feil', result.message || 'Kunne ikke sjekke inn');
+        }
+    } catch (error) {
+        console.error('Error performing check-in:', error);
+        toast.quickError('Feil', 'Kunne ikke sjekke inn');
+    }
+}
+
+// Mark attendee as no-show
+async function markNoShow(checkinId, customerName) {
+    if (!confirm(`Er du sikker på at du vil markere ${customerName} som no-show?\n\nDette flytter personen til ankommet-listen uten å registrere betaling.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/perform_checkin.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                checkin_id: checkinId,
+                no_show: true
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            toast.quickWarning('No-show', `${customerName} markert som no-show`);
+            loadCheckins(selectedEventId);
+        } else {
+            toast.quickError('Feil', result.message || 'Kunne ikke markere som no-show');
+        }
+    } catch (error) {
+        console.error('Error marking no-show:', error);
+        toast.quickError('Feil', 'Kunne ikke markere som no-show');
+    }
+}
+
+// Barcode scanner / search functionality
+let searchTimeout;
+document.getElementById('checkin-barcode-search')?.addEventListener('input', function(e) {
+    const searchValue = e.target.value.trim();
+    clearTimeout(searchTimeout);
+    
+    if (searchValue.length < 2) {
+        document.getElementById('checkin-search-results').style.display = 'none';
+        return;
+    }
+    
+    // Visual feedback during search
+    this.style.borderColor = '#ffc107';
+    
+    searchTimeout = setTimeout(async () => {
+        await searchAndCheckin(searchValue);
+    }, 300);
+});
+
+// Handle Enter key for quick check-in
+document.getElementById('checkin-barcode-search')?.addEventListener('keypress', async function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const searchValue = this.value.trim();
+        if (searchValue.length >= 2) {
+            await searchAndCheckin(searchValue, true);
+        }
+    }
+});
+
+async function searchAndCheckin(searchValue, autoCheckin = false) {
+    const searchInput = document.getElementById('checkin-barcode-search');
+    const resultsContainer = document.getElementById('checkin-search-results');
+    
+    try {
+        const response = await fetch(`/api/get_event_checkins.php?event_id=${selectedEventId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            // Search in not_checked_in list
+            const matches = result.not_checked_in.filter(c => {
+                const name = c.customer_name?.toLowerCase() || '';
+                const barcode = c.barcode?.toLowerCase() || '';
+                const email = c.customer_email?.toLowerCase() || '';
+                const search = searchValue.toLowerCase();
+                return name.includes(search) || barcode.includes(search) || email.includes(search);
+            });
+            
+            if (matches.length === 1 && autoCheckin) {
+                // Exact match with Enter key - auto check-in
+                searchInput.style.borderColor = '#28a745';
+                await performCheckin(matches[0].id);
+                resultsContainer.style.display = 'none';
+                return;
+            }
+            
+            if (matches.length > 0) {
+                searchInput.style.borderColor = '#28a745';
+                resultsContainer.style.display = 'block';
+                resultsContainer.innerHTML = matches.map(m => `
+                    <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+                        <div>
+                            <strong>${m.customer_name}</strong>
+                            <small class="text-muted d-block">${m.ticket_type} - ${m.ticket_price} kr</small>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-success" onclick="performCheckin('${m.id}')">
+                                <i class="bi bi-check"></i> Sjekk inn
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="markNoShow('${m.id}', '${m.customer_name.replace(/'/g, "\\'")}')">
+                                No-show
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                searchInput.style.borderColor = '#dc3545';
+                resultsContainer.style.display = 'block';
+                resultsContainer.innerHTML = '<div class="text-center text-muted p-2">Ingen treff. Prøv å søke på navn, e-post eller strekkode.</div>';
+            }
+        }
+    } catch (error) {
+        console.error('Error searching:', error);
+        searchInput.style.borderColor = '#dc3545';
     }
 }
 

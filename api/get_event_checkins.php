@@ -19,24 +19,26 @@ try {
 
     $db = getDBConnection();
     
-    // Verify event belongs to user's company
+    // Verify event belongs to user's company and get event details
     $stmt = $db->prepare("
-        SELECT id FROM events_eventdata 
+        SELECT id, title, ticket_price as default_ticket_price 
+        FROM events_eventdata 
         WHERE id = ? AND company_id = ?
     ");
     $stmt->execute([$eventId, $_SESSION['company_id']]);
+    $event = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    if (!$stmt->fetch()) {
+    if (!$event) {
         echo json_encode(['success' => false, 'message' => 'Event ikke funnet']);
         exit;
     }
     
-    // Get all check-ins for the event
-    // Note: attendee_name, attendee_email, attendee_phone columns were dropped - use ticket_type and customer data instead
+    // Get all check-ins for the event with customer names
     $stmt = $db->prepare("
         SELECT 
             c.id,
             c.customer_id,
+            c.registration_id,
             c.ticket_type,
             c.ticket_price,
             c.payment_status,
@@ -50,6 +52,8 @@ try {
             c.created_at,
             tc.first_name,
             tc.last_name,
+            tc.email as customer_email,
+            tc.phone as customer_phone,
             ta.first_name as admin_first_name,
             ta.last_name as admin_last_name
         FROM events_checkin c
@@ -63,25 +67,82 @@ try {
     $allCheckins = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Split into checked_in and not checked_in
-    $checkedIn = array_filter($allCheckins, fn($c) => $c['checked_in'] == 1);
-    $notCheckedIn = array_filter($allCheckins, fn($c) => $c['checked_in'] == 0);
+    $checkedIn = [];
+    $notCheckedIn = [];
+    
+    foreach ($allCheckins as $checkin) {
+        // Build full name for display
+        $checkin['customer_name'] = trim(($checkin['first_name'] ?? '') . ' ' . ($checkin['last_name'] ?? ''));
+        if (empty($checkin['customer_name'])) {
+            $checkin['customer_name'] = 'Ukjent';
+        }
+        
+        if ($checkin['checked_in'] == 1) {
+            $checkedIn[] = $checkin;
+        } else {
+            $notCheckedIn[] = $checkin;
+        }
+    }
     
     // Calculate summary stats
     $totalAttendees = count($allCheckins);
-    $totalRevenue = array_sum(array_column($allCheckins, 'ticket_price'));
-    $paidCount = count(array_filter($allCheckins, fn($c) => $c['payment_status'] === 'paid'));
     $checkedInCount = count($checkedIn);
+    $notCheckedInCount = count($notCheckedIn);
+    
+    // Calculate revenues
+    // Actual checked-in revenue (only from checked in attendees who paid)
+    $checkinRevenue = 0;
+    $checkinPaidCount = 0;
+    foreach ($checkedIn as $c) {
+        if ($c['payment_status'] === 'paid') {
+            $checkinRevenue += floatval($c['ticket_price']);
+            $checkinPaidCount++;
+        }
+    }
+    
+    // Expected revenue (from all attendees, whether checked in or not)
+    $expectedRevenue = 0;
+    foreach ($allCheckins as $c) {
+        $expectedRevenue += floatval($c['ticket_price']);
+    }
+    
+    // No-show count (marked as checked_in but with no_show notes or payment_status = 'no_show')
+    $noShowCount = 0;
+    foreach ($checkedIn as $c) {
+        if ($c['payment_status'] === 'no_show') {
+            $noShowCount++;
+        }
+    }
+    
+    // Total revenue (all paid - both checked in and not checked in)
+    $totalRevenue = 0;
+    $paidCount = 0;
+    foreach ($allCheckins as $c) {
+        if ($c['payment_status'] === 'paid') {
+            $totalRevenue += floatval($c['ticket_price']);
+            $paidCount++;
+        }
+    }
     
     echo json_encode([
         'success' => true,
-        'checked_in' => array_values($checkedIn),
-        'not_checked_in' => array_values($notCheckedIn),
+        'event' => [
+            'id' => $event['id'],
+            'title' => $event['title'],
+            'default_ticket_price' => floatval($event['default_ticket_price'])
+        ],
+        'checked_in' => $checkedIn,
+        'not_checked_in' => $notCheckedIn,
         'summary' => [
             'total_attendees' => $totalAttendees,
             'checked_in_count' => $checkedInCount,
-            'not_checked_in_count' => count($notCheckedIn),
+            'not_checked_in_count' => $notCheckedInCount,
+            'no_show_count' => $noShowCount,
             'total_revenue' => $totalRevenue,
+            'checkin_revenue' => $checkinRevenue,
+            'expected_revenue' => $expectedRevenue,
             'paid_count' => $paidCount,
+            'checkin_paid_count' => $checkinPaidCount,
             'pending_count' => $totalAttendees - $paidCount
         ]
     ]);
