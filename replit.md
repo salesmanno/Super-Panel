@@ -43,7 +43,17 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 - **Event Check-in Data Integrity**: `events_checkin` stores both `membership_plan_id` (FK reference to `event_membership_plans` for auditability) and `ticket_price` (snapshot of price at time of check-in for historical accuracy). Added `barcode` (VARCHAR(13)) and `qrcode` (LONGBLOB) columns for EAN13 and QR code storage.
 
-## Recent Changes (Dec 02, 2025)
+## Recent Changes (Dec 03, 2025)
+**Complete Check-in System - Fully Implemented:**
+1. **Two-list check-in UI** - "Ankommet/Innsjekket" (arrived) and "Ikke innsjekket" (pending) tabs with customer names, ticket types (regular/member badges), and prices.
+2. **Barcode-compatible search** - Search/scan input that matches by name, email, or barcode with visual feedback and auto-check-in on Enter key with single match.
+3. **Check-in action buttons** - "Sjekk inn" for paid check-in and "No-show" for marking non-attending registrants.
+4. **Revenue tracking** - Two statistics: "Innsjekket inntekt" (actual revenue from checked-in paid attendees) and "Forventet inntekt" (expected from all registrations).
+5. **No-show handling** - `perform_checkin.php` supports marking attendees as no-show with `payment_status='no_show'`, appearing in arrived list with dark badge.
+6. **Audit logging in Norwegian** - Format: "[admin_name] sjekket inn [customer_name] mot betaling på [ticket_price] gjennom [payment_method]" logged to `audit_logs`.
+7. **API updates** - `get_event_checkins.php` returns `customer_name`, `customer_email`, `no_show_count`, `checkin_revenue`, `expected_revenue`.
+
+## Previous Changes (Dec 02, 2025)
 **Event Creation System - Full Restoration:**
 1. **Fixed create_event.php INSERT order** - Reordered all 29 columns to match actual `events_eventdata` table schema exactly.
 2. **Added cost_price field** - Both create and edit forms now include "Innkjøpspris" field with proper database persistence.
