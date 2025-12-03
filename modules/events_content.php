@@ -3611,6 +3611,7 @@ async function loadAllRegistrations() {
                                             <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Kontakt</th>
                                             <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Medlem</th>
                                             <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Status</th>
+                                            <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem; text-align: right;">Handling</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -3637,10 +3638,12 @@ async function loadAllRegistrations() {
                     ? '<span class="badge bg-success-subtle text-success"><i class="bi bi-star-fill"></i></span>' 
                     : '<span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-dash"></i></span>';
                 
+                const customerName = `${reg.first_name || ''} ${reg.last_name || ''}`.trim();
+                
                 html += `
                     <tr style="border-bottom: 1px solid #e9ecef;">
                         <td style="padding: 10px 12px; vertical-align: middle;">
-                            <strong style="color: #2c3e50; font-size: 0.9rem;">${reg.first_name || ''} ${reg.last_name || ''}</strong>
+                            <strong style="color: #2c3e50; font-size: 0.9rem;">${customerName}</strong>
                         </td>
                         <td style="padding: 10px 12px; vertical-align: middle;">
                             <small style="color: #6c757d;">${contactHtml}</small>
@@ -3650,6 +3653,11 @@ async function loadAllRegistrations() {
                         </td>
                         <td style="padding: 10px 12px; vertical-align: middle;">
                             ${approvalStatusBadge}
+                        </td>
+                        <td style="padding: 10px 12px; vertical-align: middle; text-align: right;">
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteEventRegistration('${reg.id}', '${customerName.replace(/'/g, "\\'")}')">
+                                <i class="bi bi-trash"></i> Slett
+                            </button>
                         </td>
                     </tr>
                 `;
@@ -3709,6 +3717,33 @@ function collapseAllRegistrations() {
         const bsCollapse = new bootstrap.Collapse(collapse, { toggle: false });
         bsCollapse.hide();
     });
+}
+
+async function deleteEventRegistration(registrationId, customerName) {
+    if (!confirm(`Er du sikker på at du vil slette påmeldingen for "${customerName}"?\n\nDette vil fjerne:\n- Påmeldingen\n- Eventuell innsjekking\n- Relaterte data for dette arrangementet`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/delete_event_registration.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ registration_id: registrationId })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            toast.quickSuccess('Slettet', `Påmeldingen for ${customerName} er fjernet`);
+            loadPendingRegistrations();
+            loadAllRegistrations();
+        } else {
+            toast.quickError('Feil', result.message || 'Kunne ikke slette påmeldingen');
+        }
+    } catch (error) {
+        console.error('Error deleting registration:', error);
+        toast.quickError('Feil', 'Kunne ikke slette påmeldingen');
+    }
 }
 
 </script>
