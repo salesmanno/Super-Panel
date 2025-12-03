@@ -34,7 +34,6 @@ try {
             c.address_city,
             c.address_country,
             c.date_of_birth,
-            c.gender,
             c.notes AS customer_notes,
             c.is_member AS has_valid_membership,
             mm.membership_plan_id AS customer_membership_plan_id,
