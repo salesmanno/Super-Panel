@@ -87,41 +87,19 @@ try {
         }
     }
     
-    // Map of customer field names to labels (Norwegian)
-    $customerFieldLabels = [
-        'customer_code' => 'Kundenr.',
-        'customer_type' => 'Kundetype',
-        'address' => 'Adresse',
-        'postal_code' => 'Postnr.',
-        'city' => 'By',
-        'country' => 'Land',
-        'date_of_birth' => 'Fødselsdato',
-        'gender' => 'Kjønn',
-        'customer_notes' => 'Merknad'
-    ];
-    
-    // Process each registration
+    // Process each registration - include actual customer entry data
     foreach ($registrations as &$reg) {
-        // Build dynamic fields from customer data (max 4 non-empty fields)
-        $dynamicFields = [];
-        $fieldsToShow = ['address', 'city', 'date_of_birth', 'customer_notes'];
-        
-        foreach ($fieldsToShow as $fieldName) {
-            if (!empty($reg[$fieldName]) && count($dynamicFields) < 4) {
-                $value = $reg[$fieldName];
-                // Format date_of_birth
-                if ($fieldName === 'date_of_birth' && $value) {
-                    $date = new DateTime($value);
-                    $value = $date->format('d.m.Y');
-                }
-                $dynamicFields[] = [
-                    'label' => $customerFieldLabels[$fieldName] ?? ucfirst($fieldName),
-                    'value' => $value,
-                    'field_name' => $fieldName
-                ];
-            }
-        }
-        $reg['dynamic_fields'] = $dynamicFields;
+        // Build entry data with actual values from customer registration
+        $reg['entry_data'] = [
+            'first_name' => $reg['first_name'] ?? '',
+            'last_name' => $reg['last_name'] ?? '',
+            'email' => $reg['email'] ?? '',
+            'phone' => $reg['phone'] ?? '',
+            'address' => $reg['address'] ?? '',
+            'city' => $reg['city'] ?? '',
+            'postal_code' => $reg['postal_code'] ?? '',
+            'date_of_birth' => $reg['date_of_birth'] ?? ''
+        ];
         
         // Calculate price based on membership - match customer's specific plan to event's membership pricing
         $regularPrice = floatval($reg['regular_price'] ?? 0);

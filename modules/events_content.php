@@ -3352,34 +3352,40 @@ async function loadPendingRegistrations() {
         
         if (result.registrations && result.registrations.length > 0) {
             tbody.innerHTML = result.registrations.map(reg => {
-                // Build dynamic fields display (max 4)
-                let dynamicFieldsHtml = '';
-                if (reg.dynamic_fields && reg.dynamic_fields.length > 0) {
-                    dynamicFieldsHtml = reg.dynamic_fields.map(field => {
-                        const value = field.value || '-';
-                        return `
-                            <div class="d-inline-block me-2 mb-1">
-                                <span class="badge bg-light text-dark border" style="font-weight: 400;">
-                                    <small class="text-muted">${field.label}:</small> 
-                                    <span class="editable-field" data-reg-id="${reg.id}" data-field="${field.field_name}">${value}</span>
-                                </span>
-                            </div>
-                        `;
-                    }).join('');
-                } else {
-                    // Fallback to basic info
-                    dynamicFieldsHtml = `
-                        <div class="d-inline-block me-2 mb-1">
-                            <span class="badge bg-light text-dark border" style="font-weight: 400;">
-                                <small class="text-muted">Navn:</small> 
-                                <span>${reg.first_name} ${reg.last_name}</span>
-                            </span>
+                // Show actual entry data from customer registration
+                const entry = reg.entry_data || {};
+                const fullName = [entry.first_name, entry.last_name].filter(Boolean).join(' ') || `${reg.first_name || ''} ${reg.last_name || ''}`.trim();
+                const email = entry.email || reg.email || '';
+                const phone = entry.phone || reg.phone || '';
+                const address = entry.address || '';
+                const city = entry.city || '';
+                
+                // Build entry data display - show actual values
+                let entryDataHtml = `
+                    <div class="mb-1">
+                        <strong style="font-size: 0.95rem;">${fullName || '-'}</strong>
+                    </div>
+                `;
+                
+                if (email) {
+                    entryDataHtml += `
+                        <div class="text-muted" style="font-size: 0.85rem;">
+                            <i class="bi bi-envelope me-1"></i>${email}
                         </div>
-                        <div class="d-inline-block me-2 mb-1">
-                            <span class="badge bg-light text-dark border" style="font-weight: 400;">
-                                <small class="text-muted">E-post:</small> 
-                                <span>${reg.email || '-'}</span>
-                            </span>
+                    `;
+                }
+                if (phone) {
+                    entryDataHtml += `
+                        <div class="text-muted" style="font-size: 0.85rem;">
+                            <i class="bi bi-telephone me-1"></i>${phone}
+                        </div>
+                    `;
+                }
+                if (address || city) {
+                    const locationParts = [address, city].filter(Boolean).join(', ');
+                    entryDataHtml += `
+                        <div class="text-muted" style="font-size: 0.85rem;">
+                            <i class="bi bi-geo-alt me-1"></i>${locationParts}
                         </div>
                     `;
                 }
@@ -3398,7 +3404,7 @@ async function loadPendingRegistrations() {
                 
                 return `
                     <tr data-registration-id="${reg.id}">
-                        <td style="min-width: 250px;">${dynamicFieldsHtml}</td>
+                        <td style="min-width: 250px;">${entryDataHtml}</td>
                         <td class="text-center" style="min-width: 100px;">${priceHtml}</td>
                         <td>
                             <div><strong>${reg.event_title}</strong></div>
@@ -3644,7 +3650,16 @@ async function loadAllRegistrations() {
                     ? '<span class="badge bg-danger"><i class="bi bi-x-circle"></i> Avvist</span>'
                     : '<span class="badge bg-warning"><i class="bi bi-hourglass-split"></i> Venter</span>';
                 
-                const contact = reg.email || reg.phone || '-';
+                // Build contact info with both email and phone
+                let contactHtml = '';
+                if (reg.email) {
+                    contactHtml += `<div><i class="bi bi-envelope me-1"></i>${reg.email}</div>`;
+                }
+                if (reg.phone) {
+                    contactHtml += `<div><i class="bi bi-telephone me-1"></i>${reg.phone}</div>`;
+                }
+                if (!contactHtml) contactHtml = '-';
+                
                 const memberBadge = reg.has_valid_membership 
                     ? '<span class="badge bg-success-subtle text-success"><i class="bi bi-star-fill"></i></span>' 
                     : '<span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-dash"></i></span>';
@@ -3652,10 +3667,10 @@ async function loadAllRegistrations() {
                 html += `
                     <tr style="border-bottom: 1px solid #e9ecef;">
                         <td style="padding: 10px 12px; vertical-align: middle;">
-                            <strong style="color: #2c3e50; font-size: 0.9rem;">${reg.first_name} ${reg.last_name}</strong>
+                            <strong style="color: #2c3e50; font-size: 0.9rem;">${reg.first_name || ''} ${reg.last_name || ''}</strong>
                         </td>
                         <td style="padding: 10px 12px; vertical-align: middle;">
-                            <small style="color: #6c757d;">${contact}</small>
+                            <small style="color: #6c757d;">${contactHtml}</small>
                         </td>
                         <td style="padding: 10px 12px; vertical-align: middle; text-align: center;">
                             ${memberBadge}
