@@ -259,66 +259,120 @@
 <div class="modal fade" id="createMemberModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Legg til nytt medlem</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Legg til nytt medlem</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="create-member-form">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Fornavn *</label>
-                            <input type="text" class="form-control" name="first_name" required>
+                    <!-- Personinformasjon -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light py-2">
+                            <h6 class="mb-0"><i class="bi bi-person me-2"></i>Personinformasjon</h6>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Etternavn *</label>
-                            <input type="text" class="form-control" name="last_name" required>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Fornavn *</label>
+                                    <input type="text" class="form-control" name="first_name" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Etternavn *</label>
+                                    <input type="text" class="form-control" name="last_name" required>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">E-post *</label>
+                                    <input type="email" class="form-control" name="email" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Telefon</label>
+                                    <input type="tel" class="form-control" name="phone">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Adresse</label>
+                                    <input type="text" class="form-control" name="address">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Poststed</label>
+                                    <input type="text" class="form-control" name="poststed">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Fødselsdato</label>
+                                    <input type="date" class="form-control" name="dateofbirth">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Bilde-URL</label>
+                                    <input type="url" class="form-control" name="image_url" placeholder="https://...">
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">E-post *</label>
-                            <input type="email" class="form-control" name="email" required>
+                    
+                    <!-- Velg medlemskapsplan -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light py-2">
+                            <h6 class="mb-0"><i class="bi bi-card-checklist me-2"></i>Velg medlemskapsplan</h6>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Telefon</label>
-                            <input type="tel" class="form-control" name="phone">
+                        <div class="card-body">
+                            <div id="membership-plan-cards" class="row g-2 mb-3">
+                                <div class="col-12 text-center text-muted py-3">
+                                    <div class="spinner-border spinner-border-sm me-2"></div>
+                                    Laster planer...
+                                </div>
+                            </div>
+                            <input type="hidden" name="membership_plan_id" id="selected-plan-id">
+                            
+                            <!-- Valgt plan info -->
+                            <div id="selected-plan-info" class="alert alert-success d-none">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-check-circle-fill me-2 fs-4"></i>
+                                    <div>
+                                        <strong id="selected-plan-name">-</strong>
+                                        <div class="small" id="selected-plan-details">-</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Adresse</label>
-                        <input type="text" class="form-control" name="address">
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Poststed</label>
-                            <input type="text" class="form-control" name="poststed">
+                    
+                    <!-- Medlemskapsdetaljer -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light py-2">
+                            <h6 class="mb-0"><i class="bi bi-calendar-check me-2"></i>Medlemskapsdetaljer</h6>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Fødselsdato</label>
-                            <input type="date" class="form-control" name="dateofbirth">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Startdato</label>
+                                    <input type="date" class="form-control" name="join_date" id="member-join-date">
+                                    <small class="text-muted">Standard: i dag</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Betalingsstatus</label>
+                                    <select class="form-select" name="payment_status" id="member-payment-status">
+                                        <option value="paid">Betalt</option>
+                                        <option value="pending">Venter på betaling</option>
+                                        <option value="free">Gratis / Gave</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Notater</label>
+                                <textarea class="form-control" name="notes" rows="2" placeholder="Interne notater om medlemmet..."></textarea>
+                            </div>
                         </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Medlemskapsplan</label>
-                        <select class="form-select" name="membership_plan_id" id="member-plan-select">
-                            <option value="">Ingen plan valgt</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Bilde-URL</label>
-                        <input type="url" class="form-control" name="image_url" placeholder="https://example.com/bilde.jpg">
-                        <small class="text-muted">URL til profilbilde eller medlemsbilde</small>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Notater</label>
-                        <textarea class="form-control" name="notes" rows="3"></textarea>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
-                <button type="button" class="btn btn-primary" onclick="submitMember()">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Avbryt</button>
+                <button type="button" class="btn btn-primary" onclick="submitMember()" id="submit-member-btn">
                     <i class="bi bi-check-circle me-1"></i>Legg til medlem
                 </button>
             </div>
@@ -705,7 +759,9 @@ async function submitMember() {
         dateofbirth: formData.get('dateofbirth'),
         membership_plan_id: formData.get('membership_plan_id') || null,
         notes: formData.get('notes'),
-        image_url: formData.get('image_url') || null
+        image_url: formData.get('image_url') || null,
+        join_date: formData.get('join_date') || null,
+        payment_status: formData.get('payment_status') || 'paid'
     };
     
     if (!memberData.first_name || !memberData.last_name || !memberData.email) {
@@ -728,6 +784,12 @@ async function submitMember() {
             toast.success(toastId, 'Medlem lagt til', `${memberData.first_name} ${memberData.last_name} er nå registrert`);
             bootstrap.Modal.getInstance(document.getElementById('createMemberModal')).hide();
             form.reset();
+            document.getElementById('selected-plan-id').value = '';
+            document.getElementById('selected-plan-info').classList.add('d-none');
+            document.querySelectorAll('.plan-card').forEach(c => {
+                c.style.borderColor = 'transparent';
+                c.style.backgroundColor = '';
+            });
             loadMembers();
         } else {
             toast.error(toastId, 'Registrering av medlem', result.message || 'Kunne ikke legge til medlem');
@@ -772,16 +834,119 @@ async function loadPlansForSelect() {
         const response = await fetch('../api/get_membership_plans.php');
         const result = await response.json();
         
-        const select = document.getElementById('member-plan-select');
+        const container = document.getElementById('membership-plan-cards');
+        const hiddenInput = document.getElementById('selected-plan-id');
+        const infoBox = document.getElementById('selected-plan-info');
+        
+        // Set default join date to today
+        const joinDateInput = document.getElementById('member-join-date');
+        if (joinDateInput && !joinDateInput.value) {
+            joinDateInput.value = new Date().toISOString().split('T')[0];
+        }
         
         if (result.success && result.plans && result.plans.length > 0) {
-            const options = result.plans.map(plan => 
-                `<option value="${plan.plan_id}">${plan.name || plan.plan_name} - ${plan.price} NOK</option>`
-            ).join('');
-            select.innerHTML = '<option value="">Ingen plan valgt</option>' + options;
+            // Store plans for later use
+            window.membershipPlans = result.plans;
+            
+            // Build plan cards
+            let html = '';
+            result.plans.forEach((plan, index) => {
+                const billingLabel = {
+                    'monthly': 'mnd',
+                    'quarterly': 'kvartal',
+                    'yearly': 'år'
+                }[plan.billing_cycle] || 'periode';
+                
+                const planImage = plan.image_url 
+                    ? `<img src="${plan.image_url}" alt="${plan.name}" class="rounded mb-2" style="height: 40px; width: auto; object-fit: contain;">`
+                    : `<i class="bi bi-card-heading fs-3 text-primary mb-2"></i>`;
+                
+                html += `
+                    <div class="col-md-4 col-sm-6">
+                        <div class="card h-100 plan-card" data-plan-id="${plan.plan_id}" data-plan-index="${index}" 
+                             onclick="selectMembershipPlan('${plan.plan_id}', ${index})" 
+                             style="cursor: pointer; transition: all 0.2s; border: 2px solid transparent;">
+                            <div class="card-body text-center p-3">
+                                ${planImage}
+                                <h6 class="card-title mb-1">${plan.name || plan.plan_name}</h6>
+                                <div class="fw-bold text-primary">${plan.price} kr<small class="text-muted">/${billingLabel}</small></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // Add "Ingen plan" option
+            html += `
+                <div class="col-md-4 col-sm-6">
+                    <div class="card h-100 plan-card" data-plan-id="" 
+                         onclick="selectMembershipPlan('', -1)" 
+                         style="cursor: pointer; transition: all 0.2s; border: 2px solid transparent;">
+                        <div class="card-body text-center p-3">
+                            <i class="bi bi-x-circle fs-3 text-muted mb-2"></i>
+                            <h6 class="card-title mb-1 text-muted">Ingen plan</h6>
+                            <div class="text-muted small">Legg til uten medlemskap</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-warning mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Ingen medlemskapsplaner funnet. <a href="#" onclick="document.querySelector('[data-bs-target=\\'#createPlanModal\\']').click()">Opprett en plan først.</a>
+                    </div>
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Error loading plans for select:', error);
+        document.getElementById('membership-plan-cards').innerHTML = `
+            <div class="col-12 text-center text-danger py-3">
+                <i class="bi bi-exclamation-triangle me-2"></i>Feil ved lasting av planer
+            </div>
+        `;
+    }
+}
+
+function selectMembershipPlan(planId, planIndex) {
+    const hiddenInput = document.getElementById('selected-plan-id');
+    const infoBox = document.getElementById('selected-plan-info');
+    const nameEl = document.getElementById('selected-plan-name');
+    const detailsEl = document.getElementById('selected-plan-details');
+    
+    // Update hidden input
+    hiddenInput.value = planId;
+    
+    // Update visual selection
+    document.querySelectorAll('.plan-card').forEach(card => {
+        card.style.borderColor = 'transparent';
+        card.style.backgroundColor = '';
+    });
+    
+    const selectedCard = document.querySelector(`.plan-card[data-plan-id="${planId}"]`);
+    if (selectedCard) {
+        selectedCard.style.borderColor = '#198754';
+        selectedCard.style.backgroundColor = 'rgba(25, 135, 84, 0.05)';
+    }
+    
+    // Update info box
+    if (planId && planIndex >= 0 && window.membershipPlans && window.membershipPlans[planIndex]) {
+        const plan = window.membershipPlans[planIndex];
+        const billingLabel = {
+            'monthly': 'Månedlig',
+            'quarterly': 'Kvartalsvis',
+            'yearly': 'Årlig'
+        }[plan.billing_cycle] || plan.billing_cycle;
+        
+        nameEl.textContent = plan.name || plan.plan_name;
+        detailsEl.textContent = `${plan.price} kr - ${billingLabel} fakturering`;
+        infoBox.classList.remove('d-none');
+    } else {
+        infoBox.classList.add('d-none');
     }
 }
 
