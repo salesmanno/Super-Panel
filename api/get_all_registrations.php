@@ -12,9 +12,8 @@ require_once __DIR__ . '/../config/database.php';
 try {
     $db = getDBConnection();
     
-    // Note: event_registrations table only has: id, event_id, company_id, customer_id, 
-    //       approval_status, approved_by, approved_at, created_at
-    // Membership info is in membership_members table, not tenant_customers
+    // Customer data from tenant_customers used for display
+    // Membership info is in membership_members table
     $stmt = $db->prepare("
         SELECT 
             r.id,
@@ -24,6 +23,14 @@ try {
             c.last_name,
             c.email,
             c.phone,
+            c.customer_code,
+            c.address,
+            c.postal_code,
+            c.city,
+            c.country,
+            c.date_of_birth,
+            c.gender,
+            c.notes AS customer_notes,
             c.is_member AS has_valid_membership,
             mm.membership_plan_id AS customer_membership_plan_id,
             r.created_at,
@@ -37,7 +44,7 @@ try {
             e.start_time
         FROM event_registrations r
         INNER JOIN events_eventdata e ON r.event_id = e.id
-        INNER JOIN tenant_customers c ON r.customer_id = c.id
+        INNER JOIN tenant_customers c ON r.customer_id = c.id AND c.company_id = r.company_id
         LEFT JOIN membership_members mm ON mm.customer_id = c.id AND mm.company_id = r.company_id AND mm.status = 'active'
         LEFT JOIN tenant_admins approver ON r.approved_by = approver.id
         LEFT JOIN tenant_staff approver_staff ON approver.tenant_staff_id = approver_staff.id

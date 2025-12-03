@@ -14,9 +14,8 @@ try {
     $companyId = $_SESSION['company_id'];
     
     // Get pending registrations with event, customer, and pricing info
-    // Note: event_registrations table only has: id, event_id, company_id, customer_id, 
-    //       approval_status, approved_by, approved_at, created_at
-    // Membership info is in membership_members table, not tenant_customers
+    // Customer data from tenant_customers used for dynamic field display
+    // Membership info is in membership_members table
     $stmt = $db->prepare("
         SELECT 
             r.id,
@@ -28,6 +27,15 @@ try {
             c.last_name,
             c.email,
             c.phone,
+            c.customer_code,
+            c.customer_type,
+            c.address,
+            c.postal_code,
+            c.city,
+            c.country,
+            c.date_of_birth,
+            c.gender,
+            c.notes AS customer_notes,
             c.is_member AS has_valid_membership,
             mm.membership_plan_id AS customer_membership_plan_id,
             e.title AS event_title,
@@ -36,7 +44,7 @@ try {
             e.ticket_price AS regular_price
         FROM event_registrations r
         INNER JOIN events_eventdata e ON r.event_id = e.id
-        INNER JOIN tenant_customers c ON r.customer_id = c.id
+        INNER JOIN tenant_customers c ON r.customer_id = c.id AND c.company_id = r.company_id
         LEFT JOIN membership_members mm ON mm.customer_id = c.id AND mm.company_id = r.company_id AND mm.status = 'active'
         WHERE r.company_id = ?
         AND r.approval_status = 'pending'
@@ -79,18 +87,39 @@ try {
         }
     }
     
+    // Map of customer field names to labels (Norwegian)
+    $customerFieldLabels = [
+        'customer_code' => 'Kundenr.',
+        'customer_type' => 'Kundetype',
+        'address' => 'Adresse',
+        'postal_code' => 'Postnr.',
+        'city' => 'By',
+        'country' => 'Land',
+        'date_of_birth' => 'Fødselsdato',
+        'gender' => 'Kjønn',
+        'customer_notes' => 'Merknad'
+    ];
+    
     // Process each registration
     foreach ($registrations as &$reg) {
-        // Get dynamic fields (max 4) - note: registration_data column removed
-        $fields = $eventFields[$reg['event_id']] ?? [];
+        // Build dynamic fields from customer data (max 4 non-empty fields)
         $dynamicFields = [];
-        foreach ($fields as $field) {
-            $fieldName = $field['field_name'];
-            $dynamicFields[] = [
-                'label' => $field['field_label'],
-                'value' => '',
-                'field_name' => $fieldName
-            ];
+        $fieldsToShow = ['address', 'city', 'date_of_birth', 'customer_notes'];
+        
+        foreach ($fieldsToShow as $fieldName) {
+            if (!empty($reg[$fieldName]) && count($dynamicFields) < 4) {
+                $value = $reg[$fieldName];
+                // Format date_of_birth
+                if ($fieldName === 'date_of_birth' && $value) {
+                    $date = new DateTime($value);
+                    $value = $date->format('d.m.Y');
+                }
+                $dynamicFields[] = [
+                    'label' => $customerFieldLabels[$fieldName] ?? ucfirst($fieldName),
+                    'value' => $value,
+                    'field_name' => $fieldName
+                ];
+            }
         }
         $reg['dynamic_fields'] = $dynamicFields;
         
