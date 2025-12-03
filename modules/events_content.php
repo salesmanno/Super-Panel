@@ -4795,8 +4795,10 @@ async function syncCheckinToFullscreen() {
             // Update fullscreen stats
             document.getElementById('fullscreen-checked-in').textContent = result.summary.checked_in_count;
             document.getElementById('fullscreen-pending-count').textContent = result.summary.not_checked_in_count;
+            document.getElementById('fullscreen-noshow').textContent = result.summary.no_show_count || 0;
             document.getElementById('fullscreen-revenue').textContent = result.summary.checkin_revenue.toFixed(0) + ' kr';
             document.getElementById('fullscreen-expected').textContent = result.summary.expected_revenue.toFixed(0) + ' kr';
+            document.getElementById('fullscreen-total-attendees').textContent = result.summary.total_attendees;
             
             // Payment method names
             const paymentMethodNames = {
