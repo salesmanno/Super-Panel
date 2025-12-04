@@ -48,10 +48,12 @@ try {
     $skipPayment = isset($data['skip_payment']) && $data['skip_payment'] === true;
     
     // Get admin info for audit log
+    // Note: tenant_admins doesn't have first_name/last_name - they're in tenant_staff via tenant_staff_id
     $adminStmt = $db->prepare("
-        SELECT first_name, last_name, email 
-        FROM tenant_admins 
-        WHERE id = ? AND company_id = ?
+        SELECT ta.email, ts.first_name, ts.last_name 
+        FROM tenant_admins ta
+        LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
+        WHERE ta.id = ? AND ta.company_id = ?
     ");
     $adminStmt->execute([$adminId, $companyId]);
     $admin = $adminStmt->fetch(PDO::FETCH_ASSOC);
@@ -61,7 +63,10 @@ try {
         exit;
     }
     
-    $adminName = trim($admin['first_name'] . ' ' . $admin['last_name']);
+    $adminName = trim(($admin['first_name'] ?? '') . ' ' . ($admin['last_name'] ?? ''));
+    if (empty($adminName)) {
+        $adminName = $admin['email'] ?? 'Admin';
+    }
     
     // Get checkin record with customer and event info
     $stmt = $db->prepare("
