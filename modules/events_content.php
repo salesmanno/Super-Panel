@@ -2804,16 +2804,9 @@ document.getElementById('checkin-form')?.addEventListener('submit', async functi
 
 // Load check-ins for selected event
 async function loadCheckins(eventId) {
-    console.log('loadCheckins called with eventId:', eventId, 'type:', typeof eventId);
     try {
         const response = await fetch(`/api/get_event_checkins.php?event_id=${eventId}`);
         const result = await response.json();
-        console.log('loadCheckins API response:', result);
-        if (result._debug) {
-            console.log('Debug info - queried_event_id:', result._debug.queried_event_id, 
-                        'raw_count:', result._debug.raw_count, 
-                        'after_join_count:', result._debug.after_join_count);
-        }
         
         if (result.success) {
             // Update statistics with new fields
@@ -3046,57 +3039,105 @@ document.getElementById('checkin-barcode-search')?.addEventListener('keypress', 
 async function searchAndCheckin(searchValue, autoCheckin = false) {
     const searchInput = document.getElementById('checkin-barcode-search');
     const resultsContainer = document.getElementById('checkin-search-results');
+    const search = searchValue.toLowerCase().trim();
+    
+    // Hide results if search too short
+    if (search.length < 2) {
+        resultsContainer.style.display = 'none';
+        searchInput.style.borderColor = '';
+        return;
+    }
     
     try {
         const response = await fetch(`/api/get_event_checkins.php?event_id=${selectedEventId}`);
         const result = await response.json();
         
         if (result.success) {
-            // Search in not_checked_in list
+            // Search in not_checked_in list with strict filtering
             const matches = result.not_checked_in.filter(c => {
-                const name = c.customer_name?.toLowerCase() || '';
-                const barcode = c.barcode?.toLowerCase() || '';
-                const email = c.customer_email?.toLowerCase() || '';
-                const search = searchValue.toLowerCase();
-                return name.includes(search) || barcode.includes(search) || email.includes(search);
+                const name = (c.customer_name || '').toLowerCase();
+                const barcode = (c.barcode || '').toLowerCase();
+                const email = (c.customer_email || '').toLowerCase();
+                
+                // Check if search term matches any field
+                const nameMatch = name.includes(search);
+                const barcodeMatch = barcode.includes(search);
+                const emailMatch = email.includes(search);
+                
+                return nameMatch || barcodeMatch || emailMatch;
+            });
+            
+            console.log(`Search "${search}" found ${matches.length} of ${result.not_checked_in.length} total`);
+            
+            // Sort matches by relevance (exact barcode match first, then name starts with, then includes)
+            matches.sort((a, b) => {
+                const aBarcode = (a.barcode || '').toLowerCase();
+                const bBarcode = (b.barcode || '').toLowerCase();
+                const aName = (a.customer_name || '').toLowerCase();
+                const bName = (b.customer_name || '').toLowerCase();
+                
+                // Exact barcode match first
+                if (aBarcode === search && bBarcode !== search) return -1;
+                if (bBarcode === search && aBarcode !== search) return 1;
+                
+                // Name starts with search term next
+                if (aName.startsWith(search) && !bName.startsWith(search)) return -1;
+                if (bName.startsWith(search) && !aName.startsWith(search)) return 1;
+                
+                // Alphabetical by name
+                return aName.localeCompare(bName);
             });
             
             if (matches.length === 1 && autoCheckin) {
-                // Exact match with Enter key - auto check-in
+                // Single match with Enter key - auto check-in
                 searchInput.style.borderColor = '#28a745';
                 await performCheckin(matches[0].id);
                 resultsContainer.style.display = 'none';
+                searchInput.value = '';
                 return;
             }
             
             if (matches.length > 0) {
                 searchInput.style.borderColor = '#28a745';
                 resultsContainer.style.display = 'block';
-                resultsContainer.innerHTML = matches.map(m => `
-                    <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+                
+                // Show count and limit to 10 results
+                const limitedMatches = matches.slice(0, 10);
+                const moreText = matches.length > 10 ? `<div class="text-center text-muted small p-1">+ ${matches.length - 10} flere resultater...</div>` : '';
+                
+                resultsContainer.innerHTML = limitedMatches.map(m => {
+                    const isMember = m.ticket_type !== 'regular';
+                    const ticketLabel = isMember ? `<span class="badge bg-primary">${m.ticket_type}</span>` : '<span class="badge bg-secondary">Ordinær</span>';
+                    const escapedName = (m.customer_name || 'Ukjent').replace(/'/g, "\\'");
+                    
+                    return `
+                    <div class="d-flex justify-content-between align-items-center p-2 border-bottom search-result-item">
                         <div>
-                            <strong>${m.customer_name}</strong>
-                            <small class="text-muted d-block">${m.ticket_type} - ${m.ticket_price} kr</small>
+                            <strong>${m.customer_name || 'Ukjent'}</strong>
+                            <small class="text-muted d-block">${ticketLabel} - ${m.ticket_price} kr</small>
+                            ${m.barcode ? `<small class="text-muted font-monospace">${m.barcode}</small>` : ''}
                         </div>
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-success" onclick="performCheckin('${m.id}')">
+                            <button class="btn btn-success" onclick="performCheckin('${m.id}'); document.getElementById('checkin-search-results').style.display='none';">
                                 <i class="bi bi-check"></i> Sjekk inn
                             </button>
-                            <button class="btn btn-outline-secondary" onclick="markNoShow('${m.id}', '${m.customer_name.replace(/'/g, "\\'")}')">
+                            <button class="btn btn-outline-secondary" onclick="markNoShow('${m.id}', '${escapedName}'); document.getElementById('checkin-search-results').style.display='none';">
                                 No-show
                             </button>
                         </div>
                     </div>
-                `).join('');
+                `}).join('') + moreText;
             } else {
                 searchInput.style.borderColor = '#dc3545';
                 resultsContainer.style.display = 'block';
-                resultsContainer.innerHTML = '<div class="text-center text-muted p-2">Ingen treff. Prøv å søke på navn, e-post eller strekkode.</div>';
+                resultsContainer.innerHTML = `<div class="text-center text-muted p-2"><i class="bi bi-search me-2"></i>Ingen treff for "${searchValue}". Prøv å søke på navn, e-post eller strekkode.</div>`;
             }
         }
     } catch (error) {
         console.error('Error searching:', error);
         searchInput.style.borderColor = '#dc3545';
+        resultsContainer.style.display = 'block';
+        resultsContainer.innerHTML = '<div class="text-center text-danger p-2"><i class="bi bi-exclamation-triangle me-2"></i>Feil ved søk</div>';
     }
 }
 

@@ -19,9 +19,6 @@ try {
 
     $db = getDBConnection();
     
-    // Debug: Log the event ID being queried
-    error_log("get_event_checkins: Querying event_id = " . $eventId . " (type: " . gettype($eventId) . ")");
-    
     // Verify event belongs to user's company and get event details
     $stmt = $db->prepare("
         SELECT id, title, ticket_price as default_ticket_price 
@@ -35,12 +32,6 @@ try {
         echo json_encode(['success' => false, 'message' => 'Event ikke funnet']);
         exit;
     }
-    
-    // First, get the raw count to verify data exists
-    $countStmt = $db->prepare("SELECT COUNT(*) as cnt FROM events_checkin WHERE event_id = ?");
-    $countStmt->execute([$eventId]);
-    $rawCount = $countStmt->fetch(PDO::FETCH_ASSOC);
-    error_log("get_event_checkins: Raw count for event_id $eventId = " . ($rawCount['cnt'] ?? 0));
     
     // Get all check-ins for the event with customer names
     // Note: tenant_admins doesn't have first_name/last_name directly - those are in tenant_staff
@@ -77,7 +68,6 @@ try {
     
     $stmt->execute([$eventId]);
     $allCheckins = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    error_log("get_event_checkins: After JOIN, found " . count($allCheckins) . " checkins");
     
     // Split into checked_in and not checked_in
     $checkedIn = [];
@@ -157,11 +147,6 @@ try {
             'paid_count' => $paidCount,
             'checkin_paid_count' => $checkinPaidCount,
             'pending_count' => $totalAttendees - $paidCount
-        ],
-        '_debug' => [
-            'queried_event_id' => $eventId,
-            'raw_count' => intval($rawCount['cnt'] ?? 0),
-            'after_join_count' => count($allCheckins)
         ]
     ]);
     
