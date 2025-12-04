@@ -43,6 +43,8 @@ try {
     error_log("get_event_checkins: Raw count for event_id $eventId = " . ($rawCount['cnt'] ?? 0));
     
     // Get all check-ins for the event with customer names
+    // Note: tenant_admins doesn't have first_name/last_name directly - those are in tenant_staff
+    // We join through tenant_staff via tenant_admins.tenant_staff_id
     $stmt = $db->prepare("
         SELECT 
             c.id,
@@ -63,11 +65,12 @@ try {
             tc.last_name,
             tc.email as customer_email,
             tc.phone as customer_phone,
-            ta.first_name as admin_first_name,
-            ta.last_name as admin_last_name
+            ts.first_name as admin_first_name,
+            ts.last_name as admin_last_name
         FROM events_checkin c
         LEFT JOIN tenant_customers tc ON c.customer_id = tc.id
         LEFT JOIN tenant_admins ta ON c.checked_in_by = ta.id
+        LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
         WHERE c.event_id = ?
         ORDER BY c.checked_in DESC, c.check_in_time DESC, c.created_at DESC
     ");
