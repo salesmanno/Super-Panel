@@ -55,6 +55,7 @@ try {
     // Then: Count attendees for each event separately (avoids LEFT JOIN duplicates)
     foreach ($events as &$event) {
         try {
+            // Count approved attendees from events_checkin (these are ready for check-in)
             $countStmt = $db->prepare("
                 SELECT COUNT(DISTINCT id) as attendee_count
                 FROM events_checkin
@@ -63,9 +64,31 @@ try {
             $countStmt->execute([$event['id']]);
             $countResult = $countStmt->fetch(PDO::FETCH_ASSOC);
             $event['current_attendees'] = intval($countResult['attendee_count'] ?? 0);
+            
+            // Count checked-in attendees
+            $checkedInStmt = $db->prepare("
+                SELECT COUNT(DISTINCT id) as checked_in_count
+                FROM events_checkin
+                WHERE event_id = ? AND checked_in = 1
+            ");
+            $checkedInStmt->execute([$event['id']]);
+            $checkedInResult = $checkedInStmt->fetch(PDO::FETCH_ASSOC);
+            $event['checked_in_count'] = intval($checkedInResult['checked_in_count'] ?? 0);
+            
+            // Count pending registrations (not yet approved)
+            $pendingStmt = $db->prepare("
+                SELECT COUNT(DISTINCT id) as pending_count
+                FROM event_registrations
+                WHERE event_id = ? AND approval_status = 'pending'
+            ");
+            $pendingStmt->execute([$event['id']]);
+            $pendingResult = $pendingStmt->fetch(PDO::FETCH_ASSOC);
+            $event['pending_registrations'] = intval($pendingResult['pending_count'] ?? 0);
         } catch (Exception $e) {
             error_log("Warning: Failed to count attendees for event {$event['id']}: " . $e->getMessage());
             $event['current_attendees'] = 0;
+            $event['checked_in_count'] = 0;
+            $event['pending_registrations'] = 0;
         }
     }
     

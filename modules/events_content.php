@@ -2362,6 +2362,10 @@ async function loadCheckinEventSelector() {
                     ? `background-image: url('${event.event_image_url}'); background-size: cover; background-position: center;`
                     : 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);';
                 
+                const pendingBadge = event.pending_registrations > 0 
+                    ? `<span class="badge bg-warning text-dark ms-1" title="Ventende godkjenning">${event.pending_registrations}</span>`
+                    : '';
+                
                 return `
                     <div class="col-md-6 col-lg-4 col-xl-3">
                         <div class="checkin-event-card" onclick="openEventDetail('${event.id}', '${escapedTitle}', '${escapedDateStr}')">
@@ -2376,11 +2380,11 @@ async function loadCheckinEventSelector() {
                                 <div class="event-stats">
                                     <div class="stat-item">
                                         <i class="bi bi-people"></i>
-                                        <span>${event.current_attendees || 0} påmeldt</span>
+                                        <span>${event.current_attendees || 0} godkjent${pendingBadge}</span>
                                     </div>
                                     <div class="stat-item">
                                         <i class="bi bi-check-circle"></i>
-                                        <span id="checked-${event.id}">-</span> innsjekket
+                                        <span>${event.checked_in_count || 0}</span> innsjekket
                                     </div>
                                 </div>
                             </div>
@@ -2628,13 +2632,21 @@ document.getElementById('quick-guest-form')?.addEventListener('submit', async fu
             const messageText = numberOfPeople > 1 
                 ? `${numberOfPeople} gjester registrert!` 
                 : 'Gjest registrert!';
-            toast.quickSuccess('Gjest', messageText);
+            toast.quickSuccess('Registrert', messageText);
         } else {
-            toast.quickError('Feil', result.message || 'Kunne ikke registrere gjest');
+            // Handle duplicate registration with specific status message
+            if (result.is_duplicate) {
+                const statusBadge = result.existing_status === 'approved' ? 'godkjent' :
+                                    result.existing_status === 'pending' ? 'ventende' :
+                                    result.existing_status === 'rejected' ? 'avslått' : result.existing_status;
+                toast.quickWarning('Duplikat', `Allerede påmeldt (${statusBadge})`);
+            } else {
+                toast.quickError('Feil', result.message || 'Kunne ikke registrere gjest');
+            }
         }
     } catch (error) {
         console.error('Error registering guest:', error);
-        toast.quickError('Gjest', 'Kunne ikke registrere gjest');
+        toast.quickError('Feil', 'Kunne ikke registrere gjest');
     }
 });
 

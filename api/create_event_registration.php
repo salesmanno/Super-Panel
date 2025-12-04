@@ -35,12 +35,27 @@ try {
         }
         
         $stmt = $db->prepare("
-            SELECT id FROM event_registrations 
+            SELECT id, approval_status FROM event_registrations 
             WHERE event_id = ? AND customer_id = ?
         ");
         $stmt->execute([$data['event_id'], $data['customer_id']]);
-        if ($stmt->fetch()) {
-            throw new Exception('Kunden er allerede påmeldt dette arrangementet');
+        $existingReg = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($existingReg) {
+            $db->rollBack();
+            $statusText = match($existingReg['approval_status']) {
+                'approved' => 'godkjent',
+                'pending' => 'ventende',
+                'rejected' => 'avslått',
+                default => $existingReg['approval_status']
+            };
+            echo json_encode([
+                'success' => false,
+                'is_duplicate' => true,
+                'existing_status' => $existingReg['approval_status'],
+                'existing_status_text' => $statusText,
+                'message' => "Kunden er allerede påmeldt (status: {$statusText})"
+            ]);
+            exit;
         }
         
         // Check if event has max_attendees limit and if it's reached
