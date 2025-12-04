@@ -44,7 +44,12 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Event Check-in Data Integrity**: `events_checkin` stores both `membership_plan_id` (FK reference to `event_membership_plans` for auditability) and `ticket_price` (snapshot of price at time of check-in for historical accuracy). Added `barcode` (VARCHAR(13)) and `qrcode` (LONGBLOB) columns for EAN13 and QR code storage.
 
 ## Recent Changes (Dec 04, 2025)
-**Check-in UI Improvements:**
+**Event & Membership Improvements:**
+1. **Removed cost_price from events** - Event creation and editing no longer includes the "Innkjøpspris" field (removed from forms, APIs, and JavaScript).
+2. **Inline member editing CSS** - Added visual feedback for editable membership table cells (cursor pointer, hover background, pencil icon indicator).
+3. **Check-in count verification** - Confirmed that check-in counting code is correct; any display mismatches are due to MySQL connection instability.
+
+**Previous Check-in UI Improvements:**
 1. **Fixed event images** - Check-in event cards now correctly display event images from `event_image_url` field.
 2. **Enhanced attendee counts** - Cards show "godkjent" (approved) count, checked-in count, and pending badge when applicable.
 3. **API enhancements** - `get_events.php` now returns `checked_in_count` and `pending_registrations` for accurate display.
