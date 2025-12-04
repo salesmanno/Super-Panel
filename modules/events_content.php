@@ -2634,12 +2634,14 @@ document.getElementById('quick-guest-form')?.addEventListener('submit', async fu
                 : 'Gjest registrert!';
             toast.quickSuccess('Registrert', messageText);
         } else {
-            // Handle duplicate registration with specific status message
+            // Handle duplicate registration with specific Norwegian status message
             if (result.is_duplicate) {
-                const statusBadge = result.existing_status === 'approved' ? 'godkjent' :
-                                    result.existing_status === 'pending' ? 'ventende' :
-                                    result.existing_status === 'rejected' ? 'avslått' : result.existing_status;
-                toast.quickWarning('Duplikat', `Allerede påmeldt (${statusBadge})`);
+                const statusText = result.existing_status_text || 
+                    (result.existing_status === 'approved' ? 'godkjent' :
+                     result.existing_status === 'pending' ? 'ventende' :
+                     result.existing_status === 'rejected' ? 'avslått' :
+                     result.existing_status === 'paid' ? 'godkjent' : result.existing_status);
+                toast.quickWarning('Allerede registrert', `Status: ${statusText}`);
             } else {
                 toast.quickError('Feil', result.message || 'Kunne ikke registrere gjest');
             }

@@ -47,6 +47,32 @@ try {
         exit;
     }
     
+    // Check for duplicate registration by email (if email provided and only one person)
+    if ($email && $number_of_people === 1) {
+        $dupStmt = $db->prepare("
+            SELECT ec.id, ec.checked_in, ec.payment_status
+            FROM events_checkin ec
+            LEFT JOIN tenant_customers tc ON ec.customer_id = tc.id
+            WHERE ec.event_id = ? AND (tc.email = ? OR ec.notes LIKE ?)
+        ");
+        $dupStmt->execute([$event_id, $email, "%{$email}%"]);
+        $existingCheckin = $dupStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($existingCheckin) {
+            $statusText = $existingCheckin['checked_in'] == 1 ? 'innsjekket' :
+                          ($existingCheckin['payment_status'] === 'paid' ? 'godkjent' :
+                          ($existingCheckin['payment_status'] === 'pending' ? 'ventende' : 'registrert'));
+            echo json_encode([
+                'success' => false,
+                'is_duplicate' => true,
+                'existing_status' => $existingCheckin['payment_status'],
+                'existing_status_text' => $statusText,
+                'message' => "Deltaker med denne e-posten er allerede registrert (status: {$statusText})"
+            ]);
+            exit;
+        }
+    }
+    
     // Determine ticket price based on membership plan
     $ticket_type = 'regular'; // Default for walk-in/non-members without specific membership price
     $ticket_price = $event['ticket_price'];
