@@ -1,3 +1,30 @@
+<style>
+.editable-member-cell {
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.2s;
+}
+.editable-member-cell:hover {
+    background-color: rgba(13, 110, 253, 0.1);
+}
+.editable-member-cell:hover::after {
+    content: '\F4C4';
+    font-family: 'bootstrap-icons';
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.7rem;
+    color: #0d6efd;
+    opacity: 0.7;
+}
+.editable-member-cell input {
+    width: 100%;
+    border: 2px solid #0d6efd;
+    border-radius: 4px;
+    padding: 2px 6px;
+}
+</style>
 <div class="module-content">
     <div id="membership-plans" class="subtab-content">
         <div class="card">

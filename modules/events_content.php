@@ -773,15 +773,10 @@ try {
                     <h6 class="mb-3"><i class="bi bi-people-fill me-2"></i>Priser</h6>
                     
                     <div class="row">
-                        <div class="col-md-3 mb-3" id="ticket-price-container">
+                        <div class="col-md-4 mb-3" id="ticket-price-container">
                             <label class="form-label">Billettpris (NOK)</label>
                             <input type="number" step="0.01" class="form-control" name="ticket_price" id="ticket_price">
                             <small class="form-text text-muted" id="ticket-price-help">Ved "Ingen påmelding" vises pris med "(betales ved inngang)"</small>
-                        </div>
-                        <div class="col-md-3 mb-3" id="cost-price-container">
-                            <label class="form-label">Innkjøpspris (NOK)</label>
-                            <input type="number" step="0.01" class="form-control" name="cost_price" id="cost_price" value="0">
-                            <small class="form-text text-muted">Kostnad per billett for resultatberegning</small>
                         </div>
                     </div>
                     
@@ -1534,14 +1529,9 @@ try {
                     <h6 class="mb-3"><i class="bi bi-people-fill me-2"></i>Priser og medlemskap</h6>
                     
                     <div class="row">
-                        <div class="col-md-3 mb-3" id="edit-ticket-price-container">
+                        <div class="col-md-4 mb-3" id="edit-ticket-price-container">
                             <label class="form-label">Billettpris (NOK)</label>
                             <input type="number" step="0.01" class="form-control" name="ticket_price" id="edit-ticket-price">
-                        </div>
-                        <div class="col-md-3 mb-3" id="edit-cost-price-container">
-                            <label class="form-label">Innkjøpspris (NOK)</label>
-                            <input type="number" step="0.01" class="form-control" name="cost_price" id="edit-cost-price" value="0">
-                            <small class="form-text text-muted">Kostnad per billett for resultatberegning</small>
                         </div>
                     </div>
 
@@ -1948,7 +1938,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 max_attendees: formData.get('max_attendees') || null,
                 age_limit: formData.get('age_limit') || null,
                 ticket_price: formData.get('ticket_price') || 0,
-                cost_price: formData.get('cost_price') || 0,
                 event_image_url: formData.get('event_image_url') || null,
                 is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
                 memberverification: formData.get('memberverification') ? 1 : 0,
@@ -3463,7 +3452,6 @@ async function editEvent(eventId) {
         setFieldValue('edit-registration-deadline', event.registration_deadline);
         setFieldValue('edit-max-attendees', event.max_attendees);
         setFieldValue('edit-ticket-price', event.ticket_price || 0);
-        setFieldValue('edit-cost-price', event.cost_price || 0);
         setFieldValue('edit-default-payment-method', event.default_payment_method);
         setFieldValue('edit-event-image-url', event.event_image_url);
         
@@ -3685,7 +3673,6 @@ async function saveEventChanges() {
         max_attendees: formData.get('max_attendees') || null,
         age_limit: formData.get('age_limit') || null,
         ticket_price: formData.get('ticket_price') || 0,
-        cost_price: formData.get('cost_price') || 0,
         event_image_url: formData.get('event_image_url') || null,
         default_payment_method: formData.get('default_payment_method') || null,
         is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,

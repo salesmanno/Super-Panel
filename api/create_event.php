@@ -119,10 +119,10 @@ try {
         // default_payment_method is always 'cash'
         $defaultPaymentMethod = 'cash';
         
-        // INSERT order matches actual table schema:
+        // INSERT order matches actual table schema (cost_price removed per user request):
         // id, company_id, title, description, start_date, start_time, end_date, end_time,
         // venue_name, event_address, event_city, event_postal, max_attendees, registration_deadline,
-        // min_attendees, age_limit, is_member_exclusive, ticket_price, cost_price, event_image_url,
+        // min_attendees, age_limit, is_member_exclusive, ticket_price, event_image_url,
         // is_active, created_by, created_at, updated_at, default_payment_method, payment_timing,
         // registration_type, payment_methods_json, memberverification
         $stmt = $db->prepare("
@@ -145,7 +145,6 @@ try {
                 age_limit,
                 is_member_exclusive,
                 ticket_price,
-                cost_price,
                 event_image_url,
                 is_active,
                 created_by,
@@ -158,7 +157,7 @@ try {
                 memberverification
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 1, ?, NOW(), NOW(), ?, ?, ?, ?, ?
             )
         ");
@@ -182,7 +181,6 @@ try {
             $data['age_limit'] ?? null,
             $data['is_member_exclusive'] ?? 0,
             $data['ticket_price'] ?? 0,
-            isset($data['cost_price']) && $data['cost_price'] !== '' ? $data['cost_price'] : null,
             $data['event_image_url'] ?? null,
             $_SESSION['tenant_admin_id'],
             $defaultPaymentMethod,
