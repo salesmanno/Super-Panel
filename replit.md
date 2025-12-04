@@ -43,7 +43,15 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 - **Event Check-in Data Integrity**: `events_checkin` stores both `membership_plan_id` (FK reference to `event_membership_plans` for auditability) and `ticket_price` (snapshot of price at time of check-in for historical accuracy). Added `barcode` (VARCHAR(13)) and `qrcode` (LONGBLOB) columns for EAN13 and QR code storage.
 
-## Recent Changes (Dec 03, 2025)
+## Recent Changes (Dec 04, 2025)
+**Check-in UI Improvements:**
+1. **Fixed event images** - Check-in event cards now correctly display event images from `event_image_url` field.
+2. **Enhanced attendee counts** - Cards show "godkjent" (approved) count, checked-in count, and pending badge when applicable.
+3. **API enhancements** - `get_events.php` now returns `checked_in_count` and `pending_registrations` for accurate display.
+4. **Duplicate detection** - Both `create_event_registration.php` and `register_guest.php` now detect duplicate registrations by email and return Norwegian status.
+5. **Toast notifications** - Quick-guest form shows Norwegian toast for duplicates: "Allerede registrert - Status: {innsjekket/godkjent/ventende/registrert}".
+
+## Previous Changes (Dec 03, 2025)
 **Complete Check-in System - Fully Implemented:**
 1. **Two-list check-in UI** - "Ankommet/Innsjekket" (arrived) and "Ikke innsjekket" (pending) tabs with customer names, ticket types (regular/member badges), and prices.
 2. **Barcode-compatible search** - Search/scan input that matches by name, email, or barcode with visual feedback and auto-check-in on Enter key with single match.
