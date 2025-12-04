@@ -2804,9 +2804,16 @@ document.getElementById('checkin-form')?.addEventListener('submit', async functi
 
 // Load check-ins for selected event
 async function loadCheckins(eventId) {
+    console.log('loadCheckins called with eventId:', eventId, 'type:', typeof eventId);
     try {
         const response = await fetch(`/api/get_event_checkins.php?event_id=${eventId}`);
         const result = await response.json();
+        console.log('loadCheckins API response:', result);
+        if (result._debug) {
+            console.log('Debug info - queried_event_id:', result._debug.queried_event_id, 
+                        'raw_count:', result._debug.raw_count, 
+                        'after_join_count:', result._debug.after_join_count);
+        }
         
         if (result.success) {
             // Update statistics with new fields
