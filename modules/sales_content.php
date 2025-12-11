@@ -212,9 +212,8 @@
                             
                             <div class="mb-3">
                                 <label class="form-label small">Betalingsmetode</label>
-                                <select class="form-select form-select-sm" id="checkout-payment-method">
+                                <select class="form-select form-select-sm payment-method-select" id="checkout-payment-method">
                                     <option value="cash">Kontant</option>
-                                    <option value="vipps">Vipps (ukonfigurert)</option>
                                     <option value="on_arrival">Oppmøte</option>
                                     <option value="sponsored">Spons</option>
                                 </select>
@@ -638,7 +637,7 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Betalingsmetode</label>
-                            <select class="form-select" id="purchase-payment-method">
+                            <select class="form-select payment-method-select" id="purchase-payment-method">
                                 <option value="cash">Kontant</option>
                                 <option value="card">Kort</option>
                                 <option value="invoice">Faktura</option>
@@ -1030,9 +1029,8 @@
                     
                     <div class="mb-3">
                         <label class="form-label">Betalingsmetode</label>
-                        <select class="form-select" id="service-payment-method">
+                        <select class="form-select payment-method-select" id="service-payment-method">
                             <option value="cash">Kontant</option>
-                            <option value="vipps">Vipps (ukonfigurert)</option>
                             <option value="on_arrival">Oppmøte</option>
                             <option value="sponsored">Spons</option>
                         </select>
@@ -1178,9 +1176,8 @@
                             
                             <div class="mb-3">
                                 <label class="form-label small">Betalingsmetode</label>
-                                <select class="form-select form-select-sm" id="checkout-payment-method-fullscreen">
+                                <select class="form-select form-select-sm payment-method-select" id="checkout-payment-method-fullscreen">
                                     <option value="cash">Kontant</option>
-                                    <option value="vipps">Vipps (ukonfigurert)</option>
                                     <option value="on_arrival">Oppmøte</option>
                                     <option value="sponsored">Spons</option>
                                 </select>
@@ -1869,6 +1866,88 @@ async function loadEventsForLinking() {
     }
 }
 
+// Load and populate payment methods from economy configuration
+async function loadPaymentMethodsForSales() {
+    try {
+        const response = await fetch('/api/get_payment_methods.php');
+        const result = await response.json();
+        
+        if (!result.success || !result.payment_methods) return;
+        
+        const apiMethods = result.payment_methods;
+        
+        // Define context-specific base options
+        const checkoutBase = [
+            { value: 'on_arrival', label: 'Oppmøte' },
+            { value: 'sponsored', label: 'Spons' }
+        ];
+        
+        const purchaseBase = [
+            { value: 'cash', label: 'Kontant' },
+            { value: 'card', label: 'Kort' },
+            { value: 'invoice', label: 'Faktura' },
+            { value: 'sponsored', label: 'Spons' }
+        ];
+        
+        // Build options for checkout/service selects (API methods + checkout base)
+        const checkoutSelects = ['checkout-payment-method', 'checkout-payment-method-fullscreen', 'service-payment-method'];
+        checkoutSelects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+            
+            const currentValue = select.value;
+            let html = '';
+            
+            // Add API methods first (cash, vipps, etc)
+            apiMethods.forEach(method => {
+                const demo = method.is_demo ? ' (Demo)' : '';
+                html += `<option value="${method.method_type}">${method.method_name}${demo}</option>`;
+            });
+            
+            // Add checkout-specific options
+            const apiTypes = apiMethods.map(m => m.method_type);
+            checkoutBase.forEach(opt => {
+                if (!apiTypes.includes(opt.value)) {
+                    html += `<option value="${opt.value}">${opt.label}</option>`;
+                }
+            });
+            
+            select.innerHTML = html;
+            if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
+                select.value = currentValue;
+            }
+        });
+        
+        // Build options for purchase select (different context - expenses)
+        const purchaseSelect = document.getElementById('purchase-payment-method');
+        if (purchaseSelect) {
+            const currentValue = purchaseSelect.value;
+            let html = '';
+            
+            purchaseBase.forEach(opt => {
+                html += `<option value="${opt.value}">${opt.label}</option>`;
+            });
+            
+            // Add any API methods not already in base
+            const baseTypes = purchaseBase.map(o => o.value);
+            apiMethods.forEach(method => {
+                if (!baseTypes.includes(method.method_type)) {
+                    const demo = method.is_demo ? ' (Demo)' : '';
+                    html += `<option value="${method.method_type}">${method.method_name}${demo}</option>`;
+                }
+            });
+            
+            purchaseSelect.innerHTML = html;
+            if (currentValue && purchaseSelect.querySelector(`option[value="${currentValue}"]`)) {
+                purchaseSelect.value = currentValue;
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error loading payment methods:', error);
+    }
+}
+
 // Load all sales data in one function
 async function loadAllSalesData() {
     console.log('=== loadAllSalesData() called ===');
@@ -1876,7 +1955,8 @@ async function loadAllSalesData() {
         loadSalesProducts(),
         loadTransactions(),
         loadProductsWithProfit(),
-        loadEventsForLinking()
+        loadEventsForLinking(),
+        loadPaymentMethodsForSales()
     ]);
     
     // Setup cash calculators after data loads
@@ -2948,11 +3028,20 @@ document.addEventListener('DOMContentLoaded', function() {
         purchaseDateInput.value = new Date().toISOString().split('T')[0];
     }
     
-    // Load products when modal opens
+    // Load products and payment methods when modals open
     const purchaseModal = document.getElementById('addPurchaseModal');
     if (purchaseModal) {
         purchaseModal.addEventListener('shown.bs.modal', function() {
             loadProductsForPurchase();
+            loadPaymentMethodsForSales();
+        });
+    }
+    
+    // Load payment methods when service modal opens
+    const serviceModal = document.getElementById('sellServiceModal');
+    if (serviceModal) {
+        serviceModal.addEventListener('shown.bs.modal', function() {
+            loadPaymentMethodsForSales();
         });
     }
 });
