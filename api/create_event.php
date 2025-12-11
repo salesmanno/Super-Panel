@@ -100,24 +100,16 @@ try {
             }
         }
         
-        // ENFORCE: Cash must always be included (insert as first element if not present)
-        if (!in_array('cash', $paymentMethodsArray)) {
-            array_unshift($paymentMethodsArray, 'cash');
-        } elseif ($paymentMethodsArray[0] !== 'cash') {
-            // Move cash to first position if present but not first
-            $cashIndex = array_search('cash', $paymentMethodsArray);
-            unset($paymentMethodsArray[$cashIndex]);
-            array_unshift($paymentMethodsArray, 'cash');
-            $paymentMethodsArray = array_values($paymentMethodsArray); // Re-index
-        }
+        // Payment methods are controlled by Economy module configuration
+        // No forced inclusion of any specific method
         
         // Convert payment methods array to JSON
         $paymentMethodsJson = json_encode($paymentMethodsArray);
         
         $memberverification = (isset($data['memberverification']) && $data['memberverification']) ? 1 : 0;
         
-        // default_payment_method is always 'cash'
-        $defaultPaymentMethod = 'cash';
+        // default_payment_method is first in the allowed methods array
+        $defaultPaymentMethod = !empty($paymentMethodsArray) ? $paymentMethodsArray[0] : 'cash';
         
         // INSERT order matches actual table schema (cost_price removed per user request):
         // id, company_id, title, description, start_date, start_time, end_date, end_time,

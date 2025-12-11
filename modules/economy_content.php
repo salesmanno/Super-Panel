@@ -227,49 +227,6 @@
     </div>
 
     <div id="economy-payment" class="subtab-content" style="display: none;">
-        <?php
-        // Hent cash_payment status
-        $cashPaymentEnabled = true;
-        $vippsEnabled = false;
-        $vippsIsDemo = false;
-        
-        try {
-            $db = getDBConnection();
-            if ($db) {
-                $stmt = $db->prepare("SELECT cash_payment FROM tenant_companies WHERE id = ?");
-                $stmt->execute([$_SESSION['company_id']]);
-                $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($result !== false) {
-                    $cashPaymentEnabled = $result['cash_payment'] ?? true;
-                }
-                
-                // Check if Vipps demo is enabled
-                $stmt = $db->prepare("
-                    SELECT is_active, is_demo 
-                    FROM payment_methods 
-                    WHERE company_id = ? AND method_type = 'vipps' AND is_demo = ?
-                ");
-                $stmt->execute([$_SESSION['company_id'], true]);
-                $vippsResult = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($vippsResult) {
-                    $vippsEnabled = (bool)$vippsResult['is_active'];
-                    $vippsIsDemo = (bool)$vippsResult['is_demo'];
-                }
-            }
-        } catch (Exception $e) {
-            $cashPaymentEnabled = true;
-            $vippsEnabled = false;
-        }
-        
-        $gateways = [
-            ['name' => 'cash', 'display' => 'Kontant', 'desc' => 'Kontant betaling', 'icon' => 'cash-stack', 'enabled' => $cashPaymentEnabled, 'is_demo' => false],
-            ['name' => 'stripe', 'display' => 'Stripe', 'desc' => 'Kort og nettbetaling (Internasjonalt)', 'icon' => 'credit-card', 'enabled' => false, 'is_demo' => false],
-            ['name' => 'vipps', 'display' => 'Vipps', 'desc' => 'Norsk mobilbetaling', 'icon' => 'phone', 'enabled' => $vippsEnabled, 'is_demo' => $vippsIsDemo],
-            ['name' => 'klarna', 'display' => 'Klarna', 'desc' => 'Betal senere løsninger', 'icon' => 'bag-check', 'enabled' => false, 'is_demo' => false],
-            ['name' => 'paypal', 'display' => 'PayPal', 'desc' => 'Internasjonal betalingsløsning', 'icon' => 'paypal', 'enabled' => false, 'is_demo' => false],
-        ];
-        ?>
-        
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title"><i class="bi bi-credit-card-2-front me-2"></i>Betalingsløsninger</h5>
@@ -277,98 +234,131 @@
                 
                 <div class="alert alert-info">
                     <i class="bi bi-info-circle me-2"></i>
-                    <strong>Kontant</strong> er aktivert som standard og kan deaktiveres ved behov.
+                    Betalingsløsninger som er <strong>konfigurert</strong> i databasen kan aktiveres/deaktiveres her.
                 </div>
                 
-                <div class="row mt-4">
-                    <?php foreach ($gateways as $gateway): ?>
-                    <div class="col-md-6 mb-3">
-                        <div class="card border <?= $gateway['enabled'] ? 'border-success' : '' ?>">
-                            <div class="card-body">
-                                <div class="d-flex align-items-center mb-3">
-                                    <i class="bi bi-<?= $gateway['icon'] ?> fs-2 me-3 <?= $gateway['enabled'] ? 'text-success' : 'text-muted' ?>"></i>
-                                    <div>
-                                        <h6 class="mb-0"><?= $gateway['display'] ?></h6>
-                                        <small class="text-muted"><?= $gateway['desc'] ?></small>
-                                    </div>
-                                </div>
-                                
-                                <?php if ($gateway['enabled']): ?>
-                                <span class="badge bg-success mb-2">
-                                    <i class="bi bi-check-circle me-1"></i>Aktivert
-                                </span>
-                                <?php if ($gateway['is_demo']): ?>
-                                <span class="badge bg-warning text-dark mb-2 ms-1">
-                                    <i class="bi bi-tools me-1"></i>Demo/Sandbox
-                                </span>
-                                <?php endif; ?>
-                                <?php else: ?>
-                                <span class="badge bg-secondary mb-2">
-                                    <i class="bi bi-x-circle me-1"></i>Ikke konfigurert
-                                </span>
-                                <?php endif; ?>
-                                
-                                <?php if ($gateway['name'] === 'cash'): ?>
-                                <button class="btn btn-<?= $gateway['enabled'] ? 'danger' : 'success' ?> btn-sm w-100 mt-2" onclick="toggleCashPayment(<?= $gateway['enabled'] ? 'false' : 'true' ?>)">
-                                    <i class="bi bi-toggle-<?= $gateway['enabled'] ? 'on' : 'off' ?> me-1"></i>
-                                    <?= $gateway['enabled'] ? 'Deaktiver' : 'Aktiver' ?>
-                                </button>
-                                <?php elseif ($gateway['name'] === 'vipps'): ?>
-                                <button class="btn btn-<?= $gateway['enabled'] ? 'warning' : 'primary' ?> btn-sm w-100 mt-2" onclick="setupDemoVipps()">
-                                    <i class="bi bi-<?= $gateway['enabled'] ? 'x-circle' : 'lightning-charge' ?> me-1"></i>
-                                    <?= $gateway['enabled'] ? 'Deaktiver Demo' : 'Aktiver Demo' ?>
-                                </button>
-                                <?php else: ?>
-                                <button class="btn btn-outline-secondary btn-sm w-100 mt-2" disabled>
-                                    <i class="bi bi-gear me-1"></i>Konfigurer
-                                </button>
-                                <?php endif; ?>
-                            </div>
+                <div id="payment-gateways-container" class="row mt-4">
+                    <div class="col-12 text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Laster...</span>
                         </div>
                     </div>
-                    <?php endforeach; ?>
                 </div>
             </div>
         </div>
         
         <script>
-        function toggleCashPayment(enable) {
-            fetch('/api/toggle_cash_payment.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ enabled: enable })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    toast.quickError('Feil', data.error || 'Kunne ikke oppdatere kontantbetaling');
+        const gatewayDescriptions = {
+            'cash': 'Kontant betaling',
+            'vipps': 'Norsk mobilbetaling',
+            'stripe': 'Kort og nettbetaling (Internasjonalt)',
+            'paypal': 'Internasjonal betalingsløsning',
+            'klarna': 'Betal senere løsninger'
+        };
+        
+        async function loadPaymentGateways() {
+            const container = document.getElementById('payment-gateways-container');
+            if (!container) return;
+            
+            try {
+                const response = await fetch('/api/get_payment_gateways.php');
+                const result = await response.json();
+                
+                if (!result.success || !result.gateways) {
+                    container.innerHTML = '<div class="col-12"><div class="alert alert-warning">Kunne ikke laste betalingsløsninger</div></div>';
+                    return;
                 }
-            })
-            .catch(error => {
-                toast.quickError('Feil', 'En feil oppstod: ' + error.message);
-            });
+                
+                let html = '';
+                result.gateways.forEach(gw => {
+                    const isActive = gw.is_active;
+                    const isConfigured = gw.is_configured;
+                    const testMode = gw.test_mode;
+                    const desc = gatewayDescriptions[gw.gateway_name] || '';
+                    
+                    let statusBadge = '';
+                    let actionButton = '';
+                    
+                    if (isActive) {
+                        statusBadge = '<span class="badge bg-success mb-2"><i class="bi bi-check-circle me-1"></i>Aktivert</span>';
+                        if (testMode && gw.gateway_name !== 'cash') {
+                            statusBadge += ' <span class="badge bg-warning text-dark mb-2"><i class="bi bi-tools me-1"></i>Testmodus</span>';
+                        }
+                        actionButton = `<button class="btn btn-danger btn-sm w-100 mt-2" onclick="toggleGateway('${gw.gateway_name}', false)">
+                            <i class="bi bi-toggle-on me-1"></i>Deaktiver
+                        </button>`;
+                    } else if (isConfigured) {
+                        statusBadge = '<span class="badge bg-info mb-2"><i class="bi bi-gear-fill me-1"></i>Konfigurert</span>';
+                        actionButton = `<button class="btn btn-success btn-sm w-100 mt-2" onclick="toggleGateway('${gw.gateway_name}', true)">
+                            <i class="bi bi-toggle-off me-1"></i>Aktiver
+                        </button>`;
+                    } else {
+                        statusBadge = '<span class="badge bg-secondary mb-2"><i class="bi bi-x-circle me-1"></i>Ikke konfigurert</span>';
+                        if (gw.missing_fields && gw.missing_fields.length > 0) {
+                            statusBadge += `<br><small class="text-muted">Mangler: ${gw.missing_fields.length} felt</small>`;
+                        }
+                        actionButton = `<button class="btn btn-outline-secondary btn-sm w-100 mt-2" disabled>
+                            <i class="bi bi-lock me-1"></i>Mangler konfigurasjon
+                        </button>`;
+                    }
+                    
+                    html += `
+                        <div class="col-md-6 mb-3">
+                            <div class="card border ${isActive ? 'border-success' : ''}">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <i class="bi bi-${gw.icon} fs-2 me-3 ${isActive ? 'text-success' : 'text-muted'}"></i>
+                                        <div>
+                                            <h6 class="mb-0">${gw.display_name}</h6>
+                                            <small class="text-muted">${desc}</small>
+                                        </div>
+                                    </div>
+                                    ${statusBadge}
+                                    ${actionButton}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error loading payment gateways:', error);
+                container.innerHTML = '<div class="col-12"><div class="alert alert-danger">Feil ved lasting av betalingsløsninger</div></div>';
+            }
         }
         
-        function setupDemoVipps() {
-            fetch('/api/setup_demo_vipps.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    toast.quickSuccess('Vipps', data.message);
-                    location.reload();
+        async function toggleGateway(gatewayName, activate) {
+            try {
+                const response = await fetch('/api/toggle_payment_gateway.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ gateway_name: gatewayName, is_active: activate })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    toast.quickSuccess('Betalingsløsning', result.message);
+                    loadPaymentGateways();
                 } else {
-                    toast.quickError('Feil', data.message || 'Kunne ikke aktivere demo Vipps');
+                    toast.quickError('Feil', result.message || 'Kunne ikke oppdatere betalingsløsning');
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 toast.quickError('Feil', 'En feil oppstod: ' + error.message);
-            });
+            }
         }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const economyPaymentTab = document.querySelector('[data-subtab="economy-payment"]');
+            if (economyPaymentTab) {
+                economyPaymentTab.addEventListener('click', loadPaymentGateways);
+            }
+            
+            if (document.getElementById('economy-payment')?.style.display !== 'none') {
+                loadPaymentGateways();
+            }
+        });
         </script>
     </div>
 

@@ -1908,9 +1908,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
-            // Collect allowed payment methods
-            const allowedPaymentMethods = ['cash']; // Cash is always required
-            document.querySelectorAll('#payment-methods-container input[type="checkbox"]:checked:not([disabled])').forEach(checkbox => {
+            // Collect allowed payment methods from Economy configuration
+            const allowedPaymentMethods = [];
+            document.querySelectorAll('#payment-methods-container input[type="checkbox"]:checked').forEach(checkbox => {
                 allowedPaymentMethods.push(checkbox.dataset.methodType);
             });
             
@@ -3689,9 +3689,9 @@ async function saveEventChanges() {
         }
     }
     
-    // Collect allowed payment methods
-    const allowedPaymentMethods = ['cash']; // Cash is always required
-    document.querySelectorAll('#edit-payment-methods-container input[type="checkbox"]:checked:not([disabled])').forEach(checkbox => {
+    // Collect allowed payment methods from Economy configuration
+    const allowedPaymentMethods = [];
+    document.querySelectorAll('#edit-payment-methods-container input[type="checkbox"]:checked').forEach(checkbox => {
         allowedPaymentMethods.push(checkbox.dataset.methodType);
     });
     
@@ -3989,29 +3989,34 @@ async function loadPaymentMethodsForCreate() {
         
         if (result.success && result.payment_methods && result.payment_methods.length > 0) {
             paymentMethodsData = result.payment_methods;
+            const iconMap = { 'cash': 'cash-stack', 'vipps': 'phone', 'stripe': 'credit-card', 'paypal': 'paypal' };
             container.innerHTML = `
                 <div class="alert alert-info small mb-3">
                     <i class="bi bi-info-circle me-2"></i>
-                    <strong>Oppmøtebetaling</strong> er alltid inkludert for å tillate arrangementer uten webbetaling.
+                    Velg betalingsmetoder som er tilgjengelige for dette arrangementet. Konfigurasjon gjøres i <strong>Økonomi → Betalingsløsninger</strong>.
                 </div>
-                <div class="row">` + result.payment_methods.map(method => `
+                <div class="row">` + result.payment_methods.map(method => {
+                    const icon = iconMap[method.method_type] || 'wallet2';
+                    const demoLabel = method.is_demo ? ' <small class="text-warning">(Demo)</small>' : '';
+                    return `
                 <div class="col-md-4 mb-2">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" 
                                name="payment_method_${method.method_type}" 
                                id="pm_${method.method_type}"
                                data-method-type="${method.method_type}"
-                               ${method.method_type === 'cash' ? 'checked disabled' : 'checked'}>
-                        <label class="form-check-label ${method.method_type === 'cash' ? 'text-muted' : ''}" for="pm_${method.method_type}">
-                            <i class="bi bi-${method.method_type === 'cash' ? 'cash-stack' : method.method_type === 'card' ? 'credit-card' : 'wallet2'} me-1"></i>
-                            ${method.method_name}${method.method_type === 'cash' ? ' <small>(alltid påkrevd)</small>' : ''}
+                               checked>
+                        <label class="form-check-label" for="pm_${method.method_type}">
+                            <i class="bi bi-${icon} me-1"></i>
+                            ${method.method_name}${demoLabel}
                         </label>
                     </div>
                 </div>
-            `).join('') + '</div>';
+                `;
+            }).join('') + '</div>';
             
             // Add event listeners to update payment timing status
-            const checkboxes = container.querySelectorAll('input[type="checkbox"]:not([disabled])');
+            const checkboxes = container.querySelectorAll('input[type="checkbox"]');
             checkboxes.forEach(checkbox => {
                 checkbox.addEventListener('change', updatePaymentTimingStatus);
             });
@@ -4019,7 +4024,7 @@ async function loadPaymentMethodsForCreate() {
             // Initial update
             updatePaymentTimingStatus();
         } else {
-            container.innerHTML = '<p class="text-muted small mb-0"><i class="bi bi-info-circle me-2"></i>Ingen betalingsmetoder konfigurert</p>';
+            container.innerHTML = '<p class="text-warning small mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Ingen betalingsmetoder konfigurert i Økonomi → Betalingsløsninger</p>';
         }
     } catch (error) {
         console.error('Error loading payment methods:', error);
@@ -4032,12 +4037,15 @@ function updatePaymentTimingStatus() {
     const statusSpan = document.getElementById('payment-timing-status');
     if (!statusSpan) return;
     
-    const checkedEconomyMethods = document.querySelectorAll('#payment-methods-container input[type="checkbox"]:checked:not([disabled])');
+    const checkedMethods = document.querySelectorAll('#payment-methods-container input[type="checkbox"]:checked');
+    const hasOnlinePayment = Array.from(checkedMethods).some(cb => cb.dataset.methodType !== 'cash');
     
-    if (checkedEconomyMethods.length > 0) {
+    if (hasOnlinePayment) {
         statusSpan.innerHTML = '<strong class="text-success">✓ Aktivert</strong> (nettbetaling tilgjengelig)';
+    } else if (checkedMethods.length > 0) {
+        statusSpan.innerHTML = '<strong class="text-info">Kun oppmøtebetaling</strong>';
     } else {
-        statusSpan.innerHTML = 'Aktiveres når du velger økonomimetoder over';
+        statusSpan.innerHTML = '<span class="text-warning">Ingen betalingsmetoder valgt</span>';
     }
 }
 
@@ -4051,19 +4059,17 @@ async function loadPaymentMethodsForEdit(selectedMethods = []) {
         const result = await response.json();
         
         if (result.success && result.payment_methods && result.payment_methods.length > 0) {
-            // Ensure cash is always in selected methods
-            if (!selectedMethods.includes('cash')) {
-                selectedMethods.push('cash');
-            }
+            const iconMap = { 'cash': 'cash-stack', 'vipps': 'phone', 'stripe': 'credit-card', 'paypal': 'paypal' };
             
             container.innerHTML = `
                 <div class="alert alert-info small mb-3">
                     <i class="bi bi-info-circle me-2"></i>
-                    <strong>Oppmøtebetaling</strong> er alltid inkludert for å tillate arrangementer uten webbetaling.
+                    Velg betalingsmetoder som er tilgjengelige for dette arrangementet. Konfigurasjon gjøres i <strong>Økonomi → Betalingsløsninger</strong>.
                 </div>
                 <div class="row">` + result.payment_methods.map(method => {
                 const isChecked = selectedMethods.includes(method.method_type);
-                const isCash = method.method_type === 'cash';
+                const icon = iconMap[method.method_type] || 'wallet2';
+                const demoLabel = method.is_demo ? ' <small class="text-warning">(Demo)</small>' : '';
                 return `
                 <div class="col-md-4 mb-2">
                     <div class="form-check">
@@ -4071,17 +4077,17 @@ async function loadPaymentMethodsForEdit(selectedMethods = []) {
                                name="edit_payment_method_${method.method_type}" 
                                id="edit_pm_${method.method_type}"
                                data-method-type="${method.method_type}"
-                               ${isChecked ? 'checked' : ''} ${isCash ? 'disabled' : ''}>
-                        <label class="form-check-label ${isCash ? 'text-muted' : ''}" for="edit_pm_${method.method_type}">
-                            <i class="bi bi-${isCash ? 'cash-stack' : method.method_type === 'card' ? 'credit-card' : 'wallet2'} me-1"></i>
-                            ${method.method_name}${isCash ? ' <small>(alltid påkrevd)</small>' : ''}
+                               ${isChecked ? 'checked' : ''}>
+                        <label class="form-check-label" for="edit_pm_${method.method_type}">
+                            <i class="bi bi-${icon} me-1"></i>
+                            ${method.method_name}${demoLabel}
                         </label>
                     </div>
                 </div>
             `;
             }).join('') + '</div>';
         } else {
-            container.innerHTML = '<p class="text-muted small mb-0"><i class="bi bi-info-circle me-2"></i>Ingen betalingsmetoder konfigurert</p>';
+            container.innerHTML = '<p class="text-warning small mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Ingen betalingsmetoder konfigurert i Økonomi → Betalingsløsninger</p>';
         }
     } catch (error) {
         console.error('Error loading payment methods for edit:', error);

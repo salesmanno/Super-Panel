@@ -18,35 +18,36 @@ if (!isset($_SESSION['company_id'])) {
 
 $company_id = $_SESSION['company_id'];
 
+$requiredFields = [
+    'vipps' => ['vipps_client_id', 'vipps_client_secret_encrypted', 'vipps_merchant_serial_number', 'vipps_subscription_key'],
+    'stripe' => ['stripe_public_key', 'stripe_secret_key_encrypted'],
+    'paypal' => ['paypal_client_id', 'paypal_client_secret_encrypted']
+];
+
+$gatewayDisplayNames = [
+    'cash' => 'Kontant',
+    'vipps' => 'Vipps',
+    'stripe' => 'Kort',
+    'paypal' => 'PayPal'
+];
+
+$gatewayIcons = [
+    'cash' => 'cash-stack',
+    'vipps' => 'phone',
+    'stripe' => 'credit-card',
+    'paypal' => 'paypal'
+];
+
 try {
     $db = getDBConnection();
     
-    // Get cash payment status from tenant_companies
-    $stmt = $db->prepare("SELECT cash_payment FROM tenant_companies WHERE id = ?");
-    $stmt->execute([$company_id]);
-    $company = $stmt->fetch();
-    $cashEnabled = $company ? ($company['cash_payment'] ?? true) : true;
-    
-    // Get configured payment methods from payment_methods table
-    $stmt = $db->prepare("
-        SELECT 
-            id,
-            method_name,
-            method_type,
-            is_demo,
-            is_active,
-            config_data
-        FROM payment_methods 
-        WHERE company_id = ? AND is_active = ?
-        ORDER BY created_at ASC
-    ");
-    $stmt->execute([$company_id, true]);
-    $configured = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Build payment methods array
     $methods = [];
     
-    // Always include cash (based on company setting)
+    $stmt = $db->prepare("SELECT cash_payment FROM tenant_companies WHERE id = ?");
+    $stmt->execute([$company_id]);
+    $company = $stmt->fetch(PDO::FETCH_ASSOC);
+    $cashEnabled = $company ? (bool)($company['cash_payment'] ?? true) : true;
+    
     if ($cashEnabled) {
         $methods[] = [
             'method_type' => 'cash',
@@ -61,16 +62,53 @@ try {
         ];
     }
     
-    // Add configured payment methods
-    foreach ($configured as $method) {
-        $config = json_decode($method['config_data'], true) ?? [];
+    $stmt = $db->prepare("
+        SELECT 
+            id,
+            gateway_name,
+            display_name,
+            is_active,
+            test_mode,
+            vipps_client_id,
+            vipps_client_secret_encrypted,
+            vipps_merchant_serial_number,
+            vipps_subscription_key,
+            stripe_public_key,
+            stripe_secret_key_encrypted,
+            paypal_client_id,
+            paypal_client_secret_encrypted
+        FROM economy_payment_gateways
+        WHERE company_id = ? AND is_active = 1
+    ");
+    $stmt->execute([$company_id]);
+    $gateways = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    foreach ($gateways as $gw) {
+        $gatewayName = strtolower($gw['gateway_name']);
+        
+        $fields = $requiredFields[$gatewayName] ?? [];
+        $isConfigured = true;
+        foreach ($fields as $field) {
+            if (empty($gw[$field])) {
+                $isConfigured = false;
+                break;
+            }
+        }
+        
+        if (!$isConfigured) {
+            continue;
+        }
         
         $methods[] = [
-            'method_type' => $method['method_type'],
-            'method_name' => $method['method_name'],
-            'is_demo' => (bool)$method['is_demo'],
-            'is_active' => (bool)$method['is_active'],
-            'config' => $config
+            'method_type' => $gatewayName,
+            'method_name' => $gw['display_name'] ?? $gatewayDisplayNames[$gatewayName] ?? ucfirst($gatewayName),
+            'is_demo' => (bool)($gw['test_mode'] ?? false),
+            'is_active' => true,
+            'config' => [
+                'display_name' => $gw['display_name'] ?? $gatewayDisplayNames[$gatewayName] ?? ucfirst($gatewayName),
+                'icon' => $gatewayIcons[$gatewayName] ?? 'wallet2',
+                'description' => ''
+            ]
         ];
     }
     

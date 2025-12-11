@@ -93,18 +93,10 @@ try {
         }
         
         // Prepare payment methods array for update
+        // Payment methods are controlled by Economy module configuration
         $paymentMethodsJson = null;
         if (isset($data['allowed_payment_methods']) && is_array($data['allowed_payment_methods']) && count($data['allowed_payment_methods']) > 0) {
             $paymentMethodsArray = $data['allowed_payment_methods'];
-            // ENFORCE: Cash must always be first
-            if (!in_array('cash', $paymentMethodsArray)) {
-                array_unshift($paymentMethodsArray, 'cash');
-            } elseif ($paymentMethodsArray[0] !== 'cash') {
-                $cashIndex = array_search('cash', $paymentMethodsArray);
-                unset($paymentMethodsArray[$cashIndex]);
-                array_unshift($paymentMethodsArray, 'cash');
-                $paymentMethodsArray = array_values($paymentMethodsArray);
-            }
             $paymentMethodsJson = json_encode($paymentMethodsArray);
         }
         
@@ -279,18 +271,10 @@ try {
             }
         }
         
-        // ENFORCE: Cash must always be included (insert as first element if not present)
-        if (!in_array('cash', $paymentMethodsArray)) {
-            array_unshift($paymentMethodsArray, 'cash');
-        } elseif ($paymentMethodsArray[0] !== 'cash') {
-            // Move cash to first position if present but not first
-            $cashIndex = array_search('cash', $paymentMethodsArray);
-            unset($paymentMethodsArray[$cashIndex]);
-            array_unshift($paymentMethodsArray, 'cash');
-            $paymentMethodsArray = array_values($paymentMethodsArray); // Re-index
-        }
+        // Payment methods are controlled by Economy module configuration
+        // No forced inclusion of any specific method
         
-        $defaultPaymentMethod = $paymentMethodsArray[0]; // First method is always default (now guaranteed to be cash)
+        $defaultPaymentMethod = !empty($paymentMethodsArray) ? $paymentMethodsArray[0] : 'cash';
         
         // Update default_payment_method
         $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = ? WHERE id = ? AND company_id = ?");
