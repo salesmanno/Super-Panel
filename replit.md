@@ -20,105 +20,30 @@ The system is built on a PHP 8.2 backend with dual database support, emphasizing
 The design prioritizes a clean, compact dashboard with a simple navigation header. Modules are presented as Bootstrap 5 tabs. The dashboard header displays the company subdomain with an active/inactive status badge and company logo.
 
 ### Technical Implementations
-- **Authentication**: Session-based system with robust backend validation, failsafe messages, complete session tracking, and single-session enforcement.
-- **Tab Navigation System**: Utilizes Bootstrap 5's native tab component for content display.
-- **Module & Privilege Management**: Granular access control via `tenant_admin_modules` and `tenant_company_modules` tables, with an interface for staff module access management.
-- **Email Module**: Integrated email client with SMTP configuration validation and `EmailService.php` for cross-module automated notifications.
-- **Events Module**: Comprehensive CRUD for event management with `output_products` integration, configurable registration fields, scanner-based check-in, membership-based pricing, dynamic payment methods per event, and income/expense tracking.
-  - **Check-in System**: Two-column todelt layout (innsjekket/ikke innsjekket) with admin tracking, EAN13 barcode generation via `BarcodeService.php`, and membership plan references in `events_checkin`.
-  - **Results Module**: Horizontal stats display with 7 metrics including most profitable/expensive/attended events.
-  - **Event Registrations**: Full approval workflow with pending/approved status tracking and event creator display (now fixed to show admin name correctly).
-- **Ditt Nettsted Module**: Manages website configuration from `tenant_website_config` with an admin password-protected lock mechanism.
-- **Reservation Module**: Complete reservation management with agenda/calendar views, filtering, statistics, and subtabs for service types, including visual calendar-based booking with staff availability.
-- **Rental Module**: Professional multi-type rental management system using table-per-type architecture for 12 different rental object types. Features include dynamic form generation, comprehensive metadata schemas, CASCADE deletion, driver's license/certificate requirements, image support, and summary badges.
-- **Sales Module with Shopping Cart**: Supports dual purchase flows, barcode scanner integration, customer data management, and event linking. Includes hardcoded payment methods, fullscreen mode, automatic stock tracking, and weighted average cost calculation.
+- **Authentication**: Session-based system with robust backend validation, complete session tracking, and single-session enforcement.
+- **Tab Navigation System**: Utilizes Bootstrap 5's native tab component.
+- **Module & Privilege Management**: Granular access control via `tenant_admin_modules` and `tenant_company_modules` tables.
+- **Email Module**: Integrated email client with SMTP configuration and `EmailService.php` for automated notifications.
+- **Events Module**: Comprehensive CRUD for event management with `output_products` integration, configurable registration fields, scanner-based check-in, membership-based pricing, dynamic payment methods, and income/expense tracking. Includes a two-column check-in system with EAN13 barcode generation and a results module with key metrics.
+- **Ditt Nettsted Module**: Manages website configuration from `tenant_website_config` with an admin password-protected lock.
+- **Reservation Module**: Complete reservation management with agenda/calendar views, filtering, statistics, and visual calendar-based booking.
+- **Rental Module**: Professional multi-type rental management using table-per-type architecture for 12 object types, featuring dynamic form generation, metadata schemas, and image support.
+- **Sales Module with Shopping Cart**: Supports dual purchase flows, barcode scanner integration, customer data management, event linking, automatic stock tracking, and weighted average cost calculation.
 - **Deres Firma Module**: Manages company profile, staff, and website settings.
-- **Unified Economic System**: Centralized financial tracking via `unified_ledger` table, aggregating all transactions with profit tracking, managed by `UnifiedLedgerService.php`. Includes comprehensive membership income overview. Supports income/expense tracking for events, sales, rental, reservations, and membership modules.
-- **Output Products System**: A unified polymorphic product catalog (`output_products`) aggregating all sellable items/services from different modules, auto-generated and synchronized by `ProductCatalogService.php`. Implements cascade-and-filter patterns for product deletion and activation status.
+- **Unified Economic System**: Centralized financial tracking via `unified_ledger` table, aggregating all transactions with profit tracking, managed by `UnifiedLedgerService.php`. Supports income/expense tracking across various modules.
+- **Output Products System**: A unified polymorphic product catalog (`output_products`) aggregating all sellable items/services, auto-generated and synchronized by `ProductCatalogService.php`.
 
 ### System Design Choices
 - **Modularity**: Core system features are organized into distinct modules.
 - **Staff-First Architecture**: `tenant_staff` (employees) are created independently, with `tenant_admins` (login accounts) optionally linked.
-- **Clean Database Architecture**: Modular database design eliminating duplicates and redundancy, standardizing tables, adding cost price tracking, and introducing `service_bookings` and `unified_ledger` tables.
+- **Clean Database Architecture**: Modular database design eliminating duplicates, standardizing tables, adding cost price tracking, and introducing `service_bookings` and `unified_ledger` tables.
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
-- **Event Check-in Data Integrity**: `events_checkin` stores both `membership_plan_id` (FK reference to `event_membership_plans` for auditability) and `ticket_price` (snapshot of price at time of check-in for historical accuracy). Added `barcode` (VARCHAR(13)) and `qrcode` (LONGBLOB) columns for EAN13 and QR code storage.
-
-## Recent Changes (Dec 04, 2025)
-**Event & Membership Improvements:**
-1. **Removed cost_price from events** - Event creation and editing no longer includes the "Innkjøpspris" field (removed from forms, APIs, and JavaScript).
-2. **Inline member editing CSS** - Added visual feedback for editable membership table cells (cursor pointer, hover background, pencil icon indicator).
-3. **Check-in count verification** - Confirmed that check-in counting code is correct; any display mismatches are due to MySQL connection instability.
-
-**Previous Check-in UI Improvements:**
-1. **Fixed event images** - Check-in event cards now correctly display event images from `event_image_url` field.
-2. **Enhanced attendee counts** - Cards show "godkjent" (approved) count, checked-in count, and pending badge when applicable.
-3. **API enhancements** - `get_events.php` now returns `checked_in_count` and `pending_registrations` for accurate display.
-4. **Duplicate detection** - Both `create_event_registration.php` and `register_guest.php` now detect duplicate registrations by email and return Norwegian status.
-5. **Toast notifications** - Quick-guest form shows Norwegian toast for duplicates: "Allerede registrert - Status: {innsjekket/godkjent/ventende/registrert}".
-
-## Previous Changes (Dec 03, 2025)
-**Complete Check-in System - Fully Implemented:**
-1. **Two-list check-in UI** - "Ankommet/Innsjekket" (arrived) and "Ikke innsjekket" (pending) tabs with customer names, ticket types (regular/member badges), and prices.
-2. **Barcode-compatible search** - Search/scan input that matches by name, email, or barcode with visual feedback and auto-check-in on Enter key with single match.
-3. **Check-in action buttons** - "Sjekk inn" for paid check-in and "No-show" for marking non-attending registrants.
-4. **Revenue tracking** - Two statistics: "Innsjekket inntekt" (actual revenue from checked-in paid attendees) and "Forventet inntekt" (expected from all registrations).
-5. **No-show handling** - `perform_checkin.php` supports marking attendees as no-show with `payment_status='no_show'`, appearing in arrived list with dark badge.
-6. **Audit logging in Norwegian** - Format: "[admin_name] sjekket inn [customer_name] mot betaling på [ticket_price] gjennom [payment_method]" logged to `audit_logs`.
-7. **API updates** - `get_event_checkins.php` returns `customer_name`, `customer_email`, `no_show_count`, `checkin_revenue`, `expected_revenue`.
-
-## Previous Changes (Dec 02, 2025)
-**Event Creation System - Full Restoration:**
-1. **Fixed create_event.php INSERT order** - Reordered all 29 columns to match actual `events_eventdata` table schema exactly.
-2. **Added cost_price field** - Both create and edit forms now include "Innkjøpspris" field with proper database persistence.
-3. **Fixed default_payment_method** - Now included directly in INSERT statement with hardcoded value 'cash' (removed redundant UPDATE).
-4. **Corrected parameter alignment** - All 26 parameters now map 1:1 with column placeholders in correct order.
-
-**Event Registration Approval System - Comprehensive Restructuring:**
-1. **Ventende vs Alle påmeldinger separation** - "Ventende (Godkjenning)" only shows `pending` registrations, "Alle påmeldinger" only shows `approved` + `rejected` registrations.
-2. **New table layout for Eventbestillinger** - Restructured: Påmeldingsdata (dynamic fields, max 4) → Pris (with membership icon ✅/❌) → Arrangement → Handlinger.
-3. **Deterministic membership pricing** - Fixed `approve_registration.php` and `get_pending_registrations.php` to use customer's specific `membership_plan_id` when looking up event membership prices. Non-members never inherit member pricing.
-4. **events_checkin creation on approval** - Approval creates `events_checkin` with: `customer_id`, `registration_id`, `ticket_type`, `ticket_price`, `payment_status`, `payment_method`, `checked_in=0`, `barcode`.
-5. **Approval/rejection with reasons** - `approveRegistrationWithReason()` and `rejectRegistrationWithReason()` functions with prompts. Uses `approval_reason` and `rejection_reason` columns.
-6. **Reservation counting** - Approved registrations now automatically count via `events_checkin` entries across innsjekking, dine arrangement, and eventbestillinger views.
-7. **Improved rejection workflow** - `reject_registration.php` now uses `rejection_reason` column (not `approval_reason`).
-
-## Previous Changes (Nov 27, 2025)
-**System Stabilization & Bug Fixes - COMPLETE:**
-1. **Fixed event creator display** - Corrected JOIN in `api/get_events.php` to properly traverse from `events_eventdata.created_by` → `tenant_admins` → `tenant_staff` via `tenant_admin.tenant_staff_id`. Now correctly displays admin name instead of "Ukjent bruker".
-2. **Fixed event registrations display** - Corrected API response structure in `api/get_pending_registrations.php` from grouped format to flat array matching frontend expectations. Eventbestillinger now load and display correctly.
-3. **Created news deletion API** - Added new `api/delete_news.php` endpoint for removing news items from `core_sys_news` table.
-4. **Removed obsolete code** - Deleted `require_once GlobalIncomeExpenseService.php` from `api/process_service_sale.php` after migration to unified_ledger.
-5. **Cleaned up database** - Dropped `global_income_expenses` table after successful migration of all financial logging to `unified_ledger`.
-
-**Unified Financial System - Fully Operational:**
-- All income/expense logging routes through `unified_ledger` table
-- `UnifiedLedgerService.php` manages all financial transactions
-- Transaction types: income/expense with categories (Salg, Arrangement, Medlemskap, Utleie, Reservasjon)
-- Integrated in all 5 transaction sources: checkout_cart, add_event_finance, checkin_event, process_service_sale, renew_membership
-- Payment status rule: Only log when payment_status = 'completed'
-
-## Earlier Changes (Nov 27, 2025)
-**Barcode & Financial System:**
-1. **Automatic EAN13 Barcode Generation** - Implemented `BarcodeService::generateEAN13()` integration in all 3 check-in creation points (`checkin_event.php`, `register_guest.php`, `process_service_sale.php`). Barcodes now auto-assign on record creation with format: MD5-hash-based 12 digits + Luhn check digit.
-2. **Removed profit column from UnifiedLedgerService** - Fixed "Unknown column 'profit'" error by removing non-existent profit column from INSERT. Profit now calculated as `selling_price - cost_price` in application layer.
-3. **Prevented duplicate events_results records** - Implemented atomic `ON DUPLICATE KEY UPDATE` in three locations to eliminate race conditions.
-4. **Fixed expenses logging bug** - Removed `UNIQUE KEY unique_transaction` constraint from `unified_ledger` table that blocked multiple transactions per event. Now supports both income and expense entries per arrangement.
-5. **Fixed event title HTML rendering** - Changed `.textContent` to `.innerHTML` in event detail modal so Bootstrap icons render correctly.
-6. **Fixed event bookings paths** - Corrected all relative API paths from `../api/` to `/api/` in `modules/events_content.php`.
-7. **Added barcode columns to check-in display** - Both "Innsjekket" and "Ikke innsjekket" tables now show barcode column with monospace font.
-
-## Earlier Changes (Nov 26, 2025)
-- Todelt Check-in Layout, Horisontale Event Stats, EAN13 Barcode Service, Barcode Assignment API, Check-in API Enhancement, JavaScript Check-in Rendering, Database Schema Updates
+- **Event Check-in Data Integrity**: `events_checkin` stores `membership_plan_id` and `ticket_price` for historical accuracy, with `barcode` and `qrcode` columns for EAN13 and QR code storage.
+- **Payment Gateway Configuration**: All payment method availability is controlled by the Economy module via `economy_payment_gateways` table, requiring specific credentials for each gateway (Vipps, Stripe, PayPal). Cash payment availability is controlled by `tenant_companies.cash_payment`.
 
 ## External Dependencies
-- **Database**: Dual database support with PDO:
-    - Production: MySQL
-    - Development/Testing: PostgreSQL (auto-fallback when MySQL unavailable)
+- **Database**: Dual database support with PDO (Production: MySQL, Development/Testing: PostgreSQL).
 - **UI Framework**: Bootstrap 5.
 - **Email Protocols**: SMTP and IMAP for webmail.
 - **Storage**: Object storage for contract document uploads.
-- **Barcode Generation**: BarcodeService with EAN13 support (no external dependencies, pure PHP)
-
-## Known Remaining Items
-- When MySQL connectivity returns, test event creator display ("Opprettet av") - may show "Ukjent bruker" if admin account lacks `tenant_staff_id` linking in database
-- Frontend news deletion may need UI button implementation if not already present
+- **Barcode Generation**: BarcodeService with EAN13 support (pure PHP).
