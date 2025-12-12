@@ -809,6 +809,17 @@ try {
                             <small class="text-muted">Laster betalingsmetoder...</small>
                         </div>
                     </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Standard betalingsmetode</label>
+                            <select class="form-select" name="default_payment_method" id="default-payment-method">
+                                <option value="">Velg standardmetode...</option>
+                            </select>
+                            <small class="form-text text-muted">Denne metoden vises som anbefalt ved betaling</small>
+                        </div>
+                    </div>
+                    
                     <p class="text-muted small"><strong>Status:</strong> <span id="payment-timing-status">Velg økonomimetoder for å aktivere nettbetaling</span></p>
                     
                     <div class="row">
@@ -1564,6 +1575,16 @@ try {
                         </div>
                     </div>
                     
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Standard betalingsmetode</label>
+                            <select class="form-select" name="default_payment_method" id="edit-default-payment-method">
+                                <option value="">Velg standardmetode...</option>
+                            </select>
+                            <small class="form-text text-muted">Denne metoden vises som anbefalt ved betaling</small>
+                        </div>
+                    </div>
+                    
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Bilde-URL</label>
@@ -1922,6 +1943,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
+            // Get selected default payment method
+            const defaultPaymentMethodSelect = document.getElementById('default-payment-method');
+            const defaultPaymentMethod = defaultPaymentMethodSelect ? defaultPaymentMethodSelect.value : (allowedPaymentMethods[0] || 'cash');
+            
             const data = {
                 title: formData.get('title'),
                 description: formData.get('description'),
@@ -1945,6 +1970,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 payment_timing_methods: paymentTimingMethods,
                 membership_pricing: membershipPricing,
                 allowed_payment_methods: allowedPaymentMethods,
+                default_payment_method: defaultPaymentMethod,
                 // Registration fields
                 field_email: formData.get('field_email') ? 1 : 0,
                 field_phone: formData.get('field_phone') ? 1 : 0,
@@ -3575,7 +3601,8 @@ async function editEvent(eventId) {
                     console.error('Error parsing payment_methods_json:', e);
                 }
             }
-            await loadPaymentMethodsForEdit(selectedPaymentMethods);
+            const defaultMethod = event.default_payment_method || null;
+            await loadPaymentMethodsForEdit(selectedPaymentMethods, defaultMethod);
         } catch (paymentError) {
             console.warn('Error loading payment methods:', paymentError);
             // Continue - payment methods are optional for modal to open
@@ -3703,6 +3730,10 @@ async function saveEventChanges() {
         }
     });
     
+    // Get selected default payment method from dropdown
+    const editDefaultPaymentMethodSelect = document.getElementById('edit-default-payment-method');
+    const defaultPaymentMethod = editDefaultPaymentMethodSelect ? editDefaultPaymentMethodSelect.value : (allowedPaymentMethods[0] || 'cash');
+    
     const data = {
         event_id: formData.get('event_id'),
         title: formData.get('title'),
@@ -3722,7 +3753,7 @@ async function saveEventChanges() {
         age_limit: formData.get('age_limit') || null,
         ticket_price: formData.get('ticket_price') || 0,
         event_image_url: formData.get('event_image_url') || null,
-        default_payment_method: formData.get('default_payment_method') || null,
+        default_payment_method: defaultPaymentMethod,
         is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
         memberverification: formData.get('memberverification') ? 1 : 0,
         allowed_payment_methods: allowedPaymentMethods,
@@ -4015,20 +4046,53 @@ async function loadPaymentMethodsForCreate() {
                 `;
             }).join('') + '</div>';
             
-            // Add event listeners to update payment timing status
+            // Add event listeners to update payment timing status and default dropdown
             const checkboxes = container.querySelectorAll('input[type="checkbox"]');
             checkboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', updatePaymentTimingStatus);
+                checkbox.addEventListener('change', () => {
+                    updatePaymentTimingStatus();
+                    updateDefaultPaymentMethodDropdown();
+                });
             });
             
             // Initial update
             updatePaymentTimingStatus();
+            updateDefaultPaymentMethodDropdown();
         } else {
             container.innerHTML = '<p class="text-warning small mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Ingen betalingsmetoder konfigurert i Økonomi → Betalingsløsninger</p>';
         }
     } catch (error) {
         console.error('Error loading payment methods:', error);
         container.innerHTML = '<p class="text-danger small mb-0">Feil ved lasting av betalingsmetoder</p>';
+    }
+}
+
+// Update default payment method dropdown based on selected checkboxes
+function updateDefaultPaymentMethodDropdown(containerId = 'payment-methods-container', dropdownId = 'default-payment-method') {
+    const dropdown = document.getElementById(dropdownId);
+    if (!dropdown) return;
+    
+    const currentValue = dropdown.value;
+    const checkedMethods = document.querySelectorAll(`#${containerId} input[type="checkbox"]:checked`);
+    const iconMap = { 'cash': 'Kontant', 'vipps': 'Vipps', 'stripe': 'Stripe (Kort)', 'paypal': 'PayPal' };
+    
+    dropdown.innerHTML = '<option value="">Velg standardmetode...</option>';
+    
+    checkedMethods.forEach(checkbox => {
+        const methodType = checkbox.dataset.methodType;
+        const methodName = iconMap[methodType] || methodType;
+        const option = document.createElement('option');
+        option.value = methodType;
+        option.textContent = methodName;
+        if (methodType === currentValue) {
+            option.selected = true;
+        }
+        dropdown.appendChild(option);
+    });
+    
+    // Auto-select first method if nothing selected and options available
+    if (!dropdown.value && dropdown.options.length > 1) {
+        dropdown.selectedIndex = 1;
     }
 }
 
@@ -4050,7 +4114,7 @@ function updatePaymentTimingStatus() {
 }
 
 // Load payment methods for edit form
-async function loadPaymentMethodsForEdit(selectedMethods = []) {
+async function loadPaymentMethodsForEdit(selectedMethods = [], defaultMethod = null) {
     const container = document.getElementById('edit-payment-methods-container');
     if (!container) return;
     
@@ -4086,6 +4150,21 @@ async function loadPaymentMethodsForEdit(selectedMethods = []) {
                 </div>
             `;
             }).join('') + '</div>';
+            
+            // Add event listeners to update dropdown when checkboxes change
+            const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    updateDefaultPaymentMethodDropdown('edit-payment-methods-container', 'edit-default-payment-method');
+                });
+            });
+            
+            // Update dropdown and set default value
+            updateDefaultPaymentMethodDropdown('edit-payment-methods-container', 'edit-default-payment-method');
+            if (defaultMethod) {
+                const dropdown = document.getElementById('edit-default-payment-method');
+                if (dropdown) dropdown.value = defaultMethod;
+            }
         } else {
             container.innerHTML = '<p class="text-warning small mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Ingen betalingsmetoder konfigurert i Økonomi → Betalingsløsninger</p>';
         }
