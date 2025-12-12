@@ -80,36 +80,48 @@ try {
         }
         
         // 3a. Prepare payment methods array BEFORE INSERT
+        // Payment methods are controlled entirely by Economy module configuration
         $paymentMethodsArray = [];
         
         if (isset($data['allowed_payment_methods']) && is_array($data['allowed_payment_methods']) && count($data['allowed_payment_methods']) > 0) {
-            // Use provided payment methods
+            // Use provided payment methods from frontend (already validated against Economy config)
             $paymentMethodsArray = $data['allowed_payment_methods'];
         } elseif (isset($data['default_payment_method']) && !empty($data['default_payment_method'])) {
             // Legacy: Use single default_payment_method if provided
             $paymentMethodsArray = [$data['default_payment_method']];
         } else {
-            // Fallback: Use company cash setting or default to cash
-            $companyStmt = $db->prepare("SELECT Cash_payment FROM tenant_companies WHERE id = ?");
+            // Fetch available methods from Economy configuration (no hardcoded fallback)
+            $companyStmt = $db->prepare("SELECT cash_payment FROM tenant_companies WHERE id = ?");
             $companyStmt->execute([$_SESSION['company_id']]);
-            $company = $companyStmt->fetch(PDO::FETCH_ASSOC);
-            if ($company && $company['Cash_payment']) {
-                $paymentMethodsArray = ['cash'];
-            } else {
-                $paymentMethodsArray = ['card'];
+            $companyData = $companyStmt->fetch(PDO::FETCH_ASSOC);
+            $cashEnabled = $companyData ? (bool)($companyData['cash_payment'] ?? false) : false;
+            
+            if ($cashEnabled) {
+                $paymentMethodsArray[] = 'cash';
+            }
+            
+            // Add configured and active gateways from Economy
+            $gwStmt = $db->prepare("
+                SELECT gateway_name FROM economy_payment_gateways 
+                WHERE company_id = ? AND is_active = 1
+            ");
+            $gwStmt->execute([$_SESSION['company_id']]);
+            while ($gw = $gwStmt->fetch(PDO::FETCH_ASSOC)) {
+                $paymentMethodsArray[] = strtolower($gw['gateway_name']);
             }
         }
         
-        // Payment methods are controlled by Economy module configuration
-        // No forced inclusion of any specific method
+        // No forced inclusion of any specific method - all controlled by Economy config
         
         // Convert payment methods array to JSON
         $paymentMethodsJson = json_encode($paymentMethodsArray);
         
         $memberverification = (isset($data['memberverification']) && $data['memberverification']) ? 1 : 0;
         
-        // default_payment_method is first in the allowed methods array
-        $defaultPaymentMethod = !empty($paymentMethodsArray) ? $paymentMethodsArray[0] : 'cash';
+        // default_payment_method is first in the allowed methods array, or use explicitly provided value
+        $defaultPaymentMethod = isset($data['default_payment_method']) && !empty($data['default_payment_method']) 
+            ? $data['default_payment_method'] 
+            : (!empty($paymentMethodsArray) ? $paymentMethodsArray[0] : null);
         
         // INSERT order matches actual table schema (cost_price removed per user request):
         // id, company_id, title, description, start_date, start_time, end_date, end_time,

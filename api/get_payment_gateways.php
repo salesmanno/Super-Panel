@@ -20,8 +20,8 @@ $company_id = $_SESSION['company_id'];
 
 $requiredFields = [
     'vipps' => ['vipps_client_id', 'vipps_client_secret_encrypted', 'vipps_merchant_serial_number', 'vipps_subscription_key'],
-    'stripe' => ['stripe_public_key', 'stripe_secret_key_encrypted'],
-    'paypal' => ['paypal_client_id', 'paypal_client_secret_encrypted'],
+    'stripe' => ['stripe_public_key', 'stripe_secret_key_encrypted', 'stripe_webhook_secret'],
+    'paypal' => ['paypal_client_id', 'paypal_client_secret_encrypted', 'paypal_webhook_id'],
     'klarna' => []
 ];
 

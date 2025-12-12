@@ -250,35 +250,13 @@ try {
             }
         }
         
-        // Update allowed payment methods
-        $paymentMethodsArray = [];
-        
-        if (isset($data['allowed_payment_methods']) && is_array($data['allowed_payment_methods']) && count($data['allowed_payment_methods']) > 0) {
-            // Use provided payment methods
-            $paymentMethodsArray = $data['allowed_payment_methods'];
-        } elseif (isset($data['default_payment_method']) && !empty($data['default_payment_method'])) {
-            // Legacy: Use single default_payment_method if provided
-            $paymentMethodsArray = [$data['default_payment_method']];
-        } else {
-            // Fallback: Use company cash setting or default to cash
-            $companyStmt = $db->prepare("SELECT Cash_payment FROM tenant_companies WHERE id = ?");
-            $companyStmt->execute([$_SESSION['company_id']]);
-            $company = $companyStmt->fetch(PDO::FETCH_ASSOC);
-            if ($company && $company['Cash_payment']) {
-                $paymentMethodsArray = ['cash'];
-            } else {
-                $paymentMethodsArray = ['card'];
-            }
+        // Update allowed payment methods - controlled entirely by Economy module configuration
+        // Note: payment_methods_json was already updated in the main UPDATE statement above
+        // Only update default_payment_method if explicitly provided
+        if (isset($data['default_payment_method']) && !empty($data['default_payment_method'])) {
+            $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = ? WHERE id = ? AND company_id = ?");
+            $stmt->execute([$data['default_payment_method'], $data['event_id'], $_SESSION['company_id']]);
         }
-        
-        // Payment methods are controlled by Economy module configuration
-        // No forced inclusion of any specific method
-        
-        $defaultPaymentMethod = !empty($paymentMethodsArray) ? $paymentMethodsArray[0] : 'cash';
-        
-        // Update default_payment_method
-        $stmt = $db->prepare("UPDATE events_eventdata SET default_payment_method = ? WHERE id = ? AND company_id = ?");
-        $stmt->execute([$defaultPaymentMethod, $data['event_id'], $_SESSION['company_id']]);
         
         // Sync output_products entry using service
         $catalogService = new ProductCatalogService($db);
