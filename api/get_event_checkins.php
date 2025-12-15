@@ -33,9 +33,10 @@ try {
         exit;
     }
     
-    // Get all check-ins for the event with customer names
+    // Get all check-ins for the event with customer names and membership info
     // Note: tenant_admins doesn't have first_name/last_name directly - those are in tenant_staff
     // We join through tenant_staff via tenant_admins.tenant_staff_id
+    // Join event_membership_plans to get member price for the specific event/membership combo
     $stmt = $db->prepare("
         SELECT 
             c.id,
@@ -57,11 +58,15 @@ try {
             tc.email as customer_email,
             tc.phone as customer_phone,
             ts.first_name as admin_first_name,
-            ts.last_name as admin_last_name
+            ts.last_name as admin_last_name,
+            mp.name as membership_plan_name,
+            emp.ticket_price as membership_ticket_price
         FROM events_checkin c
         LEFT JOIN tenant_customers tc ON c.customer_id = tc.id
         LEFT JOIN tenant_admins ta ON c.checked_in_by = ta.id
         LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
+        LEFT JOIN membership_plans mp ON c.membership_plan_id = mp.id
+        LEFT JOIN event_membership_plans emp ON emp.event_id = c.event_id AND emp.membership_plan_id = c.membership_plan_id
         WHERE c.event_id = ?
         ORDER BY c.checked_in DESC, c.check_in_time DESC, c.created_at DESC
     ");
