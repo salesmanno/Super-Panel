@@ -91,12 +91,13 @@ try {
         $moduleIdStr = (string)$reservationsModuleId;
         
         // FIRST: Insert into output_products (parent table)
+        // Note: name, description, price are stored in source table (reservation_services), not here
         $stmt = $db->prepare("
             INSERT INTO output_products (
-                id, company_id, module_id, product_type, product_id, name, description, price,
-                is_visible, is_public, is_marketplace_featured,
+                id, company_id, module_id, product_type, product_id,
+                is_visible, is_public, is_marketplace_featured, discount_percentage,
                 created_at, created_by
-            ) VALUES (?, ?, ?, 'service', ?, ?, ?, ?, 1, 1, 0, NOW(), ?)
+            ) VALUES (?, ?, ?, 'service', ?, 1, 1, 0, 0, NOW(), ?)
         ");
         
         $stmt->execute([
@@ -104,9 +105,6 @@ try {
             $_SESSION['company_id'],
             $moduleIdStr,
             $serviceId,
-            $data['service_name'],
-            $data['description'] ?? null,
-            $data['price'] ?? 0,
             $_SESSION['tenant_admin_id']
         ]);
         

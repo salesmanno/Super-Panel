@@ -98,6 +98,8 @@ class ProductCatalogService {
             $outputProductId = bin2hex(random_bytes(16));
             
             // Insert into output_products
+            // Note: name, description, price are now in source tables only
+            // discount_percentage is the only price-related field here
             $stmt = $this->db->prepare("
                 INSERT INTO output_products (
                     id,
@@ -109,8 +111,9 @@ class ProductCatalogService {
                     is_public,
                     is_marketplace_featured,
                     marketplace_priority,
+                    discount_percentage,
                     created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             
             // MySQL requires 1/0 for boolean columns (not PHP true/false)
@@ -128,6 +131,7 @@ class ProductCatalogService {
                 $isPublic,
                 $isFeatured,
                 $options['marketplace_priority'] ?? 0,
+                $options['discount_percentage'] ?? 0,
                 $createdBy
             ]);
             
@@ -329,21 +333,15 @@ class ProductCatalogService {
                     $sourceData = $this->getSourceProductData($op['product_type'], $op['product_id']);
                     
                     if ($sourceData) {
+                        // Note: Price is now only stored in source tables, not in output_products
+                        // output_products only has: discount_percentage for price modifications
                         $updateStmt = $this->db->prepare("
                             UPDATE output_products 
-                            SET name = ?, 
-                                description = ?,
-                                price = ?,
-                                updated_at = CURRENT_TIMESTAMP
+                            SET updated_at = CURRENT_TIMESTAMP
                             WHERE id = ?
                         ");
                         
-                        $updateStmt->execute([
-                            $sourceData['name'],
-                            $sourceData['description'] ?? null,
-                            $sourceData['price'],
-                            $op['id']
-                        ]);
+                        $updateStmt->execute([$op['id']]);
                         
                         $stats['updated']++;
                     }
