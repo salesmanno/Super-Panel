@@ -99,7 +99,7 @@ class ProductCatalogService {
             
             // Insert into output_products
             // Note: name, description, price are now in source tables only
-            // discount_percentage is the only price-related field here
+            // discount_percent is the only price-related field here
             $stmt = $this->db->prepare("
                 INSERT INTO output_products (
                     id,
@@ -111,7 +111,7 @@ class ProductCatalogService {
                     is_public,
                     is_marketplace_featured,
                     marketplace_priority,
-                    discount_percentage,
+                    discount_percent,
                     created_by
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
@@ -131,7 +131,7 @@ class ProductCatalogService {
                 $isPublic,
                 $isFeatured,
                 $options['marketplace_priority'] ?? 0,
-                $options['discount_percentage'] ?? 0,
+                $options['discount_percent'] ?? 0,
                 $createdBy
             ]);
             
@@ -334,7 +334,7 @@ class ProductCatalogService {
                     
                     if ($sourceData) {
                         // Note: Price is now only stored in source tables, not in output_products
-                        // output_products only has: discount_percentage for price modifications
+                        // output_products only has: discount_percent for price modifications
                         $updateStmt = $this->db->prepare("
                             UPDATE output_products 
                             SET updated_at = CURRENT_TIMESTAMP

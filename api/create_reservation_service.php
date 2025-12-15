@@ -95,7 +95,7 @@ try {
         $stmt = $db->prepare("
             INSERT INTO output_products (
                 id, company_id, module_id, product_type, product_id,
-                is_visible, is_public, is_marketplace_featured, discount_percentage,
+                is_visible, is_public, is_marketplace_featured, discount_percent,
                 created_at, created_by
             ) VALUES (?, ?, ?, 'service', ?, 1, 1, 0, 0, NOW(), ?)
         ");
