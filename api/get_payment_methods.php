@@ -43,10 +43,10 @@ try {
     
     $methods = [];
     
-    $stmt = $db->prepare("SELECT cash_payment FROM tenant_companies WHERE id = ?");
+    $stmt = $db->prepare("SELECT Cash_payment FROM tenant_companies WHERE id = ?");
     $stmt->execute([$company_id]);
     $company = $stmt->fetch(PDO::FETCH_ASSOC);
-    $cashEnabled = $company ? (bool)($company['cash_payment'] ?? true) : true;
+    $cashEnabled = $company ? (bool)($company['Cash_payment'] ?? true) : true;
     
     if ($cashEnabled) {
         $methods[] = [
