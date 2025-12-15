@@ -230,6 +230,32 @@
                     </div>
                 </div>
                 
+                <!-- Månedlig betalingsoversikt -->
+                <div class="card mb-3">
+                    <div class="card-header bg-primary text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-calendar3 me-2"></i>Månedlig betalingsoversikt <?php echo date('Y'); ?></h6>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-light btn-sm" onclick="changePaymentYear(-1)" title="Forrige år">
+                                    <i class="bi bi-chevron-left"></i>
+                                </button>
+                                <span class="btn btn-light btn-sm disabled" id="payment-year-display"><?php echo date('Y'); ?></span>
+                                <button class="btn btn-light btn-sm" onclick="changePaymentYear(1)" title="Neste år">
+                                    <i class="bi bi-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="monthly-payments-grid">
+                            <div class="col-12 text-center text-muted py-3">
+                                <div class="spinner-border spinner-border-sm me-2"></div>
+                                Laster månedlig oversikt...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="card">
                     <div class="card-header">
                         <div class="d-flex justify-content-between align-items-center">
@@ -1339,8 +1365,242 @@ if (incomeTabLink) {
         setTimeout(() => {
             console.log('Income subtab clicked - loading data');
             loadMembershipIncome();
+            loadMonthlyPayments();
         }, 100);
     });
+}
+
+// Monthly payments tracking
+let currentPaymentYear = new Date().getFullYear();
+
+function changePaymentYear(delta) {
+    currentPaymentYear += delta;
+    document.getElementById('payment-year-display').textContent = currentPaymentYear;
+    loadMonthlyPayments();
+}
+
+const monthNames = ['Januar', 'Februar', 'Mars', 'April', 'Mai', 'Juni', 
+                    'Juli', 'August', 'September', 'Oktober', 'November', 'Desember'];
+
+async function loadMonthlyPayments() {
+    const grid = document.getElementById('monthly-payments-grid');
+    grid.innerHTML = `<div class="col-12 text-center text-muted py-3">
+        <div class="spinner-border spinner-border-sm me-2"></div>
+        Laster månedlig oversikt...
+    </div>`;
+    
+    try {
+        const response = await fetch(`/api/get_monthly_membership_payments.php?year=${currentPaymentYear}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            
+            grid.innerHTML = data.months.map((month, index) => {
+                const isPast = currentPaymentYear < currentYear || 
+                              (currentPaymentYear === currentYear && index < currentMonth);
+                const isCurrent = currentPaymentYear === currentYear && index === currentMonth;
+                const isFuture = currentPaymentYear > currentYear || 
+                                (currentPaymentYear === currentYear && index > currentMonth);
+                
+                let bgClass = 'bg-light';
+                let textClass = '';
+                let borderClass = '';
+                
+                if (isCurrent) {
+                    bgClass = 'bg-primary';
+                    textClass = 'text-white';
+                    borderClass = 'border-primary border-3';
+                } else if (isPast && month.paid_count > 0) {
+                    bgClass = month.paid_amount >= month.expected_amount ? 'bg-success-subtle' : 'bg-warning-subtle';
+                }
+                
+                const paidPercent = month.expected_amount > 0 
+                    ? Math.min(100, Math.round((month.paid_amount / month.expected_amount) * 100))
+                    : 0;
+                
+                return `
+                    <div class="col-md-3 col-sm-4 col-6 mb-3">
+                        <div class="card h-100 ${borderClass}" style="cursor: pointer;" onclick="showMonthDetails(${index + 1}, '${monthNames[index]}')">
+                            <div class="card-header ${bgClass} ${textClass} py-2">
+                                <strong>${monthNames[index]}</strong>
+                                ${isCurrent ? '<span class="badge bg-light text-primary ms-2">Nå</span>' : ''}
+                            </div>
+                            <div class="card-body py-2">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <small class="text-muted">Forventet:</small>
+                                    <strong>${month.expected_amount.toLocaleString('nb-NO')} NOK</strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <small class="text-muted">Innbetalt:</small>
+                                    <strong class="text-success">${month.paid_amount.toLocaleString('nb-NO')} NOK</strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <small class="text-muted">Gjenstår:</small>
+                                    <strong class="${month.remaining_amount > 0 ? 'text-danger' : 'text-success'}">${month.remaining_amount.toLocaleString('nb-NO')} NOK</strong>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar ${paidPercent >= 100 ? 'bg-success' : paidPercent > 0 ? 'bg-warning' : 'bg-secondary'}" 
+                                         style="width: ${paidPercent}%"></div>
+                                </div>
+                                <div class="d-flex justify-content-between mt-2">
+                                    <span class="badge bg-info">${month.member_count} medl.</span>
+                                    <span class="badge ${month.unpaid_count > 0 ? 'bg-danger' : 'bg-success'}">${month.unpaid_count} ubetalt</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            grid.innerHTML = `<div class="col-12 text-center text-danger py-3">
+                <i class="bi bi-exclamation-circle me-2"></i>${data.message || 'Feil ved lasting av data'}
+            </div>`;
+        }
+    } catch (error) {
+        console.error('Error loading monthly payments:', error);
+        grid.innerHTML = `<div class="col-12 text-center text-danger py-3">
+            <i class="bi bi-exclamation-circle me-2"></i>Kunne ikke laste månedlig oversikt
+        </div>`;
+    }
+}
+
+async function showMonthDetails(monthNum, monthName) {
+    try {
+        const response = await fetch(`/api/get_monthly_membership_payments.php?year=${currentPaymentYear}&month=${monthNum}`);
+        const data = await response.json();
+        
+        if (data.success && data.members) {
+            let html = `
+                <div class="modal fade" id="monthDetailsModal" tabindex="-1">
+                    <div class="modal-dialog modal-xl">
+                        <div class="modal-content">
+                            <div class="modal-header bg-primary text-white">
+                                <h5 class="modal-title"><i class="bi bi-calendar3 me-2"></i>${monthName} ${currentPaymentYear} - Betalingsoversikt</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <div class="card bg-light">
+                                            <div class="card-body text-center">
+                                                <small class="text-muted">Forventet</small>
+                                                <h5 class="mb-0">${data.summary.expected.toLocaleString('nb-NO')} NOK</h5>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card bg-success text-white">
+                                            <div class="card-body text-center">
+                                                <small>Innbetalt</small>
+                                                <h5 class="mb-0">${data.summary.paid.toLocaleString('nb-NO')} NOK</h5>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card ${data.summary.remaining > 0 ? 'bg-danger' : 'bg-success'} text-white">
+                                            <div class="card-body text-center">
+                                                <small>Gjenstår</small>
+                                                <h5 class="mb-0">${data.summary.remaining.toLocaleString('nb-NO')} NOK</h5>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Navn</th>
+                                                <th>E-post</th>
+                                                <th>Telefon</th>
+                                                <th>Medlemskap</th>
+                                                <th class="text-end">Beløp</th>
+                                                <th>Status</th>
+                                                <th>Forfallsdato</th>
+                                                <th>Handling</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${data.members.map(m => {
+                                                const statusBadge = m.is_paid ? 'bg-success' : 'bg-danger';
+                                                const statusText = m.is_paid ? 'Betalt' : 'Ikke betalt';
+                                                return `
+                                                    <tr>
+                                                        <td><strong>${m.first_name} ${m.last_name}</strong></td>
+                                                        <td><small>${m.email || '-'}</small></td>
+                                                        <td><small>${m.phone || '-'}</small></td>
+                                                        <td><span class="badge bg-info">${m.plan_name}</span></td>
+                                                        <td class="text-end">${parseFloat(m.amount).toLocaleString('nb-NO')} NOK</td>
+                                                        <td><span class="badge ${statusBadge}">${statusText}</span></td>
+                                                        <td><small>${m.due_date || '-'}</small></td>
+                                                        <td>
+                                                            ${!m.is_paid ? `
+                                                                <button class="btn btn-sm btn-success" onclick="registerPayment('${m.member_id}', '${m.first_name} ${m.last_name}', ${m.amount}, '${m.email}')" title="Registrer betaling">
+                                                                    <i class="bi bi-cash-coin"></i>
+                                                                </button>
+                                                            ` : `
+                                                                <i class="bi bi-check-circle text-success" title="Betalt"></i>
+                                                            `}
+                                                        </td>
+                                                    </tr>
+                                                `;
+                                            }).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            const existingModal = document.getElementById('monthDetailsModal');
+            if (existingModal) existingModal.remove();
+            
+            document.body.insertAdjacentHTML('beforeend', html);
+            const modal = new bootstrap.Modal(document.getElementById('monthDetailsModal'));
+            modal.show();
+        }
+    } catch (error) {
+        console.error('Error loading month details:', error);
+        alert('Kunne ikke laste månedsdetaljer');
+    }
+}
+
+async function registerPayment(memberId, memberName, amount, email) {
+    const confirmed = confirm(`Registrer betaling på ${amount.toLocaleString('nb-NO')} NOK for ${memberName}?`);
+    if (!confirmed) return;
+    
+    try {
+        const response = await fetch('/api/log_membership_payment.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                member_id: memberId,
+                customer_email: email,
+                amount: amount,
+                payment_method: 'vipps',
+                notes: 'Manuelt registrert'
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('Betaling registrert!');
+            // Close modal and reload data
+            const modal = bootstrap.Modal.getInstance(document.getElementById('monthDetailsModal'));
+            if (modal) modal.hide();
+            loadMonthlyPayments();
+            loadMembershipIncome();
+        } else {
+            alert('Feil: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error registering payment:', error);
+        alert('Feil ved registrering av betaling');
+    }
 }
 </script>
 
