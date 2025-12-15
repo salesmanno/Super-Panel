@@ -90,6 +90,7 @@ try {
     $_SESSION['db_type'] = getDBType();
     $_SESSION['admin_last_name'] = $admin['last_name'] ?? '';
     $_SESSION['admin_name'] = trim(($admin['first_name'] ?? '') . ' ' . ($admin['last_name'] ?? '')) ?: 'Bruker';
+    $_SESSION['admin_username'] = $username;
     $_SESSION['company_name'] = $admin['company_name'];
     $_SESSION['subdomain'] = $admin['subdomain'];
     $_SESSION['logged_in_at'] = time();
@@ -97,7 +98,7 @@ try {
     
     createTenantAdminSession($admin['id'], session_id());
     
-    header('Location: ../pages/company_dashboard.php');
+    header('Location: ../pages/login_transition.php');
     exit;
     
 } catch (Exception $e) {
