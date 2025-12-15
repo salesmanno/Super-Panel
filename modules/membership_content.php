@@ -272,6 +272,7 @@
                                         <th>Ant. bet.</th>
                                         <th>Auto-forny</th>
                                         <th>Medlemsstatus</th>
+                                        <th>Handling</th>
                                     </tr>
                                 </thead>
                                 <tbody id="income-member-list">
