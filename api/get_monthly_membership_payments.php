@@ -25,7 +25,7 @@ try {
             c.email,
             c.phone,
             mm.join_date,
-            COALESCE(mm.expiry_date, mm.expiration_date) as expiry_date,
+            mm.expiration_date as expiry_date,
             mm.status as member_status,
             COALESCE(mp.name, 'Ukjent plan') as plan_name,
             COALESCE(mp.price, 0) as yearly_price,

@@ -28,7 +28,7 @@ try {
             c.address_city as poststed,
             c.date_of_birth as dateofbirth,
             mm.join_date,
-            COALESCE(mm.expiry_date, mm.expiration_date) as expiry_date,
+            mm.expiration_date as expiry_date,
             mm.status as member_status,
             mm.auto_renew,
             COALESCE(mp.name, 'Ingen plan') as plan_name,

@@ -356,21 +356,13 @@ try {
             $_SESSION['tenant_admin_id']
         );
         
-        // Sync name, description, and price to output_products
+        // Link output_products back to events_eventdata
         $stmt = $db->prepare("
-            UPDATE output_products 
-            SET name = ?, 
-                description = ?,
-                price = ?,
-                updated_at = CURRENT_TIMESTAMP
+            UPDATE events_eventdata 
+            SET output_product_id = ?
             WHERE id = ?
         ");
-        $stmt->execute([
-            $data['title'],
-            $data['description'] ?? null,
-            $data['ticket_price'] ?? 0,
-            $outputProductId
-        ]);
+        $stmt->execute([$outputProductId, $eventId]);
         
         $db->commit();
         
