@@ -4058,12 +4058,26 @@ async function loadPaymentMethodsForCreate() {
             // Initial update
             updatePaymentTimingStatus();
             updateDefaultPaymentMethodDropdown();
+        } else if (!result.success && result.error_type === 'connection_error') {
+            container.innerHTML = `<div class="alert alert-warning small mb-0">
+                <i class="bi bi-wifi-off me-2"></i>Kunne ikke hente betalingsmetoder (tilkoblingsfeil). 
+                <button type="button" class="btn btn-sm btn-outline-warning ms-2" onclick="loadPaymentMethodsForCreate()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Prøv igjen
+                </button>
+            </div>`;
+        } else if (result.success && (!result.payment_methods || result.payment_methods.length === 0)) {
+            container.innerHTML = '<p class="text-warning small mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Ingen betalingsmetoder konfigurert i Økonomi → Betalingsløsninger</p>';
         } else {
             container.innerHTML = '<p class="text-warning small mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Ingen betalingsmetoder konfigurert i Økonomi → Betalingsløsninger</p>';
         }
     } catch (error) {
         console.error('Error loading payment methods:', error);
-        container.innerHTML = '<p class="text-danger small mb-0">Feil ved lasting av betalingsmetoder</p>';
+        container.innerHTML = `<div class="alert alert-danger small mb-0">
+            <i class="bi bi-exclamation-triangle me-2"></i>Feil ved lasting av betalingsmetoder. 
+            <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="loadPaymentMethodsForCreate()">
+                <i class="bi bi-arrow-clockwise me-1"></i>Prøv igjen
+            </button>
+        </div>`;
     }
 }
 
@@ -4165,12 +4179,24 @@ async function loadPaymentMethodsForEdit(selectedMethods = [], defaultMethod = n
                 const dropdown = document.getElementById('edit-default-payment-method');
                 if (dropdown) dropdown.value = defaultMethod;
             }
+        } else if (!result.success && result.error_type === 'connection_error') {
+            container.innerHTML = `<div class="alert alert-warning small mb-0">
+                <i class="bi bi-wifi-off me-2"></i>Kunne ikke hente betalingsmetoder (tilkoblingsfeil). 
+                <button type="button" class="btn btn-sm btn-outline-warning ms-2" onclick="loadPaymentMethodsForEdit(${JSON.stringify(selectedMethods)}, '${defaultMethod || ''}')">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Prøv igjen
+                </button>
+            </div>`;
         } else {
             container.innerHTML = '<p class="text-warning small mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Ingen betalingsmetoder konfigurert i Økonomi → Betalingsløsninger</p>';
         }
     } catch (error) {
         console.error('Error loading payment methods for edit:', error);
-        container.innerHTML = '<p class="text-danger small mb-0">Feil ved lasting av betalingsmetoder</p>';
+        container.innerHTML = `<div class="alert alert-danger small mb-0">
+            <i class="bi bi-exclamation-triangle me-2"></i>Feil ved lasting av betalingsmetoder. 
+            <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="loadPaymentMethodsForEdit(${JSON.stringify(selectedMethods)}, '${defaultMethod || ''}')">
+                <i class="bi bi-arrow-clockwise me-1"></i>Prøv igjen
+            </button>
+        </div>`;
     }
 }
 
@@ -4194,10 +4220,10 @@ if (registrationTypeRadios.length > 0) {
         const ticketPriceInput = document.querySelector('input[name="ticket_price"]');
         const regDeadlineContainer = document.getElementById('registration_deadline_container');
         
-        if (minAttendeesInput) minAttendeesInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
-        if (maxAttendeesInput) maxAttendeesInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
+        if (minAttendeesInput && minAttendeesInput.closest('.col-md-3')) minAttendeesInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
+        if (maxAttendeesInput && maxAttendeesInput.closest('.col-md-3')) maxAttendeesInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
         // Keep ticket price visible for all registration types
-        if (ticketPriceInput) ticketPriceInput.closest('.col-md-3').style.display = 'block';
+        if (ticketPriceInput && ticketPriceInput.closest('.col-md-3')) ticketPriceInput.closest('.col-md-3').style.display = 'block';
         if (regDeadlineContainer) regDeadlineContainer.style.display = 'none';
         
         // Update ticket price help text based on registration type

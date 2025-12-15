@@ -11,22 +11,35 @@ function getDBConnection() {
     static $conn = null;
     
     if ($conn === null) {
-        try {
-            $mysqlDsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET;
-            $options = [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
-                PDO::ATTR_TIMEOUT => 5,
-            ];
-            
-            $conn = new PDO($mysqlDsn, DB_USER, DB_PASS, $options);
-            error_log("Connected to MySQL");
-            
-        } catch (PDOException $e) {
-            error_log("MySQL connection FAILED: " . $e->getMessage());
-            throw new Exception("KRITISK FEIL: Kan ikke koble til MySQL på Domeneshop. Sjekk databasetilkoblingen.\n\nFeil: " . $e->getMessage());
+        $mysqlDsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET;
+        $options = [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+            PDO::ATTR_TIMEOUT => 10,
+        ];
+        
+        $maxRetries = 3;
+        $retryDelay = 500000; // 0.5 seconds in microseconds
+        $lastException = null;
+        
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            try {
+                $conn = new PDO($mysqlDsn, DB_USER, DB_PASS, $options);
+                error_log("Connected to MySQL" . ($attempt > 1 ? " (attempt $attempt)" : ""));
+                return $conn;
+            } catch (PDOException $e) {
+                $lastException = $e;
+                error_log("MySQL connection attempt $attempt FAILED: " . $e->getMessage());
+                
+                if ($attempt < $maxRetries) {
+                    usleep($retryDelay);
+                    $retryDelay *= 2; // Exponential backoff
+                }
+            }
         }
+        
+        throw new Exception("KRITISK FEIL: Kan ikke koble til MySQL på Domeneshop etter $maxRetries forsøk. Sjekk databasetilkoblingen.\n\nFeil: " . $lastException->getMessage());
     }
     
     return $conn;

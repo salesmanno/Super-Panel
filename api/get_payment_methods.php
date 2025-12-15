@@ -122,5 +122,12 @@ try {
     
 } catch (Exception $e) {
     error_log("Get payment methods error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Serverfeil: ' . $e->getMessage()]);
+    $isConnectionError = strpos($e->getMessage(), 'Network is unreachable') !== false || 
+                         strpos($e->getMessage(), 'Connection refused') !== false ||
+                         strpos($e->getMessage(), 'Kan ikke koble til') !== false;
+    echo json_encode([
+        'success' => false, 
+        'message' => 'Serverfeil: ' . $e->getMessage(),
+        'error_type' => $isConnectionError ? 'connection_error' : 'general_error'
+    ]);
 }
