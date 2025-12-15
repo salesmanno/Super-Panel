@@ -205,8 +205,55 @@ try {
     </div>
     
     <script>
+        const apiEndpoints = [
+            '/api/get_economy_data.php?view=overview',
+            '/api/get_events.php',
+            '/api/get_terms_conditions.php',
+            '/api/get_pending_registrations.php',
+            '/api/get_payment_methods.php',
+            '/api/get_membership_plans.php',
+            '/api/get_activity_summary.php',
+            '/api/get_output_products.php',
+            '/api/get_members.php',
+            '/api/get_sales_items.php',
+            '/api/get_sales_products.php',
+            '/api/get_cart.php'
+        ];
+        
+        const preloadedData = {};
+        let dataLoaded = false;
+        let minTimeElapsed = false;
+        
+        async function preloadData() {
+            const promises = apiEndpoints.map(async (endpoint) => {
+                try {
+                    const response = await fetch(endpoint);
+                    const data = await response.json();
+                    const key = endpoint.split('/').pop().split('?')[0].replace('.php', '');
+                    preloadedData[key] = data;
+                } catch (e) {
+                    console.log('Preload error for ' + endpoint + ':', e);
+                }
+            });
+            
+            await Promise.allSettled(promises);
+            sessionStorage.setItem('dashboardPreload', JSON.stringify(preloadedData));
+            sessionStorage.setItem('dashboardPreloadTime', Date.now().toString());
+            dataLoaded = true;
+            checkRedirect();
+        }
+        
+        function checkRedirect() {
+            if (dataLoaded && minTimeElapsed) {
+                window.location.href = '/pages/company_dashboard.php';
+            }
+        }
+        
+        preloadData();
+        
         setTimeout(function() {
-            window.location.href = '/pages/company_dashboard.php';
+            minTimeElapsed = true;
+            checkRedirect();
         }, 2500);
     </script>
 </body>

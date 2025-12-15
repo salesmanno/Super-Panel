@@ -981,6 +981,29 @@ try {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Preload helper - use cached data from login transition if available
+        const preloadCache = (function() {
+            const stored = sessionStorage.getItem('dashboardPreload');
+            const timestamp = sessionStorage.getItem('dashboardPreloadTime');
+            if (stored && timestamp) {
+                const age = Date.now() - parseInt(timestamp);
+                if (age < 30000) { // Data is fresh (less than 30 seconds old)
+                    sessionStorage.removeItem('dashboardPreload');
+                    sessionStorage.removeItem('dashboardPreloadTime');
+                    return JSON.parse(stored);
+                }
+            }
+            return null;
+        })();
+        
+        async function fetchWithPreload(endpoint, options = {}) {
+            const key = endpoint.split('/').pop().split('?')[0].replace('.php', '');
+            if (preloadCache && preloadCache[key]) {
+                return { json: async () => preloadCache[key], ok: true };
+            }
+            return fetch(endpoint, options);
+        }
+        
         // Global functions for firmadata in modal
         async function handleSaveCompanyData(event) {
             event.preventDefault();
@@ -1494,7 +1517,7 @@ try {
         // Load activity summary on page load
         async function loadActivitySummary() {
             try {
-                const response = await fetch('/api/get_activity_summary.php');
+                const response = await fetchWithPreload('/api/get_activity_summary.php');
                 const data = await response.json();
                 
                 const activityText = document.getElementById('activity-text');
@@ -1521,7 +1544,7 @@ try {
         // Load output products summary
         async function loadProductsSummary() {
             try {
-                const response = await fetch('/api/get_output_products.php');
+                const response = await fetchWithPreload('/api/get_output_products.php');
                 const data = await response.json();
                 
                 if (data.success && data.total_products > 0) {
