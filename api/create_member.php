@@ -8,6 +8,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -76,14 +77,19 @@ try {
     $expirationDate = null;
     $validPlanId = null;
     
+    $planName = 'Medlemskap';
+    $planPrice = 0;
+    
     if (!empty($data['membership_plan_id'])) {
-        $planStmt = $db->prepare("SELECT id, billing_cycle FROM membership_plans WHERE id = ? AND company_id = ?");
+        $planStmt = $db->prepare("SELECT id, name, price, billing_cycle FROM membership_plans WHERE id = ? AND company_id = ?");
         $planStmt->execute([$data['membership_plan_id'], $companyId]);
         $plan = $planStmt->fetch(PDO::FETCH_ASSOC);
         
         if ($plan) {
             // Plan validated - use its ID
             $validPlanId = $plan['id'];
+            $planName = $plan['name'] ?? 'Medlemskap';
+            $planPrice = floatval($plan['price'] ?? 0);
             $durationMonths = match($plan['billing_cycle'] ?? 'yearly') {
                 'monthly' => 1,
                 'quarterly' => 3,
@@ -122,6 +128,10 @@ try {
         $updateStmt = $db->prepare("UPDATE tenant_customers SET is_member = 1 WHERE id = ?");
         $updateStmt->execute([$customerId]);
     }
+    
+    // Note: New memberships are NOT logged to unified_ledger here
+    // Payment should be logged via log_membership_payment.php when actual payment is received
+    // This prevents double-counting and ensures only real payments are tracked as income
     
     echo json_encode([
         'success' => true,

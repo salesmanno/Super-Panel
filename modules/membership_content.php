@@ -191,20 +191,28 @@
                     <div class="col-md-3">
                         <div class="card bg-success text-white">
                             <div class="card-body">
-                                <small>Totalt innbetalt (i år)</small>
+                                <small>Samlet innbetalt (i år)</small>
                                 <h4 class="mb-0" id="income-paid-total">0 NOK</h4>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body">
+                                <small>Forventet årsinntekt</small>
+                                <h4 class="mb-0" id="income-expected-annual">0 NOK</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
                         <div class="card bg-warning text-white">
                             <div class="card-body">
-                                <small>Gjenværende betaling</small>
+                                <small>Gjenstår å betale</small>
                                 <h4 class="mb-0" id="income-remaining-total">0 NOK</h4>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="card bg-info text-white">
                             <div class="card-body">
                                 <small>Aktive medlemmer</small>
@@ -212,10 +220,10 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="card bg-light">
                             <div class="card-body">
-                                <small class="text-muted">Antall transaksjoner</small>
+                                <small class="text-muted">Betalinger</small>
                                 <h4 class="mb-0" id="income-transaction-count">0</h4>
                             </div>
                         </div>
@@ -1245,6 +1253,7 @@ async function loadMembershipIncome(filter = 'all') {
         
         if (data.success) {
             document.getElementById('income-paid-total').textContent = data.summary.total_paid.toLocaleString('nb-NO') + ' NOK';
+            document.getElementById('income-expected-annual').textContent = data.summary.expected_annual_income.toLocaleString('nb-NO') + ' NOK';
             document.getElementById('income-remaining-total').textContent = data.summary.total_remaining.toLocaleString('nb-NO') + ' NOK';
             document.getElementById('income-active-count').textContent = data.summary.active_count;
             document.getElementById('income-transaction-count').textContent = data.summary.transaction_count;

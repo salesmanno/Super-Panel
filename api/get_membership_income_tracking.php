@@ -16,19 +16,19 @@ $currentYear = date('Y');
 try {
     $db = getDBConnection();
     
-    // MYSQL ONLY - No PostgreSQL fallback
+    // MYSQL ONLY - Join with tenant_customers for personal data
     $stmt = $db->prepare("
         SELECT 
             mm.id as member_id,
-            mm.first_name,
-            mm.last_name,
-            mm.email,
-            mm.phone,
-            mm.address,
-            mm.poststed,
-            mm.dateofbirth,
+            c.first_name,
+            c.last_name,
+            c.email,
+            c.phone,
+            c.address,
+            c.address_city as poststed,
+            c.date_of_birth as dateofbirth,
             mm.join_date,
-            mm.expiry_date,
+            COALESCE(mm.expiry_date, mm.expiration_date) as expiry_date,
             mm.status as member_status,
             mm.auto_renew,
             COALESCE(mp.name, 'Ingen plan') as plan_name,
@@ -38,6 +38,7 @@ try {
             payment_summary.last_payment_date,
             payment_summary.payment_count
         FROM membership_members mm
+        LEFT JOIN tenant_customers c ON mm.customer_id = c.id
         LEFT JOIN membership_plans mp 
             ON mm.membership_plan_id = mp.id
         LEFT JOIN (
@@ -52,9 +53,9 @@ try {
             AND payment_status = 'completed'
             AND YEAR(transaction_date) = ?
             GROUP BY customer_email
-        ) payment_summary ON mm.email = payment_summary.customer_email
+        ) payment_summary ON c.email = payment_summary.customer_email
         WHERE mm.company_id = ?
-        ORDER BY mm.last_name, mm.first_name
+        ORDER BY c.last_name, c.first_name
     ");
     
     $stmt->execute([$company_id, $currentYear, $company_id]);
@@ -83,9 +84,17 @@ try {
         }
     }
     
-    $totalPaid = array_sum(array_column($filteredMembers, 'total_paid'));
-    $totalRemaining = array_sum(array_column($filteredMembers, 'remaining'));
-    $activeCount = count($members);
+    // Calculate summary totals from FULL dataset (not filtered) for consistent KPIs
+    $totalPaid = array_sum(array_column($members, 'total_paid'));
+    $totalRemaining = array_sum(array_column($members, 'remaining'));
+    
+    // Calculate expected annual income (all members x their yearly price)
+    $expectedAnnualIncome = array_sum(array_column($members, 'yearly_price'));
+    
+    // Count only active members
+    $activeMembers = array_filter($members, fn($m) => $m['member_status'] === 'active');
+    $activeCount = count($activeMembers);
+    
     $transactionCount = array_sum(array_column($members, 'payment_count'));
     
     echo json_encode([
@@ -94,6 +103,7 @@ try {
         'summary' => [
             'total_paid' => $totalPaid,
             'total_remaining' => $totalRemaining,
+            'expected_annual_income' => $expectedAnnualIncome,
             'active_count' => $activeCount,
             'transaction_count' => $transactionCount
         ]
