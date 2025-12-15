@@ -30,7 +30,7 @@ try {
             c.address_country,
             c.date_of_birth,
             c.notes AS customer_notes,
-            c.is_member AS has_valid_membership,
+            CASE WHEN mm.membership_plan_id IS NOT NULL THEN 1 ELSE 0 END AS has_valid_membership,
             mm.membership_plan_id AS customer_membership_plan_id,
             r.created_at,
             r.approval_status,

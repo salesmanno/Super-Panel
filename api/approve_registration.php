@@ -31,7 +31,8 @@ try {
     $regStmt = $db->prepare("
         SELECT er.id, er.event_id, er.customer_id, er.approval_status, er.created_at,
                ee.ticket_price AS event_ticket_price, ee.default_payment_method,
-               c.first_name, c.last_name, c.email, c.phone, c.is_member,
+               c.first_name, c.last_name, c.email, c.phone,
+               CASE WHEN mm.membership_plan_id IS NOT NULL THEN 1 ELSE 0 END AS is_member,
                mm.membership_plan_id AS customer_membership_plan_id
         FROM event_registrations er
         JOIN events_eventdata ee ON er.event_id = ee.id
