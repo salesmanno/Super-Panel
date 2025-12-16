@@ -565,6 +565,20 @@
                         </label>
                         <small class="text-muted d-block">Hvis avmerket, kan denne planen selges og tilbys til kunder</small>
                     </div>
+                    <hr>
+                    <h6 class="text-muted mb-3"><i class="bi bi-calendar-event me-1"></i>Planlagt prisendring</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Ny pris fra dato</label>
+                            <input type="date" class="form-control" name="future_price_change_date" id="edit-future-price-date">
+                            <small class="text-muted">Dato for når ny pris trer i kraft</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Ny pris (NOK)</label>
+                            <input type="number" step="0.01" class="form-control" name="future_price_new" id="edit-future-price-new" placeholder="0.00">
+                            <small class="text-muted">Prisen som gjelder fra denne datoen</small>
+                        </div>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -593,6 +607,8 @@ async function editMembershipPlan(planId) {
             document.getElementById('edit-plan-benefits').value = plan.benefits || '';
             document.getElementById('edit-plan-image').value = plan.image_url || '';
             document.getElementById('edit-for-sale').checked = plan.for_sale ? true : false;
+            document.getElementById('edit-future-price-date').value = plan.future_price_change_date || '';
+            document.getElementById('edit-future-price-new').value = plan.future_price_new || '';
             
             const modal = new bootstrap.Modal(document.getElementById('editPlanModal'));
             modal.show();
@@ -607,6 +623,9 @@ async function submitEditPlan() {
     const form = document.getElementById('edit-plan-form');
     const planId = document.getElementById('edit-plan-id').value;
     
+    const futurePriceDate = document.getElementById('edit-future-price-date').value;
+    const futurePriceNew = document.getElementById('edit-future-price-new').value;
+    
     const planData = {
         plan_id: planId,
         name: document.getElementById('edit-plan-name').value,
@@ -615,7 +634,9 @@ async function submitEditPlan() {
         billing_cycle: document.getElementById('edit-plan-billing').value,
         benefits: document.getElementById('edit-plan-benefits').value,
         image_url: document.getElementById('edit-plan-image').value || null,
-        for_sale: document.getElementById('edit-for-sale').checked ? 1 : 0
+        for_sale: document.getElementById('edit-for-sale').checked ? 1 : 0,
+        future_price_change_date: futurePriceDate || null,
+        future_price_new: futurePriceNew ? parseFloat(futurePriceNew) : null
     };
     
     const toastId = toast.loading('Lagrer endringer...');

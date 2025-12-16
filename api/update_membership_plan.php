@@ -60,6 +60,16 @@ try {
             $params[] = $data['for_sale'];
         }
         
+        if (array_key_exists('future_price_change_date', $data)) {
+            $updateFields[] = "future_price_change_date = ?";
+            $params[] = $data['future_price_change_date'] ?: null;
+        }
+        
+        if (array_key_exists('future_price_new', $data)) {
+            $updateFields[] = "future_price_new = ?";
+            $params[] = $data['future_price_new'] ?: null;
+        }
+        
         if (empty($updateFields)) {
             echo json_encode(['success' => false, 'message' => 'Ingen felter å oppdatere']);
             exit;

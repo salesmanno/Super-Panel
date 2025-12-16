@@ -24,7 +24,9 @@ try {
             benefits,
             is_active,
             for_sale,
-            image_url
+            image_url,
+            future_price_change_date,
+            future_price_new
         FROM membership_plans
         WHERE company_id = ? AND is_active = ?
         ORDER BY created_at DESC
