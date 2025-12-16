@@ -1,13 +1,13 @@
 <style>
-.editable-member-cell {
+.editable-member-cell, .editable-plan-cell {
     cursor: pointer;
     position: relative;
     transition: background-color 0.2s;
 }
-.editable-member-cell:hover {
+.editable-member-cell:hover, .editable-plan-cell:hover {
     background-color: rgba(13, 110, 253, 0.1);
 }
-.editable-member-cell:hover::after {
+.editable-member-cell:hover::after, .editable-plan-cell:hover::after {
     content: '\F4C4';
     font-family: 'bootstrap-icons';
     position: absolute;
@@ -23,6 +23,13 @@
     border: 2px solid #0d6efd;
     border-radius: 4px;
     padding: 2px 6px;
+}
+.editable-plan-cell select {
+    width: 100%;
+    border: 2px solid #0d6efd;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 0.875rem;
 }
 </style>
 <div class="module-content">
@@ -1082,14 +1089,14 @@ function renderMembersTable(members) {
             const shortRef = member.member_id ? String(member.member_id).substring(0, 8).toUpperCase() : '-';
             
             return `
-                <tr data-member-id="${member.member_id}">
+                <tr data-member-id="${member.member_id}" data-plan-id="${member.membership_plan_id || ''}">
                     <td><code>${shortRef}</code></td>
                     <td class="editable-member-cell" data-field="first_name">${member.first_name}</td>
                     <td class="editable-member-cell" data-field="last_name">${member.last_name}</td>
                     <td class="editable-member-cell" data-field="email">${member.email}</td>
                     <td class="editable-member-cell" data-field="phone">${member.phone || '-'}</td>
                     <td>${member.address ? (member.address + ', ' + (member.poststed || '')) : '-'}</td>
-                    <td>${member.membership_type || '-'}</td>
+                    <td class="editable-plan-cell" data-field="membership_plan_id" data-current-plan="${member.membership_plan_id || ''}">${member.membership_type || '-'}</td>
                     <td><span class="badge ${statusBadge}">${statusText}</span></td>
                     <td>${member.join_date || '-'}</td>
                     <td>${member.expiry_date || '-'}</td>
@@ -1228,6 +1235,92 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
                 saveEdit();
             } else if (e.key === 'Escape') {
+                cell.innerHTML = originalHTML;
+            }
+        });
+    });
+    
+    // Handle plan type inline editing with dropdown
+    membersTableBody.addEventListener('click', async function(e) {
+        const cell = e.target.closest('.editable-plan-cell');
+        if (!cell || cell.querySelector('select')) return; // Already editing
+        
+        const row = cell.closest('tr');
+        const memberId = row.dataset.memberId;
+        const currentPlanId = cell.dataset.currentPlan || '';
+        const originalHTML = cell.innerHTML;
+        
+        // Get available plans from window.membershipPlans (loaded by loadPlansForSelect)
+        let plans = window.membershipPlans || [];
+        
+        // If plans not loaded, fetch them
+        if (plans.length === 0) {
+            try {
+                const response = await fetch('../api/get_membership_plans.php');
+                const result = await response.json();
+                if (result.success && result.plans) {
+                    plans = result.plans;
+                    window.membershipPlans = plans;
+                }
+            } catch (error) {
+                console.error('Error fetching plans:', error);
+                return;
+            }
+        }
+        
+        if (plans.length === 0) {
+            alert('Ingen medlemsplaner funnet. Opprett en plan først.');
+            return;
+        }
+        
+        // Create select dropdown
+        const select = document.createElement('select');
+        select.className = 'form-select form-select-sm';
+        select.innerHTML = plans.map(plan => 
+            `<option value="${plan.id}" ${plan.id === currentPlanId ? 'selected' : ''}>${plan.name}</option>`
+        ).join('');
+        
+        cell.innerHTML = '';
+        cell.appendChild(select);
+        select.focus();
+        
+        // Save function
+        const savePlanChange = async () => {
+            const newPlanId = select.value;
+            if (newPlanId !== currentPlanId) {
+                const updateData = {
+                    member_id: memberId,
+                    membership_plan_id: newPlanId
+                };
+                
+                try {
+                    const response = await fetch('/api/update_member.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        await loadMembers();
+                    } else {
+                        cell.innerHTML = originalHTML;
+                        alert('Feil ved oppdatering: ' + result.message);
+                    }
+                } catch (error) {
+                    cell.innerHTML = originalHTML;
+                    console.error('Update error:', error);
+                    alert('Feil ved oppdatering av medlemstype');
+                }
+            } else {
+                cell.innerHTML = originalHTML;
+            }
+        };
+        
+        select.addEventListener('blur', savePlanChange);
+        select.addEventListener('change', savePlanChange);
+        select.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
                 cell.innerHTML = originalHTML;
             }
         });

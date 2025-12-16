@@ -16,10 +16,12 @@ try {
         SELECT 
             mm.id as member_id,
             mm.member_code,
+            mm.membership_plan_id,
             mm.join_date,
             mm.expiration_date as expiry_date,
             mm.auto_renew,
             mm.status,
+            c.id as customer_id,
             c.first_name,
             c.last_name,
             c.email,
