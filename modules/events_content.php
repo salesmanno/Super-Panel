@@ -4629,7 +4629,7 @@ async function loadAllRegistrations() {
                             </div>
                         </button>
                     </h2>
-                    <div id="${collapseId}" class="accordion-collapse collapse ${isFirst ? 'show' : ''}" 
+                    <div id="${collapseId}" class="accordion-collapse collapse" 
                          data-bs-parent="#registrationsAccordion">
                         <div class="accordion-body p-0">
                             <div class="table-responsive">
@@ -4704,15 +4704,8 @@ async function loadAllRegistrations() {
         
         html += '</div>';
         
-        // Add expand/collapse all buttons
         const controlsHtml = `
-            <div class="mb-3 d-flex gap-2">
-                <button class="btn btn-sm btn-outline-secondary" onclick="expandAllRegistrations()">
-                    <i class="bi bi-arrows-expand me-1"></i>Utvid alle
-                </button>
-                <button class="btn btn-sm btn-outline-secondary" onclick="collapseAllRegistrations()">
-                    <i class="bi bi-arrows-collapse me-1"></i>Skjul alle
-                </button>
+            <div class="mb-3 d-flex">
                 <span class="ms-auto text-muted small align-self-center">
                     ${result.total_registrations} påmeldinger totalt 
                     (${result.total_approved} godkjent, ${result.total_rejected} avvist)
@@ -4731,21 +4724,6 @@ async function loadAllRegistrations() {
             </div>
         `;
     }
-}
-
-// Expand/collapse all registrations accordion
-function expandAllRegistrations() {
-    document.querySelectorAll('#registrationsAccordion .accordion-collapse').forEach(collapse => {
-        const bsCollapse = new bootstrap.Collapse(collapse, { toggle: false });
-        bsCollapse.show();
-    });
-}
-
-function collapseAllRegistrations() {
-    document.querySelectorAll('#registrationsAccordion .accordion-collapse').forEach(collapse => {
-        const bsCollapse = new bootstrap.Collapse(collapse, { toggle: false });
-        bsCollapse.hide();
-    });
 }
 
 async function deleteEventRegistration(registrationId, customerName) {
