@@ -1040,8 +1040,29 @@ function selectMembershipPlan(planId, planIndex) {
     }
 }
 
-function editMember(memberId) {
-    alert('Redigering av medlem kommer snart!');
+async function deleteMember(memberId, memberName) {
+    if (!confirm(`Er du sikker på at du vil slette medlemmet "${memberName}"?\n\nDette kan ikke angres.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/delete_member.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ member_id: memberId })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('Medlem slettet');
+            await loadMembers();
+        } else {
+            alert('Feil ved sletting: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Delete error:', error);
+        alert('Feil ved sletting av medlem');
+    }
 }
 
 // Load membership plans into filter dropdown
@@ -1125,8 +1146,8 @@ function renderMembersTable(members) {
                         <button class="btn btn-sm btn-success" onclick="renewMembership('${member.member_id}')" title="Forny medlemskap">
                             <i class="bi bi-arrow-clockwise"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-primary" onclick="editMember(${member.member_id})">
-                            <i class="bi bi-pencil"></i>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteMember('${member.member_id}', '${member.first_name} ${member.last_name}')" title="Slett medlem">
+                            <i class="bi bi-trash"></i>
                         </button>
                     </td>
                 </tr>

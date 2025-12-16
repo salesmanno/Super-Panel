@@ -80,7 +80,7 @@ try {
         $customerParams[] = $customerId;
         $customerParams[] = $companyId;
         
-        $sql = "UPDATE tenant_customers SET " . implode(', ', $customerUpdates) . ", updated_at = NOW() WHERE id = ? AND company_id = ?";
+        $sql = "UPDATE tenant_customers SET " . implode(', ', $customerUpdates) . " WHERE id = ? AND company_id = ?";
         $stmt = $db->prepare($sql);
         $stmt->execute($customerParams);
         $updatedCustomer = true;
@@ -91,7 +91,7 @@ try {
         $memberParams[] = $memberId;
         $memberParams[] = $companyId;
         
-        $sql = "UPDATE membership_members SET " . implode(', ', $memberUpdates) . ", updated_at = NOW() WHERE id = ? AND company_id = ?";
+        $sql = "UPDATE membership_members SET " . implode(', ', $memberUpdates) . " WHERE id = ? AND company_id = ?";
         $stmt = $db->prepare($sql);
         $stmt->execute($memberParams);
         $updatedMember = true;
