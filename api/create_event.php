@@ -13,6 +13,10 @@ require_once __DIR__ . '/../includes/ProductCatalogService.php';
 try {
     $data = json_decode(file_get_contents('php://input'), true);
     
+    // DEBUG: Log received registration_type
+    error_log('DEBUG create_event.php - registration_type received: ' . ($data['registration_type'] ?? 'NULL'));
+    error_log('DEBUG create_event.php - Full data: ' . json_encode($data));
+    
     // Validate required fields
     if (empty($data['title']) || empty($data['start_date']) || empty($data['start_time'])) {
         echo json_encode(['success' => false, 'message' => 'Mangler påkrevde felt']);

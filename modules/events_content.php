@@ -1886,6 +1886,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const formData = new FormData(this);
             
+            // DEBUG: Log registration_type value
+            const regTypeValue = formData.get('registration_type');
+            console.log('DEBUG registration_type from formData:', regTypeValue);
+            console.log('DEBUG all form entries:', Object.fromEntries(formData.entries()));
+            
             // Validate that at least one contact field is selected
             const emailChecked = document.getElementById('field_email').checked;
             const phoneChecked = document.getElementById('field_phone').checked;
