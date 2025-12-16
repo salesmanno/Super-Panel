@@ -4638,7 +4638,8 @@ async function loadAllRegistrations() {
                                         <tr>
                                             <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Navn</th>
                                             <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Kontakt</th>
-                                            <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Medlem</th>
+                                            <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Medlemskap</th>
+                                            <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Billettpris</th>
                                             <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Status</th>
                                             <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem; text-align: right;">Handling</th>
                                         </tr>
@@ -4663,9 +4664,13 @@ async function loadAllRegistrations() {
                 }
                 if (!contactHtml) contactHtml = '-';
                 
-                const memberBadge = reg.has_valid_membership 
-                    ? '<span class="badge bg-success-subtle text-success"><i class="bi bi-star-fill"></i></span>' 
-                    : '<span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-dash"></i></span>';
+                const membershipInfo = reg.membership_plan_name 
+                    ? `<span class="badge bg-success-subtle text-success"><i class="bi bi-star-fill me-1"></i>${reg.membership_plan_name}</span>`
+                    : '<span class="text-muted">-</span>';
+                
+                const ticketPrice = reg.event_ticket_price != null 
+                    ? `<span class="fw-semibold">${parseFloat(reg.event_ticket_price).toFixed(0)} kr</span>`
+                    : '<span class="text-muted">-</span>';
                 
                 const customerName = `${reg.first_name || ''} ${reg.last_name || ''}`.trim();
                 
@@ -4677,8 +4682,11 @@ async function loadAllRegistrations() {
                         <td style="padding: 10px 12px; vertical-align: middle;">
                             <small style="color: #6c757d;">${contactHtml}</small>
                         </td>
-                        <td style="padding: 10px 12px; vertical-align: middle; text-align: center;">
-                            ${memberBadge}
+                        <td style="padding: 10px 12px; vertical-align: middle;">
+                            ${membershipInfo}
+                        </td>
+                        <td style="padding: 10px 12px; vertical-align: middle;">
+                            ${ticketPrice}
                         </td>
                         <td style="padding: 10px 12px; vertical-align: middle;">
                             ${approvalStatusBadge}
