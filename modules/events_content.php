@@ -1886,10 +1886,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const formData = new FormData(this);
             
-            // DEBUG: Log registration_type value
-            const regTypeValue = formData.get('registration_type');
-            console.log('DEBUG registration_type from formData:', regTypeValue);
-            console.log('DEBUG all form entries:', Object.fromEntries(formData.entries()));
+            // Get registration_type directly from radio buttons (more reliable than FormData)
+            const selectedRegType = document.querySelector('input[name="registration_type"]:checked');
+            const registrationType = selectedRegType ? selectedRegType.value : 'signup';
             
             // Validate that at least one contact field is selected
             const emailChecked = document.getElementById('field_email').checked;
@@ -1971,7 +1970,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 event_image_url: formData.get('event_image_url') || null,
                 is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
                 memberverification: formData.get('memberverification') ? 1 : 0,
-                registration_type: formData.get('registration_type') || 'signup',
+                registration_type: registrationType,
                 payment_timing_methods: paymentTimingMethods,
                 membership_pricing: membershipPricing,
                 allowed_payment_methods: allowedPaymentMethods,
