@@ -20,6 +20,20 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     
+    $verifyStaff = $db->prepare("SELECT id FROM tenant_staff WHERE id = ? AND company_id = ?");
+    $verifyStaff->execute([$data['staff_id'], $companyId]);
+    if (!$verifyStaff->fetch()) {
+        echo json_encode(['success' => false, 'message' => 'Ansatt ikke funnet']);
+        exit;
+    }
+    
+    $verifyService = $db->prepare("SELECT id FROM reservation_services WHERE id = ? AND company_id = ?");
+    $verifyService->execute([$data['service_id'], $companyId]);
+    if (!$verifyService->fetch()) {
+        echo json_encode(['success' => false, 'message' => 'Tjeneste ikke funnet']);
+        exit;
+    }
+    
     $checkStmt = $db->prepare("
         SELECT id FROM staff_services 
         WHERE company_id = ? AND service_id = ? AND staff_id = ?

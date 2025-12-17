@@ -20,6 +20,13 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     
+    $verifyStaff = $db->prepare("SELECT id FROM tenant_staff WHERE id = ? AND company_id = ?");
+    $verifyStaff->execute([$data['staff_id'], $companyId]);
+    if (!$verifyStaff->fetch()) {
+        echo json_encode(['success' => false, 'message' => 'Ansatt ikke funnet']);
+        exit;
+    }
+    
     $checkStmt = $db->prepare("
         SELECT id FROM staff_availability 
         WHERE company_id = ? AND staff_id = ? AND date = ?
