@@ -489,22 +489,16 @@ try {
                 </li>
             </ul>
             
-            <!-- Reservations subtabs -->
+            <!-- Reservations subtabs - Tjenesteadministrasjon -->
             <ul class="nav nav-pills py-2 subtabs" id="subtabs-reservation" style="display: none;">
                 <li class="nav-item">
-                    <a class="nav-link active" href="#reservations-overview">Reservasjonsoversikt</a>
+                    <a class="nav-link active" href="#reservations-overview">Tjenesteoversikt</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#reservations-incoming">Reservasjonsmottak</a>
+                    <a class="nav-link" href="#reservations-active-services">Ansatt-tilknytning</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#reservations-confirmed">Bekreftede Reservasjoner</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#reservations-create-service">Opprett tjenester</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#reservations-active-services">Aktive tjenester</a>
+                    <a class="nav-link" href="#reservations-create-service">Arbeidstider</a>
                 </li>
             </ul>
             
