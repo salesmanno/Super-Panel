@@ -116,7 +116,7 @@
 </style>
 
 <div class="module-content">
-    <div id="services-overview" class="subtab-content">
+    <div id="reservations-overview" class="subtab-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h4 class="mb-1">Tjenester</h4>
@@ -135,7 +135,7 @@
         </div>
     </div>
     
-    <div id="staff-assignment" class="subtab-content" style="display: none;">
+    <div id="reservations-active-services" class="subtab-content" style="display: none;">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h4 class="mb-1">Ansatte og tjenester</h4>
@@ -173,7 +173,7 @@
         </div>
     </div>
     
-    <div id="staff-availability" class="subtab-content" style="display: none;">
+    <div id="reservations-create-service" class="subtab-content" style="display: none;">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h4 class="mb-1">Arbeidstider</h4>
@@ -850,12 +850,12 @@ document.getElementById('tab-reservations')?.addEventListener('shown.bs.tab', as
     await loadStaff();
 });
 
-document.querySelectorAll('[data-subtab]').forEach(tab => {
+document.querySelectorAll('#subtabs-reservation .nav-link').forEach(tab => {
     tab.addEventListener('click', function() {
-        const target = this.dataset.subtab;
-        if (target === 'staff-assignment') {
+        const target = this.getAttribute('href')?.replace('#', '');
+        if (target === 'reservations-active-services') {
             loadServiceSelectList();
-        } else if (target === 'staff-availability') {
+        } else if (target === 'reservations-create-service') {
             loadStaffListForAvailability();
         }
     });
