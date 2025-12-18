@@ -20,8 +20,6 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     
-    $db->beginTransaction();
-    
     $stmt = $db->prepare("
         INSERT INTO reservation_services (
             company_id, service_name, description, price, duration_minutes,
@@ -59,8 +57,6 @@ try {
         }
     }
     
-    $db->commit();
-    
     echo json_encode([
         'success' => true,
         'message' => 'Tjeneste opprettet',
@@ -68,9 +64,6 @@ try {
     ]);
     
 } catch (Exception $e) {
-    if (isset($db) && $db->inTransaction()) {
-        $db->rollBack();
-    }
     error_log("Error creating service: " . $e->getMessage());
     echo json_encode([
         'success' => false,

@@ -20,7 +20,6 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     
-    $db->beginTransaction();
     
     $updates = [];
     $params = [];
@@ -100,17 +99,12 @@ try {
         }
     }
     
-    $db->commit();
-    
     echo json_encode([
         'success' => true,
         'message' => 'Tjeneste oppdatert'
     ]);
     
 } catch (Exception $e) {
-    if (isset($db) && $db->inTransaction()) {
-        $db->rollBack();
-    }
     error_log("Error updating service: " . $e->getMessage());
     echo json_encode([
         'success' => false,
