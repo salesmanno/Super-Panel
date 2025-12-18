@@ -37,6 +37,35 @@ try {
     $stmt->execute([$companyId]);
     $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    $staffStmt = $db->prepare("
+        SELECT 
+            ss.service_id,
+            ss.staff_id,
+            ts.first_name,
+            ts.last_name
+        FROM staff_services ss
+        INNER JOIN tenant_staff ts ON ss.staff_id = ts.id
+        WHERE ss.company_id = ? AND ss.is_active = 1
+    ");
+    $staffStmt->execute([$companyId]);
+    $allStaffServices = $staffStmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $staffByService = [];
+    foreach ($allStaffServices as $ss) {
+        if (!isset($staffByService[$ss['service_id']])) {
+            $staffByService[$ss['service_id']] = [];
+        }
+        $staffByService[$ss['service_id']][] = [
+            'id' => $ss['staff_id'],
+            'name' => $ss['first_name'] . ' ' . $ss['last_name']
+        ];
+    }
+    
+    foreach ($services as &$service) {
+        $service['assigned_staff'] = $staffByService[$service['id']] ?? [];
+        $service['staff_count'] = count($service['assigned_staff']);
+    }
+    
     echo json_encode([
         'success' => true,
         'services' => $services

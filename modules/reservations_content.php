@@ -365,19 +365,40 @@
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Kategori</label>
-                            <input type="text" class="form-control" id="service-category" placeholder="F.eks. Frisør, Massasje">
+                            <input type="text" class="form-control" id="service-category" placeholder="F.eks. Frisør, Verksted">
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Kapasitet (ansatte kreves)</label>
+                            <input type="number" class="form-control" id="service-capacity" value="1" min="1">
+                            <small class="text-muted">Hvor mange ansatte trengs for jobben</small>
+                        </div>
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Maks bookinger/dag</label>
                             <input type="number" class="form-control" id="service-max-daily" placeholder="Ubegrenset">
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Bilde-URL</label>
+                            <input type="url" class="form-control" id="service-img-url" placeholder="https://eksempel.no/bilde.jpg">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Tilgjengelig tid</label>
+                            <div class="input-group">
+                                <input type="time" class="form-control" id="service-available-from" value="09:00">
+                                <span class="input-group-text">til</span>
+                                <input type="time" class="form-control" id="service-available-to" value="17:00">
+                            </div>
+                        </div>
+                    </div>
                     <div class="mb-3">
-                        <label class="form-label">Bilde-URL</label>
-                        <input type="url" class="form-control" id="service-img-url" placeholder="https://eksempel.no/bilde.jpg">
-                        <small class="text-muted">Legg til en URL til et bilde for tjenesten</small>
+                        <label class="form-label">Tilknytt ansatte</label>
+                        <div id="service-staff-checkboxes" class="border rounded p-2" style="max-height: 150px; overflow-y: auto;">
+                            <div class="text-muted small">Laster ansatte...</div>
+                        </div>
+                        <small class="text-muted">Velg hvilke ansatte som kan utføre denne tjenesten</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Betalingsmetoder</label>
@@ -471,38 +492,49 @@ function renderServices() {
     }
     
     container.innerHTML = allServices.map(service => {
-        const paymentMethods = service.payment_methods || [];
-        const paymentBadges = paymentMethods.map(pm => {
-            const labels = {cash: 'Kontant', card: 'Kort', vipps: 'Vipps', invoice: 'Faktura'};
-            return `<span class="badge bg-light text-dark me-1">${labels[pm] || pm}</span>`;
-        }).join('');
+        const staffBadges = (service.assigned_staff || []).map(s => 
+            `<span class="staff-badge"><i class="bi bi-person-fill me-1"></i>${s.name}</span>`
+        ).join('');
+        const capacity = service.capacity || 1;
+        const staffCount = service.staff_count || 0;
         
         return `
             <div class="service-card ${service.is_active ? '' : 'inactive'}">
-                <div class="d-flex justify-content-between align-items-start">
+                <div class="d-flex gap-3">
+                    ${service.img_url ? `
+                        <div class="flex-shrink-0">
+                            <img src="${service.img_url}" alt="${service.name}" 
+                                 style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px;"
+                                 onerror="this.style.display='none'">
+                        </div>
+                    ` : ''}
                     <div class="flex-grow-1">
-                        <div class="d-flex align-items-center gap-2 mb-1">
-                            <h5 class="mb-0">${service.name}</h5>
-                            ${!service.is_active ? '<span class="badge bg-secondary">Inaktiv</span>' : ''}
-                            ${service.category ? `<span class="badge bg-info">${service.category}</span>` : ''}
-                        </div>
-                        ${service.description ? `<p class="text-muted mb-2">${service.description}</p>` : ''}
-                        <div class="service-meta">
-                            <span><i class="bi bi-clock me-1"></i>${service.duration_minutes || 60} min</span>
-                            <span><i class="bi bi-people me-1"></i>${service.staff_count || 0} ansatte</span>
-                            ${service.max_daily_bookings ? `<span><i class="bi bi-calendar me-1"></i>Maks ${service.max_daily_bookings}/dag</span>` : ''}
-                        </div>
-                        ${paymentBadges ? `<div class="mt-2">${paymentBadges}</div>` : ''}
-                    </div>
-                    <div class="text-end">
-                        <div class="service-price">${parseInt(service.price || 0).toLocaleString('nb-NO')} kr</div>
-                        <div class="mt-2">
-                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editService('${service.id}')">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteService('${service.id}', '${service.name.replace(/'/g, "\\'")}')">
-                                <i class="bi bi-trash"></i>
-                            </button>
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <h5 class="mb-0">${service.name}</h5>
+                                    ${!service.is_active ? '<span class="badge bg-secondary">Inaktiv</span>' : ''}
+                                    ${service.category ? `<span class="badge bg-info">${service.category}</span>` : ''}
+                                </div>
+                                ${service.description ? `<p class="text-muted mb-2 small">${service.description}</p>` : ''}
+                                <div class="service-meta">
+                                    <span><i class="bi bi-clock me-1"></i>${service.duration_minutes || 60} min</span>
+                                    <span title="Antall ansatte kreves for denne jobben"><i class="bi bi-person-workspace me-1"></i>${capacity} kreves</span>
+                                    <span title="Tilknyttede ansatte"><i class="bi bi-people me-1"></i>${staffCount} tilknyttet</span>
+                                </div>
+                                ${staffBadges ? `<div class="mt-2">${staffBadges}</div>` : ''}
+                            </div>
+                            <div class="text-end">
+                                <div class="service-price">${parseInt(service.price || 0).toLocaleString('nb-NO')} kr</div>
+                                <div class="mt-2">
+                                    <button class="btn btn-sm btn-outline-primary me-1" onclick="editService('${service.id}')">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteService('${service.id}', '${service.name.replace(/'/g, "\\'")}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -549,14 +581,41 @@ async function openCreateServiceModal() {
     document.getElementById('service-form').reset();
     document.getElementById('service-id').value = '';
     document.getElementById('service-active').checked = true;
+    document.getElementById('service-capacity').value = 1;
+    document.getElementById('service-available-from').value = '09:00';
+    document.getElementById('service-available-to').value = '17:00';
     
-    if (allPaymentMethods.length === 0) {
-        await loadPaymentMethods();
-    } else {
-        renderPaymentMethodsCheckboxes([]);
-    }
+    await Promise.all([
+        allPaymentMethods.length === 0 ? loadPaymentMethods() : Promise.resolve(),
+        allStaff.length === 0 ? loadStaff() : Promise.resolve()
+    ]);
+    
+    renderPaymentMethodsCheckboxes([]);
+    renderStaffCheckboxes([]);
     
     new bootstrap.Modal(document.getElementById('createServiceModal')).show();
+}
+
+function renderStaffCheckboxes(selectedStaffIds = []) {
+    const container = document.getElementById('service-staff-checkboxes');
+    if (!container) return;
+    
+    if (!allStaff || allStaff.length === 0) {
+        container.innerHTML = '<div class="text-muted small">Ingen ansatte registrert. Opprett ansatte i Deres Firma-modulen.</div>';
+        return;
+    }
+    
+    container.innerHTML = allStaff.map(staff => `
+        <div class="form-check">
+            <input class="form-check-input staff-check" type="checkbox" 
+                   id="staff-${staff.id}" value="${staff.id}"
+                   ${selectedStaffIds.includes(staff.id) ? 'checked' : ''}>
+            <label class="form-check-label" for="staff-${staff.id}">
+                ${staff.first_name} ${staff.last_name}
+                ${staff.position ? `<small class="text-muted">(${staff.position})</small>` : ''}
+            </label>
+        </div>
+    `).join('');
 }
 
 async function editService(id) {
@@ -572,14 +631,22 @@ async function editService(id) {
     document.getElementById('service-buffer-before').value = service.buffer_before_minutes || 0;
     document.getElementById('service-buffer-after').value = service.buffer_after_minutes || 0;
     document.getElementById('service-category').value = service.category || '';
+    document.getElementById('service-capacity').value = service.capacity || 1;
     document.getElementById('service-max-daily').value = service.max_daily_bookings || '';
     document.getElementById('service-img-url').value = service.img_url || '';
+    document.getElementById('service-available-from').value = (service.available_from || '09:00:00').substring(0,5);
+    document.getElementById('service-available-to').value = (service.available_to || '17:00:00').substring(0,5);
     document.getElementById('service-active').checked = service.is_active == 1;
     
-    if (allPaymentMethods.length === 0) {
-        await loadPaymentMethods();
-    }
+    await Promise.all([
+        allPaymentMethods.length === 0 ? loadPaymentMethods() : Promise.resolve(),
+        allStaff.length === 0 ? loadStaff() : Promise.resolve()
+    ]);
+    
     renderPaymentMethodsCheckboxes(service.payment_methods || []);
+    
+    const assignedStaffIds = (service.assigned_staff || []).map(s => s.id);
+    renderStaffCheckboxes(assignedStaffIds);
     
     new bootstrap.Modal(document.getElementById('createServiceModal')).show();
 }
@@ -591,6 +658,11 @@ async function saveService() {
         paymentMethods.push(cb.value);
     });
     
+    const staffIds = [];
+    document.querySelectorAll('.staff-check:checked').forEach(cb => {
+        staffIds.push(cb.value);
+    });
+    
     const data = {
         name: document.getElementById('service-name').value,
         description: document.getElementById('service-description').value,
@@ -599,10 +671,14 @@ async function saveService() {
         buffer_before_minutes: parseInt(document.getElementById('service-buffer-before').value) || 0,
         buffer_after_minutes: parseInt(document.getElementById('service-buffer-after').value) || 0,
         category: document.getElementById('service-category').value || null,
+        capacity: parseInt(document.getElementById('service-capacity').value) || 1,
         max_daily_bookings: parseInt(document.getElementById('service-max-daily').value) || null,
         img_url: document.getElementById('service-img-url').value || null,
+        available_from: document.getElementById('service-available-from').value || '09:00',
+        available_to: document.getElementById('service-available-to').value || '17:00',
         is_active: document.getElementById('service-active').checked,
-        payment_methods: paymentMethods
+        payment_methods: paymentMethods,
+        staff_ids: staffIds
     };
     
     if (id) data.id = id;

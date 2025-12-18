@@ -20,6 +20,8 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     
+    $db->beginTransaction();
+    
     $updates = [];
     $params = [];
     
@@ -47,21 +49,58 @@ try {
         $params[] = $data['is_active'] ? 1 : 0;
     }
     
-    if (empty($updates)) {
-        echo json_encode(['success' => false, 'message' => 'Ingen felt å oppdatere']);
-        exit;
+    if (!empty($updates)) {
+        $params[] = $data['id'];
+        $params[] = $companyId;
+        
+        $stmt = $db->prepare("
+            UPDATE reservation_services 
+            SET " . implode(', ', $updates) . "
+            WHERE id = ? AND company_id = ?
+        ");
+        
+        $stmt->execute($params);
     }
     
-    $params[] = $data['id'];
-    $params[] = $companyId;
+    if (array_key_exists('staff_ids', $data) && is_array($data['staff_ids'])) {
+        $deactivateStmt = $db->prepare("
+            UPDATE staff_services SET is_active = 0 
+            WHERE service_id = ? AND company_id = ?
+        ");
+        $deactivateStmt->execute([$data['id'], $companyId]);
+        
+        if (!empty($data['staff_ids'])) {
+            $verifyStmt = $db->prepare("SELECT id FROM tenant_staff WHERE id = ? AND company_id = ?");
+            foreach ($data['staff_ids'] as $staffId) {
+                $verifyStmt->execute([$staffId, $companyId]);
+                if (!$verifyStmt->fetch()) {
+                    continue;
+                }
+                
+                $checkStmt = $db->prepare("
+                    SELECT id FROM staff_services 
+                    WHERE service_id = ? AND staff_id = ? AND company_id = ?
+                ");
+                $checkStmt->execute([$data['id'], $staffId, $companyId]);
+                $existing = $checkStmt->fetch();
+                
+                if ($existing) {
+                    $updateStmt = $db->prepare("
+                        UPDATE staff_services SET is_active = 1 WHERE id = ?
+                    ");
+                    $updateStmt->execute([$existing['id']]);
+                } else {
+                    $insertStmt = $db->prepare("
+                        INSERT INTO staff_services (company_id, staff_id, service_id, is_active)
+                        VALUES (?, ?, ?, 1)
+                    ");
+                    $insertStmt->execute([$companyId, $staffId, $data['id']]);
+                }
+            }
+        }
+    }
     
-    $stmt = $db->prepare("
-        UPDATE reservation_services 
-        SET " . implode(', ', $updates) . "
-        WHERE id = ? AND company_id = ?
-    ");
-    
-    $stmt->execute($params);
+    $db->commit();
     
     echo json_encode([
         'success' => true,
@@ -69,6 +108,9 @@ try {
     ]);
     
 } catch (Exception $e) {
+    if (isset($db) && $db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log("Error updating service: " . $e->getMessage());
     echo json_encode([
         'success' => false,

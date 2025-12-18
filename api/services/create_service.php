@@ -20,6 +20,8 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     
+    $db->beginTransaction();
+    
     $stmt = $db->prepare("
         INSERT INTO reservation_services (
             company_id, service_name, description, price, duration_minutes,
@@ -43,6 +45,22 @@ try {
     
     $serviceId = $db->lastInsertId();
     
+    if (!empty($data['staff_ids']) && is_array($data['staff_ids'])) {
+        $verifyStmt = $db->prepare("SELECT id FROM tenant_staff WHERE id = ? AND company_id = ?");
+        $staffStmt = $db->prepare("
+            INSERT INTO staff_services (company_id, staff_id, service_id, is_active)
+            VALUES (?, ?, ?, 1)
+        ");
+        foreach ($data['staff_ids'] as $staffId) {
+            $verifyStmt->execute([$staffId, $companyId]);
+            if ($verifyStmt->fetch()) {
+                $staffStmt->execute([$companyId, $staffId, $serviceId]);
+            }
+        }
+    }
+    
+    $db->commit();
+    
     echo json_encode([
         'success' => true,
         'message' => 'Tjeneste opprettet',
@@ -50,6 +68,9 @@ try {
     ]);
     
 } catch (Exception $e) {
+    if (isset($db) && $db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log("Error creating service: " . $e->getMessage());
     echo json_encode([
         'success' => false,
