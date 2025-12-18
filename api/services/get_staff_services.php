@@ -28,7 +28,7 @@ try {
             ts.last_name,
             ts.email,
             ts.phone,
-            rs.name as service_name,
+            rs.service_name,
             rs.price as service_price
         FROM staff_services ss
         INNER JOIN tenant_staff ts ON ss.staff_id = ts.id

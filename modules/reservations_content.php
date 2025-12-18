@@ -381,24 +381,10 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Betalingsmetoder</label>
-                        <div class="d-flex gap-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="pm-cash" value="cash">
-                                <label class="form-check-label" for="pm-cash">Kontant</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="pm-card" value="card">
-                                <label class="form-check-label" for="pm-card">Kort</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="pm-vipps" value="vipps">
-                                <label class="form-check-label" for="pm-vipps">Vipps</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="pm-invoice" value="invoice">
-                                <label class="form-check-label" for="pm-invoice">Faktura</label>
-                            </div>
+                        <div id="service-payment-methods-container" class="d-flex gap-3 flex-wrap">
+                            <div class="text-muted small">Laster betalingsmetoder...</div>
                         </div>
+                        <small class="text-muted">Vis kun metoder konfigurert i Økonomi-modulen</small>
                     </div>
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" id="service-active" checked>
@@ -448,6 +434,7 @@
 <script>
 let allServices = [];
 let allStaff = [];
+let allPaymentMethods = [];
 let selectedServiceId = null;
 let selectedStaffId = null;
 let availabilityMonth = new Date();
@@ -524,15 +511,55 @@ function renderServices() {
     }).join('');
 }
 
-function openCreateServiceModal() {
+async function loadPaymentMethods() {
+    try {
+        const response = await fetch('/api/services/get_payment_methods.php');
+        const result = await response.json();
+        if (result.success) {
+            allPaymentMethods = result.payment_methods;
+            renderPaymentMethodsCheckboxes();
+        }
+    } catch (error) {
+        console.error('Error loading payment methods:', error);
+    }
+}
+
+function renderPaymentMethodsCheckboxes(selectedMethods = []) {
+    const container = document.getElementById('service-payment-methods-container');
+    if (!container) return;
+    
+    if (!allPaymentMethods || allPaymentMethods.length === 0) {
+        container.innerHTML = '<div class="text-muted small">Ingen betalingsmetoder konfigurert i Økonomi-modulen</div>';
+        return;
+    }
+    
+    container.innerHTML = allPaymentMethods.map(pm => `
+        <div class="form-check">
+            <input class="form-check-input payment-method-check" type="checkbox" 
+                   id="pm-${pm.type}" value="${pm.type}" 
+                   data-name="${pm.name}"
+                   ${selectedMethods.includes(pm.type) ? 'checked' : ''}>
+            <label class="form-check-label" for="pm-${pm.type}">${pm.name}</label>
+        </div>
+    `).join('');
+}
+
+async function openCreateServiceModal() {
     document.getElementById('serviceModalTitle').textContent = 'Ny tjeneste';
     document.getElementById('service-form').reset();
     document.getElementById('service-id').value = '';
     document.getElementById('service-active').checked = true;
+    
+    if (allPaymentMethods.length === 0) {
+        await loadPaymentMethods();
+    } else {
+        renderPaymentMethodsCheckboxes([]);
+    }
+    
     new bootstrap.Modal(document.getElementById('createServiceModal')).show();
 }
 
-function editService(id) {
+async function editService(id) {
     const service = allServices.find(s => s.id === id);
     if (!service) return;
     
@@ -549,9 +576,10 @@ function editService(id) {
     document.getElementById('service-img-url').value = service.img_url || '';
     document.getElementById('service-active').checked = service.is_active == 1;
     
-    ['cash', 'card', 'vipps', 'invoice'].forEach(pm => {
-        document.getElementById('pm-' + pm).checked = (service.payment_methods || []).includes(pm);
-    });
+    if (allPaymentMethods.length === 0) {
+        await loadPaymentMethods();
+    }
+    renderPaymentMethodsCheckboxes(service.payment_methods || []);
     
     new bootstrap.Modal(document.getElementById('createServiceModal')).show();
 }
@@ -559,8 +587,8 @@ function editService(id) {
 async function saveService() {
     const id = document.getElementById('service-id').value;
     const paymentMethods = [];
-    ['cash', 'card', 'vipps', 'invoice'].forEach(pm => {
-        if (document.getElementById('pm-' + pm).checked) paymentMethods.push(pm);
+    document.querySelectorAll('.payment-method-check:checked').forEach(cb => {
+        paymentMethods.push(cb.value);
     });
     
     const data = {
