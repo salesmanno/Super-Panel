@@ -37,8 +37,13 @@ try {
     $gateways = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     $configuredMethods = [];
+    $hasCashFromConfig = false;
+    
     foreach ($gateways as $gateway) {
-        if ($gateway['is_configured'] == 1 || $gateway['is_active'] == 1) {
+        if ($gateway['is_configured'] == 1 && $gateway['is_active'] == 1) {
+            if ($gateway['gateway_type'] === 'cash') {
+                $hasCashFromConfig = true;
+            }
             $configuredMethods[] = [
                 'id' => $gateway['id'],
                 'name' => $gateway['config_name'],
@@ -49,18 +54,20 @@ try {
         }
     }
     
-    $cashStmt = $db->prepare("SELECT cash_payment FROM tenant_companies WHERE id = ?");
-    $cashStmt->execute([$companyId]);
-    $company = $cashStmt->fetch(PDO::FETCH_ASSOC);
-    
-    if ($company && $company['cash_payment']) {
-        array_unshift($configuredMethods, [
-            'id' => 'cash',
-            'name' => 'Kontant',
-            'type' => 'cash',
-            'is_active' => true,
-            'is_configured' => true
-        ]);
+    if (!$hasCashFromConfig) {
+        $cashStmt = $db->prepare("SELECT cash_payment FROM tenant_companies WHERE id = ?");
+        $cashStmt->execute([$companyId]);
+        $company = $cashStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($company && $company['cash_payment']) {
+            array_unshift($configuredMethods, [
+                'id' => 'cash',
+                'name' => 'Kontant',
+                'type' => 'cash',
+                'is_active' => true,
+                'is_configured' => true
+            ]);
+        }
     }
     
     echo json_encode([
