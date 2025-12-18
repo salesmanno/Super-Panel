@@ -232,12 +232,7 @@
                 <h5 class="card-title"><i class="bi bi-credit-card-2-front me-2"></i>Betalingsløsninger</h5>
                 <p class="text-muted">Administrer tilgjengelige betalingsmetoder for dine kunder</p>
                 
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle me-2"></i>
-                    Betalingsløsninger som er <strong>konfigurert</strong> i databasen kan aktiveres/deaktiveres her.
-                </div>
-                
-                <div id="payment-gateways-container" class="row mt-4">
+                <div id="payment-gateways-container" class="row mt-3">
                     <div class="col-12 text-center py-4">
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Laster...</span>
