@@ -16,34 +16,26 @@ try {
     $stmt = $db->prepare("
         SELECT 
             s.id,
-            s.name,
+            s.service_name as name,
             s.description,
             s.price,
             s.duration_minutes,
-            s.required_duration_minutes,
-            s.buffer_before_minutes,
-            s.buffer_after_minutes,
-            s.max_daily_bookings,
-            s.category,
+            s.service_type as category,
+            s.available_from,
+            s.available_to,
             s.is_active,
-            s.payment_methods_json,
-            s.default_payment_method,
-            s.created_at,
-            (SELECT COUNT(*) FROM staff_services ss WHERE ss.service_id = s.id AND ss.is_active = 1) as staff_count
+            s.capacity,
+            s.img_url,
+            s.assigned_staff_mode,
+            s.assigned_staff_ids,
+            s.created_at
         FROM reservation_services s
         WHERE s.company_id = ?
-        ORDER BY s.is_active DESC, s.name ASC
+        ORDER BY s.is_active DESC, s.service_name ASC
     ");
     
     $stmt->execute([$companyId]);
     $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    foreach ($services as &$service) {
-        $service['payment_methods'] = $service['payment_methods_json'] 
-            ? json_decode($service['payment_methods_json'], true) 
-            : [];
-        unset($service['payment_methods_json']);
-    }
     
     echo json_encode([
         'success' => true,

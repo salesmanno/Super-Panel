@@ -23,27 +23,28 @@ try {
     $updates = [];
     $params = [];
     
-    $fields = [
-        'name', 'description', 'price', 'duration_minutes',
-        'required_duration_minutes', 'buffer_before_minutes', 'buffer_after_minutes',
-        'max_daily_bookings', 'category', 'default_payment_method'
+    $fieldMap = [
+        'name' => 'service_name',
+        'description' => 'description',
+        'price' => 'price',
+        'duration_minutes' => 'duration_minutes',
+        'category' => 'service_type',
+        'available_from' => 'available_from',
+        'available_to' => 'available_to',
+        'capacity' => 'capacity',
+        'img_url' => 'img_url'
     ];
     
-    foreach ($fields as $field) {
-        if (array_key_exists($field, $data)) {
-            $updates[] = "$field = ?";
-            $params[] = $data[$field];
+    foreach ($fieldMap as $input => $column) {
+        if (array_key_exists($input, $data)) {
+            $updates[] = "$column = ?";
+            $params[] = $data[$input];
         }
     }
     
     if (array_key_exists('is_active', $data)) {
         $updates[] = "is_active = ?";
         $params[] = $data['is_active'] ? 1 : 0;
-    }
-    
-    if (array_key_exists('payment_methods', $data)) {
-        $updates[] = "payment_methods_json = ?";
-        $params[] = is_array($data['payment_methods']) ? json_encode($data['payment_methods']) : null;
     }
     
     if (empty($updates)) {

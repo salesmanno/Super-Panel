@@ -20,17 +20,11 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     
-    $paymentMethodsJson = isset($data['payment_methods']) && is_array($data['payment_methods'])
-        ? json_encode($data['payment_methods'])
-        : null;
-    
     $stmt = $db->prepare("
         INSERT INTO reservation_services (
-            company_id, name, description, price, duration_minutes,
-            required_duration_minutes, buffer_before_minutes, buffer_after_minutes,
-            max_daily_bookings, category, is_active, payment_methods_json,
-            default_payment_method, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            company_id, service_name, description, price, duration_minutes,
+            service_type, available_from, available_to, is_active, capacity
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
     
     $stmt->execute([
@@ -39,15 +33,11 @@ try {
         $data['description'] ?? null,
         $data['price'] ?? 0,
         $data['duration_minutes'] ?? 60,
-        $data['required_duration_minutes'] ?? null,
-        $data['buffer_before_minutes'] ?? 0,
-        $data['buffer_after_minutes'] ?? 0,
-        $data['max_daily_bookings'] ?? null,
-        $data['category'] ?? null,
+        $data['category'] ?? 'other',
+        $data['available_from'] ?? '09:00:00',
+        $data['available_to'] ?? '17:00:00',
         isset($data['is_active']) ? ($data['is_active'] ? 1 : 0) : 1,
-        $paymentMethodsJson,
-        $data['default_payment_method'] ?? null,
-        $_SESSION['tenant_admin_id']
+        $data['capacity'] ?? 1
     ]);
     
     $serviceId = $db->lastInsertId();
