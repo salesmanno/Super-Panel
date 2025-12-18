@@ -23,8 +23,8 @@ try {
     $stmt = $db->prepare("
         INSERT INTO reservation_services (
             company_id, service_name, description, price, duration_minutes,
-            service_type, available_from, available_to, is_active, capacity
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            service_type, available_from, available_to, is_active, capacity, img_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
     
     $stmt->execute([
@@ -37,7 +37,8 @@ try {
         $data['available_from'] ?? '09:00:00',
         $data['available_to'] ?? '17:00:00',
         isset($data['is_active']) ? ($data['is_active'] ? 1 : 0) : 1,
-        $data['capacity'] ?? 1
+        $data['capacity'] ?? 1,
+        $data['img_url'] ?? null
     ]);
     
     $serviceId = $db->lastInsertId();

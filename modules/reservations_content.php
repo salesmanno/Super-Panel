@@ -247,6 +247,85 @@
     </div>
 </div>
 
+<div id="reservations-schedule" class="subtab-content" style="display: none;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">Timeoversikt</h4>
+            <p class="text-muted mb-0">Daglig oversikt over bookinger og kunder</p>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-end">
+                <div class="col-md-3 mb-2">
+                    <label class="form-label">Dato</label>
+                    <input type="date" class="form-control" id="schedule-date" onchange="loadSchedule()">
+                </div>
+                <div class="col-md-3 mb-2">
+                    <label class="form-label">Ansatt</label>
+                    <select class="form-select" id="schedule-staff-filter" onchange="loadSchedule()">
+                        <option value="">Alle ansatte</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <label class="form-label">Tjeneste</label>
+                    <select class="form-select" id="schedule-service-filter" onchange="loadSchedule()">
+                        <option value="">Alle tjenester</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <button class="btn btn-outline-primary w-100" onclick="loadSchedule()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Oppdater
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <strong id="schedule-date-title">I dag</strong>
+            <span class="badge bg-primary" id="schedule-booking-count">0 bookinger</span>
+        </div>
+        <div class="card-body p-0">
+            <div id="schedule-timeline">
+                <div class="empty-state py-4">
+                    <i class="bi bi-calendar-check d-block"></i>
+                    <p>Velg dato for å se timeoversikt</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card mt-4">
+        <div class="card-header bg-white">
+            <strong>Dagens kunder</strong>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tid</th>
+                        <th>Kunde</th>
+                        <th>Tjeneste</th>
+                        <th>Ansatt</th>
+                        <th>Status</th>
+                        <th>Kontakt</th>
+                    </tr>
+                </thead>
+                <tbody id="schedule-customers-table">
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            Ingen bookinger for valgt dato
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="createServiceModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -294,6 +373,11 @@
                             <label class="form-label">Maks bookinger/dag</label>
                             <input type="number" class="form-control" id="service-max-daily" placeholder="Ubegrenset">
                         </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Bilde-URL</label>
+                        <input type="url" class="form-control" id="service-img-url" placeholder="https://eksempel.no/bilde.jpg">
+                        <small class="text-muted">Legg til en URL til et bilde for tjenesten</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Betalingsmetoder</label>
@@ -462,6 +546,7 @@ function editService(id) {
     document.getElementById('service-buffer-after').value = service.buffer_after_minutes || 0;
     document.getElementById('service-category').value = service.category || '';
     document.getElementById('service-max-daily').value = service.max_daily_bookings || '';
+    document.getElementById('service-img-url').value = service.img_url || '';
     document.getElementById('service-active').checked = service.is_active == 1;
     
     ['cash', 'card', 'vipps', 'invoice'].forEach(pm => {
@@ -487,6 +572,7 @@ async function saveService() {
         buffer_after_minutes: parseInt(document.getElementById('service-buffer-after').value) || 0,
         category: document.getElementById('service-category').value || null,
         max_daily_bookings: parseInt(document.getElementById('service-max-daily').value) || null,
+        img_url: document.getElementById('service-img-url').value || null,
         is_active: document.getElementById('service-active').checked,
         payment_methods: paymentMethods
     };
@@ -857,7 +943,156 @@ document.querySelectorAll('#subtabs-reservation .nav-link').forEach(tab => {
             loadServiceSelectList();
         } else if (target === 'reservations-create-service') {
             loadStaffListForAvailability();
+        } else if (target === 'reservations-schedule') {
+            initScheduleFilters();
+            loadSchedule();
         }
     });
 });
+
+function initScheduleFilters() {
+    const dateInput = document.getElementById('schedule-date');
+    if (dateInput && !dateInput.value) {
+        dateInput.value = new Date().toISOString().split('T')[0];
+    }
+    
+    const staffSelect = document.getElementById('schedule-staff-filter');
+    if (staffSelect && staffSelect.options.length <= 1 && allStaff.length > 0) {
+        allStaff.forEach(staff => {
+            const option = document.createElement('option');
+            option.value = staff.id;
+            option.textContent = `${staff.first_name} ${staff.last_name}`;
+            staffSelect.appendChild(option);
+        });
+    }
+    
+    const serviceSelect = document.getElementById('schedule-service-filter');
+    if (serviceSelect && serviceSelect.options.length <= 1 && allServices.length > 0) {
+        allServices.forEach(service => {
+            const option = document.createElement('option');
+            option.value = service.id;
+            option.textContent = service.name;
+            serviceSelect.appendChild(option);
+        });
+    }
+}
+
+async function loadSchedule() {
+    const dateInput = document.getElementById('schedule-date');
+    const staffFilter = document.getElementById('schedule-staff-filter');
+    const serviceFilter = document.getElementById('schedule-service-filter');
+    
+    const date = dateInput?.value || new Date().toISOString().split('T')[0];
+    const staffId = staffFilter?.value || '';
+    const serviceId = serviceFilter?.value || '';
+    
+    const dateTitle = document.getElementById('schedule-date-title');
+    const dateObj = new Date(date);
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    dateTitle.textContent = dateObj.toLocaleDateString('nb-NO', options);
+    
+    try {
+        const params = new URLSearchParams({ date });
+        if (staffId) params.append('staff_id', staffId);
+        if (serviceId) params.append('service_id', serviceId);
+        
+        const response = await fetch(`/api/services/get_schedule.php?${params}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            renderScheduleTimeline(result.bookings || []);
+            renderScheduleTable(result.bookings || []);
+            document.getElementById('schedule-booking-count').textContent = 
+                `${result.bookings?.length || 0} bookinger`;
+        } else {
+            console.error('Error loading schedule:', result.message);
+        }
+    } catch (error) {
+        console.error('Error loading schedule:', error);
+    }
+}
+
+function renderScheduleTimeline(bookings) {
+    const container = document.getElementById('schedule-timeline');
+    
+    if (!bookings || bookings.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state py-4">
+                <i class="bi bi-calendar-check d-block"></i>
+                <p>Ingen bookinger for valgt dato</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const hours = [];
+    for (let h = 8; h <= 20; h++) {
+        hours.push(`${h.toString().padStart(2, '0')}:00`);
+    }
+    
+    let html = '<div class="schedule-timeline-grid p-3">';
+    hours.forEach(hour => {
+        const hourBookings = bookings.filter(b => {
+            const bookingHour = b.start_time?.substring(0, 5);
+            return bookingHour >= hour && bookingHour < `${(parseInt(hour) + 1).toString().padStart(2, '0')}:00`;
+        });
+        
+        html += `
+            <div class="timeline-row d-flex align-items-stretch border-bottom py-2">
+                <div class="timeline-hour text-muted" style="width: 60px; flex-shrink: 0;">${hour}</div>
+                <div class="timeline-content flex-grow-1 d-flex gap-2 flex-wrap">
+                    ${hourBookings.map(b => `
+                        <div class="booking-chip px-3 py-2 rounded-3" 
+                             style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                            <div class="fw-bold">${b.customer_name || 'Ukjent kunde'}</div>
+                            <small>${b.start_time?.substring(0, 5)} - ${b.service_name || 'Tjeneste'}</small>
+                            ${b.staff_name ? `<br><small><i class="bi bi-person"></i> ${b.staff_name}</small>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    
+    container.innerHTML = html;
+}
+
+function renderScheduleTable(bookings) {
+    const tbody = document.getElementById('schedule-customers-table');
+    
+    if (!bookings || bookings.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center text-muted py-4">
+                    Ingen bookinger for valgt dato
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = bookings.map(b => {
+        const statusBadge = {
+            'confirmed': '<span class="badge bg-success">Bekreftet</span>',
+            'pending': '<span class="badge bg-warning">Venter</span>',
+            'cancelled': '<span class="badge bg-danger">Kansellert</span>',
+            'completed': '<span class="badge bg-info">Fullført</span>'
+        }[b.status] || '<span class="badge bg-secondary">Ukjent</span>';
+        
+        return `
+            <tr>
+                <td><strong>${b.start_time?.substring(0, 5) || '--:--'}</strong></td>
+                <td>${b.customer_name || 'Ukjent kunde'}</td>
+                <td>${b.service_name || '-'}</td>
+                <td>${b.staff_name || '-'}</td>
+                <td>${statusBadge}</td>
+                <td>
+                    ${b.customer_phone ? `<a href="tel:${b.customer_phone}" class="btn btn-sm btn-outline-secondary me-1"><i class="bi bi-telephone"></i></a>` : ''}
+                    ${b.customer_email ? `<a href="mailto:${b.customer_email}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-envelope"></i></a>` : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
 </script>

@@ -500,6 +500,9 @@ try {
                 <li class="nav-item">
                     <a class="nav-link" href="#reservations-create-service">Arbeidstider</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#reservations-schedule">Timeoversikt</a>
+                </li>
             </ul>
             
             <!-- Rental subtabs -->
