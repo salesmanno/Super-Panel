@@ -19,11 +19,12 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 $company_id = $_SESSION['company_id'];
 $data = json_decode(file_get_contents('php://input'), true);
 
+$gatewayId = $data['id'] ?? null;
 $gatewayName = $data['gateway_name'] ?? null;
 $isActive = isset($data['is_active']) ? (bool)$data['is_active'] : null;
 
-if (!$gatewayName || $isActive === null) {
-    echo json_encode(['success' => false, 'message' => 'Mangler gateway_name eller is_active']);
+if ((!$gatewayId && !$gatewayName) || $isActive === null) {
+    echo json_encode(['success' => false, 'message' => 'Mangler id/gateway_name eller is_active']);
     exit;
 }
 
@@ -34,7 +35,7 @@ try {
         if (!$isActive) {
             $stmt = $db->prepare("
                 SELECT COUNT(*) as active_count 
-                FROM economy_payment_gateways 
+                FROM economy_configuration_data 
                 WHERE company_id = ? AND is_active = 1
             ");
             $stmt->execute([$company_id]);
@@ -60,52 +61,71 @@ try {
         exit;
     }
     
-    $stmt = $db->prepare("
-        SELECT id, is_active,
-               vipps_client_id, vipps_client_secret_encrypted, vipps_merchant_serial_number, vipps_subscription_key,
-               stripe_public_key, stripe_secret_key_encrypted,
-               paypal_client_id, paypal_client_secret_encrypted
-        FROM economy_payment_gateways 
-        WHERE company_id = ? AND LOWER(gateway_name) = LOWER(?)
-    ");
-    $stmt->execute([$company_id, $gatewayName]);
-    $gateway = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($gatewayId) {
+        $stmt = $db->prepare("
+            SELECT id, config_name, gateway_type, is_active,
+                   client_id, client_secret_encrypted, subscription_key, 
+                   merchant_serial_number, public_key, private_key_encrypted
+            FROM economy_configuration_data 
+            WHERE id = ? AND company_id = ?
+        ");
+        $stmt->execute([$gatewayId, $company_id]);
+    } else {
+        $stmt = $db->prepare("
+            SELECT id, config_name, gateway_type, is_active,
+                   client_id, client_secret_encrypted, subscription_key, 
+                   merchant_serial_number, public_key, private_key_encrypted
+            FROM economy_configuration_data 
+            WHERE company_id = ? AND LOWER(gateway_type) = LOWER(?)
+        ");
+        $stmt->execute([$company_id, $gatewayName]);
+    }
     
-    if (!$gateway) {
-        echo json_encode(['success' => false, 'message' => 'Gateway ikke funnet']);
+    $config = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$config) {
+        echo json_encode(['success' => false, 'message' => 'Betalingsløsning ikke funnet']);
         exit;
     }
     
-    $requiredFields = [
-        'vipps' => ['vipps_client_id', 'vipps_client_secret_encrypted', 'vipps_merchant_serial_number', 'vipps_subscription_key'],
-        'stripe' => ['stripe_public_key', 'stripe_secret_key_encrypted'],
-        'paypal' => ['paypal_client_id', 'paypal_client_secret_encrypted']
-    ];
-    
-    $fields = $requiredFields[strtolower($gatewayName)] ?? [];
+    $gatewayType = strtolower($config['gateway_type']);
     $missingFields = [];
-    foreach ($fields as $field) {
-        if (empty($gateway[$field])) {
-            $missingFields[] = $field;
+    
+    if ($isActive) {
+        switch ($gatewayType) {
+            case 'vipps':
+                if (empty($config['client_id'])) $missingFields[] = 'client_id';
+                if (empty($config['client_secret_encrypted'])) $missingFields[] = 'client_secret';
+                if (empty($config['merchant_serial_number'])) $missingFields[] = 'merchant_serial_number';
+                if (empty($config['subscription_key'])) $missingFields[] = 'subscription_key';
+                break;
+            case 'stripe':
+                if (empty($config['public_key'])) $missingFields[] = 'public_key';
+                if (empty($config['private_key_encrypted'])) $missingFields[] = 'private_key';
+                break;
+            case 'paypal':
+                if (empty($config['client_id'])) $missingFields[] = 'client_id';
+                if (empty($config['client_secret_encrypted'])) $missingFields[] = 'client_secret';
+                break;
+        }
+        
+        if (!empty($missingFields)) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Kan ikke aktivere - mangler konfigurasjon: ' . implode(', ', $missingFields)
+            ]);
+            exit;
         }
     }
     
-    if ($isActive && !empty($missingFields)) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Kan ikke aktivere - mangler konfigurasjon: ' . implode(', ', $missingFields)
-        ]);
-        exit;
-    }
-    
     $stmt = $db->prepare("
-        UPDATE economy_payment_gateways 
+        UPDATE economy_configuration_data 
         SET is_active = ?, updated_at = CURRENT_TIMESTAMP 
         WHERE id = ?
     ");
-    $stmt->execute([$isActive ? 1 : 0, $gateway['id']]);
+    $stmt->execute([$isActive ? 1 : 0, $config['id']]);
     
-    $displayName = ucfirst($gatewayName);
+    $displayName = $config['config_name'] ?: ucfirst($gatewayType);
     echo json_encode([
         'success' => true,
         'message' => $isActive ? "$displayName aktivert" : "$displayName deaktivert",

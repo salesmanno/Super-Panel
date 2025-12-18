@@ -274,22 +274,24 @@
                     const isActive = gw.is_active;
                     const isConfigured = gw.is_configured;
                     const testMode = gw.test_mode;
-                    const desc = gatewayDescriptions[gw.gateway_name] || '';
+                    const desc = gatewayDescriptions[gw.gateway_type || gw.gateway_name] || '';
+                    const gwId = gw.id || null;
+                    const gwName = gw.gateway_name || gw.gateway_type;
                     
                     let statusBadge = '';
                     let actionButton = '';
                     
                     if (isActive) {
                         statusBadge = '<span class="badge bg-success mb-2"><i class="bi bi-check-circle me-1"></i>Aktivert</span>';
-                        if (testMode && gw.gateway_name !== 'cash') {
+                        if (testMode && gwName !== 'cash') {
                             statusBadge += ' <span class="badge bg-warning text-dark mb-2"><i class="bi bi-tools me-1"></i>Testmodus</span>';
                         }
-                        actionButton = `<button class="btn btn-danger btn-sm w-100 mt-2" onclick="toggleGateway('${gw.gateway_name}', false)">
+                        actionButton = `<button class="btn btn-danger btn-sm w-100 mt-2" onclick="toggleGateway('${gwId}', '${gwName}', false)">
                             <i class="bi bi-toggle-on me-1"></i>Deaktiver
                         </button>`;
                     } else if (isConfigured) {
                         statusBadge = '<span class="badge bg-info mb-2"><i class="bi bi-gear-fill me-1"></i>Konfigurert</span>';
-                        actionButton = `<button class="btn btn-success btn-sm w-100 mt-2" onclick="toggleGateway('${gw.gateway_name}', true)">
+                        actionButton = `<button class="btn btn-success btn-sm w-100 mt-2" onclick="toggleGateway('${gwId}', '${gwName}', true)">
                             <i class="bi bi-toggle-off me-1"></i>Aktiver
                         </button>`;
                     } else {
@@ -329,12 +331,16 @@
             }
         }
         
-        async function toggleGateway(gatewayName, activate) {
+        async function toggleGateway(gatewayId, gatewayName, activate) {
             try {
+                const payload = { gateway_name: gatewayName, is_active: activate };
+                if (gatewayId && gatewayId !== 'null') {
+                    payload.id = gatewayId;
+                }
                 const response = await fetch('/api/toggle_payment_gateway.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ gateway_name: gatewayName, is_active: activate })
+                    body: JSON.stringify(payload)
                 });
                 const result = await response.json();
                 

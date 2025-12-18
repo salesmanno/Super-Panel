@@ -18,25 +18,22 @@ if (!isset($_SESSION['company_id'])) {
 
 $company_id = $_SESSION['company_id'];
 
-$requiredFields = [
-    'vipps' => ['vipps_client_id', 'vipps_client_secret_encrypted', 'vipps_merchant_serial_number', 'vipps_subscription_key'],
-    'stripe' => ['stripe_public_key', 'stripe_secret_key_encrypted', 'stripe_webhook_secret'],
-    'paypal' => ['paypal_client_id', 'paypal_client_secret_encrypted', 'paypal_webhook_id'],
-    'klarna' => []
-];
-
 $gatewayDisplayNames = [
     'vipps' => 'Vipps',
     'stripe' => 'Stripe',
     'paypal' => 'PayPal',
-    'klarna' => 'Klarna'
+    'klarna' => 'Klarna',
+    'bank' => 'Bankoverføring',
+    'cash' => 'Kontant'
 ];
 
 $gatewayIcons = [
     'vipps' => 'phone',
     'stripe' => 'credit-card',
     'paypal' => 'paypal',
-    'klarna' => 'bag-check'
+    'klarna' => 'bag-check',
+    'bank' => 'bank',
+    'cash' => 'cash-stack'
 ];
 
 try {
@@ -44,36 +41,40 @@ try {
     
     $stmt = $db->prepare("
         SELECT 
-            id,
-            gateway_name,
-            display_name,
-            is_active,
-            test_mode,
-            vipps_client_id,
-            vipps_client_secret_encrypted,
-            vipps_merchant_serial_number,
-            vipps_subscription_key,
-            stripe_public_key,
-            stripe_secret_key_encrypted,
-            stripe_webhook_secret,
-            paypal_client_id,
-            paypal_client_secret_encrypted,
-            paypal_webhook_id
-        FROM economy_payment_gateways
-        WHERE company_id = ?
+            ecd.id,
+            ecd.config_name,
+            ecd.gateway_type,
+            ecd.client_id,
+            ecd.client_secret_encrypted,
+            ecd.subscription_key,
+            ecd.merchant_serial_number,
+            ecd.public_key,
+            ecd.private_key_encrypted,
+            ecd.webhook_secret,
+            ecd.is_active,
+            ecd.test_mode
+        FROM economy_configuration_data ecd
+        WHERE ecd.company_id = ?
+        ORDER BY ecd.config_name
     ");
     $stmt->execute([$company_id]);
-    $gateways = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $configurations = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     $stmt = $db->prepare("SELECT cash_payment FROM tenant_companies WHERE id = ?");
     $stmt->execute([$company_id]);
     $company = $stmt->fetch(PDO::FETCH_ASSOC);
     $cashEnabled = $company ? (bool)($company['cash_payment'] ?? true) : true;
     
+    $bankStmt = $db->prepare("SELECT COUNT(*) as count FROM economy_bank_accounts WHERE company_id = ? AND is_active = 1 AND account_number IS NOT NULL");
+    $bankStmt->execute([$company_id]);
+    $bankResult = $bankStmt->fetch(PDO::FETCH_ASSOC);
+    $hasActiveBankAccount = ($bankResult['count'] ?? 0) > 0;
+    
     $result = [];
     
     $result[] = [
         'gateway_name' => 'cash',
+        'gateway_type' => 'cash',
         'display_name' => 'Kontant',
         'icon' => 'cash-stack',
         'is_configured' => true,
@@ -82,40 +83,57 @@ try {
         'missing_fields' => []
     ];
     
-    $configuredGateways = [];
-    foreach ($gateways as $gw) {
-        $gatewayName = strtolower($gw['gateway_name']);
-        $configuredGateways[$gatewayName] = $gw;
-    }
-    
-    foreach ($requiredFields as $gatewayName => $fields) {
-        $gw = $configuredGateways[$gatewayName] ?? null;
-        
+    foreach ($configurations as $config) {
+        $gatewayType = strtolower($config['gateway_type']);
         $missingFields = [];
         $isConfigured = false;
-        $isActive = false;
-        $testMode = true;
         
-        if ($gw) {
-            foreach ($fields as $field) {
-                if (empty($gw[$field])) {
-                    $missingFields[] = $field;
+        switch ($gatewayType) {
+            case 'vipps':
+                if (empty($config['client_id'])) $missingFields[] = 'client_id';
+                if (empty($config['client_secret_encrypted'])) $missingFields[] = 'client_secret';
+                if (empty($config['merchant_serial_number'])) $missingFields[] = 'merchant_serial_number';
+                if (empty($config['subscription_key'])) $missingFields[] = 'subscription_key';
+                $isConfigured = empty($missingFields);
+                break;
+            case 'stripe':
+                if (empty($config['public_key'])) $missingFields[] = 'public_key';
+                if (empty($config['private_key_encrypted'])) $missingFields[] = 'private_key';
+                $isConfigured = empty($missingFields);
+                break;
+            case 'paypal':
+                if (empty($config['client_id'])) $missingFields[] = 'client_id';
+                if (empty($config['client_secret_encrypted'])) $missingFields[] = 'client_secret';
+                $isConfigured = empty($missingFields);
+                break;
+            case 'bank':
+                $isConfigured = $hasActiveBankAccount;
+                if (!$isConfigured) {
+                    $missingFields[] = 'bankkonto (opprett i Økonomi > Bankkontoer)';
                 }
-            }
-            $isConfigured = empty($missingFields) && count($fields) > 0;
-            $isActive = (bool)($gw['is_active'] ?? false);
-            $testMode = (bool)($gw['test_mode'] ?? true);
-        } else if (count($fields) === 0) {
-            $isConfigured = false;
+                break;
+            case 'klarna':
+                if (empty($config['client_id'])) $missingFields[] = 'client_id';
+                if (empty($config['client_secret_encrypted'])) $missingFields[] = 'client_secret';
+                $isConfigured = empty($missingFields);
+                break;
+            default:
+                $hasCredentials = !empty($config['client_id']) || !empty($config['public_key']);
+                $isConfigured = $hasCredentials;
+                if (!$hasCredentials) {
+                    $missingFields[] = 'credentials';
+                }
         }
         
         $result[] = [
-            'gateway_name' => $gatewayName,
-            'display_name' => $gw['display_name'] ?? $gatewayDisplayNames[$gatewayName] ?? ucfirst($gatewayName),
-            'icon' => $gatewayIcons[$gatewayName] ?? 'wallet2',
+            'id' => $config['id'],
+            'gateway_name' => $gatewayType,
+            'gateway_type' => $gatewayType,
+            'display_name' => $config['config_name'] ?: ($gatewayDisplayNames[$gatewayType] ?? ucfirst($gatewayType)),
+            'icon' => $gatewayIcons[$gatewayType] ?? 'wallet2',
             'is_configured' => $isConfigured,
-            'is_active' => $isActive,
-            'test_mode' => $testMode,
+            'is_active' => (bool)$config['is_active'],
+            'test_mode' => (bool)$config['test_mode'],
             'missing_fields' => $missingFields
         ];
     }
