@@ -33,10 +33,26 @@
     gap: 0.25rem;
     padding: 0.25rem 0.75rem;
     border-radius: 20px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     background: #e7f3ff;
     color: #1976d2;
-    margin: 0.25rem;
+    margin: 0.15rem;
+}
+.staff-badge.primary {
+    background: #fef3c7;
+    color: #d97706;
+    font-weight: 600;
+}
+.staff-assignment-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 6px;
+    margin-bottom: 0.25rem;
+}
+.staff-assignment-row:hover {
+    background: #f8f9fa;
 }
 .availability-grid {
     display: grid;
@@ -492,11 +508,17 @@ function renderServices() {
     }
     
     container.innerHTML = allServices.map(service => {
+        const primaryStaff = (service.assigned_staff || []).find(s => s.is_primary);
+        const otherStaff = (service.assigned_staff || []).filter(s => !s.is_primary);
         const staffBadges = (service.assigned_staff || []).map(s => 
-            `<span class="staff-badge"><i class="bi bi-person-fill me-1"></i>${s.name}</span>`
+            `<span class="staff-badge ${s.is_primary ? 'primary' : ''}">
+                <i class="bi bi-${s.is_primary ? 'star-fill' : 'person-fill'} me-1"></i>${s.name}
+            </span>`
         ).join('');
         const capacity = service.capacity || 1;
         const staffCount = service.staff_count || 0;
+        const availFrom = (service.available_from || '09:00:00').substring(0,5);
+        const availTo = (service.available_to || '17:00:00').substring(0,5);
         
         return `
             <div class="service-card ${service.is_active ? '' : 'inactive'}">
@@ -504,7 +526,7 @@ function renderServices() {
                     ${service.img_url ? `
                         <div class="flex-shrink-0">
                             <img src="${service.img_url}" alt="${service.name}" 
-                                 style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px;"
+                                 style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;"
                                  onerror="this.style.display='none'">
                         </div>
                     ` : ''}
@@ -512,25 +534,26 @@ function renderServices() {
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <div class="d-flex align-items-center gap-2 mb-1">
-                                    <h5 class="mb-0">${service.name}</h5>
+                                    <h6 class="mb-0 fw-semibold">${service.name}</h6>
                                     ${!service.is_active ? '<span class="badge bg-secondary">Inaktiv</span>' : ''}
                                     ${service.category ? `<span class="badge bg-info">${service.category}</span>` : ''}
                                 </div>
-                                ${service.description ? `<p class="text-muted mb-2 small">${service.description}</p>` : ''}
-                                <div class="service-meta">
+                                ${service.description ? `<p class="text-muted mb-1 small">${service.description}</p>` : ''}
+                                <div class="service-meta small">
                                     <span><i class="bi bi-clock me-1"></i>${service.duration_minutes || 60} min</span>
-                                    <span title="Antall ansatte kreves for denne jobben"><i class="bi bi-person-workspace me-1"></i>${capacity} kreves</span>
+                                    <span><i class="bi bi-calendar3 me-1"></i>${availFrom}-${availTo}</span>
+                                    <span title="Antall ansatte kreves"><i class="bi bi-person-workspace me-1"></i>${capacity} kreves</span>
                                     <span title="Tilknyttede ansatte"><i class="bi bi-people me-1"></i>${staffCount} tilknyttet</span>
                                 </div>
-                                ${staffBadges ? `<div class="mt-2">${staffBadges}</div>` : ''}
+                                ${staffBadges ? `<div class="mt-1">${staffBadges}</div>` : '<div class="mt-1 text-warning small"><i class="bi bi-exclamation-triangle me-1"></i>Ingen ansatte tilknyttet</div>'}
                             </div>
                             <div class="text-end">
                                 <div class="service-price">${parseInt(service.price || 0).toLocaleString('nb-NO')} kr</div>
-                                <div class="mt-2">
-                                    <button class="btn btn-sm btn-outline-primary me-1" onclick="editService('${service.id}')">
+                                <div class="btn-group btn-group-sm mt-2">
+                                    <button class="btn btn-outline-primary" onclick="editService('${service.id}')" title="Rediger">
                                         <i class="bi bi-pencil"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteService('${service.id}', '${service.name.replace(/'/g, "\\'")}')">
+                                    <button class="btn btn-outline-danger" onclick="deleteService('${service.id}', '${service.name.replace(/'/g, "\\'")}')">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </div>
@@ -592,11 +615,12 @@ async function openCreateServiceModal() {
     
     renderPaymentMethodsCheckboxes([]);
     renderStaffCheckboxes([]);
+    updatePrimaryRadios();
     
     new bootstrap.Modal(document.getElementById('createServiceModal')).show();
 }
 
-function renderStaffCheckboxes(selectedStaffIds = []) {
+function renderStaffCheckboxes(assignedStaff = []) {
     const container = document.getElementById('service-staff-checkboxes');
     if (!container) return;
     
@@ -605,17 +629,50 @@ function renderStaffCheckboxes(selectedStaffIds = []) {
         return;
     }
     
-    container.innerHTML = allStaff.map(staff => `
-        <div class="form-check">
-            <input class="form-check-input staff-check" type="checkbox" 
-                   id="staff-${staff.id}" value="${staff.id}"
-                   ${selectedStaffIds.includes(staff.id) ? 'checked' : ''}>
-            <label class="form-check-label" for="staff-${staff.id}">
-                ${staff.first_name} ${staff.last_name}
-                ${staff.position ? `<small class="text-muted">(${staff.position})</small>` : ''}
-            </label>
-        </div>
-    `).join('');
+    const assignedMap = {};
+    assignedStaff.forEach(s => {
+        assignedMap[s.id] = s;
+    });
+    
+    container.innerHTML = allStaff.map(staff => {
+        const assigned = assignedMap[staff.id];
+        const isChecked = !!assigned;
+        const isPrimary = assigned?.is_primary || false;
+        
+        return `
+            <div class="staff-assignment-row">
+                <input class="form-check-input staff-check" type="checkbox" 
+                       id="staff-${staff.id}" value="${staff.id}"
+                       ${isChecked ? 'checked' : ''}
+                       onchange="updatePrimaryRadios()">
+                <label class="form-check-label flex-grow-1" for="staff-${staff.id}">
+                    ${staff.first_name} ${staff.last_name}
+                    ${staff.position ? `<small class="text-muted">(${staff.position})</small>` : ''}
+                </label>
+                <div class="primary-radio-wrapper" style="${isChecked ? '' : 'display:none'}">
+                    <input type="radio" class="form-check-input primary-radio" 
+                           name="primary-worker" value="${staff.id}"
+                           ${isPrimary ? 'checked' : ''}>
+                    <label class="form-check-label small text-muted">Primær</label>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function updatePrimaryRadios() {
+    document.querySelectorAll('.staff-assignment-row').forEach(row => {
+        const checkbox = row.querySelector('.staff-check');
+        const radioWrapper = row.querySelector('.primary-radio-wrapper');
+        const radio = row.querySelector('.primary-radio');
+        
+        if (checkbox.checked) {
+            radioWrapper.style.display = '';
+        } else {
+            radioWrapper.style.display = 'none';
+            radio.checked = false;
+        }
+    });
 }
 
 async function editService(id) {
@@ -644,9 +701,7 @@ async function editService(id) {
     ]);
     
     renderPaymentMethodsCheckboxes(service.payment_methods || []);
-    
-    const assignedStaffIds = (service.assigned_staff || []).map(s => s.id);
-    renderStaffCheckboxes(assignedStaffIds);
+    renderStaffCheckboxes(service.assigned_staff || []);
     
     new bootstrap.Modal(document.getElementById('createServiceModal')).show();
 }
@@ -663,6 +718,9 @@ async function saveService() {
         staffIds.push(cb.value);
     });
     
+    const primaryRadio = document.querySelector('.primary-radio:checked');
+    const primaryStaffId = primaryRadio ? primaryRadio.value : null;
+    
     const data = {
         name: document.getElementById('service-name').value,
         description: document.getElementById('service-description').value,
@@ -678,7 +736,8 @@ async function saveService() {
         available_to: document.getElementById('service-available-to').value || '17:00',
         is_active: document.getElementById('service-active').checked,
         payment_methods: paymentMethods,
-        staff_ids: staffIds
+        staff_ids: staffIds,
+        primary_staff_id: primaryStaffId
     };
     
     if (id) data.id = id;

@@ -1,31 +1,129 @@
-<div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<style>
+.news-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 1.5rem;
+}
+@media (max-width: 992px) {
+    .news-layout {
+        grid-template-columns: 1fr;
+    }
+}
+.pinned-section {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-radius: 12px;
+    padding: 1rem;
+}
+.pinned-section h6 {
+    color: #92400e;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+.pinned-card {
+    background: white;
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.pinned-card:last-child {
+    margin-bottom: 0;
+}
+.pinned-card h6 {
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+    color: #1f2937;
+}
+.pinned-card p {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.news-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    background: white;
+    transition: all 0.2s;
+}
+.news-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border-color: #d1d5db;
+}
+.news-card.unpublished {
+    opacity: 0.7;
+    border-style: dashed;
+}
+.news-card.scheduled {
+    border-left: 3px solid #3b82f6;
+}
+.news-card.expired {
+    opacity: 0.5;
+}
+.news-thumb {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+.news-tabs .nav-link {
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+}
+.news-tabs .nav-link.active {
+    font-weight: 600;
+}
+.empty-pinned {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: #92400e;
+    opacity: 0.7;
+}
+</style>
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-            <h4 class="mb-1">📢 Nyheter</h4>
-            <p class="text-muted mb-0">Administrer firmaets nyheter og meldinger</p>
+            <h5 class="mb-0">Nyheter</h5>
+            <small class="text-muted">Administrer firmaets nyheter</small>
         </div>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#announcementModal" onclick="openNewAnnouncementModal()">
-            <i class="bi bi-plus-lg me-2"></i>Ny nyhet
+        <button class="btn btn-primary btn-sm" onclick="openNewAnnouncementModal()">
+            <i class="bi bi-plus-lg me-1"></i>Ny nyhet
         </button>
     </div>
 
-    <!-- Filters -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="filter-unpublished" onchange="loadAnnouncements()">
-                <label class="form-check-label" for="filter-unpublished">
-                    Vis upubliserte
-                </label>
-            </div>
-        </div>
-    </div>
+    <ul class="nav nav-tabs news-tabs mb-3" id="newsTabs">
+        <li class="nav-item">
+            <button class="nav-link active" data-filter="published" onclick="filterNews('published')">
+                <i class="bi bi-check-circle me-1"></i>Publisert
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-filter="scheduled" onclick="filterNews('scheduled')">
+                <i class="bi bi-clock me-1"></i>Planlagt
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-filter="draft" onclick="filterNews('draft')">
+                <i class="bi bi-file-earmark me-1"></i>Kladd
+            </button>
+        </li>
+    </ul>
 
-    <!-- Announcements List -->
-    <div id="announcements-list"></div>
+    <div class="news-layout">
+        <div class="pinned-section">
+            <h6><i class="bi bi-pin-angle-fill me-1"></i>Festede nyheter</h6>
+            <div id="pinned-list"></div>
+        </div>
+        <div id="news-list"></div>
+    </div>
 </div>
 
-<!-- Announcement Modal -->
 <div class="modal fade" id="announcementModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -44,48 +142,49 @@
 
                     <div class="mb-3">
                         <label class="form-label">Innhold *</label>
-                        <textarea class="form-control" id="announcement-content" rows="5" required></textarea>
+                        <textarea class="form-control" id="announcement-content" rows="4" required></textarea>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Bilde (valgfri)</label>
-                        <input type="text" class="form-control" id="announcement-image-url" placeholder="Lim inn bilde-URL">
-                        <small class="text-muted">Eksempel: https://example.com/image.jpg</small>
+                        <label class="form-label">Bilde-URL (valgfri)</label>
+                        <input type="url" class="form-control" id="announcement-image-url" placeholder="https://eksempel.no/bilde.jpg">
                     </div>
 
                     <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Publiseres</label>
-                            <input type="datetime-local" class="form-control" id="announcement-publish-at">
-                            <small class="text-muted">La stå tom for umiddelbar publisering</small>
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="announcement-schedule-toggle" onchange="toggleScheduleOptions()">
+                                <label class="form-check-label" for="announcement-schedule-toggle">
+                                    Planlegg publisering
+                                </label>
+                            </div>
                         </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label">Utløper</label>
+                        <div class="col-md-6 schedule-options" style="display: none;">
+                            <label class="form-label">Publiseringsdato</label>
+                            <input type="datetime-local" class="form-control" id="announcement-publish-at">
+                        </div>
+                        <div class="col-md-6 schedule-options" style="display: none;">
+                            <label class="form-label">Utløpsdato (valgfri)</label>
                             <input type="datetime-local" class="form-control" id="announcement-expire-at">
-                            <small class="text-muted">Valgfri utløpsdato</small>
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="announcement-is-published">
-                            <label class="form-check-label" for="announcement-is-published">
-                                Publiser umiddelbart
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="announcement-is-pinned">
-                            <label class="form-check-label" for="announcement-is-pinned">
-                                Fest øverst
-                            </label>
-                        </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="announcement-is-pinned">
+                        <label class="form-check-label" for="announcement-is-pinned">
+                            <i class="bi bi-pin-angle me-1"></i>Fest øverst
+                        </label>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
-                <button type="button" class="btn btn-primary" onclick="saveAnnouncement()">Lagre</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="saveAnnouncement(false)">
+                    <i class="bi bi-file-earmark me-1"></i>Lagre som kladd
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveAnnouncement(true)">
+                    <i class="bi bi-send me-1"></i>Publiser
+                </button>
             </div>
         </div>
     </div>
@@ -93,86 +192,148 @@
 
 <script>
 let currentAnnouncements = [];
+let currentFilter = 'published';
 
 async function loadAnnouncements() {
     try {
-        const showUnpublished = document.getElementById('filter-unpublished').checked;
-
-        const params = new URLSearchParams();
-        if (showUnpublished) params.append('show_unpublished', 'true');
-
-        const response = await fetch(`/api/get_announcements.php?${params.toString()}`);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: Kunne ikke hente nyheter`);
-        }
+        const response = await fetch('/api/get_announcements.php?show_unpublished=true');
+        if (!response.ok) throw new Error('Kunne ikke hente nyheter');
         
         const result = await response.json();
-
         if (result.success) {
             currentAnnouncements = result.announcements;
-            displayAnnouncements(result.announcements);
-        } else {
-            toast.quickError('Feil', result.message);
+            displayAnnouncements();
         }
     } catch (error) {
         console.error('Load announcements error:', error);
-        toast.quickError('Nyheter', error.message || 'Kunne ikke hente nyheter');
     }
 }
 
-function displayAnnouncements(announcements) {
-    const container = document.getElementById('announcements-list');
+function filterNews(filter) {
+    currentFilter = filter;
+    document.querySelectorAll('.news-tabs .nav-link').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+    });
+    displayAnnouncements();
+}
 
-    if (announcements.length === 0) {
-        container.innerHTML = `
-            <div class="card shadow-sm">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-megaphone text-muted" style="font-size: 3rem;"></i>
-                    <p class="text-muted mt-3 mb-0">Ingen nyheter funnet</p>
+function displayAnnouncements() {
+    const pinnedContainer = document.getElementById('pinned-list');
+    const newsContainer = document.getElementById('news-list');
+    const now = new Date();
+    
+    const pinned = currentAnnouncements.filter(a => a.is_pinned && a.is_published);
+    
+    let filtered = [];
+    if (currentFilter === 'published') {
+        filtered = currentAnnouncements.filter(a => 
+            a.is_published && 
+            !a.is_pinned &&
+            (!a.publish_at || new Date(a.publish_at) <= now)
+        );
+    } else if (currentFilter === 'scheduled') {
+        filtered = currentAnnouncements.filter(a => 
+            a.is_published && 
+            a.publish_at && 
+            new Date(a.publish_at) > now
+        );
+    } else if (currentFilter === 'draft') {
+        filtered = currentAnnouncements.filter(a => !a.is_published);
+    }
+    
+    filtered.sort((a, b) => new Date(b.publish_at || b.created_at) - new Date(a.publish_at || a.created_at));
+    
+    if (pinned.length === 0) {
+        pinnedContainer.innerHTML = `
+            <div class="empty-pinned">
+                <i class="bi bi-pin-angle d-block mb-2" style="font-size: 1.5rem;"></i>
+                <small>Ingen festede nyheter</small>
+            </div>
+        `;
+    } else {
+        pinnedContainer.innerHTML = pinned.map(a => `
+            <div class="pinned-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <h6>${a.title}</h6>
+                        <p>${a.content.substring(0, 80)}${a.content.length > 80 ? '...' : ''}</p>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-sm btn-link text-muted p-0 me-2" onclick="togglePin('${a.id}')" title="Løsne">
+                            <i class="bi bi-pin-angle-fill"></i>
+                        </button>
+                        <button class="btn btn-sm btn-link text-muted p-0" onclick="editAnnouncement('${a.id}')" title="Rediger">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                    </div>
                 </div>
+            </div>
+        `).join('');
+    }
+    
+    if (filtered.length === 0) {
+        const messages = {
+            published: 'Ingen publiserte nyheter',
+            scheduled: 'Ingen planlagte nyheter',
+            draft: 'Ingen kladder'
+        };
+        newsContainer.innerHTML = `
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-newspaper d-block mb-2" style="font-size: 2rem;"></i>
+                <p>${messages[currentFilter]}</p>
             </div>
         `;
         return;
     }
-
-    container.innerHTML = announcements.map(announcement => {
-        const isExpired = announcement.expire_at && new Date(announcement.expire_at) < new Date();
-        const hasImage = announcement.image_url && announcement.image_url.trim();
-
+    
+    newsContainer.innerHTML = filtered.map(a => {
+        const isExpired = a.expire_at && new Date(a.expire_at) < now;
+        const isScheduled = a.publish_at && new Date(a.publish_at) > now;
+        let cardClass = 'news-card';
+        if (!a.is_published) cardClass += ' unpublished';
+        if (isScheduled) cardClass += ' scheduled';
+        if (isExpired) cardClass += ' expired';
+        
         return `
-            <div class="card shadow-sm mb-3 ${isExpired ? 'opacity-50' : ''}">
-                ${hasImage ? `<img src="${announcement.image_url}" class="card-img-top" alt="${announcement.title}" style="max-height: 300px; object-fit: cover;">` : ''}
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-grow-1">
-                            <div class="d-flex align-items-center gap-2 mb-2">
-                                <i class="bi bi-megaphone text-primary"></i>
-                                <h5 class="mb-0">${announcement.title}</h5>
-                                ${announcement.is_pinned ? '<span class="badge bg-info"><i class="bi bi-pin-angle-fill"></i> Festet</span>' : ''}
-                                ${announcement.is_published ? '<span class="badge bg-success">Publisert</span>' : '<span class="badge bg-secondary">Upublisert</span>'}
-                                ${isExpired ? '<span class="badge bg-dark">Utløpt</span>' : ''}
+            <div class="${cardClass}">
+                <div class="d-flex gap-3">
+                    ${a.image_url ? `<img src="${a.image_url}" alt="" class="news-thumb" onerror="this.style.display='none'">` : ''}
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">${a.title}</h6>
+                                <p class="text-muted small mb-1" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                    ${a.content}
+                                </p>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <small class="text-muted">
+                                        <i class="bi bi-calendar me-1"></i>${formatDate(a.publish_at || a.created_at)}
+                                    </small>
+                                    ${isScheduled ? '<span class="badge bg-primary">Planlagt</span>' : ''}
+                                    ${isExpired ? '<span class="badge bg-dark">Utløpt</span>' : ''}
+                                    ${!a.is_published ? '<span class="badge bg-secondary">Kladd</span>' : ''}
+                                </div>
                             </div>
-                            <p class="mb-2">${announcement.content}</p>
-                            <div class="d-flex gap-3 text-muted small">
-                                <span><i class="bi bi-person"></i> ${announcement.author_name || 'Ukjent'}</span>
-                                <span><i class="bi bi-calendar"></i> ${announcement.publish_at ? new Date(announcement.publish_at).toLocaleDateString('nb-NO') : 'Umiddelbart'}</span>
-                                ${announcement.expire_at ? `<span><i class="bi bi-hourglass-split"></i> Utløper: ${new Date(announcement.expire_at).toLocaleDateString('nb-NO')}</span>` : ''}
+                            <div class="btn-group btn-group-sm">
+                                ${!a.is_published ? `
+                                    <button class="btn btn-outline-success" onclick="togglePublish('${a.id}')" title="Publiser">
+                                        <i class="bi bi-send"></i>
+                                    </button>
+                                ` : `
+                                    <button class="btn btn-outline-secondary" onclick="togglePublish('${a.id}')" title="Avpubliser">
+                                        <i class="bi bi-eye-slash"></i>
+                                    </button>
+                                `}
+                                <button class="btn btn-outline-info" onclick="togglePin('${a.id}')" title="${a.is_pinned ? 'Løsne' : 'Fest'}">
+                                    <i class="bi bi-pin-angle${a.is_pinned ? '-fill' : ''}"></i>
+                                </button>
+                                <button class="btn btn-outline-primary" onclick="editAnnouncement('${a.id}')" title="Rediger">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="deleteAnnouncement('${a.id}')" title="Slett">
+                                    <i class="bi bi-trash"></i>
+                                </button>
                             </div>
-                        </div>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-outline-primary" onclick="togglePublish('${announcement.id}')" title="Publiser/Upubliser">
-                                <i class="bi bi-${announcement.is_published ? 'eye-slash' : 'eye'}"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-info" onclick="togglePin('${announcement.id}')" title="Fest/Løsne">
-                                <i class="bi bi-pin-angle${announcement.is_pinned ? '-fill' : ''}"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="editAnnouncement('${announcement.id}')" title="Rediger">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteAnnouncement('${announcement.id}')" title="Slett">
-                                <i class="bi bi-trash"></i>
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -181,68 +342,84 @@ function displayAnnouncements(announcements) {
     }).join('');
 }
 
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function toggleScheduleOptions() {
+    const isScheduled = document.getElementById('announcement-schedule-toggle').checked;
+    document.querySelectorAll('.schedule-options').forEach(el => {
+        el.style.display = isScheduled ? '' : 'none';
+    });
+    if (!isScheduled) {
+        document.getElementById('announcement-publish-at').value = '';
+        document.getElementById('announcement-expire-at').value = '';
+    }
+}
 
 function openNewAnnouncementModal() {
     document.getElementById('announcementModalTitle').textContent = 'Ny nyhet';
     document.getElementById('announcementForm').reset();
     document.getElementById('announcement-id').value = '';
-    
-    // Set default publish time to now
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    document.getElementById('announcement-publish-at').value = now.toISOString().slice(0, 16);
+    document.getElementById('announcement-schedule-toggle').checked = false;
+    toggleScheduleOptions();
+    new bootstrap.Modal(document.getElementById('announcementModal')).show();
 }
 
 function editAnnouncement(id) {
-    const announcement = currentAnnouncements.find(a => a.id === id);
-    if (!announcement) return;
+    const a = currentAnnouncements.find(x => x.id === id);
+    if (!a) return;
 
     document.getElementById('announcementModalTitle').textContent = 'Rediger nyhet';
-    document.getElementById('announcement-id').value = announcement.id;
-    document.getElementById('announcement-title').value = announcement.title;
-    document.getElementById('announcement-content').value = announcement.content;
-    document.getElementById('announcement-image-url').value = announcement.image_url || '';
-    document.getElementById('announcement-is-published').checked = announcement.is_published;
-    document.getElementById('announcement-is-pinned').checked = announcement.is_pinned;
-
-    if (announcement.publish_at) {
-        const publishDate = new Date(announcement.publish_at);
-        publishDate.setMinutes(publishDate.getMinutes() - publishDate.getTimezoneOffset());
-        document.getElementById('announcement-publish-at').value = publishDate.toISOString().slice(0, 16);
+    document.getElementById('announcement-id').value = a.id;
+    document.getElementById('announcement-title').value = a.title;
+    document.getElementById('announcement-content').value = a.content;
+    document.getElementById('announcement-image-url').value = a.image_url || '';
+    document.getElementById('announcement-is-pinned').checked = a.is_pinned;
+    
+    const hasSchedule = a.publish_at && new Date(a.publish_at) > new Date();
+    document.getElementById('announcement-schedule-toggle').checked = hasSchedule || !!a.expire_at;
+    toggleScheduleOptions();
+    
+    if (a.publish_at) {
+        const d = new Date(a.publish_at);
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+        document.getElementById('announcement-publish-at').value = d.toISOString().slice(0, 16);
     }
-
-    if (announcement.expire_at) {
-        const expireDate = new Date(announcement.expire_at);
-        expireDate.setMinutes(expireDate.getMinutes() - expireDate.getTimezoneOffset());
-        document.getElementById('announcement-expire-at').value = expireDate.toISOString().slice(0, 16);
+    if (a.expire_at) {
+        const d = new Date(a.expire_at);
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+        document.getElementById('announcement-expire-at').value = d.toISOString().slice(0, 16);
     }
 
     new bootstrap.Modal(document.getElementById('announcementModal')).show();
 }
 
-async function saveAnnouncement() {
+async function saveAnnouncement(publish = true) {
     const id = document.getElementById('announcement-id').value;
     const title = document.getElementById('announcement-title').value.trim();
     const content = document.getElementById('announcement-content').value.trim();
 
     if (!title || !content) {
-        toast.quickWarning('Validering', 'Tittel og innhold er påkrevd');
+        alert('Tittel og innhold er påkrevd');
         return;
     }
 
+    const isScheduled = document.getElementById('announcement-schedule-toggle').checked;
+    const publishAt = document.getElementById('announcement-publish-at').value;
+    
     const data = {
-        title: title,
-        content: content,
+        title,
+        content,
         image_url: document.getElementById('announcement-image-url').value.trim() || null,
-        is_published: document.getElementById('announcement-is-published').checked,
+        is_published: publish,
         is_pinned: document.getElementById('announcement-is-pinned').checked,
-        publish_at: document.getElementById('announcement-publish-at').value || null,
+        publish_at: isScheduled && publishAt ? publishAt : null,
         expire_at: document.getElementById('announcement-expire-at').value || null
     };
 
-    if (id) {
-        data.id = id;
-    }
+    if (id) data.id = id;
 
     try {
         const endpoint = id ? '/api/update_announcement.php' : '/api/create_announcement.php';
@@ -253,39 +430,29 @@ async function saveAnnouncement() {
         });
 
         const result = await response.json();
-
         if (result.success) {
             bootstrap.Modal.getInstance(document.getElementById('announcementModal')).hide();
             await loadAnnouncements();
-            toast.quickSuccess('Nyhet', result.message);
         } else {
-            toast.quickError('Feil', result.message);
+            alert('Feil: ' + result.message);
         }
     } catch (error) {
-        console.error('Save announcement error:', error);
-        toast.quickError('Feil', 'Kunne ikke lagre nyhet');
+        console.error('Save error:', error);
+        alert('Kunne ikke lagre');
     }
 }
 
 async function togglePublish(id) {
-    if (!confirm('Vil du endre publiseringsstatus for denne nyheten?')) return;
-
     try {
         const response = await fetch('/api/toggle_announcement_publish.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({id: id})
+            body: JSON.stringify({id})
         });
-
         const result = await response.json();
-
-        if (result.success) {
-            await loadAnnouncements();
-        } else {
-            toast.quickError('Feil', result.message);
-        }
+        if (result.success) await loadAnnouncements();
     } catch (error) {
-        console.error('Toggle publish error:', error);
+        console.error('Toggle error:', error);
     }
 }
 
@@ -294,65 +461,33 @@ async function togglePin(id) {
         const response = await fetch('/api/toggle_announcement_pin.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({id: id})
+            body: JSON.stringify({id})
         });
-
         const result = await response.json();
-
-        if (result.success) {
-            await loadAnnouncements();
-        } else {
-            toast.quickError('Feil', result.message);
-        }
+        if (result.success) await loadAnnouncements();
     } catch (error) {
         console.error('Toggle pin error:', error);
     }
 }
 
 async function deleteAnnouncement(id) {
-    if (!confirm('Er du sikker på at du vil slette denne nyheten? Dette kan ikke angres.')) return;
-
+    if (!confirm('Slette denne nyheten?')) return;
     try {
         const response = await fetch('/api/delete_announcement.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({id: id})
+            body: JSON.stringify({id})
         });
-
         const result = await response.json();
-
-        if (result.success) {
-            await loadAnnouncements();
-            toast.quickSuccess('Nyhet', result.message);
-        } else {
-            toast.quickError('Feil', result.message);
-        }
+        if (result.success) await loadAnnouncements();
     } catch (error) {
-        console.error('Delete announcement error:', error);
+        console.error('Delete error:', error);
     }
 }
 
-// Initialize on load - defer loading until tab is actually visible
-document.addEventListener('DOMContentLoaded', function() {
-    // Don't load on page load - wait until user clicks the announcements tab
-    // This prevents errors on login when the announcements tab isn't visible
-});
-
-// Load when tab becomes visible
 document.addEventListener('shown.bs.tab', function(event) {
     if (event.target.getAttribute('data-bs-target') === '#content-announcements') {
         loadAnnouncements();
     }
 });
 </script>
-
-<style>
-#announcements-list .card {
-    transition: all 0.2s ease;
-}
-
-#announcements-list .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-}
-</style>

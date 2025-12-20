@@ -69,12 +69,15 @@ try {
         $deactivateStmt->execute([$data['id'], $companyId]);
         
         if (!empty($data['staff_ids'])) {
+            $primaryStaffId = $data['primary_staff_id'] ?? null;
             $verifyStmt = $db->prepare("SELECT id FROM tenant_staff WHERE id = ? AND company_id = ?");
             foreach ($data['staff_ids'] as $staffId) {
                 $verifyStmt->execute([$staffId, $companyId]);
                 if (!$verifyStmt->fetch()) {
                     continue;
                 }
+                
+                $isPrimary = ($staffId == $primaryStaffId) ? 1 : 0;
                 
                 $checkStmt = $db->prepare("
                     SELECT id FROM staff_services 
@@ -85,15 +88,15 @@ try {
                 
                 if ($existing) {
                     $updateStmt = $db->prepare("
-                        UPDATE staff_services SET is_active = 1 WHERE id = ?
+                        UPDATE staff_services SET is_active = 1, worker_primary = ? WHERE id = ?
                     ");
-                    $updateStmt->execute([$existing['id']]);
+                    $updateStmt->execute([$isPrimary, $existing['id']]);
                 } else {
                     $insertStmt = $db->prepare("
-                        INSERT INTO staff_services (company_id, staff_id, service_id, is_active)
-                        VALUES (?, ?, ?, 1)
+                        INSERT INTO staff_services (company_id, staff_id, service_id, is_active, worker_primary)
+                        VALUES (?, ?, ?, 1, ?)
                     ");
-                    $insertStmt->execute([$companyId, $staffId, $data['id']]);
+                    $insertStmt->execute([$companyId, $staffId, $data['id'], $isPrimary]);
                 }
             }
         }

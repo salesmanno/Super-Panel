@@ -44,15 +44,17 @@ try {
     $serviceId = $db->lastInsertId();
     
     if (!empty($data['staff_ids']) && is_array($data['staff_ids'])) {
+        $primaryStaffId = $data['primary_staff_id'] ?? null;
         $verifyStmt = $db->prepare("SELECT id FROM tenant_staff WHERE id = ? AND company_id = ?");
         $staffStmt = $db->prepare("
-            INSERT INTO staff_services (company_id, staff_id, service_id, is_active)
-            VALUES (?, ?, ?, 1)
+            INSERT INTO staff_services (company_id, staff_id, service_id, is_active, worker_primary)
+            VALUES (?, ?, ?, 1, ?)
         ");
         foreach ($data['staff_ids'] as $staffId) {
             $verifyStmt->execute([$staffId, $companyId]);
             if ($verifyStmt->fetch()) {
-                $staffStmt->execute([$companyId, $staffId, $serviceId]);
+                $isPrimary = ($staffId == $primaryStaffId) ? 1 : 0;
+                $staffStmt->execute([$companyId, $staffId, $serviceId, $isPrimary]);
             }
         }
     }

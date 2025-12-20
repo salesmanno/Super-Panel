@@ -41,6 +41,7 @@ try {
         SELECT 
             ss.service_id,
             ss.staff_id,
+            ss.worker_primary,
             ts.first_name,
             ts.last_name
         FROM staff_services ss
@@ -57,7 +58,8 @@ try {
         }
         $staffByService[$ss['service_id']][] = [
             'id' => $ss['staff_id'],
-            'name' => $ss['first_name'] . ' ' . $ss['last_name']
+            'name' => $ss['first_name'] . ' ' . $ss['last_name'],
+            'is_primary' => (bool)$ss['worker_primary']
         ];
     }
     
