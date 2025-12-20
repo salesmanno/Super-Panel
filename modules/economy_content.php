@@ -262,6 +262,64 @@
         </div>
     </div>
 
+    <div id="economy-pending" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0"><i class="bi bi-hourglass-split text-warning me-2"></i>Ventende betalinger</h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="loadPendingPayments()">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+                
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="economy-stat-card bg-warning text-dark">
+                            <small>Ventende beløp</small>
+                            <h4 class="mb-0" id="pending-total">-</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="economy-stat-card bg-light">
+                            <small class="text-muted">Antall ventende</small>
+                            <h4 class="mb-0" id="pending-count">-</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="alert alert-info mb-0 py-2">
+                            <small><i class="bi bi-info-circle me-1"></i>Disse transaksjonene venter på betalingsbekreftelse</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Transaksjoner som venter på betaling</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Dato</th>
+                                        <th>Beskrivelse</th>
+                                        <th>Kunde</th>
+                                        <th>Modul</th>
+                                        <th class="text-end">Beløp</th>
+                                        <th class="text-center">Handling</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pending-transactions">
+                                    <tr><td colspan="6" class="text-center py-3 text-muted">Laster...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="economy-payment" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">
@@ -364,6 +422,41 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
                 <button type="button" class="btn btn-primary" id="save-transaction-btn" onclick="saveTransaction()">Lagre</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="confirmPaymentModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-check-circle me-2"></i>Bekreft betaling</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="confirm-ledger-id">
+                
+                <div class="text-center mb-3">
+                    <p class="mb-1"><strong id="confirm-item-name">-</strong></p>
+                    <h3 class="text-success mb-0" id="confirm-amount">-</h3>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Betalingsmetode</label>
+                    <select class="form-select" id="confirm-payment-method">
+                        <option value="cash">Kontant</option>
+                        <option value="vipps">Vipps</option>
+                        <option value="card">Kort</option>
+                        <option value="bank">Bankoverføring</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                <button type="button" class="btn btn-success" onclick="confirmPayment()">
+                    <i class="bi bi-check-lg me-1"></i>Bekreft
+                </button>
             </div>
         </div>
     </div>
@@ -715,11 +808,112 @@ async function toggleGateway(gatewayId, gatewayName, activate) {
     }
 }
 
+async function loadPendingPayments() {
+    try {
+        const response = await fetch('/api/get_pending_payments.php');
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('pending-total').textContent = formatCurrency(result.total_pending);
+            document.getElementById('pending-count').textContent = result.count;
+            renderPendingTransactions(result.transactions || []);
+        }
+    } catch (error) {
+        console.error('Load pending error:', error);
+    }
+}
+
+function renderPendingTransactions(transactions) {
+    const tbody = document.getElementById('pending-transactions');
+    
+    if (!transactions.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted"><i class="bi bi-check-circle text-success me-2"></i>Ingen ventende betalinger</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = transactions.map(t => `
+        <tr>
+            <td>${formatDate(t.transaction_date)}</td>
+            <td>${t.item_name || '-'}</td>
+            <td>${t.customer_name || '-'}</td>
+            <td><span class="badge bg-secondary module-badge">${moduleLabels[t.module_source] || t.module_source}</span></td>
+            <td class="text-end text-warning fw-bold">${formatCurrency(t.selling_price)}</td>
+            <td class="text-center">
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-success" onclick="showConfirmPaymentModal('${t.id}', '${t.item_name}', ${t.selling_price})" title="Bekreft betaling">
+                        <i class="bi bi-check-lg"></i>
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="cancelPendingPayment('${t.id}')" title="Kanseller">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function showConfirmPaymentModal(ledgerId, itemName, amount) {
+    document.getElementById('confirm-ledger-id').value = ledgerId;
+    document.getElementById('confirm-item-name').textContent = itemName;
+    document.getElementById('confirm-amount').textContent = formatCurrency(amount);
+    document.getElementById('confirm-payment-method').value = 'cash';
+    new bootstrap.Modal(document.getElementById('confirmPaymentModal')).show();
+}
+
+async function confirmPayment() {
+    const ledgerId = document.getElementById('confirm-ledger-id').value;
+    const paymentMethod = document.getElementById('confirm-payment-method').value;
+    
+    try {
+        const response = await fetch('/api/confirm_pending_payment.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ ledger_id: ledgerId, payment_method: paymentMethod })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            bootstrap.Modal.getInstance(document.getElementById('confirmPaymentModal')).hide();
+            loadPendingPayments();
+            loadEconomyOverview();
+        } else {
+            alert('Feil: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Confirm payment error:', error);
+        alert('Kunne ikke bekrefte betaling');
+    }
+}
+
+async function cancelPendingPayment(ledgerId) {
+    if (!confirm('Er du sikker på at du vil kansellere denne transaksjonen?')) return;
+    
+    try {
+        const response = await fetch('/api/cancel_pending_payment.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ ledger_id: ledgerId })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            loadPendingPayments();
+        } else {
+            alert('Feil: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Cancel payment error:', error);
+    }
+}
+
 document.addEventListener('shown.bs.tab', function(event) {
     const target = event.target.getAttribute('data-subtab');
     if (target === 'economy-results') loadEconomyOverview();
     else if (target === 'economy-income') loadIncomeData();
     else if (target === 'economy-expense') loadExpenseData();
+    else if (target === 'economy-pending') loadPendingPayments();
     else if (target === 'economy-payment') loadPaymentGateways();
 });
 
