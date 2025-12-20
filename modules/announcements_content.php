@@ -4,6 +4,9 @@
     grid-template-columns: 300px 1fr;
     gap: 1.5rem;
 }
+.border-dashed {
+    border: 2px dashed #dee2e6 !important;
+}
 @media (max-width: 992px) {
     .news-layout {
         grid-template-columns: 1fr;
@@ -169,11 +172,47 @@
                         </div>
                     </div>
 
-                    <div class="form-check mb-2">
+                    <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" id="announcement-is-pinned">
                         <label class="form-check-label" for="announcement-is-pinned">
                             <i class="bi bi-pin-angle me-1"></i>Fest øverst
                         </label>
+                    </div>
+                    
+                    <div class="card border-dashed mb-3">
+                        <div class="card-header bg-light p-2">
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="announcement-product-toggle" onchange="toggleProductSection()">
+                                <label class="form-check-label" for="announcement-product-toggle">
+                                    <i class="bi bi-tag me-1"></i>Legg til produkttilbud
+                                </label>
+                            </div>
+                        </div>
+                        <div class="card-body product-section" style="display: none;">
+                            <div class="mb-3">
+                                <label class="form-label">Velg produkt</label>
+                                <select class="form-select" id="announcement-product-id">
+                                    <option value="">-- Velg produkt/tjeneste --</option>
+                                </select>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <label class="form-label">Rabatt %</label>
+                                    <input type="number" class="form-control" id="announcement-discount" min="0" max="100" value="0">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Maks antall</label>
+                                    <input type="number" class="form-control" id="announcement-max-qty" min="1" placeholder="Ubegrenset">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Utløpsdato</label>
+                                    <input type="date" class="form-control" id="announcement-product-expiry">
+                                </div>
+                            </div>
+                            <small class="text-muted mt-2 d-block">
+                                <i class="bi bi-info-circle me-1"></i>Nyhetssaken fjernes automatisk når tilbudet utløper
+                            </small>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -358,12 +397,50 @@ function toggleScheduleOptions() {
     }
 }
 
+function toggleProductSection() {
+    const isEnabled = document.getElementById('announcement-product-toggle').checked;
+    document.querySelectorAll('.product-section').forEach(el => {
+        el.style.display = isEnabled ? '' : 'none';
+    });
+    if (isEnabled) {
+        loadOutputProducts();
+    } else {
+        document.getElementById('announcement-product-id').value = '';
+        document.getElementById('announcement-discount').value = '0';
+        document.getElementById('announcement-max-qty').value = '';
+        document.getElementById('announcement-product-expiry').value = '';
+    }
+}
+
+async function loadOutputProducts() {
+    try {
+        const response = await fetch('/api/get_output_products.php');
+        const result = await response.json();
+        
+        const select = document.getElementById('announcement-product-id');
+        select.innerHTML = '<option value="">-- Velg produkt/tjeneste --</option>';
+        
+        if (result.success && result.products) {
+            result.products.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.id;
+                option.textContent = `${p.name} (${p.product_type})`;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Load products error:', error);
+    }
+}
+
 function openNewAnnouncementModal() {
     document.getElementById('announcementModalTitle').textContent = 'Ny nyhet';
     document.getElementById('announcementForm').reset();
     document.getElementById('announcement-id').value = '';
     document.getElementById('announcement-schedule-toggle').checked = false;
+    document.getElementById('announcement-product-toggle').checked = false;
     toggleScheduleOptions();
+    toggleProductSection();
     new bootstrap.Modal(document.getElementById('announcementModal')).show();
 }
 
@@ -393,6 +470,9 @@ function editAnnouncement(id) {
         document.getElementById('announcement-expire-at').value = d.toISOString().slice(0, 16);
     }
 
+    document.getElementById('announcement-product-toggle').checked = false;
+    toggleProductSection();
+    
     new bootstrap.Modal(document.getElementById('announcementModal')).show();
 }
 
@@ -408,6 +488,7 @@ async function saveAnnouncement(publish = true) {
 
     const isScheduled = document.getElementById('announcement-schedule-toggle').checked;
     const publishAt = document.getElementById('announcement-publish-at').value;
+    const hasProduct = document.getElementById('announcement-product-toggle').checked;
     
     const data = {
         title,
@@ -418,6 +499,18 @@ async function saveAnnouncement(publish = true) {
         publish_at: isScheduled && publishAt ? publishAt : null,
         expire_at: document.getElementById('announcement-expire-at').value || null
     };
+    
+    if (hasProduct) {
+        const productId = document.getElementById('announcement-product-id').value;
+        if (productId) {
+            data.product = {
+                output_product_id: productId,
+                discount_percent: parseInt(document.getElementById('announcement-discount').value) || 0,
+                max_quantity: document.getElementById('announcement-max-qty').value ? parseInt(document.getElementById('announcement-max-qty').value) : null,
+                expiry_date: document.getElementById('announcement-product-expiry').value || null
+            };
+        }
+    }
 
     if (id) data.id = id;
 

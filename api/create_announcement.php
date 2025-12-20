@@ -63,6 +63,28 @@ try {
     
     $stmt->execute($params);
     
+    if (isset($data['product']) && !empty($data['product']['output_product_id'])) {
+        $product = $data['product'];
+        $productSql = "INSERT INTO announcement_products (
+            company_id,
+            announcement_id,
+            output_product_id,
+            discount_percent,
+            max_quantity,
+            expiry_date
+        ) VALUES (?, ?, ?, ?, ?, ?)";
+        
+        $productStmt = $db->prepare($productSql);
+        $productStmt->execute([
+            $companyId,
+            $announcementId,
+            $product['output_product_id'],
+            $product['discount_percent'] ?? 0,
+            $product['max_quantity'] ?? null,
+            $product['expiry_date'] ?? null
+        ]);
+    }
+    
     $db->commit();
     
     echo json_encode([
