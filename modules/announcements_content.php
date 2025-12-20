@@ -522,16 +522,25 @@ async function saveAnnouncement(publish = true) {
             body: JSON.stringify(data)
         });
 
-        const result = await response.json();
+        const responseText = await response.text();
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('JSON parse error:', parseError, 'Response:', responseText);
+            alert('Serverfeil: Ugyldig respons fra server');
+            return;
+        }
+        
         if (result.success) {
             bootstrap.Modal.getInstance(document.getElementById('announcementModal')).hide();
             await loadAnnouncements();
         } else {
-            alert('Feil: ' + result.message);
+            alert('Feil: ' + (result.message || 'Ukjent feil'));
         }
     } catch (error) {
         console.error('Save error:', error);
-        alert('Kunne ikke lagre');
+        alert('Kunne ikke lagre: ' + error.message);
     }
 }
 
