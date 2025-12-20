@@ -378,8 +378,8 @@ function editAnnouncement(id) {
     document.getElementById('announcement-image-url').value = a.image_url || '';
     document.getElementById('announcement-is-pinned').checked = a.is_pinned;
     
-    const hasSchedule = a.publish_at && new Date(a.publish_at) > new Date();
-    document.getElementById('announcement-schedule-toggle').checked = hasSchedule || !!a.expire_at;
+    const hasScheduleData = !!a.publish_at || !!a.expire_at;
+    document.getElementById('announcement-schedule-toggle').checked = hasScheduleData;
     toggleScheduleOptions();
     
     if (a.publish_at) {
