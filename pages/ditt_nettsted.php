@@ -66,7 +66,20 @@ if ($db) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="<?= htmlspecialchars($companyName) ?>">
     <title><?= htmlspecialchars($companyName) ?> - Ditt Nettsted</title>
+    <?php
+    $appleIconUrl = '/attached_assets/salesman-removebg-preview_1761762992662.png';
+    if ($websiteGeneral && !empty($websiteGeneral['favicon_url'])) {
+        $appleIconUrl = $websiteGeneral['favicon_url'];
+    } elseif ($websiteGeneral && !empty($websiteGeneral['logo_url'])) {
+        $appleIconUrl = $websiteGeneral['logo_url'];
+    }
+    ?>
+    <link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars($appleIconUrl) ?>">
+    <link rel="icon" type="image/png" href="<?= htmlspecialchars($appleIconUrl) ?>">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>

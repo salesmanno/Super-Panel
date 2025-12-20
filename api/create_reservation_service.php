@@ -58,6 +58,8 @@ try {
         // Get reservations module_id from system_modules, create if missing
         $moduleStmt = $db->prepare("SELECT id FROM system_modules WHERE module_key = 'reservations' LIMIT 1");
         $moduleStmt->execute();
+        $moduleRow = $moduleStmt->fetch(PDO::FETCH_ASSOC);
+        $reservationsModuleId = $moduleRow ? $moduleRow['id'] : null;
         
         if (!$reservationsModuleId) {
             // Module doesn't exist - create it
@@ -81,6 +83,8 @@ try {
             
             // Fetch the newly created module ID
             $moduleStmt->execute();
+            $moduleRow = $moduleStmt->fetch(PDO::FETCH_ASSOC);
+            $reservationsModuleId = $moduleRow ? $moduleRow['id'] : null;
             
             if (!$reservationsModuleId) {
                 throw new Exception("Failed to create reservations module");
@@ -90,14 +94,14 @@ try {
         // Cast module_id to string for VARCHAR compatibility (handles both UUID and INTEGER)
         $moduleIdStr = (string)$reservationsModuleId;
         
-        // FIRST: Insert into output_products (parent table)
-        // Note: name, description, price are stored in source table (reservation_services), not here
+        // FIRST: Insert into output_products (parent table) with name, description
         $stmt = $db->prepare("
             INSERT INTO output_products (
                 id, company_id, module_id, product_type, product_id,
+                name, description,
                 is_visible, is_public, is_marketplace_featured, discount_percent,
                 created_at, created_by
-            ) VALUES (?, ?, ?, 'service', ?, 1, 1, 0, 0, NOW(), ?)
+            ) VALUES (?, ?, ?, 'service', ?, ?, ?, 1, 1, 0, 0, NOW(), ?)
         ");
         
         $stmt->execute([
@@ -105,6 +109,8 @@ try {
             $_SESSION['company_id'],
             $moduleIdStr,
             $serviceId,
+            $data['service_name'],
+            $data['description'] ?? null,
             $_SESSION['tenant_admin_id']
         ]);
         

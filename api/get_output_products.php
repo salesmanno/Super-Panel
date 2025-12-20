@@ -81,6 +81,16 @@ try {
                             $updateStmt->execute([$row['name'], $product['id']]);
                         }
                         break;
+                    case 'service':
+                        $nameStmt = $db->prepare("SELECT service_name FROM reservation_services WHERE id = ?");
+                        $nameStmt->execute([$product['product_id']]);
+                        $row = $nameStmt->fetch(PDO::FETCH_ASSOC);
+                        if ($row) {
+                            $product['name'] = $row['service_name'];
+                            $updateStmt = $db->prepare("UPDATE output_products SET name = ? WHERE id = ?");
+                            $updateStmt->execute([$row['service_name'], $product['id']]);
+                        }
+                        break;
                 }
             } catch (Exception $e) {
                 error_log("Error fetching product name: " . $e->getMessage());

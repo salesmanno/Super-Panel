@@ -44,7 +44,12 @@ if (isset($_GET['message'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Salesman Portal">
     <title>Bedriftsportal - Innlogging</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="/attached_assets/salesman-removebg-preview_1761762992662.png">
+    <link rel="icon" type="image/png" href="/attached_assets/salesman-removebg-preview_1761762992662.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
