@@ -413,23 +413,38 @@ function toggleProductSection() {
 }
 
 async function loadOutputProducts() {
+    const select = document.getElementById('announcement-product-id');
+    select.innerHTML = '<option value="">Laster produkter...</option>';
+    
     try {
         const response = await fetch('/api/get_output_products.php');
-        const result = await response.json();
+        const responseText = await response.text();
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (e) {
+            console.error('JSON parse error:', responseText);
+            select.innerHTML = '<option value="">Feil ved lasting av produkter</option>';
+            return;
+        }
         
-        const select = document.getElementById('announcement-product-id');
         select.innerHTML = '<option value="">-- Velg produkt/tjeneste --</option>';
         
-        if (result.success && result.products) {
+        if (result.success && result.products && result.products.length > 0) {
             result.products.forEach(p => {
                 const option = document.createElement('option');
                 option.value = p.id;
-                option.textContent = `${p.name} (${p.product_type})`;
+                option.textContent = `${p.name || 'Ukjent'} (${p.product_type})`;
                 select.appendChild(option);
             });
+        } else if (result.success && (!result.products || result.products.length === 0)) {
+            select.innerHTML = '<option value="">Ingen produkter tilgjengelig</option>';
+        } else {
+            select.innerHTML = '<option value="">Feil: ' + (result.message || 'Kunne ikke hente produkter') + '</option>';
         }
     } catch (error) {
         console.error('Load products error:', error);
+        select.innerHTML = '<option value="">Nettverksfeil - prøv igjen</option>';
     }
 }
 
