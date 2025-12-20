@@ -30,7 +30,7 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Rental Module**: Professional multi-type rental management using table-per-type architecture for 12 object types, featuring dynamic form generation, metadata schemas, and image support.
 - **Sales Module with Shopping Cart**: Supports dual purchase flows, barcode scanner integration, customer data management, event linking, automatic stock tracking, and weighted average cost calculation.
 - **Deres Firma Module**: Manages company profile, staff, and website settings.
-- **Unified Economic System**: Centralized financial tracking via `unified_ledger` table, aggregating all transactions with profit tracking, managed by `UnifiedLedgerService.php`. Supports income/expense tracking across various modules.
+- **Unified Economic System**: Centralized financial tracking via `unified_ledger` table, aggregating all transactions with profit tracking, managed by `UnifiedLedgerService.php`. Supports income/expense tracking across various modules. Economy module features live data display with overview, income, expense tabs; manual transaction entry with 16 expense categories; payment gateway management with toggle functionality.
 - **Output Products System**: A unified polymorphic product catalog (`output_products`) aggregating all sellable items/services, auto-generated and synchronized by `ProductCatalogService.php`.
 
 ### System Design Choices
