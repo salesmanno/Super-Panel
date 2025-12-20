@@ -52,10 +52,10 @@ try {
         ];
     }
     
-    // 2. New members (tenant_membership_members)
+    // 2. New members (membership_members)
     $stmt = $db->prepare("
         SELECT COUNT(*) as count 
-        FROM tenant_membership_members 
+        FROM membership_members 
         WHERE company_id = ? 
         AND created_at > ?
     ");

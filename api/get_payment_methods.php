@@ -64,23 +64,22 @@ try {
     
     $stmt = $db->prepare("
         SELECT 
-            id,
-            gateway_name,
-            display_name,
-            is_active,
-            test_mode,
-            vipps_client_id,
-            vipps_client_secret_encrypted,
-            vipps_merchant_serial_number,
-            vipps_subscription_key,
-            stripe_public_key,
-            stripe_secret_key_encrypted,
-            stripe_webhook_secret,
-            paypal_client_id,
-            paypal_client_secret_encrypted,
-            paypal_webhook_id
-        FROM economy_payment_gateways
-        WHERE company_id = ? AND is_active = 1
+            epg.id,
+            epg.gateway_name,
+            epg.is_active,
+            epg.test_mode,
+            ecd.config_name,
+            ecd.client_id,
+            ecd.client_secret_encrypted,
+            ecd.subscription_key,
+            ecd.merchant_serial_number,
+            ecd.public_key,
+            ecd.private_key_encrypted,
+            ecd.webhook_secret,
+            ecd.webhook_id
+        FROM economy_payment_gateways epg
+        LEFT JOIN economy_configuration_data ecd ON epg.configuration_id = ecd.id
+        WHERE epg.company_id = ? AND epg.is_active = 1
     ");
     $stmt->execute([$company_id]);
     $gateways = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -88,26 +87,34 @@ try {
     foreach ($gateways as $gw) {
         $gatewayName = strtolower($gw['gateway_name']);
         
-        $fields = $requiredFields[$gatewayName] ?? [];
-        $isConfigured = true;
-        foreach ($fields as $field) {
-            if (empty($gw[$field])) {
-                $isConfigured = false;
+        $isConfigured = false;
+        switch ($gatewayName) {
+            case 'vipps':
+                $isConfigured = !empty($gw['client_id']) && !empty($gw['client_secret_encrypted']) && !empty($gw['merchant_serial_number']);
                 break;
-            }
+            case 'stripe':
+                $isConfigured = !empty($gw['public_key']) && !empty($gw['private_key_encrypted']);
+                break;
+            case 'paypal':
+                $isConfigured = !empty($gw['client_id']) && !empty($gw['client_secret_encrypted']);
+                break;
+            default:
+                $isConfigured = true;
         }
         
         if (!$isConfigured) {
             continue;
         }
         
+        $displayName = $gw['config_name'] ?? $gatewayDisplayNames[$gatewayName] ?? ucfirst($gatewayName);
+        
         $methods[] = [
             'method_type' => $gatewayName,
-            'method_name' => $gw['display_name'] ?? $gatewayDisplayNames[$gatewayName] ?? ucfirst($gatewayName),
+            'method_name' => $displayName,
             'is_demo' => (bool)($gw['test_mode'] ?? false),
             'is_active' => true,
             'config' => [
-                'display_name' => $gw['display_name'] ?? $gatewayDisplayNames[$gatewayName] ?? ucfirst($gatewayName),
+                'display_name' => $displayName,
                 'icon' => $gatewayIcons[$gatewayName] ?? 'wallet2',
                 'description' => ''
             ]
