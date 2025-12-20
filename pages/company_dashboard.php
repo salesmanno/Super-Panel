@@ -1252,6 +1252,10 @@ try {
                 targetContent.style.display = 'block';
                 targetContent.classList.add('active');
             }
+            
+            document.dispatchEvent(new CustomEvent('subtab-changed', { 
+                detail: { module: moduleSlug, subtab: targetId } 
+            }));
         }
         
         function navigateToDittNettsted() {

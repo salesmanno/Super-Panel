@@ -908,13 +908,15 @@ async function cancelPendingPayment(ledgerId) {
     }
 }
 
-document.addEventListener('shown.bs.tab', function(event) {
-    const target = event.target.getAttribute('data-subtab');
-    if (target === 'economy-results') loadEconomyOverview();
-    else if (target === 'economy-income') loadIncomeData();
-    else if (target === 'economy-expense') loadExpenseData();
-    else if (target === 'economy-pending') loadPendingPayments();
-    else if (target === 'economy-payment') loadPaymentGateways();
+document.addEventListener('subtab-changed', function(event) {
+    if (event.detail.module !== 'economy') return;
+    
+    const subtab = event.detail.subtab;
+    if (subtab === 'economy-results') loadEconomyOverview();
+    else if (subtab === 'economy-income') loadIncomeData();
+    else if (subtab === 'economy-expense') loadExpenseData();
+    else if (subtab === 'economy-pending') loadPendingPayments();
+    else if (subtab === 'economy-payment') loadPaymentGateways();
 });
 
 document.addEventListener('DOMContentLoaded', function() {
