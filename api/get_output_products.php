@@ -22,7 +22,6 @@ try {
             op.product_id,
             op.name,
             op.description,
-            op.price,
             op.is_visible,
             op.is_public,
             op.created_at,
