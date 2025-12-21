@@ -132,15 +132,6 @@
 </style>
 
 <div class="module-content">
-    <div id="next-booking-banner" class="alert alert-info mb-4" style="display: none;">
-        <div class="d-flex align-items-center">
-            <i class="bi bi-clock-history me-3" style="font-size: 1.5rem;"></i>
-            <div id="next-booking-content">
-                Laster neste booking...
-            </div>
-        </div>
-    </div>
-
     <div id="reservations-overview" class="subtab-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
@@ -273,6 +264,15 @@
 </div>
 
 <div id="reservations-schedule" class="subtab-content" style="display: none;">
+    <div id="next-booking-schedule-banner" class="alert alert-info mb-4" style="display: none;">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-clock-history me-3" style="font-size: 1.5rem;"></i>
+            <div id="next-booking-schedule-content">
+                Laster neste booking...
+            </div>
+        </div>
+    </div>
+    
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h4 class="mb-1">Timeoversikt</h4>
@@ -505,15 +505,17 @@ async function loadNextBooking() {
         const response = await fetch('/api/services/get_next_booking.php');
         const result = await response.json();
         
-        const banner = document.getElementById('next-booking-banner');
-        const content = document.getElementById('next-booking-content');
+        const banner = document.getElementById('next-booking-schedule-banner');
+        const content = document.getElementById('next-booking-schedule-content');
+        
+        if (!banner || !content) return;
         
         if (result.success && result.has_next) {
             const b = result.next_booking;
             const hours = b.time_until.hours;
             const mins = b.time_until.minutes;
             const timeStr = hours > 0 ? `${hours} timer og ${mins} minutter` : `${mins} minutter`;
-            const priceText = b.selling_price ? b.selling_price + ' kr' : '';
+            const priceText = b.price ? b.price + ' kr' : '';
             const paymentStatus = b.is_paid ? 
                 '<span class="badge bg-success">Betalt</span> ' + priceText : 
                 '<span class="badge bg-warning text-dark">Skal betale</span> ' + priceText;
@@ -532,7 +534,8 @@ async function loadNextBooking() {
         }
     } catch (error) {
         console.error('Error loading next booking:', error);
-        document.getElementById('next-booking-banner').style.display = 'none';
+        const banner = document.getElementById('next-booking-schedule-banner');
+        if (banner) banner.style.display = 'none';
     }
 }
 
@@ -1137,13 +1140,11 @@ async function setBulkAvailability(isWorking) {
 document.addEventListener('DOMContentLoaded', async () => {
     await loadServices();
     await loadStaff();
-    await loadNextBooking();
 });
 
 document.getElementById('tab-reservations')?.addEventListener('shown.bs.tab', async () => {
     await loadServices();
     await loadStaff();
-    await loadNextBooking();
 });
 
 document.querySelectorAll('#subtabs-reservation .nav-link').forEach(tab => {
@@ -1156,6 +1157,7 @@ document.querySelectorAll('#subtabs-reservation .nav-link').forEach(tab => {
         } else if (target === 'reservations-schedule') {
             initScheduleFilters();
             loadSchedule();
+            loadNextBooking();
         }
     });
 });

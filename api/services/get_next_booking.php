@@ -19,25 +19,27 @@ try {
     $sql = "
         SELECT 
             b.id,
-            b.date_from,
-            b.time_from,
-            b.date_to,
-            b.time_to,
+            b.booking_date,
+            b.start_time,
+            b.end_time,
             b.status,
             b.payment_status,
-            b.customer_name,
-            b.service_name,
-            b.selling_price,
-            CONCAT(ts.first_name, ' ', ts.last_name) as staff_name
+            b.notes,
+            rs.service_name,
+            rs.price,
+            CONCAT(ts.first_name, ' ', ts.last_name) as staff_name,
+            CONCAT(tc.first_name, ' ', tc.last_name) as customer_name
         FROM service_bookings b
-        LEFT JOIN tenant_staff ts ON b.assigned_staff_id = ts.id
+        LEFT JOIN reservation_services rs ON b.service_id = rs.id
+        LEFT JOIN tenant_staff ts ON b.staff_id = ts.id
+        LEFT JOIN tenant_customers tc ON b.customer_id = tc.id
         WHERE b.company_id = ?
         AND (
-            (b.date_from = ? AND b.time_from > ?)
-            OR b.date_from > ?
+            (b.booking_date = ? AND b.start_time > ?)
+            OR b.booking_date > ?
         )
         AND b.status NOT IN ('cancelled', 'completed')
-        ORDER BY b.date_from ASC, b.time_from ASC
+        ORDER BY b.booking_date ASC, b.start_time ASC
         LIMIT 1
     ";
     
@@ -46,7 +48,7 @@ try {
     $nextBooking = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($nextBooking) {
-        $bookingDateTime = new DateTime($nextBooking['date_from'] . ' ' . $nextBooking['time_from']);
+        $bookingDateTime = new DateTime($nextBooking['booking_date'] . ' ' . $nextBooking['start_time']);
         $nowDateTime = new DateTime();
         $interval = $nowDateTime->diff($bookingDateTime);
         
