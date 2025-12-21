@@ -53,7 +53,7 @@ try {
     if ($registration['is_member'] && $registration['customer_membership_plan_id']) {
         // Check if this event has a special price for the customer's membership plan
         $mpStmt = $db->prepare("
-            SELECT emp.ticket_price, emp.membership_plan_id, mp.plan_name
+            SELECT emp.ticket_price, emp.membership_plan_id, mp.name as plan_name
             FROM event_membership_plans emp
             JOIN membership_plans mp ON emp.membership_plan_id = mp.id
             WHERE emp.event_id = ? AND emp.membership_plan_id = ?

@@ -70,9 +70,11 @@ try {
         )
     ");
     
+    $itemName = $event['title'] . ' - ' . $description . $categoryLabel;
+    
     $stmt->execute([
         $entryId, $orderId, $company_id, 'events', 'event_expense', $event_id,
-        $description . $categoryLabel, 1, 0, $amount,
+        $itemName, 1, 0, $amount,
         'Manuel registrering', '', 'manual', 'completed', $date, $notes
     ]);
     

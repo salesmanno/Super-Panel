@@ -102,10 +102,6 @@ try {
                 $isConfigured = true;
         }
         
-        if (!$isConfigured) {
-            continue;
-        }
-        
         $displayName = $gw['config_name'] ?? $gatewayDisplayNames[$gatewayName] ?? ucfirst($gatewayName);
         
         $methods[] = [
@@ -113,10 +109,11 @@ try {
             'method_name' => $displayName,
             'is_demo' => (bool)($gw['test_mode'] ?? false),
             'is_active' => true,
+            'is_configured' => $isConfigured,
             'config' => [
                 'display_name' => $displayName,
                 'icon' => $gatewayIcons[$gatewayName] ?? 'wallet2',
-                'description' => ''
+                'description' => $isConfigured ? '' : '(Mangler konfigurasjon)'
             ]
         ];
     }

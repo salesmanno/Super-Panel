@@ -112,12 +112,12 @@ try {
         $checkin_id = bin2hex(random_bytes(16));
         $barcode = $barcodeService->generateEAN13($checkin_id, $event_id);
         
-        // Insert guest into events_checkin
+        // Insert guest into events_checkin with membership_plan_id
         $stmt = $db->prepare("
             INSERT INTO events_checkin 
             (id, event_id, ticket_type, ticket_price, payment_status, payment_method, 
-             checked_in, checked_in_by, barcode, created_at, updated_at) 
-            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, NOW(), NOW())
+             checked_in, checked_in_by, barcode, membership_plan_id, created_at, updated_at) 
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, NOW(), NOW())
         ");
         $stmt->execute([
             $checkin_id,
@@ -127,7 +127,8 @@ try {
             $payment_status,
             $payment_method,
             $admin_id,
-            $barcode
+            $barcode,
+            $membership_plan_id
         ]);
         
         $createdIds[] = $checkin_id;

@@ -21,6 +21,28 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     
+    // Check if customer with this phone already exists (if phone provided)
+    if (!empty($data['phone'])) {
+        $phoneCheck = $db->prepare("
+            SELECT tc.id, tc.first_name, tc.last_name, mm.id as member_id 
+            FROM tenant_customers tc
+            LEFT JOIN membership_members mm ON mm.customer_id = tc.id AND mm.company_id = tc.company_id
+            WHERE tc.company_id = ? AND tc.phone = ?
+        ");
+        $phoneCheck->execute([$companyId, $data['phone']]);
+        $existingPhone = $phoneCheck->fetch(PDO::FETCH_ASSOC);
+        
+        if ($existingPhone) {
+            $name = trim($existingPhone['first_name'] . ' ' . $existingPhone['last_name']);
+            if ($existingPhone['member_id']) {
+                echo json_encode(['success' => false, 'message' => "Mobilnummer er allerede registrert på medlem: $name"]);
+            } else {
+                echo json_encode(['success' => false, 'message' => "Mobilnummer er allerede registrert på kunde: $name"]);
+            }
+            exit;
+        }
+    }
+    
     // Check if customer with this email already exists
     $checkStmt = $db->prepare("SELECT id FROM tenant_customers WHERE company_id = ? AND email = ?");
     $checkStmt->execute([$companyId, $data['email']]);

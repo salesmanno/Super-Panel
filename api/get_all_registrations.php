@@ -14,6 +14,7 @@ try {
     
     // Customer data from tenant_customers used for display
     // Membership info is in membership_members table
+    // Payment status comes from events_checkin
     $stmt = $db->prepare("
         SELECT 
             r.id,
@@ -34,6 +35,9 @@ try {
             mm.membership_plan_id AS customer_membership_plan_id,
             mp.name AS membership_plan_name,
             emp.ticket_price AS event_ticket_price,
+            ec.payment_status,
+            ec.payment_method,
+            ec.ticket_price AS paid_ticket_price,
             r.created_at,
             r.approval_status,
             r.approved_at,
@@ -49,6 +53,7 @@ try {
         LEFT JOIN membership_members mm ON mm.customer_id = c.id AND mm.company_id = r.company_id AND mm.status = 'active'
         LEFT JOIN membership_plans mp ON mp.id = mm.membership_plan_id
         LEFT JOIN event_membership_plans emp ON emp.event_id = r.event_id AND emp.membership_plan_id = mm.membership_plan_id
+        LEFT JOIN events_checkin ec ON ec.registration_id = r.id
         LEFT JOIN tenant_admins approver ON r.approved_by = approver.id
         LEFT JOIN tenant_staff approver_staff ON approver.tenant_staff_id = approver_staff.id
         WHERE r.company_id = ? AND r.approval_status != 'pending'
