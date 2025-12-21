@@ -22,7 +22,6 @@ try {
             ss.staff_id,
             ss.service_id,
             ss.is_active,
-            ss.hourly_rate,
             ss.max_daily_bookings,
             ts.first_name,
             ts.last_name,

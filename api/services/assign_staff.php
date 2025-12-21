@@ -45,26 +45,23 @@ try {
         $stmt = $db->prepare("
             UPDATE staff_services 
             SET is_active = 1, 
-                hourly_rate = ?,
                 max_daily_bookings = ?
             WHERE id = ?
         ");
         $stmt->execute([
-            $data['hourly_rate'] ?? null,
             $data['max_daily_bookings'] ?? 5,
             $existing['id']
         ]);
         $message = 'Ansatt-tilknytning oppdatert';
     } else {
         $stmt = $db->prepare("
-            INSERT INTO staff_services (company_id, staff_id, service_id, is_active, hourly_rate, max_daily_bookings)
-            VALUES (?, ?, ?, 1, ?, ?)
+            INSERT INTO staff_services (company_id, staff_id, service_id, is_active, max_daily_bookings)
+            VALUES (?, ?, ?, 1, ?)
         ");
         $stmt->execute([
             $companyId,
             $data['staff_id'],
             $data['service_id'],
-            $data['hourly_rate'] ?? null,
             $data['max_daily_bookings'] ?? 5
         ]);
         $message = 'Ansatt tilknyttet tjeneste';
