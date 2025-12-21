@@ -32,7 +32,7 @@ try {
             rs.price as service_price,
             rs.duration_minutes,
             CONCAT(ts.first_name, ' ', ts.last_name) as staff_name
-        FROM reservation_service_bookings b
+        FROM service_bookings b
         LEFT JOIN reservation_services rs ON b.service_id = rs.id
         LEFT JOIN tenant_staff ts ON b.staff_id = ts.id
         WHERE b.company_id = ?
