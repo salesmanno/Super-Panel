@@ -59,6 +59,33 @@ try {
         ");
         
         $stmt->execute($params);
+        
+        // Also update output_products if name or description changed
+        if (array_key_exists('name', $data) || array_key_exists('description', $data)) {
+            $opUpdates = [];
+            $opParams = [];
+            
+            if (array_key_exists('name', $data)) {
+                $opUpdates[] = "name = ?";
+                $opParams[] = $data['name'];
+            }
+            if (array_key_exists('description', $data)) {
+                $opUpdates[] = "description = ?";
+                $opParams[] = $data['description'];
+            }
+            
+            if (!empty($opUpdates)) {
+                $opParams[] = $data['id'];
+                $opParams[] = $companyId;
+                
+                $opStmt = $db->prepare("
+                    UPDATE output_products 
+                    SET " . implode(', ', $opUpdates) . "
+                    WHERE product_id = ? AND product_type = 'service' AND company_id = ?
+                ");
+                $opStmt->execute($opParams);
+            }
+        }
     }
     
     if (array_key_exists('staff_ids', $data) && is_array($data['staff_ids'])) {

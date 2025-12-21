@@ -22,10 +22,16 @@ try {
     
     $db->beginTransaction();
     
+    // Delete staff assignments first
     $stmt = $db->prepare("DELETE FROM staff_services WHERE service_id = ? AND company_id = ?");
     $stmt->execute([$data['id'], $companyId]);
     
+    // Delete the service (child table with FK to output_products)
     $stmt = $db->prepare("DELETE FROM reservation_services WHERE id = ? AND company_id = ?");
+    $stmt->execute([$data['id'], $companyId]);
+    
+    // Delete from output_products catalog (parent table - must be last)
+    $stmt = $db->prepare("DELETE FROM output_products WHERE product_id = ? AND product_type = 'service' AND company_id = ?");
     $stmt->execute([$data['id'], $companyId]);
     
     $db->commit();
