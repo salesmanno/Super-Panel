@@ -132,6 +132,15 @@
 </style>
 
 <div class="module-content">
+    <div id="next-booking-banner" class="alert alert-info mb-4" style="display: none;">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-clock-history me-3" style="font-size: 1.5rem;"></i>
+            <div id="next-booking-content">
+                Laster neste booking...
+            </div>
+        </div>
+    </div>
+
     <div id="reservations-overview" class="subtab-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
@@ -452,12 +461,12 @@
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Timepris (valgfritt)</label>
-                    <input type="number" step="1" class="form-control" id="add-staff-rate" placeholder="Standard">
-                </div>
-                <div class="mb-3">
                     <label class="form-label">Maks bookinger/dag</label>
                     <input type="number" class="form-control" id="add-staff-max" value="5">
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="add-staff-primary">
+                    <label class="form-check-label" for="add-staff-primary">Primærarbeider</label>
                 </div>
             </div>
             <div class="modal-footer">
@@ -488,6 +497,42 @@ async function loadServices() {
         }
     } catch (error) {
         console.error('Error loading services:', error);
+    }
+}
+
+async function loadNextBooking() {
+    try {
+        const response = await fetch('/api/services/get_next_booking.php');
+        const result = await response.json();
+        
+        const banner = document.getElementById('next-booking-banner');
+        const content = document.getElementById('next-booking-content');
+        
+        if (result.success && result.has_next) {
+            const b = result.next_booking;
+            const hours = b.time_until.hours;
+            const mins = b.time_until.minutes;
+            const timeStr = hours > 0 ? `${hours} timer og ${mins} minutter` : `${mins} minutter`;
+            const priceText = b.selling_price ? b.selling_price + ' kr' : '';
+            const paymentStatus = b.is_paid ? 
+                '<span class="badge bg-success">Betalt</span> ' + priceText : 
+                '<span class="badge bg-warning text-dark">Skal betale</span> ' + priceText;
+            
+            content.innerHTML = `
+                <strong>Neste booking starter om ${timeStr}</strong><br>
+                <span class="text-muted">
+                    ${b.service_name || 'Ukjent tjeneste'} ${paymentStatus} - 
+                    ${b.staff_name || 'Ingen ansatt'} er tildelt timen for 
+                    <strong>${b.display_customer}</strong>
+                </span>
+            `;
+            banner.style.display = 'block';
+        } else {
+            banner.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error loading next booking:', error);
+        document.getElementById('next-booking-banner').style.display = 'none';
     }
 }
 
@@ -836,8 +881,8 @@ async function selectServiceForStaff(serviceId, serviceName) {
                     <div class="flex-grow-1">
                         <strong>${ss.first_name} ${ss.last_name}</strong>
                         <div class="small text-muted">
-                            ${ss.hourly_rate ? ss.hourly_rate + ' kr/t' : 'Standard pris'}
-                            ${ss.max_daily_bookings ? ' • Maks ' + ss.max_daily_bookings + '/dag' : ''}
+                            ${ss.worker_primary ? '<span class="badge bg-success me-1">Primærarbeider</span>' : ''}
+                            ${ss.max_daily_bookings ? 'Maks ' + ss.max_daily_bookings + '/dag' : ''}
                         </div>
                     </div>
                     <button class="btn btn-sm btn-outline-danger" onclick="removeStaffFromService('${ss.staff_id}', '${ss.first_name} ${ss.last_name}')">
@@ -863,8 +908,8 @@ function openAddStaffModal() {
     select.innerHTML = '<option value="">Velg...</option>' + 
         allStaff.map(s => `<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
     
-    document.getElementById('add-staff-rate').value = '';
     document.getElementById('add-staff-max').value = 5;
+    document.getElementById('add-staff-primary').checked = false;
     
     new bootstrap.Modal(document.getElementById('addStaffModal')).show();
 }
@@ -880,7 +925,7 @@ async function assignStaff() {
             body: JSON.stringify({
                 service_id: selectedServiceId,
                 staff_id: staffId,
-                hourly_rate: parseFloat(document.getElementById('add-staff-rate').value) || null,
+                worker_primary: document.getElementById('add-staff-primary').checked ? 1 : 0,
                 max_daily_bookings: parseInt(document.getElementById('add-staff-max').value) || 5
             })
         });
@@ -1092,11 +1137,13 @@ async function setBulkAvailability(isWorking) {
 document.addEventListener('DOMContentLoaded', async () => {
     await loadServices();
     await loadStaff();
+    await loadNextBooking();
 });
 
 document.getElementById('tab-reservations')?.addEventListener('shown.bs.tab', async () => {
     await loadServices();
     await loadStaff();
+    await loadNextBooking();
 });
 
 document.querySelectorAll('#subtabs-reservation .nav-link').forEach(tab => {
