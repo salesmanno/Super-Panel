@@ -20,6 +20,18 @@ try {
     $db = getDBConnection();
     $deleteMode = $data['delete_mode'] ?? 'soft'; // 'soft' or 'hard'
     
+    // SECURITY: Verify event ownership BEFORE any deletions
+    $ownershipStmt = $db->prepare("
+        SELECT id FROM events_eventdata 
+        WHERE id = ? AND company_id = ?
+    ");
+    $ownershipStmt->execute([$data['event_id'], $_SESSION['company_id']]);
+    
+    if (!$ownershipStmt->fetch()) {
+        echo json_encode(['success' => false, 'message' => 'Arrangement ikke funnet eller ingen tilgang']);
+        exit;
+    }
+    
     if ($deleteMode === 'hard') {
         // HARD DELETE: Completely remove from database
         // WARNING: This also removes all related data (registrations, transactions, etc.)
@@ -44,9 +56,9 @@ try {
             
             $stmt = $db->prepare("
                 DELETE FROM events_checkin 
-                WHERE event_id = ? AND company_id = ?
+                WHERE event_id = ?
             ");
-            $stmt->execute([$data['event_id'], $_SESSION['company_id']]);
+            $stmt->execute([$data['event_id']]);
             
             // 3. Delete registration fields
             $stmt = $db->prepare("
@@ -76,21 +88,12 @@ try {
             ");
             $stmt->execute([$data['event_id'], $_SESSION['company_id']]);
             
-            $rowCount = $stmt->rowCount();
-            
             $db->commit();
             
-            if ($rowCount > 0) {
-                echo json_encode([
-                    'success' => true,
-                    'message' => 'Arrangement og all tilknyttet data slettet permanent'
-                ]);
-            } else {
-                echo json_encode([
-                    'success' => false,
-                    'message' => 'Kunne ikke slette arrangement'
-                ]);
-            }
+            echo json_encode([
+                'success' => true,
+                'message' => 'Arrangement og all tilknyttet data slettet permanent'
+            ]);
         } catch (Exception $e) {
             $db->rollBack();
             throw $e;
