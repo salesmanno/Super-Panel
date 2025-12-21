@@ -24,17 +24,22 @@ try {
             b.start_time,
             b.end_time,
             b.status,
-            b.customer_name,
-            b.customer_email,
-            b.customer_phone,
+            b.payment_status,
+            b.payment_method,
             b.notes,
             rs.service_name,
             rs.price as service_price,
             rs.duration_minutes,
-            CONCAT(ts.first_name, ' ', ts.last_name) as staff_name
+            CONCAT(ts.first_name, ' ', ts.last_name) as staff_name,
+            tc.first_name as customer_first_name,
+            tc.last_name as customer_last_name,
+            tc.email as customer_email,
+            tc.phone as customer_phone,
+            CONCAT(tc.first_name, ' ', tc.last_name) as customer_name
         FROM service_bookings b
         LEFT JOIN reservation_services rs ON b.service_id = rs.id
         LEFT JOIN tenant_staff ts ON b.staff_id = ts.id
+        LEFT JOIN tenant_customers tc ON b.customer_id = tc.id
         WHERE b.company_id = ?
         AND b.booking_date = ?
     ";

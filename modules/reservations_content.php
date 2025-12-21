@@ -514,19 +514,15 @@ async function loadNextBooking() {
             const b = result.next_booking;
             const hours = b.time_until.hours;
             const mins = b.time_until.minutes;
-            const timeStr = hours > 0 ? `${hours} timer og ${mins} minutter` : `${mins} minutter`;
-            const priceText = b.price ? b.price + ' kr' : '';
-            const paymentStatus = b.is_paid ? 
-                '<span class="badge bg-success">Betalt</span> ' + priceText : 
-                '<span class="badge bg-warning text-dark">Skal betale</span> ' + priceText;
+            const timeStr = hours > 0 ? `${hours} t ${mins} min` : `${mins} min`;
+            const priceFormatted = b.price ? parseFloat(b.price).toFixed(0) + ' kr' : '0 kr';
+            const paymentBadge = b.is_paid ? 
+                '<span class="badge bg-success">betalt</span>' : 
+                '<span class="badge bg-warning text-dark">skal betale</span>';
             
             content.innerHTML = `
-                <strong>Neste booking starter om ${timeStr}</strong><br>
-                <span class="text-muted">
-                    ${b.service_name || 'Ukjent tjeneste'} ${paymentStatus} - 
-                    ${b.staff_name || 'Ingen ansatt'} er tildelt timen for 
-                    <strong>${b.display_customer}</strong>
-                </span>
+                <strong>Neste time er ${b.service_name || 'ukjent tjeneste'}</strong>, denne begynner om <strong>${timeStr}</strong>.<br>
+                Kunden <strong>${b.customer_last_name || ''}, ${b.customer_first_name || ''}</strong> har ${paymentBadge} ${priceFormatted}.
             `;
             banner.style.display = 'block';
         } else {

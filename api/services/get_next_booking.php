@@ -28,7 +28,8 @@ try {
             rs.service_name,
             rs.price,
             CONCAT(ts.first_name, ' ', ts.last_name) as staff_name,
-            CONCAT(tc.first_name, ' ', tc.last_name) as customer_name
+            tc.first_name as customer_first_name,
+            tc.last_name as customer_last_name
         FROM service_bookings b
         LEFT JOIN reservation_services rs ON b.service_id = rs.id
         LEFT JOIN tenant_staff ts ON b.staff_id = ts.id
@@ -61,8 +62,6 @@ try {
             'minutes' => $minutes,
             'total_minutes' => $totalMinutes
         ];
-        
-        $nextBooking['display_customer'] = $nextBooking['customer_name'] ?: 'Ukjent kunde';
         
         $isPaid = in_array(strtolower($nextBooking['payment_status'] ?? ''), ['paid', 'completed', 'betalt']);
         $nextBooking['is_paid'] = $isPaid;
