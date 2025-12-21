@@ -41,28 +41,33 @@ try {
     $checkStmt->execute([$companyId, $data['service_id'], $data['staff_id']]);
     $existing = $checkStmt->fetch();
     
+    $workerPrimary = isset($data['worker_primary']) ? ($data['worker_primary'] ? 1 : 0) : 0;
+    
     if ($existing) {
         $stmt = $db->prepare("
             UPDATE staff_services 
             SET is_active = 1, 
-                max_daily_bookings = ?
+                max_daily_bookings = ?,
+                worker_primary = ?
             WHERE id = ?
         ");
         $stmt->execute([
             $data['max_daily_bookings'] ?? 5,
+            $workerPrimary,
             $existing['id']
         ]);
         $message = 'Ansatt-tilknytning oppdatert';
     } else {
         $stmt = $db->prepare("
-            INSERT INTO staff_services (company_id, staff_id, service_id, is_active, max_daily_bookings)
-            VALUES (?, ?, ?, 1, ?)
+            INSERT INTO staff_services (company_id, staff_id, service_id, is_active, max_daily_bookings, worker_primary)
+            VALUES (?, ?, ?, 1, ?, ?)
         ");
         $stmt->execute([
             $companyId,
             $data['staff_id'],
             $data['service_id'],
-            $data['max_daily_bookings'] ?? 5
+            $data['max_daily_bookings'] ?? 5,
+            $workerPrimary
         ]);
         $message = 'Ansatt tilknyttet tjeneste';
     }

@@ -23,6 +23,7 @@ try {
             ss.service_id,
             ss.is_active,
             ss.max_daily_bookings,
+            ss.worker_primary,
             ts.first_name,
             ts.last_name,
             ts.email,
