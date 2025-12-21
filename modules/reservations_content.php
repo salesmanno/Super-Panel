@@ -264,79 +264,44 @@
 </div>
 
 <div id="reservations-schedule" class="subtab-content" style="display: none;">
-    <div id="next-booking-schedule-banner" class="alert alert-info mb-4" style="display: none;">
-        <div class="d-flex align-items-center">
-            <i class="bi bi-clock-history me-3" style="font-size: 1.5rem;"></i>
-            <div id="next-booking-schedule-content">
-                Laster neste booking...
+    <div class="card">
+        <div class="card-header bg-primary text-white" id="next-booking-schedule-banner" style="display: none;">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-clock-history me-2"></i>
+                <span id="next-booking-schedule-content">Laster...</span>
             </div>
         </div>
-    </div>
-    
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h4 class="mb-1">Timeoversikt</h4>
-            <p class="text-muted mb-0">Daglig oversikt over bookinger og kunder</p>
-        </div>
-    </div>
-    
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="row align-items-end">
-                <div class="col-md-3 mb-2">
-                    <label class="form-label">Dato</label>
-                    <input type="date" class="form-control" id="schedule-date" onchange="loadSchedule()">
+        <div class="card-header bg-white">
+            <div class="row align-items-center g-2">
+                <div class="col-md-3">
+                    <input type="date" class="form-control form-control-sm" id="schedule-date" onchange="loadSchedule()">
                 </div>
-                <div class="col-md-3 mb-2">
-                    <label class="form-label">Ansatt</label>
-                    <select class="form-select" id="schedule-staff-filter" onchange="loadSchedule()">
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" id="schedule-staff-filter" onchange="loadSchedule()">
                         <option value="">Alle ansatte</option>
                     </select>
                 </div>
-                <div class="col-md-3 mb-2">
-                    <label class="form-label">Tjeneste</label>
-                    <select class="form-select" id="schedule-service-filter" onchange="loadSchedule()">
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" id="schedule-service-filter" onchange="loadSchedule()">
                         <option value="">Alle tjenester</option>
                     </select>
                 </div>
-                <div class="col-md-3 mb-2">
-                    <button class="btn btn-outline-primary w-100" onclick="loadSchedule()">
-                        <i class="bi bi-arrow-clockwise me-1"></i>Oppdater
-                    </button>
+                <div class="col-md-3 text-end">
+                    <strong id="schedule-date-title">I dag</strong>
+                    <span class="badge bg-primary ms-2" id="schedule-booking-count">0</span>
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <div class="card">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <strong id="schedule-date-title">I dag</strong>
-            <span class="badge bg-primary" id="schedule-booking-count">0 bookinger</span>
-        </div>
-        <div class="card-body p-0">
-            <div id="schedule-timeline">
-                <div class="empty-state py-4">
-                    <i class="bi bi-calendar-check d-block"></i>
-                    <p>Velg dato for å se timeoversikt</p>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="card mt-4">
-        <div class="card-header bg-white">
-            <strong>Dagens kunder</strong>
         </div>
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover table-sm mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>Tid</th>
+                        <th style="width:70px;">Tid</th>
                         <th>Kunde</th>
                         <th>Tjeneste</th>
                         <th>Ansatt</th>
                         <th>Status</th>
-                        <th>Kontakt</th>
+                        <th style="width:90px;">Kontakt</th>
                     </tr>
                 </thead>
                 <tbody id="schedule-customers-table">
@@ -520,10 +485,7 @@ async function loadNextBooking() {
                 '<span class="badge bg-success">betalt</span>' : 
                 '<span class="badge bg-warning text-dark">skal betale</span>';
             
-            content.innerHTML = `
-                <strong>Neste time er ${b.service_name || 'ukjent tjeneste'}</strong>, denne begynner om <strong>${timeStr}</strong>.<br>
-                Kunden <strong>${b.customer_last_name || ''}, ${b.customer_first_name || ''}</strong> har ${paymentBadge} ${priceFormatted}.
-            `;
+            content.innerHTML = `<strong>Neste time:</strong> ${b.service_name || 'ukjent'} om <strong>${timeStr}</strong> &mdash; ${b.customer_last_name || ''}, ${b.customer_first_name || ''} ${paymentBadge} ${priceFormatted}`;
             banner.style.display = 'block';
         } else {
             banner.style.display = 'none';
@@ -1208,62 +1170,15 @@ async function loadSchedule() {
         const result = await response.json();
         
         if (result.success) {
-            renderScheduleTimeline(result.bookings || []);
             renderScheduleTable(result.bookings || []);
             document.getElementById('schedule-booking-count').textContent = 
-                `${result.bookings?.length || 0} bookinger`;
+                result.bookings?.length || 0;
         } else {
             console.error('Error loading schedule:', result.message);
         }
     } catch (error) {
         console.error('Error loading schedule:', error);
     }
-}
-
-function renderScheduleTimeline(bookings) {
-    const container = document.getElementById('schedule-timeline');
-    
-    if (!bookings || bookings.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state py-4">
-                <i class="bi bi-calendar-check d-block"></i>
-                <p>Ingen bookinger for valgt dato</p>
-            </div>
-        `;
-        return;
-    }
-    
-    const hours = [];
-    for (let h = 8; h <= 20; h++) {
-        hours.push(`${h.toString().padStart(2, '0')}:00`);
-    }
-    
-    let html = '<div class="schedule-timeline-grid p-3">';
-    hours.forEach(hour => {
-        const hourBookings = bookings.filter(b => {
-            const bookingHour = b.start_time?.substring(0, 5);
-            return bookingHour >= hour && bookingHour < `${(parseInt(hour) + 1).toString().padStart(2, '0')}:00`;
-        });
-        
-        html += `
-            <div class="timeline-row d-flex align-items-stretch border-bottom py-2">
-                <div class="timeline-hour text-muted" style="width: 60px; flex-shrink: 0;">${hour}</div>
-                <div class="timeline-content flex-grow-1 d-flex gap-2 flex-wrap">
-                    ${hourBookings.map(b => `
-                        <div class="booking-chip px-3 py-2 rounded-3" 
-                             style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                            <div class="fw-bold">${b.customer_name || 'Ukjent kunde'}</div>
-                            <small>${b.start_time?.substring(0, 5)} - ${b.service_name || 'Tjeneste'}</small>
-                            ${b.staff_name ? `<br><small><i class="bi bi-person"></i> ${b.staff_name}</small>` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    });
-    html += '</div>';
-    
-    container.innerHTML = html;
 }
 
 function renderScheduleTable(bookings) {
