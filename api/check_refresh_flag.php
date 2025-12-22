@@ -13,16 +13,28 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     
-    $stmt = $db->prepare("SELECT refresh_polling FROM tenant_companies WHERE id = ?");
-    $stmt->execute([$companyId]);
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    // Hent sist sjekket tidspunkt fra session
+    $lastCheck = $_SESSION['last_polling_check'] ?? null;
+    $now = date('Y-m-d H:i:s');
     
-    $shouldRefresh = ($result && $result['refresh_polling'] == 1);
+    // Sjekk om det finnes polling-oppdateringer med nye items siden sist sjekk
+    $shouldRefresh = false;
     
-    if ($shouldRefresh) {
-        $updateStmt = $db->prepare("UPDATE tenant_companies SET refresh_polling = 0 WHERE id = ?");
-        $updateStmt->execute([$companyId]);
+    if ($lastCheck) {
+        $stmt = $db->prepare("
+            SELECT COUNT(*) as update_count 
+            FROM tenant_polling_tracker 
+            WHERE company_id = ? 
+              AND updated_at > ? 
+              AND items_processed_last_poll > 0
+        ");
+        $stmt->execute([$companyId, $lastCheck]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $shouldRefresh = ($result && $result['update_count'] > 0);
     }
+    
+    // Oppdater sist sjekket tidspunkt
+    $_SESSION['last_polling_check'] = $now;
     
     echo json_encode([
         'success' => true,
