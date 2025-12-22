@@ -13,32 +13,44 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     
-    // Hent sist sjekket tidspunkt fra session
     $lastCheck = $_SESSION['last_polling_check'] ?? null;
     $now = date('Y-m-d H:i:s');
     
-    // Sjekk om det finnes polling-oppdateringer med nye items siden sist sjekk
+    $updates = [];
     $shouldRefresh = false;
     
     if ($lastCheck) {
         $stmt = $db->prepare("
-            SELECT COUNT(*) as update_count 
+            SELECT module_source, action_type, items_processed_last_poll, metadata
             FROM tenant_polling_tracker 
             WHERE company_id = ? 
               AND updated_at > ? 
               AND items_processed_last_poll > 0
+            ORDER BY updated_at DESC
         ");
         $stmt->execute([$companyId, $lastCheck]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $shouldRefresh = ($result && $result['update_count'] > 0);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        if (count($rows) > 0) {
+            $shouldRefresh = true;
+            
+            foreach ($rows as $row) {
+                $updates[] = [
+                    'module' => $row['module_source'],
+                    'action' => $row['action_type'],
+                    'count' => (int)$row['items_processed_last_poll'],
+                    'metadata' => $row['metadata'] ? json_decode($row['metadata'], true) : null
+                ];
+            }
+        }
     }
     
-    // Oppdater sist sjekket tidspunkt
     $_SESSION['last_polling_check'] = $now;
     
     echo json_encode([
         'success' => true,
-        'refresh' => $shouldRefresh
+        'refresh' => $shouldRefresh,
+        'updates' => $updates
     ]);
     
 } catch (Exception $e) {

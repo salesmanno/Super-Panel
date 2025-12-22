@@ -1784,14 +1784,52 @@ try {
         // Auto-refresh polling system
         const POLLING_INTERVAL = 30000; // 30 sekunder
         
+        const moduleNames = {
+            'reservations': 'Reservasjoner',
+            'events': 'Arrangementer',
+            'sales': 'Salg',
+            'membership': 'Medlemskap',
+            'rental': 'Utleie'
+        };
+        
+        const actionNames = {
+            'new_booking': 'Ny booking',
+            'payment_received': 'Betaling mottatt',
+            'cancellation': 'Kansellering',
+            'new_reservation': 'Ny reservasjon',
+            'ticket_purchase': 'Nytt billettkjøp',
+            'new_member': 'Nytt medlem',
+            'rental_booking': 'Ny utleiebooking'
+        };
+        
+        function buildToastMessage(updates) {
+            const messages = updates.map(u => {
+                const module = moduleNames[u.module] || u.module;
+                const action = actionNames[u.action] || u.action || 'Oppdatering';
+                const count = u.count > 1 ? ` (${u.count} stk)` : '';
+                return `${action}${count} i ${module}`;
+            });
+            return messages.join('<br>');
+        }
+        
         async function checkRefreshFlag() {
             try {
                 const response = await fetch('/api/check_refresh_flag.php');
                 const result = await response.json();
                 
                 if (result.success && result.refresh === true) {
-                    console.log('Refresh flag detected - reloading page content');
-                    location.reload();
+                    console.log('Refresh flag detected - showing toast and reloading');
+                    
+                    if (result.updates && result.updates.length > 0) {
+                        const message = buildToastMessage(result.updates);
+                        showToast(message, 'info');
+                        
+                        setTimeout(() => {
+                            location.reload();
+                        }, 2000);
+                    } else {
+                        location.reload();
+                    }
                 }
             } catch (error) {
                 console.error('Polling error:', error);
