@@ -999,6 +999,10 @@ try {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Tab/subtab persistens - globale konstanter
+        const STORAGE_KEY_TAB = 'salesman_active_tab';
+        const STORAGE_KEY_SUBTAB = 'salesman_active_subtab';
+        
         // Preload helper - use cached data from login transition if available
         const preloadCache = (function() {
             const stored = sessionStorage.getItem('dashboardPreload');
@@ -1246,11 +1250,22 @@ try {
                     link.classList.remove('active');
                 });
                 
-                const firstSubtabLink = moduleSubtabs.querySelector('.nav-link');
-                if (firstSubtabLink) {
-                    // Legg til .active på første subtab
-                    firstSubtabLink.classList.add('active');
-                    const targetId = firstSubtabLink.getAttribute('href').substring(1);
+                // Sjekk om det finnes en lagret subtab for denne modulen
+                const savedSubtab = localStorage.getItem(STORAGE_KEY_SUBTAB + '_' + moduleSlug);
+                
+                let targetLink = null;
+                if (savedSubtab) {
+                    targetLink = moduleSubtabs.querySelector(`.nav-link[href="#${savedSubtab}"]`);
+                }
+                
+                // Fallback til første subtab hvis lagret ikke finnes
+                if (!targetLink) {
+                    targetLink = moduleSubtabs.querySelector('.nav-link');
+                }
+                
+                if (targetLink) {
+                    targetLink.classList.add('active');
+                    const targetId = targetLink.getAttribute('href').substring(1);
                     showSubTabContent(moduleSlug, targetId);
                 }
             } else {
@@ -1351,12 +1366,18 @@ try {
         });
         
         document.addEventListener('DOMContentLoaded', function() {
-            // Lytt til Bootstrap's tab shown event
+            // Hent lagrede verdier
+            const savedTab = localStorage.getItem(STORAGE_KEY_TAB);
+            
+            // FØRST: Registrer event listeners
             document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function(tabButton) {
                 tabButton.addEventListener('shown.bs.tab', function(event) {
                     const targetId = event.target.getAttribute('data-bs-target');
                     const moduleSlug = targetId.replace('#content-', '');
                     showSubTabs(moduleSlug);
+                    
+                    // Lagre aktiv fane
+                    localStorage.setItem(STORAGE_KEY_TAB, moduleSlug);
                 });
             });
             
@@ -1372,15 +1393,26 @@ try {
                     this.classList.add('active');
                     
                     showSubTabContent(moduleSlug, targetId);
+                    
+                    // Lagre aktiv subtab for denne modulen
+                    localStorage.setItem(STORAGE_KEY_SUBTAB + '_' + moduleSlug, targetId);
                 });
             });
             
-            // Initialiser første modul
-            <?php if (!empty($officialModules)): ?>
-                showSubTabs('<?= $officialModules[0]['module_key'] ?? '' ?>');
-            <?php elseif (!empty($userModules)): ?>
-                showSubTabs('<?= $userModules[0]['module_key'] ?? '' ?>');
-            <?php endif; ?>
+            // DERETTER: Gjenopprett lagret fane (listeners er nå registrert)
+            if (savedTab) {
+                const tabButton = document.getElementById('tab-' + savedTab);
+                if (tabButton) {
+                    const bsTab = new bootstrap.Tab(tabButton);
+                    bsTab.show();
+                }
+            } else {
+                // Ingen lagret fane - initialiser første modul
+                const initialModule = '<?= $officialModules[0]['module_key'] ?? ($userModules[0]['module_key'] ?? '') ?>';
+                if (initialModule) {
+                    showSubTabs(initialModule);
+                }
+            }
         });
         
         // Module administration functions
@@ -1748,6 +1780,26 @@ try {
         } else {
             loadProductsSummary();
         }
+        
+        // Auto-refresh polling system
+        const POLLING_INTERVAL = 30000; // 30 sekunder
+        
+        async function checkRefreshFlag() {
+            try {
+                const response = await fetch('/api/check_refresh_flag.php');
+                const result = await response.json();
+                
+                if (result.success && result.refresh === true) {
+                    console.log('Refresh flag detected - reloading page content');
+                    location.reload();
+                }
+            } catch (error) {
+                console.error('Polling error:', error);
+            }
+        }
+        
+        // Start polling
+        setInterval(checkRefreshFlag, POLLING_INTERVAL);
     </script>
     
     <?php include __DIR__ . '/../includes/toast_notification.php'; ?>
