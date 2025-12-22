@@ -1785,11 +1785,13 @@ try {
         const POLLING_INTERVAL = 30000; // 30 sekunder
         
         const moduleNames = {
-            'reservations': 'Reservasjoner',
-            'events': 'Arrangementer',
+            'reservations': 'Reservation',
+            'events': 'Arrangement',
             'sales': 'Salg',
             'membership': 'Medlemskap',
-            'rental': 'Utleie'
+            'rental': 'Utleie',
+            'economy': 'Økonomi',
+            'webmail': 'Webmail'
         };
         
         const actionNames = {
