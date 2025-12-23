@@ -129,6 +129,139 @@
     margin-bottom: 1rem;
     opacity: 0.5;
 }
+
+.booking-carousel-container {
+    display: flex;
+    justify-content: center;
+    padding: 2rem 1rem;
+    min-height: 400px;
+}
+.booking-carousel-card {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    padding: 1.5rem;
+    color: white;
+    box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4);
+    touch-action: pan-y;
+    user-select: none;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+}
+.booking-carousel-card.swiping-left {
+    transform: translateX(-10px);
+}
+.booking-carousel-card.swiping-right {
+    transform: translateX(10px);
+}
+.booking-carousel-card.swiping-down {
+    transform: translateY(10px);
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+.booking-carousel-card.swiping-up {
+    transform: translateY(-10px);
+}
+.carousel-index-indicator {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    font-size: 0.75rem;
+    opacity: 0.8;
+    background: rgba(255,255,255,0.2);
+    padding: 0.25rem 0.5rem;
+    border-radius: 10px;
+}
+.carousel-countdown {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: rgba(255,255,255,0.15);
+    border-radius: 12px;
+    cursor: pointer;
+}
+.countdown-label {
+    font-size: 0.85rem;
+    opacity: 0.9;
+    margin-bottom: 0.25rem;
+}
+.countdown-time {
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+.carousel-booking-info {
+    padding: 0.5rem 0;
+}
+.booking-service {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+.booking-customer, .booking-staff, .booking-datetime {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin-bottom: 0.35rem;
+}
+.booking-price {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0.5rem 0;
+}
+.booking-payment .badge {
+    font-size: 0.75rem;
+}
+.carousel-edit-panel {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    color: #333;
+    border-radius: 20px 20px 0 0;
+    padding: 1rem 1.5rem 1.5rem;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    max-height: 70%;
+    overflow-y: auto;
+}
+.carousel-edit-panel.show {
+    transform: translateY(0);
+}
+.edit-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+.carousel-swipe-hints {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 0.5rem;
+    pointer-events: none;
+    opacity: 0.3;
+    transform: translateY(-50%);
+}
+.swipe-hint {
+    font-size: 1.5rem;
+}
+.carousel-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+}
+.carousel-empty i {
+    font-size: 4rem;
+    opacity: 0.5;
+    margin-bottom: 1rem;
+    display: block;
+}
 </style>
 
 <div class="module-content">
@@ -264,54 +397,124 @@
 </div>
 
 <div id="reservations-schedule" class="subtab-content" style="display: none;">
-    <div class="card">
-        <div class="card-header bg-primary text-white" id="next-booking-schedule-banner" style="display: none;">
-            <div class="d-flex align-items-center">
-                <i class="bi bi-clock-history me-2"></i>
-                <span id="next-booking-schedule-content">Laster...</span>
+    <div class="booking-carousel-container">
+        <div class="booking-carousel-card" id="booking-carousel">
+            <div class="carousel-index-indicator">
+                <span id="carousel-current">1</span> / <span id="carousel-total">0</span>
             </div>
-        </div>
-        <div class="card-header bg-white">
-            <div class="row align-items-center g-2">
-                <div class="col-md-3">
-                    <input type="date" class="form-control form-control-sm" id="schedule-date" onchange="loadSchedule()">
+            
+            <div class="carousel-main-content" id="carousel-main">
+                <div class="carousel-countdown" id="carousel-countdown">
+                    <div class="countdown-label">Neste time om</div>
+                    <div class="countdown-time" id="countdown-display">--:--</div>
                 </div>
-                <div class="col-md-3">
-                    <select class="form-select form-select-sm" id="schedule-staff-filter" onchange="loadSchedule()">
-                        <option value="">Alle ansatte</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <select class="form-select form-select-sm" id="schedule-service-filter" onchange="loadSchedule()">
-                        <option value="">Alle tjenester</option>
-                    </select>
-                </div>
-                <div class="col-md-3 text-end">
-                    <strong id="schedule-date-title">I dag</strong>
-                    <span class="badge bg-primary ms-2" id="schedule-booking-count">0</span>
+                
+                <div class="carousel-booking-info" id="carousel-info">
+                    <div class="booking-service" id="carousel-service">Laster...</div>
+                    <div class="booking-customer" id="carousel-customer"></div>
+                    <div class="booking-staff" id="carousel-staff"></div>
+                    <div class="booking-price" id="carousel-price"></div>
+                    <div class="booking-datetime" id="carousel-datetime"></div>
+                    <div class="booking-payment" id="carousel-payment"></div>
                 </div>
             </div>
+            
+            <div class="carousel-edit-panel" id="carousel-edit-panel" style="display: none;">
+                <div class="edit-panel-header">
+                    <strong>Flytt time</strong>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="closeEditPanel()">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <div class="edit-panel-content">
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Tjeneste</label>
+                        <div id="edit-service-name" class="fw-semibold"></div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Kunde</label>
+                        <div id="edit-customer-name"></div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Pris</label>
+                        <div id="edit-price"></div>
+                    </div>
+                    <hr class="my-2">
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Behandler</label>
+                        <select class="form-select form-select-sm" id="edit-staff-select">
+                            <option value="">Laster...</option>
+                        </select>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <label class="form-label small mb-1">Ny dato</label>
+                            <input type="date" class="form-control form-control-sm" id="edit-new-date">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small mb-1">Ny tid</label>
+                            <select class="form-select form-select-sm" id="edit-new-time">
+                                <option value="08:00">08:00</option>
+                                <option value="08:30">08:30</option>
+                                <option value="09:00">09:00</option>
+                                <option value="09:30">09:30</option>
+                                <option value="10:00">10:00</option>
+                                <option value="10:30">10:30</option>
+                                <option value="11:00">11:00</option>
+                                <option value="11:30">11:30</option>
+                                <option value="12:00">12:00</option>
+                                <option value="12:30">12:30</option>
+                                <option value="13:00">13:00</option>
+                                <option value="13:30">13:30</option>
+                                <option value="14:00">14:00</option>
+                                <option value="14:30">14:30</option>
+                                <option value="15:00">15:00</option>
+                                <option value="15:30">15:30</option>
+                                <option value="16:00">16:00</option>
+                                <option value="16:30">16:30</option>
+                                <option value="17:00">17:00</option>
+                                <option value="17:30">17:30</option>
+                                <option value="18:00">18:00</option>
+                                <option value="18:30">18:30</option>
+                                <option value="19:00">19:00</option>
+                                <option value="19:30">19:30</option>
+                                <option value="20:00">20:00</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm w-100" onclick="saveReschedule()">
+                        <i class="bi bi-check-lg me-1"></i>Lagre endringer
+                    </button>
+                </div>
+            </div>
+            
+            <div class="carousel-swipe-hints">
+                <div class="swipe-hint left"><i class="bi bi-chevron-left"></i></div>
+                <div class="swipe-hint right"><i class="bi bi-chevron-right"></i></div>
+            </div>
+            
+            <div class="carousel-empty" id="carousel-empty" style="display: none;">
+                <i class="bi bi-calendar-x"></i>
+                <p>Ingen kommende bookinger</p>
+            </div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-hover table-sm mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th style="width:70px;">Tid</th>
-                        <th>Kunde</th>
-                        <th>Tjeneste</th>
-                        <th>Ansatt</th>
-                        <th>Status</th>
-                        <th style="width:90px;">Kontakt</th>
-                    </tr>
-                </thead>
-                <tbody id="schedule-customers-table">
-                    <tr>
-                        <td colspan="6" class="text-center text-muted py-4">
-                            Ingen bookinger for valgt dato
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+    </div>
+    
+    <div class="modal fade" id="cancelConfirmModal" tabindex="-1">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h6 class="modal-title">Avbestill time?</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <p id="cancel-confirm-text">Er du sikker på at du vil avbestille denne timen?</p>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Nei</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmCancelBooking()">Ja, avbestill</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -1218,4 +1421,351 @@ function renderScheduleTable(bookings) {
         `;
     }).join('');
 }
+
+let carouselBookings = [];
+let carouselIndex = 0;
+let carouselTouchStart = { x: 0, y: 0 };
+let carouselTouchEnd = { x: 0, y: 0 };
+let countdownInterval = null;
+const SWIPE_THRESHOLD = 50;
+const ORTHOGONAL_THRESHOLD = 15;
+
+async function loadCarouselBookings() {
+    try {
+        const response = await fetch('/api/services/get_upcoming_bookings.php');
+        const result = await response.json();
+        
+        if (result.success && result.bookings.length > 0) {
+            carouselBookings = result.bookings;
+            carouselIndex = 0;
+            document.getElementById('carousel-total').textContent = carouselBookings.length;
+            document.getElementById('carousel-main').style.display = 'block';
+            document.getElementById('carousel-empty').style.display = 'none';
+            renderCurrentBooking();
+            startCountdown();
+        } else {
+            carouselBookings = [];
+            document.getElementById('carousel-main').style.display = 'none';
+            document.getElementById('carousel-empty').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error loading carousel bookings:', error);
+    }
+}
+
+function renderCurrentBooking() {
+    if (carouselBookings.length === 0) return;
+    
+    const b = carouselBookings[carouselIndex];
+    document.getElementById('carousel-current').textContent = carouselIndex + 1;
+    document.getElementById('carousel-service').textContent = b.service_name || 'Ukjent tjeneste';
+    document.getElementById('carousel-customer').innerHTML = `<i class="bi bi-person me-1"></i>${b.customer_last_name || ''}, ${b.customer_first_name || ''}`;
+    document.getElementById('carousel-staff').innerHTML = `<i class="bi bi-scissors me-1"></i>${b.staff_name || 'Ikke tildelt'}`;
+    document.getElementById('carousel-price').textContent = b.price ? `${parseFloat(b.price).toFixed(0)} kr` : '0 kr';
+    
+    const dateFormatted = new Date(b.booking_date).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' });
+    const timeFormatted = b.start_time?.substring(0, 5) || '--:--';
+    document.getElementById('carousel-datetime').innerHTML = `<i class="bi bi-calendar me-1"></i>${dateFormatted} kl ${timeFormatted}`;
+    
+    const paymentBadge = b.is_paid ? 
+        '<span class="badge bg-success">Betalt</span>' : 
+        '<span class="badge bg-warning text-dark">Skal betale</span>';
+    document.getElementById('carousel-payment').innerHTML = paymentBadge;
+    
+    updateCountdownDisplay();
+}
+
+function updateCountdownDisplay() {
+    if (carouselBookings.length === 0) return;
+    
+    const b = carouselBookings[carouselIndex];
+    
+    if (!b.booking_date || !b.start_time) {
+        document.getElementById('countdown-display').textContent = '--:--';
+        return;
+    }
+    
+    const dateTimeStr = b.booking_date + 'T' + b.start_time;
+    const bookingDateTime = new Date(dateTimeStr);
+    
+    if (isNaN(bookingDateTime.getTime())) {
+        document.getElementById('countdown-display').textContent = '--:--';
+        return;
+    }
+    
+    const now = new Date();
+    const diff = bookingDateTime - now;
+    
+    if (diff <= 0) {
+        document.getElementById('countdown-display').textContent = 'Nå';
+        return;
+    }
+    
+    const totalMinutes = Math.floor(diff / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    
+    if (hours > 0) {
+        document.getElementById('countdown-display').textContent = `${hours}t ${minutes}m`;
+    } else {
+        document.getElementById('countdown-display').textContent = `${minutes} min`;
+    }
+}
+
+function startCountdown() {
+    if (countdownInterval) clearInterval(countdownInterval);
+    countdownInterval = setInterval(updateCountdownDisplay, 30000);
+}
+
+function initCarouselSwipe() {
+    const card = document.getElementById('booking-carousel');
+    if (!card) return;
+    
+    card.addEventListener('touchstart', handleTouchStart, { passive: true });
+    card.addEventListener('touchmove', handleTouchMove, { passive: true });
+    card.addEventListener('touchend', handleTouchEnd);
+    
+    card.addEventListener('mousedown', handleMouseDown);
+    card.addEventListener('mousemove', handleMouseMove);
+    card.addEventListener('mouseup', handleMouseUp);
+    card.addEventListener('mouseleave', handleMouseUp);
+}
+
+function handleTouchStart(e) {
+    carouselTouchStart.x = e.touches[0].clientX;
+    carouselTouchStart.y = e.touches[0].clientY;
+}
+
+function handleTouchMove(e) {
+    carouselTouchEnd.x = e.touches[0].clientX;
+    carouselTouchEnd.y = e.touches[0].clientY;
+    
+    const dx = carouselTouchEnd.x - carouselTouchStart.x;
+    const dy = carouselTouchEnd.y - carouselTouchStart.y;
+    
+    updateSwipeVisual(dx, dy);
+}
+
+function handleTouchEnd(e) {
+    processSwipe();
+    resetSwipeVisual();
+}
+
+let isMouseDown = false;
+function handleMouseDown(e) {
+    isMouseDown = true;
+    carouselTouchStart.x = e.clientX;
+    carouselTouchStart.y = e.clientY;
+}
+
+function handleMouseMove(e) {
+    if (!isMouseDown) return;
+    carouselTouchEnd.x = e.clientX;
+    carouselTouchEnd.y = e.clientY;
+    
+    const dx = carouselTouchEnd.x - carouselTouchStart.x;
+    const dy = carouselTouchEnd.y - carouselTouchStart.y;
+    
+    updateSwipeVisual(dx, dy);
+}
+
+function handleMouseUp(e) {
+    if (!isMouseDown) return;
+    isMouseDown = false;
+    processSwipe();
+    resetSwipeVisual();
+}
+
+function updateSwipeVisual(dx, dy) {
+    const card = document.getElementById('booking-carousel');
+    card.classList.remove('swiping-left', 'swiping-right', 'swiping-up', 'swiping-down');
+    
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+    
+    if (absDx > SWIPE_THRESHOLD && absDy < ORTHOGONAL_THRESHOLD) {
+        card.classList.add(dx < 0 ? 'swiping-left' : 'swiping-right');
+    } else if (absDy > SWIPE_THRESHOLD && absDx < ORTHOGONAL_THRESHOLD) {
+        card.classList.add(dy < 0 ? 'swiping-up' : 'swiping-down');
+    }
+}
+
+function resetSwipeVisual() {
+    const card = document.getElementById('booking-carousel');
+    card.classList.remove('swiping-left', 'swiping-right', 'swiping-up', 'swiping-down');
+}
+
+function processSwipe() {
+    const dx = carouselTouchEnd.x - carouselTouchStart.x;
+    const dy = carouselTouchEnd.y - carouselTouchStart.y;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+    
+    if (absDx > SWIPE_THRESHOLD && absDy < ORTHOGONAL_THRESHOLD) {
+        if (dx < 0) {
+            navigateCarousel(1);
+        } else {
+            navigateCarousel(-1);
+        }
+    } else if (absDy > SWIPE_THRESHOLD && absDx < ORTHOGONAL_THRESHOLD) {
+        if (dy > 0) {
+            showCancelConfirm();
+        } else {
+            openEditPanel();
+        }
+    }
+    
+    carouselTouchStart = { x: 0, y: 0 };
+    carouselTouchEnd = { x: 0, y: 0 };
+}
+
+function navigateCarousel(direction) {
+    if (carouselBookings.length === 0) return;
+    
+    carouselIndex += direction;
+    
+    if (carouselIndex >= carouselBookings.length) {
+        carouselIndex = 0;
+    } else if (carouselIndex < 0) {
+        carouselIndex = carouselBookings.length - 1;
+    }
+    
+    renderCurrentBooking();
+}
+
+function showCancelConfirm() {
+    if (carouselBookings.length === 0) return;
+    
+    const b = carouselBookings[carouselIndex];
+    const text = `Avbestille time for ${b.customer_first_name} ${b.customer_last_name}?`;
+    document.getElementById('cancel-confirm-text').textContent = text;
+    
+    new bootstrap.Modal(document.getElementById('cancelConfirmModal')).show();
+}
+
+async function confirmCancelBooking() {
+    if (carouselBookings.length === 0) return;
+    
+    const b = carouselBookings[carouselIndex];
+    
+    try {
+        const response = await fetch('/api/services/cancel_booking.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ booking_id: b.id })
+        });
+        
+        const result = await response.json();
+        
+        bootstrap.Modal.getInstance(document.getElementById('cancelConfirmModal')).hide();
+        
+        if (result.success) {
+            showToast('Booking avbestilt', 'success');
+            await loadCarouselBookings();
+        } else {
+            showToast('Feil: ' + result.message, 'danger');
+        }
+    } catch (error) {
+        console.error('Error cancelling booking:', error);
+        showToast('Feil ved avbestilling', 'danger');
+    }
+}
+
+async function openEditPanel() {
+    if (carouselBookings.length === 0) return;
+    
+    const b = carouselBookings[carouselIndex];
+    const panel = document.getElementById('carousel-edit-panel');
+    
+    document.getElementById('edit-service-name').textContent = b.service_name || 'Ukjent';
+    document.getElementById('edit-customer-name').textContent = `${b.customer_first_name || ''} ${b.customer_last_name || ''}`;
+    document.getElementById('edit-price').textContent = b.price ? `${parseFloat(b.price).toFixed(0)} kr` : '0 kr';
+    
+    document.getElementById('edit-new-date').value = b.booking_date;
+    
+    const timeSelect = document.getElementById('edit-new-time');
+    const currentTime = b.start_time?.substring(0, 5) || '09:00';
+    for (let option of timeSelect.options) {
+        if (option.value === currentTime) {
+            option.selected = true;
+            break;
+        }
+    }
+    
+    try {
+        const response = await fetch(`/api/services/get_staff_for_service.php?service_id=${b.service_id}`);
+        const result = await response.json();
+        
+        const staffSelect = document.getElementById('edit-staff-select');
+        staffSelect.innerHTML = '';
+        
+        if (result.success && result.staff.length > 0) {
+            result.staff.forEach(s => {
+                const option = document.createElement('option');
+                option.value = s.id;
+                option.textContent = s.name + (s.is_primary ? ' (primær)' : '');
+                if (s.id === b.staff_id) option.selected = true;
+                staffSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading staff:', error);
+    }
+    
+    panel.style.display = 'block';
+    setTimeout(() => panel.classList.add('show'), 10);
+}
+
+function closeEditPanel() {
+    const panel = document.getElementById('carousel-edit-panel');
+    panel.classList.remove('show');
+    setTimeout(() => panel.style.display = 'none', 300);
+}
+
+async function saveReschedule() {
+    if (carouselBookings.length === 0) return;
+    
+    const b = carouselBookings[carouselIndex];
+    const newDate = document.getElementById('edit-new-date').value;
+    const newTime = document.getElementById('edit-new-time').value;
+    const newStaffId = document.getElementById('edit-staff-select').value;
+    
+    try {
+        const response = await fetch('/api/services/reschedule_booking.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                booking_id: b.id,
+                new_date: newDate,
+                new_time: newTime,
+                new_staff_id: newStaffId || null
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast(result.message, 'success');
+            closeEditPanel();
+            await loadCarouselBookings();
+        } else {
+            showToast('Feil: ' + result.message, 'danger');
+        }
+    } catch (error) {
+        console.error('Error rescheduling:', error);
+        showToast('Feil ved flytting av time', 'danger');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const scheduleTab = document.querySelector('[href="#reservations-schedule"]');
+    if (scheduleTab) {
+        scheduleTab.addEventListener('click', function() {
+            setTimeout(() => {
+                loadCarouselBookings();
+                initCarouselSwipe();
+            }, 100);
+        });
+    }
+});
 </script>
