@@ -1099,8 +1099,11 @@ try {
                         <!-- Not Checked In Tab -->
                         <div class="tab-pane fade" id="checkin-pending-tab" role="tabpanel">
                             <div class="card checkin-list-card">
-                                <div class="card-header bg-warning text-white">
-                                    <i class="bi bi-clock-fill me-2"></i>Venter på innsjekking
+                                <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-clock-fill me-2"></i>Venter på innsjekking</span>
+                                    <button id="create-group-btn" class="btn btn-sm btn-light" style="display: none;" onclick="openGroupCheckoutModal()">
+                                        <i class="bi bi-people-fill me-1"></i>Gruppesjekk <span class="badge bg-warning text-dark">0</span>
+                                    </button>
                                 </div>
                                 <div class="card-body p-0">
                                     <div class="table-responsive" id="checkin-pending-container">
@@ -2354,9 +2357,87 @@ document.addEventListener('DOMContentLoaded', formatAddressFields);
 // ========== CHECK-IN FUNCTIONALITY ==========
 
 let selectedEventId = null;
+let availablePaymentMethods = [];
+let selectedForGroup = new Set();
+
+// Load available payment methods from economy configuration
+async function loadPaymentMethods() {
+    try {
+        const response = await fetch('/api/get_payment_methods.php');
+        const result = await response.json();
+        if (result.success) {
+            availablePaymentMethods = result.payment_methods || [];
+        }
+    } catch (error) {
+        console.error('Error loading payment methods:', error);
+        availablePaymentMethods = [{ method_type: 'cash', method_name: 'Kontant', config: { icon: 'cash-stack' } }];
+    }
+}
+
+// Generate payment method buttons HTML
+function getPaymentButtonsHtml(checkinId, customerName, ticketPrice, isPaid) {
+    if (isPaid) {
+        return `<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Allerede betalt</span>
+                <button class="btn btn-sm btn-outline-success ms-2" onclick="performCheckinPrepaid('${checkinId}')" title="Sjekk inn (allerede betalt)">
+                    <i class="bi bi-check-circle"></i> Sjekk inn
+                </button>`;
+    }
+    
+    const escapedName = customerName.replace(/'/g, "\\'");
+    let buttons = '<div class="btn-group" role="group">';
+    
+    availablePaymentMethods.forEach(pm => {
+        const icon = pm.config?.icon || 'wallet2';
+        const name = pm.method_name || pm.method_type;
+        let btnClass = 'btn-outline-secondary';
+        
+        if (pm.method_type === 'vipps') btnClass = 'btn-outline-warning';
+        else if (pm.method_type === 'cash') btnClass = 'btn-outline-success';
+        else if (pm.method_type === 'stripe') btnClass = 'btn-outline-primary';
+        
+        buttons += `<button class="btn btn-sm ${btnClass}" onclick="performCheckinWithMethod('${checkinId}', '${pm.method_type}')" title="${name}">
+            <i class="bi bi-${icon}"></i>
+        </button>`;
+    });
+    
+    buttons += `</div>
+        <button class="btn btn-sm btn-outline-dark ms-1" onclick="markNoShow('${checkinId}', '${escapedName}')" title="No-show">
+            <i class="bi bi-x-circle"></i>
+        </button>`;
+    
+    return buttons;
+}
+
+// Toggle selection for group checkout
+function toggleGroupSelection(checkinId, isPaid) {
+    if (isPaid) return; // Don't allow selecting already paid guests
+    
+    if (selectedForGroup.has(checkinId)) {
+        selectedForGroup.delete(checkinId);
+    } else {
+        selectedForGroup.add(checkinId);
+    }
+    updateGroupSelectionUI();
+}
+
+// Update UI to show group selection state
+function updateGroupSelectionUI() {
+    document.querySelectorAll('.group-select-checkbox').forEach(cb => {
+        cb.checked = selectedForGroup.has(cb.dataset.checkinId);
+    });
+    
+    const groupBtn = document.getElementById('create-group-btn');
+    if (groupBtn) {
+        groupBtn.style.display = selectedForGroup.size >= 2 ? 'inline-flex' : 'none';
+        groupBtn.querySelector('.badge').textContent = selectedForGroup.size;
+    }
+}
 
 // Load events into check-in selector as cards
 async function loadCheckinEventSelector() {
+    // Also load payment methods when entering check-in section
+    await loadPaymentMethods();
+    
     const cardsContainer = document.getElementById('checkin-event-cards');
     
     try {
@@ -2924,6 +3005,9 @@ async function loadCheckins(eventId) {
             const pendingList = document.getElementById('checkin-pending-list');
             const pendingTabCount = document.querySelector('#checkin-tabs .nav-link:nth-child(2) .badge');
             
+            // Store checkins for group selection
+            window.pendingCheckins = result.not_checked_in || [];
+            
             if (result.not_checked_in && result.not_checked_in.length > 0) {
                 if (pendingTabCount) pendingTabCount.textContent = result.not_checked_in.length;
                 pendingList.innerHTML = result.not_checked_in.map(checkin => {
@@ -2943,25 +3027,32 @@ async function loadCheckins(eventId) {
                         ? '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Betalt</span>'
                         : '<span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Ikke betalt</span>';
                     
+                    // Dynamic payment buttons
+                    const paymentButtons = getPaymentButtonsHtml(checkin.id, customerName, checkin.ticket_price, isPaid);
+                    
+                    // Group selection checkbox (only for unpaid)
+                    const groupCheckbox = isPaid ? '' : `
+                        <input type="checkbox" class="form-check-input group-select-checkbox me-2" 
+                               data-checkin-id="${checkin.id}" data-price="${checkin.ticket_price}"
+                               data-name="${customerName.replace(/"/g, '&quot;')}"
+                               onchange="toggleGroupSelection('${checkin.id}', ${isPaid})"
+                               ${selectedForGroup.has(checkin.id) ? 'checked' : ''}>`;
+                    
                     return `
                         <tr>
                             <td>
-                                <div class="attendee-name">${customerName}</div>
-                                ${customerEmail ? `<div class="attendee-email">${customerEmail}</div>` : ''}
+                                <div class="d-flex align-items-center">
+                                    ${groupCheckbox}
+                                    <div>
+                                        <div class="attendee-name">${customerName}</div>
+                                        ${customerEmail ? `<div class="attendee-email">${customerEmail}</div>` : ''}
+                                    </div>
+                                </div>
                             </td>
                             <td>${typeBadge}</td>
                             <td><span class="price-display">${checkin.ticket_price} kr</span></td>
                             <td>${paymentStatusBadge}</td>
-                            <td>
-                                <div class="d-flex gap-2">
-                                    <button class="btn btn-success checkin-action-btn" onclick="performCheckin('${checkin.id}')" title="Sjekk inn med betaling">
-                                        <i class="bi bi-check-circle me-1"></i>Sjekk inn
-                                    </button>
-                                    <button class="btn btn-outline-secondary checkin-action-btn" onclick="markNoShow('${checkin.id}', '${customerName.replace(/'/g, "\\'")}')" title="Marker som no-show">
-                                        <i class="bi bi-x-circle"></i>
-                                    </button>
-                                </div>
-                            </td>
+                            <td>${paymentButtons}</td>
                         </tr>
                     `;
                 }).join('');
@@ -3006,6 +3097,65 @@ async function performCheckin(checkinId, skipPayment = false) {
             loadCheckins(selectedEventId);
             document.getElementById('checkin-barcode-search').value = '';
             document.getElementById('checkin-barcode-search').focus();
+        } else {
+            toast.quickError('Feil', result.message || 'Kunne ikke sjekke inn');
+        }
+    } catch (error) {
+        console.error('Error performing check-in:', error);
+        toast.quickError('Feil', 'Kunne ikke sjekke inn');
+    }
+}
+
+// Perform check-in for already-paid guests (preserves original payment method)
+async function performCheckinPrepaid(checkinId) {
+    try {
+        const response = await fetch('/api/perform_checkin.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                checkin_id: checkinId,
+                skip_payment: true,
+                preserve_payment_method: true
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            toast.quickSuccess('Innsjekking', `${result.customer_name} sjekket inn!`);
+            loadCheckins(selectedEventId);
+            selectedForGroup.clear();
+            updateGroupSelectionUI();
+        } else {
+            toast.quickError('Feil', result.message || 'Kunne ikke sjekke inn');
+        }
+    } catch (error) {
+        console.error('Error performing check-in:', error);
+        toast.quickError('Feil', 'Kunne ikke sjekke inn');
+    }
+}
+
+// Perform check-in with specific payment method
+async function performCheckinWithMethod(checkinId, paymentMethod) {
+    try {
+        const response = await fetch('/api/perform_checkin.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                checkin_id: checkinId,
+                payment_method: paymentMethod,
+                skip_payment: paymentMethod === 'free'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            const methodName = paymentMethod === 'free' ? '' : ` (${paymentMethod})`;
+            toast.quickSuccess('Innsjekking', `${result.customer_name} sjekket inn${methodName}!`);
+            loadCheckins(selectedEventId);
+            selectedForGroup.clear();
+            updateGroupSelectionUI();
         } else {
             toast.quickError('Feil', result.message || 'Kunne ikke sjekke inn');
         }
@@ -4996,7 +5146,7 @@ async function syncCheckinToFullscreen() {
                 checkedList.innerHTML = '<tr><td colspan="5"><div class="checkin-empty-state"><i class="bi bi-inbox"></i><p class="mb-0">Ingen ankommet ennå</p></div></td></tr>';
             }
             
-            // Render pending list
+            // Render pending list with dynamic payment buttons
             const pendingList = document.getElementById('fullscreen-pending-list');
             if (result.not_checked_in && result.not_checked_in.length > 0) {
                 pendingList.innerHTML = result.not_checked_in.map(c => {
@@ -5009,17 +5159,15 @@ async function syncCheckinToFullscreen() {
                         : '<span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Ikke betalt</span>';
                     const escapedName = (c.customer_name || 'Ukjent').replace(/'/g, "\\'");
                     
+                    // Dynamic payment buttons for fullscreen
+                    const paymentButtons = getFullscreenPaymentButtons(c.id, c.customer_name || 'Ukjent', isPaid);
+                    
                     return `<tr>
                         <td><div class="attendee-name">${c.customer_name || 'Ukjent'}</div>${c.customer_email ? `<div class="attendee-email">${c.customer_email}</div>` : ''}</td>
                         <td>${typeBadge}</td>
                         <td>${c.ticket_price} kr</td>
                         <td>${paymentStatusBadge}</td>
-                        <td>
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-success btn-sm" onclick="performFullscreenCheckin('${c.id}')"><i class="bi bi-check-circle me-1"></i>Sjekk inn</button>
-                                <button class="btn btn-outline-secondary btn-sm" onclick="markNoShow('${c.id}', '${escapedName}'); syncCheckinToFullscreen();"><i class="bi bi-x-circle"></i></button>
-                            </div>
-                        </td>
+                        <td>${paymentButtons}</td>
                     </tr>`;
                 }).join('');
             } else {
@@ -5031,7 +5179,65 @@ async function syncCheckinToFullscreen() {
     }
 }
 
-// Perform check-in from fullscreen
+// Generate fullscreen payment buttons
+function getFullscreenPaymentButtons(checkinId, customerName, isPaid) {
+    if (isPaid) {
+        return `<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Betalt</span>
+                <button class="btn btn-sm btn-outline-success ms-2" onclick="performFullscreenCheckinPrepaid('${checkinId}')">
+                    <i class="bi bi-check-circle"></i>
+                </button>`;
+    }
+    
+    const escapedName = customerName.replace(/'/g, "\\'");
+    let buttons = '<div class="btn-group btn-group-sm" role="group">';
+    
+    availablePaymentMethods.forEach(pm => {
+        const icon = pm.config?.icon || 'wallet2';
+        let btnClass = 'btn-outline-secondary';
+        
+        if (pm.method_type === 'vipps') btnClass = 'btn-outline-warning';
+        else if (pm.method_type === 'cash') btnClass = 'btn-outline-success';
+        else if (pm.method_type === 'stripe') btnClass = 'btn-outline-primary';
+        
+        buttons += `<button class="btn ${btnClass}" onclick="performFullscreenCheckinWithMethod('${checkinId}', '${pm.method_type}')" title="${pm.method_name || pm.method_type}">
+            <i class="bi bi-${icon}"></i>
+        </button>`;
+    });
+    
+    buttons += `</div>
+        <button class="btn btn-sm btn-outline-dark ms-1" onclick="markNoShow('${checkinId}', '${escapedName}'); syncCheckinToFullscreen();" title="No-show">
+            <i class="bi bi-x-circle"></i>
+        </button>`;
+    
+    return buttons;
+}
+
+// Perform check-in from fullscreen for prepaid guests
+async function performFullscreenCheckinPrepaid(checkinId) {
+    await performCheckinPrepaid(checkinId);
+    syncCheckinToFullscreen();
+    
+    const input = document.getElementById('fullscreen-barcode-input');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+}
+
+// Perform check-in from fullscreen with specific payment method
+async function performFullscreenCheckinWithMethod(checkinId, paymentMethod) {
+    await performCheckinWithMethod(checkinId, paymentMethod);
+    syncCheckinToFullscreen();
+    
+    // Focus scanner input again
+    const input = document.getElementById('fullscreen-barcode-input');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+}
+
+// Perform check-in from fullscreen (legacy)
 async function performFullscreenCheckin(checkinId) {
     await performCheckin(checkinId);
     syncCheckinToFullscreen();
@@ -5047,4 +5253,130 @@ async function performFullscreenCheckin(checkinId) {
 // Initialize fullscreen on page load
 document.addEventListener('DOMContentLoaded', initFullscreenCheckin);
 
+// ========== GROUP CHECKOUT FUNCTIONALITY ==========
+
+// Open group checkout modal
+function openGroupCheckoutModal() {
+    if (selectedForGroup.size < 2) {
+        toast.quickWarning('Gruppe', 'Velg minst 2 gjester for gruppesjekk');
+        return;
+    }
+    
+    // Get selected guests data
+    const selectedGuests = [];
+    let totalAmount = 0;
+    
+    window.pendingCheckins.forEach(checkin => {
+        if (selectedForGroup.has(checkin.id)) {
+            const isPaid = checkin.payment_status === 'paid';
+            selectedGuests.push({
+                id: checkin.id,
+                name: checkin.customer_name || 'Ukjent',
+                price: parseFloat(checkin.ticket_price) || 0,
+                isPaid: isPaid
+            });
+            // Only add unpaid to total
+            if (!isPaid) {
+                totalAmount += parseFloat(checkin.ticket_price) || 0;
+            }
+        }
+    });
+    
+    // Populate modal
+    const guestList = document.getElementById('group-guest-list');
+    guestList.innerHTML = selectedGuests.map(g => `
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+            <span>${g.name}</span>
+            <span class="${g.isPaid ? 'text-success' : ''}">${g.isPaid ? '<i class="bi bi-check-circle me-1"></i>Betalt' : g.price + ' kr'}</span>
+        </div>
+    `).join('');
+    
+    document.getElementById('group-total-amount').textContent = totalAmount.toFixed(0) + ' kr';
+    document.getElementById('group-guest-count').textContent = selectedGuests.length + ' gjester';
+    
+    // Populate payment method buttons
+    const paymentBtns = document.getElementById('group-payment-buttons');
+    paymentBtns.innerHTML = availablePaymentMethods.map(pm => {
+        const icon = pm.config?.icon || 'wallet2';
+        const name = pm.method_name || pm.method_type;
+        let btnClass = 'btn-outline-secondary';
+        
+        if (pm.method_type === 'vipps') btnClass = 'btn-warning';
+        else if (pm.method_type === 'cash') btnClass = 'btn-success';
+        else if (pm.method_type === 'stripe') btnClass = 'btn-primary';
+        
+        return `<button class="btn ${btnClass} btn-lg flex-fill" onclick="processGroupCheckout('${pm.method_type}')">
+            <i class="bi bi-${icon} me-2"></i>${name}
+        </button>`;
+    }).join('');
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('groupCheckoutModal'));
+    modal.show();
+}
+
+// Process group checkout with selected payment method
+async function processGroupCheckout(paymentMethod) {
+    const checkinIds = Array.from(selectedForGroup);
+    
+    try {
+        // Close modal
+        const modalEl = document.getElementById('groupCheckoutModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        modal.hide();
+        
+        // Create group and process payment
+        const response = await fetch('/api/create_checkin_group.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                event_id: selectedEventId,
+                checkin_ids: checkinIds,
+                payment_method: paymentMethod
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            toast.quickSuccess('Gruppesjekk', `${result.checked_in_count} gjester sjekket inn!`);
+            selectedForGroup.clear();
+            loadCheckins(selectedEventId);
+        } else {
+            toast.quickError('Feil', result.message || 'Kunne ikke fullføre gruppesjekk');
+        }
+    } catch (error) {
+        console.error('Error processing group checkout:', error);
+        toast.quickError('Feil', 'Kunne ikke fullføre gruppesjekk');
+    }
+}
+
 </script>
+
+<!-- Group Checkout Modal -->
+<div class="modal fade" id="groupCheckoutModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-people-fill me-2"></i>Gruppesjekk</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3" id="group-guest-count">0 gjester</p>
+                <div id="group-guest-list" class="mb-4" style="max-height: 200px; overflow-y: auto;">
+                    <!-- Guests will be populated here -->
+                </div>
+                <div class="bg-light rounded p-3 mb-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">Total å betale:</span>
+                        <span class="fs-4 fw-bold text-primary" id="group-total-amount">0 kr</span>
+                    </div>
+                    <small class="text-muted">Allerede betalte gjester er ikke inkludert</small>
+                </div>
+                <div class="d-flex gap-2 flex-wrap" id="group-payment-buttons">
+                    <!-- Payment buttons will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

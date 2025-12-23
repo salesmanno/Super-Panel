@@ -46,6 +46,7 @@ try {
     $isNoShow = isset($data['no_show']) && $data['no_show'] === true;
     $paymentMethod = $data['payment_method'] ?? 'cash';
     $skipPayment = isset($data['skip_payment']) && $data['skip_payment'] === true;
+    $preservePaymentMethod = isset($data['preserve_payment_method']) && $data['preserve_payment_method'] === true;
     
     // Get admin info for audit log
     // Note: tenant_admins doesn't have first_name/last_name - they're in tenant_staff via tenant_staff_id
@@ -134,8 +135,14 @@ try {
             
         } else {
             // Regular check-in with payment
-            $newPaymentStatus = $skipPayment ? 'pending' : 'paid';
-            $newPaymentMethod = $paymentMethod;
+            // If preservePaymentMethod is set and already paid, keep existing payment info
+            if ($preservePaymentMethod && $checkin['payment_status'] === 'paid') {
+                $newPaymentStatus = 'paid';
+                $newPaymentMethod = $checkin['payment_method'];
+            } else {
+                $newPaymentStatus = $skipPayment ? 'pending' : 'paid';
+                $newPaymentMethod = $paymentMethod;
+            }
             
             $updateStmt = $db->prepare("
                 UPDATE events_checkin 
