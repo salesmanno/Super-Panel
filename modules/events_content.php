@@ -1074,7 +1074,7 @@ try {
                                             <thead>
                                                 <tr>
                                                     <th>Deltaker</th>
-                                                    <th>Type</th>
+                                                    <th>Medlemskap</th>
                                                     <th>Pris</th>
                                                     <th>Betaling</th>
                                                     <th>Tid</th>
@@ -1108,14 +1108,15 @@ try {
                                             <thead>
                                                 <tr>
                                                     <th>Deltaker</th>
-                                                    <th>Type</th>
+                                                    <th>Medlemskap</th>
                                                     <th>Pris</th>
+                                                    <th>Status</th>
                                                     <th>Handlinger</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="checkin-pending-list">
                                                 <tr>
-                                                    <td colspan="4">
+                                                    <td colspan="5">
                                                         <div class="checkin-empty-state">
                                                             <i class="bi bi-inbox"></i>
                                                             <p class="mb-0">Alle er innsjekket!</p>
@@ -1210,14 +1211,15 @@ try {
                             <thead>
                                 <tr>
                                     <th>Deltaker</th>
-                                    <th>Type</th>
+                                    <th>Medlemskap</th>
                                     <th>Pris</th>
+                                    <th>Status</th>
                                     <th>Handling</th>
                                 </tr>
                             </thead>
                             <tbody id="fullscreen-pending-list">
                                 <tr>
-                                    <td colspan="4">
+                                    <td colspan="5">
                                         <div class="checkin-empty-state">
                                             <i class="bi bi-check-circle"></i>
                                             <p class="mb-0">Alle er innsjekket!</p>
@@ -1242,7 +1244,7 @@ try {
                             <thead>
                                 <tr>
                                     <th>Deltaker</th>
-                                    <th>Type</th>
+                                    <th>Medlemskap</th>
                                     <th>Pris</th>
                                     <th>Betaling</th>
                                     <th>Tid</th>
@@ -2872,13 +2874,13 @@ async function loadCheckins(eventId) {
                     const checkinTime = checkin.check_in_time 
                         ? new Date(checkin.check_in_time).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) 
                         : '-';
-                    const ticketType = checkin.ticket_type || 'regular';
+                    const membershipPlanName = checkin.membership_plan_name || null;
                     const isNoShow = checkin.payment_status === 'no_show';
-                    const isMember = ticketType !== 'regular';
+                    const isMember = membershipPlanName !== null;
                     
-                    // Type badge with new styling
+                    // Type badge with membership plan name
                     const typeBadge = isMember 
-                        ? `<span class="ticket-badge member"><i class="bi bi-star-fill"></i>${ticketType}</span>` 
+                        ? `<span class="ticket-badge member"><i class="bi bi-star-fill"></i>${membershipPlanName}</span>` 
                         : `<span class="ticket-badge regular">Ordinær</span>`;
                     
                     // Payment badge
@@ -2927,13 +2929,19 @@ async function loadCheckins(eventId) {
                 pendingList.innerHTML = result.not_checked_in.map(checkin => {
                     const customerName = checkin.customer_name || 'Ukjent';
                     const customerEmail = checkin.customer_email || '';
-                    const ticketType = checkin.ticket_type || 'regular';
-                    const isMember = ticketType !== 'regular';
+                    const membershipPlanName = checkin.membership_plan_name || null;
+                    const isMember = membershipPlanName !== null;
+                    const isPaid = checkin.payment_status === 'paid';
                     
-                    // Type badge with new styling
+                    // Type badge with membership plan name
                     const typeBadge = isMember 
-                        ? `<span class="ticket-badge member"><i class="bi bi-star-fill"></i>${ticketType}</span>` 
+                        ? `<span class="ticket-badge member"><i class="bi bi-star-fill"></i>${membershipPlanName}</span>` 
                         : `<span class="ticket-badge regular">Ordinær</span>`;
+                    
+                    // Payment status badge
+                    const paymentStatusBadge = isPaid 
+                        ? '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Betalt</span>'
+                        : '<span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Ikke betalt</span>';
                     
                     return `
                         <tr>
@@ -2943,6 +2951,7 @@ async function loadCheckins(eventId) {
                             </td>
                             <td>${typeBadge}</td>
                             <td><span class="price-display">${checkin.ticket_price} kr</span></td>
+                            <td>${paymentStatusBadge}</td>
                             <td>
                                 <div class="d-flex gap-2">
                                     <button class="btn btn-success checkin-action-btn" onclick="performCheckin('${checkin.id}')" title="Sjekk inn med betaling">
@@ -2960,7 +2969,7 @@ async function loadCheckins(eventId) {
                 if (pendingTabCount) pendingTabCount.textContent = '0';
                 pendingList.innerHTML = `
                     <tr>
-                        <td colspan="4">
+                        <td colspan="5">
                             <div class="checkin-empty-state">
                                 <i class="bi bi-check-circle-fill text-success"></i>
                                 <p class="mb-0">Alle er innsjekket!</p>
@@ -4968,8 +4977,9 @@ async function syncCheckinToFullscreen() {
                 checkedList.innerHTML = result.checked_in.map(c => {
                     const time = c.check_in_time ? new Date(c.check_in_time).toLocaleTimeString('no-NO', {hour:'2-digit', minute:'2-digit'}) : '-';
                     const isNoShow = c.payment_status === 'no_show';
-                    const isMember = c.ticket_type !== 'regular';
-                    const typeBadge = isMember ? `<span class="ticket-badge member"><i class="bi bi-star-fill"></i>${c.ticket_type}</span>` : '<span class="ticket-badge regular">Ordinær</span>';
+                    const membershipPlanName = c.membership_plan_name || null;
+                    const isMember = membershipPlanName !== null;
+                    const typeBadge = isMember ? `<span class="ticket-badge member"><i class="bi bi-star-fill"></i>${membershipPlanName}</span>` : '<span class="ticket-badge regular">Ordinær</span>';
                     let paymentBadge = isNoShow ? '<span class="badge bg-dark">No-show</span>' :
                         c.payment_status === 'paid' ? `<span class="badge bg-success">${paymentMethodNames[c.payment_method] || c.payment_method}</span>` :
                         '<span class="badge bg-warning text-dark">Venter</span>';
@@ -4990,14 +5000,20 @@ async function syncCheckinToFullscreen() {
             const pendingList = document.getElementById('fullscreen-pending-list');
             if (result.not_checked_in && result.not_checked_in.length > 0) {
                 pendingList.innerHTML = result.not_checked_in.map(c => {
-                    const isMember = c.ticket_type !== 'regular';
-                    const typeBadge = isMember ? `<span class="ticket-badge member"><i class="bi bi-star-fill"></i>${c.ticket_type}</span>` : '<span class="ticket-badge regular">Ordinær</span>';
+                    const membershipPlanName = c.membership_plan_name || null;
+                    const isMember = membershipPlanName !== null;
+                    const typeBadge = isMember ? `<span class="ticket-badge member"><i class="bi bi-star-fill"></i>${membershipPlanName}</span>` : '<span class="ticket-badge regular">Ordinær</span>';
+                    const isPaid = c.payment_status === 'paid';
+                    const paymentStatusBadge = isPaid 
+                        ? '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Betalt</span>'
+                        : '<span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Ikke betalt</span>';
                     const escapedName = (c.customer_name || 'Ukjent').replace(/'/g, "\\'");
                     
                     return `<tr>
                         <td><div class="attendee-name">${c.customer_name || 'Ukjent'}</div>${c.customer_email ? `<div class="attendee-email">${c.customer_email}</div>` : ''}</td>
                         <td>${typeBadge}</td>
                         <td>${c.ticket_price} kr</td>
+                        <td>${paymentStatusBadge}</td>
                         <td>
                             <div class="d-flex gap-2">
                                 <button class="btn btn-success btn-sm" onclick="performFullscreenCheckin('${c.id}')"><i class="bi bi-check-circle me-1"></i>Sjekk inn</button>
@@ -5007,7 +5023,7 @@ async function syncCheckinToFullscreen() {
                     </tr>`;
                 }).join('');
             } else {
-                pendingList.innerHTML = '<tr><td colspan="4"><div class="checkin-empty-state"><i class="bi bi-check-circle-fill text-success"></i><p class="mb-0">Alle er innsjekket!</p></div></td></tr>';
+                pendingList.innerHTML = '<tr><td colspan="5"><div class="checkin-empty-state"><i class="bi bi-check-circle-fill text-success"></i><p class="mb-0">Alle er innsjekket!</p></div></td></tr>';
             }
         }
     } catch (error) {
