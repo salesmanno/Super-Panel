@@ -26,6 +26,18 @@ if (isset($_GET['error'])) {
         case 'already_logged_in':
             $error_message = 'Brukeren er allerede innlogget. Uautorisert bruk? Ta kontakt med 404 69 364.';
             break;
+        case 'session_expired':
+            $error_message = 'Økten din har utløpt. Vennligst logg inn på nytt.';
+            break;
+        case 'session_error':
+            $error_message = 'Det oppstod en feil med økten din. Vennligst logg inn på nytt.';
+            break;
+        case 'database_changed':
+            $error_message = 'Databasekonfigurasjonen ble endret. Vennligst logg inn på nytt.';
+            break;
+        case 'not_authenticated':
+            $error_message = 'Du må logge inn for å få tilgang.';
+            break;
         default:
             $error_message = 'En feil oppstod. Vennligst prøv igjen.';
     }
