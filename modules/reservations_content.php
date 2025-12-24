@@ -145,8 +145,9 @@
     padding: 1.5rem;
     color: white;
     box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4);
-    touch-action: pan-y;
+    touch-action: none;
     user-select: none;
+    overscroll-behavior: contain;
     overflow: hidden;
     transition: transform 0.2s ease;
 }
@@ -1521,22 +1522,28 @@ function initCarouselSwipe() {
     const card = document.getElementById('booking-carousel');
     if (!card) return;
     
-    card.addEventListener('touchstart', handleTouchStart, { passive: true });
-    card.addEventListener('touchmove', handleTouchMove, { passive: true });
+    card.addEventListener('touchstart', handleTouchStart, { passive: false });
+    card.addEventListener('touchmove', handleTouchMove, { passive: false });
     card.addEventListener('touchend', handleTouchEnd);
     
     card.addEventListener('mousedown', handleMouseDown);
     card.addEventListener('mousemove', handleMouseMove);
     card.addEventListener('mouseup', handleMouseUp);
     card.addEventListener('mouseleave', handleMouseUp);
+    
+    card.addEventListener('wheel', function(e) {
+        e.stopPropagation();
+    }, { passive: true });
 }
 
 function handleTouchStart(e) {
+    e.preventDefault();
     carouselTouchStart.x = e.touches[0].clientX;
     carouselTouchStart.y = e.touches[0].clientY;
 }
 
 function handleTouchMove(e) {
+    e.preventDefault();
     carouselTouchEnd.x = e.touches[0].clientX;
     carouselTouchEnd.y = e.touches[0].clientY;
     
@@ -1547,6 +1554,7 @@ function handleTouchMove(e) {
 }
 
 function handleTouchEnd(e) {
+    e.preventDefault();
     processSwipe();
     resetSwipeVisual();
 }
