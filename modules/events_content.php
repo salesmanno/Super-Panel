@@ -4657,17 +4657,31 @@ async function approveRegistrationWithReason(registrationId) {
     }
 }
 
-async function rejectRegistrationWithReason(registrationId) {
-    const rejectionReason = prompt('Årsak til avvisning (påkrevd):');
+function rejectRegistrationWithReason(registrationId) {
+    // Clear previous selections
+    document.querySelectorAll('#rejectionReasonModal input[type="checkbox"]').forEach(cb => cb.checked = false);
+    document.getElementById('rejection-registration-id').value = registrationId;
     
-    if (rejectionReason === null) {
-        return; // User cancelled
-    }
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('rejectionReasonModal'));
+    modal.show();
+}
+
+async function submitRejection() {
+    const registrationId = document.getElementById('rejection-registration-id').value;
     
-    if (!rejectionReason.trim()) {
-        toast.quickError('Mangler årsak', 'Du må oppgi en årsak for avvisning');
+    // Collect selected reasons
+    const selectedReasons = [];
+    document.querySelectorAll('#rejectionReasonModal input[type="checkbox"]:checked').forEach(cb => {
+        selectedReasons.push(cb.value);
+    });
+    
+    if (selectedReasons.length === 0) {
+        toast.quickError('Mangler årsak', 'Du må velge minst én årsak for avvisning');
         return;
     }
+    
+    const rejectionReason = selectedReasons.join('; ');
     
     try {
         const response = await fetch('/api/reject_registration.php', {
@@ -4684,6 +4698,9 @@ async function rejectRegistrationWithReason(registrationId) {
         const result = await response.json();
         
         if (result.success) {
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('rejectionReasonModal')).hide();
+            
             toast.quickSuccess('Påmelding avvist', 'Påmeldingen er nå avvist.');
             // Refresh both views
             setTimeout(() => {
@@ -5376,6 +5393,44 @@ async function processGroupCheckout(paymentMethod) {
                 <div class="d-flex gap-2 flex-wrap" id="group-payment-buttons">
                     <!-- Payment buttons will be populated here -->
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rejection Reason Modal -->
+<div class="modal fade" id="rejectionReasonModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-x-circle me-2"></i>Avvis påmelding</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">Velg årsak(er) for avvisning:</p>
+                <input type="hidden" id="rejection-registration-id">
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="reject-reason-1" value="Påmeldingen inneholder mangler">
+                    <label class="form-check-label" for="reject-reason-1">Påmeldingen inneholder mangler</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="reject-reason-2" value="Flere like påmeldinger registrert">
+                    <label class="form-check-label" for="reject-reason-2">Flere like påmeldinger registrert</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="reject-reason-3" value="Påmeldingen kunne ikke verifiseres">
+                    <label class="form-check-label" for="reject-reason-3">Påmeldingen kunne ikke verifiseres</label>
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="reject-reason-4" value="Arrangementet har nådd maks kapasitet">
+                    <label class="form-check-label" for="reject-reason-4">Arrangementet har nådd maks kapasitet</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                <button type="button" class="btn btn-danger" onclick="submitRejection()">
+                    <i class="bi bi-x-circle me-1"></i>Avvis påmelding
+                </button>
             </div>
         </div>
     </div>
