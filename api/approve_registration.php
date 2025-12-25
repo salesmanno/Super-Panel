@@ -97,19 +97,19 @@ try {
         $membershipPlanId = $isMember ? $membershipPriceInfo['membership_plan_id'] : null;
         
         // Insert into events_checkin with checked_in=0 (will be checked in later)
+        // Note: ticket_type is derived from membership_plan_id FK via JOIN, not stored as column
         $checkinStmt = $db->prepare("
             INSERT INTO events_checkin 
-            (id, event_id, customer_id, registration_id, ticket_type, ticket_price, 
+            (id, event_id, customer_id, registration_id, ticket_price, 
              payment_status, payment_method, checked_in, checked_in_by, check_in_time,
              barcode, membership_plan_id, created_at, updated_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, ?, ?, NOW(), NOW())
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, ?, ?, NOW(), NOW())
         ");
         $checkinStmt->execute([
             $checkinId,
             $registration['event_id'],
             $registration['customer_id'],
             $registrationId,
-            $ticketType,
             $ticketPrice,
             $paymentStatus,
             $paymentMethod,
@@ -133,15 +133,16 @@ try {
                     'quantity' => 1,
                     'selling_price' => $ticketPrice,
                     'cost_price' => 0,
-                    'customer_name' => $attendeeName,
-                    'customer_email' => $registration['email'],
+                    'customer_id' => $registration['customer_id'],
                     'payment_method' => $paymentMethod,
                     'payment_status' => 'completed',
                     'status' => 'active',
                     'metadata' => [
                         'event_id' => $registration['event_id'],
                         'checkin_id' => $checkinId,
-                        'registration_id' => $registrationId
+                        'registration_id' => $registrationId,
+                        'customer_name' => $attendeeName,
+                        'customer_email' => $registration['email']
                     ]
                 ]);
             } catch (Exception $ledgerError) {

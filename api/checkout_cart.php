@@ -163,6 +163,10 @@ try {
         // "on_arrival" (Oppmøte) means payment will be confirmed later at check-in
         $payment_status = ($payment_method === 'on_arrival') ? 'pending' : 'completed';
         
+        // Add customer info to metadata (unified_ledger uses customer_id FK, not name/email columns)
+        $metadata['customer_name'] = $customer_name ?: 'Walk-in';
+        $metadata['customer_email'] = $customer_email ?: null;
+        
         $ledgerResult = $ledgerService->logTransaction([
             'order_id' => $orderId,
             'module_source' => 'sales',
@@ -172,8 +176,7 @@ try {
             'quantity' => $item['quantity'],
             'selling_price' => $itemTotal,
             'cost_price' => $costPrice,
-            'customer_name' => $customer_name ?: 'Walk-in',
-            'customer_email' => $customer_email ?: null,
+            'customer_id' => null,
             'payment_method' => $payment_method,
             'payment_status' => $payment_status,
             'status' => 'active',

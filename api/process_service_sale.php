@@ -208,8 +208,7 @@ try {
                 'quantity' => $quantity,
                 'selling_price' => $total,
                 'cost_price' => $costPrice,
-                'customer_name' => $customer_full_name,
-                'customer_email' => $customer_email,
+                'customer_id' => $customer_id,
                 'payment_method' => $payment_method,
                 'payment_status' => $ledger_payment_status,
                 'status' => 'active',
@@ -218,7 +217,9 @@ try {
                 'category' => 'Arrangement',
                 'metadata' => [
                     'event_id' => $product_id,
-                    'is_member_price' => $is_member_price
+                    'is_member_price' => $is_member_price,
+                    'customer_name' => $customer_full_name,
+                    'customer_email' => $customer_email
                 ]
             ]);
             
@@ -337,8 +338,7 @@ try {
                 'quantity' => $quantity,
                 'selling_price' => $total,
                 'cost_price' => $costPrice,
-                'customer_name' => $customer_full_name,
-                'customer_email' => $customer_email,
+                'customer_id' => $customer_id,
                 'payment_method' => $payment_method,
                 'payment_status' => $ledger_payment_status,
                 'status' => 'active',
@@ -346,7 +346,9 @@ try {
                 'transaction_type' => $ledger_payment_status === 'completed' ? 'income' : null,
                 'category' => 'Medlemskap',
                 'metadata' => [
-                    'plan_id' => $product_id
+                    'plan_id' => $product_id,
+                    'customer_name' => $customer_full_name,
+                    'customer_email' => $customer_email
                 ]
             ]);
             
@@ -402,8 +404,7 @@ try {
                 'quantity' => $quantity,
                 'selling_price' => $total,
                 'cost_price' => $costPrice,
-                'customer_name' => $customer_full_name,
-                'customer_email' => $customer_email,
+                'customer_id' => $customer_id,
                 'payment_method' => $payment_method,
                 'payment_status' => $ledger_payment_status,
                 'status' => 'active',
@@ -412,7 +413,9 @@ try {
                 'category' => 'Utleie',
                 'metadata' => [
                     'object_id' => $product_id,
-                    'daily_price' => $daily_price
+                    'daily_price' => $daily_price,
+                    'customer_name' => $customer_full_name,
+                    'customer_email' => $customer_email
                 ]
             ]);
             
@@ -561,8 +564,7 @@ try {
                 'quantity' => 1,
                 'selling_price' => $total,
                 'cost_price' => $service['cost_price'] ?? null,
-                'customer_name' => $customer_full_name,
-                'customer_email' => $customer_email,
+                'customer_id' => $customer_id,
                 'payment_method' => $payment_method,
                 'payment_status' => $ledger_payment_status,
                 'status' => 'active',
@@ -574,7 +576,9 @@ try {
                     'booking_date' => $reservation_date,
                     'booking_time' => $reservation_time,
                     'staff_id' => $reservation_staff_id,
-                    'duration_minutes' => $reservation_duration
+                    'duration_minutes' => $reservation_duration,
+                    'customer_name' => $customer_full_name,
+                    'customer_email' => $customer_email
                 ]
             ]);
             

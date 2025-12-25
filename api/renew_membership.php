@@ -71,7 +71,7 @@ try {
     ");
     $stmt->execute([$newExpiryDate, $renewalDate, $data['member_id'], $_SESSION['company_id']]);
     
-    // Log renewal transaction to unified_ledger
+    // Log renewal transaction to unified_ledger (uses customer_id FK, name/email in metadata)
     $ledgerService = new UnifiedLedgerService($db, $_SESSION['company_id']);
     $ledgerService->logTransaction([
         'order_id' => 'MEM-RENEW-' . date('Ymd') . '-' . substr($data['member_id'], 0, 6),
@@ -82,8 +82,7 @@ try {
         'quantity' => 1,
         'selling_price' => $member['price'] ?? 0,
         'cost_price' => null,
-        'customer_name' => trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? '')),
-        'customer_email' => $member['email'] ?? null,
+        'customer_id' => $member['customer_id'] ?? null,
         'payment_method' => 'renewal',
         'payment_status' => 'completed',
         'status' => 'active',
@@ -92,7 +91,9 @@ try {
             'member_id' => $data['member_id'],
             'renewal_date' => $renewalDate,
             'new_expiry_date' => $newExpiryDate,
-            'duration_months' => $durationMonths
+            'duration_months' => $durationMonths,
+            'customer_name' => trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? '')),
+            'customer_email' => $member['email'] ?? null
         ]
     ]);
     

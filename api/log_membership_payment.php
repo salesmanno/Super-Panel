@@ -75,6 +75,17 @@ try {
         $orderId = $transactionReference;
     }
     
+    // Get customer_id from membership_members if available
+    $customerId = null;
+    if ($memberId) {
+        $custStmt = $db->prepare("SELECT customer_id FROM membership_members WHERE id = ? AND company_id = ?");
+        $custStmt->execute([$memberId, $company_id]);
+        $custResult = $custStmt->fetch(PDO::FETCH_ASSOC);
+        if ($custResult) {
+            $customerId = $custResult['customer_id'];
+        }
+    }
+    
     $ledgerService = new UnifiedLedgerService($db, $company_id);
     $ledgerService->logTransaction([
         'order_id' => $orderId,
@@ -85,8 +96,7 @@ try {
         'quantity' => 1,
         'selling_price' => $amount,
         'cost_price' => null,
-        'customer_name' => $customerName,
-        'customer_email' => $customerEmail,
+        'customer_id' => $customerId,
         'payment_method' => $paymentMethod,
         'payment_status' => 'completed',
         'status' => 'active',
@@ -94,7 +104,9 @@ try {
         'metadata' => [
             'member_id' => $memberId,
             'transaction_reference' => $transactionReference,
-            'source' => 'external_payment'
+            'source' => 'external_payment',
+            'customer_name' => $customerName,
+            'customer_email' => $customerEmail
         ]
     ]);
     

@@ -36,13 +36,13 @@ try {
     // Get all check-ins for the event with customer names and membership info
     // Note: tenant_admins doesn't have first_name/last_name directly - those are in tenant_staff
     // We join through tenant_staff via tenant_admins.tenant_staff_id
-    // Join event_membership_plans to get member price for the specific event/membership combo
+    // Join membership_plans to get plan name (ticket_type is derived from membership_plan_id FK)
     $stmt = $db->prepare("
         SELECT 
             c.id,
             c.customer_id,
             c.registration_id,
-            c.ticket_type,
+            c.membership_plan_id,
             c.ticket_price,
             c.payment_status,
             c.payment_method,
@@ -50,7 +50,6 @@ try {
             c.check_in_time,
             c.checked_in_by,
             c.barcode,
-            c.membership_plan_id,
             c.notes,
             c.created_at,
             tc.first_name,
@@ -84,6 +83,9 @@ try {
         if (empty($checkin['customer_name'])) {
             $checkin['customer_name'] = 'Ukjent';
         }
+        
+        // Derive ticket_type from membership_plan_name (FK relationship) or default to 'Ordinær'
+        $checkin['ticket_type'] = $checkin['membership_plan_name'] ?? 'Ordinær';
         
         if ($checkin['checked_in'] == 1) {
             $checkedIn[] = $checkin;

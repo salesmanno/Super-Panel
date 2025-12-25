@@ -113,16 +113,16 @@ try {
         $barcode = $barcodeService->generateEAN13($checkin_id, $event_id);
         
         // Insert guest into events_checkin with membership_plan_id
+        // Note: ticket_type is derived from membership_plan_id FK via JOIN, not stored as column
         $stmt = $db->prepare("
             INSERT INTO events_checkin 
-            (id, event_id, ticket_type, ticket_price, payment_status, payment_method, 
+            (id, event_id, ticket_price, payment_status, payment_method, 
              checked_in, checked_in_by, barcode, membership_plan_id, created_at, updated_at) 
-            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, NOW(), NOW())
+            VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, NOW(), NOW())
         ");
         $stmt->execute([
             $checkin_id,
             $event_id,
-            $ticket_type,
             $ticket_price,
             $payment_status,
             $payment_method,
@@ -134,6 +134,7 @@ try {
         $createdIds[] = $checkin_id;
         
         // If payment is completed (paid), create unified_ledger entry
+        // Note: Walk-in guests may not have customer_id, store name/email in metadata
         if ($payment_status === 'paid' && $ticket_price > 0) {
             $attendee_name = trim($first_name . ' ' . $last_name);
             $ledgerService->logTransaction([
@@ -145,8 +146,7 @@ try {
                 'quantity' => 1,
                 'selling_price' => $ticket_price,
                 'cost_price' => 0,
-                'customer_name' => $attendee_name,
-                'customer_email' => $email,
+                'customer_id' => null,
                 'payment_method' => $payment_method,
                 'payment_status' => 'completed',
                 'status' => 'active',
@@ -155,7 +155,9 @@ try {
                     'checkin_id' => $checkin_id,
                     'guest_type' => 'walk-in',
                     'membership_plan_id' => $membership_plan_id,
-                    'group_booking' => $number_of_people > 1 ? 'yes' : 'no'
+                    'group_booking' => $number_of_people > 1 ? 'yes' : 'no',
+                    'customer_name' => $attendee_name,
+                    'customer_email' => $email
                 ]
             ]);
         }

@@ -84,7 +84,7 @@ try {
     if (!empty($data['membership_plan_id'])) {
         // Check for membership-specific pricing
         $pricingStmt = $db->prepare("
-            SELECT emp.id as emp_id, emp.ticket_price, mp.name as plan_name
+            SELECT emp.membership_plan_id, emp.ticket_price, mp.name as plan_name
             FROM event_membership_plans emp
             JOIN membership_plans mp ON emp.membership_plan_id = mp.id
             WHERE emp.event_id = ? AND emp.membership_plan_id = ? AND mp.company_id = ?
@@ -95,7 +95,7 @@ try {
         if ($pricing) {
             $ticketPrice = $pricing['ticket_price'];
             $ticketType = $pricing['plan_name']; // Use membership plan name as ticket type
-            $membershipPlanId = $pricing['emp_id']; // Store FK reference to event_membership_plans.id (CHAR(36) UUID)
+            $membershipPlanId = $pricing['membership_plan_id']; // Store FK reference to membership_plans.id
         }
     }
     
@@ -107,12 +107,12 @@ try {
     $barcodeService = new BarcodeService();
     $barcode = $barcodeService->generateEAN13($checkinId, $data['event_id']);
     
+    // Note: ticket_type is derived from membership_plan_id FK via JOIN, not stored as column
     $stmt = $db->prepare("
         INSERT INTO events_checkin (
             id,
             event_id,
             customer_id,
-            ticket_type,
             membership_plan_id,
             ticket_price,
             payment_status,
@@ -125,7 +125,6 @@ try {
             created_at,
             updated_at
         ) VALUES (
-            ?,
             ?,
             ?,
             ?,
@@ -157,7 +156,6 @@ try {
         $checkinId,
         $data['event_id'],
         $data['customer_id'] ?? null,
-        $ticketType,
         $membershipPlanId,
         $ticketPrice,
         $paymentStatus,
@@ -189,8 +187,7 @@ try {
             'quantity' => 1,
             'selling_price' => $ticketPrice,
             'cost_price' => $costPrice,
-            'customer_name' => $attendeeName,
-            'customer_email' => $data['attendee_email'] ?? null,
+            'customer_id' => $data['customer_id'] ?? null,
             'payment_method' => $paymentMethod,
             'payment_status' => 'completed',
             'status' => 'active',
@@ -200,7 +197,9 @@ try {
             'metadata' => [
                 'event_id' => $data['event_id'],
                 'ticket_type' => $ticketType,
-                'checkin_id' => $checkinId
+                'checkin_id' => $checkinId,
+                'customer_name' => $attendeeName,
+                'customer_email' => $data['attendee_email'] ?? null
             ]
         ]);
         

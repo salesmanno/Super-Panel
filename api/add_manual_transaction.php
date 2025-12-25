@@ -78,8 +78,7 @@ try {
         'quantity' => 1,
         'selling_price' => $sellingPrice,
         'cost_price' => $type === 'expense' ? abs($amount) : null,
-        'customer_name' => $customerName ?: null,
-        'customer_email' => null,
+        'customer_id' => null,
         'payment_method' => $paymentMethod,
         'payment_status' => 'completed',
         'status' => 'active',
@@ -90,7 +89,8 @@ try {
             'manual_entry' => true,
             'added_by' => $admin_id,
             'category_key' => $category,
-            'notes' => $notes
+            'notes' => $notes,
+            'customer_name' => $customerName ?: null
         ]
     ]);
     

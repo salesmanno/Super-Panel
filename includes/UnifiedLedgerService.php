@@ -31,15 +31,14 @@ class UnifiedLedgerService {
      *   quantity: int (default: 1)
      *   selling_price: float (total selling price)
      *   cost_price: float|null (optional cost price for profit tracking)
-     *   customer_name: string|null
-     *   customer_email: string|null
+     *   customer_id: string|null (FK to tenant_customers.id)
      *   payment_method: string|null
      *   payment_status: string ('completed', 'pending', 'failed')
      *   status: string ('active', 'cancelled', 'refunded')
      *   transaction_type: string|null ('income', 'expense')
      *   category: string|null ('Salg', 'Arrangement', 'Medlemskap', 'Utleie', 'Reservasjon')
      *   transaction_date: string|null (ISO datetime, defaults to now)
-     *   metadata: array|null (additional module-specific data)
+     *   metadata: array|null (additional module-specific data, can include customer_name/email for display)
      * }
      * @return array ['success' => bool, 'message' => string, 'ledger_id' => string]
      */
@@ -56,7 +55,7 @@ class UnifiedLedgerService {
             // Generate ledger ID
             $ledgerId = $this->generateUUID();
             
-            // Prepare metadata
+            // Prepare metadata (can include customer_name/email for display purposes)
             $metadata = isset($params['metadata']) && is_array($params['metadata']) 
                 ? json_encode($params['metadata']) 
                 : null;
@@ -69,23 +68,24 @@ class UnifiedLedgerService {
             $transactionDate = $params['transaction_date'] ?? date('Y-m-d H:i:s');
             $transactionType = $params['transaction_type'] ?? null;
             $category = $params['category'] ?? null;
+            $customerId = $params['customer_id'] ?? null;
             
             // Calculate profit
             $profit = $costPrice !== null 
                 ? $params['selling_price'] - $costPrice 
                 : null;
             
-            // Insert into unified_ledger
+            // Insert into unified_ledger (uses customer_id FK, not customer_name/email columns)
             $stmt = $this->db->prepare("
                 INSERT INTO unified_ledger (
                     id, order_id, company_id,
                     module_source, item_type, source_id,
                     item_name, quantity,
                     selling_price, cost_price,
-                    customer_name, customer_email,
+                    customer_id,
                     payment_method, payment_status,
                     status, transaction_date, transaction_type, category, metadata
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             
             $result = $stmt->execute([
@@ -99,8 +99,7 @@ class UnifiedLedgerService {
                 $quantity,
                 $params['selling_price'],
                 $costPrice,
-                $params['customer_name'] ?? null,
-                $params['customer_email'] ?? null,
+                $customerId,
                 $params['payment_method'] ?? null,
                 $paymentStatus,
                 $status,

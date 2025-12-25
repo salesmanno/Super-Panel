@@ -70,25 +70,29 @@ try {
     }
     
     // Get checkin record with customer and event info
+    // Use membership_plan_id FK instead of ticket_type column
     $stmt = $db->prepare("
         SELECT 
             c.id,
             c.event_id,
             c.customer_id,
-            c.ticket_type,
+            c.membership_plan_id,
             c.ticket_price,
             c.payment_status,
             c.payment_method,
             c.checked_in,
             c.barcode,
+            tc.id as tenant_customer_id,
             tc.first_name,
             tc.last_name,
             tc.email as customer_email,
             ee.title as event_title,
-            ee.company_id
+            ee.company_id,
+            mp.name as membership_plan_name
         FROM events_checkin c
         LEFT JOIN tenant_customers tc ON c.customer_id = tc.id
         JOIN events_eventdata ee ON c.event_id = ee.id
+        LEFT JOIN membership_plans mp ON c.membership_plan_id = mp.id
         WHERE c.id = ? AND ee.company_id = ?
     ");
     $stmt->execute([$checkinId, $companyId]);
@@ -163,6 +167,9 @@ try {
                 
                 $orderId = 'EVT-' . date('Ymd') . '-' . strtoupper(substr($checkinId, 0, 6));
                 
+                // Derive ticket_type from membership_plan_name or default to 'Ordinær'
+                $ticketType = $checkin['membership_plan_name'] ?? 'Ordinær';
+                
                 $ledgerService->logTransaction([
                     'order_id' => $orderId,
                     'module_source' => 'events',
@@ -172,8 +179,7 @@ try {
                     'quantity' => 1,
                     'selling_price' => $ticketPrice,
                     'cost_price' => 0,
-                    'customer_name' => $customerName,
-                    'customer_email' => $checkin['customer_email'],
+                    'customer_id' => $checkin['customer_id'],
                     'payment_method' => $newPaymentMethod,
                     'payment_status' => 'completed',
                     'status' => 'active',
@@ -182,8 +188,10 @@ try {
                     'category' => 'Arrangement',
                     'metadata' => [
                         'event_id' => $checkin['event_id'],
-                        'ticket_type' => $checkin['ticket_type'],
-                        'checkin_id' => $checkinId
+                        'ticket_type' => $ticketType,
+                        'checkin_id' => $checkinId,
+                        'customer_name' => $customerName,
+                        'customer_email' => $checkin['customer_email']
                     ]
                 ]);
             }
