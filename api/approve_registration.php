@@ -85,7 +85,7 @@ try {
         // Determine ticket type and price based on membership
         // Only use membership price if customer is a member AND event has pricing for their specific plan
         $isMember = $registration['is_member'] && $membershipPriceInfo !== null;
-        $ticketType = $isMember ? ($membershipPriceInfo['plan_name'] ?? 'member') : 'regular';
+        $ticketType = $isMember ? ($membershipPriceInfo['plan_name'] ?? 'Medlem') : 'Ingen';
         $ticketPrice = $isMember 
             ? floatval($membershipPriceInfo['ticket_price'])
             : floatval($registration['event_ticket_price'] ?? 0);
