@@ -84,8 +84,8 @@ try {
             $checkin['customer_name'] = 'Ukjent';
         }
         
-        // Derive ticket_type from membership_plan_name (FK relationship) or default to 'Ordinær'
-        $checkin['ticket_type'] = $checkin['membership_plan_name'] ?? 'Ordinær';
+        // Derive ticket_type from membership_plan_name (FK relationship) or default to 'Ingen'
+        $checkin['ticket_type'] = $checkin['membership_plan_name'] ?? 'Ingen';
         
         if ($checkin['checked_in'] == 1) {
             $checkedIn[] = $checkin;

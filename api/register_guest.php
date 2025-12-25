@@ -74,7 +74,7 @@ try {
     }
     
     // Determine ticket price based on membership plan
-    $ticket_type = 'regular'; // Default for walk-in/non-members without specific membership price
+    $ticket_type = 'Ingen'; // Default for walk-in/non-members without specific membership price
     $ticket_price = $event['ticket_price'];
     
     if ($membership_plan_id) {
