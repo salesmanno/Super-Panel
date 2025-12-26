@@ -32,6 +32,7 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Deres Firma Module**: Manages company profile, staff, and website settings.
 - **Unified Economic System**: Centralized financial tracking via `unified_ledger` table, aggregating all transactions with profit tracking, managed by `UnifiedLedgerService.php`. Supports income/expense tracking across various modules. Economy module features live data display with overview, income, expense tabs; manual transaction entry with 16 expense categories; payment gateway management with toggle functionality.
 - **Output Products System**: A unified polymorphic product catalog (`output_products`) aggregating all sellable items/services, auto-generated and synchronized by `ProductCatalogService.php`.
+- **Polling Tracker System**: Real-time update notifications via `tenant_polling_tracker` table. External systems write to the table, dashboard polls every 30 seconds via `api/check_refresh_flag.php`, shows toast notification and auto-refreshes when updates are detected.
 
 ### System Design Choices
 - **Modularity**: Core system features are organized into distinct modules.
