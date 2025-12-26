@@ -5936,10 +5936,8 @@ function getNextValidStep(currentStep, direction) {
             nextStep = direction > 0 ? 7 : 4;
         }
     }
-    // For "Påmelding" (signup) - skip step 5 (medlemstillegg)
-    else if (regType === 'signup' && nextStep === 5) {
-        nextStep += direction;
-    }
+    // For "Påmelding" (signup) - all steps accessible including step 5 (medlemstillegg)
+    // No skipping for this registration type
     // For "Bindende" - skip step 5 AND step 6 (payment already chosen in step 1)
     else if (regType === 'binding') {
         if (nextStep === 5 || nextStep === 6) {
