@@ -609,6 +609,117 @@ try {
     color: #6b7280;
     font-size: 0.9rem;
 }
+
+/* ========== EVENT WIZARD STYLES ========== */
+.wizard-progress {
+    padding: 0 1rem;
+}
+
+.wizard-progress .progress-line {
+    position: absolute;
+    top: 15px;
+    left: 40px;
+    right: 40px;
+    height: 2px;
+    background: #e5e7eb;
+    z-index: 0;
+}
+
+.wizard-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 1;
+    background: white;
+    padding: 0 8px;
+}
+
+.wizard-step .step-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: all 0.3s ease;
+}
+
+.wizard-step.active .step-circle {
+    background: #667eea;
+    color: white;
+}
+
+.wizard-step.completed .step-circle {
+    background: #10b981;
+    color: white;
+}
+
+.wizard-step .step-label {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin-top: 0.5rem;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.wizard-step.active .step-label {
+    color: #667eea;
+    font-weight: 600;
+}
+
+.wizard-step.completed .step-label {
+    color: #10b981;
+}
+
+.wizard-option-card {
+    cursor: pointer;
+    display: block;
+}
+
+.wizard-option-card .option-content {
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.wizard-option-card:hover .option-content {
+    border-color: #667eea !important;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.wizard-option-card input:checked + .option-content {
+    border-color: #667eea !important;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.wizard-option-card input:checked + .option-content i {
+    transform: scale(1.1);
+}
+
+.wizard-content {
+    min-height: 400px;
+}
+
+@media (max-width: 768px) {
+    .wizard-step .step-label {
+        display: none;
+    }
+    
+    .wizard-step .step-circle {
+        width: 28px;
+        height: 28px;
+        font-size: 0.75rem;
+    }
+    
+    .wizard-progress .progress-line {
+        left: 20px;
+        right: 20px;
+    }
+}
 </style>
 
 <div class="module-content">
@@ -638,275 +749,442 @@ try {
     </div>
 
     <div id="events-create" class="subtab-content" style="display: none;">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Opprett nytt arrangement</h5>
+        <div class="card bg-white border-0 shadow-sm">
+            <div class="card-body p-4">
+                <!-- Wizard Progress Indicator -->
+                <div class="wizard-progress mb-4">
+                    <div class="d-flex justify-content-between align-items-center position-relative">
+                        <div class="progress-line"></div>
+                        <div class="wizard-step active" data-step="1">
+                            <div class="step-circle">1</div>
+                            <div class="step-label">Type</div>
+                        </div>
+                        <div class="wizard-step" data-step="2">
+                            <div class="step-circle">2</div>
+                            <div class="step-label">Grunninfo</div>
+                        </div>
+                        <div class="wizard-step" data-step="3">
+                            <div class="step-circle">3</div>
+                            <div class="step-label">Sted</div>
+                        </div>
+                        <div class="wizard-step" data-step="4">
+                            <div class="step-circle">4</div>
+                            <div class="step-label">Priser</div>
+                        </div>
+                        <div class="wizard-step" data-step="5">
+                            <div class="step-circle">5</div>
+                            <div class="step-label">Medlemskap</div>
+                        </div>
+                        <div class="wizard-step" data-step="6">
+                            <div class="step-circle">6</div>
+                            <div class="step-label">Betaling</div>
+                        </div>
+                        <div class="wizard-step" data-step="7">
+                            <div class="step-circle">7</div>
+                            <div class="step-label">Oppsummering</div>
+                        </div>
+                    </div>
+                </div>
+
                 <form id="create-event-form">
-                    <div class="row">
-                        <div class="col-md-<?php echo isset($hasMembershipAccess) && $hasMembershipAccess ? '8' : '12'; ?> mb-3">
-                            <label class="form-label">Arrangement navn *</label>
-                            <input type="text" class="form-control" name="title" required>
+                    <!-- Step 1: Registration Type -->
+                    <div class="wizard-content" id="wizard-step-1">
+                        <div class="text-center mb-4">
+                            <h4 class="mb-2">Hvilket arrangement vil du opprette?</h4>
+                            <p class="text-muted">Velg hvordan deltakere registrerer seg</p>
                         </div>
-                        <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Kun for medlemmer?</label>
-                            <div class="form-check form-switch mt-2">
-                                <input class="form-check-input" type="checkbox" name="is_member_exclusive" id="memberExclusive">
-                                <label class="form-check-label" for="memberExclusive">Kun medlemmer</label>
-                            </div>
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                    
-                    <div class="card border-success mb-4">
-                        <div class="card-header bg-success text-white">
-                            <h6 class="mb-0"><i class="bi bi-check-circle me-2"></i>Registreringstype</h6>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted small mb-3">Velg hvordan deltakere registrerer seg til arrangementet</p>
-                            <div class="row">
-                                <div class="col-md-4 mb-2">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="registration_type" id="reg-signup" value="signup" checked>
-                                        <label class="form-check-label" for="reg-signup">
-                                            <i class="bi bi-person-plus text-primary me-1"></i> <strong>Påmelding</strong><br>
-                                            <small class="text-muted">Deltakere melder seg på</small>
-                                        </label>
+                        
+                        <div class="row justify-content-center g-3">
+                            <div class="col-md-4">
+                                <label class="wizard-option-card">
+                                    <input type="radio" name="registration_type" value="signup" checked class="d-none">
+                                    <div class="option-content p-4 text-center rounded-3 border">
+                                        <i class="bi bi-person-plus display-4 text-primary mb-3"></i>
+                                        <h5>Påmelding</h5>
+                                        <p class="text-muted small mb-0">Deltakere melder seg på og betaler senere</p>
                                     </div>
-                                </div>
-                                <div class="col-md-4 mb-2">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="registration_type" id="reg-none" value="none">
-                                        <label class="form-check-label" for="reg-none">
-                                            <i class="bi bi-x-circle text-secondary me-1"></i> <strong>Ingen påmelding</strong><br>
-                                            <small class="text-muted">Fritt arrangement uten registrering</small>
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-4 mb-2">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="registration_type" id="reg-binding" value="binding">
-                                        <label class="form-check-label" for="reg-binding">
-                                            <i class="bi bi-lock text-warning me-1"></i> <strong>Bindende</strong><br>
-                                            <small class="text-muted">Krever betaling ved påmelding</small>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Beskrivelse</label>
-                        <textarea class="form-control" name="description" rows="3"></textarea>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Startdato *</label>
-                            <input type="date" class="form-control" name="start_date" required>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Starttid *</label>
-                            <input type="time" class="form-control" name="start_time" required>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Sluttdato</label>
-                            <input type="date" class="form-control" name="end_date">
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Sluttid</label>
-                            <input type="time" class="form-control" name="end_time">
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Aldersgrense</label>
-                            <input type="number" class="form-control" name="age_limit">
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Stedsnavn</label>
-                            <input type="text" class="form-control" name="venue_name">
-                        </div>
-                    </div>
-
-                    <div class="card bg-light mb-4 p-3">
-                        <h6 class="mb-3"><i class="bi bi-geo-alt me-2"></i>Lokasjon</h6>
-                        <div class="row">
-                            <div class="col-md-12 mb-3">
-                                <label class="form-label">Gateadresse</label>
-                                <input type="text" class="form-control address-field" name="event_address">
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">By</label>
-                                <input type="text" class="form-control city-field" name="event_city">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Postnummer</label>
-                                <input type="text" class="form-control zip-field" name="event_postal" maxlength="4">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Min. deltakere</label>
-                            <input type="number" class="form-control" name="min_attendees" id="min_attendees">
-                        </div>
-                        <div class="col-md-3 mb-3" id="registration_deadline_container" style="display: none;">
-                            <label class="form-label">Frist for min. deltakere *</label>
-                            <input type="date" class="form-control" name="registration_deadline" id="registration_deadline">
-                            <small class="form-text text-muted">Må være før startdato</small>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Maks. deltakere</label>
-                            <input type="number" class="form-control" name="max_attendees">
-                        </div>
-                    </div>
-
-                    <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
-                    <hr class="my-4">
-                    <h6 class="mb-3"><i class="bi bi-people-fill me-2"></i>Priser</h6>
-                    
-                    <div class="row">
-                        <div class="col-md-4 mb-3" id="ticket-price-container">
-                            <label class="form-label">Billettpris (NOK)</label>
-                            <input type="number" step="0.01" class="form-control" name="ticket_price" id="ticket_price">
-                            <small class="form-text text-muted" id="ticket-price-help">Ved "Ingen påmelding" vises pris med "(betales ved inngang)"</small>
-                        </div>
-                    </div>
-                    
-                    <div id="membership-pricing-container">
-                        <div class="text-center py-2">
-                            <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-                            <small class="text-muted">Laster medlemsplaner...</small>
-                        </div>
-                    </div>
-
-                    <div class="row mt-4">
-                        <div class="col-md-6">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="memberverification" id="memberverification">
-                                <label class="form-check-label" for="memberverification">
-                                    <i class="bi bi-shield-check text-success me-1"></i>Autogodkjenning og Autofyll for medlemmer for dette arrangement
                                 </label>
                             </div>
-                            <small class="form-text text-muted d-block mt-2">Medlemmer blir automatisk godkjent og får autofylt informasjon ved registrering</small>
+                            <div class="col-md-4">
+                                <label class="wizard-option-card">
+                                    <input type="radio" name="registration_type" value="none" class="d-none">
+                                    <div class="option-content p-4 text-center rounded-3 border">
+                                        <i class="bi bi-door-open display-4 text-secondary mb-3"></i>
+                                        <h5>Uten påmelding</h5>
+                                        <p class="text-muted small mb-0">Fritt arrangement, ingen registrering</p>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="wizard-option-card">
+                                    <input type="radio" name="registration_type" value="binding" class="d-none">
+                                    <div class="option-content p-4 text-center rounded-3 border">
+                                        <i class="bi bi-lock display-4 text-warning mb-3"></i>
+                                        <h5>Bindende</h5>
+                                        <p class="text-muted small mb-0">Krever betaling ved påmelding</p>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
-                    <?php endif; ?>
-
-                    <hr class="my-4" id="payment-section">
-                    <h6 class="mb-3"><i class="bi bi-credit-card-2-front me-2"></i>Betalingsmetoder</h6>
-                    <div id="payment-methods-container" class="mb-3">
-                        <div class="text-center py-2">
-                            <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-                            <small class="text-muted">Laster betalingsmetoder...</small>
-                        </div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Standard betalingsmetode</label>
-                            <select class="form-select" name="default_payment_method" id="default-payment-method">
-                                <option value="">Velg standardmetode...</option>
-                            </select>
-                            <small class="form-text text-muted">Denne metoden vises som anbefalt ved betaling</small>
-                        </div>
-                    </div>
-                    
-                    <p class="text-muted small"><strong>Status:</strong> <span id="payment-timing-status">Velg økonomimetoder for å aktivere nettbetaling</span></p>
-                    
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Bilde-URL</label>
-                            <input type="url" class="form-control" name="event_image_url">
-                        </div>
-                    </div>
-
-                    <div id="registration-fields-section">
-                        <hr class="my-4">
-                        <h6 class="mb-3"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h6>
-                        
-                        <div class="alert alert-info mb-3">
-                            <i class="bi bi-info-circle me-2"></i>
-                            <strong>Påkrevde felt:</strong> Fornavn og Etternavn er alltid påkrevd.
+                    <!-- Step 2: Basic Info -->
+                    <div class="wizard-content" id="wizard-step-2" style="display: none;">
+                        <div class="text-center mb-4">
+                            <h4 class="mb-2">Grunnleggende informasjon</h4>
+                            <p class="text-muted">Navn, beskrivelse og deltakerantall</p>
                         </div>
                         
-                        <div class="alert alert-warning mb-3">
-                            <i class="bi bi-exclamation-triangle me-2"></i>
-                            <strong>Kontaktinformasjon (minst én påkrevd):</strong><br>
-                            <small>Velg E-post og/eller Telefonnummer. Minst én må være aktivert for å verifisere medlemskap.</small>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-3 mb-2">
-                                <div class="form-check">
-                                    <input class="form-check-input contact-field-required" type="checkbox" name="field_email" id="field_email" checked>
-                                    <label class="form-check-label" for="field_email">
-                                        <i class="bi bi-envelope text-primary me-1"></i> E-post
-                                    </label>
+                        <div class="row justify-content-center">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label class="form-label">Arrangementsnavn *</label>
+                                    <input type="text" class="form-control form-control-lg" name="title" placeholder="F.eks. Sommerfest 2025" required>
                                 </div>
-                            </div>
-                            <div class="col-md-3 mb-2">
-                                <div class="form-check">
-                                    <input class="form-check-input contact-field-required" type="checkbox" name="field_phone" id="field_phone" checked>
-                                    <label class="form-check-label" for="field_phone">
-                                        <i class="bi bi-telephone text-primary me-1"></i> Telefon
-                                    </label>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Beskrivelse</label>
+                                    <textarea class="form-control" name="description" rows="3" placeholder="Beskriv arrangementet..."></textarea>
                                 </div>
-                            </div>
-                            <div class="col-md-3 mb-2">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="field_street" id="field_street">
-                                    <label class="form-check-label" for="field_street">
-                                        <i class="bi bi-house text-primary me-1"></i> Gateadresse
-                                    </label>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Arrangementsbilde (URL)</label>
+                                    <input type="url" class="form-control" name="event_image_url" placeholder="https://...">
+                                    <small class="text-muted">Valgfritt. Vises på arrangementkortet.</small>
                                 </div>
-                            </div>
-                            <div class="col-md-3 mb-2">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="field_zip" id="field_zip">
-                                    <label class="form-check-label" for="field_zip">
-                                        <i class="bi bi-mailbox text-primary me-1"></i> Postnummer
-                                    </label>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Min. deltakere</label>
+                                        <input type="number" class="form-control" name="min_attendees" id="min_attendees" min="0">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Maks. deltakere</label>
+                                        <input type="number" class="form-control" name="max_attendees" min="0">
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-3 mb-2">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="field_city" id="field_city">
-                                    <label class="form-check-label" for="field_city">
-                                        <i class="bi bi-geo-alt text-primary me-1"></i> Poststed
-                                    </label>
+                                
+                                <div class="mb-3" id="registration_deadline_container" style="display: none;">
+                                    <label class="form-label">Frist for min. deltakere *</label>
+                                    <input type="date" class="form-control" name="registration_deadline" id="registration_deadline">
+                                    <small class="text-muted">Må være før startdato</small>
                                 </div>
-                            </div>
-                            <div class="col-md-3 mb-2">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="field_age" id="field_age">
-                                    <label class="form-check-label" for="field_age">
-                                        <i class="bi bi-person-badge text-primary me-1"></i> Alder
-                                    </label>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Startdato *</label>
+                                        <input type="date" class="form-control" name="start_date" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Starttid *</label>
+                                        <input type="time" class="form-control" name="start_time" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Sluttdato</label>
+                                        <input type="date" class="form-control" name="end_date">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Sluttid</label>
+                                        <input type="time" class="form-control" name="end_time">
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Aldersgrense</label>
+                                    <input type="number" class="form-control" name="age_limit" min="0" placeholder="Ingen aldersgrense">
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-check-circle me-1"></i>Opprett arrangement
+                    <!-- Step 3: Location -->
+                    <div class="wizard-content" id="wizard-step-3" style="display: none;">
+                        <div class="text-center mb-4">
+                            <h4 class="mb-2">Hvor finner arrangementet sted?</h4>
+                            <p class="text-muted">Angi lokasjon for arrangementet</p>
+                        </div>
+                        
+                        <div class="row justify-content-center">
+                            <div class="col-md-8">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="has_venue" checked>
+                                    <label class="form-check-label" for="has_venue">
+                                        Arrangementet har et fysisk sted
+                                    </label>
+                                </div>
+                                
+                                <div id="venue-fields">
+                                    <div class="mb-3">
+                                        <label class="form-label">Stedsnavn</label>
+                                        <input type="text" class="form-control" name="venue_name" placeholder="F.eks. Kulturhuset">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Gateadresse</label>
+                                        <input type="text" class="form-control address-field" name="event_address" placeholder="Gatenavn og nummer">
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label">Postnummer</label>
+                                            <input type="text" class="form-control zip-field" name="event_postal" maxlength="4" placeholder="0000">
+                                        </div>
+                                        <div class="col-md-8 mb-3">
+                                            <label class="form-label">By</label>
+                                            <input type="text" class="form-control city-field" name="event_city" placeholder="Stedsnavn">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Pricing -->
+                    <div class="wizard-content" id="wizard-step-4" style="display: none;">
+                        <div class="text-center mb-4">
+                            <h4 class="mb-2">Hva koster billettene?</h4>
+                            <p class="text-muted">Sett ordinærpris og eventuell medlemspris</p>
+                        </div>
+                        
+                        <div class="row justify-content-center">
+                            <div class="col-md-8">
+                                <div class="mb-4">
+                                    <label class="form-label">Ordinær billettpris (NOK)</label>
+                                    <input type="number" step="0.01" class="form-control form-control-lg" name="ticket_price" id="ticket_price" placeholder="0.00">
+                                    <small class="text-muted" id="ticket-price-help">Sett til 0 for gratis arrangement</small>
+                                </div>
+                                
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="is_public_pricing" name="is_public" checked>
+                                    <label class="form-check-label" for="is_public_pricing">
+                                        <i class="bi bi-globe text-primary me-1"></i> Vis priser offentlig
+                                    </label>
+                                    <small class="text-muted d-block">Priser vises på arrangementsiden</small>
+                                </div>
+                                
+                                <hr class="my-4">
+                                
+                                <h6 class="mb-3"><i class="bi bi-people-fill me-2"></i>Medlemspriser</h6>
+                                <div id="membership-pricing-container">
+                                    <div class="text-center py-3">
+                                        <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                                        <small class="text-muted">Laster medlemsplaner...</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Membership Add-ons -->
+                    <div class="wizard-content" id="wizard-step-5" style="display: none;">
+                        <div class="text-center mb-4">
+                            <h4 class="mb-2">Medlemstillegg</h4>
+                            <p class="text-muted">Spesielle innstillinger for medlemmer</p>
+                        </div>
+                        
+                        <div class="row justify-content-center">
+                            <div class="col-md-8">
+                                <div class="card border-0 bg-light mb-3">
+                                    <div class="card-body">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" name="memberverification" id="memberverification">
+                                            <label class="form-check-label" for="memberverification">
+                                                <i class="bi bi-shield-check text-success me-2"></i>
+                                                <strong>Autofyll og autogodkjenning</strong>
+                                            </label>
+                                            <small class="text-muted d-block ms-4">Medlemmer får automatisk utfylt informasjon og godkjennes umiddelbart</small>
+                                        </div>
+                                        
+                                        <div class="form-check" id="members-only-container">
+                                            <input class="form-check-input" type="checkbox" name="is_member_exclusive" id="memberExclusive">
+                                            <label class="form-check-label" for="memberExclusive">
+                                                <i class="bi bi-lock-fill text-warning me-2"></i>
+                                                <strong>Kun for medlemmer</strong>
+                                            </label>
+                                            <small class="text-muted d-block ms-4">Bare medlemmer kan melde seg på dette arrangementet</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    Disse valgene vises bare for arrangementer med påmelding.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 6: Payment Methods -->
+                    <div class="wizard-content" id="wizard-step-6" style="display: none;">
+                        <div class="text-center mb-4">
+                            <h4 class="mb-2">Betalingsmetoder</h4>
+                            <p class="text-muted">Velg hvordan deltakere kan betale</p>
+                        </div>
+                        
+                        <div class="row justify-content-center">
+                            <div class="col-md-8">
+                                <div id="payment-methods-container" class="mb-4">
+                                    <div class="text-center py-3">
+                                        <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                                        <small class="text-muted">Laster betalingsmetoder...</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Standard betalingsmetode</label>
+                                    <select class="form-select" name="default_payment_method" id="default-payment-method">
+                                        <option value="">Velg standardmetode...</option>
+                                    </select>
+                                    <small class="text-muted">Denne metoden vises som anbefalt ved betaling</small>
+                                </div>
+                                
+                                <p class="text-muted small"><strong>Status:</strong> <span id="payment-timing-status">Velg betalingsmetoder ovenfor</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 7: Summary -->
+                    <div class="wizard-content" id="wizard-step-7" style="display: none;">
+                        <div class="text-center mb-4">
+                            <h4 class="mb-2">Oppsummering</h4>
+                            <p class="text-muted">Se over og bekreft arrangementet</p>
+                        </div>
+                        
+                        <div class="row justify-content-center">
+                            <div class="col-md-8">
+                                <!-- Summary Card -->
+                                <div class="card border-0 shadow-sm mb-4" id="wizard-summary-card">
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-8">
+                                                <h5 id="summary-title" class="mb-2">-</h5>
+                                                <p class="text-muted mb-2" id="summary-description">-</p>
+                                                <div class="d-flex gap-3 flex-wrap mb-3">
+                                                    <span class="badge bg-primary" id="summary-type">-</span>
+                                                    <span class="text-muted"><i class="bi bi-calendar me-1"></i><span id="summary-date">-</span></span>
+                                                    <span class="text-muted"><i class="bi bi-geo-alt me-1"></i><span id="summary-location">-</span></span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <strong>Pris:</strong> <span id="summary-price">-</span>
+                                                </div>
+                                                <div>
+                                                    <strong>Deltakere:</strong> <span id="summary-attendees">-</span>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div id="summary-image" class="rounded bg-light d-flex align-items-center justify-content-center" style="height: 120px;">
+                                                    <i class="bi bi-image text-muted" style="font-size: 2rem;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Registration Fields -->
+                                <div id="registration-fields-section">
+                                    <h6 class="mb-3"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h6>
+                                    
+                                    <div class="alert alert-info mb-3">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        <strong>Påkrevde felt:</strong> Fornavn og Etternavn er alltid påkrevd.
+                                    </div>
+                                    
+                                    <div class="alert alert-warning mb-3">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>
+                                        <strong>Kontaktinformasjon (minst én påkrevd):</strong><br>
+                                        <small>Velg E-post og/eller Telefonnummer.</small>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-4 mb-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input contact-field-required" type="checkbox" name="field_email" id="field_email" checked>
+                                                <label class="form-check-label" for="field_email">
+                                                    <i class="bi bi-envelope text-primary me-1"></i> E-post
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input contact-field-required" type="checkbox" name="field_phone" id="field_phone" checked>
+                                                <label class="form-check-label" for="field_phone">
+                                                    <i class="bi bi-telephone text-primary me-1"></i> Telefon
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="field_street" id="field_street">
+                                                <label class="form-check-label" for="field_street">
+                                                    <i class="bi bi-house text-primary me-1"></i> Gateadresse
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="field_zip" id="field_zip">
+                                                <label class="form-check-label" for="field_zip">
+                                                    <i class="bi bi-mailbox text-primary me-1"></i> Postnummer
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="field_city" id="field_city">
+                                                <label class="form-check-label" for="field_city">
+                                                    <i class="bi bi-geo-alt text-primary me-1"></i> Poststed
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="field_age" id="field_age">
+                                                <label class="form-check-label" for="field_age">
+                                                    <i class="bi bi-person-badge text-primary me-1"></i> Alder
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Buttons -->
+                    <div class="wizard-navigation d-flex justify-content-between align-items-center mt-4 pt-4 border-top">
+                        <button type="button" class="btn btn-outline-secondary" id="wizard-prev" style="display: none;">
+                            <i class="bi bi-chevron-left me-1"></i>Tilbake
                         </button>
-                        <button type="reset" class="btn btn-outline-secondary">
-                            <i class="bi bi-x-circle me-1"></i>Nullstill
-                        </button>
+                        <div class="ms-auto d-flex gap-2">
+                            <button type="button" class="btn btn-outline-secondary" id="wizard-reset">
+                                <i class="bi bi-x-circle me-1"></i>Nullstill
+                            </button>
+                            <button type="button" class="btn btn-primary" id="wizard-next">
+                                Neste<i class="bi bi-chevron-right ms-1"></i>
+                            </button>
+                            <button type="submit" class="btn btn-success" id="wizard-submit" style="display: none;">
+                                <i class="bi bi-check-circle me-1"></i>Opprett arrangement
+                            </button>
+                        </div>
                     </div>
                 </form>
+                
+                <!-- Success Message (hidden by default) -->
+                <div id="wizard-success" style="display: none;">
+                    <div class="text-center py-5">
+                        <div class="mb-4">
+                            <i class="bi bi-check-circle-fill text-success" style="font-size: 5rem;"></i>
+                        </div>
+                        <h3 class="mb-3">Arrangementet er opprettet!</h3>
+                        <p class="text-muted mb-4">Du kan nå administrere arrangementet fra oversikten.</p>
+                        <button type="button" class="btn btn-primary" onclick="resetWizardAndGoToList()">
+                            <i class="bi bi-arrow-left me-1"></i>Gå til mine arrangementer
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -5457,3 +5735,377 @@ async function processGroupCheckout(paymentMethod) {
         </div>
     </div>
 </div>
+
+<script>
+// ========== EVENT WIZARD FUNCTIONALITY ==========
+let wizardCurrentStep = 1;
+const wizardTotalSteps = 7;
+
+function initEventWizard() {
+    const prevBtn = document.getElementById('wizard-prev');
+    const nextBtn = document.getElementById('wizard-next');
+    const submitBtn = document.getElementById('wizard-submit');
+    const resetBtn = document.getElementById('wizard-reset');
+    
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => wizardGoToStep(wizardCurrentStep + 1));
+    }
+    
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => wizardGoToStep(wizardCurrentStep - 1));
+    }
+    
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetWizard);
+    }
+    
+    // Option card click handler
+    document.querySelectorAll('.wizard-option-card input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            updateWizardBasedOnType();
+        });
+    });
+    
+    // Min attendees triggers deadline field
+    const minAttendeesField = document.getElementById('min_attendees');
+    if (minAttendeesField) {
+        minAttendeesField.addEventListener('input', function() {
+            const container = document.getElementById('registration_deadline_container');
+            if (container) {
+                container.style.display = this.value && parseInt(this.value) > 0 ? 'block' : 'none';
+            }
+        });
+    }
+    
+    // Venue checkbox toggle
+    const hasVenueCheckbox = document.getElementById('has_venue');
+    if (hasVenueCheckbox) {
+        hasVenueCheckbox.addEventListener('change', function() {
+            const venueFields = document.getElementById('venue-fields');
+            if (venueFields) {
+                venueFields.style.display = this.checked ? 'block' : 'none';
+            }
+        });
+    }
+    
+    // Contact field validation
+    document.querySelectorAll('.contact-field-required').forEach(checkbox => {
+        checkbox.addEventListener('change', validateContactFields);
+    });
+    
+    // Load payment methods and membership plans
+    loadWizardPaymentMethods();
+    loadWizardMembershipPlans();
+}
+
+function wizardGoToStep(step) {
+    if (step < 1 || step > wizardTotalSteps) return;
+    
+    // Validate current step before proceeding
+    if (step > wizardCurrentStep && !validateWizardStep(wizardCurrentStep)) {
+        return;
+    }
+    
+    // Hide current step
+    const currentContent = document.getElementById(`wizard-step-${wizardCurrentStep}`);
+    if (currentContent) currentContent.style.display = 'none';
+    
+    // Update step indicators
+    document.querySelectorAll('.wizard-step').forEach(stepEl => {
+        const stepNum = parseInt(stepEl.dataset.step);
+        stepEl.classList.remove('active', 'completed');
+        if (stepNum < step) {
+            stepEl.classList.add('completed');
+        } else if (stepNum === step) {
+            stepEl.classList.add('active');
+        }
+    });
+    
+    // Show new step
+    wizardCurrentStep = step;
+    const newContent = document.getElementById(`wizard-step-${step}`);
+    if (newContent) newContent.style.display = 'block';
+    
+    // Update navigation buttons
+    const prevBtn = document.getElementById('wizard-prev');
+    const nextBtn = document.getElementById('wizard-next');
+    const submitBtn = document.getElementById('wizard-submit');
+    
+    if (prevBtn) prevBtn.style.display = step > 1 ? 'block' : 'none';
+    if (nextBtn) nextBtn.style.display = step < wizardTotalSteps ? 'block' : 'none';
+    if (submitBtn) submitBtn.style.display = step === wizardTotalSteps ? 'block' : 'none';
+    
+    // Update summary on last step
+    if (step === wizardTotalSteps) {
+        updateWizardSummary();
+    }
+    
+    // Handle step-specific logic
+    if (step === 5) {
+        updateMembershipAddonsVisibility();
+    }
+}
+
+function validateWizardStep(step) {
+    const form = document.getElementById('create-event-form');
+    
+    switch(step) {
+        case 1:
+            const regType = form.querySelector('input[name="registration_type"]:checked');
+            if (!regType) {
+                alert('Velg en registreringstype');
+                return false;
+            }
+            return true;
+            
+        case 2:
+            const title = form.querySelector('input[name="title"]');
+            const startDate = form.querySelector('input[name="start_date"]');
+            const startTime = form.querySelector('input[name="start_time"]');
+            
+            if (!title.value.trim()) {
+                alert('Fyll inn arrangementsnavn');
+                title.focus();
+                return false;
+            }
+            if (!startDate.value) {
+                alert('Velg startdato');
+                startDate.focus();
+                return false;
+            }
+            if (!startTime.value) {
+                alert('Velg starttid');
+                startTime.focus();
+                return false;
+            }
+            return true;
+            
+        case 7:
+            return validateContactFields();
+            
+        default:
+            return true;
+    }
+}
+
+function validateContactFields() {
+    const emailField = document.getElementById('field_email');
+    const phoneField = document.getElementById('field_phone');
+    
+    if (!emailField.checked && !phoneField.checked) {
+        alert('Du må aktivere minst E-post eller Telefon');
+        return false;
+    }
+    return true;
+}
+
+function updateWizardBasedOnType() {
+    const regType = document.querySelector('input[name="registration_type"]:checked')?.value;
+    
+    // Show/hide members-only option based on registration type
+    const membersOnlyContainer = document.getElementById('members-only-container');
+    if (membersOnlyContainer) {
+        membersOnlyContainer.style.display = (regType === 'signup' || regType === 'binding') ? 'block' : 'none';
+    }
+    
+    // Show/hide registration fields section
+    const regFieldsSection = document.getElementById('registration-fields-section');
+    if (regFieldsSection) {
+        regFieldsSection.style.display = regType !== 'none' ? 'block' : 'none';
+    }
+}
+
+function updateMembershipAddonsVisibility() {
+    const regType = document.querySelector('input[name="registration_type"]:checked')?.value;
+    const membersOnlyContainer = document.getElementById('members-only-container');
+    
+    if (membersOnlyContainer) {
+        membersOnlyContainer.style.display = (regType === 'signup' || regType === 'binding') ? 'block' : 'none';
+    }
+}
+
+function updateWizardSummary() {
+    const form = document.getElementById('create-event-form');
+    
+    // Title
+    const title = form.querySelector('input[name="title"]')?.value || '-';
+    document.getElementById('summary-title').textContent = title;
+    
+    // Description
+    const desc = form.querySelector('textarea[name="description"]')?.value || 'Ingen beskrivelse';
+    document.getElementById('summary-description').textContent = desc.substring(0, 100) + (desc.length > 100 ? '...' : '');
+    
+    // Type
+    const regType = form.querySelector('input[name="registration_type"]:checked')?.value || 'signup';
+    const typeLabels = { 'signup': 'Påmelding', 'none': 'Uten påmelding', 'binding': 'Bindende' };
+    document.getElementById('summary-type').textContent = typeLabels[regType] || regType;
+    
+    // Date
+    const startDate = form.querySelector('input[name="start_date"]')?.value;
+    const startTime = form.querySelector('input[name="start_time"]')?.value;
+    if (startDate) {
+        const dateObj = new Date(startDate + 'T' + (startTime || '00:00'));
+        document.getElementById('summary-date').textContent = dateObj.toLocaleDateString('no-NO', { 
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' 
+        }) + (startTime ? ` kl. ${startTime}` : '');
+    }
+    
+    // Location
+    const venueName = form.querySelector('input[name="venue_name"]')?.value;
+    const city = form.querySelector('input[name="event_city"]')?.value;
+    document.getElementById('summary-location').textContent = venueName || city || 'Ikke angitt';
+    
+    // Price
+    const ticketPrice = form.querySelector('input[name="ticket_price"]')?.value;
+    document.getElementById('summary-price').textContent = ticketPrice ? `${ticketPrice} kr` : 'Gratis';
+    
+    // Attendees
+    const minAtt = form.querySelector('input[name="min_attendees"]')?.value;
+    const maxAtt = form.querySelector('input[name="max_attendees"]')?.value;
+    let attendeesText = 'Ingen grense';
+    if (minAtt && maxAtt) attendeesText = `${minAtt} - ${maxAtt}`;
+    else if (minAtt) attendeesText = `Min. ${minAtt}`;
+    else if (maxAtt) attendeesText = `Maks. ${maxAtt}`;
+    document.getElementById('summary-attendees').textContent = attendeesText;
+    
+    // Image preview
+    const imgUrl = form.querySelector('input[name="event_image_url"]')?.value;
+    const imgContainer = document.getElementById('summary-image');
+    if (imgUrl) {
+        imgContainer.innerHTML = `<img src="${imgUrl}" class="img-fluid rounded" style="max-height: 120px; object-fit: cover;" onerror="this.parentElement.innerHTML='<i class=\\'bi bi-image text-muted\\' style=\\'font-size: 2rem;\\'></i>'">`;
+    } else {
+        imgContainer.innerHTML = '<i class="bi bi-image text-muted" style="font-size: 2rem;"></i>';
+    }
+    
+    // Update registration fields visibility
+    updateWizardBasedOnType();
+}
+
+async function loadWizardPaymentMethods() {
+    try {
+        const response = await fetch('/api/get_payment_methods.php');
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            const container = document.getElementById('payment-methods-container');
+            const defaultSelect = document.getElementById('default-payment-method');
+            
+            if (result.data.length === 0) {
+                container.innerHTML = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>Ingen betalingsmetoder konfigurert. Gå til Økonomi-modulen for å sette opp betalingsløsninger.</div>';
+                return;
+            }
+            
+            container.innerHTML = result.data.map(pm => `
+                <div class="form-check form-check-inline mb-2">
+                    <input class="form-check-input payment-method-checkbox" type="checkbox" name="payment_methods[]" value="${pm.method_type}" id="pm_${pm.method_type}" checked>
+                    <label class="form-check-label" for="pm_${pm.method_type}">
+                        <i class="bi bi-${pm.config?.icon || 'wallet2'} me-1"></i>${pm.method_name || pm.method_type}
+                    </label>
+                </div>
+            `).join('');
+            
+            defaultSelect.innerHTML = '<option value="">Velg standardmetode...</option>' + 
+                result.data.map(pm => `<option value="${pm.method_type}">${pm.method_name || pm.method_type}</option>`).join('');
+        }
+    } catch (error) {
+        console.error('Error loading payment methods:', error);
+    }
+}
+
+async function loadWizardMembershipPlans() {
+    try {
+        const response = await fetch('/api/get_membership_plans.php');
+        const result = await response.json();
+        
+        const container = document.getElementById('membership-pricing-container');
+        
+        if (result.success && result.data && result.data.length > 0) {
+            container.innerHTML = result.data.map(plan => `
+                <div class="card bg-light mb-2 p-2">
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            <label class="form-label mb-0 fw-medium">${plan.name}</label>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="number" step="0.01" class="form-control form-control-sm" name="membership_price_${plan.id}" placeholder="Medlemspris (kr)">
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="membership_public_${plan.id}" id="membership_public_${plan.id}" checked>
+                                <label class="form-check-label small" for="membership_public_${plan.id}">
+                                    <i class="bi bi-globe text-primary me-1"></i>Vis offentlig
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<p class="text-muted small">Ingen medlemsplaner funnet.</p>';
+        }
+    } catch (error) {
+        console.error('Error loading membership plans:', error);
+        document.getElementById('membership-pricing-container').innerHTML = '<p class="text-muted small">Kunne ikke laste medlemsplaner.</p>';
+    }
+}
+
+function resetWizard() {
+    if (!confirm('Er du sikker på at du vil nullstille skjemaet?')) return;
+    
+    const form = document.getElementById('create-event-form');
+    form.reset();
+    
+    // Reset to step 1
+    wizardCurrentStep = 1;
+    
+    // Hide all steps except first
+    document.querySelectorAll('.wizard-content').forEach((el, index) => {
+        el.style.display = index === 0 ? 'block' : 'none';
+    });
+    
+    // Reset step indicators
+    document.querySelectorAll('.wizard-step').forEach((el, index) => {
+        el.classList.remove('active', 'completed');
+        if (index === 0) el.classList.add('active');
+    });
+    
+    // Reset navigation buttons
+    document.getElementById('wizard-prev').style.display = 'none';
+    document.getElementById('wizard-next').style.display = 'block';
+    document.getElementById('wizard-submit').style.display = 'none';
+    
+    // Show form, hide success
+    document.getElementById('create-event-form').style.display = 'block';
+    document.getElementById('wizard-success').style.display = 'none';
+    document.querySelector('.wizard-progress').style.display = 'block';
+    document.querySelector('.wizard-navigation').style.display = 'flex';
+    
+    // Reload dynamic content
+    loadWizardPaymentMethods();
+    loadWizardMembershipPlans();
+}
+
+function resetWizardAndGoToList() {
+    resetWizard();
+    document.querySelector('[href="#events-my"]')?.click();
+}
+
+function showWizardSuccess() {
+    document.getElementById('create-event-form').style.display = 'none';
+    document.querySelector('.wizard-progress').style.display = 'none';
+    document.querySelector('.wizard-navigation').style.display = 'none';
+    document.getElementById('wizard-success').style.display = 'block';
+}
+
+// Initialize wizard on DOM ready
+document.addEventListener('DOMContentLoaded', initEventWizard);
+
+// Handle subtab change to reset wizard when entering create tab
+document.addEventListener('subtab-changed', function(event) {
+    if (event.detail.subtab === 'events-create') {
+        // Optionally reset wizard when entering the tab
+        // resetWizard();
+        initEventWizard();
+    }
+});
+</script>
