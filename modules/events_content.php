@@ -4721,14 +4721,22 @@ if (registrationTypeRadios.length > 0) {
         // Show/hide participant limits (but NOT ticket price - that's allowed for "Ingen påmelding")
         const minAttendeesInput = document.querySelector('input[name="min_attendees"]');
         const maxAttendeesInput = document.querySelector('input[name="max_attendees"]');
-        const ticketPriceInput = document.querySelector('input[name="ticket_price"]');
         const regDeadlineContainer = document.getElementById('registration_deadline_container');
         
-        if (minAttendeesInput && minAttendeesInput.closest('.col-md-3')) minAttendeesInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
-        if (maxAttendeesInput && maxAttendeesInput.closest('.col-md-3')) maxAttendeesInput.closest('.col-md-3').style.display = isNone ? 'none' : 'block';
-        // Keep ticket price visible for all registration types
-        if (ticketPriceInput && ticketPriceInput.closest('.col-md-3')) ticketPriceInput.closest('.col-md-3').style.display = 'block';
+        // Find the parent row containing both min/max attendees fields
+        if (minAttendeesInput) {
+            const minRow = minAttendeesInput.closest('.row');
+            if (minRow && maxAttendeesInput && minRow.contains(maxAttendeesInput)) {
+                minRow.style.display = isNone ? 'none' : '';
+            }
+        }
         if (regDeadlineContainer) regDeadlineContainer.style.display = 'none';
+        
+        // Show/hide deltakere line in summary
+        const summaryAttendeesLine = document.getElementById('summary-attendees');
+        if (summaryAttendeesLine && summaryAttendeesLine.closest('div')) {
+            summaryAttendeesLine.closest('div').style.display = isNone ? 'none' : '';
+        }
         
         // Update ticket price help text based on registration type
         const ticketPriceHelp = document.getElementById('ticket-price-help');
@@ -5921,14 +5929,22 @@ function getNextValidStep(currentStep, direction) {
     const regType = document.querySelector('input[name="registration_type"]:checked')?.value;
     let nextStep = currentStep + direction;
     
-    // Skip step 5 (medlemstillegg) if "Uten påmelding"
-    if (regType === 'none' && nextStep === 5) {
+    // For "Uten påmelding" - skip steps 5 (medlemstillegg) and 6 (payment)
+    // Keep step 4 (pricing) since user can set entrance fee
+    if (regType === 'none') {
+        if (nextStep === 5 || nextStep === 6) {
+            nextStep = direction > 0 ? 7 : 4;
+        }
+    }
+    // For "Påmelding" (signup) - skip step 5 (medlemstillegg)
+    else if (regType === 'signup' && nextStep === 5) {
         nextStep += direction;
     }
-    
-    // Skip step 6 (betalingsmetoder) if "Bindende" (already chosen in step 1)
-    if (regType === 'binding' && nextStep === 6) {
-        nextStep += direction;
+    // For "Bindende" - skip step 5 AND step 6 (payment already chosen in step 1)
+    else if (regType === 'binding') {
+        if (nextStep === 5 || nextStep === 6) {
+            nextStep = direction > 0 ? 7 : 4;
+        }
     }
     
     // Clamp to valid range
