@@ -828,6 +828,25 @@ try {
                                 </label>
                             </div>
                         </div>
+                        
+                        <div id="binding-payment-container" class="mt-4" style="display: none;">
+                            <div class="row justify-content-center">
+                                <div class="col-md-8">
+                                    <div class="card bg-warning bg-opacity-10 border-warning">
+                                        <div class="card-body">
+                                            <h6 class="mb-3"><i class="bi bi-credit-card me-2"></i>Velg betalingsmetode for bindende påmelding</h6>
+                                            <p class="text-muted small mb-3">Kontant betaling er ikke tilgjengelig for bindende arrangementer.</p>
+                                            <div id="binding-payment-methods">
+                                                <div class="text-center py-2">
+                                                    <div class="spinner-border spinner-border-sm text-warning me-2"></div>
+                                                    <small class="text-muted">Laster betalingsmetoder...</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Step 2: Basic Info -->
@@ -5831,11 +5850,17 @@ function initEventWizard() {
     const resetBtn = document.getElementById('wizard-reset');
     
     if (nextBtn) {
-        nextBtn.addEventListener('click', () => wizardGoToStep(wizardCurrentStep + 1));
+        nextBtn.addEventListener('click', () => {
+            const nextStep = getNextValidStep(wizardCurrentStep, 1);
+            wizardGoToStep(nextStep);
+        });
     }
     
     if (prevBtn) {
-        prevBtn.addEventListener('click', () => wizardGoToStep(wizardCurrentStep - 1));
+        prevBtn.addEventListener('click', () => {
+            const prevStep = getNextValidStep(wizardCurrentStep, -1);
+            wizardGoToStep(prevStep);
+        });
     }
     
     if (resetBtn) {
@@ -5890,6 +5915,27 @@ function initEventWizard() {
     // Load payment methods and membership plans
     loadWizardPaymentMethods();
     loadWizardMembershipPlans();
+}
+
+function getNextValidStep(currentStep, direction) {
+    const regType = document.querySelector('input[name="registration_type"]:checked')?.value;
+    let nextStep = currentStep + direction;
+    
+    // Skip step 5 (medlemstillegg) if "Uten påmelding"
+    if (regType === 'none' && nextStep === 5) {
+        nextStep += direction;
+    }
+    
+    // Skip step 6 (betalingsmetoder) if "Bindende" (already chosen in step 1)
+    if (regType === 'binding' && nextStep === 6) {
+        nextStep += direction;
+    }
+    
+    // Clamp to valid range
+    if (nextStep < 1) nextStep = 1;
+    if (nextStep > wizardTotalSteps) nextStep = wizardTotalSteps;
+    
+    return nextStep;
 }
 
 function wizardGoToStep(step) {
@@ -5960,6 +6006,15 @@ function validateWizardStep(step) {
                 alert('Velg en registreringstype');
                 return false;
             }
+            
+            // If binding, require payment method selection
+            if (regType.value === 'binding') {
+                const bindingPayment = form.querySelector('input[name="binding_payment_method"]:checked');
+                if (!bindingPayment) {
+                    alert('Velg en betalingsmetode for bindende påmelding');
+                    return false;
+                }
+            }
             return true;
             
         case 2:
@@ -6016,6 +6071,52 @@ function updateWizardBasedOnType() {
     const regFieldsSection = document.getElementById('registration-fields-section');
     if (regFieldsSection) {
         regFieldsSection.style.display = regType !== 'none' ? 'block' : 'none';
+    }
+    
+    // Show/hide binding payment selection
+    const bindingPaymentContainer = document.getElementById('binding-payment-container');
+    if (bindingPaymentContainer) {
+        if (regType === 'binding') {
+            bindingPaymentContainer.style.display = 'block';
+            loadBindingPaymentMethods();
+        } else {
+            bindingPaymentContainer.style.display = 'none';
+        }
+    }
+}
+
+async function loadBindingPaymentMethods() {
+    try {
+        const response = await fetch('/api/get_payment_methods.php');
+        const result = await response.json();
+        
+        const container = document.getElementById('binding-payment-methods');
+        if (!container) return;
+        
+        if (result.success && result.data) {
+            const nonCashMethods = result.data.filter(pm => pm.method_type !== 'cash');
+            
+            if (nonCashMethods.length === 0) {
+                container.innerHTML = '<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Ingen elektroniske betalingsmetoder konfigurert. Gå til Økonomi-modulen for å sette opp Vipps, Stripe eller PayPal.</div>';
+                return;
+            }
+            
+            container.innerHTML = nonCashMethods.map(pm => {
+                const icon = (pm.config && pm.config.icon) ? pm.config.icon : 'wallet2';
+                const name = pm.method_name || pm.method_type;
+                return `
+                <div class="form-check mb-2">
+                    <input class="form-check-input binding-payment-radio" type="radio" name="binding_payment_method" value="${pm.method_type}" id="binding_pm_${pm.method_type}">
+                    <label class="form-check-label" for="binding_pm_${pm.method_type}">
+                        <i class="bi bi-${icon} me-1"></i>${name}
+                    </label>
+                </div>`;
+            }).join('');
+        } else {
+            container.innerHTML = '<div class="alert alert-warning mb-0">Kunne ikke laste betalingsmetoder.</div>';
+        }
+    } catch (error) {
+        console.error('Error loading binding payment methods:', error);
     }
 }
 
@@ -6103,7 +6204,7 @@ async function loadWizardPaymentMethods() {
                 <div class="form-check form-check-inline mb-2">
                     <input class="form-check-input payment-method-checkbox" type="checkbox" name="payment_methods[]" value="${pm.method_type}" id="pm_${pm.method_type}" checked>
                     <label class="form-check-label" for="pm_${pm.method_type}">
-                        <i class="bi bi-${pm.config?.icon || 'wallet2'} me-1"></i>${pm.method_name || pm.method_type}
+                        <i class="bi bi-${(pm.config && pm.config.icon) ? pm.config.icon : 'wallet2'} me-1"></i>${pm.method_name || pm.method_type}
                     </label>
                 </div>
             `).join('');
@@ -6196,10 +6297,48 @@ function resetWizardAndGoToList() {
 }
 
 function showWizardSuccess() {
-    document.getElementById('create-event-form').style.display = 'none';
+    // Reset the form completely
+    const form = document.getElementById('create-event-form');
+    form.reset();
+    
+    // Reset wizard state
+    wizardCurrentStep = 1;
+    
+    // Reset all step contents to initial state
+    document.querySelectorAll('.wizard-content').forEach((el, index) => {
+        el.style.display = index === 0 ? 'block' : 'none';
+    });
+    
+    // Reset step indicators
+    document.querySelectorAll('.wizard-step').forEach((el, index) => {
+        el.classList.remove('active', 'completed');
+        if (index === 0) el.classList.add('active');
+    });
+    
+    // Reset navigation buttons
+    document.getElementById('wizard-prev').style.display = 'none';
+    document.getElementById('wizard-next').style.display = 'block';
+    document.getElementById('wizard-submit').style.display = 'none';
+    
+    // Hide binding payment container
+    const bindingContainer = document.getElementById('binding-payment-container');
+    if (bindingContainer) bindingContainer.style.display = 'none';
+    
+    // Hide venue name field
+    const venueNameField = document.getElementById('venue-name-field');
+    if (venueNameField) venueNameField.style.display = 'none';
+    const hasVenueNameCheckbox = document.getElementById('has_venue_name');
+    if (hasVenueNameCheckbox) hasVenueNameCheckbox.checked = false;
+    
+    // Hide form and show success
+    form.style.display = 'none';
     document.querySelector('.wizard-progress').style.display = 'none';
     document.querySelector('.wizard-navigation').style.display = 'none';
     document.getElementById('wizard-success').style.display = 'block';
+    
+    // Reload dynamic content for next use
+    loadWizardPaymentMethods();
+    loadWizardMembershipPlans();
 }
 
 // Initialize wizard on DOM ready
