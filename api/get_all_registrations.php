@@ -15,6 +15,7 @@ try {
     // Customer data from tenant_customers used for display
     // Membership info is in membership_members table
     // Payment status comes from events_checkin
+    // ticket_price: Use membership price if available, otherwise use standard event price
     $stmt = $db->prepare("
         SELECT 
             r.id,
@@ -34,7 +35,9 @@ try {
             CASE WHEN mm.membership_plan_id IS NOT NULL THEN 1 ELSE 0 END AS has_valid_membership,
             mm.membership_plan_id AS customer_membership_plan_id,
             mp.name AS membership_plan_name,
-            emp.ticket_price AS event_ticket_price,
+            COALESCE(emp.ticket_price, e.ticket_price) AS ticket_price,
+            e.ticket_price AS standard_ticket_price,
+            emp.ticket_price AS membership_ticket_price,
             ec.payment_status,
             ec.payment_method,
             ec.ticket_price AS paid_ticket_price,

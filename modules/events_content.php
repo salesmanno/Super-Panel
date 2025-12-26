@@ -737,17 +737,17 @@ try {
                         <div class="row">
                             <div class="col-md-12 mb-3">
                                 <label class="form-label">Gateadresse</label>
-                                <input type="text" class="form-control address-field" name="event_address" placeholder="f.eks. Hovedgaten 42">
+                                <input type="text" class="form-control address-field" name="event_address">
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">By</label>
-                                <input type="text" class="form-control city-field" name="event_city" placeholder="f.eks. Oslo">
+                                <input type="text" class="form-control city-field" name="event_city">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Postnummer</label>
-                                <input type="text" class="form-control zip-field" name="event_postal" placeholder="f.eks. 0150" maxlength="4">
+                                <input type="text" class="form-control zip-field" name="event_postal" maxlength="4">
                             </div>
                         </div>
                     </div>
@@ -832,43 +832,70 @@ try {
                     <div id="registration-fields-section">
                         <hr class="my-4">
                         <h6 class="mb-3"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h6>
-                        <p class="text-muted small mb-3">Fornavn og etternavn er alltid påkrevd. Velg minst én kontaktmetode (e-post eller telefon).</p>
+                        
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Påkrevde felt:</strong> Fornavn og Etternavn er alltid påkrevd.
+                        </div>
+                        
+                        <div class="alert alert-warning mb-3">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>Kontaktinformasjon (minst én påkrevd):</strong><br>
+                            <small>Velg E-post og/eller Telefonnummer. Minst én må være aktivert for å verifisere medlemskap.</small>
+                        </div>
                         
                         <div class="row">
-                            <div class="col-md-3">
-                                <div class="form-check mb-2">
+                            <div class="col-md-3 mb-2">
+                                <div class="form-check">
                                     <input class="form-check-input contact-field-required" type="checkbox" name="field_email" id="field_email" checked>
                                     <label class="form-check-label" for="field_email">
-                                        <i class="bi bi-envelope me-1"></i> E-post
+                                        <i class="bi bi-envelope text-primary me-1"></i> E-post
                                     </label>
                                 </div>
                             </div>
-                            <div class="col-md-3">
-                                <div class="form-check mb-2">
+                            <div class="col-md-3 mb-2">
+                                <div class="form-check">
                                     <input class="form-check-input contact-field-required" type="checkbox" name="field_phone" id="field_phone" checked>
                                     <label class="form-check-label" for="field_phone">
-                                        <i class="bi bi-telephone me-1"></i> Telefon
+                                        <i class="bi bi-telephone text-primary me-1"></i> Telefon
                                     </label>
                                 </div>
                             </div>
-                            <div class="col-md-3">
-                                <div class="form-check mb-2">
+                            <div class="col-md-3 mb-2">
+                                <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="field_street" id="field_street">
                                     <label class="form-check-label" for="field_street">
-                                        <i class="bi bi-house me-1"></i> Adresse
+                                        <i class="bi bi-house text-primary me-1"></i> Gateadresse
                                     </label>
                                 </div>
                             </div>
-                            <div class="col-md-3">
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="field_age" id="field_age">
-                                    <label class="form-check-label" for="field_age">
-                                        <i class="bi bi-person-badge me-1"></i> Alder
+                            <div class="col-md-3 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="field_zip" id="field_zip">
+                                    <label class="form-check-label" for="field_zip">
+                                        <i class="bi bi-mailbox text-primary me-1"></i> Postnummer
                                     </label>
                                 </div>
                             </div>
                         </div>
-                        
+                        <div class="row">
+                            <div class="col-md-3 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="field_city" id="field_city">
+                                    <label class="form-check-label" for="field_city">
+                                        <i class="bi bi-geo-alt text-primary me-1"></i> Poststed
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="field_age" id="field_age">
+                                    <label class="form-check-label" for="field_age">
+                                        <i class="bi bi-person-badge text-primary me-1"></i> Alder
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="d-flex gap-2">
@@ -1509,17 +1536,17 @@ try {
                         <div class="row">
                             <div class="col-md-12 mb-3">
                                 <label class="form-label">Gateadresse</label>
-                                <input type="text" class="form-control address-field" name="event_address" id="edit-event-address" placeholder="f.eks. Hovedgaten 42">
+                                <input type="text" class="form-control address-field" name="event_address" id="edit-event-address">
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">By</label>
-                                <input type="text" class="form-control city-field" name="event_city" id="edit-event-city" placeholder="f.eks. Oslo">
+                                <input type="text" class="form-control city-field" name="event_city" id="edit-event-city">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Postnummer</label>
-                                <input type="text" class="form-control zip-field" name="event_postal" id="edit-event-postal" placeholder="f.eks. 0150" maxlength="4">
+                                <input type="text" class="form-control zip-field" name="event_postal" id="edit-event-postal" maxlength="4">
                             </div>
                         </div>
                     </div>
@@ -1651,14 +1678,6 @@ try {
                                 <input class="form-check-input" type="checkbox" name="field_city" id="edit-field-city">
                                 <label class="form-check-label" for="edit-field-city">
                                     <i class="bi bi-geo-alt text-primary me-1"></i> Poststed
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="field_postal" id="edit-field-postal">
-                                <label class="form-check-label" for="edit-field-postal">
-                                    <i class="bi bi-box text-primary me-1"></i> Postboks
                                 </label>
                             </div>
                         </div>
@@ -2065,12 +2084,15 @@ async function loadEvents() {
                 
                 // Check if member-exclusive event
                 if (event.is_member_exclusive && event.membership_prices && event.membership_prices.length > 0) {
-                    // Show all membership prices in a clean list
+                    // Show all membership prices in a clean list (including non-public in gray)
                     const priceList = event.membership_prices
                         .map(mp => {
-                            return `<div class="d-flex justify-content-between align-items-center mb-1">
-                                <small>${mp.plan_name}</small>
-                                <strong class="text-primary">${mp.price} kr</strong>
+                            const isPublic = mp.public_display == 1;
+                            const textClass = isPublic ? 'text-primary' : 'text-muted';
+                            const opacity = isPublic ? '' : 'opacity: 0.6;';
+                            return `<div class="d-flex justify-content-between align-items-center mb-1" style="${opacity}">
+                                <small>${mp.plan_name}${!isPublic ? ' (skjult)' : ''}</small>
+                                <strong class="${textClass}">${mp.price} kr</strong>
                             </div>`;
                         })
                         .join('');
@@ -4844,8 +4866,8 @@ async function loadAllRegistrations() {
                     ? `<span class="badge bg-success-subtle text-success"><i class="bi bi-star-fill me-1"></i>${reg.membership_plan_name}</span>`
                     : '<span class="text-muted">-</span>';
                 
-                const ticketPrice = reg.event_ticket_price != null 
-                    ? `<span class="fw-semibold">${parseFloat(reg.event_ticket_price).toFixed(0)} kr</span>`
+                const ticketPrice = reg.ticket_price != null 
+                    ? `<span class="fw-semibold">${parseFloat(reg.ticket_price).toFixed(0)} kr</span>${reg.membership_ticket_price ? ' <small class="text-success">(medlem)</small>' : ''}`
                     : '<span class="text-muted">-</span>';
                 
                 const customerName = `${reg.first_name || ''} ${reg.last_name || ''}`.trim();

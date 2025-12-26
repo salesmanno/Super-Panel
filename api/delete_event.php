@@ -47,7 +47,22 @@ try {
             ");
             $stmt->execute([$data['event_id'], $_SESSION['company_id']]);
             
-            // 2. Delete event registrations and check-ins
+            // 2. Clear related_event_id in announcements (SET NULL due to FK constraint)
+            $stmt = $db->prepare("
+                UPDATE tenant_announcements 
+                SET related_event_id = NULL 
+                WHERE related_event_id = ?
+            ");
+            $stmt->execute([$data['event_id']]);
+            
+            // 3. Delete event results
+            $stmt = $db->prepare("
+                DELETE FROM events_results 
+                WHERE event_id = ?
+            ");
+            $stmt->execute([$data['event_id']]);
+            
+            // 4. Delete event registrations and check-ins
             $stmt = $db->prepare("
                 DELETE FROM event_registrations 
                 WHERE event_id = ? AND company_id = ?
@@ -60,28 +75,28 @@ try {
             ");
             $stmt->execute([$data['event_id']]);
             
-            // 3. Delete registration fields
+            // 5. Delete registration fields
             $stmt = $db->prepare("
                 DELETE FROM event_registration_fields 
                 WHERE event_id = ?
             ");
             $stmt->execute([$data['event_id']]);
             
-            // 4. Delete membership pricing
+            // 6. Delete membership pricing
             $stmt = $db->prepare("
                 DELETE FROM event_membership_plans 
                 WHERE event_id = ?
             ");
             $stmt->execute([$data['event_id']]);
             
-            // 5. Delete from unified_ledger (event transactions)
+            // 7. Delete from unified_ledger (event transactions)
             $stmt = $db->prepare("
                 DELETE FROM unified_ledger 
                 WHERE reference_id = ? AND reference_type = 'event' AND company_id = ?
             ");
             $stmt->execute([$data['event_id'], $_SESSION['company_id']]);
             
-            // 6. Delete the event itself
+            // 8. Delete the event itself
             $stmt = $db->prepare("
                 DELETE FROM events_eventdata 
                 WHERE id = ? AND company_id = ?
@@ -96,6 +111,7 @@ try {
             ]);
         } catch (Exception $e) {
             $db->rollBack();
+            error_log("Hard delete event error: " . $e->getMessage());
             throw $e;
         }
     } else {
