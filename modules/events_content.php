@@ -1749,7 +1749,7 @@ try {
     </div>
 </div>
 
-<!-- Edit Event Modal -->
+<!-- Edit Event Modal with Vertical Tabs -->
 <div class="modal fade" id="editEventModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -1757,256 +1757,311 @@ try {
                 <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Rediger arrangement</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-0">
                 <form id="edit-event-form">
                     <input type="hidden" name="event_id" id="edit-event-id">
                     
-                    <div class="row">
-                        <div class="col-md-<?php echo isset($hasMembershipAccess) && $hasMembershipAccess ? '8' : '12'; ?> mb-3">
-                            <label class="form-label">Arrangement navn *</label>
-                            <input type="text" class="form-control" name="title" id="edit-title" required>
-                        </div>
-                        <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Kun for medlemmer?</label>
-                            <div class="form-check form-switch mt-2">
-                                <input class="form-check-input" type="checkbox" name="is_member_exclusive" id="edit-member-exclusive">
-                                <label class="form-check-label" for="edit-member-exclusive">Kun medlemmer</label>
+                    <div class="d-flex">
+                        <!-- Vertical Tabs Navigation -->
+                        <div class="edit-tabs-nav border-end" style="width: 200px; min-height: 500px; background: #f8f9fa;">
+                            <div class="nav flex-column nav-pills p-3" id="edit-tabs" role="tablist">
+                                <button class="nav-link active text-start mb-2" id="edit-tab-1" data-bs-toggle="pill" data-bs-target="#edit-panel-1" type="button" role="tab">
+                                    <span class="badge bg-primary rounded-circle me-2">1</span>Type
+                                </button>
+                                <button class="nav-link text-start mb-2" id="edit-tab-2" data-bs-toggle="pill" data-bs-target="#edit-panel-2" type="button" role="tab">
+                                    <span class="badge bg-secondary rounded-circle me-2">2</span>Grunnleggende
+                                </button>
+                                <button class="nav-link text-start mb-2" id="edit-tab-3" data-bs-toggle="pill" data-bs-target="#edit-panel-3" type="button" role="tab">
+                                    <span class="badge bg-secondary rounded-circle me-2">3</span>Sted
+                                </button>
+                                <button class="nav-link text-start mb-2" id="edit-tab-4" data-bs-toggle="pill" data-bs-target="#edit-panel-4" type="button" role="tab">
+                                    <span class="badge bg-secondary rounded-circle me-2">4</span>Priser
+                                </button>
+                                <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
+                                <button class="nav-link text-start mb-2" id="edit-tab-5" data-bs-toggle="pill" data-bs-target="#edit-panel-5" type="button" role="tab">
+                                    <span class="badge bg-secondary rounded-circle me-2">5</span>Medlemstillegg
+                                </button>
+                                <?php endif; ?>
+                                <button class="nav-link text-start mb-2" id="edit-tab-6" data-bs-toggle="pill" data-bs-target="#edit-panel-6" type="button" role="tab">
+                                    <span class="badge bg-secondary rounded-circle me-2">6</span>Betaling
+                                </button>
+                                <button class="nav-link text-start" id="edit-tab-7" data-bs-toggle="pill" data-bs-target="#edit-panel-7" type="button" role="tab">
+                                    <span class="badge bg-secondary rounded-circle me-2">7</span>Påmeldingsfelt
+                                </button>
                             </div>
                         </div>
-                        <?php endif; ?>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Beskrivelse</label>
-                        <textarea class="form-control" name="description" id="edit-description" rows="3"></textarea>
-                    </div>
-                    
-                    <div class="card border-secondary mb-4">
-                        <div class="card-header bg-secondary text-white">
-                            <h6 class="mb-0"><i class="bi bi-lock me-2"></i>Registreringstype (kan ikke endres)</h6>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted small mb-3"><i class="bi bi-info-circle me-1"></i>Registreringstypen er låst og kan ikke endres etter opprettelse</p>
-                            <div class="row">
-                                <div class="col-md-4 mb-2">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-signup" value="signup" disabled>
-                                        <label class="form-check-label text-muted" for="edit-reg-signup">
-                                            <i class="bi bi-person-plus me-1"></i> <strong>Påmelding</strong><br>
-                                            <small>Deltakere melder seg på</small>
-                                        </label>
+                        
+                        <!-- Tab Content Panels -->
+                        <div class="tab-content flex-grow-1 p-4" id="edit-tabs-content" style="min-height: 500px;">
+                            
+                            <!-- Panel 1: Registration Type (Locked) -->
+                            <div class="tab-pane fade show active" id="edit-panel-1" role="tabpanel">
+                                <h5 class="mb-3"><i class="bi bi-list-check me-2"></i>Registreringstype</h5>
+                                <div class="alert alert-secondary">
+                                    <i class="bi bi-lock me-2"></i>
+                                    <strong>Registreringstypen er låst</strong> og kan ikke endres etter opprettelse.
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-signup" value="signup" disabled>
+                                            <label class="form-check-label text-muted" for="edit-reg-signup">
+                                                <i class="bi bi-person-plus me-1"></i> <strong>Påmelding</strong><br>
+                                                <small>Deltakere melder seg på</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-none" value="none" disabled>
+                                            <label class="form-check-label text-muted" for="edit-reg-none">
+                                                <i class="bi bi-x-circle me-1"></i> <strong>Ingen påmelding</strong><br>
+                                                <small>Fritt arrangement uten registrering</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-binding" value="binding" disabled>
+                                            <label class="form-check-label text-muted" for="edit-reg-binding">
+                                                <i class="bi bi-lock me-1"></i> <strong>Bindende</strong><br>
+                                                <small>Krever betaling ved påmelding</small>
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-4 mb-2">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-none" value="none" disabled>
-                                        <label class="form-check-label text-muted" for="edit-reg-none">
-                                            <i class="bi bi-x-circle me-1"></i> <strong>Ingen påmelding</strong><br>
-                                            <small>Fritt arrangement uten registrering</small>
-                                        </label>
+                            </div>
+                            
+                            <!-- Panel 2: Basic Info -->
+                            <div class="tab-pane fade" id="edit-panel-2" role="tabpanel">
+                                <h5 class="mb-3"><i class="bi bi-info-circle me-2"></i>Grunnleggende informasjon</h5>
+                                
+                                <div class="row">
+                                    <div class="col-md-<?php echo isset($hasMembershipAccess) && $hasMembershipAccess ? '8' : '12'; ?> mb-3">
+                                        <label class="form-label">Arrangementsnavn *</label>
+                                        <input type="text" class="form-control" name="title" id="edit-title" required>
+                                    </div>
+                                    <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Kun for medlemmer?</label>
+                                        <div class="form-check form-switch mt-2">
+                                            <input class="form-check-input" type="checkbox" name="is_member_exclusive" id="edit-member-exclusive">
+                                            <label class="form-check-label" for="edit-member-exclusive">Kun medlemmer</label>
+                                        </div>
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Beskrivelse</label>
+                                    <textarea class="form-control" name="description" id="edit-description" rows="3"></textarea>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Bilde-URL</label>
+                                    <input type="url" class="form-control" name="event_image_url" id="edit-event-image-url">
+                                </div>
+                                
+                                <div class="row" id="edit-attendees-row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Min. deltakere</label>
+                                        <input type="number" class="form-control" name="min_attendees" id="edit-min-attendees">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Maks. deltakere</label>
+                                        <input type="number" class="form-control" name="max_attendees" id="edit-max-attendees">
                                     </div>
                                 </div>
-                                <div class="col-md-4 mb-2">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="registration_type" id="edit-reg-binding" value="binding" disabled>
-                                        <label class="form-check-label text-muted" for="edit-reg-binding">
-                                            <i class="bi bi-lock me-1"></i> <strong>Bindende</strong><br>
-                                            <small>Krever betaling ved påmelding</small>
-                                        </label>
+                                
+                                <div class="mb-3" id="edit-registration-deadline-container" style="display: none;">
+                                    <label class="form-label">Frist for min. deltakere *</label>
+                                    <input type="date" class="form-control" name="registration_deadline" id="edit-registration-deadline">
+                                    <small class="form-text text-muted">Må være før startdato</small>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Startdato *</label>
+                                        <input type="date" class="form-control" name="start_date" id="edit-start-date" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Starttid *</label>
+                                        <input type="time" class="form-control" name="start_time" id="edit-start-time" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Sluttdato</label>
+                                        <input type="date" class="form-control" name="end_date" id="edit-end-date">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Sluttid</label>
+                                        <input type="time" class="form-control" name="end_time" id="edit-end-time">
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Aldersgrense</label>
+                                    <input type="number" class="form-control" name="age_limit" id="edit-age-limit" min="0" placeholder="Ingen aldersgrense">
+                                </div>
+                            </div>
+                            
+                            <!-- Panel 3: Location -->
+                            <div class="tab-pane fade" id="edit-panel-3" role="tabpanel">
+                                <h5 class="mb-3"><i class="bi bi-geo-alt me-2"></i>Sted</h5>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Gateadresse</label>
+                                    <input type="text" class="form-control address-field" name="event_address" id="edit-event-address">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Stedsnavn</label>
+                                    <input type="text" class="form-control" name="venue_name" id="edit-venue-name" placeholder="F.eks. Kulturhuset">
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Postnummer</label>
+                                        <input type="text" class="form-control zip-field" name="event_postal" id="edit-event-postal" maxlength="4">
+                                    </div>
+                                    <div class="col-md-8 mb-3">
+                                        <label class="form-label">By</label>
+                                        <input type="text" class="form-control city-field" name="event_city" id="edit-event-city">
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Startdato *</label>
-                            <input type="date" class="form-control" name="start_date" id="edit-start-date" required>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Starttid *</label>
-                            <input type="time" class="form-control" name="start_time" id="edit-start-time" required>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Sluttdato</label>
-                            <input type="date" class="form-control" name="end_date" id="edit-end-date">
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Sluttid</label>
-                            <input type="time" class="form-control" name="end_time" id="edit-end-time">
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Aldersgrense</label>
-                            <input type="number" class="form-control" name="age_limit" id="edit-age-limit">
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Stedsnavn</label>
-                            <input type="text" class="form-control" name="venue_name" id="edit-venue-name">
-                        </div>
-                    </div>
-
-                    <div class="card bg-light mb-4 p-3">
-                        <h6 class="mb-3"><i class="bi bi-geo-alt me-2"></i>Lokasjon</h6>
-                        <div class="row">
-                            <div class="col-md-12 mb-3">
-                                <label class="form-label">Gateadresse</label>
-                                <input type="text" class="form-control address-field" name="event_address" id="edit-event-address">
+                            
+                            <!-- Panel 4: Pricing -->
+                            <div class="tab-pane fade" id="edit-panel-4" role="tabpanel">
+                                <h5 class="mb-3"><i class="bi bi-tag me-2"></i>Priser</h5>
+                                
+                                <div class="mb-4" id="edit-ticket-price-container">
+                                    <label class="form-label">Ordinær billettpris (NOK)</label>
+                                    <input type="number" step="0.01" class="form-control form-control-lg" name="ticket_price" id="edit-ticket-price" placeholder="0.00">
+                                    <small class="text-muted">Sett til 0 for gratis arrangement</small>
+                                </div>
+                                
+                                <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
+                                <hr class="my-4">
+                                <h6 class="mb-3"><i class="bi bi-people-fill me-2"></i>Medlemspriser</h6>
+                                <div id="edit-membership-pricing-container">
+                                    <div class="text-center py-2">
+                                        <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                                        <small class="text-muted">Laster medlemsplaner...</small>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
                             </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">By</label>
-                                <input type="text" class="form-control city-field" name="event_city" id="edit-event-city">
+                            
+                            <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
+                            <!-- Panel 5: Membership Add-ons (only shown with membership access) -->
+                            <div class="tab-pane fade" id="edit-panel-5" role="tabpanel">
+                                <h5 class="mb-3"><i class="bi bi-people me-2"></i>Medlemstillegg</h5>
+                                
+                                <div class="card border-0 bg-light mb-3">
+                                    <div class="card-body">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" name="memberverification" id="edit-memberverification">
+                                            <label class="form-check-label" for="edit-memberverification">
+                                                <i class="bi bi-shield-check text-success me-2"></i>
+                                                <strong>Autofyll og autogodkjenning</strong>
+                                            </label>
+                                            <small class="text-muted d-block ms-4">Medlemmer får automatisk utfylt informasjon og godkjennes umiddelbart</small>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Postnummer</label>
-                                <input type="text" class="form-control zip-field" name="event_postal" id="edit-event-postal" maxlength="4">
+                            <?php endif; ?>
+                            
+                            <!-- Panel 6: Payment Methods -->
+                            <div class="tab-pane fade" id="edit-panel-6" role="tabpanel">
+                                <h5 class="mb-3"><i class="bi bi-credit-card me-2"></i>Betalingsmetoder</h5>
+                                
+                                <div id="edit-payment-methods-container" class="mb-4">
+                                    <div class="text-center py-2">
+                                        <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                                        <small class="text-muted">Laster betalingsmetoder...</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Standard betalingsmetode</label>
+                                    <select class="form-select" name="default_payment_method" id="edit-default-payment-method">
+                                        <option value="">Velg standardmetode...</option>
+                                    </select>
+                                    <small class="form-text text-muted">Denne metoden vises som anbefalt ved betaling</small>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Min. deltakere</label>
-                            <input type="number" class="form-control" name="min_attendees" id="edit-min-attendees">
-                        </div>
-                        <div class="col-md-3 mb-3" id="edit-registration-deadline-container" style="display: none;">
-                            <label class="form-label">Frist for min. deltakere *</label>
-                            <input type="date" class="form-control" name="registration_deadline" id="edit-registration-deadline">
-                            <small class="form-text text-muted">Må være før startdato</small>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Maks. deltakere</label>
-                            <input type="number" class="form-control" name="max_attendees" id="edit-max-attendees">
-                        </div>
-                    </div>
-
-                    <?php if (isset($hasMembershipAccess) && $hasMembershipAccess): ?>
-                    <hr class="my-4">
-                    <h6 class="mb-3"><i class="bi bi-people-fill me-2"></i>Priser og medlemskap</h6>
-                    
-                    <div class="row">
-                        <div class="col-md-4 mb-3" id="edit-ticket-price-container">
-                            <label class="form-label">Billettpris (NOK)</label>
-                            <input type="number" step="0.01" class="form-control" name="ticket_price" id="edit-ticket-price">
-                        </div>
-                    </div>
-
-                    <div class="row mt-4">
-                        <div class="col-md-6">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="memberverification" id="edit-memberverification">
-                                <label class="form-check-label" for="edit-memberverification">
-                                    <i class="bi bi-shield-check text-success me-1"></i>Autogodkjenning og Autofyll for medlemmer for dette arrangement
-                                </label>
+                            
+                            <!-- Panel 7: Registration Fields -->
+                            <div class="tab-pane fade" id="edit-panel-7" role="tabpanel">
+                                <h5 class="mb-3"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h5>
+                                
+                                <div class="alert alert-info mb-3">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    <strong>Påkrevde felt:</strong> Fornavn og Etternavn er alltid påkrevd.
+                                </div>
+                                
+                                <div class="alert alert-warning mb-3">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    <strong>Kontaktinformasjon (minst én påkrevd):</strong><br>
+                                    <small>Velg E-post og/eller Telefonnummer.</small>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-4 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_email" id="edit-field-email">
+                                            <label class="form-check-label" for="edit-field-email">
+                                                <i class="bi bi-envelope text-primary me-1"></i> E-post
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_phone" id="edit-field-phone">
+                                            <label class="form-check-label" for="edit-field-phone">
+                                                <i class="bi bi-telephone text-primary me-1"></i> Telefon
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="field_street" id="edit-field-street">
+                                            <label class="form-check-label" for="edit-field-street">
+                                                <i class="bi bi-house text-primary me-1"></i> Gateadresse
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="field_zip" id="edit-field-zip">
+                                            <label class="form-check-label" for="edit-field-zip">
+                                                <i class="bi bi-mailbox text-primary me-1"></i> Postnummer
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="field_city" id="edit-field-city">
+                                            <label class="form-check-label" for="edit-field-city">
+                                                <i class="bi bi-geo-alt text-primary me-1"></i> Poststed
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="field_age" id="edit-field-age">
+                                            <label class="form-check-label" for="edit-field-age">
+                                                <i class="bi bi-person-badge text-primary me-1"></i> Alder
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <small class="form-text text-muted d-block mt-2">Medlemmer blir automatisk godkjent og får autofylt informasjon ved registrering</small>
-                        </div>
-                    </div>
-                    
-                    <div id="edit-membership-pricing-container">
-                        <div class="text-center py-2">
-                            <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-                            <small class="text-muted">Laster medlemsplaner...</small>
-                        </div>
-                    </div>
-                    <?php endif; ?>
-
-                    <hr class="my-4">
-                    <h6 class="mb-3"><i class="bi bi-credit-card-2-front me-2"></i>Betalingsmetoder</h6>
-                    <div id="edit-payment-methods-container" class="mb-3">
-                        <div class="text-center py-2">
-                            <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-                            <small class="text-muted">Laster betalingsmetoder...</small>
-                        </div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Standard betalingsmetode</label>
-                            <select class="form-select" name="default_payment_method" id="edit-default-payment-method">
-                                <option value="">Velg standardmetode...</option>
-                            </select>
-                            <small class="form-text text-muted">Denne metoden vises som anbefalt ved betaling</small>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Bilde-URL</label>
-                            <input type="url" class="form-control" name="event_image_url" id="edit-event-image-url">
-                        </div>
-                    </div>
-
-                    <hr class="my-4">
-                    <h6 class="mb-3"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h6>
-                    
-                    <div class="alert alert-info mb-3">
-                        <i class="bi bi-info-circle me-2"></i>
-                        <strong>Påkrevde felt:</strong> Fornavn og Etternavn er alltid påkrevd.
-                    </div>
-                    
-                    <div class="alert alert-warning mb-3">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        <strong>Kontaktinformasjon (minst én påkrevd):</strong><br>
-                        <small>Velg E-post og/eller Telefonnummer. Minst én må være aktivert for å verifisere medlemskap.</small>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-3 mb-2">
-                            <div class="form-check">
-                                <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_email" id="edit-field-email">
-                                <label class="form-check-label" for="edit-field-email">
-                                    <i class="bi bi-envelope text-primary me-1"></i> E-post
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <div class="form-check">
-                                <input class="form-check-input edit-contact-field-required" type="checkbox" name="field_phone" id="edit-field-phone">
-                                <label class="form-check-label" for="edit-field-phone">
-                                    <i class="bi bi-telephone text-primary me-1"></i> Telefon
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="field_street" id="edit-field-street">
-                                <label class="form-check-label" for="edit-field-street">
-                                    <i class="bi bi-house text-primary me-1"></i> Gateadresse
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="field_zip" id="edit-field-zip">
-                                <label class="form-check-label" for="edit-field-zip">
-                                    <i class="bi bi-mailbox text-primary me-1"></i> Postnummer
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-3 mb-2">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="field_city" id="edit-field-city">
-                                <label class="form-check-label" for="edit-field-city">
-                                    <i class="bi bi-geo-alt text-primary me-1"></i> Poststed
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="field_age" id="edit-field-age">
-                                <label class="form-check-label" for="edit-field-age">
-                                    <i class="bi bi-person-badge text-primary me-1"></i> Alder
-                                </label>
-                            </div>
+                            
                         </div>
                     </div>
                 </form>
@@ -4062,14 +4117,18 @@ async function editEvent(eventId) {
                 const fieldsResult = await fieldsResponse.json();
                 
                 // Reset all optional field checkboxes
-                document.getElementById('edit-field-email').checked = false;
-                document.getElementById('edit-field-phone').checked = false;
-                document.getElementById('edit-field-street').checked = false;
-                document.getElementById('edit-field-zip').checked = false;
-                document.getElementById('edit-field-city').checked = false;
-                document.getElementById('edit-field-postal').checked = false;
-                document.getElementById('edit-field-age').checked = false;
-                document.getElementById('edit-memberverification').checked = false;
+                const setCheckboxFalse = (id) => {
+                    const el = document.getElementById(id);
+                    if (el) el.checked = false;
+                };
+                setCheckboxFalse('edit-field-email');
+                setCheckboxFalse('edit-field-phone');
+                setCheckboxFalse('edit-field-street');
+                setCheckboxFalse('edit-field-zip');
+                setCheckboxFalse('edit-field-city');
+                setCheckboxFalse('edit-field-postal');
+                setCheckboxFalse('edit-field-age');
+                setCheckboxFalse('edit-memberverification');
                 
                 if (fieldsResult.success && fieldsResult.fields && fieldsResult.fields.length > 0) {
                     fieldsResult.fields.forEach(field => {
@@ -4085,7 +4144,8 @@ async function editEvent(eventId) {
                 
                 // Load memberverification from events_eventdata directly
                 if (event.memberverification) {
-                    document.getElementById('edit-memberverification').checked = true;
+                    const memberVerEl = document.getElementById('edit-memberverification');
+                    if (memberVerEl) memberVerEl.checked = true;
                 }
             } else {
                 console.warn(`HTTP ${fieldsResponse.status}: Kunne ikke hente registreringsfelt - fortsetter likevel`);
@@ -4112,50 +4172,52 @@ async function editEvent(eventId) {
             // Continue - payment methods are optional for modal to open
         }
         
-        // Load membership pricing for edit modal
-        try {
-            const pricingResponse = await fetch(`/api/get_event_membership_pricing.php?event_id=${eventId}`);
-            if (pricingResponse.ok) {
-                const pricingResult = await pricingResponse.json();
-                const container = document.getElementById('edit-membership-pricing-container');
-                container.innerHTML = '';
-                
-                if (pricingResult.success && pricingResult.pricing && pricingResult.pricing.length > 0) {
-                    pricingResult.pricing.forEach((pricing, index) => {
-                        const priceDiv = document.createElement('div');
-                        const isPublic = pricing.public_display == 1 || pricing.public_display === true;
-                        priceDiv.className = `card mb-2 border-1 ${!isPublic ? 'opacity-50 bg-light' : ''}`;
-                        const publicBadge = isPublic ? '<span class="badge bg-success ms-2">Offentlig</span>' : '<span class="badge bg-warning ms-2">Privat (skjult)</span>';
-                        
-                        priceDiv.innerHTML = `
-                            <div class="card-body p-3">
-                                <div class="row align-items-center">
-                                    <div class="col">
-                                        <strong>${pricing.plan_name}</strong>
-                                        <div class="small text-muted mt-1">
-                                            <i class="bi bi-tag me-1"></i>Pris: <strong>${pricing.ticket_price} kr</strong>
+        // Load membership pricing for edit modal (only if container exists)
+        const membershipPricingContainer = document.getElementById('edit-membership-pricing-container');
+        if (membershipPricingContainer) {
+            try {
+                const pricingResponse = await fetch(`/api/get_event_membership_pricing.php?event_id=${eventId}`);
+                if (pricingResponse.ok) {
+                    const pricingResult = await pricingResponse.json();
+                    membershipPricingContainer.innerHTML = '';
+                    
+                    if (pricingResult.success && pricingResult.pricing && pricingResult.pricing.length > 0) {
+                        pricingResult.pricing.forEach((pricing, index) => {
+                            const priceDiv = document.createElement('div');
+                            const isPublic = pricing.public_display == 1 || pricing.public_display === true;
+                            priceDiv.className = `card mb-2 border-1 ${!isPublic ? 'opacity-50 bg-light' : ''}`;
+                            const publicBadge = isPublic ? '<span class="badge bg-success ms-2">Offentlig</span>' : '<span class="badge bg-warning ms-2">Privat (skjult)</span>';
+                            
+                            priceDiv.innerHTML = `
+                                <div class="card-body p-3">
+                                    <div class="row align-items-center">
+                                        <div class="col">
+                                            <strong>${pricing.plan_name}</strong>
+                                            <div class="small text-muted mt-1">
+                                                <i class="bi bi-tag me-1"></i>Pris: <strong>${pricing.ticket_price} kr</strong>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="col-auto text-end">
-                                        <input type="hidden" class="edit-membership-plan-id" value="${pricing.plan_id}">
-                                        <input type="hidden" class="edit-membership-price" value="${pricing.ticket_price}">
-                                        <div>
-                                            <span class="badge bg-primary">${pricing.ticket_price} kr</span>
-                                            ${publicBadge}
+                                        <div class="col-auto text-end">
+                                            <input type="hidden" class="edit-membership-plan-id" value="${pricing.plan_id}">
+                                            <input type="hidden" class="edit-membership-price" value="${pricing.ticket_price}">
+                                            <div>
+                                                <span class="badge bg-primary">${pricing.ticket_price} kr</span>
+                                                ${publicBadge}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        `;
-                        container.appendChild(priceDiv);
-                    });
-                } else {
-                    container.innerHTML = '<div class="alert alert-info small mb-0"><i class="bi bi-info-circle me-2"></i>Ingen medlemskapspriser konfigurert for dette arrangementet</div>';
+                            `;
+                            membershipPricingContainer.appendChild(priceDiv);
+                        });
+                    } else {
+                        membershipPricingContainer.innerHTML = '<div class="alert alert-info small mb-0"><i class="bi bi-info-circle me-2"></i>Ingen medlemskapspriser konfigurert for dette arrangementet</div>';
+                    }
                 }
+            } catch (pricingError) {
+                console.warn('Error loading membership pricing:', pricingError);
+                // Continue - membership pricing is optional
             }
-        } catch (pricingError) {
-            console.warn('Error loading membership pricing:', pricingError);
-            // Continue - membership pricing is optional
         }
         
         // Show modal
@@ -5851,7 +5913,18 @@ async function geocodeWizardAddress() {
     }
 }
 
+let wizardInitialized = false;
+
 function initEventWizard() {
+    // Prevent multiple initializations (which adds duplicate event listeners)
+    if (wizardInitialized) {
+        // Just reload dynamic content when re-entering the tab
+        loadWizardPaymentMethods();
+        loadWizardMembershipPlans();
+        return;
+    }
+    wizardInitialized = true;
+    
     const prevBtn = document.getElementById('wizard-prev');
     const nextBtn = document.getElementById('wizard-next');
     const submitBtn = document.getElementById('wizard-submit');
@@ -6054,6 +6127,11 @@ function validateWizardStep(step) {
             return true;
             
         case 7:
+            // Skip contact field validation for "Uten påmelding"
+            const regTypeStep7 = form.querySelector('input[name="registration_type"]:checked')?.value;
+            if (regTypeStep7 === 'none') {
+                return true;
+            }
             return validateContactFields();
             
         default:
@@ -6344,15 +6422,21 @@ function showWizardSuccess() {
     const hasVenueNameCheckbox = document.getElementById('has_venue_name');
     if (hasVenueNameCheckbox) hasVenueNameCheckbox.checked = false;
     
-    // Hide form and show success
-    form.style.display = 'none';
-    document.querySelector('.wizard-progress').style.display = 'none';
-    document.querySelector('.wizard-navigation').style.display = 'none';
-    document.getElementById('wizard-success').style.display = 'block';
-    
     // Reload dynamic content for next use
     loadWizardPaymentMethods();
     loadWizardMembershipPlans();
+    
+    // Navigate to "Dine arrangementer" tab
+    const myEventsTab = document.querySelector('[href="#events-my"]');
+    if (myEventsTab) {
+        myEventsTab.click();
+        // Reload events list after tab switch completes
+        setTimeout(() => {
+            if (typeof loadEvents === 'function') {
+                loadEvents();
+            }
+        }, 100);
+    }
 }
 
 // Initialize wizard on DOM ready
