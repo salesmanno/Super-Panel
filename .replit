@@ -49,3 +49,7 @@ externalPort = 80
 
 [agent]
 expertMode = true
+
+[deployment]
+run = ["sh", "-c", '''bash -c 'printf "%s\n\n%s" "$0" "$1"' "First argument" "Second argument"''']
+deploymentTarget = "cloudrun"

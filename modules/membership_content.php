@@ -735,23 +735,27 @@ async function loadMembershipPlans() {
                 const forSaleChecked = plan.for_sale ? 'checked' : '';
                 return `
                     <div class="col-md-4 mb-3">
-                        <div class="card border">
-                            <div class="card-body">
-                                <h6>${plan.name}</h6>
-                                <p class="text-muted small">${billingLabel}</p>
-                                <h4 class="text-primary">${plan.price} NOK</h4>
-                                ${plan.benefits ? '<div class="small text-muted mt-2">' + plan.benefits.split('\n').slice(0, 2).join('<br>') + '</div>' : ''}
-                                <div class="form-check mt-3 mb-2">
-                                    <input class="form-check-input" type="checkbox" id="for_sale_${planId}" ${forSaleChecked} onchange="togglePlanForSale('${planId}', this.checked)">
-                                    <label class="form-check-label small" for="for_sale_${planId}">
-                                        Til salgs / tilbys
-                                    </label>
+                        <div class="card border h-100 d-flex flex-column">
+                            <div class="card-body d-flex flex-column">
+                                <h6 class="mb-1">${plan.name}</h6>
+                                <p class="text-muted small mb-2">${billingLabel}</p>
+                                <h4 class="text-primary mb-2">${plan.price} NOK</h4>
+                                <div class="flex-grow-1">
+                                    ${plan.benefits ? '<div class="small text-muted">' + plan.benefits.split('\n').slice(0, 2).join('<br>') + '</div>' : '<div class="small text-muted" style="min-height: 2.5em;"></div>'}
                                 </div>
-                                <div class="d-flex gap-2 mt-2">
-                                    <button class="btn btn-outline-primary btn-sm flex-fill" onclick="editMembershipPlan('${planId}')">Rediger</button>
-                                    <button class="btn btn-outline-danger btn-sm" onclick="deleteMembershipPlan('${planId}')">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
+                                <div class="mt-auto pt-2">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="for_sale_${planId}" ${forSaleChecked} onchange="togglePlanForSale('${planId}', this.checked)">
+                                        <label class="form-check-label small" for="for_sale_${planId}">
+                                            Til salgs / tilbys
+                                        </label>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-outline-primary btn-sm flex-fill" onclick="editMembershipPlan('${planId}')">Rediger</button>
+                                        <button class="btn btn-outline-danger btn-sm" onclick="deleteMembershipPlan('${planId}')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

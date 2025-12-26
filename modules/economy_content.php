@@ -917,7 +917,65 @@ document.addEventListener('subtab-changed', function(event) {
     else if (subtab === 'economy-expense') loadExpenseData();
     else if (subtab === 'economy-pending') loadPendingPayments();
     else if (subtab === 'economy-payment') loadPaymentGateways();
+    else if (subtab === 'economy-terms') loadTermsConditions();
 });
+
+async function loadTermsConditions() {
+    try {
+        const response = await fetch('/api/get_terms_conditions.php');
+        const result = await response.json();
+        
+        const tbody = document.querySelector('#terms-table tbody');
+        
+        if (result.success && result.data && result.data.length > 0) {
+            tbody.innerHTML = result.data.map(term => `
+                <tr>
+                    <td>${term.title || 'Kjøpsbetingelser'}</td>
+                    <td>${term.version || '1.0'}</td>
+                    <td>
+                        <span class="badge ${term.is_active ? 'bg-success' : 'bg-secondary'}">
+                            ${term.is_active ? 'Aktiv' : 'Inaktiv'}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="editTerms('${term.id}')">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-info" onclick="viewTermsAcceptances('${term.id}')">
+                                <i class="bi bi-people"></i> ${term.acceptance_count || 0}
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="deleteTerms('${term.id}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">Ingen betingelser registrert</td></tr>';
+        }
+    } catch (error) {
+        console.error('Load terms error:', error);
+    }
+}
+
+function showCreateTermsModal() {
+    alert('Opprett nye kjøpsbetingelser - funksjonalitet kommer snart');
+}
+
+function editTerms(id) {
+    alert('Rediger kjøpsbetingelser - funksjonalitet kommer snart');
+}
+
+function viewTermsAcceptances(id) {
+    alert('Vis akseptanser - funksjonalitet kommer snart');
+}
+
+function deleteTerms(id) {
+    if (!confirm('Er du sikker på at du vil slette disse kjøpsbetingelsene?')) return;
+    alert('Slett kjøpsbetingelser - funksjonalitet kommer snart');
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('economy-results')?.style.display !== 'none') {
