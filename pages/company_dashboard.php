@@ -275,16 +275,21 @@ try {
             object-fit: contain;
         }
         
-        .header-logo {
-            max-height: 120px;
-            max-width: 250px;
+        .header-logo-img {
+            max-height: 100px;
+            max-width: 200px;
             width: auto;
             height: auto;
             object-fit: contain;
-            position: absolute;
-            right: 2rem;
-            top: 50%;
-            transform: translateY(-50%);
+        }
+        
+        @media (max-width: 576px) {
+            .header-logo-container {
+                order: -1;
+                width: 100%;
+                text-align: center;
+                margin-bottom: 0.5rem;
+            }
         }
         
         .subdomain-info {
@@ -400,31 +405,37 @@ try {
     
     <!-- Header -->
     <div class="dashboard-header">
-        <div class="container" style="position: relative;">
-            <h1 class="mb-2">Hei, <?= htmlspecialchars($adminName) ?>!</h1>
-            <p class="text-muted mb-0">Du har tilgang til <?= count($allUserModules) ?> modul<?= count($allUserModules) != 1 ? 'er' : '' ?></p>
-            <p class="text-muted mb-0" id="products-summary" style="font-size: 0.9rem;">
-                <i class="bi bi-hourglass-split"></i> <span id="products-text">Laster oppføringer...</span>
-                <a href="#" id="view-products-link" onclick="showProductsModal(); return false;" style="display: none; margin-left: 0.5rem;">Se og slett</a>
-            </p>
-            <div id="activity-summary" style="margin-top: 0.75rem; font-size: 0.9rem; color: #6c757d;">
-                <i class="bi bi-hourglass-split me-1"></i>
-                <span id="activity-text">Laster aktivitetssammendrag...</span>
-            </div>
-            <?php if ($companySubdomain): ?>
-                <div class="subdomain-info">
-                    <a href="https://<?= htmlspecialchars($companySubdomain) ?>.salesman.no" target="_blank" class="subdomain-url">
-                        <?= htmlspecialchars($companySubdomain) ?>.salesman.no
-                        <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.75rem;"></i>
-                    </a>
-                    <span class="status-badge <?= $companyIsActive ? 'status-active' : 'status-inactive' ?>">
-                        <?= $companyIsActive ? 'Aktiv' : 'Inaktiv' ?>
-                    </span>
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                <div class="header-text-content" style="flex: 1; min-width: 200px;">
+                    <h1 class="mb-2">Hei, <?= htmlspecialchars($adminName) ?>!</h1>
+                    <p class="text-muted mb-1" style="font-size: 0.9rem;">Du har tilgang til <?= count($allUserModules) ?> modul<?= count($allUserModules) != 1 ? 'er' : '' ?></p>
+                    <p class="text-muted mb-1" id="products-summary" style="font-size: 0.85rem;">
+                        <i class="bi bi-box-seam me-1"></i><span id="products-text">Laster oppføringer...</span>
+                        <a href="#" id="view-products-link" onclick="showProductsModal(); return false;" style="display: none; margin-left: 0.5rem;">Se og slett</a>
+                    </p>
+                    <div id="activity-summary" style="font-size: 0.85rem; color: #6c757d;">
+                        <i class="bi bi-activity me-1"></i>
+                        <span id="activity-text">Laster aktivitet...</span>
+                    </div>
+                    <?php if ($companySubdomain): ?>
+                        <div class="subdomain-info">
+                            <a href="https://<?= htmlspecialchars($companySubdomain) ?>.salesman.no" target="_blank" class="subdomain-url">
+                                <?= htmlspecialchars($companySubdomain) ?>.salesman.no
+                                <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.75rem;"></i>
+                            </a>
+                            <span class="status-badge <?= $companyIsActive ? 'status-active' : 'status-inactive' ?>">
+                                <?= $companyIsActive ? 'Aktiv' : 'Inaktiv' ?>
+                            </span>
+                        </div>
+                    <?php endif; ?>
                 </div>
-            <?php endif; ?>
-            <?php if ($companyLogo): ?>
-                <img src="<?= htmlspecialchars($companyLogo) ?>" alt="<?= htmlspecialchars($companyName) ?>" class="header-logo">
-            <?php endif; ?>
+                <?php if ($companyLogo): ?>
+                    <div class="header-logo-container flex-shrink-0">
+                        <img src="<?= htmlspecialchars($companyLogo) ?>" alt="<?= htmlspecialchars($companyName) ?>" class="header-logo-img" style="max-height: 100px; max-width: 200px; object-fit: contain;">
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
     
@@ -1824,11 +1835,13 @@ try {
                     
                     if (result.updates && result.updates.length > 0) {
                         const message = buildToastMessage(result.updates);
-                        showToast(message, 'info');
+                        if (window.toast) {
+                            window.toast.show('Oppdatering', message, 'info', { duration: 3000 });
+                        }
                         
                         setTimeout(() => {
                             location.reload();
-                        }, 2000);
+                        }, 2500);
                     } else {
                         location.reload();
                     }
@@ -1838,7 +1851,8 @@ try {
             }
         }
         
-        // Start polling
+        // Start polling - kjør første sjekk umiddelbart, deretter hvert 30. sekund
+        checkRefreshFlag();
         setInterval(checkRefreshFlag, POLLING_INTERVAL);
     </script>
     
