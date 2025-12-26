@@ -12,6 +12,8 @@ try {
     error_log("Error fetching company data: " . $e->getMessage());
 }
 ?>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 .event-card {
     border: 1px solid #e5e7eb;
@@ -936,6 +938,19 @@ try {
                                             <label class="form-label">By</label>
                                             <input type="text" class="form-control city-field" name="event_city" placeholder="Stedsnavn">
                                         </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label d-flex align-items-center">
+                                            <i class="bi bi-geo-alt-fill text-primary me-2"></i>
+                                            Kartvisning
+                                        </label>
+                                        <div id="wizard-map-container" class="border rounded" style="height: 250px; background: #f8f9fa;">
+                                            <div id="wizard-map" style="height: 100%; width: 100%;"></div>
+                                        </div>
+                                        <small class="text-muted mt-1 d-block">
+                                            <i class="bi bi-info-circle me-1"></i>Kartet oppdateres når du fyller ut adressefeltene
+                                        </small>
                                     </div>
                                 </div>
                             </div>
@@ -5740,6 +5755,67 @@ async function processGroupCheckout(paymentMethod) {
 // ========== EVENT WIZARD FUNCTIONALITY ==========
 let wizardCurrentStep = 1;
 const wizardTotalSteps = 7;
+let wizardMap = null;
+let wizardMapMarker = null;
+let geocodeTimeout = null;
+
+function initWizardMap() {
+    const mapContainer = document.getElementById('wizard-map');
+    if (!mapContainer || wizardMap) return;
+    
+    wizardMap = L.map('wizard-map').setView([59.9139, 10.7522], 5);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(wizardMap);
+    
+    const addressField = document.querySelector('input[name="event_address"]');
+    const postalField = document.querySelector('input[name="event_postal"]');
+    const cityField = document.querySelector('input[name="event_city"]');
+    
+    const geocodeHandler = () => {
+        clearTimeout(geocodeTimeout);
+        geocodeTimeout = setTimeout(() => geocodeWizardAddress(), 800);
+    };
+    
+    if (addressField) addressField.addEventListener('input', geocodeHandler);
+    if (postalField) postalField.addEventListener('input', geocodeHandler);
+    if (cityField) cityField.addEventListener('input', geocodeHandler);
+}
+
+async function geocodeWizardAddress() {
+    const address = document.querySelector('input[name="event_address"]')?.value || '';
+    const postal = document.querySelector('input[name="event_postal"]')?.value || '';
+    const city = document.querySelector('input[name="event_city"]')?.value || '';
+    
+    const fullAddress = [address, postal, city, 'Norway'].filter(x => x.trim()).join(', ');
+    
+    if (fullAddress.length < 5) return;
+    
+    try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(fullAddress)}&format=json&limit=1&countrycodes=no`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.length > 0 && wizardMap) {
+            const lat = parseFloat(data[0].lat);
+            const lon = parseFloat(data[0].lon);
+            
+            if (wizardMapMarker) {
+                wizardMap.removeLayer(wizardMapMarker);
+            }
+            
+            wizardMapMarker = L.marker([lat, lon]).addTo(wizardMap);
+            wizardMapMarker.bindPopup(`<b>${data[0].display_name}</b>`).openPopup();
+            
+            wizardMap.setView([lat, lon], 15);
+        }
+    } catch (error) {
+        console.error('Geocoding error:', error);
+    }
+}
 
 function initEventWizard() {
     const prevBtn = document.getElementById('wizard-prev');
@@ -5838,6 +5914,16 @@ function wizardGoToStep(step) {
     // Update summary on last step
     if (step === wizardTotalSteps) {
         updateWizardSummary();
+    }
+    
+    // Initialize map when entering step 3
+    if (step === 3) {
+        setTimeout(() => {
+            initWizardMap();
+            if (wizardMap) {
+                wizardMap.invalidateSize();
+            }
+        }, 100);
     }
     
     // Handle step-specific logic
