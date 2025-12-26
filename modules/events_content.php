@@ -920,13 +920,20 @@ try {
                                 
                                 <div id="venue-fields">
                                     <div class="mb-3">
-                                        <label class="form-label">Stedsnavn</label>
-                                        <input type="text" class="form-control" name="venue_name" placeholder="F.eks. Kulturhuset">
-                                    </div>
-                                    
-                                    <div class="mb-3">
                                         <label class="form-label">Gateadresse</label>
                                         <input type="text" class="form-control address-field" name="event_address" placeholder="Gatenavn og nummer">
+                                    </div>
+                                    
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="has_venue_name">
+                                        <label class="form-check-label small" for="has_venue_name">
+                                            Legg til eget stedsnavn (f.eks. Kulturhuset, Konsertlokale)
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="mb-3" id="venue-name-field" style="display: none;">
+                                        <label class="form-label">Stedsnavn</label>
+                                        <input type="text" class="form-control" name="venue_name" placeholder="F.eks. Kulturhuset">
                                     </div>
                                     
                                     <div class="row">
@@ -5864,6 +5871,17 @@ function initEventWizard() {
         });
     }
     
+    // Venue name checkbox toggle
+    const hasVenueNameCheckbox = document.getElementById('has_venue_name');
+    if (hasVenueNameCheckbox) {
+        hasVenueNameCheckbox.addEventListener('change', function() {
+            const venueNameField = document.getElementById('venue-name-field');
+            if (venueNameField) {
+                venueNameField.style.display = this.checked ? 'block' : 'none';
+            }
+        });
+    }
+    
     // Contact field validation
     document.querySelectorAll('.contact-field-required').forEach(checkbox => {
         checkbox.addEventListener('change', validateContactFields);
@@ -6104,20 +6122,21 @@ async function loadWizardMembershipPlans() {
         const result = await response.json();
         
         const container = document.getElementById('membership-pricing-container');
+        const plans = result.plans || result.data || [];
         
-        if (result.success && result.data && result.data.length > 0) {
-            container.innerHTML = result.data.map(plan => `
-                <div class="card bg-light mb-2 p-2">
+        if (result.success && plans.length > 0) {
+            container.innerHTML = plans.map(plan => `
+                <div class="card bg-light mb-2 p-2" data-plan-id="${plan.id}">
                     <div class="row align-items-center">
                         <div class="col-md-4">
                             <label class="form-label mb-0 fw-medium">${plan.name}</label>
                         </div>
                         <div class="col-md-4">
-                            <input type="number" step="0.01" class="form-control form-control-sm" name="membership_price_${plan.id}" placeholder="Medlemspris (kr)">
+                            <input type="number" step="0.01" class="form-control form-control-sm membership-price-input" name="membership_price_${plan.id}" data-plan-id="${plan.id}" placeholder="Medlemspris (kr)">
                         </div>
                         <div class="col-md-4">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="membership_public_${plan.id}" id="membership_public_${plan.id}" checked>
+                                <input class="form-check-input membership-public-toggle" type="checkbox" name="membership_public_${plan.id}" id="membership_public_${plan.id}" data-plan-id="${plan.id}" checked>
                                 <label class="form-check-label small" for="membership_public_${plan.id}">
                                     <i class="bi bi-globe text-primary me-1"></i>Vis offentlig
                                 </label>
