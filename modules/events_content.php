@@ -860,17 +860,17 @@ try {
                             <div class="col-md-8">
                                 <div class="mb-3">
                                     <label class="form-label">Arrangementsnavn *</label>
-                                    <input type="text" class="form-control form-control-lg" name="title" placeholder="F.eks. Sommerfest 2025" required>
+                                    <input type="text" class="form-control form-control-lg" name="title" required>
                                 </div>
                                 
                                 <div class="mb-3">
                                     <label class="form-label">Beskrivelse</label>
-                                    <textarea class="form-control" name="description" rows="3" placeholder="Beskriv arrangementet..."></textarea>
+                                    <textarea class="form-control" name="description" rows="3"></textarea>
                                 </div>
                                 
                                 <div class="mb-3">
                                     <label class="form-label">Arrangementsbilde (URL)</label>
-                                    <input type="url" class="form-control" name="event_image_url" placeholder="https://...">
+                                    <input type="url" class="form-control" name="event_image_url">
                                     <small class="text-muted">Valgfritt. Vises på arrangementkortet.</small>
                                 </div>
                                 
@@ -915,7 +915,7 @@ try {
                                 
                                 <div class="mb-3">
                                     <label class="form-label">Aldersgrense</label>
-                                    <input type="number" class="form-control" name="age_limit" min="0" placeholder="Ingen aldersgrense">
+                                    <input type="number" class="form-control" name="age_limit" min="0">
                                 </div>
                             </div>
                         </div>
@@ -933,7 +933,7 @@ try {
                                 <div id="venue-fields">
                                     <div class="mb-3">
                                         <label class="form-label">Gateadresse</label>
-                                        <input type="text" class="form-control address-field" name="event_address" placeholder="Gatenavn og nummer">
+                                        <input type="text" class="form-control address-field" name="event_address">
                                     </div>
                                     
                                     <div class="form-check mb-2">
@@ -945,17 +945,17 @@ try {
                                     
                                     <div class="mb-3" id="venue-name-field" style="display: none;">
                                         <label class="form-label">Stedsnavn</label>
-                                        <input type="text" class="form-control" name="venue_name" placeholder="F.eks. Kulturhuset">
+                                        <input type="text" class="form-control" name="venue_name">
                                     </div>
                                     
                                     <div class="row">
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Postnummer</label>
-                                            <input type="text" class="form-control zip-field" name="event_postal" maxlength="4" placeholder="0000">
+                                            <input type="text" class="form-control zip-field" name="event_postal" maxlength="4">
                                         </div>
                                         <div class="col-md-8 mb-3">
                                             <label class="form-label">By</label>
-                                            <input type="text" class="form-control city-field" name="event_city" placeholder="Stedsnavn">
+                                            <input type="text" class="form-control city-field" name="event_city">
                                         </div>
                                     </div>
                                     
@@ -987,7 +987,7 @@ try {
                             <div class="col-md-8">
                                 <div class="mb-4">
                                     <label class="form-label">Ordinær billettpris (NOK)</label>
-                                    <input type="number" step="0.01" class="form-control form-control-lg" name="ticket_price" id="ticket_price" placeholder="0.00">
+                                    <input type="number" step="0.01" class="form-control form-control-lg" name="ticket_price" id="ticket_price">
                                     <small class="text-muted" id="ticket-price-help">Sett til 0 for gratis arrangement</small>
                                 </div>
                                 
