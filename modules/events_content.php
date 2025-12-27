@@ -2313,11 +2313,13 @@ document.addEventListener('DOMContentLoaded', function() {
             // Collect membership plan pricing
             const membershipPricing = [];
             membershipPlansData.forEach(plan => {
-                const priceInput = document.querySelector(`input[data-plan-id="${plan.plan_id}"]`);
-                const publicCheckbox = document.querySelector(`input[name="plan_public_${plan.plan_id}"]`);
+                // Use plan_id if available, otherwise use id (matches loadWizardMembershipPlans)
+                const planId = plan.plan_id || plan.id;
+                const priceInput = document.querySelector(`input[data-plan-id="${planId}"]`);
+                const publicCheckbox = document.querySelector(`input[name="membership_public_${planId}"]`);
                 if (priceInput && priceInput.value) {
                     membershipPricing.push({
-                        plan_id: plan.plan_id,
+                        plan_id: planId,
                         price: parseFloat(priceInput.value),
                         public_display: publicCheckbox && publicCheckbox.checked ? 1 : 0
                     });
@@ -6300,31 +6302,39 @@ async function loadWizardMembershipPlans() {
         const plans = result.plans || result.data || [];
         
         if (result.success && plans.length > 0) {
-            container.innerHTML = plans.map(plan => `
-                <div class="card bg-light mb-2 p-2" data-plan-id="${plan.id}">
+            // CRITICAL: Store plans in global variable for form submission
+            membershipPlansData = plans;
+            
+            container.innerHTML = plans.map(plan => {
+                // Use plan_id if available, otherwise use id
+                const planId = plan.plan_id || plan.id;
+                return `
+                <div class="card bg-light mb-2 p-2" data-plan-id="${planId}">
                     <div class="row align-items-center">
                         <div class="col-md-4">
                             <label class="form-label mb-0 fw-medium">${plan.name}</label>
                         </div>
                         <div class="col-md-4">
-                            <input type="number" step="0.01" class="form-control form-control-sm membership-price-input" name="membership_price_${plan.id}" data-plan-id="${plan.id}" placeholder="Medlemspris (kr)">
+                            <input type="number" step="0.01" class="form-control form-control-sm membership-price-input" name="membership_price_${planId}" data-plan-id="${planId}">
                         </div>
                         <div class="col-md-4">
                             <div class="form-check">
-                                <input class="form-check-input membership-public-toggle" type="checkbox" name="membership_public_${plan.id}" id="membership_public_${plan.id}" data-plan-id="${plan.id}" checked>
-                                <label class="form-check-label small" for="membership_public_${plan.id}">
+                                <input class="form-check-input membership-public-toggle" type="checkbox" name="membership_public_${planId}" id="membership_public_${planId}" data-plan-id="${planId}" checked>
+                                <label class="form-check-label small" for="membership_public_${planId}">
                                     <i class="bi bi-globe text-primary me-1"></i>Vis offentlig
                                 </label>
                             </div>
                         </div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         } else {
+            membershipPlansData = [];
             container.innerHTML = '<p class="text-muted small">Ingen medlemsplaner funnet.</p>';
         }
     } catch (error) {
         console.error('Error loading membership plans:', error);
+        membershipPlansData = [];
         document.getElementById('membership-pricing-container').innerHTML = '<p class="text-muted small">Kunne ikke laste medlemsplaner.</p>';
     }
 }
