@@ -930,13 +930,6 @@ try {
                         
                         <div class="row justify-content-center">
                             <div class="col-md-8">
-                                <div class="form-check mb-3">
-                                    <input class="form-check-input" type="checkbox" id="has_venue" checked>
-                                    <label class="form-check-label" for="has_venue">
-                                        Arrangementet har et fysisk sted
-                                    </label>
-                                </div>
-                                
                                 <div id="venue-fields">
                                     <div class="mb-3">
                                         <label class="form-label">Gateadresse</label>
@@ -5962,17 +5955,6 @@ function initEventWizard() {
             const container = document.getElementById('registration_deadline_container');
             if (container) {
                 container.style.display = this.value && parseInt(this.value) > 0 ? 'block' : 'none';
-            }
-        });
-    }
-    
-    // Venue checkbox toggle
-    const hasVenueCheckbox = document.getElementById('has_venue');
-    if (hasVenueCheckbox) {
-        hasVenueCheckbox.addEventListener('change', function() {
-            const venueFields = document.getElementById('venue-fields');
-            if (venueFields) {
-                venueFields.style.display = this.checked ? 'block' : 'none';
             }
         });
     }

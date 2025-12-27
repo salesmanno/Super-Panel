@@ -500,18 +500,33 @@ async function loadEconomyOverview() {
         
         if (result.success && result.data) {
             const d = result.data;
-            document.getElementById('stat-total-income').textContent = formatCurrency(d.total_income);
-            document.getElementById('stat-total-expenses').textContent = formatCurrency(d.total_expenses);
-            document.getElementById('stat-profit').textContent = formatCurrency(d.total_profit);
-            document.getElementById('stat-month').textContent = formatCurrency(d.month_income - d.month_expenses);
-            document.getElementById('stat-year-income').textContent = formatCurrency(d.year_income);
-            document.getElementById('stat-year-expenses').textContent = formatCurrency(d.year_expenses);
-            document.getElementById('stat-count').textContent = d.transaction_count;
+            document.getElementById('stat-total-income').textContent = formatCurrency(d.total_income || 0);
+            document.getElementById('stat-total-expenses').textContent = formatCurrency(d.total_expenses || 0);
+            document.getElementById('stat-profit').textContent = formatCurrency(d.total_profit || 0);
+            document.getElementById('stat-month').textContent = formatCurrency((d.month_income || 0) - (d.month_expenses || 0));
+            document.getElementById('stat-year-income').textContent = formatCurrency(d.year_income || 0);
+            document.getElementById('stat-year-expenses').textContent = formatCurrency(d.year_expenses || 0);
+            document.getElementById('stat-count').textContent = d.transaction_count || 0;
             
             renderRecentTransactions(d.recent_transactions || []);
+        } else {
+            // Show zeros if no data or error
+            document.getElementById('stat-total-income').textContent = formatCurrency(0);
+            document.getElementById('stat-total-expenses').textContent = formatCurrency(0);
+            document.getElementById('stat-profit').textContent = formatCurrency(0);
+            document.getElementById('stat-month').textContent = formatCurrency(0);
+            document.getElementById('stat-year-income').textContent = formatCurrency(0);
+            document.getElementById('stat-year-expenses').textContent = formatCurrency(0);
+            document.getElementById('stat-count').textContent = '0';
+            console.log('Economy API response:', result);
         }
     } catch (error) {
         console.error('Load overview error:', error);
+        // Show zeros on error
+        document.getElementById('stat-total-income').textContent = formatCurrency(0);
+        document.getElementById('stat-total-expenses').textContent = formatCurrency(0);
+        document.getElementById('stat-profit').textContent = formatCurrency(0);
+        document.getElementById('stat-month').textContent = formatCurrency(0);
     }
 }
 
@@ -541,8 +556,8 @@ function renderRecentTransactions(transactions) {
 }
 
 async function loadIncomeData() {
-    const startDate = document.getElementById('income-start-date').value;
-    const endDate = document.getElementById('income-end-date').value;
+    const startDate = document.getElementById('income-start-date')?.value;
+    const endDate = document.getElementById('income-end-date')?.value;
     
     let url = '/api/get_economy_data.php?view=income';
     if (startDate && endDate) {
@@ -555,20 +570,34 @@ async function loadIncomeData() {
         
         if (result.success && result.data) {
             const d = result.data;
-            document.getElementById('income-total').textContent = formatCurrency(d.total);
-            document.getElementById('income-count').textContent = d.count;
+            document.getElementById('income-total').textContent = formatCurrency(d.total || 0);
+            document.getElementById('income-count').textContent = d.count || 0;
             
             renderIncomeTransactions(d.transactions || []);
+        } else {
+            document.getElementById('income-total').textContent = formatCurrency(0);
+            document.getElementById('income-count').textContent = '0';
+            renderIncomeTransactions([]);
         }
     } catch (error) {
         console.error('Load income error:', error);
+        document.getElementById('income-total').textContent = formatCurrency(0);
+        document.getElementById('income-count').textContent = '0';
     }
     
-    const overviewRes = await fetch('/api/get_economy_data.php?view=overview');
-    const overviewData = await overviewRes.json();
-    if (overviewData.success && overviewData.data) {
-        document.getElementById('income-month').textContent = formatCurrency(overviewData.data.month_income);
-        document.getElementById('income-year').textContent = formatCurrency(overviewData.data.year_income);
+    try {
+        const overviewRes = await fetch('/api/get_economy_data.php?view=overview');
+        const overviewData = await overviewRes.json();
+        if (overviewData.success && overviewData.data) {
+            document.getElementById('income-month').textContent = formatCurrency(overviewData.data.month_income || 0);
+            document.getElementById('income-year').textContent = formatCurrency(overviewData.data.year_income || 0);
+        } else {
+            document.getElementById('income-month').textContent = formatCurrency(0);
+            document.getElementById('income-year').textContent = formatCurrency(0);
+        }
+    } catch (e) {
+        document.getElementById('income-month').textContent = formatCurrency(0);
+        document.getElementById('income-year').textContent = formatCurrency(0);
     }
 }
 
@@ -593,8 +622,8 @@ function renderIncomeTransactions(transactions) {
 }
 
 async function loadExpenseData() {
-    const startDate = document.getElementById('expense-start-date').value;
-    const endDate = document.getElementById('expense-end-date').value;
+    const startDate = document.getElementById('expense-start-date')?.value;
+    const endDate = document.getElementById('expense-end-date')?.value;
     
     let url = '/api/get_economy_data.php?view=expense';
     if (startDate && endDate) {
@@ -607,20 +636,34 @@ async function loadExpenseData() {
         
         if (result.success && result.data) {
             const d = result.data;
-            document.getElementById('expense-total').textContent = formatCurrency(d.total);
-            document.getElementById('expense-count').textContent = d.count;
+            document.getElementById('expense-total').textContent = formatCurrency(d.total || 0);
+            document.getElementById('expense-count').textContent = d.count || 0;
             
             renderExpenseTransactions(d.transactions || []);
+        } else {
+            document.getElementById('expense-total').textContent = formatCurrency(0);
+            document.getElementById('expense-count').textContent = '0';
+            renderExpenseTransactions([]);
         }
     } catch (error) {
         console.error('Load expense error:', error);
+        document.getElementById('expense-total').textContent = formatCurrency(0);
+        document.getElementById('expense-count').textContent = '0';
     }
     
-    const overviewRes = await fetch('/api/get_economy_data.php?view=overview');
-    const overviewData = await overviewRes.json();
-    if (overviewData.success && overviewData.data) {
-        document.getElementById('expense-month').textContent = formatCurrency(overviewData.data.month_expenses);
-        document.getElementById('expense-year').textContent = formatCurrency(overviewData.data.year_expenses);
+    try {
+        const overviewRes = await fetch('/api/get_economy_data.php?view=overview');
+        const overviewData = await overviewRes.json();
+        if (overviewData.success && overviewData.data) {
+            document.getElementById('expense-month').textContent = formatCurrency(overviewData.data.month_expenses || 0);
+            document.getElementById('expense-year').textContent = formatCurrency(overviewData.data.year_expenses || 0);
+        } else {
+            document.getElementById('expense-month').textContent = formatCurrency(0);
+            document.getElementById('expense-year').textContent = formatCurrency(0);
+        }
+    } catch (e) {
+        document.getElementById('expense-month').textContent = formatCurrency(0);
+        document.getElementById('expense-year').textContent = formatCurrency(0);
     }
 }
 
@@ -978,8 +1021,32 @@ function deleteTerms(id) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    if (document.getElementById('economy-results')?.style.display !== 'none') {
-        loadEconomyOverview();
+    // Load economy overview when economy module is shown
+    const economyTab = document.querySelector('[data-module="economy"]');
+    if (economyTab) {
+        economyTab.addEventListener('click', function() {
+            setTimeout(loadEconomyOverview, 100);
+        });
     }
+    
+    // Also trigger on subtab navigation within economy
+    const economyResultsTab = document.querySelector('[href="#economy-results"]');
+    if (economyResultsTab) {
+        economyResultsTab.addEventListener('click', function() {
+            setTimeout(loadEconomyOverview, 100);
+        });
+    }
+    
+    // Initial load - wait briefly then load if economy is visible
+    setTimeout(function() {
+        const economyContent = document.getElementById('economy-results');
+        if (economyContent) {
+            // Check if the economy module is currently active/visible
+            const isVisible = economyContent.offsetWidth > 0 && economyContent.offsetHeight > 0;
+            if (isVisible) {
+                loadEconomyOverview();
+            }
+        }
+    }, 200);
 });
 </script>
