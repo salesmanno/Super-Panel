@@ -85,8 +85,7 @@ try {
                     item_name,
                     module_source,
                     selling_price,
-                    payment_method,
-                    customer_name
+                    payment_method
                 FROM unified_ledger 
                 WHERE company_id = ? 
                   AND status = 'active'
@@ -125,7 +124,6 @@ try {
                     transaction_date,
                     item_name,
                     module_source as category,
-                    customer_name,
                     selling_price,
                     payment_method
                 FROM unified_ledger 
@@ -178,7 +176,6 @@ try {
                     transaction_date,
                     item_name,
                     module_source as category,
-                    customer_name as supplier,
                     ABS(selling_price) as amount,
                     payment_method
                 FROM unified_ledger 

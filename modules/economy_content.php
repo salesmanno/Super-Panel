@@ -171,13 +171,12 @@
                                         <th>Dato</th>
                                         <th>Beskrivelse</th>
                                         <th>Kategori</th>
-                                        <th>Kunde</th>
                                         <th>Betaling</th>
                                         <th class="text-end">Beløp</th>
                                     </tr>
                                 </thead>
                                 <tbody id="income-transactions">
-                                    <tr><td colspan="6" class="text-center py-3 text-muted">Laster...</td></tr>
+                                    <tr><td colspan="5" class="text-center py-3 text-muted">Laster...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -246,13 +245,12 @@
                                         <th>Dato</th>
                                         <th>Beskrivelse</th>
                                         <th>Kategori</th>
-                                        <th>Leverandør</th>
                                         <th>Betaling</th>
                                         <th class="text-end">Beløp</th>
                                     </tr>
                                 </thead>
                                 <tbody id="expense-transactions">
-                                    <tr><td colspan="6" class="text-center py-3 text-muted">Laster...</td></tr>
+                                    <tr><td colspan="5" class="text-center py-3 text-muted">Laster...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -303,14 +301,13 @@
                                     <tr>
                                         <th>Dato</th>
                                         <th>Beskrivelse</th>
-                                        <th>Kunde</th>
                                         <th>Modul</th>
                                         <th class="text-end">Beløp</th>
                                         <th class="text-center">Handling</th>
                                     </tr>
                                 </thead>
                                 <tbody id="pending-transactions">
-                                    <tr><td colspan="6" class="text-center py-3 text-muted">Laster...</td></tr>
+                                    <tr><td colspan="5" class="text-center py-3 text-muted">Laster...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -605,7 +602,7 @@ function renderIncomeTransactions(transactions) {
     const tbody = document.getElementById('income-transactions');
     
     if (!transactions.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3 text-muted">Ingen inntekter registrert</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Ingen inntekter registrert</td></tr>';
         return;
     }
     
@@ -614,7 +611,6 @@ function renderIncomeTransactions(transactions) {
             <td>${formatDate(t.transaction_date)}</td>
             <td>${t.item_name || '-'}</td>
             <td><span class="badge bg-secondary module-badge">${moduleLabels[t.category] || t.category}</span></td>
-            <td>${t.customer_name || '-'}</td>
             <td>${paymentLabels[t.payment_method] || t.payment_method || '-'}</td>
             <td class="text-end text-success">+${formatCurrency(t.selling_price)}</td>
         </tr>
@@ -671,7 +667,7 @@ function renderExpenseTransactions(transactions) {
     const tbody = document.getElementById('expense-transactions');
     
     if (!transactions.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3 text-muted">Ingen utgifter registrert</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Ingen utgifter registrert</td></tr>';
         return;
     }
     
@@ -680,7 +676,6 @@ function renderExpenseTransactions(transactions) {
             <td>${formatDate(t.transaction_date)}</td>
             <td>${t.item_name || '-'}</td>
             <td><span class="badge bg-secondary module-badge">${moduleLabels[t.category] || t.category}</span></td>
-            <td>${t.supplier || '-'}</td>
             <td>${paymentLabels[t.payment_method] || t.payment_method || '-'}</td>
             <td class="text-end text-danger">-${formatCurrency(t.amount)}</td>
         </tr>
@@ -870,7 +865,7 @@ function renderPendingTransactions(transactions) {
     const tbody = document.getElementById('pending-transactions');
     
     if (!transactions.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted"><i class="bi bi-check-circle text-success me-2"></i>Ingen ventende betalinger</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted"><i class="bi bi-check-circle text-success me-2"></i>Ingen ventende betalinger</td></tr>';
         return;
     }
     
@@ -878,7 +873,6 @@ function renderPendingTransactions(transactions) {
         <tr>
             <td>${formatDate(t.transaction_date)}</td>
             <td>${t.item_name || '-'}</td>
-            <td>${t.customer_name || '-'}</td>
             <td><span class="badge bg-secondary module-badge">${moduleLabels[t.module_source] || t.module_source}</span></td>
             <td class="text-end text-warning fw-bold">${formatCurrency(t.selling_price)}</td>
             <td class="text-center">
