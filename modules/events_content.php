@@ -6169,8 +6169,8 @@ async function loadBindingPaymentMethods() {
         const container = document.getElementById('binding-payment-methods');
         if (!container) return;
         
-        if (result.success && result.data) {
-            const nonCashMethods = result.data.filter(pm => pm.method_type !== 'cash');
+        if (result.success && result.payment_methods) {
+            const nonCashMethods = result.payment_methods.filter(pm => pm.method_type !== 'cash');
             
             if (nonCashMethods.length === 0) {
                 container.innerHTML = '<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Ingen elektroniske betalingsmetoder konfigurert. Gå til Økonomi-modulen for å sette opp Vipps, Stripe eller PayPal.</div>';
