@@ -54,6 +54,33 @@ try {
         $companyId
     ]);
     
+    // Handle product association - delete existing and add new if provided
+    $deleteProductSql = "DELETE FROM announcement_products WHERE announcement_id = ? AND company_id = ?";
+    $deleteStmt = $db->prepare($deleteProductSql);
+    $deleteStmt->execute([$data['id'], $companyId]);
+    
+    if (isset($data['product']) && !empty($data['product']['output_product_id'])) {
+        $product = $data['product'];
+        $productSql = "INSERT INTO announcement_products (
+            company_id,
+            announcement_id,
+            output_product_id,
+            discount_percent,
+            max_quantity,
+            expiry_date
+        ) VALUES (?, ?, ?, ?, ?, ?)";
+        
+        $productStmt = $db->prepare($productSql);
+        $productStmt->execute([
+            $companyId,
+            $data['id'],
+            $product['output_product_id'],
+            $product['discount_percent'] ?? 0,
+            $product['max_quantity'] ?? null,
+            $product['expiry_date'] ?? null
+        ]);
+    }
+    
     $db->commit();
     
     echo json_encode([

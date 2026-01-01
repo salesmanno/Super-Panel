@@ -49,10 +49,33 @@ try {
     $stmt->execute($params);
     $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Cast boolean fields
+    // Get product associations for all announcements
+    $announcementIds = array_column($announcements, 'id');
+    $productMap = [];
+    
+    if (!empty($announcementIds)) {
+        $placeholders = implode(',', array_fill(0, count($announcementIds), '?'));
+        $productSql = "SELECT announcement_id, output_product_id, discount_percent, max_quantity, expiry_date 
+                       FROM announcement_products 
+                       WHERE announcement_id IN ($placeholders) AND company_id = ?";
+        $productStmt = $db->prepare($productSql);
+        $productStmt->execute(array_merge($announcementIds, [$companyId]));
+        
+        while ($row = $productStmt->fetch(PDO::FETCH_ASSOC)) {
+            $productMap[$row['announcement_id']] = [
+                'output_product_id' => $row['output_product_id'],
+                'discount_percent' => (int)$row['discount_percent'],
+                'max_quantity' => $row['max_quantity'] ? (int)$row['max_quantity'] : null,
+                'expiry_date' => $row['expiry_date']
+            ];
+        }
+    }
+    
+    // Cast boolean fields and add product data
     foreach ($announcements as &$announcement) {
         $announcement['is_published'] = (bool)$announcement['is_published'];
         $announcement['is_pinned'] = (bool)$announcement['is_pinned'];
+        $announcement['product'] = $productMap[$announcement['id']] ?? null;
     }
     
     echo json_encode([

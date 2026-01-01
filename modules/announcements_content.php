@@ -459,7 +459,7 @@ function openNewAnnouncementModal() {
     new bootstrap.Modal(document.getElementById('announcementModal')).show();
 }
 
-function editAnnouncement(id) {
+async function editAnnouncement(id) {
     const a = currentAnnouncements.find(x => x.id === id);
     if (!a) return;
 
@@ -485,8 +485,19 @@ function editAnnouncement(id) {
         document.getElementById('announcement-expire-at').value = d.toISOString().slice(0, 16);
     }
 
-    document.getElementById('announcement-product-toggle').checked = false;
-    toggleProductSection();
+    // Load product data if exists
+    if (a.product && a.product.output_product_id) {
+        document.getElementById('announcement-product-toggle').checked = true;
+        toggleProductSection();
+        await loadOutputProducts();
+        document.getElementById('announcement-product-id').value = a.product.output_product_id;
+        document.getElementById('announcement-discount').value = a.product.discount_percent || 0;
+        document.getElementById('announcement-max-qty').value = a.product.max_quantity || '';
+        document.getElementById('announcement-product-expiry').value = a.product.expiry_date || '';
+    } else {
+        document.getElementById('announcement-product-toggle').checked = false;
+        toggleProductSection();
+    }
     
     new bootstrap.Modal(document.getElementById('announcementModal')).show();
 }
