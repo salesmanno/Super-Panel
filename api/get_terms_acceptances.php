@@ -30,13 +30,20 @@ try {
         exit;
     }
     
-    // Get acceptances
+    // Get acceptances with customer data from tenant_customers
     $stmt = $db->prepare("
         SELECT 
-            id, user_name, user_email, accepted_at, module_context
-        FROM tenant_terms_acceptances 
-        WHERE terms_conditions_id = ?
-        ORDER BY accepted_at DESC
+            ta.id,
+            ta.accepted_at,
+            ta.module_context,
+            c.first_name,
+            c.last_name,
+            c.email,
+            c.phone
+        FROM tenant_terms_acceptances ta
+        LEFT JOIN tenant_customers c ON ta.customer_id = c.id
+        WHERE ta.terms_conditions_id = ?
+        ORDER BY ta.accepted_at DESC
         LIMIT 100
     ");
     $stmt->execute([$terms_id]);

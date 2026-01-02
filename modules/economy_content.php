@@ -1089,20 +1089,138 @@ async function loadTermsConditions() {
 }
 
 function showCreateTermsModal() {
-    alert('Opprett nye kjøpsbetingelser - funksjonalitet kommer snart');
+    document.getElementById('termsModalTitle').textContent = 'Nye kjøpsbetingelser';
+    document.getElementById('terms-id').value = '';
+    document.getElementById('terms-title').value = '';
+    document.getElementById('terms-content').value = '';
+    document.getElementById('terms-version').value = '1.0';
+    document.getElementById('terms-effective-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('terms-acceptance-type').value = 'checkbox';
+    document.getElementById('terms-requires-acceptance').checked = true;
+    
+    new bootstrap.Modal(document.getElementById('termsModal')).show();
 }
 
-function editTerms(id) {
-    alert('Rediger kjøpsbetingelser - funksjonalitet kommer snart');
+async function editTerms(id) {
+    try {
+        const response = await fetch(`/api/get_terms_conditions.php?id=${id}`);
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            const term = result.data;
+            document.getElementById('termsModalTitle').textContent = 'Rediger kjøpsbetingelser';
+            document.getElementById('terms-id').value = term.id;
+            document.getElementById('terms-title').value = term.title || '';
+            document.getElementById('terms-content').value = term.content || '';
+            document.getElementById('terms-version').value = term.version || '1.0';
+            document.getElementById('terms-effective-date').value = term.effective_date || '';
+            document.getElementById('terms-acceptance-type').value = term.acceptance_type || 'checkbox';
+            document.getElementById('terms-requires-acceptance').checked = term.requires_customer_acceptance == 1;
+            
+            new bootstrap.Modal(document.getElementById('termsModal')).show();
+        } else {
+            alert('Kunne ikke laste kjøpsbetingelser');
+        }
+    } catch (error) {
+        console.error('Edit terms error:', error);
+        alert('Feil ved lasting av kjøpsbetingelser');
+    }
 }
 
-function viewTermsAcceptances(id) {
-    alert('Vis akseptanser - funksjonalitet kommer snart');
+async function saveTerms() {
+    const id = document.getElementById('terms-id').value;
+    const title = document.getElementById('terms-title').value.trim();
+    const content = document.getElementById('terms-content').value.trim();
+    const version = document.getElementById('terms-version').value.trim() || '1.0';
+    const effectiveDate = document.getElementById('terms-effective-date').value;
+    const acceptanceType = document.getElementById('terms-acceptance-type').value;
+    const requiresAcceptance = document.getElementById('terms-requires-acceptance').checked;
+    
+    if (!title || !content || !effectiveDate) {
+        alert('Vennligst fyll ut alle påkrevde felt');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/create_update_terms.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                id: id || null,
+                title,
+                content,
+                version,
+                effective_date: effectiveDate,
+                acceptance_type: acceptanceType,
+                requires_customer_acceptance: requiresAcceptance
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            bootstrap.Modal.getInstance(document.getElementById('termsModal')).hide();
+            loadTermsConditions();
+        } else {
+            alert('Feil: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Save terms error:', error);
+        alert('Feil ved lagring av kjøpsbetingelser');
+    }
 }
 
-function deleteTerms(id) {
+async function viewTermsAcceptances(termsId) {
+    try {
+        const modal = new bootstrap.Modal(document.getElementById('termsAcceptancesModal'));
+        modal.show();
+        
+        document.getElementById('acceptances-list').innerHTML = '<tr><td colspan="4" class="text-center py-3"><div class="spinner-border spinner-border-sm"></div> Laster...</td></tr>';
+        
+        const response = await fetch(`/api/get_terms_acceptances.php?terms_id=${termsId}`);
+        const result = await response.json();
+        
+        const tbody = document.getElementById('acceptances-list');
+        
+        if (result.success && result.data && result.data.length > 0) {
+            tbody.innerHTML = result.data.map(acc => `
+                <tr>
+                    <td>${acc.last_name || '-'}</td>
+                    <td>${acc.first_name || '-'}</td>
+                    <td>${acc.email || acc.phone || '-'}</td>
+                    <td>${formatDate(acc.accepted_at)}</td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">Ingen har akseptert ennå</td></tr>';
+        }
+    } catch (error) {
+        console.error('Load acceptances error:', error);
+        document.getElementById('acceptances-list').innerHTML = '<tr><td colspan="4" class="text-center py-3 text-danger">Feil ved lasting</td></tr>';
+    }
+}
+
+async function deleteTerms(id) {
     if (!confirm('Er du sikker på at du vil slette disse kjøpsbetingelsene?')) return;
-    alert('Slett kjøpsbetingelser - funksjonalitet kommer snart');
+    
+    try {
+        const response = await fetch('/api/create_update_terms.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ action: 'delete', id })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            loadTermsConditions();
+        } else {
+            alert('Feil: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Delete terms error:', error);
+        alert('Feil ved sletting');
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {

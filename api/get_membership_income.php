@@ -43,24 +43,25 @@ try {
     $stmt->execute([$company_id]);
     $memberCount = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    // Get recent membership transactions
+    // Get recent membership transactions with customer info from tenant_customers
     $stmt = $db->prepare("
         SELECT 
-            order_id,
-            item_name,
-            item_type,
-            customer_name,
-            customer_email,
-            quantity,
-            selling_price,
-            (selling_price * quantity) as total,
-            payment_method,
-            payment_status,
-            transaction_date
-        FROM unified_ledger
-        WHERE company_id = ?
-        AND module_source = 'membership'
-        ORDER BY transaction_date DESC
+            ul.order_id,
+            ul.item_name,
+            ul.item_type,
+            CONCAT(COALESCE(c.first_name, ''), ' ', COALESCE(c.last_name, '')) as customer_name,
+            c.email as customer_email,
+            ul.quantity,
+            ul.selling_price,
+            (ul.selling_price * ul.quantity) as total,
+            ul.payment_method,
+            ul.payment_status,
+            ul.transaction_date
+        FROM unified_ledger ul
+        LEFT JOIN tenant_customers c ON ul.customer_id = c.id
+        WHERE ul.company_id = ?
+        AND ul.module_source = 'membership'
+        ORDER BY ul.transaction_date DESC
         LIMIT 50
     ");
     $stmt->execute([$company_id]);

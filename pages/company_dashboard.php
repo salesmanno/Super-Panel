@@ -514,9 +514,6 @@ try {
                     <a class="nav-link" href="#membership-members">Medlemmer</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#membership-requests">Medlemsforespørsler</a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link" href="#membership-income">Medlemsinntekter</a>
                 </li>
             </ul>
