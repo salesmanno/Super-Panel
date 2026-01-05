@@ -41,18 +41,19 @@ try {
     $stmt->execute([$company_id]);
     $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Get all payments for the year
+    // Get all payments for the year - join with tenant_customers to get email
     $paymentStmt = $db->prepare("
         SELECT 
-            customer_email,
-            SUM(selling_price * quantity) as total_paid,
-            MONTH(transaction_date) as payment_month
-        FROM unified_ledger
-        WHERE company_id = ?
-        AND module_source = 'membership'
-        AND payment_status = 'completed'
-        AND YEAR(transaction_date) = ?
-        GROUP BY customer_email, MONTH(transaction_date)
+            c.email as customer_email,
+            SUM(ul.selling_price * ul.quantity) as total_paid,
+            MONTH(ul.transaction_date) as payment_month
+        FROM unified_ledger ul
+        LEFT JOIN tenant_customers c ON ul.customer_id = c.id
+        WHERE ul.company_id = ?
+        AND ul.module_source = 'membership'
+        AND ul.payment_status = 'completed'
+        AND YEAR(ul.transaction_date) = ?
+        GROUP BY c.email, MONTH(ul.transaction_date)
     ");
     
     $paymentStmt->execute([$company_id, $year]);
@@ -61,7 +62,7 @@ try {
     // Create payment lookup by email and month
     $paymentLookup = [];
     foreach ($payments as $p) {
-        $key = strtolower($p['customer_email']) . '_' . $p['payment_month'];
+        $key = strtolower($p['customer_email'] ?? '') . '_' . $p['payment_month'];
         $paymentLookup[$key] = floatval($p['total_paid']);
     }
     
