@@ -43,7 +43,7 @@ try {
             ON mm.membership_plan_id = mp.id
         LEFT JOIN (
             SELECT 
-                customer_email,
+                email,
                 SUM(selling_price * quantity) as total_paid,
                 MAX(transaction_date) as last_payment_date,
                 COUNT(*) as payment_count
@@ -52,8 +52,8 @@ try {
             AND module_source = 'membership'
             AND payment_status = 'completed'
             AND YEAR(transaction_date) = ?
-            GROUP BY customer_email
-        ) payment_summary ON c.email = payment_summary.customer_email
+            GROUP BY email
+        ) payment_summary ON c.email = payment_summary.email
         WHERE mm.company_id = ?
         ORDER BY c.last_name, c.first_name
     ");

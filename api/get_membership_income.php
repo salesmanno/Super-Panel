@@ -50,7 +50,7 @@ try {
             ul.item_name,
             ul.item_type,
             CONCAT(COALESCE(c.first_name, ''), ' ', COALESCE(c.last_name, '')) as customer_name,
-            c.email as customer_email,
+            c.email as email,
             ul.quantity,
             ul.selling_price,
             (ul.selling_price * ul.quantity) as total,
