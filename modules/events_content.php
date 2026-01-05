@@ -2281,13 +2281,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const selectedRegType = document.querySelector('input[name="registration_type"]:checked');
             const registrationType = selectedRegType ? selectedRegType.value : 'signup';
             
-            // Validate that at least one contact field is selected
-            const emailChecked = document.getElementById('field_email').checked;
-            const phoneChecked = document.getElementById('field_phone').checked;
-            
-            if (!emailChecked && !phoneChecked) {
-                toast.quickWarning('Validering', 'Du må velge minst ett kontaktfelt (E-post eller Telefonnummer) for å verifisere medlemskap');
-                return;
+            // Only validate contact fields for events WITH registration (not for 'none' type)
+            if (registrationType !== 'none') {
+                const emailChecked = document.getElementById('field_email').checked;
+                const phoneChecked = document.getElementById('field_phone').checked;
+                
+                if (!emailChecked && !phoneChecked) {
+                    toast.quickWarning('Validering', 'Du må velge minst ett kontaktfelt (E-post eller Telefonnummer) for å verifisere medlemskap');
+                    return;
+                }
             }
             
             // Validate registration deadline
@@ -2359,7 +2361,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 registration_deadline: registrationDeadline || null,
                 max_attendees: formData.get('max_attendees') || null,
                 age_limit: formData.get('age_limit') || null,
-                ticket_price: formData.get('ticket_price') || 0,
+                ticket_price: registrationType === 'none' ? 0 : (formData.get('ticket_price') || 0),
                 event_image_url: formData.get('event_image_url') || null,
                 is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
                 memberverification: formData.get('memberverification') ? 1 : 0,
@@ -5986,11 +5988,11 @@ function getNextValidStep(currentStep, direction) {
     const regType = document.querySelector('input[name="registration_type"]:checked')?.value;
     let nextStep = currentStep + direction;
     
-    // For "Uten påmelding" - skip steps 5 (medlemstillegg) and 6 (payment)
-    // Keep step 4 (pricing) since user can set entrance fee
+    // For "Uten påmelding" (none) - skip steps 4 (pricing), 5 (medlemstillegg) and 6 (payment)
+    // No registration = no price, no membership pricing, no payment methods
     if (regType === 'none') {
-        if (nextStep === 5 || nextStep === 6) {
-            nextStep = direction > 0 ? 7 : 4;
+        if (nextStep === 4 || nextStep === 5 || nextStep === 6) {
+            nextStep = direction > 0 ? 7 : 3;
         }
     }
     // For "Påmelding" (signup) - all steps accessible including step 5 (medlemstillegg)
@@ -6011,6 +6013,15 @@ function getNextValidStep(currentStep, direction) {
 
 function wizardGoToStep(step) {
     if (step < 1 || step > wizardTotalSteps) return;
+    
+    // Block navigation to steps that should be skipped based on registration_type
+    const regType = document.querySelector('input[name="registration_type"]:checked')?.value;
+    if (regType === 'none' && (step === 4 || step === 5 || step === 6)) {
+        return; // Block steps 4, 5, 6 for "Uten påmelding"
+    }
+    if (regType === 'binding' && (step === 5 || step === 6)) {
+        return; // Block steps 5, 6 for "Bindende"
+    }
     
     // Validate current step before proceeding
     if (step > wizardCurrentStep && !validateWizardStep(wizardCurrentStep)) {
