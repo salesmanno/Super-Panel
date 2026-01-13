@@ -9,6 +9,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/ProductCatalogService.php';
+require_once __DIR__ . '/../includes/ShareLinkService.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -45,6 +46,10 @@ try {
     try {
         // 3. Create the event in events_eventdata
         $eventId = bin2hex(random_bytes(16));
+        
+        // Generate unique share_code for this event
+        $shareLinkService = new ShareLinkService($db, $_SESSION['company_id']);
+        $shareCode = $shareLinkService->generateCode();
         
         // Validate registration_type and payment_timing
         $registrationType = $data['registration_type'] ?? 'signup';
@@ -158,11 +163,12 @@ try {
                 payment_timing,
                 registration_type,
                 payment_methods_json,
-                memberverification
+                memberverification,
+                share_code
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                1, ?, NOW(), NOW(), ?, ?, ?, ?, ?
+                1, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?
             )
         ");
         
@@ -191,7 +197,8 @@ try {
             $paymentTiming,
             $registrationType,
             $paymentMethodsJson,
-            $memberverification
+            $memberverification,
+            $shareCode
         ]);
         
         // 4. Save membership pricing if provided (skip for 'none' type)
