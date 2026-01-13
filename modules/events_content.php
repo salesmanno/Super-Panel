@@ -2538,6 +2538,9 @@ async function loadEvents() {
                             <div class="event-footer">
                                 <div>${priceDisplay}</div>
                                 <div class="event-actions">
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation(); copyShareLink('event', '${event.id}')" title="Kopier delingslenke">
+                                        <i class="bi bi-share"></i>
+                                    </button>
                                     <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); viewEvent('${event.id}')" title="Vis detaljer">
                                         <i class="bi bi-eye"></i>
                                     </button>
@@ -2627,6 +2630,23 @@ async function loadEvents() {
         `;
     } finally {
         loadEventsRunning = false;
+    }
+}
+
+async function copyShareLink(type, itemId) {
+    try {
+        const response = await fetch(`/api/get_share_link.php?type=${type}&item_id=${itemId}`);
+        const result = await response.json();
+        
+        if (result.success && result.share_link) {
+            await navigator.clipboard.writeText(result.share_link);
+            toast.quickSuccess('Kopiert', 'Delingslenke kopiert til utklippstavlen: ' + result.share_link);
+        } else {
+            toast.quickError('Feil', result.message || 'Kunne ikke hente delingslenke');
+        }
+    } catch (error) {
+        console.error('Error copying share link:', error);
+        toast.quickError('Feil', 'Kunne ikke kopiere delingslenke');
     }
 }
 
