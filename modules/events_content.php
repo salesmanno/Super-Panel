@@ -1992,9 +1992,23 @@ try {
                             <div class="tab-pane fade" id="edit-panel-7" role="tabpanel">
                                 <h5 class="mb-3"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h5>
                                 
-                                <div class="alert alert-info mb-3">
-                                    <i class="bi bi-info-circle me-2"></i>
-                                    <strong>Påkrevde felt:</strong> Fornavn og Etternavn er alltid påkrevd.
+                                <div class="row mb-3">
+                                    <div class="col-md-4 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" checked disabled>
+                                            <label class="form-check-label text-muted">
+                                                <i class="bi bi-lock-fill text-secondary me-1"></i> Fornavn <span class="badge bg-secondary">Låst</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" checked disabled>
+                                            <label class="form-check-label text-muted">
+                                                <i class="bi bi-lock-fill text-secondary me-1"></i> Etternavn <span class="badge bg-secondary">Låst</span>
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
                                 
                                 <div class="alert alert-warning mb-3">
