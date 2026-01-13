@@ -9,6 +9,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/ProductCatalogService.php';
+require_once __DIR__ . '/../includes/ShareLinkService.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -37,6 +38,10 @@ try {
         $planId = bin2hex(random_bytes(16));
         $planCode = 'PLAN-' . strtoupper(substr($planId, 0, 8));
         
+        // Generate unique share_code for this membership plan
+        $shareLinkService = new ShareLinkService($db, $_SESSION['company_id']);
+        $shareCode = $shareLinkService->generateCode();
+        
         $stmt = $db->prepare("
             INSERT INTO membership_plans (
                 id,
@@ -48,8 +53,9 @@ try {
                 billing_cycle,
                 benefits,
                 is_active,
-                image_url
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+                image_url,
+                share_code
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
         ");
         
         // Get for_sale value (default to 1/true if not provided)
@@ -64,7 +70,8 @@ try {
             $data['price'] ?? 0,
             $billingCycle,
             $data['benefits'] ?? null,
-            $imageUrl
+            $imageUrl,
+            $shareCode
         ]);
         
         // Only create output_products entry if for_sale is true

@@ -8,6 +8,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/ShareLinkService.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -51,6 +52,10 @@ try {
         // Generate IDs
         $serviceId = bin2hex(random_bytes(16));
         $outputProductId = bin2hex(random_bytes(16));
+        
+        // Generate unique share_code for this service
+        $shareLinkService = new ShareLinkService($db, $_SESSION['company_id']);
+        $shareCode = $shareLinkService->generateCode();
         
         // Convert assigned staff array to JSON
         $assignedStaffJson = json_encode($data['assigned_staff']);
@@ -119,8 +124,8 @@ try {
             INSERT INTO reservation_services (
                 id, company_id, output_product_id, service_name, description,
                 price, duration_minutes, service_type, available_from, available_to,
-                assigned_staff_ids, capacity, is_active, img_url, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                assigned_staff_ids, capacity, is_active, img_url, share_code, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         ");
         
         $stmt->execute([
@@ -137,7 +142,8 @@ try {
             $assignedStaffJson,
             $data['capacity'] ?? 1,
             $data['is_active'] ?? 1,
-            $imgUrl
+            $imgUrl,
+            $shareCode
         ]);
         
         $db->commit();

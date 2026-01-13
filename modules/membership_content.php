@@ -688,6 +688,9 @@ async function loadMembershipPlans() {
                                         </label>
                                     </div>
                                     <div class="d-flex gap-2">
+                                        <button class="btn btn-outline-secondary btn-sm" onclick="copyMembershipShareLink('${planId}')" title="Kopier delingslenke">
+                                            <i class="bi bi-share"></i>
+                                        </button>
                                         <button class="btn btn-outline-primary btn-sm flex-fill" onclick="editMembershipPlan('${planId}')">Rediger</button>
                                         <button class="btn btn-outline-danger btn-sm" onclick="deleteMembershipPlan('${planId}')">
                                             <i class="bi bi-trash"></i>
@@ -745,6 +748,23 @@ async function togglePlanForSale(planId, forSale) {
         console.error('Error toggling plan for_sale:', error);
         toast.error(toastId, 'Oppdatering av plan', 'Kunne ikke oppdatere');
         loadMembershipPlans(); // Reload to reflect actual state
+    }
+}
+
+async function copyMembershipShareLink(planId) {
+    try {
+        const response = await fetch(`/api/get_share_link.php?type=membership&item_id=${planId}`);
+        const result = await response.json();
+        
+        if (result.success && result.share_link) {
+            await navigator.clipboard.writeText(result.share_link);
+            toast.quickSuccess('Kopiert', 'Delingslenke kopiert til utklippstavlen: ' + result.share_link);
+        } else {
+            toast.quickError('Feil', result.message || 'Kunne ikke hente delingslenke');
+        }
+    } catch (error) {
+        console.error('Error copying share link:', error);
+        toast.quickError('Feil', 'Kunne ikke kopiere delingslenke');
     }
 }
 
