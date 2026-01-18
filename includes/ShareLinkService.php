@@ -75,7 +75,7 @@ class ShareLinkService {
     public function getShareLink($type, $itemId) {
         $shareCode = $this->ensureShareCode($type, $itemId);
         $baseUrl = "https://{$this->subdomain}.salesman.no";
-        return $baseUrl . '/' . $type . $shareCode;
+        return $baseUrl . '/?s=' . $shareCode;
     }
     
     public function getEventShareLink($eventId) {
@@ -90,32 +90,26 @@ class ShareLinkService {
         return $this->getShareLink(self::TYPE_MEMBERSHIP, $membershipPlanId);
     }
     
-    public function resolveShareCode($fullCode) {
-        if (strlen($fullCode) < 2) {
+    public function resolveShareCode($shareCode) {
+        if (empty($shareCode)) {
             return null;
         }
         
-        $type = strtoupper($fullCode[0]);
-        $code = substr($fullCode, 1);
-        
-        if (!isset(self::$typeTableMap[$type])) {
-            return null;
+        // Search all tables for the share code
+        foreach (self::$typeTableMap as $type => $table) {
+            $stmt = $this->db->prepare("SELECT id FROM $table WHERE share_code = ? AND company_id = ?");
+            $stmt->execute([$shareCode, $this->companyId]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($result) {
+                return [
+                    'type' => $type,
+                    'table' => $table,
+                    'item_id' => $result['id']
+                ];
+            }
         }
         
-        $table = self::$typeTableMap[$type];
-        
-        $stmt = $this->db->prepare("SELECT id FROM $table WHERE share_code = ? AND company_id = ?");
-        $stmt->execute([$code, $this->companyId]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if (!$result) {
-            return null;
-        }
-        
-        return [
-            'type' => $type,
-            'table' => $table,
-            'item_id' => $result['id']
-        ];
+        return null;
     }
 }
