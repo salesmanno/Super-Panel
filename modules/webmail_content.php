@@ -169,17 +169,31 @@
         document.getElementById('email-list-container').style.display = 'block';
         
         try {
-            const response = await fetch(`/api/get_emails.php?folder=${folder}`);
-            const data = await response.json();
+            const response = await fetch(`/api/get_emails.php?folder=${folder}`, { credentials: 'same-origin' });
+            const text = await response.text();
+            
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (parseError) {
+                throw new Error('Ugyldig respons fra server: ' + text.substring(0, 100));
+            }
             
             document.getElementById('email-loading').style.display = 'none';
             
-            if (data.success && data.emails.length > 0) {
+            if (data.success && data.emails && data.emails.length > 0) {
                 emailsData = data.emails;
                 renderEmailList(data.emails);
                 if (folder === 'inbox') {
                     document.getElementById('inbox-count').textContent = data.unread || 0;
                 }
+            } else if (data.error) {
+                document.getElementById('email-empty').innerHTML = `
+                    <i class="bi bi-exclamation-triangle fs-1 d-block mb-3 text-warning"></i>
+                    <h6>Feil</h6>
+                    <p class="small">${escapeHtml(data.error)}</p>
+                `;
+                document.getElementById('email-empty').style.display = 'block';
             } else {
                 document.getElementById('email-empty').style.display = 'block';
             }
@@ -188,7 +202,7 @@
             document.getElementById('email-empty').innerHTML = `
                 <i class="bi bi-exclamation-triangle fs-1 d-block mb-3 text-warning"></i>
                 <h6>Kunne ikke laste e-poster</h6>
-                <p class="small">${error.message}</p>
+                <p class="small">${escapeHtml(error.message)}</p>
             `;
             document.getElementById('email-empty').style.display = 'block';
         }
@@ -219,8 +233,15 @@
         document.getElementById('email-detail').innerHTML = '<div class="text-center py-5"><div class="spinner-border"></div></div>';
         
         try {
-            const response = await fetch(`/api/get_email_content.php?uid=${uid}&folder=${currentFolder}`);
-            const data = await response.json();
+            const response = await fetch(`/api/get_email_content.php?uid=${uid}&folder=${currentFolder}`, { credentials: 'same-origin' });
+            const text = await response.text();
+            
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (parseError) {
+                throw new Error('Ugyldig respons fra server');
+            }
             
             if (data.success) {
                 document.getElementById('email-detail').innerHTML = `
@@ -236,10 +257,10 @@
                     <div class="email-body">${data.email.body}</div>
                 `;
             } else {
-                document.getElementById('email-detail').innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                document.getElementById('email-detail').innerHTML = `<div class="alert alert-danger">${escapeHtml(data.error || 'Ukjent feil')}</div>`;
             }
         } catch (error) {
-            document.getElementById('email-detail').innerHTML = `<div class="alert alert-danger">Kunne ikke laste e-post</div>`;
+            document.getElementById('email-detail').innerHTML = `<div class="alert alert-danger">${escapeHtml(error.message)}</div>`;
         }
     }
     
@@ -273,9 +294,17 @@
             const response = await fetch('/api/send_email.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
                 body: JSON.stringify({ to, subject, body })
             });
-            const data = await response.json();
+            const text = await response.text();
+            
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (parseError) {
+                throw new Error('Ugyldig respons fra server: ' + text.substring(0, 100));
+            }
             
             if (data.success) {
                 bootstrap.Modal.getInstance(document.getElementById('composeModal')).hide();
