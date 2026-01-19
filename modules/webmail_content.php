@@ -43,23 +43,23 @@
             <div class="col-md-3">
                 <div class="card" style="min-height: 600px;">
                     <div class="card-body">
-                        <button class="btn btn-primary w-100 mb-3">
+                        <button class="btn btn-primary w-100 mb-3" onclick="openComposeModal()">
                             <i class="bi bi-pencil-square me-1"></i>Ny e-post
                         </button>
-                        <div class="list-group">
-                            <a href="#" class="list-group-item list-group-item-action active">
-                                <i class="bi bi-inbox me-2"></i>Innboks <span class="badge bg-primary float-end">0</span>
+                        <div class="list-group" id="email-folders">
+                            <a href="#" class="list-group-item list-group-item-action active" data-folder="inbox" onclick="loadEmails('inbox', this)">
+                                <i class="bi bi-inbox me-2"></i>Innboks <span class="badge bg-primary float-end" id="inbox-count">0</span>
                             </a>
-                            <a href="#" class="list-group-item list-group-item-action">
+                            <a href="#" class="list-group-item list-group-item-action" data-folder="sent" onclick="loadEmails('sent', this)">
                                 <i class="bi bi-send me-2"></i>Sendt
                             </a>
-                            <a href="#" class="list-group-item list-group-item-action">
+                            <a href="#" class="list-group-item list-group-item-action" data-folder="starred" onclick="loadEmails('starred', this)">
                                 <i class="bi bi-star me-2"></i>Stjernemerket
                             </a>
-                            <a href="#" class="list-group-item list-group-item-action">
+                            <a href="#" class="list-group-item list-group-item-action" data-folder="archive" onclick="loadEmails('archive', this)">
                                 <i class="bi bi-archive me-2"></i>Arkiv
                             </a>
-                            <a href="#" class="list-group-item list-group-item-action">
+                            <a href="#" class="list-group-item list-group-item-action" data-folder="trash" onclick="loadEmails('trash', this)">
                                 <i class="bi bi-trash me-2"></i>Papirkurv
                             </a>
                         </div>
@@ -70,28 +70,243 @@
                 <div class="card" style="min-height: 600px;">
                     <div class="card-body d-flex flex-column">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="card-title mb-0"><i class="bi bi-inbox me-2"></i>Innboks</h5>
+                            <h5 class="card-title mb-0" id="folder-title"><i class="bi bi-inbox me-2"></i>Innboks</h5>
                             <div>
-                                <button class="btn btn-sm btn-outline-secondary me-2">
+                                <button class="btn btn-sm btn-outline-secondary me-2" onclick="refreshEmails()">
                                     <i class="bi bi-arrow-clockwise"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary">
-                                    <i class="bi bi-funnel"></i>
                                 </button>
                             </div>
                         </div>
-                        <div class="flex-grow-1 d-flex align-items-center justify-content-center">
-                            <div class="text-center text-muted">
+                        <div id="email-list-container" class="flex-grow-1">
+                            <div id="email-loading" class="text-center py-5" style="display: none;">
+                                <div class="spinner-border text-primary" role="status"></div>
+                                <p class="mt-2 text-muted">Laster e-poster...</p>
+                            </div>
+                            <div id="email-list"></div>
+                            <div id="email-empty" class="text-center text-muted py-5">
                                 <i class="bi bi-envelope-open fs-1 d-block mb-3"></i>
-                                <h6>Ingen e-poster i innboksen</h6>
+                                <h6>Ingen e-poster</h6>
                                 <p class="small">E-poster vil vises her når de mottas</p>
                             </div>
+                        </div>
+                        <div id="email-content" style="display: none;">
+                            <button class="btn btn-sm btn-outline-secondary mb-3" onclick="backToList()">
+                                <i class="bi bi-arrow-left me-1"></i>Tilbake
+                            </button>
+                            <div id="email-detail"></div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+    
+    <!-- Compose Email Modal -->
+    <div class="modal fade" id="composeModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Ny e-post</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="compose-form">
+                        <div class="mb-3">
+                            <label class="form-label">Til</label>
+                            <input type="email" class="form-control" id="compose-to" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Emne</label>
+                            <input type="text" class="form-control" id="compose-subject" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Melding</label>
+                            <textarea class="form-control" id="compose-body" rows="10"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                    <button type="button" class="btn btn-primary" onclick="sendEmail()">
+                        <i class="bi bi-send me-1"></i>Send
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    let currentFolder = 'inbox';
+    let emailsData = [];
+    
+    const folderNames = {
+        'inbox': 'Innboks',
+        'sent': 'Sendt',
+        'starred': 'Stjernemerket',
+        'archive': 'Arkiv',
+        'trash': 'Papirkurv'
+    };
+    
+    const folderIcons = {
+        'inbox': 'inbox',
+        'sent': 'send',
+        'starred': 'star',
+        'archive': 'archive',
+        'trash': 'trash'
+    };
+    
+    async function loadEmails(folder, element) {
+        currentFolder = folder;
+        
+        document.querySelectorAll('#email-folders .list-group-item').forEach(el => el.classList.remove('active'));
+        if (element) element.classList.add('active');
+        
+        document.getElementById('folder-title').innerHTML = `<i class="bi bi-${folderIcons[folder]} me-2"></i>${folderNames[folder]}`;
+        document.getElementById('email-loading').style.display = 'block';
+        document.getElementById('email-list').innerHTML = '';
+        document.getElementById('email-empty').style.display = 'none';
+        document.getElementById('email-content').style.display = 'none';
+        document.getElementById('email-list-container').style.display = 'block';
+        
+        try {
+            const response = await fetch(`/api/get_emails.php?folder=${folder}`);
+            const data = await response.json();
+            
+            document.getElementById('email-loading').style.display = 'none';
+            
+            if (data.success && data.emails.length > 0) {
+                emailsData = data.emails;
+                renderEmailList(data.emails);
+                if (folder === 'inbox') {
+                    document.getElementById('inbox-count').textContent = data.unread || 0;
+                }
+            } else {
+                document.getElementById('email-empty').style.display = 'block';
+            }
+        } catch (error) {
+            document.getElementById('email-loading').style.display = 'none';
+            document.getElementById('email-empty').innerHTML = `
+                <i class="bi bi-exclamation-triangle fs-1 d-block mb-3 text-warning"></i>
+                <h6>Kunne ikke laste e-poster</h6>
+                <p class="small">${error.message}</p>
+            `;
+            document.getElementById('email-empty').style.display = 'block';
+        }
+    }
+    
+    function renderEmailList(emails) {
+        const container = document.getElementById('email-list');
+        container.innerHTML = emails.map(email => `
+            <div class="email-item p-3 border-bottom ${email.seen ? '' : 'bg-light fw-bold'}" 
+                 style="cursor: pointer;" 
+                 onclick="openEmail(${email.uid})">
+                <div class="d-flex justify-content-between">
+                    <div class="text-truncate" style="max-width: 200px;">
+                        ${email.seen ? '' : '<i class="bi bi-circle-fill text-primary me-2" style="font-size: 8px;"></i>'}
+                        ${escapeHtml(email.from_name)}
+                    </div>
+                    <small class="text-muted">${email.date}</small>
+                </div>
+                <div class="text-truncate">${escapeHtml(email.subject)}</div>
+            </div>
+        `).join('');
+        document.getElementById('email-empty').style.display = 'none';
+    }
+    
+    async function openEmail(uid) {
+        document.getElementById('email-list-container').style.display = 'none';
+        document.getElementById('email-content').style.display = 'block';
+        document.getElementById('email-detail').innerHTML = '<div class="text-center py-5"><div class="spinner-border"></div></div>';
+        
+        try {
+            const response = await fetch(`/api/get_email_content.php?uid=${uid}&folder=${currentFolder}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                document.getElementById('email-detail').innerHTML = `
+                    <div class="mb-3">
+                        <h5>${escapeHtml(data.email.subject)}</h5>
+                        <div class="text-muted small">
+                            <strong>Fra:</strong> ${escapeHtml(data.email.from)}<br>
+                            <strong>Til:</strong> ${escapeHtml(data.email.to)}<br>
+                            <strong>Dato:</strong> ${data.email.date}
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="email-body">${data.email.body}</div>
+                `;
+            } else {
+                document.getElementById('email-detail').innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+            }
+        } catch (error) {
+            document.getElementById('email-detail').innerHTML = `<div class="alert alert-danger">Kunne ikke laste e-post</div>`;
+        }
+    }
+    
+    function backToList() {
+        document.getElementById('email-content').style.display = 'none';
+        document.getElementById('email-list-container').style.display = 'block';
+    }
+    
+    function refreshEmails() {
+        loadEmails(currentFolder, document.querySelector(`[data-folder="${currentFolder}"]`));
+    }
+    
+    function openComposeModal() {
+        document.getElementById('compose-to').value = '';
+        document.getElementById('compose-subject').value = '';
+        document.getElementById('compose-body').value = '';
+        new bootstrap.Modal(document.getElementById('composeModal')).show();
+    }
+    
+    async function sendEmail() {
+        const to = document.getElementById('compose-to').value;
+        const subject = document.getElementById('compose-subject').value;
+        const body = document.getElementById('compose-body').value;
+        
+        if (!to || !subject) {
+            alert('Fyll inn mottaker og emne');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/send_email.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ to, subject, body })
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('composeModal')).hide();
+                alert('E-post sendt!');
+            } else {
+                alert('Feil: ' + data.error);
+            }
+        } catch (error) {
+            alert('Kunne ikke sende e-post');
+        }
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const webmailTab = document.getElementById('tab-webmail');
+        if (webmailTab) {
+            webmailTab.addEventListener('shown.bs.tab', function() {
+                loadEmails('inbox', document.querySelector('[data-folder="inbox"]'));
+            });
+        }
+        
+        if (document.querySelector('#content-webmail.active')) {
+            loadEmails('inbox', document.querySelector('[data-folder="inbox"]'));
+        }
+    });
+    </script>
 
     <div id="webmail-history" class="subtab-content" style="display: none;">
         <div class="card">
