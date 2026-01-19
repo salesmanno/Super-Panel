@@ -103,19 +103,84 @@ class EmailService {
      */
     private function getSMTPConfig() {
         $stmt = $this->db->prepare("
-            SELECT * FROM tenant_email_config 
+            SELECT * FROM email_configs 
             WHERE company_id = ? 
             LIMIT 1
         ");
         $stmt->execute([$this->companyId]);
-        $config = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($config && isset($config['smtp_from_email'])) {
-            $config['from_email'] = $config['smtp_from_email'];
-            $config['from_name'] = $config['smtp_from_name'] ?? '';
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+    
+    /**
+     * Get IMAP configuration for company
+     */
+    public function getIMAPConfig() {
+        $stmt = $this->db->prepare("
+            SELECT imap_host, imap_port, imap_username, imap_password_encrypted 
+            FROM email_configs 
+            WHERE company_id = ? 
+            LIMIT 1
+        ");
+        $stmt->execute([$this->companyId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+    
+    /**
+     * Check for unread emails via IMAP and update alertNew flag
+     */
+    public function checkUnreadEmails() {
+        $config = $this->getIMAPConfig();
+        if (!$config || empty($config['imap_host']) || empty($config['imap_username'])) {
+            return ['success' => false, 'error' => 'IMAP ikke konfigurert'];
         }
         
-        return $config;
+        try {
+            $mailbox = '{' . $config['imap_host'] . ':' . ($config['imap_port'] ?? 993) . '/imap/ssl}INBOX';
+            $connection = @imap_open($mailbox, $config['imap_username'], $config['imap_password_encrypted']);
+            
+            if (!$connection) {
+                return ['success' => false, 'error' => imap_last_error()];
+            }
+            
+            // Count unread emails
+            $unread = imap_search($connection, 'UNSEEN');
+            $unreadCount = $unread ? count($unread) : 0;
+            
+            imap_close($connection);
+            
+            // Update alertNew flag
+            $alertNew = $unreadCount > 0 ? 1 : 0;
+            $stmt = $this->db->prepare("UPDATE email_configs SET alertNew = ? WHERE company_id = ?");
+            $stmt->execute([$alertNew, $this->companyId]);
+            
+            return [
+                'success' => true,
+                'unread_count' => $unreadCount,
+                'alertNew' => $alertNew
+            ];
+            
+        } catch (Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+    
+    /**
+     * Get alertNew status
+     */
+    public function getAlertStatus() {
+        $stmt = $this->db->prepare("SELECT alertNew FROM email_configs WHERE company_id = ? LIMIT 1");
+        $stmt->execute([$this->companyId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result ? (int)$result['alertNew'] : 0;
+    }
+    
+    /**
+     * Reset alertNew flag (called when user opens email module)
+     */
+    public function resetAlert() {
+        $stmt = $this->db->prepare("UPDATE email_configs SET alertNew = 0 WHERE company_id = ?");
+        $stmt->execute([$this->companyId]);
+        return true;
     }
     
     /**

@@ -453,7 +453,10 @@ try {
                                 data-bs-toggle="tab" 
                                 data-bs-target="#content-<?= $module['module_key'] ?>" 
                                 type="button" 
-                                role="tab">
+                                role="tab"
+                                <?php if ($module['module_key'] === 'webmail'): ?>
+                                onclick="resetEmailAlert()"
+                                <?php endif; ?>>
                             <?php 
                             $iconClass = $module['icon'] ?? 'grid';
                             if (strpos($iconClass, 'bi-') === 0) {
@@ -462,6 +465,9 @@ try {
                             ?>
                             <i class="bi bi-<?= htmlspecialchars($iconClass) ?> me-2"></i>
                             <?= htmlspecialchars($module['name']) ?>
+                            <?php if ($module['module_key'] === 'webmail'): ?>
+                            <span class="badge bg-danger email-alert-badge" style="display: none;">Ny</span>
+                            <?php endif; ?>
                         </button>
                     </li>
                 <?php endforeach; ?>
@@ -1010,6 +1016,40 @@ try {
         // Tab/subtab persistens - globale konstanter
         const STORAGE_KEY_TAB = 'salesman_active_tab';
         const STORAGE_KEY_SUBTAB = 'salesman_active_subtab';
+        
+        // Email alert functions
+        async function checkEmailAlert() {
+            try {
+                const response = await fetch('/api/check_email_alert.php?action=check');
+                const data = await response.json();
+                if (data.success && data.alertNew === 1) {
+                    document.querySelectorAll('.email-alert-badge').forEach(badge => {
+                        badge.style.display = 'inline-block';
+                    });
+                } else {
+                    document.querySelectorAll('.email-alert-badge').forEach(badge => {
+                        badge.style.display = 'none';
+                    });
+                }
+            } catch (e) {
+                console.log('Email alert check failed:', e);
+            }
+        }
+        
+        async function resetEmailAlert() {
+            try {
+                await fetch('/api/check_email_alert.php?action=reset');
+                document.querySelectorAll('.email-alert-badge').forEach(badge => {
+                    badge.style.display = 'none';
+                });
+            } catch (e) {
+                console.log('Email alert reset failed:', e);
+            }
+        }
+        
+        // Check email alert on page load and every 5 minutes
+        checkEmailAlert();
+        setInterval(checkEmailAlert, 300000);
         
         // Preload helper - use cached data from login transition if available
         const preloadCache = (function() {
