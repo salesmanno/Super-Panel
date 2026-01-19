@@ -23,7 +23,7 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Authentication**: Session-based system with robust backend validation, complete session tracking, and single-session enforcement.
 - **Tab Navigation System**: Utilizes Bootstrap 5's native tab component.
 - **Module & Privilege Management**: Granular access control via `tenant_admin_modules` and `tenant_company_modules` tables.
-- **Email Module**: Integrated email client with SMTP configuration and `EmailService.php` for automated notifications.
+- **Email Module**: Integrated email client with SMTP configuration, `EmailService.php` for automated notifications, and `SMTPClient.php` for authenticated SMTP sending. Webmail client with IMAP support (auto-detects folder names for Domeneshop), compose modal, and robust error handling.
 - **Events Module**: Comprehensive CRUD for event management with `output_products` integration, configurable registration fields, scanner-based check-in, membership-based pricing, dynamic payment methods, and income/expense tracking. Includes a two-column check-in system with EAN13 barcode generation and a results module with key metrics.
 - **Ditt Nettsted Module**: Manages website configuration from `tenant_website_config` with an admin password-protected lock.
 - **Reservation Module**: Complete reservation management with agenda/calendar views, filtering, statistics, and visual calendar-based booking.
