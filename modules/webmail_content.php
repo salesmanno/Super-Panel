@@ -391,12 +391,12 @@
                 </div>
                 
                 <!-- Utleie AutoMailer -->
-                <div class="card mb-3">
+                <div class="card mb-3 automailer-module" data-module="rental">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <h6 class="mb-1"><i class="bi bi-key me-2"></i>Utleie</h6>
-                                <small class="text-muted">Automatiske e-poster for utleiebekreftelser, påminnelser og kvitteringer</small>
+                                <small class="text-muted">Automatiske e-poster for utleiebekreftelser og retur</small>
                             </div>
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="automailer-rental" style="width: 3rem; height: 1.5rem;">
@@ -406,21 +406,15 @@
                         <div class="mt-3 collapse" id="rental-automailer-settings">
                             <hr>
                             <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="rental-booking-confirm">
-                                <label class="form-check-label" for="rental-booking-confirm">
+                                <input class="form-check-input automail-setting" type="checkbox" id="automail_rental_confirm" data-column="automail_rental_confirm">
+                                <label class="form-check-label" for="automail_rental_confirm">
                                     Bekreftelse ved ny utleiebooking
                                 </label>
                             </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="rental-reminder">
-                                <label class="form-check-label" for="rental-reminder">
-                                    Påminnelse 24 timer før utleie
-                                </label>
-                            </div>
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="rental-receipt">
-                                <label class="form-check-label" for="rental-receipt">
-                                    Kvittering etter utleie
+                                <input class="form-check-input automail-setting" type="checkbox" id="automail_rental_return" data-column="automail_rental_return">
+                                <label class="form-check-label" for="automail_rental_return">
+                                    Returpåminnelse
                                 </label>
                             </div>
                         </div>
@@ -428,7 +422,7 @@
                 </div>
                 
                 <!-- Arrangement AutoMailer -->
-                <div class="card mb-3">
+                <div class="card mb-3 automailer-module" data-module="events">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
@@ -443,20 +437,20 @@
                         <div class="mt-3 collapse" id="events-automailer-settings">
                             <hr>
                             <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="events-registration-confirm">
-                                <label class="form-check-label" for="events-registration-confirm">
+                                <input class="form-check-input automail-setting" type="checkbox" id="automail_events_confirm" data-column="automail_events_confirm">
+                                <label class="form-check-label" for="automail_events_confirm">
                                     Bekreftelse ved påmelding
                                 </label>
                             </div>
                             <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="events-reminder">
-                                <label class="form-check-label" for="events-reminder">
+                                <input class="form-check-input automail-setting" type="checkbox" id="automail_events_reminder_3d" data-column="automail_events_reminder_3d">
+                                <label class="form-check-label" for="automail_events_reminder_3d">
                                     Påminnelse 3 dager før arrangement
                                 </label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="events-thank-you">
-                                <label class="form-check-label" for="events-thank-you">
+                                <input class="form-check-input automail-setting" type="checkbox" id="automail_events_thankyou" data-column="automail_events_thankyou">
+                                <label class="form-check-label" for="automail_events_thankyou">
                                     Takkebrev etter arrangement
                                 </label>
                             </div>
@@ -465,7 +459,7 @@
                 </div>
                 
                 <!-- Medlemskap AutoMailer -->
-                <div class="card mb-3">
+                <div class="card mb-3 automailer-module" data-module="membership">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
@@ -480,21 +474,15 @@
                         <div class="mt-3 collapse" id="membership-automailer-settings">
                             <hr>
                             <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="membership-welcome">
-                                <label class="form-check-label" for="membership-welcome">
+                                <input class="form-check-input automail-setting" type="checkbox" id="automail_membership_welcome" data-column="automail_membership_welcome">
+                                <label class="form-check-label" for="automail_membership_welcome">
                                     Velkomst-e-post til nye medlemmer
                                 </label>
                             </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="membership-renewal">
-                                <label class="form-check-label" for="membership-renewal">
-                                    Fornyelsespåminnelse 30 dager før utløp
-                                </label>
-                            </div>
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="membership-expired">
-                                <label class="form-check-label" for="membership-expired">
-                                    Varsel ved utløpt medlemskap
+                                <input class="form-check-input automail-setting" type="checkbox" id="automail_membership_renewal" data-column="automail_membership_renewal">
+                                <label class="form-check-label" for="automail_membership_renewal">
+                                    Fornyelsespåminnelse
                                 </label>
                             </div>
                         </div>
@@ -502,7 +490,7 @@
                 </div>
                 
                 <!-- Reservasjoner AutoMailer -->
-                <div class="card mb-3">
+                <div class="card mb-3 automailer-module" data-module="reservations">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
@@ -517,15 +505,15 @@
                         <div class="mt-3 collapse" id="reservations-automailer-settings">
                             <hr>
                             <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="reservations-confirm">
-                                <label class="form-check-label" for="reservations-confirm">
+                                <input class="form-check-input automail-setting" type="checkbox" id="automail_reservation_confirm" data-column="automail_reservation_confirm">
+                                <label class="form-check-label" for="automail_reservation_confirm">
                                     Bekreftelse ved ny reservasjon
                                 </label>
                             </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="reservations-cancellation">
-                                <label class="form-check-label" for="reservations-cancellation">
-                                    Varsel ved kansellering
+                            <div class="form-check">
+                                <input class="form-check-input automail-setting" type="checkbox" id="automail_reservation_reminder" data-column="automail_reservation_reminder">
+                                <label class="form-check-label" for="automail_reservation_reminder">
+                                    Påminnelse før reservasjon
                                 </label>
                             </div>
                         </div>
@@ -533,12 +521,12 @@
                 </div>
                 
                 <!-- Salg AutoMailer -->
-                <div class="card mb-3">
+                <div class="card mb-3 automailer-module" data-module="sales">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <h6 class="mb-1"><i class="bi bi-cart me-2"></i>Salg</h6>
-                                <small class="text-muted">Automatiske e-poster for ordrebekreftelser og leveringsstatus</small>
+                                <small class="text-muted">Automatiske e-poster for ordrebekreftelser</small>
                             </div>
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="automailer-sales" style="width: 3rem; height: 1.5rem;">
@@ -547,28 +535,10 @@
                         </div>
                         <div class="mt-3 collapse" id="sales-automailer-settings">
                             <hr>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="sales-order-confirm">
-                                <label class="form-check-label" for="sales-order-confirm">
-                                    Ordrebekreftelse ved kjøp
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="sales-shipping">
-                                <label class="form-check-label" for="sales-shipping">
-                                    Varsel når ordre sendes
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="sales-delivered">
-                                <label class="form-check-label" for="sales-delivered">
-                                    Bekreftelse ved levering
-                                </label>
-                            </div>
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="sales-receipt">
-                                <label class="form-check-label" for="sales-receipt">
-                                    Kvittering og faktura
+                                <input class="form-check-input automail-setting" type="checkbox" id="automail_sales_order" data-column="automail_sales_order">
+                                <label class="form-check-label" for="automail_sales_order">
+                                    Ordrebekreftelse ved kjøp
                                 </label>
                             </div>
                         </div>
@@ -576,7 +546,7 @@
                 </div>
                 
                 <div class="text-end mt-4">
-                    <button class="btn btn-primary">
+                    <button class="btn btn-primary" onclick="saveAutomailerSettings()">
                         <i class="bi bi-save me-1"></i>Lagre innstillinger
                     </button>
                 </div>
@@ -586,7 +556,6 @@
 </div>
 
 <script>
-// Toggle AutoMailer settings
 document.querySelectorAll('[id^="automailer-"]').forEach(toggle => {
     toggle.addEventListener('change', function() {
         const module = this.id.replace('automailer-', '');
@@ -600,5 +569,96 @@ document.querySelectorAll('[id^="automailer-"]').forEach(toggle => {
         }
     });
 });
+
+async function loadAutomailerSettings() {
+    try {
+        const response = await fetch('/api/get_automailer_settings.php', { credentials: 'same-origin' });
+        const text = await response.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('Ugyldig JSON:', text);
+            return;
+        }
+        
+        if (!data.success) return;
+        
+        const userModules = data.modules || [];
+        
+        document.querySelectorAll('.automailer-module').forEach(card => {
+            const moduleKey = card.dataset.module;
+            if (!userModules.includes(moduleKey)) {
+                card.style.display = 'none';
+            }
+        });
+        
+        const settings = data.settings || {};
+        document.querySelectorAll('.automail-setting').forEach(checkbox => {
+            const column = checkbox.dataset.column;
+            if (settings[column] === 1 || settings[column] === '1') {
+                checkbox.checked = true;
+            } else {
+                checkbox.checked = false;
+            }
+        });
+        
+        document.querySelectorAll('.automailer-module').forEach(card => {
+            if (card.style.display !== 'none') {
+                const hasChecked = card.querySelectorAll('.automail-setting:checked').length > 0;
+                const toggle = card.querySelector('[id^="automailer-"]');
+                const settingsDiv = card.querySelector('[id$="-automailer-settings"]');
+                if (hasChecked && toggle && settingsDiv) {
+                    toggle.checked = true;
+                    settingsDiv.classList.add('show');
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('Feil ved lasting av automailer-innstillinger:', error);
+    }
+}
+
+async function saveAutomailerSettings() {
+    const settings = {};
+    
+    document.querySelectorAll('.automail-setting').forEach(checkbox => {
+        const column = checkbox.dataset.column;
+        const card = checkbox.closest('.automailer-module');
+        if (card && card.style.display !== 'none') {
+            settings[column] = checkbox.checked ? 1 : 0;
+        }
+    });
+    
+    try {
+        const response = await fetch('/api/save_automailer_settings.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(settings)
+        });
+        const text = await response.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            alert('Feil: Ugyldig respons fra server');
+            return;
+        }
+        
+        if (data.success) {
+            alert('Innstillinger lagret!');
+        } else {
+            alert('Feil: ' + (data.error || 'Ukjent feil'));
+        }
+    } catch (error) {
+        alert('Kunne ikke lagre innstillinger: ' + error.message);
+    }
+}
+
+if (document.getElementById('webmail-automailer')) {
+    loadAutomailerSettings();
+}
 </script>
 
