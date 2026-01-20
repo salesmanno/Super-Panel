@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-require_once __DIR__ . '/../includes/db_config.php';
+require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/SMTPClient.php';
 
 try {

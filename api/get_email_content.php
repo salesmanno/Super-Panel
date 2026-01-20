@@ -19,7 +19,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     exit;
 }
 
-require_once __DIR__ . '/../includes/db_config.php';
+require_once __DIR__ . '/../config/database.php';
 
 try {
     $db = getDBConnection();
