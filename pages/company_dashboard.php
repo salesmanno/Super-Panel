@@ -1457,6 +1457,20 @@ try {
                 } else {
                     showSubTabs(moduleToShow);
                 }
+                
+                // Ved F5-refresh: Sørg for at subtab-changed event fires etter alt er klart
+                setTimeout(() => {
+                    const moduleSubtabs = document.getElementById('subtabs-' + moduleToShow);
+                    if (moduleSubtabs) {
+                        const activeLink = moduleSubtabs.querySelector('.nav-link.active');
+                        if (activeLink) {
+                            const targetId = activeLink.getAttribute('href').substring(1);
+                            document.dispatchEvent(new CustomEvent('subtab-changed', { 
+                                detail: { module: moduleToShow, subtab: targetId } 
+                            }));
+                        }
+                    }
+                }, 50);
             }
         });
         

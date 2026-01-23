@@ -6478,12 +6478,15 @@ function showWizardSuccess() {
 // Initialize wizard on DOM ready
 document.addEventListener('DOMContentLoaded', initEventWizard);
 
-// Handle subtab change to reset wizard when entering create tab
+// Handle subtab change to load data when entering events tabs
 document.addEventListener('subtab-changed', function(event) {
-    if (event.detail.subtab === 'events-create') {
-        // Optionally reset wizard when entering the tab
-        // resetWizard();
-        initEventWizard();
+    if (event.detail.module === 'events') {
+        if (event.detail.subtab === 'events-my') {
+            loadEvents();
+            loadPendingRegistrations();
+        } else if (event.detail.subtab === 'events-create') {
+            initEventWizard();
+        }
     }
 });
 </script>
