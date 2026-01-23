@@ -231,7 +231,7 @@
 
 <script>
 let currentAnnouncements = [];
-let currentFilter = 'published';
+let announcementsFilter = 'published';
 
 async function loadAnnouncements() {
     try {
@@ -249,7 +249,7 @@ async function loadAnnouncements() {
 }
 
 function filterNews(filter) {
-    currentFilter = filter;
+    announcementsFilter = filter;
     document.querySelectorAll('.news-tabs .nav-link').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.filter === filter);
     });
@@ -264,19 +264,19 @@ function displayAnnouncements() {
     const pinned = currentAnnouncements.filter(a => a.is_pinned && a.is_published);
     
     let filtered = [];
-    if (currentFilter === 'published') {
+    if (announcementsFilter === 'published') {
         filtered = currentAnnouncements.filter(a => 
             a.is_published && 
             !a.is_pinned &&
             (!a.publish_at || new Date(a.publish_at) <= now)
         );
-    } else if (currentFilter === 'scheduled') {
+    } else if (announcementsFilter === 'scheduled') {
         filtered = currentAnnouncements.filter(a => 
             a.is_published && 
             a.publish_at && 
             new Date(a.publish_at) > now
         );
-    } else if (currentFilter === 'draft') {
+    } else if (announcementsFilter === 'draft') {
         filtered = currentAnnouncements.filter(a => !a.is_published);
     }
     
@@ -319,7 +319,7 @@ function displayAnnouncements() {
         newsContainer.innerHTML = `
             <div class="text-center py-5 text-muted">
                 <i class="bi bi-newspaper d-block mb-2" style="font-size: 2rem;"></i>
-                <p>${messages[currentFilter]}</p>
+                <p>${messages[announcementsFilter]}</p>
             </div>
         `;
         return;

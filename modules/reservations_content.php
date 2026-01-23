@@ -1446,7 +1446,7 @@ let carouselBookings = [];
 let carouselIndex = 0;
 let carouselTouchStart = { x: 0, y: 0 };
 let carouselTouchEnd = { x: 0, y: 0 };
-let countdownInterval = null;
+let reservationsCountdownInterval = null;
 const SWIPE_THRESHOLD = 50;
 const ORTHOGONAL_THRESHOLD = 15;
 
@@ -1533,8 +1533,8 @@ function updateCountdownDisplay() {
 }
 
 function startCountdown() {
-    if (countdownInterval) clearInterval(countdownInterval);
-    countdownInterval = setInterval(updateCountdownDisplay, 30000);
+    if (reservationsCountdownInterval) clearInterval(reservationsCountdownInterval);
+    reservationsCountdownInterval = setInterval(updateCountdownDisplay, 30000);
 }
 
 function initCarouselSwipe() {

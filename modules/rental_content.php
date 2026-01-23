@@ -176,7 +176,7 @@ $schemas = getRentalSchemas();
 <script>
 const rentalSchemas = <?= json_encode($schemas) ?>;
 let allRentalObjects = [];
-let currentFilter = '';
+let rentalFilter = '';
 
 document.addEventListener('DOMContentLoaded', function() {
     loadRentalObjects();
@@ -210,9 +210,9 @@ async function loadRentalObjects() {
 }
 
 function filterByCategory() {
-    currentFilter = document.getElementById('categoryFilter').value;
-    const filtered = currentFilter 
-        ? allRentalObjects.filter(obj => obj.category === currentFilter)
+    rentalFilter = document.getElementById('categoryFilter').value;
+    const filtered = rentalFilter 
+        ? allRentalObjects.filter(obj => obj.category === rentalFilter)
         : allRentalObjects;
     renderRentalObjects(filtered);
 }
