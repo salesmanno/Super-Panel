@@ -688,8 +688,8 @@ async function loadMembershipPlans() {
                                         </label>
                                     </div>
                                     <div class="d-flex gap-2">
-                                        <button class="btn btn-outline-secondary btn-sm" onclick="copyMembershipShareLink('${planId}')" title="Kopier delingslenke">
-                                            <i class="bi bi-share"></i>
+                                        <button class="btn btn-outline-secondary btn-sm" onclick="goToMembershipShareLink('${planId}')" title="Gå til delingslenke">
+                                            <i class="bi bi-box-arrow-up-right"></i>
                                         </button>
                                         <button class="btn btn-outline-primary btn-sm flex-fill" onclick="editMembershipPlan('${planId}')">Rediger</button>
                                         <button class="btn btn-outline-danger btn-sm" onclick="deleteMembershipPlan('${planId}')">
@@ -751,20 +751,19 @@ async function togglePlanForSale(planId, forSale) {
     }
 }
 
-async function copyMembershipShareLink(planId) {
+async function goToMembershipShareLink(planId) {
     try {
         const response = await fetch(`/api/get_share_link.php?type=membership&item_id=${planId}`);
         const result = await response.json();
         
         if (result.success && result.share_link) {
-            await navigator.clipboard.writeText(result.share_link);
-            toast.quickSuccess('Kopiert', 'Delingslenke kopiert til utklippstavlen: ' + result.share_link);
+            window.open(result.share_link, '_blank');
         } else {
             toast.quickError('Feil', result.message || 'Kunne ikke hente delingslenke');
         }
     } catch (error) {
-        console.error('Error copying share link:', error);
-        toast.quickError('Feil', 'Kunne ikke kopiere delingslenke');
+        console.error('Error opening share link:', error);
+        toast.quickError('Feil', 'Kunne ikke åpne delingslenke');
     }
 }
 

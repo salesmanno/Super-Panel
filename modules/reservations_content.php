@@ -760,8 +760,8 @@ function renderServices() {
                             <div class="text-end">
                                 <div class="service-price">${parseInt(service.price || 0).toLocaleString('nb-NO')} kr</div>
                                 <div class="btn-group btn-group-sm mt-2">
-                                    <button class="btn btn-outline-secondary" onclick="copyServiceShareLink('${service.id}')" title="Kopier delingslenke">
-                                        <i class="bi bi-share"></i>
+                                    <button class="btn btn-outline-secondary" onclick="goToServiceShareLink('${service.id}')" title="Gå til delingslenke">
+                                        <i class="bi bi-box-arrow-up-right"></i>
                                     </button>
                                     <button class="btn btn-outline-primary" onclick="editService('${service.id}')" title="Rediger">
                                         <i class="bi bi-pencil"></i>
@@ -976,20 +976,19 @@ async function saveService() {
     }
 }
 
-async function copyServiceShareLink(serviceId) {
+async function goToServiceShareLink(serviceId) {
     try {
         const response = await fetch(`/api/get_share_link.php?type=service&item_id=${serviceId}`);
         const result = await response.json();
         
         if (result.success && result.share_link) {
-            await navigator.clipboard.writeText(result.share_link);
-            toast.quickSuccess('Kopiert', 'Delingslenke kopiert til utklippstavlen: ' + result.share_link);
+            window.open(result.share_link, '_blank');
         } else {
             toast.quickError('Feil', result.message || 'Kunne ikke hente delingslenke');
         }
     } catch (error) {
-        console.error('Error copying share link:', error);
-        toast.quickError('Feil', 'Kunne ikke kopiere delingslenke');
+        console.error('Error opening share link:', error);
+        toast.quickError('Feil', 'Kunne ikke åpne delingslenke');
     }
 }
 
