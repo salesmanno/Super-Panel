@@ -13,45 +13,39 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     
-    $lastCheck = $_SESSION['last_polling_check'] ?? null;
-    $now = date('Y-m-d H:i:s');
+    $stmt = $db->prepare("
+        SELECT id, module_source, action_type, polling_source, polling_interval_seconds, 
+               items_processed_last_poll, metadata, created_at
+        FROM tenant_polling_tracker 
+        WHERE company_id = ? 
+          AND polling_status = 'pending'
+        ORDER BY created_at DESC
+        LIMIT 1
+    ");
+    $stmt->execute([$companyId]);
+    $pendingPoll = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    $updates = [];
-    $shouldRefresh = false;
-    
-    if ($lastCheck) {
-        $stmt = $db->prepare("
-            SELECT module_source, action_type, items_processed_last_poll, metadata
-            FROM tenant_polling_tracker 
-            WHERE company_id = ? 
-              AND updated_at > ? 
-              AND items_processed_last_poll > 0
-            ORDER BY updated_at DESC
-        ");
-        $stmt->execute([$companyId, $lastCheck]);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        if (count($rows) > 0) {
-            $shouldRefresh = true;
-            
-            foreach ($rows as $row) {
-                $updates[] = [
-                    'module' => $row['module_source'],
-                    'action' => $row['action_type'],
-                    'count' => (int)$row['items_processed_last_poll'],
-                    'metadata' => $row['metadata'] ? json_decode($row['metadata'], true) : null
-                ];
-            }
-        }
+    if ($pendingPoll) {
+        echo json_encode([
+            'success' => true,
+            'hasPending' => true,
+            'poll' => [
+                'id' => $pendingPoll['id'],
+                'module_source' => $pendingPoll['module_source'],
+                'action_type' => $pendingPoll['action_type'],
+                'polling_source' => $pendingPoll['polling_source'],
+                'interval_seconds' => (int)($pendingPoll['polling_interval_seconds'] ?? 5),
+                'items_count' => (int)$pendingPoll['items_processed_last_poll'],
+                'metadata' => $pendingPoll['metadata'] ? json_decode($pendingPoll['metadata'], true) : null,
+                'created_at' => $pendingPoll['created_at']
+            ]
+        ]);
+    } else {
+        echo json_encode([
+            'success' => true,
+            'hasPending' => false
+        ]);
     }
-    
-    $_SESSION['last_polling_check'] = $now;
-    
-    echo json_encode([
-        'success' => true,
-        'refresh' => $shouldRefresh,
-        'updates' => $updates
-    ]);
     
 } catch (Exception $e) {
     error_log("Error checking refresh flag: " . $e->getMessage());
@@ -60,3 +54,4 @@ try {
         'message' => 'Feil ved sjekk av refresh-flagg'
     ]);
 }
+?>

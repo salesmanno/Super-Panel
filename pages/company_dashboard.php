@@ -1448,17 +1448,14 @@ try {
             });
             
             // DERETTER: Gjenopprett lagret fane (listeners er nå registrert)
-            if (savedTab) {
-                const tabButton = document.getElementById('tab-' + savedTab);
+            const moduleToShow = savedTab || '<?= $officialModules[0]['module_key'] ?? ($userModules[0]['module_key'] ?? '') ?>';
+            if (moduleToShow) {
+                const tabButton = document.getElementById('tab-' + moduleToShow);
                 if (tabButton) {
                     const bsTab = new bootstrap.Tab(tabButton);
                     bsTab.show();
-                }
-            } else {
-                // Ingen lagret fane - initialiser første modul
-                const initialModule = '<?= $officialModules[0]['module_key'] ?? ($userModules[0]['module_key'] ?? '') ?>';
-                if (initialModule) {
-                    showSubTabs(initialModule);
+                } else {
+                    showSubTabs(moduleToShow);
                 }
             }
         });
@@ -1830,10 +1827,13 @@ try {
         }
         
         // Auto-refresh polling system
-        const POLLING_INTERVAL = 30000; // 30 sekunder
+        const POLLING_CHECK_INTERVAL = 10000; // Sjekk hvert 10. sekund
+        let currentPollId = null;
+        let countdownInterval = null;
+        let countdownToast = null;
         
         const moduleNames = {
-            'reservations': 'Reservation',
+            'reservations': 'Reservasjon',
             'events': 'Arrangement',
             'sales': 'Salg',
             'membership': 'Medlemskap',
@@ -1849,48 +1849,152 @@ try {
             'new_reservation': 'Ny reservasjon',
             'ticket_purchase': 'Nytt billettkjøp',
             'new_member': 'Nytt medlem',
-            'rental_booking': 'Ny utleiebooking'
+            'rental_booking': 'Ny utleiebooking',
+            'event_registration': 'Ny påmelding'
         };
         
-        function buildToastMessage(updates) {
-            const messages = updates.map(u => {
-                const module = moduleNames[u.module] || u.module;
-                const action = actionNames[u.action] || u.action || 'Oppdatering';
-                const count = u.count > 1 ? ` (${u.count} stk)` : '';
-                return `${action}${count} i ${module}`;
-            });
-            return messages.join('<br>');
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
         
+        function buildPollingMessage(poll) {
+            const source = escapeHtml(poll.polling_source || poll.module_source || 'Ukjent kilde');
+            const action = actionNames[poll.action_type] || escapeHtml(poll.action_type) || 'Oppdatering';
+            const count = poll.items_count > 1 ? ` (${poll.items_count} stk)` : '';
+            let message = `${action}${count}`;
+            
+            if (poll.metadata) {
+                if (poll.metadata.customer_name) {
+                    message += `<br><small>${escapeHtml(poll.metadata.customer_name)}</small>`;
+                }
+                if (poll.metadata.event_title) {
+                    message += `<br><small>${escapeHtml(poll.metadata.event_title)}</small>`;
+                }
+            }
+            
+            return { source, message };
+        }
+        
+        function startCountdown(poll) {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+            
+            currentPollId = poll.id;
+            let secondsLeft = poll.interval_seconds || 5;
+            const { source, message } = buildPollingMessage(poll);
+            
+            const toastId = 'polling-countdown-toast';
+            let toastEl = document.getElementById(toastId);
+            
+            if (!toastEl) {
+                toastEl = document.createElement('div');
+                toastEl.id = toastId;
+                toastEl.className = 'position-fixed bottom-0 end-0 p-3';
+                toastEl.style.zIndex = '1100';
+                toastEl.innerHTML = `
+                    <div class="toast show" role="alert">
+                        <div class="toast-header bg-info text-white">
+                            <strong class="me-auto">Ny oppdatering fra ${source}</strong>
+                            <button type="button" class="btn-close btn-close-white" onclick="cancelPollingRefresh()"></button>
+                        </div>
+                        <div class="toast-body">
+                            ${message}
+                            <hr class="my-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>Oppdaterer om <strong id="countdown-seconds">${secondsLeft}</strong> sek...</span>
+                                <button class="btn btn-sm btn-primary" onclick="refreshNow()">Oppdater nå</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(toastEl);
+            } else {
+                document.getElementById('countdown-seconds').textContent = secondsLeft;
+            }
+            
+            countdownInterval = setInterval(() => {
+                secondsLeft--;
+                const countdownEl = document.getElementById('countdown-seconds');
+                if (countdownEl) {
+                    countdownEl.textContent = secondsLeft;
+                }
+                
+                if (secondsLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    completePollingAndRefresh();
+                }
+            }, 1000);
+        }
+        
+        async function completePollingAndRefresh() {
+            if (currentPollId) {
+                try {
+                    await fetch('/api/set_polling_complete.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ poll_id: currentPollId })
+                    });
+                } catch (error) {
+                    console.error('Error completing poll:', error);
+                }
+            }
+            location.reload();
+        }
+        
+        window.refreshNow = function() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            completePollingAndRefresh();
+        };
+        
+        window.cancelPollingRefresh = async function() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            if (currentPollId) {
+                try {
+                    await fetch('/api/set_polling_complete.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ poll_id: currentPollId, dismissed: true })
+                    });
+                } catch (error) {
+                    console.error('Error dismissing poll:', error);
+                }
+            }
+            const toastEl = document.getElementById('polling-countdown-toast');
+            if (toastEl) {
+                toastEl.remove();
+            }
+            currentPollId = null;
+        };
+        
         async function checkRefreshFlag() {
+            if (currentPollId) return;
+            
             try {
                 const response = await fetch('/api/check_refresh_flag.php');
                 const result = await response.json();
                 
-                if (result.success && result.refresh === true) {
-                    console.log('Refresh flag detected - showing toast and reloading');
-                    
-                    if (result.updates && result.updates.length > 0) {
-                        const message = buildToastMessage(result.updates);
-                        if (window.toast) {
-                            window.toast.show('Oppdatering', message, 'info', { duration: 3000 });
-                        }
-                        
-                        setTimeout(() => {
-                            location.reload();
-                        }, 2500);
-                    } else {
-                        location.reload();
-                    }
+                if (result.success && result.hasPending && result.poll) {
+                    console.log('Pending poll detected:', result.poll);
+                    startCountdown(result.poll);
                 }
             } catch (error) {
                 console.error('Polling error:', error);
             }
         }
         
-        // Start polling - kjør første sjekk umiddelbart, deretter hvert 30. sekund
+        // Start polling - sjekk umiddelbart, deretter hvert 10. sekund
         checkRefreshFlag();
-        setInterval(checkRefreshFlag, POLLING_INTERVAL);
+        setInterval(checkRefreshFlag, POLLING_CHECK_INTERVAL);
     </script>
     
     <?php include __DIR__ . '/../includes/toast_notification.php'; ?>
