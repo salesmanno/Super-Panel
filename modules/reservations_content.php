@@ -1795,22 +1795,4 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
-
-// Handle subtab change to load data
-document.addEventListener('subtab-changed', function(event) {
-    if (event.detail.module === 'reservation') {
-        if (event.detail.subtab === 'reservations-overview') {
-            loadServices();
-        } else if (event.detail.subtab === 'reservations-active-services') {
-            loadServices();
-            loadServiceSelectList();
-        } else if (event.detail.subtab === 'reservations-create-service') {
-            loadStaffListForAvailability();
-        } else if (event.detail.subtab === 'reservations-schedule') {
-            initScheduleFilters();
-            loadSchedule();
-            loadNextBooking();
-        }
-    }
-});
 </script>

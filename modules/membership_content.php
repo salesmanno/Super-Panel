@@ -1697,20 +1697,5 @@ async function registerPayment(memberId, memberName, amount, email) {
         alert('Feil ved registrering av betaling');
     }
 }
-
-// Handle subtab change to load data
-document.addEventListener('subtab-changed', function(event) {
-    if (event.detail.module === 'membership') {
-        if (event.detail.subtab === 'membership-plans') {
-            loadMembershipPlans();
-        } else if (event.detail.subtab === 'membership-members') {
-            loadMembers();
-        } else if (event.detail.subtab === 'membership-income') {
-            if (typeof loadMembershipIncome === 'function') {
-                loadMembershipIncome();
-            }
-        }
-    }
-});
 </script>
 
