@@ -2223,21 +2223,19 @@ try {
                 </div>
 
                 <!-- Transactions List -->
-                <h6 class="mb-3">Transaksjoner</h6>
+                <h6 class="mb-3">Transaksjoner (summert)</h6>
                 <div class="table-responsive">
                     <table class="table table-sm">
                         <thead>
                             <tr>
-                                <th>Dato</th>
                                 <th>Type</th>
-                                <th>Beskrivelse</th>
-                                <th>Beløp</th>
-                                <th>Handling</th>
+                                <th>Beskrivelse (antall)</th>
+                                <th class="text-end">Sum</th>
                             </tr>
                         </thead>
                         <tbody id="details-transactions-list">
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-3">
+                                <td colspan="3" class="text-center text-muted py-3">
                                     Ingen transaksjoner ennå
                                 </td>
                             </tr>
@@ -2254,14 +2252,7 @@ try {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Load events when module is active
-    if (document.getElementById('events-my')) {
-        loadEvents();
-        // Load pending registrations count for badge
-        loadPendingRegistrations();
-    }
-    
-    // Load membership plans and payment methods for create form
+    // Load membership plans and payment methods for create form (these are needed for any tab)
     loadMembershipPlansForCreate();
     loadPaymentMethodsForCreate();
 
@@ -3885,18 +3876,7 @@ async function loadEventsResults() {
     }
 }
 
-// Load results when results tab is shown
-const resultsTabLink = document.querySelector('[href="#events-results"]');
-if (resultsTabLink) {
-    resultsTabLink.addEventListener('shown.bs.tab', function() {
-        loadEventsResults();
-    });
-    // Also try click event as fallback
-    resultsTabLink.addEventListener('click', function(e) {
-        e.preventDefault();
-        setTimeout(() => loadEventsResults(), 100);
-    });
-}
+// Results loading is now handled by subtab-changed event at bottom of file
 
 // Toggle event results dropdown
 async function toggleEventResults(eventId) {
@@ -4510,31 +4490,47 @@ async function viewEventDetails(eventId, eventTitle = 'Arrangement') {
             
             const transactionsList = document.getElementById('details-transactions-list');
             if (result.transactions && result.transactions.length > 0) {
-                transactionsList.innerHTML = result.transactions.map(t => {
-                    const date = new Date(t.transaction_date).toLocaleDateString('nb-NO');
-                    const typeClass = t.entry_type === 'income' ? 'text-success' : 'text-danger';
-                    const typeIcon = t.entry_type === 'income' ? 'plus-circle' : 'dash-circle';
-                    const typeText = t.entry_type === 'income' ? 'Inntekt' : 'Utgift';
-                    const amount = Math.abs(parseFloat(t.total_amount));
+                // Group transactions by item_name and entry_type, sum amounts
+                const grouped = {};
+                result.transactions.forEach(t => {
+                    const key = `${t.entry_type}|${t.item_name}`;
+                    if (!grouped[key]) {
+                        grouped[key] = {
+                            entry_type: t.entry_type,
+                            item_name: t.item_name,
+                            total_amount: 0,
+                            count: 0
+                        };
+                    }
+                    grouped[key].total_amount += Math.abs(parseFloat(t.total_amount));
+                    grouped[key].count++;
+                });
+                
+                // Convert to array and sort (income first, then by amount desc)
+                const groupedArray = Object.values(grouped).sort((a, b) => {
+                    if (a.entry_type !== b.entry_type) {
+                        return a.entry_type === 'income' ? -1 : 1;
+                    }
+                    return b.total_amount - a.total_amount;
+                });
+                
+                transactionsList.innerHTML = groupedArray.map(g => {
+                    const typeClass = g.entry_type === 'income' ? 'text-success' : 'text-danger';
+                    const typeIcon = g.entry_type === 'income' ? 'plus-circle' : 'dash-circle';
+                    const typeText = g.entry_type === 'income' ? 'Inntekt' : 'Utgift';
                     
                     return `
                         <tr>
-                            <td><small>${date}</small></td>
-                            <td><span class="badge ${t.entry_type === 'income' ? 'bg-success' : 'bg-danger'}"><i class="bi bi-${typeIcon} me-1"></i>${typeText}</span></td>
-                            <td>${t.item_name}</td>
-                            <td class="${typeClass}"><strong>${amount.toLocaleString('nb-NO')} NOK</strong></td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction('${t.id}')" title="Slett">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </td>
+                            <td><span class="badge ${g.entry_type === 'income' ? 'bg-success' : 'bg-danger'}"><i class="bi bi-${typeIcon} me-1"></i>${typeText}</span></td>
+                            <td>${g.item_name} <span class="text-muted">(${g.count})</span></td>
+                            <td class="${typeClass}"><strong>${g.total_amount.toLocaleString('nb-NO')} NOK</strong></td>
                         </tr>
                     `;
                 }).join('');
             } else {
                 transactionsList.innerHTML = `
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-3">
+                        <td colspan="3" class="text-center text-muted py-3">
                             Ingen transaksjoner ennå
                         </td>
                     </tr>
@@ -4932,13 +4928,7 @@ if (editMemberExclusiveCheckbox && editTicketPriceContainer && editTicketPriceIn
 
 // ========== REGISTRATIONS APPROVAL FUNCTIONALITY ==========
 
-// Load both registration lists when tab is shown
-document.querySelector('[href="#events-registrations"]')?.addEventListener('click', function() {
-    setTimeout(() => {
-        loadPendingRegistrations();
-        loadAllRegistrations();
-    }, 100);
-});
+// Registrations loading is now handled by subtab-changed event at bottom of file
 
 async function loadPendingRegistrations() {
     try {
@@ -6486,6 +6476,11 @@ document.addEventListener('subtab-changed', function(event) {
             loadPendingRegistrations();
         } else if (event.detail.subtab === 'events-create') {
             initEventWizard();
+        } else if (event.detail.subtab === 'events-registrations') {
+            loadPendingRegistrations();
+            loadAllRegistrations();
+        } else if (event.detail.subtab === 'events-results') {
+            loadEventsResults();
         }
     }
 });
