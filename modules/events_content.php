@@ -3902,38 +3902,56 @@ async function loadEventFinances(eventId) {
             const incomeList = document.getElementById(`event-income-${eventId}`);
             const expenseList = document.getElementById(`event-expense-${eventId}`);
             
-            // Display income
+            // Group and sum income by item_name
             if (result.income && result.income.length > 0) {
-                incomeList.innerHTML = result.income.map(item => {
-                    const date = new Date(item.transaction_date).toLocaleDateString('no-NO');
-                    return `
+                const incomeGroups = {};
+                result.income.forEach(item => {
+                    const key = item.item_name || 'Ukjent';
+                    if (!incomeGroups[key]) {
+                        incomeGroups[key] = { total: 0, count: 0 };
+                    }
+                    incomeGroups[key].total += parseFloat(item.selling_price);
+                    incomeGroups[key].count++;
+                });
+                
+                incomeList.innerHTML = Object.entries(incomeGroups)
+                    .sort((a, b) => b[1].total - a[1].total)
+                    .map(([name, data]) => `
                         <div class="event-finance-item">
                             <div>
-                                <span>${item.item_name}</span>
-                                <small class="text-muted d-block">${date} - ${item.payment_method || 'Kontant'}</small>
+                                <span>${name}</span>
+                                <small class="text-muted d-block">${data.count} stk</small>
                             </div>
-                            <strong class="text-success">+${parseFloat(item.selling_price).toFixed(2)} NOK</strong>
+                            <strong class="text-success">+${data.total.toFixed(2)} NOK</strong>
                         </div>
-                    `;
-                }).join('');
+                    `).join('');
             } else {
                 incomeList.innerHTML = '<small class="text-muted">Ingen inntekter registrert</small>';
             }
             
-            // Display expenses
+            // Group and sum expenses by item_name
             if (result.expenses && result.expenses.length > 0) {
-                expenseList.innerHTML = result.expenses.map(item => {
-                    const date = new Date(item.transaction_date).toLocaleDateString('no-NO');
-                    return `
+                const expenseGroups = {};
+                result.expenses.forEach(item => {
+                    const key = item.item_name || 'Ukjent';
+                    if (!expenseGroups[key]) {
+                        expenseGroups[key] = { total: 0, count: 0 };
+                    }
+                    expenseGroups[key].total += Math.abs(parseFloat(item.selling_price));
+                    expenseGroups[key].count++;
+                });
+                
+                expenseList.innerHTML = Object.entries(expenseGroups)
+                    .sort((a, b) => b[1].total - a[1].total)
+                    .map(([name, data]) => `
                         <div class="event-finance-item">
                             <div>
-                                <span>${item.item_name}</span>
-                                <small class="text-muted d-block">${date} - ${item.payment_method || 'Kontant'}</small>
+                                <span>${name}</span>
+                                <small class="text-muted d-block">${data.count} stk</small>
                             </div>
-                            <strong class="text-danger">-${Math.abs(parseFloat(item.selling_price)).toFixed(2)} NOK</strong>
+                            <strong class="text-danger">-${data.total.toFixed(2)} NOK</strong>
                         </div>
-                    `;
-                }).join('');
+                    `).join('');
             } else {
                 expenseList.innerHTML = '<small class="text-muted">Ingen utgifter registrert</small>';
             }
