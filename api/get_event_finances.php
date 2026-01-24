@@ -20,6 +20,18 @@ try {
     $db = getDBConnection();
     $company_id = $_SESSION['company_id'];
     
+    // Get event info (title and standard price)
+    $eventStmt = $db->prepare("
+        SELECT title, ticket_price 
+        FROM events_eventdata 
+        WHERE id = ? AND company_id = ?
+    ");
+    $eventStmt->execute([$event_id, $company_id]);
+    $eventInfo = $eventStmt->fetch(PDO::FETCH_ASSOC);
+    
+    $eventTitle = $eventInfo['title'] ?? 'Ukjent arrangement';
+    $standardPrice = floatval($eventInfo['ticket_price'] ?? 0);
+    
     // Build JSON query (MYSQL ONLY - Use JSON_UNQUOTE to remove quotes from JSON string)
     $jsonEventCheck = "JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.event_id')) = ?";
     
@@ -84,6 +96,8 @@ try {
     
     echo json_encode([
         'success' => true,
+        'event_title' => $eventTitle,
+        'standard_price' => $standardPrice,
         'income' => $income,
         'expenses' => $expenses,
         'summary' => [

@@ -3901,30 +3901,82 @@ async function loadEventFinances(eventId) {
         if (result.success) {
             const incomeList = document.getElementById(`event-income-${eventId}`);
             const expenseList = document.getElementById(`event-expense-${eventId}`);
+            const eventTitle = result.event_title || 'Arrangement';
+            const standardPrice = parseFloat(result.standard_price) || 0;
             
-            // Group and sum income by item_name
+            // Group income by member type (based on price matching standard price)
             if (result.income && result.income.length > 0) {
-                const incomeGroups = {};
+                const memberIncome = { total: 0, count: 0 };
+                const nonMemberIncome = { total: 0, count: 0 };
+                const otherIncome = { total: 0, count: 0, items: [] };
+                
                 result.income.forEach(item => {
-                    const key = item.item_name || 'Ukjent';
-                    if (!incomeGroups[key]) {
-                        incomeGroups[key] = { total: 0, count: 0 };
+                    const price = parseFloat(item.selling_price);
+                    const itemName = item.item_name || '';
+                    
+                    // Check if this is a check-in/registration income (matches event title pattern)
+                    if (itemName.toLowerCase().includes(eventTitle.toLowerCase().substring(0, 10)) || 
+                        itemName.toLowerCase().includes('billett') ||
+                        itemName.toLowerCase().includes('påmelding')) {
+                        if (Math.abs(price - standardPrice) < 0.01) {
+                            // Price matches standard price = non-member
+                            nonMemberIncome.total += price;
+                            nonMemberIncome.count++;
+                        } else {
+                            // Different price = member
+                            memberIncome.total += price;
+                            memberIncome.count++;
+                        }
+                    } else {
+                        // Other income (manual entries, etc)
+                        otherIncome.total += price;
+                        otherIncome.count++;
+                        if (!otherIncome.items.includes(itemName)) {
+                            otherIncome.items.push(itemName);
+                        }
                     }
-                    incomeGroups[key].total += parseFloat(item.selling_price);
-                    incomeGroups[key].count++;
                 });
                 
-                incomeList.innerHTML = Object.entries(incomeGroups)
-                    .sort((a, b) => b[1].total - a[1].total)
-                    .map(([name, data]) => `
+                let incomeHtml = '';
+                
+                if (nonMemberIncome.count > 0) {
+                    incomeHtml += `
                         <div class="event-finance-item">
                             <div>
-                                <span>${name}</span>
-                                <small class="text-muted d-block">${data.count} stk</small>
+                                <span>${eventTitle} <strong>Ikke-medlem</strong></span>
+                                <small class="text-muted d-block">${nonMemberIncome.count} stk @ ${standardPrice.toFixed(0)} NOK</small>
                             </div>
-                            <strong class="text-success">+${data.total.toFixed(2)} NOK</strong>
+                            <strong class="text-success">+${nonMemberIncome.total.toFixed(2)} NOK</strong>
                         </div>
-                    `).join('');
+                    `;
+                }
+                
+                if (memberIncome.count > 0) {
+                    incomeHtml += `
+                        <div class="event-finance-item">
+                            <div>
+                                <span>${eventTitle} <strong>Medlem</strong></span>
+                                <small class="text-muted d-block">${memberIncome.count} stk (medlemspris)</small>
+                            </div>
+                            <strong class="text-success">+${memberIncome.total.toFixed(2)} NOK</strong>
+                        </div>
+                    `;
+                }
+                
+                if (otherIncome.count > 0) {
+                    const otherLabel = otherIncome.items.length > 0 ? otherIncome.items[0] : 'Annet';
+                    incomeHtml += `
+                        <div class="event-finance-item">
+                            <div>
+                                <span>${otherLabel}</span>
+                                <small class="text-muted d-block">${otherIncome.count} stk</small>
+                            </div>
+                            <strong class="text-success">+${otherIncome.total.toFixed(2)} NOK</strong>
+                        </div>
+                    `;
+                }
+                
+                incomeList.innerHTML = incomeHtml || '<small class="text-muted">Ingen inntekter registrert</small>';
             } else {
                 incomeList.innerHTML = '<small class="text-muted">Ingen inntekter registrert</small>';
             }
