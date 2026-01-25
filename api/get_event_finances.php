@@ -40,18 +40,19 @@ try {
     // Get all entries from events_checkin for this event
     // Group by ticket_price to determine member vs non-member
     // Only include entries with ticket_price > 0 (paid registrations)
+    // Note: events_checkin does not have company_id column - event_id is sufficient
     $checkinQuery = "
         SELECT 
             c.ticket_price,
             COUNT(*) as count,
             SUM(c.ticket_price) as total_amount
         FROM events_checkin c
-        WHERE c.event_id = ? AND c.company_id = ? AND c.ticket_price > 0
+        WHERE c.event_id = ? AND c.ticket_price > 0
         GROUP BY c.ticket_price
         ORDER BY c.ticket_price DESC
     ";
     $checkinStmt = $db->prepare($checkinQuery);
-    $checkinStmt->execute([$event_id, $company_id]);
+    $checkinStmt->execute([$event_id]);
     $checkinGroups = $checkinStmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Build income groups - compare price to standard price
