@@ -3892,7 +3892,7 @@ async function toggleEventResults(eventId) {
     }
 }
 
-// Load event finances from unified_ledger
+// Load event finances from events_checkin + unified_ledger
 async function loadEventFinances(eventId) {
     try {
         const response = await fetch(`/api/get_event_finances.php?event_id=${eventId}`);
@@ -3902,98 +3902,44 @@ async function loadEventFinances(eventId) {
             const incomeList = document.getElementById(`event-income-${eventId}`);
             const expenseList = document.getElementById(`event-expense-${eventId}`);
             const eventTitle = result.event_title || 'Arrangement';
-            const standardPrice = parseFloat(result.standard_price) || 0;
             
-            // Group income by member type (based on price matching standard price)
-            if (result.income && result.income.length > 0) {
-                const memberIncome = { total: 0, count: 0 };
-                const nonMemberIncome = { total: 0, count: 0 };
-                const otherIncome = { total: 0, count: 0, items: [] };
-                
-                result.income.forEach(item => {
-                    const price = parseFloat(item.selling_price);
-                    const itemName = item.item_name || '';
-                    
-                    // Check if this is a check-in/registration income (matches event title pattern)
-                    if (itemName.toLowerCase().includes(eventTitle.toLowerCase().substring(0, 10)) || 
-                        itemName.toLowerCase().includes('billett') ||
-                        itemName.toLowerCase().includes('påmelding')) {
-                        if (Math.abs(price - standardPrice) < 0.01) {
-                            // Price matches standard price = non-member
-                            nonMemberIncome.total += price;
-                            nonMemberIncome.count++;
-                        } else {
-                            // Different price = member
-                            memberIncome.total += price;
-                            memberIncome.count++;
-                        }
-                    } else {
-                        // Other income (manual entries, etc)
-                        otherIncome.total += price;
-                        otherIncome.count++;
-                        if (!otherIncome.items.includes(itemName)) {
-                            otherIncome.items.push(itemName);
-                        }
-                    }
+            let incomeHtml = '';
+            
+            // Display check-in income (from events_checkin table)
+            if (result.checkin_income && result.checkin_income.length > 0) {
+                result.checkin_income.forEach(group => {
+                    incomeHtml += `
+                        <div class="event-finance-item">
+                            <div>
+                                <span>${eventTitle} <strong>${group.label}</strong></span>
+                                <small class="text-muted d-block">${group.count} stk @ ${group.price.toFixed(0)} NOK</small>
+                            </div>
+                            <strong class="text-success">+${group.total.toFixed(2)} NOK</strong>
+                        </div>
+                    `;
                 });
-                
-                let incomeHtml = '';
-                
-                if (nonMemberIncome.count > 0) {
-                    incomeHtml += `
-                        <div class="event-finance-item">
-                            <div>
-                                <span>${eventTitle} <strong>Ikke-medlem</strong></span>
-                                <small class="text-muted d-block">${nonMemberIncome.count} stk @ ${standardPrice.toFixed(0)} NOK</small>
-                            </div>
-                            <strong class="text-success">+${nonMemberIncome.total.toFixed(2)} NOK</strong>
-                        </div>
-                    `;
-                }
-                
-                if (memberIncome.count > 0) {
-                    incomeHtml += `
-                        <div class="event-finance-item">
-                            <div>
-                                <span>${eventTitle} <strong>Medlem</strong></span>
-                                <small class="text-muted d-block">${memberIncome.count} stk (medlemspris)</small>
-                            </div>
-                            <strong class="text-success">+${memberIncome.total.toFixed(2)} NOK</strong>
-                        </div>
-                    `;
-                }
-                
-                if (otherIncome.count > 0) {
-                    const otherLabel = otherIncome.items.length > 0 ? otherIncome.items[0] : 'Annet';
-                    incomeHtml += `
-                        <div class="event-finance-item">
-                            <div>
-                                <span>${otherLabel}</span>
-                                <small class="text-muted d-block">${otherIncome.count} stk</small>
-                            </div>
-                            <strong class="text-success">+${otherIncome.total.toFixed(2)} NOK</strong>
-                        </div>
-                    `;
-                }
-                
-                incomeList.innerHTML = incomeHtml || '<small class="text-muted">Ingen inntekter registrert</small>';
-            } else {
-                incomeList.innerHTML = '<small class="text-muted">Ingen inntekter registrert</small>';
             }
             
-            // Group and sum expenses by item_name
-            if (result.expenses && result.expenses.length > 0) {
-                const expenseGroups = {};
-                result.expenses.forEach(item => {
-                    const key = item.item_name || 'Ukjent';
-                    if (!expenseGroups[key]) {
-                        expenseGroups[key] = { total: 0, count: 0 };
-                    }
-                    expenseGroups[key].total += Math.abs(parseFloat(item.selling_price));
-                    expenseGroups[key].count++;
+            // Display other income (from unified_ledger)
+            if (result.other_income && Object.keys(result.other_income).length > 0) {
+                Object.entries(result.other_income).forEach(([name, data]) => {
+                    incomeHtml += `
+                        <div class="event-finance-item">
+                            <div>
+                                <span>${name}</span>
+                                <small class="text-muted d-block">${data.count} stk</small>
+                            </div>
+                            <strong class="text-success">+${data.total.toFixed(2)} NOK</strong>
+                        </div>
+                    `;
                 });
-                
-                expenseList.innerHTML = Object.entries(expenseGroups)
+            }
+            
+            incomeList.innerHTML = incomeHtml || '<small class="text-muted">Ingen inntekter registrert</small>';
+            
+            // Display expenses (from unified_ledger)
+            if (result.expense_groups && Object.keys(result.expense_groups).length > 0) {
+                expenseList.innerHTML = Object.entries(result.expense_groups)
                     .sort((a, b) => b[1].total - a[1].total)
                     .map(([name, data]) => `
                         <div class="event-finance-item">
