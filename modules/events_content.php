@@ -1955,13 +1955,13 @@ try {
                                 
                                 <div class="card border-0 bg-light mb-3">
                                     <div class="card-body">
-                                        <div class="form-check mb-3">
-                                            <input class="form-check-input" type="checkbox" name="memberverification" id="edit-memberverification">
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" role="switch" name="memberverification" id="edit-memberverification">
                                             <label class="form-check-label" for="edit-memberverification">
                                                 <i class="bi bi-shield-check text-success me-2"></i>
                                                 <strong>Autofyll og autogodkjenning</strong>
+                                                <small class="text-muted d-block">Medlemmer får automatisk utfylt informasjon og godkjennes umiddelbart</small>
                                             </label>
-                                            <small class="text-muted d-block ms-4">Medlemmer får automatisk utfylt informasjon og godkjennes umiddelbart</small>
                                         </div>
                                     </div>
                                 </div>
@@ -3906,6 +3906,7 @@ async function loadEventFinances(eventId) {
             let incomeHtml = '';
             
             // Display check-in income (from events_checkin table)
+            // Grouped by price: standard price = Ikke-medlem, other = Medlem
             if (result.checkin_income && result.checkin_income.length > 0) {
                 result.checkin_income.forEach(group => {
                     incomeHtml += `
@@ -3915,21 +3916,6 @@ async function loadEventFinances(eventId) {
                                 <small class="text-muted d-block">${group.count} stk @ ${group.price.toFixed(0)} NOK</small>
                             </div>
                             <strong class="text-success">+${group.total.toFixed(2)} NOK</strong>
-                        </div>
-                    `;
-                });
-            }
-            
-            // Display other income (from unified_ledger)
-            if (result.other_income && Object.keys(result.other_income).length > 0) {
-                Object.entries(result.other_income).forEach(([name, data]) => {
-                    incomeHtml += `
-                        <div class="event-finance-item">
-                            <div>
-                                <span>${name}</span>
-                                <small class="text-muted d-block">${data.count} stk</small>
-                            </div>
-                            <strong class="text-success">+${data.total.toFixed(2)} NOK</strong>
                         </div>
                     `;
                 });
