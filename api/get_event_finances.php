@@ -37,40 +37,43 @@ try {
     $eventTitle = $eventInfo['title'];
     $standardPrice = floatval($eventInfo['ticket_price']);
     
-    // Get all entries from events_checkin for this event
-    // Group by membership status (membership_plan_id IS NOT NULL = member)
-    // Only include entries with ticket_price > 0 (paid registrations)
-    // Note: events_checkin does not have company_id column - event_id is sufficient
-    $checkinQuery = "
+    // Get all approved registrations for this event
+    // Uses EXACT same logic as get_all_registrations.php for consistency:
+    // - Membership: membership_members with active status
+    // - Ticket price: COALESCE(emp.ticket_price, e.ticket_price) - same as "alle påmeldinger" display
+    // This ensures counts AND totals match "alle påmeldinger" view exactly
+    $registrationQuery = "
         SELECT 
-            CASE WHEN c.membership_plan_id IS NOT NULL THEN 'Medlem' ELSE 'Ikke-medlem' END as member_type,
-            c.ticket_price,
-            COUNT(*) as count,
-            SUM(c.ticket_price) as total_amount
-        FROM events_checkin c
-        WHERE c.event_id = ? AND c.ticket_price > 0
-        GROUP BY member_type, c.ticket_price
-        ORDER BY member_type DESC, c.ticket_price DESC
+            CASE WHEN mm.membership_plan_id IS NOT NULL THEN 'Medlem' ELSE 'Ikke-medlem' END as member_type,
+            COALESCE(emp.ticket_price, e.ticket_price) AS ticket_price
+        FROM event_registrations r
+        INNER JOIN events_eventdata e ON r.event_id = e.id
+        INNER JOIN tenant_customers c ON r.customer_id = c.id AND c.company_id = r.company_id
+        LEFT JOIN membership_members mm ON mm.customer_id = c.id AND mm.company_id = r.company_id AND mm.status = 'active'
+        LEFT JOIN event_membership_plans emp ON emp.event_id = r.event_id AND emp.membership_plan_id = mm.membership_plan_id
+        WHERE r.event_id = ? AND r.company_id = ? AND r.approval_status = 'approved'
     ";
-    $checkinStmt = $db->prepare($checkinQuery);
-    $checkinStmt->execute([$event_id]);
-    $checkinGroups = $checkinStmt->fetchAll(PDO::FETCH_ASSOC);
+    $registrationStmt = $db->prepare($registrationQuery);
+    $registrationStmt->execute([$event_id, $company_id]);
+    $registrations = $registrationStmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Build income groups - use membership_plan_id to determine member vs non-member
+    // Build income groups - use membership_members to determine member vs non-member (same as "alle påmeldinger")
     $checkinIncome = [];
     $totalCheckinIncome = 0;
     
     // Aggregate by member type
     $memberTotals = ['Medlem' => ['count' => 0, 'total' => 0], 'Ikke-medlem' => ['count' => 0, 'total' => 0]];
     
-    foreach ($checkinGroups as $group) {
-        $label = $group['member_type'];
-        $count = intval($group['count']);
-        $total = floatval($group['total_amount']);
-        $totalCheckinIncome += $total;
+    foreach ($registrations as $reg) {
+        $label = $reg['member_type'];
+        $price = floatval($reg['ticket_price']);
         
-        $memberTotals[$label]['count'] += $count;
-        $memberTotals[$label]['total'] += $total;
+        // Only include paid registrations (price > 0)
+        if ($price > 0) {
+            $totalCheckinIncome += $price;
+            $memberTotals[$label]['count']++;
+            $memberTotals[$label]['total'] += $price;
+        }
     }
     
     // Build output array
