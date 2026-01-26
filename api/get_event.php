@@ -26,6 +26,7 @@ try {
             description,
             ticket_price,
             is_member_exclusive,
+            memberverification,
             start_date,
             start_time,
             end_date,

@@ -38,46 +38,51 @@ try {
     $standardPrice = floatval($eventInfo['ticket_price']);
     
     // Get all entries from events_checkin for this event
-    // Group by ticket_price to determine member vs non-member
+    // Group by membership status (membership_plan_id IS NOT NULL = member)
     // Only include entries with ticket_price > 0 (paid registrations)
     // Note: events_checkin does not have company_id column - event_id is sufficient
     $checkinQuery = "
         SELECT 
+            CASE WHEN c.membership_plan_id IS NOT NULL THEN 'Medlem' ELSE 'Ikke-medlem' END as member_type,
             c.ticket_price,
             COUNT(*) as count,
             SUM(c.ticket_price) as total_amount
         FROM events_checkin c
         WHERE c.event_id = ? AND c.ticket_price > 0
-        GROUP BY c.ticket_price
-        ORDER BY c.ticket_price DESC
+        GROUP BY member_type, c.ticket_price
+        ORDER BY member_type DESC, c.ticket_price DESC
     ";
     $checkinStmt = $db->prepare($checkinQuery);
     $checkinStmt->execute([$event_id]);
     $checkinGroups = $checkinStmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Build income groups - compare price to standard price
+    // Build income groups - use membership_plan_id to determine member vs non-member
     $checkinIncome = [];
     $totalCheckinIncome = 0;
     
+    // Aggregate by member type
+    $memberTotals = ['Medlem' => ['count' => 0, 'total' => 0], 'Ikke-medlem' => ['count' => 0, 'total' => 0]];
+    
     foreach ($checkinGroups as $group) {
-        $price = floatval($group['ticket_price']);
+        $label = $group['member_type'];
         $count = intval($group['count']);
         $total = floatval($group['total_amount']);
         $totalCheckinIncome += $total;
         
-        // If price matches standard price = non-member, otherwise = member
-        if (abs($price - $standardPrice) < 0.01) {
-            $label = 'Ikke-medlem';
-        } else {
-            $label = 'Medlem';
+        $memberTotals[$label]['count'] += $count;
+        $memberTotals[$label]['total'] += $total;
+    }
+    
+    // Build output array
+    foreach ($memberTotals as $label => $data) {
+        if ($data['count'] > 0) {
+            $checkinIncome[] = [
+                'label' => $label,
+                'count' => $data['count'],
+                'price' => $data['count'] > 0 ? round($data['total'] / $data['count'], 2) : 0,
+                'total' => $data['total']
+            ];
         }
-        
-        $checkinIncome[] = [
-            'label' => $label,
-            'count' => $count,
-            'price' => $price,
-            'total' => $total
-        ];
     }
     
     // Get expenses from unified_ledger
