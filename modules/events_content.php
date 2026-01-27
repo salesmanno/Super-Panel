@@ -5386,7 +5386,14 @@ async function loadAllRegistrations() {
     }
 }
 
+const vippsCheckCache = new Set();
+
 async function checkVippsPayments(eventId) {
+    if (vippsCheckCache.has(eventId)) {
+        return;
+    }
+    vippsCheckCache.add(eventId);
+    
     try {
         const response = await fetch('/api/check_vipps_payments.php', {
             method: 'POST',
@@ -5396,14 +5403,13 @@ async function checkVippsPayments(eventId) {
         
         const result = await response.json();
         
-        if (result.success && result.total_checked > 0) {
-            if (result.updated > 0) {
-                toast.quickSuccess('Vipps oppdatert', `${result.updated} betalinger bekreftet`);
-            }
+        if (result.success && result.updated > 0) {
+            toast.quickSuccess('Vipps oppdatert', `${result.updated} betalinger bekreftet`);
             loadAllRegistrations();
         }
     } catch (error) {
         console.error('Error checking Vipps payments:', error);
+        vippsCheckCache.delete(eventId);
     }
 }
 
