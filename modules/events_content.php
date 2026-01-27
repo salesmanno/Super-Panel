@@ -5239,13 +5239,8 @@ async function loadAllRegistrations() {
                         </button>
                     </h2>
                     <div id="${collapseId}" class="accordion-collapse collapse" 
-                         data-bs-parent="#registrationsAccordion">
+                         data-bs-parent="#registrationsAccordion" data-event-id="${eventGroup.event_id}">
                         <div class="accordion-body p-0">
-                            <div class="d-flex justify-content-end p-2 bg-light border-bottom">
-                                <button class="btn btn-sm btn-outline-primary" onclick="checkVippsPayments('${eventGroup.event_id}', this)">
-                                    <i class="bi bi-phone me-1"></i>Sjekk Vipps-betalinger
-                                </button>
-                            </div>
                             <div class="table-responsive">
                                 <table class="table table-sm table-hover mb-0">
                                     <thead style="background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
@@ -5291,12 +5286,33 @@ async function loadAllRegistrations() {
                 const paymentMethod = reg.payment_method || 'cash';
                 const paymentStatus = reg.payment_status || 'pending';
                 const checkedIn = reg.checked_in || 0;
+                const paymentAuth = reg.payment_authorization || null;
+                const paymentState = reg.payment_state || null;
                 
                 if (paymentMethod === 'vipps') {
-                    const statusBadge = paymentStatus === 'paid' 
+                    let statusBadge = '';
+                    if (paymentStatus === 'paid' || paymentState === 'authorized' || paymentState === 'captured') {
+                        statusBadge = '<span class="badge bg-success ms-1">Betalt</span>';
+                    } else {
+                        statusBadge = '<span class="badge bg-warning text-dark ms-1">Venter</span>';
+                    }
+                    let authInfo = '';
+                    if (paymentAuth) {
+                        authInfo = `<br><small class="text-muted">Ref: ${paymentAuth}</small>`;
+                    }
+                    paymentStatusHtml = `<span class="badge bg-info text-dark"><i class="bi bi-phone me-1"></i>Vipps</span>${statusBadge}${authInfo}`;
+                } else if (paymentMethod === 'stripe') {
+                    let statusBadge = paymentStatus === 'paid' 
                         ? '<span class="badge bg-success ms-1">Betalt</span>'
                         : '<span class="badge bg-warning text-dark ms-1">Venter</span>';
-                    paymentStatusHtml = `<span class="badge bg-info text-dark"><i class="bi bi-phone me-1"></i>Vipps</span>${statusBadge}`;
+                    let authInfo = paymentAuth ? `<br><small class="text-muted">Ref: ${paymentAuth}</small>` : '';
+                    paymentStatusHtml = `<span class="badge bg-primary"><i class="bi bi-credit-card me-1"></i>Stripe</span>${statusBadge}${authInfo}`;
+                } else if (paymentMethod === 'paypal') {
+                    let statusBadge = paymentStatus === 'paid' 
+                        ? '<span class="badge bg-success ms-1">Betalt</span>'
+                        : '<span class="badge bg-warning text-dark ms-1">Venter</span>';
+                    let authInfo = paymentAuth ? `<br><small class="text-muted">Ref: ${paymentAuth}</small>` : '';
+                    paymentStatusHtml = `<span class="badge bg-primary" style="background-color: #003087 !important;"><i class="bi bi-paypal me-1"></i>PayPal</span>${statusBadge}${authInfo}`;
                 } else {
                     if (paymentStatus === 'paid' || checkedIn == 1) {
                         paymentStatusHtml = '<span class="badge bg-success"><i class="bi bi-cash me-1"></i>Betalt kontant</span>';
@@ -5370,11 +5386,7 @@ async function loadAllRegistrations() {
     }
 }
 
-async function checkVippsPayments(eventId, buttonElement) {
-    const originalText = buttonElement.innerHTML;
-    buttonElement.disabled = true;
-    buttonElement.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sjekker...';
-    
+async function checkVippsPayments(eventId) {
     try {
         const response = await fetch('/api/check_vipps_payments.php', {
             method: 'POST',
@@ -5384,34 +5396,26 @@ async function checkVippsPayments(eventId, buttonElement) {
         
         const result = await response.json();
         
-        if (result.success) {
-            let message = '';
+        if (result.success && result.total_checked > 0) {
             if (result.updated > 0) {
-                message = `${result.updated} av ${result.total_checked} betalinger oppdatert til betalt`;
-                toast.quickSuccess('Vipps sjekket', message);
-                loadAllRegistrations();
-            } else if (result.total_checked === 0) {
-                message = 'Ingen ventende Vipps-betalinger funnet';
-                toast.quickInfo('Vipps', message);
-            } else {
-                message = `Sjekket ${result.total_checked} betalinger - ingen nye betalinger funnet`;
-                toast.quickInfo('Vipps', message);
+                toast.quickSuccess('Vipps oppdatert', `${result.updated} betalinger bekreftet`);
             }
-            
-            if (result.results && result.results.length > 0) {
-                console.log('Vipps payment results:', result.results);
-            }
-        } else {
-            toast.quickError('Feil', result.message || 'Kunne ikke sjekke Vipps-betalinger');
+            loadAllRegistrations();
         }
     } catch (error) {
         console.error('Error checking Vipps payments:', error);
-        toast.quickError('Feil', 'Kunne ikke koble til server');
-    } finally {
-        buttonElement.disabled = false;
-        buttonElement.innerHTML = originalText;
     }
 }
+
+document.addEventListener('shown.bs.collapse', function(event) {
+    const collapseElement = event.target;
+    if (collapseElement.closest('#registrationsAccordion')) {
+        const eventId = collapseElement.dataset.eventId;
+        if (eventId) {
+            checkVippsPayments(eventId);
+        }
+    }
+});
 
 async function deleteEventRegistration(registrationId, customerName) {
     if (!confirm(`Er du sikker på at du vil slette påmeldingen for "${customerName}"?\n\nDette vil fjerne:\n- Påmeldingen\n- Eventuell innsjekking\n- Relaterte data for dette arrangementet`)) {

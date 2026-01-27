@@ -60,12 +60,15 @@ try {
             ec.registration_id,
             ec.customer_id,
             ec.payment_status,
+            ec.payment_reference,
             c.first_name,
             c.last_name
         FROM events_checkin ec
         INNER JOIN events_eventdata e ON ec.event_id = e.id AND e.company_id = ?
         INNER JOIN tenant_customers c ON ec.customer_id = c.id
-        WHERE ec.event_id = ? AND ec.payment_method = 'vipps' AND ec.payment_status = 'pending'
+        WHERE ec.event_id = ? 
+          AND ec.payment_method = 'vipps' 
+          AND ec.payment_authorization IS NULL
     ");
     $stmt->execute([$company_id, $event_id]);
     $vippsPayments = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -95,7 +98,7 @@ try {
     $updatedCount = 0;
     
     foreach ($vippsPayments as $payment) {
-        $orderId = $payment['registration_id'];
+        $orderId = $payment['payment_reference'] ?: $payment['registration_id'];
         
         $paymentStatus = checkVippsPaymentStatus(
             $orderId, 
@@ -108,22 +111,41 @@ try {
         $customerName = trim($payment['first_name'] . ' ' . $payment['last_name']);
         
         if ($paymentStatus) {
+            $state = $paymentStatus['state'] ?? 'unknown';
+            $authCode = $paymentStatus['authorization_code'] ?? null;
+            
             $results[] = [
                 'customer_name' => $customerName,
                 'registration_id' => $orderId,
-                'vipps_state' => $paymentStatus['state'] ?? 'unknown',
-                'authorization_code' => $paymentStatus['authorization_code'] ?? null,
+                'vipps_state' => $state,
+                'authorization_code' => $authCode,
                 'amount' => $paymentStatus['amount'] ?? null
             ];
             
-            if (in_array($paymentStatus['state'], ['AUTHORIZED', 'CAPTURED'])) {
-                $updateStmt = $db->prepare("
-                    UPDATE events_checkin ec
-                    INNER JOIN events_eventdata e ON ec.event_id = e.id AND e.company_id = ?
-                    SET ec.payment_status = 'paid', ec.updated_at = NOW() 
-                    WHERE ec.id = ?
-                ");
-                $updateStmt->execute([$company_id, $payment['id']]);
+            $newPaymentStatus = in_array($state, ['AUTHORIZED', 'CAPTURED']) ? 'paid' : 'pending';
+            $normalizedState = strtolower($state);
+            
+            $updateStmt = $db->prepare("
+                UPDATE events_checkin ec
+                INNER JOIN events_eventdata e ON ec.event_id = e.id AND e.company_id = ?
+                SET ec.payment_reference = COALESCE(ec.payment_reference, ?),
+                    ec.payment_authorization = ?,
+                    ec.payment_state = ?,
+                    ec.payment_checked_at = NOW(),
+                    ec.payment_status = ?,
+                    ec.updated_at = NOW() 
+                WHERE ec.id = ?
+            ");
+            $updateStmt->execute([
+                $company_id, 
+                $orderId,
+                $authCode,
+                $normalizedState,
+                $newPaymentStatus,
+                $payment['id']
+            ]);
+            
+            if ($newPaymentStatus === 'paid') {
                 $updatedCount++;
             }
         } else {
