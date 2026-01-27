@@ -5241,6 +5241,11 @@ async function loadAllRegistrations() {
                     <div id="${collapseId}" class="accordion-collapse collapse" 
                          data-bs-parent="#registrationsAccordion">
                         <div class="accordion-body p-0">
+                            <div class="d-flex justify-content-end p-2 bg-light border-bottom">
+                                <button class="btn btn-sm btn-outline-primary" onclick="checkVippsPayments('${eventGroup.event_id}', this)">
+                                    <i class="bi bi-phone me-1"></i>Sjekk Vipps-betalinger
+                                </button>
+                            </div>
                             <div class="table-responsive">
                                 <table class="table table-sm table-hover mb-0">
                                     <thead style="background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
@@ -5249,6 +5254,7 @@ async function loadAllRegistrations() {
                                             <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Kontakt</th>
                                             <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Medlemskap</th>
                                             <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Billettpris</th>
+                                            <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Betaling</th>
                                             <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem;">Status</th>
                                             <th style="padding: 10px 12px; font-weight: 600; color: #495057; font-size: 0.85rem; text-align: right;">Handling</th>
                                         </tr>
@@ -5281,6 +5287,24 @@ async function loadAllRegistrations() {
                     ? `<span class="fw-semibold">${parseFloat(reg.ticket_price).toFixed(0)} kr</span>${reg.membership_ticket_price ? ' <small class="text-success">(medlem)</small>' : ''}`
                     : '<span class="text-muted">-</span>';
                 
+                let paymentStatusHtml = '';
+                const paymentMethod = reg.payment_method || 'cash';
+                const paymentStatus = reg.payment_status || 'pending';
+                const checkedIn = reg.checked_in || 0;
+                
+                if (paymentMethod === 'vipps') {
+                    const statusBadge = paymentStatus === 'paid' 
+                        ? '<span class="badge bg-success ms-1">Betalt</span>'
+                        : '<span class="badge bg-warning text-dark ms-1">Venter</span>';
+                    paymentStatusHtml = `<span class="badge bg-info text-dark"><i class="bi bi-phone me-1"></i>Vipps</span>${statusBadge}`;
+                } else {
+                    if (paymentStatus === 'paid' || checkedIn == 1) {
+                        paymentStatusHtml = '<span class="badge bg-success"><i class="bi bi-cash me-1"></i>Betalt kontant</span>';
+                    } else {
+                        paymentStatusHtml = '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>Må betales</span>';
+                    }
+                }
+                
                 const customerName = `${reg.first_name || ''} ${reg.last_name || ''}`.trim();
                 
                 html += `
@@ -5296,6 +5320,9 @@ async function loadAllRegistrations() {
                         </td>
                         <td style="padding: 10px 12px; vertical-align: middle;">
                             ${ticketPrice}
+                        </td>
+                        <td style="padding: 10px 12px; vertical-align: middle;">
+                            ${paymentStatusHtml}
                         </td>
                         <td style="padding: 10px 12px; vertical-align: middle;">
                             ${approvalStatusBadge}
@@ -5340,6 +5367,49 @@ async function loadAllRegistrations() {
                 Feil ved lasting av påmeldinger
             </div>
         `;
+    }
+}
+
+async function checkVippsPayments(eventId, buttonElement) {
+    const originalText = buttonElement.innerHTML;
+    buttonElement.disabled = true;
+    buttonElement.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sjekker...';
+    
+    try {
+        const response = await fetch('/api/check_vipps_payments.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event_id: eventId })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            let message = '';
+            if (result.updated > 0) {
+                message = `${result.updated} av ${result.total_checked} betalinger oppdatert til betalt`;
+                toast.quickSuccess('Vipps sjekket', message);
+                loadAllRegistrations();
+            } else if (result.total_checked === 0) {
+                message = 'Ingen ventende Vipps-betalinger funnet';
+                toast.quickInfo('Vipps', message);
+            } else {
+                message = `Sjekket ${result.total_checked} betalinger - ingen nye betalinger funnet`;
+                toast.quickInfo('Vipps', message);
+            }
+            
+            if (result.results && result.results.length > 0) {
+                console.log('Vipps payment results:', result.results);
+            }
+        } else {
+            toast.quickError('Feil', result.message || 'Kunne ikke sjekke Vipps-betalinger');
+        }
+    } catch (error) {
+        console.error('Error checking Vipps payments:', error);
+        toast.quickError('Feil', 'Kunne ikke koble til server');
+    } finally {
+        buttonElement.disabled = false;
+        buttonElement.innerHTML = originalText;
     }
 }
 

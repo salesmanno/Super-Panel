@@ -40,6 +40,7 @@ try {
             emp.ticket_price AS membership_ticket_price,
             ec.payment_status,
             ec.payment_method,
+            ec.checked_in,
             ec.ticket_price AS paid_ticket_price,
             r.created_at,
             r.approval_status,
