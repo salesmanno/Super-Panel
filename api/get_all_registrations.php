@@ -15,7 +15,7 @@ try {
     // Customer data from tenant_customers used for display
     // Membership info is in membership_members table
     // Payment status comes from events_checkin
-    // ticket_price: Use membership price if available, otherwise use standard event price
+    // ticket_price: For non-cash payments, use unified_ledger amount; otherwise use membership/standard price
     $stmt = $db->prepare("
         SELECT 
             r.id,
@@ -35,9 +35,14 @@ try {
             CASE WHEN mm.membership_plan_id IS NOT NULL THEN 1 ELSE 0 END AS has_valid_membership,
             mm.membership_plan_id AS customer_membership_plan_id,
             mp.name AS membership_plan_name,
-            COALESCE(emp.ticket_price, e.ticket_price) AS ticket_price,
+            CASE 
+                WHEN ec.payment_method IS NOT NULL AND ec.payment_method != 'cash' AND ul.selling_price IS NOT NULL 
+                THEN ul.selling_price
+                ELSE COALESCE(emp.ticket_price, e.ticket_price)
+            END AS ticket_price,
             e.ticket_price AS standard_ticket_price,
             emp.ticket_price AS membership_ticket_price,
+            ul.selling_price AS ledger_amount,
             ec.id AS checkin_id,
             ec.payment_status,
             ec.payment_method,
@@ -63,6 +68,7 @@ try {
         LEFT JOIN membership_plans mp ON mp.id = mm.membership_plan_id
         LEFT JOIN event_membership_plans emp ON emp.event_id = r.event_id AND emp.membership_plan_id = mm.membership_plan_id
         LEFT JOIN events_checkin ec ON ec.registration_id = r.id
+        LEFT JOIN unified_ledger ul ON ul.order_id = ec.id AND ul.module_source = 'events' AND ul.company_id = r.company_id
         LEFT JOIN tenant_admins approver ON r.approved_by = approver.id
         LEFT JOIN tenant_staff approver_staff ON approver.tenant_staff_id = approver_staff.id
         WHERE r.company_id = ? AND r.approval_status != 'pending'
