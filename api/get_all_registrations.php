@@ -38,6 +38,7 @@ try {
             COALESCE(emp.ticket_price, e.ticket_price) AS ticket_price,
             e.ticket_price AS standard_ticket_price,
             emp.ticket_price AS membership_ticket_price,
+            ec.id AS checkin_id,
             ec.payment_status,
             ec.payment_method,
             ec.checked_in,

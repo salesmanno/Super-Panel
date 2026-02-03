@@ -5291,16 +5291,22 @@ async function loadAllRegistrations() {
                 
                 if (paymentMethod === 'vipps') {
                     let statusBadge = '';
-                    if (paymentStatus === 'paid' || paymentState === 'authorized' || paymentState === 'captured') {
+                    let captureBtn = '';
+                    if (paymentState === 'captured') {
+                        statusBadge = '<span class="badge bg-success ms-1">Fanget</span>';
+                    } else if (paymentState === 'authorized') {
+                        statusBadge = '<span class="badge bg-warning text-dark ms-1">Reservert</span>';
+                        captureBtn = `<button class="btn btn-sm btn-success ms-1" onclick="captureVippsPayment(${reg.checkin_id}, '${reg.first_name} ${reg.last_name}')" title="Fang betaling"><i class="bi bi-check-circle"></i> Fang</button>`;
+                    } else if (paymentStatus === 'paid') {
                         statusBadge = '<span class="badge bg-success ms-1">Betalt</span>';
                     } else {
-                        statusBadge = '<span class="badge bg-warning text-dark ms-1">Venter</span>';
+                        statusBadge = '<span class="badge bg-secondary ms-1">Venter</span>';
                     }
                     let authInfo = '';
                     if (paymentAuth) {
                         authInfo = `<br><small class="text-muted">Ref: ${paymentAuth}</small>`;
                     }
-                    paymentStatusHtml = `<span class="badge bg-info text-dark"><i class="bi bi-phone me-1"></i>Vipps</span>${statusBadge}${authInfo}`;
+                    paymentStatusHtml = `<span class="badge bg-info text-dark"><i class="bi bi-phone me-1"></i>Vipps</span>${statusBadge}${captureBtn}${authInfo}`;
                 } else if (paymentMethod === 'stripe') {
                     let statusBadge = paymentStatus === 'paid' 
                         ? '<span class="badge bg-success ms-1">Betalt</span>'
@@ -5387,6 +5393,33 @@ async function loadAllRegistrations() {
 }
 
 const vippsCheckCache = new Set();
+
+async function captureVippsPayment(checkinId, customerName) {
+    if (!confirm(`Vil du fange Vipps-betalingen for "${customerName}"?\n\nDette vil overføre det reserverte beløpet til din konto.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/capture_vipps_payment.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ checkin_id: checkinId })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            toast.quickSuccess('Betaling fanget', `${result.amount} kr for ${result.customer_name}`);
+            vippsCheckCache.clear();
+            loadAllRegistrations();
+        } else {
+            toast.quickError('Feil', result.message || 'Kunne ikke fange betalingen');
+        }
+    } catch (error) {
+        console.error('Error capturing Vipps payment:', error);
+        toast.quickError('Feil', 'Kunne ikke koble til server');
+    }
+}
 
 async function checkVippsPayments(eventId) {
     if (vippsCheckCache.has(eventId)) {
