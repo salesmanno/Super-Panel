@@ -122,7 +122,7 @@ try {
                 'amount' => $paymentStatus['amount'] ?? null
             ];
             
-            $newPaymentStatus = in_array($state, ['AUTHORIZED', 'CAPTURED']) ? 'paid' : 'pending';
+            $newPaymentStatus = ($state === 'CAPTURED') ? 'paid' : 'pending';
             $normalizedState = strtolower($state);
             
             $updateStmt = $db->prepare("
