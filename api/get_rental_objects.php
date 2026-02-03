@@ -1,16 +1,17 @@
 <?php
-require_once __DIR__ . '/../includes/functions.php';
+session_start();
+require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/rental_schemas.php';
 
 header('Content-Type: application/json');
 
-// Autentiser bruker
-$admin = authenticateTenantAdmin();
-if (!$admin) {
+if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
     exit;
 }
+
+$company_id = $_SESSION['company_id'];
 
 try {
     $db = getDBConnection();
@@ -26,7 +27,7 @@ try {
         ");
         $stmt->execute([
             $object_id,
-            $admin['company_id']
+            $company_id
         ]);
         $object = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -66,7 +67,7 @@ try {
             WHERE ro.company_id = ?
             ORDER BY ro.created_at DESC
         ");
-        $stmt->execute([1, 1, 0, $admin['company_id']]);
+        $stmt->execute([1, 1, 0, $company_id]);
         $objects = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Fetch type-specific data for each object

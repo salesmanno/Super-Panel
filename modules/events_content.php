@@ -2546,9 +2546,6 @@ async function loadEvents() {
                                     <button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation(); goToShareLink('event', '${event.id}')" title="Gå til delingslenke">
                                         <i class="bi bi-box-arrow-up-right"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); viewEvent('${event.id}')" title="Vis detaljer">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
                                     <button class="btn btn-sm btn-outline-warning" data-event='${JSON.stringify(event).replace(/'/g, "&apos;")}' onclick="event.stopPropagation(); editEvent('${event.id}')" title="Rediger">
                                         <i class="bi bi-pencil"></i>
                                     </button>
@@ -2654,9 +2651,6 @@ async function goToShareLink(type, itemId) {
     }
 }
 
-function viewEvent(eventId) {
-    toast.quickInfo('Info', 'Visning av arrangement: ' + eventId);
-}
 
 function deleteEvent(eventId) {
     // Show modal to choose delete mode

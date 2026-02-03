@@ -9,6 +9,8 @@ function getRentalSchemas() {
         'residence' => [
             'label' => 'Boenhet (Leilighet/Hus)',
             'table' => 'rental_residences',
+            'icon' => 'bi-building',
+            'description' => 'Leiligheter, hus og boliger',
             'fields' => [
                 'sqm' => ['type' => 'number', 'label' => 'Kvadratmeter (m²)', 'required' => false],
                 'bedrooms' => ['type' => 'number', 'label' => 'Antall soverom', 'required' => false],
@@ -33,6 +35,8 @@ function getRentalSchemas() {
         'cabin' => [
             'label' => 'Hytte/Feriehus',
             'table' => 'rental_cabins',
+            'icon' => 'bi-house-door',
+            'description' => 'Hytter og feriehus',
             'fields' => [
                 'sqm' => ['type' => 'number', 'label' => 'Kvadratmeter (m²)', 'required' => false],
                 'bedrooms' => ['type' => 'number', 'label' => 'Antall soverom', 'required' => false],
@@ -56,6 +60,8 @@ function getRentalSchemas() {
         'venue' => [
             'label' => 'Selskapslokale/Konferanserom',
             'table' => 'rental_venues',
+            'icon' => 'bi-shop',
+            'description' => 'Lokaler for selskap og møter',
             'fields' => [
                 'sqm' => ['type' => 'number', 'label' => 'Kvadratmeter (m²)', 'required' => false],
                 'capacity_seated' => ['type' => 'number', 'label' => 'Kapasitet sittende', 'required' => false],
@@ -77,6 +83,8 @@ function getRentalSchemas() {
         'container' => [
             'label' => 'Container/Lagring',
             'table' => 'rental_containers',
+            'icon' => 'bi-box-seam',
+            'description' => 'Containere og lagerplass',
             'fields' => [
                 'container_type' => ['type' => 'select', 'label' => 'Containertype', 'options' => ['Åpen', 'Lukket', 'Kombi'], 'required' => false],
                 'cubic_meters' => ['type' => 'number', 'label' => 'Kubikkmeter', 'step' => '0.01', 'required' => false],
@@ -98,6 +106,8 @@ function getRentalSchemas() {
         'tool' => [
             'label' => 'Verktøy/Utstyr',
             'table' => 'rental_tools',
+            'icon' => 'bi-tools',
+            'description' => 'Verktøy og maskiner',
             'fields' => [
                 'brand' => ['type' => 'text', 'label' => 'Merke', 'required' => false],
                 'model' => ['type' => 'text', 'label' => 'Modell', 'required' => false],
@@ -118,6 +128,8 @@ function getRentalSchemas() {
         'vehicle' => [
             'label' => 'Kjøretøy (Bil/Varebil)',
             'table' => 'rental_vehicles',
+            'icon' => 'bi-car-front',
+            'description' => 'Biler og varebiler',
             'fields' => [
                 'make' => ['type' => 'text', 'label' => 'Merke', 'required' => false],
                 'model' => ['type' => 'text', 'label' => 'Modell', 'required' => false],
@@ -145,6 +157,8 @@ function getRentalSchemas() {
         'office' => [
             'label' => 'Kontor/Næringsbygg',
             'table' => 'rental_offices',
+            'icon' => 'bi-buildings',
+            'description' => 'Kontorer og næringslokaler',
             'fields' => [
                 'sqm' => ['type' => 'number', 'label' => 'Kvadratmeter (m²)', 'required' => false],
                 'office_rooms' => ['type' => 'number', 'label' => 'Antall kontorrom', 'required' => false],
@@ -169,6 +183,8 @@ function getRentalSchemas() {
         'sports_equipment' => [
             'label' => 'Sportsutstyr',
             'table' => 'rental_sports_equipment',
+            'icon' => 'bi-bicycle',
+            'description' => 'Ski, sykler og sportsutstyr',
             'fields' => [
                 'sport_type' => ['type' => 'text', 'label' => 'Idrettstype', 'required' => false],
                 'equipment_type' => ['type' => 'text', 'label' => 'Utstyrstype', 'required' => false],
@@ -189,6 +205,8 @@ function getRentalSchemas() {
         'parking' => [
             'label' => 'Parkering/Garasje',
             'table' => 'rental_parking',
+            'icon' => 'bi-p-square',
+            'description' => 'Parkeringsplasser og garasjer',
             'fields' => [
                 'parking_type' => ['type' => 'select', 'label' => 'Parkeringstype', 'options' => ['Utendørs', 'Innendørs garasje', 'Carport'], 'required' => false],
                 'sqm' => ['type' => 'number', 'label' => 'Areal (m²)', 'required' => false],
@@ -207,6 +225,8 @@ function getRentalSchemas() {
         'rv' => [
             'label' => 'Campingvogn/Bobil',
             'table' => 'rental_rvs',
+            'icon' => 'bi-truck',
+            'description' => 'Bobiler og campingvogner',
             'fields' => [
                 'vehicle_type' => ['type' => 'select', 'label' => 'Kjøretøytype', 'options' => ['Bobil', 'Campingvogn', 'Leiebil med henger'], 'required' => false],
                 'make' => ['type' => 'text', 'label' => 'Merke', 'required' => false],
@@ -259,6 +279,8 @@ function getRentalSchemas() {
         'trailer' => [
             'label' => 'Tilhenger/Skaphenger',
             'table' => 'rental_trailers',
+            'icon' => 'bi-truck-flatbed',
+            'description' => 'Tilhengere og skaphengere',
             'fields' => [
                 'trailer_type' => ['type' => 'select', 'label' => 'Tilhengertype', 'options' => ['Åpen henger', 'Skaphenger', 'Båthenger', 'Maskinhenger', 'Tilhenger med presenning'], 'required' => false],
                 'load_capacity_kg' => ['type' => 'number', 'label' => 'Lastekapasitet (kg)', 'required' => false],
