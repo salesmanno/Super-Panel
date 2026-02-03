@@ -5292,13 +5292,19 @@ async function loadAllRegistrations() {
                 if (paymentMethod === 'vipps') {
                     let statusBadge = '';
                     let captureBtn = '';
-                    if (paymentState === 'captured') {
+                    const checkinIdVal = reg.checkin_id;
+                    const customerNameEscaped = `${reg.first_name || ''} ${reg.last_name || ''}`.trim().replace(/'/g, "\\'");
+                    
+                    if (paymentState === 'captured' || paymentStatus === 'paid') {
                         statusBadge = '<span class="badge bg-success ms-1">Fanget</span>';
                     } else if (paymentState === 'authorized') {
                         statusBadge = '<span class="badge bg-warning text-dark ms-1">Reservert</span>';
-                        captureBtn = `<button class="btn btn-sm btn-success ms-1" onclick="captureVippsPayment(${reg.checkin_id}, '${reg.first_name} ${reg.last_name}')" title="Fang betaling"><i class="bi bi-check-circle"></i> Fang</button>`;
-                    } else if (paymentStatus === 'paid') {
-                        statusBadge = '<span class="badge bg-success ms-1">Betalt</span>';
+                        if (checkinIdVal) {
+                            captureBtn = `<button class="btn btn-sm btn-success ms-1" onclick="captureVippsPayment(${checkinIdVal}, '${customerNameEscaped}')" title="Fang betaling"><i class="bi bi-check-circle"></i> Fang</button>`;
+                        }
+                    } else if (checkinIdVal) {
+                        statusBadge = '<span class="badge bg-secondary ms-1">Ukjent status</span>';
+                        captureBtn = `<button class="btn btn-sm btn-outline-primary ms-1" onclick="checkAndCaptureVipps(${checkinIdVal}, '${customerNameEscaped}')" title="Sjekk status"><i class="bi bi-arrow-repeat"></i> Sjekk</button>`;
                     } else {
                         statusBadge = '<span class="badge bg-secondary ms-1">Venter</span>';
                     }
@@ -5417,6 +5423,41 @@ async function captureVippsPayment(checkinId, customerName) {
         }
     } catch (error) {
         console.error('Error capturing Vipps payment:', error);
+        toast.quickError('Feil', 'Kunne ikke koble til server');
+    }
+}
+
+async function checkAndCaptureVipps(checkinId, customerName) {
+    try {
+        toast.quickInfo('Sjekker...', `Henter status for ${customerName}`);
+        
+        const response = await fetch('/api/check_single_vipps_payment.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ checkin_id: checkinId })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            if (result.state === 'AUTHORIZED') {
+                toast.quickSuccess('Reservert', `Betalingen er reservert. Klikk "Fang" for å fullføre.`);
+            } else if (result.state === 'CAPTURED') {
+                toast.quickSuccess('Allerede fanget', 'Betalingen er allerede fullført.');
+            } else if (result.state === 'CREATED') {
+                toast.quickInfo('Ikke betalt ennå', 'Kunden har ikke fullført betalingen.');
+            } else if (result.state === 'EXPIRED' || result.state === 'ABORTED') {
+                toast.quickError('Utløpt/Avbrutt', 'Betalingen ble avbrutt eller utløpt.');
+            } else {
+                toast.quickInfo('Status', `Vipps-status: ${result.state || 'Ukjent'}`);
+            }
+            vippsCheckCache.clear();
+            loadAllRegistrations();
+        } else {
+            toast.quickError('Feil', result.message || 'Kunne ikke sjekke status');
+        }
+    } catch (error) {
+        console.error('Error checking Vipps payment:', error);
         toast.quickError('Feil', 'Kunne ikke koble til server');
     }
 }
