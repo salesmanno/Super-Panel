@@ -99,10 +99,11 @@
                                         <th>Modul</th>
                                         <th>Betaling</th>
                                         <th class="text-end">Beløp</th>
+                                        <th class="text-center" style="width: 80px;">Handlinger</th>
                                     </tr>
                                 </thead>
                                 <tbody id="recent-transactions">
-                                    <tr><td colspan="5" class="text-center py-3 text-muted">Laster...</td></tr>
+                                    <tr><td colspan="6" class="text-center py-3 text-muted">Laster...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -312,6 +313,27 @@
                             </table>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="economy-events" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0"><i class="bi bi-calendar-event text-primary me-2"></i>Arrangementer (gruppert)</h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="loadGroupedEvents()">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+                
+                <div class="alert alert-info py-2 mb-3">
+                    <small><i class="bi bi-info-circle me-1"></i>Viser kun betalte transaksjoner gruppert per arrangement og pristype</small>
+                </div>
+                
+                <div id="grouped-events-container">
+                    <div class="text-center py-4 text-muted">Laster arrangementer...</div>
                 </div>
             </div>
         </div>
@@ -622,13 +644,24 @@ function renderRecentTransactions(transactions) {
     const tbody = document.getElementById('recent-transactions');
     
     if (!transactions.length) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Ingen transaksjoner funnet</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3 text-muted">Ingen transaksjoner funnet</td></tr>';
         return;
     }
     
     tbody.innerHTML = transactions.map(t => {
         const isIncome = parseFloat(t.selling_price) > 0;
         const amount = Math.abs(parseFloat(t.selling_price));
+        const actionButtons = t.is_manual ? `
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-primary btn-sm py-0 px-1" onclick="editLedgerEntry('${t.id}')" title="Rediger">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="deleteLedgerEntry('${t.id}')" title="Slett">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        ` : '<span class="text-muted small">-</span>';
+        
         return `
             <tr class="transaction-row ${isIncome ? 'income' : 'expense'}">
                 <td>${formatDate(t.transaction_date)}</td>
@@ -638,6 +671,7 @@ function renderRecentTransactions(transactions) {
                 <td class="text-end ${isIncome ? 'text-success' : 'text-danger'}">
                     ${isIncome ? '+' : '-'}${formatCurrency(amount)}
                 </td>
+                <td class="text-center">${actionButtons}</td>
             </tr>
         `;
     }).join('');
@@ -937,6 +971,72 @@ async function toggleGateway(gatewayId, gatewayName, activate) {
     }
 }
 
+async function editLedgerEntry(ledgerId) {
+    const newDescription = prompt('Ny beskrivelse:');
+    if (newDescription === null) return;
+    
+    const newAmount = prompt('Nytt beløp (positivt for inntekt, negativt for utgift):');
+    if (newAmount === null) return;
+    
+    const amount = parseFloat(newAmount);
+    if (isNaN(amount)) {
+        toast.quickWarning('Validering', 'Ugyldig beløp');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/update_ledger_entry.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                action: 'update',
+                ledger_id: ledgerId,
+                item_name: newDescription,
+                selling_price: amount
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            toast.quickSuccess('Oppdatert', result.message);
+            loadEconomyOverview();
+        } else {
+            toast.quickError('Feil', result.message);
+        }
+    } catch (error) {
+        console.error('Edit ledger entry error:', error);
+        toast.quickError('Feil', 'Kunne ikke oppdatere oppføring');
+    }
+}
+
+async function deleteLedgerEntry(ledgerId) {
+    if (!confirm('Er du sikker på at du vil slette denne oppføringen?')) return;
+    
+    try {
+        const response = await fetch('/api/update_ledger_entry.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                action: 'delete',
+                ledger_id: ledgerId
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            toast.quickSuccess('Slettet', result.message);
+            loadEconomyOverview();
+        } else {
+            toast.quickError('Feil', result.message);
+        }
+    } catch (error) {
+        console.error('Delete ledger entry error:', error);
+        toast.quickError('Feil', 'Kunne ikke slette oppføring');
+    }
+}
+
 async function loadPendingPayments() {
     try {
         const response = await fetch('/api/get_pending_payments.php');
@@ -1044,9 +1144,89 @@ document.addEventListener('subtab-changed', function(event) {
     else if (subtab === 'economy-income') loadIncomeData();
     else if (subtab === 'economy-expense') loadExpenseData();
     else if (subtab === 'economy-pending') loadPendingPayments();
+    else if (subtab === 'economy-events') loadGroupedEvents();
     else if (subtab === 'economy-payment') loadPaymentGateways();
     else if (subtab === 'economy-terms') loadTermsConditions();
 });
+
+async function loadGroupedEvents() {
+    const container = document.getElementById('grouped-events-container');
+    container.innerHTML = '<div class="text-center py-4 text-muted">Laster arrangementer...</div>';
+    
+    try {
+        const response = await fetch('/api/get_economy_data.php?view=grouped_events');
+        const result = await response.json();
+        
+        if (result.success && result.data && result.data.event_groups && result.data.event_groups.length > 0) {
+            const groups = result.data.event_groups;
+            
+            container.innerHTML = groups.map(event => {
+                const ticketRows = event.ticket_groups.map(t => `
+                    <tr class="transaction-row income">
+                        <td><i class="bi bi-ticket-perforated text-success me-1"></i>${t.item_name || 'Billett'}</td>
+                        <td class="text-center">${t.count}x</td>
+                        <td class="text-end">${formatCurrency(t.selling_price)}</td>
+                        <td class="text-end text-success">+${formatCurrency(t.total)}</td>
+                    </tr>
+                `).join('');
+                
+                const expenseRows = event.expense_groups.map(e => `
+                    <tr class="transaction-row expense">
+                        <td><i class="bi bi-dash-circle text-danger me-1"></i>${e.item_name || 'Utgift'}</td>
+                        <td class="text-center">${e.count}x</td>
+                        <td class="text-end">${formatCurrency(e.amount)}</td>
+                        <td class="text-end text-danger">-${formatCurrency(e.total)}</td>
+                    </tr>
+                `).join('');
+                
+                const eventDate = event.event_date ? new Date(event.event_date).toLocaleDateString('nb-NO') : '';
+                const netClass = event.net_result >= 0 ? 'text-success' : 'text-danger';
+                const netSign = event.net_result >= 0 ? '+' : '';
+                
+                return `
+                    <div class="card mb-3">
+                        <div class="card-header d-flex justify-content-between align-items-center py-2" 
+                             style="cursor: pointer;" 
+                             onclick="this.nextElementSibling.classList.toggle('d-none'); this.querySelector('.expand-icon').classList.toggle('bi-chevron-down'); this.querySelector('.expand-icon').classList.toggle('bi-chevron-up');">
+                            <div>
+                                <i class="bi bi-calendar-event text-primary me-2"></i>
+                                <strong>${event.event_title}</strong>
+                                <small class="text-muted ms-2">${eventDate}</small>
+                            </div>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="text-success">+${formatCurrency(event.total_income)}</span>
+                                <span class="text-danger">-${formatCurrency(event.total_expense)}</span>
+                                <span class="${netClass}"><strong>= ${netSign}${formatCurrency(event.net_result)}</strong></span>
+                                <i class="bi bi-chevron-down expand-icon"></i>
+                            </div>
+                        </div>
+                        <div class="card-body p-0 d-none">
+                            <table class="table table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Beskrivelse</th>
+                                        <th class="text-center">Antall</th>
+                                        <th class="text-end">Enhetspris</th>
+                                        <th class="text-end">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${ticketRows || '<tr><td colspan="4" class="text-muted small">Ingen billettinntekter</td></tr>'}
+                                    ${expenseRows}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = '<div class="text-center py-4 text-muted">Ingen arrangementer med betalte transaksjoner</div>';
+        }
+    } catch (error) {
+        console.error('Load grouped events error:', error);
+        container.innerHTML = '<div class="text-center py-4 text-danger">Feil ved lasting av data</div>';
+    }
+}
 
 async function loadTermsConditions() {
     try {

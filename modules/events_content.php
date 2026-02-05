@@ -2107,8 +2107,20 @@ try {
                         <input type="date" class="form-control" name="date" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Notater</label>
-                        <textarea class="form-control" name="notes" rows="2"></textarea>
+                        <label class="form-label">Kategori</label>
+                        <select class="form-select" name="category">
+                            <option value="sponsorship">Sponsorstøtte</option>
+                            <option value="donation">Donasjon</option>
+                            <option value="merchandise">Salg av varer</option>
+                            <option value="other" selected>Annet</option>
+                        </select>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input type="checkbox" class="form-check-input" name="is_paid" id="income-is-paid">
+                        <label class="form-check-label" for="income-is-paid">
+                            <i class="bi bi-check-circle text-success me-1"></i>Allerede mottatt (betalt)
+                        </label>
+                        <div class="form-text">Hvis avkrysset, registreres dette i økonomioversikten umiddelbart</div>
                     </div>
                 </form>
             </div>
@@ -2157,9 +2169,12 @@ try {
                             <option value="other">Annet</option>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Notater</label>
-                        <textarea class="form-control" name="notes" rows="2"></textarea>
+                    <div class="form-check mb-3">
+                        <input type="checkbox" class="form-check-input" name="is_paid" id="expense-is-paid">
+                        <label class="form-check-label" for="expense-is-paid">
+                            <i class="bi bi-check-circle text-danger me-1"></i>Allerede betalt
+                        </label>
+                        <div class="form-text">Hvis avkrysset, registreres dette i økonomioversikten umiddelbart</div>
                     </div>
                 </form>
             </div>
@@ -4393,22 +4408,25 @@ function openAddExpenseModal() {
 async function saveIncome() {
     const form = document.getElementById('add-income-form');
     const formData = new FormData(form);
+    const isPaid = document.getElementById('income-is-paid').checked;
     
     const data = {
         event_id: formData.get('event_id'),
-        description: formData.get('description'),
+        type: 'income',
+        item_name: formData.get('description'),
         amount: parseFloat(formData.get('amount')),
         date: formData.get('date'),
-        notes: formData.get('notes')
+        category: formData.get('category') || 'other',
+        payment_status: isPaid ? 'paid' : 'pending'
     };
     
-    if (!data.description || !data.amount || data.amount <= 0) {
+    if (!data.item_name || !data.amount || data.amount <= 0) {
         toast.quickWarning('Validering', 'Vennligst fyll ut beskrivelse og gyldig beløp');
         return;
     }
     
     try {
-        const response = await fetch('/api/add_event_income.php', {
+        const response = await fetch('/api/add_event_finance.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
@@ -4417,7 +4435,8 @@ async function saveIncome() {
         const result = await response.json();
         
         if (result.success) {
-            toast.quickSuccess('Inntekt', 'Inntekt lagt til!');
+            const msg = isPaid ? 'Inntekt lagt til og registrert i økonomi!' : 'Inntekt lagt til som ventende';
+            toast.quickSuccess('Inntekt', msg);
             bootstrap.Modal.getInstance(document.getElementById('addIncomeModal')).hide();
             viewEventDetails(data.event_id);
             loadEventsResults();
@@ -4433,23 +4452,25 @@ async function saveIncome() {
 async function saveExpense() {
     const form = document.getElementById('add-expense-form');
     const formData = new FormData(form);
+    const isPaid = document.getElementById('expense-is-paid').checked;
     
     const data = {
         event_id: formData.get('event_id'),
-        description: formData.get('description'),
+        type: 'expense',
+        item_name: formData.get('description'),
         amount: parseFloat(formData.get('amount')),
         date: formData.get('date'),
-        category: formData.get('category'),
-        notes: formData.get('notes')
+        category: formData.get('category') || 'other',
+        payment_status: isPaid ? 'paid' : 'pending'
     };
     
-    if (!data.description || !data.amount || data.amount <= 0) {
+    if (!data.item_name || !data.amount || data.amount <= 0) {
         toast.quickWarning('Validering', 'Vennligst fyll ut beskrivelse og gyldig beløp');
         return;
     }
     
     try {
-        const response = await fetch('/api/add_event_expense.php', {
+        const response = await fetch('/api/add_event_finance.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
@@ -4458,7 +4479,8 @@ async function saveExpense() {
         const result = await response.json();
         
         if (result.success) {
-            toast.quickSuccess('Utgift', 'Utgift lagt til!');
+            const msg = isPaid ? 'Utgift lagt til og registrert i økonomi!' : 'Utgift lagt til som ventende';
+            toast.quickSuccess('Utgift', msg);
             bootstrap.Modal.getInstance(document.getElementById('addExpenseModal')).hide();
             viewEventDetails(data.event_id);
             loadEventsResults();
