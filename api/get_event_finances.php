@@ -140,6 +140,8 @@ try {
         'expenses' => $expenses,
         'summary' => [
             'total_ticket_income' => $totalCheckinIncome,
+            'total_ticket_behandlet' => $totalCheckinBehandlet,
+            'total_ticket_prosjektert' => $totalCheckinProsjektert,
             'total_manual_income' => $totalManualIncome,
             'total_expense' => $totalExpense,
             'total_income' => $totalIncome,

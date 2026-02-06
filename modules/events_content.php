@@ -3916,6 +3916,10 @@ async function loadEventFinances(eventId) {
             
             if (result.checkin_income && result.checkin_income.length > 0) {
                 result.checkin_income.forEach(group => {
+                    const isBehandlet = group.payment_status === 'behandlet';
+                    const statusBadge = isBehandlet
+                        ? '<span class="badge bg-success mb-1">Behandlet</span>'
+                        : '<span class="badge bg-warning text-dark mb-1">Prosjektert</span>';
                     incomeHtml += `
                         <div class="event-finance-item">
                             <div>
@@ -3923,7 +3927,7 @@ async function loadEventFinances(eventId) {
                                 <small class="text-muted d-block">${group.count} stk @ ${group.price.toFixed(0)} NOK</small>
                             </div>
                             <div class="text-end">
-                                <span class="badge bg-success mb-1">Behandlet</span>
+                                ${statusBadge}
                                 <strong class="text-success d-block">+${group.total.toFixed(2)} NOK</strong>
                             </div>
                         </div>
@@ -4547,11 +4551,15 @@ async function viewEventDetails(eventId, eventTitle = 'Arrangement') {
             
             if (result.checkin_income && result.checkin_income.length > 0) {
                 result.checkin_income.forEach(group => {
+                    const isBehandlet = group.payment_status === 'behandlet';
+                    const statusBadge = isBehandlet
+                        ? '<span class="badge bg-success">Behandlet</span>'
+                        : '<span class="badge bg-warning text-dark">Prosjektert</span>';
                     rows += `
                         <tr>
-                            <td><span class="badge bg-success"><i class="bi bi-ticket-perforated me-1"></i>Billett</span></td>
+                            <td><span class="badge ${isBehandlet ? 'bg-success' : 'bg-secondary'}"><i class="bi bi-ticket-perforated me-1"></i>Billett</span></td>
                             <td>${result.event_title} <strong>${group.label}</strong> <small class="text-muted">(${group.count} stk @ ${group.price.toFixed(0)} kr)</small></td>
-                            <td><span class="badge bg-success">Behandlet</span></td>
+                            <td>${statusBadge}</td>
                             <td class="text-end text-success"><strong>+${group.total.toLocaleString('nb-NO')} NOK</strong></td>
                             <td class="text-end">-</td>
                         </tr>

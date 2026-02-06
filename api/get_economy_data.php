@@ -142,18 +142,47 @@ try {
             
             $grouped_tickets = [];
             $other_transactions = [];
+            $eventTitleCache = [];
             
             foreach ($transactions as $t) {
                 if ($t['item_type'] === 'event_ticket' || $t['item_type'] === 'event') {
                     $meta = json_decode($t['metadata'] ?? '{}', true);
-                    $eventTitle = $meta['event_title'] ?? $t['item_name'] ?? 'Ukjent arrangement';
+                    $eventId = $meta['event_id'] ?? null;
+                    
+                    if (!$eventId) {
+                        $checkinId = $t['source_id'] ?? null;
+                        if ($checkinId) {
+                            $evLookup = $db->prepare("SELECT event_id FROM events_checkin WHERE id = ? LIMIT 1");
+                            $evLookup->execute([$checkinId]);
+                            $evRow = $evLookup->fetch(PDO::FETCH_ASSOC);
+                            $eventId = $evRow ? $evRow['event_id'] : $checkinId;
+                        } else {
+                            $eventId = 'unknown';
+                        }
+                    }
+                    
+                    if (!isset($eventTitleCache[$eventId])) {
+                        $itemName = $t['item_name'] ?? '';
+                        $isGenericName = empty($itemName) || strpos($itemName, 'Walk-in') !== false || strpos($itemName, 'Event Registration') !== false;
+                        
+                        if ($isGenericName) {
+                            $titleLookup = $db->prepare("SELECT title FROM events_eventdata WHERE id = ? LIMIT 1");
+                            $titleLookup->execute([$eventId]);
+                            $titleRow = $titleLookup->fetch(PDO::FETCH_ASSOC);
+                            $eventTitleCache[$eventId] = $titleRow ? $titleRow['title'] : ($meta['event_title'] ?? $itemName ?: 'Ukjent arrangement');
+                        } else {
+                            $eventTitleCache[$eventId] = $itemName;
+                        }
+                    }
+                    
+                    $eventTitle = $eventTitleCache[$eventId];
                     $price = floatval($t['selling_price']);
-                    $key = ($t['source_id'] ?? 'unknown') . '|' . $price;
+                    $key = $eventId . '|' . number_format($price, 2);
                     
                     if (!isset($grouped_tickets[$key])) {
                         $grouped_tickets[$key] = [
                             'event_title' => $eventTitle,
-                            'source_id' => $t['source_id'],
+                            'event_id' => $eventId,
                             'unit_price' => $price,
                             'count' => 0,
                             'total' => 0,
