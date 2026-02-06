@@ -36,18 +36,25 @@ try {
     $eventTitle = $eventInfo['title'];
     $standardPrice = floatval($eventInfo['ticket_price']);
 
-    $checkinQuery = "
+    $registrationQuery = "
         SELECT 
-            ec.ticket_price,
-            ec.payment_status,
-            ec.checked_in,
-            CASE WHEN ec.membership_plan_id IS NOT NULL THEN 'Medlem' ELSE 'Ikke-medlem' END as member_type
-        FROM events_checkin ec
-        WHERE ec.event_id = ?
+            r.id as registration_id,
+            r.customer_id,
+            COALESCE(emp.ticket_price, e.ticket_price) AS ticket_price,
+            CASE WHEN mm.membership_plan_id IS NOT NULL THEN 'Medlem' ELSE 'Ikke-medlem' END as member_type,
+            ec.payment_status as checkin_payment_status,
+            ec.checked_in
+        FROM event_registrations r
+        INNER JOIN events_eventdata e ON r.event_id = e.id
+        INNER JOIN tenant_customers c ON r.customer_id = c.id AND c.company_id = r.company_id
+        LEFT JOIN membership_members mm ON mm.customer_id = c.id AND mm.company_id = r.company_id AND mm.status = 'active'
+        LEFT JOIN event_membership_plans emp ON emp.event_id = r.event_id AND emp.membership_plan_id = mm.membership_plan_id
+        LEFT JOIN events_checkin ec ON ec.registration_id = r.id
+        WHERE r.event_id = ? AND r.company_id = ? AND r.approval_status = 'approved'
     ";
-    $checkinStmt = $db->prepare($checkinQuery);
-    $checkinStmt->execute([$event_id]);
-    $checkins = $checkinStmt->fetchAll(PDO::FETCH_ASSOC);
+    $registrationStmt = $db->prepare($registrationQuery);
+    $registrationStmt->execute([$event_id, $company_id]);
+    $registrations = $registrationStmt->fetchAll(PDO::FETCH_ASSOC);
 
     $checkinIncome = [];
     $totalCheckinIncome = 0;
@@ -56,12 +63,12 @@ try {
 
     $groupedTickets = [];
 
-    foreach ($checkins as $ci) {
-        $price = floatval($ci['ticket_price']);
+    foreach ($registrations as $reg) {
+        $price = floatval($reg['ticket_price']);
         if ($price <= 0) continue;
 
-        $isPaid = ($ci['payment_status'] === 'paid' || $ci['payment_status'] === 'completed');
-        $isCheckedIn = intval($ci['checked_in']) === 1;
+        $isPaid = ($reg['checkin_payment_status'] === 'paid' || $reg['checkin_payment_status'] === 'completed');
+        $isCheckedIn = intval($reg['checked_in'] ?? 0) === 1;
         $status = ($isPaid || $isCheckedIn) ? 'behandlet' : 'prosjektert';
 
         $totalCheckinIncome += $price;
@@ -71,10 +78,10 @@ try {
             $totalCheckinProsjektert += $price;
         }
 
-        $key = $ci['member_type'] . '_' . $status . '_' . number_format($price, 2);
+        $key = $reg['member_type'] . '_' . $status . '_' . number_format($price, 2);
         if (!isset($groupedTickets[$key])) {
             $groupedTickets[$key] = [
-                'label' => $ci['member_type'],
+                'label' => $reg['member_type'],
                 'payment_status' => $status,
                 'count' => 0,
                 'price' => $price,
