@@ -30,11 +30,7 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Rental Module**: Professional multi-type rental management using table-per-type architecture for 12 object types, featuring dynamic form generation, metadata schemas, and image support.
 - **Sales Module with Shopping Cart**: Supports dual purchase flows, barcode scanner integration, customer data management, event linking, automatic stock tracking, and weighted average cost calculation.
 - **Deres Firma Module**: Manages company profile, staff, and website settings.
-- **Unified Economic System**: Centralized financial tracking with dual-table architecture:
-  - `events_expenses`: Per-event manual income/expenses with `transaction_type` (income/expense) and `payment_status` (pending/paid). Only paid entries sync to unified_ledger.
-  - `unified_ledger`: Aggregates all completed/paid transactions company-wide, managed by `UnifiedLedgerService.php`.
-  - Economy module features: Overview with totals, grouped event view (ticket sales by price type: "5x Medlem 200kr = 1000kr"), inline edit/delete for manual entries, payment gateway management.
-  - Data flow: events_expenses (pending) → mark as paid → unified_ledger (actual funds). Ticket sales auto-logged to ledger on payment completion.
+- **Unified Economic System**: Centralized financial tracking via `unified_ledger` table, aggregating all transactions with profit tracking, managed by `UnifiedLedgerService.php`. Supports income/expense tracking across various modules. Economy module features live data display with overview, income, expense tabs; manual transaction entry with 16 expense categories; payment gateway management with toggle functionality.
 - **Output Products System**: A unified polymorphic product catalog (`output_products`) aggregating all sellable items/services, auto-generated and synchronized by `ProductCatalogService.php`.
 - **Polling Tracker System**: Real-time update notifications via `tenant_polling_tracker` table. External systems write to the table, dashboard polls every 30 seconds via `api/check_refresh_flag.php`, shows toast notification and auto-refreshes when updates are detected.
 

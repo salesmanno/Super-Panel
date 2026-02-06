@@ -81,13 +81,11 @@ try {
             // Get recent transactions
             $stmt = $db->prepare("
                 SELECT 
-                    id,
                     transaction_date,
                     item_name,
                     module_source,
                     selling_price,
-                    payment_method,
-                    metadata
+                    payment_method
                 FROM unified_ledger 
                 WHERE company_id = ? 
                   AND status = 'active'
@@ -96,13 +94,6 @@ try {
             ");
             $stmt->execute([$company_id]);
             $recentTransactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            // Parse metadata to check if manual entry
-            foreach ($recentTransactions as &$t) {
-                $meta = json_decode($t['metadata'] ?? '{}', true);
-                $t['is_manual'] = ($meta['manual_entry'] ?? false) || $t['module_source'] === 'manual';
-                unset($t['metadata']); // Don't send full metadata to frontend
-            }
             
             $response['data'] = [
                 'total_income' => floatval($income['total_income']),
@@ -242,94 +233,6 @@ try {
             
             $response['data'] = [
                 'breakdown' => $breakdown
-            ];
-            break;
-            
-        case 'grouped_events':
-            // Get event transactions grouped by event with ticket breakdown
-            $eventGroups = [];
-            
-            // Get all events that have ledger entries
-            $eventsStmt = $db->prepare("
-                SELECT DISTINCT 
-                    e.id,
-                    e.title,
-                    e.event_date
-                FROM events_eventdata e
-                INNER JOIN unified_ledger ul ON (
-                    ul.source_id = e.id 
-                    AND ul.module_source = 'events'
-                    AND ul.company_id = ?
-                    AND ul.status = 'active'
-                    AND ul.payment_status = 'completed'
-                )
-                WHERE e.company_id = ?
-                ORDER BY e.event_date DESC
-            ");
-            $eventsStmt->execute([$company_id, $company_id]);
-            $events = $eventsStmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            foreach ($events as $event) {
-                $eventId = $event['id'];
-                
-                // Get ticket income grouped by price (from unified_ledger for events module)
-                $ticketStmt = $db->prepare("
-                    SELECT 
-                        item_name,
-                        selling_price,
-                        COUNT(*) as count,
-                        SUM(selling_price) as total
-                    FROM unified_ledger
-                    WHERE company_id = ?
-                      AND source_id = ?
-                      AND module_source = 'events'
-                      AND status = 'active'
-                      AND payment_status = 'completed'
-                      AND selling_price > 0
-                      AND item_type != 'expense'
-                    GROUP BY item_name, selling_price
-                    ORDER BY count DESC
-                ");
-                $ticketStmt->execute([$company_id, $eventId]);
-                $ticketGroups = $ticketStmt->fetchAll(PDO::FETCH_ASSOC);
-                
-                // Get expenses for this event
-                $expenseStmt = $db->prepare("
-                    SELECT 
-                        item_name,
-                        ABS(selling_price) as amount,
-                        COUNT(*) as count,
-                        SUM(ABS(selling_price)) as total
-                    FROM unified_ledger
-                    WHERE company_id = ?
-                      AND source_id = ?
-                      AND module_source = 'events'
-                      AND status = 'active'
-                      AND payment_status = 'completed'
-                      AND selling_price < 0
-                    GROUP BY item_name, selling_price
-                ");
-                $expenseStmt->execute([$company_id, $eventId]);
-                $expenseGroups = $expenseStmt->fetchAll(PDO::FETCH_ASSOC);
-                
-                // Calculate totals
-                $totalIncome = array_sum(array_column($ticketGroups, 'total'));
-                $totalExpense = array_sum(array_column($expenseGroups, 'total'));
-                
-                $eventGroups[] = [
-                    'event_id' => $eventId,
-                    'event_title' => $event['title'],
-                    'event_date' => $event['event_date'],
-                    'ticket_groups' => $ticketGroups,
-                    'expense_groups' => $expenseGroups,
-                    'total_income' => floatval($totalIncome),
-                    'total_expense' => floatval($totalExpense),
-                    'net_result' => floatval($totalIncome) - floatval($totalExpense)
-                ];
-            }
-            
-            $response['data'] = [
-                'event_groups' => $eventGroups
             ];
             break;
             
