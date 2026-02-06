@@ -36,47 +36,57 @@ try {
     $eventTitle = $eventInfo['title'];
     $standardPrice = floatval($eventInfo['ticket_price']);
 
-    $registrationQuery = "
+    $checkinQuery = "
         SELECT 
-            CASE WHEN mm.membership_plan_id IS NOT NULL THEN 'Medlem' ELSE 'Ikke-medlem' END as member_type,
-            COALESCE(emp.ticket_price, e.ticket_price) AS ticket_price
-        FROM event_registrations r
-        INNER JOIN events_eventdata e ON r.event_id = e.id
-        INNER JOIN tenant_customers c ON r.customer_id = c.id AND c.company_id = r.company_id
-        LEFT JOIN membership_members mm ON mm.customer_id = c.id AND mm.company_id = r.company_id AND mm.status = 'active'
-        LEFT JOIN event_membership_plans emp ON emp.event_id = r.event_id AND emp.membership_plan_id = mm.membership_plan_id
-        WHERE r.event_id = ? AND r.company_id = ? AND r.approval_status = 'approved'
+            ec.ticket_price,
+            ec.payment_status,
+            ec.checked_in,
+            CASE WHEN ec.membership_plan_id IS NOT NULL THEN 'Medlem' ELSE 'Ikke-medlem' END as member_type
+        FROM events_checkin ec
+        WHERE ec.event_id = ?
     ";
-    $registrationStmt = $db->prepare($registrationQuery);
-    $registrationStmt->execute([$event_id, $company_id]);
-    $registrations = $registrationStmt->fetchAll(PDO::FETCH_ASSOC);
+    $checkinStmt = $db->prepare($checkinQuery);
+    $checkinStmt->execute([$event_id]);
+    $checkins = $checkinStmt->fetchAll(PDO::FETCH_ASSOC);
 
     $checkinIncome = [];
     $totalCheckinIncome = 0;
+    $totalCheckinBehandlet = 0;
+    $totalCheckinProsjektert = 0;
 
-    $memberTotals = ['Medlem' => ['count' => 0, 'total' => 0], 'Ikke-medlem' => ['count' => 0, 'total' => 0]];
+    $groupedTickets = [];
 
-    foreach ($registrations as $reg) {
-        $label = $reg['member_type'];
-        $price = floatval($reg['ticket_price']);
+    foreach ($checkins as $ci) {
+        $price = floatval($ci['ticket_price']);
+        if ($price <= 0) continue;
 
-        if ($price > 0) {
-            $totalCheckinIncome += $price;
-            $memberTotals[$label]['count']++;
-            $memberTotals[$label]['total'] += $price;
+        $isPaid = ($ci['payment_status'] === 'paid' || $ci['payment_status'] === 'completed');
+        $isCheckedIn = intval($ci['checked_in']) === 1;
+        $isBehandlet = $isPaid && $isCheckedIn;
+        $status = $isBehandlet ? 'behandlet' : 'prosjektert';
+
+        $totalCheckinIncome += $price;
+        if ($isBehandlet) {
+            $totalCheckinBehandlet += $price;
+        } else {
+            $totalCheckinProsjektert += $price;
         }
-    }
 
-    foreach ($memberTotals as $label => $data) {
-        if ($data['count'] > 0) {
-            $checkinIncome[] = [
-                'label' => $label,
-                'count' => $data['count'],
-                'price' => $data['count'] > 0 ? round($data['total'] / $data['count'], 2) : 0,
-                'total' => $data['total']
+        $key = $ci['member_type'] . '_' . $status . '_' . number_format($price, 2);
+        if (!isset($groupedTickets[$key])) {
+            $groupedTickets[$key] = [
+                'label' => $ci['member_type'],
+                'payment_status' => $status,
+                'count' => 0,
+                'price' => $price,
+                'total' => 0
             ];
         }
+        $groupedTickets[$key]['count']++;
+        $groupedTickets[$key]['total'] += $price;
     }
+
+    $checkinIncome = array_values($groupedTickets);
 
     $expenseStmt = $db->prepare("
         SELECT id, description, amount, transaction_type, payment_status, 
