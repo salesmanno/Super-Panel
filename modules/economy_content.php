@@ -706,10 +706,16 @@ function renderIncomeTransactions(transactions, groupedTickets) {
     
     if (hasGroupedTickets) {
         groupedTickets.forEach(g => {
+            const ticketLabel = g.ticket_type && g.ticket_type !== 'Ordinær' 
+                ? `<strong>${g.ticket_type}</strong>` 
+                : '';
             html += `
                 <tr class="transaction-row income">
-                    <td><i class="bi bi-ticket-perforated me-1"></i>Billetter</td>
-                    <td><strong>${g.event_title}</strong> <small class="text-muted">(${g.count} stk @ ${formatCurrency(g.unit_price)})</small></td>
+                    <td><i class="bi bi-ticket-perforated me-1"></i>Billett</td>
+                    <td>
+                        <span>${g.event_title}</span> ${ticketLabel}
+                        <small class="text-muted d-block">${g.count} stk @ ${formatCurrency(g.unit_price)}</small>
+                    </td>
                     <td><span class="badge bg-secondary module-badge">Arrangement</span></td>
                     <td>Billettsalg</td>
                     <td class="text-end text-success"><strong>+${formatCurrency(g.total)}</strong></td>

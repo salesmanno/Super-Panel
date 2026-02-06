@@ -176,13 +176,26 @@ try {
                     }
                     
                     $eventTitle = $eventTitleCache[$eventId];
+                    $ticketType = $meta['ticket_type'] ?? null;
+                    if (!$ticketType) {
+                        $checkinId = $t['source_id'] ?? ($meta['checkin_id'] ?? null);
+                        if ($checkinId) {
+                            $memberLookup = $db->prepare("SELECT membership_plan_id FROM events_checkin WHERE id = ? LIMIT 1");
+                            $memberLookup->execute([$checkinId]);
+                            $memberRow = $memberLookup->fetch(PDO::FETCH_ASSOC);
+                            $ticketType = ($memberRow && $memberRow['membership_plan_id']) ? 'Medlem' : 'Ikke-medlem';
+                        } else {
+                            $ticketType = 'Ikke-medlem';
+                        }
+                    }
                     $price = floatval($t['selling_price']);
-                    $key = $eventId . '|' . number_format($price, 2);
+                    $key = $eventId . '|' . $ticketType . '|' . number_format($price, 2);
                     
                     if (!isset($grouped_tickets[$key])) {
                         $grouped_tickets[$key] = [
                             'event_title' => $eventTitle,
                             'event_id' => $eventId,
+                            'ticket_type' => $ticketType,
                             'unit_price' => $price,
                             'count' => 0,
                             'total' => 0,
