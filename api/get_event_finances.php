@@ -61,10 +61,11 @@ try {
         if ($price <= 0) continue;
 
         $isPaid = ($ci['payment_status'] === 'paid' || $ci['payment_status'] === 'completed');
-        $status = $isPaid ? 'behandlet' : 'prosjektert';
+        $isCheckedIn = intval($ci['checked_in']) === 1;
+        $status = ($isPaid || $isCheckedIn) ? 'behandlet' : 'prosjektert';
 
         $totalCheckinIncome += $price;
-        if ($isPaid) {
+        if ($isPaid || $isCheckedIn) {
             $totalCheckinBehandlet += $price;
         } else {
             $totalCheckinProsjektert += $price;
