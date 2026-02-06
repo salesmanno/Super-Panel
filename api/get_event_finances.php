@@ -40,8 +40,9 @@ try {
         SELECT 
             r.id as registration_id,
             r.customer_id,
-            COALESCE(emp.ticket_price, e.ticket_price) AS ticket_price,
-            CASE WHEN mm.membership_plan_id IS NOT NULL THEN 'Medlem' ELSE 'Ikke-medlem' END as member_type,
+            ec.ticket_price as checkin_ticket_price,
+            COALESCE(emp.ticket_price, e.ticket_price) AS fallback_ticket_price,
+            CASE WHEN ec.membership_plan_id IS NOT NULL THEN 'Medlem' ELSE 'Ikke-medlem' END as member_type,
             ec.payment_status as checkin_payment_status,
             ec.checked_in
         FROM event_registrations r
@@ -64,7 +65,7 @@ try {
     $groupedTickets = [];
 
     foreach ($registrations as $reg) {
-        $price = floatval($reg['ticket_price']);
+        $price = ($reg['checkin_ticket_price'] !== null) ? floatval($reg['checkin_ticket_price']) : floatval($reg['fallback_ticket_price']);
         if ($price <= 0) continue;
 
         $isPaid = ($reg['checkin_payment_status'] === 'paid' || $reg['checkin_payment_status'] === 'completed');
