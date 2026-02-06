@@ -2107,6 +2107,13 @@ try {
                         <input type="date" class="form-control" name="date" required>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">Status *</label>
+                        <select class="form-select" name="payment_status">
+                            <option value="behandlet">Behandlet</option>
+                            <option value="prosjektert">Prosjektert</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Notater</label>
                         <textarea class="form-control" name="notes" rows="2"></textarea>
                     </div>
@@ -2144,6 +2151,13 @@ try {
                     <div class="mb-3">
                         <label class="form-label">Dato *</label>
                         <input type="date" class="form-control" name="date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status *</label>
+                        <select class="form-select" name="payment_status">
+                            <option value="behandlet">Behandlet</option>
+                            <option value="prosjektert">Prosjektert</option>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Kategori</label>
@@ -2223,19 +2237,21 @@ try {
                 </div>
 
                 <!-- Transactions List -->
-                <h6 class="mb-3">Transaksjoner (summert)</h6>
+                <h6 class="mb-3">Transaksjoner</h6>
                 <div class="table-responsive">
                     <table class="table table-sm">
                         <thead>
                             <tr>
                                 <th>Type</th>
-                                <th>Beskrivelse (antall)</th>
-                                <th class="text-end">Sum</th>
+                                <th>Beskrivelse</th>
+                                <th>Status</th>
+                                <th class="text-end">Beløp</th>
+                                <th class="text-end">Handlinger</th>
                             </tr>
                         </thead>
                         <tbody id="details-transactions-list">
                             <tr>
-                                <td colspan="3" class="text-center text-muted py-3">
+                                <td colspan="5" class="text-center text-muted py-3">
                                     Ingen transaksjoner ennå
                                 </td>
                             </tr>
@@ -3886,7 +3902,6 @@ async function toggleEventResults(eventId) {
     }
 }
 
-// Load event finances from events_checkin + unified_ledger
 async function loadEventFinances(eventId) {
     try {
         const response = await fetch(`/api/get_event_finances.php?event_id=${eventId}`);
@@ -3899,8 +3914,6 @@ async function loadEventFinances(eventId) {
             
             let incomeHtml = '';
             
-            // Display check-in income (from events_checkin table)
-            // Grouped by price: standard price = Ikke-medlem, other = Medlem
             if (result.checkin_income && result.checkin_income.length > 0) {
                 result.checkin_income.forEach(group => {
                     incomeHtml += `
@@ -3909,7 +3922,31 @@ async function loadEventFinances(eventId) {
                                 <span>${eventTitle} <strong>${group.label}</strong></span>
                                 <small class="text-muted d-block">${group.count} stk @ ${group.price.toFixed(0)} NOK</small>
                             </div>
-                            <strong class="text-success">+${group.total.toFixed(2)} NOK</strong>
+                            <div class="text-end">
+                                <span class="badge bg-success mb-1">Behandlet</span>
+                                <strong class="text-success d-block">+${group.total.toFixed(2)} NOK</strong>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            if (result.expenses) {
+                const manualIncomes = result.expenses.filter(e => e.transaction_type === 'income');
+                manualIncomes.forEach(exp => {
+                    const statusBadge = exp.payment_status === 'behandlet'
+                        ? '<span class="badge bg-success">Behandlet</span>'
+                        : '<span class="badge bg-warning text-dark">Prosjektert</span>';
+                    incomeHtml += `
+                        <div class="event-finance-item">
+                            <div>
+                                <span>${exp.description}</span>
+                                ${exp.category ? '<small class="text-muted d-block">' + exp.category + '</small>' : ''}
+                            </div>
+                            <div class="text-end">
+                                ${statusBadge}
+                                <strong class="text-success d-block">+${exp.amount.toFixed(2)} NOK</strong>
+                            </div>
                         </div>
                     `;
                 });
@@ -3917,29 +3954,38 @@ async function loadEventFinances(eventId) {
             
             incomeList.innerHTML = incomeHtml || '<small class="text-muted">Ingen inntekter registrert</small>';
             
-            // Display expenses (from unified_ledger)
-            if (result.expense_groups && Object.keys(result.expense_groups).length > 0) {
-                expenseList.innerHTML = Object.entries(result.expense_groups)
-                    .sort((a, b) => b[1].total - a[1].total)
-                    .map(([name, data]) => `
-                        <div class="event-finance-item">
-                            <div>
-                                <span>${name}</span>
-                                <small class="text-muted d-block">${data.count} stk</small>
+            if (result.expenses) {
+                const expenseItems = result.expenses.filter(e => e.transaction_type === 'expense');
+                if (expenseItems.length > 0) {
+                    expenseList.innerHTML = expenseItems.map(exp => {
+                        const statusBadge = exp.payment_status === 'behandlet'
+                            ? '<span class="badge bg-success">Behandlet</span>'
+                            : '<span class="badge bg-warning text-dark">Prosjektert</span>';
+                        return `
+                            <div class="event-finance-item">
+                                <div>
+                                    <span>${exp.description}</span>
+                                    ${exp.category ? '<small class="text-muted d-block">' + exp.category + '</small>' : ''}
+                                </div>
+                                <div class="text-end">
+                                    ${statusBadge}
+                                    <strong class="text-danger d-block">-${exp.amount.toFixed(2)} NOK</strong>
+                                </div>
                             </div>
-                            <strong class="text-danger">-${data.total.toFixed(2)} NOK</strong>
-                        </div>
-                    `).join('');
+                        `;
+                    }).join('');
+                } else {
+                    expenseList.innerHTML = '<small class="text-muted">Ingen utgifter registrert</small>';
+                }
             } else {
                 expenseList.innerHTML = '<small class="text-muted">Ingen utgifter registrert</small>';
             }
             
-            // Update summary
-            document.getElementById(`event-total-income-${eventId}`).textContent = `${result.summary.total_income.toFixed(2)} NOK`;
-            document.getElementById(`event-total-expense-${eventId}`).textContent = `${result.summary.total_expense.toFixed(2)} NOK`;
+            document.getElementById(`event-total-income-${eventId}`).textContent = `${(result.summary.total_income || 0).toFixed(2)} NOK`;
+            document.getElementById(`event-total-expense-${eventId}`).textContent = `${(result.summary.total_expense || 0).toFixed(2)} NOK`;
             
             const netResultEl = document.getElementById(`event-net-result-${eventId}`);
-            netResultEl.textContent = `${result.summary.net_result.toFixed(2)} NOK`;
+            netResultEl.textContent = `${(result.summary.net_result || 0).toFixed(2)} NOK`;
             netResultEl.className = result.summary.net_result >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold';
         }
     } catch (error) {
@@ -3958,16 +4004,22 @@ async function addEventIncome(eventId) {
         return;
     }
     
+    const status = prompt('Status (behandlet / prosjektert):', 'behandlet');
+    if (!status || (status !== 'behandlet' && status !== 'prosjektert')) {
+        toast.quickWarning('Validering', 'Status må være "behandlet" eller "prosjektert"');
+        return;
+    }
+    
     try {
-        const response = await fetch('/api/add_event_finance.php', {
+        const response = await fetch('/api/add_event_income.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 event_id: eventId,
-                type: 'income',
-                item_name: description,
+                description: description,
                 amount: amount,
-                payment_method: 'cash'
+                payment_status: status,
+                date: new Date().toISOString().split('T')[0]
             })
         });
         
@@ -3975,7 +4027,6 @@ async function addEventIncome(eventId) {
         
         if (result.success) {
             toast.quickSuccess('Inntekt', 'Inntekt lagt til');
-            // Reload finances to show updated results
             await new Promise(resolve => setTimeout(resolve, 300));
             await loadEventFinances(eventId);
         } else {
@@ -3987,7 +4038,6 @@ async function addEventIncome(eventId) {
     }
 }
 
-// Add event expense
 async function addEventExpense(eventId) {
     const description = prompt('Beskrivelse av utgift:');
     if (!description) return;
@@ -3998,16 +4048,22 @@ async function addEventExpense(eventId) {
         return;
     }
     
+    const status = prompt('Status (behandlet / prosjektert):', 'behandlet');
+    if (!status || (status !== 'behandlet' && status !== 'prosjektert')) {
+        toast.quickWarning('Validering', 'Status må være "behandlet" eller "prosjektert"');
+        return;
+    }
+    
     try {
-        const response = await fetch('/api/add_event_finance.php', {
+        const response = await fetch('/api/add_event_expense.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 event_id: eventId,
-                type: 'expense',
-                item_name: description,
+                description: description,
                 amount: amount,
-                payment_method: 'cash'
+                payment_status: status,
+                date: new Date().toISOString().split('T')[0]
             })
         });
         
@@ -4015,7 +4071,6 @@ async function addEventExpense(eventId) {
         
         if (result.success) {
             toast.quickSuccess('Utgift', 'Utgift lagt til');
-            // Reload finances to show updated results
             await new Promise(resolve => setTimeout(resolve, 300));
             await loadEventFinances(eventId);
         } else {
@@ -4399,6 +4454,7 @@ async function saveIncome() {
         description: formData.get('description'),
         amount: parseFloat(formData.get('amount')),
         date: formData.get('date'),
+        payment_status: formData.get('payment_status') || 'behandlet',
         notes: formData.get('notes')
     };
     
@@ -4439,6 +4495,7 @@ async function saveExpense() {
         description: formData.get('description'),
         amount: parseFloat(formData.get('amount')),
         date: formData.get('date'),
+        payment_status: formData.get('payment_status') || 'behandlet',
         category: formData.get('category'),
         notes: formData.get('notes')
     };
@@ -4476,62 +4533,68 @@ async function viewEventDetails(eventId, eventTitle = 'Arrangement') {
     document.getElementById('details-event-title').textContent = eventTitle;
     
     try {
-        const response = await fetch(`/api/get_event_transactions.php?event_id=${eventId}`);
+        const response = await fetch(`/api/get_event_finances.php?event_id=${eventId}`);
         const result = await response.json();
         
         if (result.success) {
-            document.getElementById('details-total-income').textContent = result.summary.total_income.toLocaleString('nb-NO') + ' NOK';
-            document.getElementById('details-total-expense').textContent = result.summary.total_expense.toLocaleString('nb-NO') + ' NOK';
-            document.getElementById('details-net-result').textContent = result.summary.net_result.toLocaleString('nb-NO') + ' NOK';
+            const s = result.summary;
+            document.getElementById('details-total-income').textContent = (s.total_income || 0).toLocaleString('nb-NO') + ' NOK';
+            document.getElementById('details-total-expense').textContent = (s.total_expense || 0).toLocaleString('nb-NO') + ' NOK';
+            document.getElementById('details-net-result').textContent = (s.net_result || 0).toLocaleString('nb-NO') + ' NOK';
             
             const transactionsList = document.getElementById('details-transactions-list');
-            if (result.transactions && result.transactions.length > 0) {
-                // Group transactions by item_name and entry_type, sum amounts
-                const grouped = {};
-                result.transactions.forEach(t => {
-                    const key = `${t.entry_type}|${t.item_name}`;
-                    if (!grouped[key]) {
-                        grouped[key] = {
-                            entry_type: t.entry_type,
-                            item_name: t.item_name,
-                            total_amount: 0,
-                            count: 0
-                        };
-                    }
-                    grouped[key].total_amount += Math.abs(parseFloat(t.total_amount));
-                    grouped[key].count++;
-                });
-                
-                // Convert to array and sort (income first, then by amount desc)
-                const groupedArray = Object.values(grouped).sort((a, b) => {
-                    if (a.entry_type !== b.entry_type) {
-                        return a.entry_type === 'income' ? -1 : 1;
-                    }
-                    return b.total_amount - a.total_amount;
-                });
-                
-                transactionsList.innerHTML = groupedArray.map(g => {
-                    const typeClass = g.entry_type === 'income' ? 'text-success' : 'text-danger';
-                    const typeIcon = g.entry_type === 'income' ? 'plus-circle' : 'dash-circle';
-                    const typeText = g.entry_type === 'income' ? 'Inntekt' : 'Utgift';
-                    
-                    return `
+            let rows = '';
+            
+            if (result.checkin_income && result.checkin_income.length > 0) {
+                result.checkin_income.forEach(group => {
+                    rows += `
                         <tr>
-                            <td><span class="badge ${g.entry_type === 'income' ? 'bg-success' : 'bg-danger'}"><i class="bi bi-${typeIcon} me-1"></i>${typeText}</span></td>
-                            <td>${g.item_name} <span class="text-muted">(${g.count})</span></td>
-                            <td class="${typeClass}"><strong>${g.total_amount.toLocaleString('nb-NO')} NOK</strong></td>
+                            <td><span class="badge bg-success"><i class="bi bi-ticket-perforated me-1"></i>Billett</span></td>
+                            <td>${result.event_title} <strong>${group.label}</strong> <small class="text-muted">(${group.count} stk @ ${group.price.toFixed(0)} kr)</small></td>
+                            <td><span class="badge bg-success">Behandlet</span></td>
+                            <td class="text-end text-success"><strong>+${group.total.toLocaleString('nb-NO')} NOK</strong></td>
+                            <td class="text-end">-</td>
                         </tr>
                     `;
-                }).join('');
-            } else {
-                transactionsList.innerHTML = `
-                    <tr>
-                        <td colspan="3" class="text-center text-muted py-3">
-                            Ingen transaksjoner ennå
-                        </td>
-                    </tr>
-                `;
+                });
             }
+            
+            if (result.expenses && result.expenses.length > 0) {
+                result.expenses.forEach(exp => {
+                    const isIncome = exp.transaction_type === 'income';
+                    const typeClass = isIncome ? 'bg-success' : 'bg-danger';
+                    const typeText = isIncome ? 'Inntekt' : 'Utgift';
+                    const typeIcon = isIncome ? 'plus-circle' : 'dash-circle';
+                    const amountClass = isIncome ? 'text-success' : 'text-danger';
+                    const amountPrefix = isIncome ? '+' : '-';
+                    const statusBadge = exp.payment_status === 'behandlet' 
+                        ? '<span class="badge bg-success">Behandlet</span>' 
+                        : '<span class="badge bg-warning text-dark">Prosjektert</span>';
+                    
+                    rows += `
+                        <tr>
+                            <td><span class="badge ${typeClass}"><i class="bi bi-${typeIcon} me-1"></i>${typeText}</span></td>
+                            <td>${exp.description}${exp.category ? ' <small class="text-muted">(' + exp.category + ')</small>' : ''}</td>
+                            <td>${statusBadge}</td>
+                            <td class="text-end ${amountClass}"><strong>${amountPrefix}${exp.amount.toLocaleString('nb-NO')} NOK</strong></td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-warning py-0 px-1" onclick="editEventExpense('${exp.id}', '${exp.description.replace(/'/g, "\\'")}', ${exp.amount}, '${exp.payment_status}', '${exp.category || ''}', '${exp.transaction_type}')" title="Rediger">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="deleteEventExpense('${exp.id}')" title="Slett">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+            
+            if (!rows) {
+                rows = `<tr><td colspan="5" class="text-center text-muted py-3">Ingen transaksjoner ennå</td></tr>`;
+            }
+            
+            transactionsList.innerHTML = rows;
             
             const detailsModal = new bootstrap.Modal(document.getElementById('viewEventDetailsModal'));
             detailsModal.show();
@@ -4542,12 +4605,78 @@ async function viewEventDetails(eventId, eventTitle = 'Arrangement') {
     }
 }
 
-async function deleteTransaction(transactionId) {
-    if (!confirm('Er du sikker på at du vil slette denne transaksjonen?')) {
+async function editEventExpense(id, description, amount, paymentStatus, category, transactionType) {
+    const newDescription = prompt('Beskrivelse:', description);
+    if (newDescription === null) return;
+    
+    const newAmountStr = prompt('Beløp (NOK):', amount);
+    if (newAmountStr === null) return;
+    const newAmount = parseFloat(newAmountStr);
+    if (isNaN(newAmount) || newAmount <= 0) {
+        toast.quickWarning('Validering', 'Ugyldig beløp');
         return;
     }
     
-    toast.quickWarning('Info', 'Sletting av transaksjoner er ikke implementert ennå');
+    const newStatus = prompt('Status (behandlet / prosjektert):', paymentStatus);
+    if (newStatus === null) return;
+    if (newStatus !== 'behandlet' && newStatus !== 'prosjektert') {
+        toast.quickWarning('Validering', 'Status må være "behandlet" eller "prosjektert"');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/update_event_expense.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                id: id,
+                description: newDescription,
+                amount: newAmount,
+                payment_status: newStatus,
+                category: category
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            toast.quickSuccess('Oppdatert', 'Oppføring oppdatert');
+            const eventId = document.getElementById('details-event-id').value;
+            viewEventDetails(eventId);
+            loadEventsResults();
+        } else {
+            toast.quickError('Feil', result.message);
+        }
+    } catch (error) {
+        console.error('Error updating expense:', error);
+        toast.quickError('Feil', 'Kunne ikke oppdatere oppføring');
+    }
+}
+
+async function deleteEventExpense(id) {
+    if (!confirm('Er du sikker på at du vil slette denne oppføringen?')) return;
+    
+    try {
+        const response = await fetch('/api/delete_event_expense.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id: id })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            toast.quickSuccess('Slettet', 'Oppføring slettet');
+            const eventId = document.getElementById('details-event-id').value;
+            viewEventDetails(eventId);
+            loadEventsResults();
+        } else {
+            toast.quickError('Feil', result.message);
+        }
+    } catch (error) {
+        console.error('Error deleting expense:', error);
+        toast.quickError('Feil', 'Kunne ikke slette oppføring');
+    }
 }
 
 // Load membership plans for create form

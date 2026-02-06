@@ -118,14 +118,17 @@ try {
                 $params[] = $end_date . ' 23:59:59';
             }
             
-            // Get all income transactions (positive selling_price only)
             $stmt = $db->prepare("
                 SELECT 
+                    id,
                     transaction_date,
                     item_name,
                     module_source as category,
+                    item_type,
+                    source_id,
                     selling_price,
-                    payment_method
+                    payment_method,
+                    metadata
                 FROM unified_ledger 
                 WHERE company_id = ? 
                   AND status = 'active'
@@ -137,7 +140,42 @@ try {
             $stmt->execute($params);
             $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
-            // Get summary stats
+            $grouped_tickets = [];
+            $other_transactions = [];
+            
+            foreach ($transactions as $t) {
+                if ($t['item_type'] === 'event_ticket' || $t['item_type'] === 'event') {
+                    $meta = json_decode($t['metadata'] ?? '{}', true);
+                    $eventTitle = $meta['event_title'] ?? $t['item_name'] ?? 'Ukjent arrangement';
+                    $price = floatval($t['selling_price']);
+                    $key = ($t['source_id'] ?? 'unknown') . '|' . $price;
+                    
+                    if (!isset($grouped_tickets[$key])) {
+                        $grouped_tickets[$key] = [
+                            'event_title' => $eventTitle,
+                            'source_id' => $t['source_id'],
+                            'unit_price' => $price,
+                            'count' => 0,
+                            'total' => 0,
+                            'ids' => []
+                        ];
+                    }
+                    $grouped_tickets[$key]['count']++;
+                    $grouped_tickets[$key]['total'] += $price;
+                    $grouped_tickets[$key]['ids'][] = $t['id'];
+                } else {
+                    $other_transactions[] = $t;
+                }
+            }
+            
+            $stats_params = [$company_id];
+            $statsDateFilter = '';
+            if ($start_date && $end_date) {
+                $statsDateFilter = " AND transaction_date BETWEEN ? AND ?";
+                $stats_params[] = $start_date;
+                $stats_params[] = $end_date . ' 23:59:59';
+            }
+            
             $stmt = $db->prepare("
                 SELECT 
                     COALESCE(SUM(selling_price), 0) as total,
@@ -147,13 +185,14 @@ try {
                   AND status = 'active'
                   AND payment_status = 'completed'
                   AND selling_price > 0
-                  {$dateFilter}
+                  {$statsDateFilter}
             ");
-            $stmt->execute($params);
+            $stmt->execute($stats_params);
             $stats = $stmt->fetch(PDO::FETCH_ASSOC);
             
             $response['data'] = [
-                'transactions' => $transactions,
+                'transactions' => $other_transactions,
+                'grouped_tickets' => array_values($grouped_tickets),
                 'total' => floatval($stats['total']),
                 'average' => floatval($stats['average']),
                 'count' => count($transactions)
@@ -170,9 +209,9 @@ try {
                 $params[] = $end_date . ' 23:59:59';
             }
             
-            // Get all expense transactions (negative selling_price)
             $stmt = $db->prepare("
                 SELECT 
+                    id,
                     transaction_date,
                     item_name,
                     module_source as category,

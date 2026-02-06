@@ -19,8 +19,7 @@ if (!$event_id) {
 try {
     $db = getDBConnection();
     $company_id = $_SESSION['company_id'];
-    
-    // Get event info (title and standard price)
+
     $eventStmt = $db->prepare("
         SELECT title, ticket_price 
         FROM events_eventdata 
@@ -28,20 +27,15 @@ try {
     ");
     $eventStmt->execute([$event_id, $company_id]);
     $eventInfo = $eventStmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if (!$eventInfo) {
         echo json_encode(['success' => false, 'message' => 'Arrangement ikke funnet']);
         exit;
     }
-    
+
     $eventTitle = $eventInfo['title'];
     $standardPrice = floatval($eventInfo['ticket_price']);
-    
-    // Get all approved registrations for this event
-    // Uses EXACT same logic as get_all_registrations.php for consistency:
-    // - Membership: membership_members with active status
-    // - Ticket price: COALESCE(emp.ticket_price, e.ticket_price) - same as "alle påmeldinger" display
-    // This ensures counts AND totals match "alle påmeldinger" view exactly
+
     $registrationQuery = "
         SELECT 
             CASE WHEN mm.membership_plan_id IS NOT NULL THEN 'Medlem' ELSE 'Ikke-medlem' END as member_type,
@@ -56,27 +50,23 @@ try {
     $registrationStmt = $db->prepare($registrationQuery);
     $registrationStmt->execute([$event_id, $company_id]);
     $registrations = $registrationStmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Build income groups - use membership_members to determine member vs non-member (same as "alle påmeldinger")
+
     $checkinIncome = [];
     $totalCheckinIncome = 0;
-    
-    // Aggregate by member type
+
     $memberTotals = ['Medlem' => ['count' => 0, 'total' => 0], 'Ikke-medlem' => ['count' => 0, 'total' => 0]];
-    
+
     foreach ($registrations as $reg) {
         $label = $reg['member_type'];
         $price = floatval($reg['ticket_price']);
-        
-        // Only include paid registrations (price > 0)
+
         if ($price > 0) {
             $totalCheckinIncome += $price;
             $memberTotals[$label]['count']++;
             $memberTotals[$label]['total'] += $price;
         }
     }
-    
-    // Build output array
+
     foreach ($memberTotals as $label => $data) {
         if ($data['count'] > 0) {
             $checkinIncome[] = [
@@ -87,55 +77,68 @@ try {
             ];
         }
     }
-    
-    // Get expenses from unified_ledger
-    $jsonEventCheck = "JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.event_id')) = ?";
-    
-    $expenseQuery = "
-        SELECT 
-            item_name,
-            selling_price
-        FROM unified_ledger
-        WHERE company_id = ? 
-        AND status = 'active'
-        AND selling_price < 0
-        AND (
-            $jsonEventCheck
-            OR (module_source = 'events' AND source_id = ?)
-        )
-    ";
-    $expenseStmt = $db->prepare($expenseQuery);
-    $expenseStmt->execute([$company_id, $event_id, $event_id]);
-    $expenses = $expenseStmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Group expenses by item_name
-    $expenseGroups = [];
+
+    $expenseStmt = $db->prepare("
+        SELECT id, description, amount, transaction_type, payment_status, 
+               category, expense_date, unified_ledger_id
+        FROM events_expenses
+        WHERE event_id = ?
+        ORDER BY expense_date DESC, created_at DESC
+    ");
+    $expenseStmt->execute([$event_id]);
+    $expenseItems = $expenseStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $expenses = [];
+    $totalManualIncome = 0;
     $totalExpense = 0;
-    foreach ($expenses as $item) {
-        $key = $item['item_name'] ?: 'Ukjent utgift';
-        if (!isset($expenseGroups[$key])) {
-            $expenseGroups[$key] = ['count' => 0, 'total' => 0];
+    $totalExpenseBehandlet = 0;
+    $totalExpenseProsjektert = 0;
+
+    foreach ($expenseItems as $item) {
+        $amt = floatval($item['amount']);
+
+        if ($item['transaction_type'] === 'income') {
+            $totalManualIncome += $amt;
+        } elseif ($item['transaction_type'] === 'expense') {
+            $totalExpense += $amt;
+            if ($item['payment_status'] === 'behandlet') {
+                $totalExpenseBehandlet += $amt;
+            } else {
+                $totalExpenseProsjektert += $amt;
+            }
         }
-        $expenseGroups[$key]['count']++;
-        $expenseGroups[$key]['total'] += abs(floatval($item['selling_price']));
-        $totalExpense += abs(floatval($item['selling_price']));
+
+        $expenses[] = [
+            'id' => $item['id'],
+            'description' => $item['description'],
+            'amount' => $amt,
+            'transaction_type' => $item['transaction_type'],
+            'payment_status' => $item['payment_status'],
+            'category' => $item['category'],
+            'expense_date' => $item['expense_date'],
+            'unified_ledger_id' => $item['unified_ledger_id']
+        ];
     }
-    
-    $totalIncome = $totalCheckinIncome;
-    
+
+    $totalIncome = $totalCheckinIncome + $totalManualIncome;
+
     echo json_encode([
         'success' => true,
         'event_title' => $eventTitle,
         'standard_price' => $standardPrice,
         'checkin_income' => $checkinIncome,
-        'expense_groups' => $expenseGroups,
+        'expenses' => $expenses,
         'summary' => [
-            'total_income' => $totalIncome,
+            'total_ticket_income' => $totalCheckinIncome,
+            'total_manual_income' => $totalManualIncome,
             'total_expense' => $totalExpense,
+            'total_income' => $totalIncome,
+            'total_expense_behandlet' => $totalExpenseBehandlet,
+            'total_expense_prosjektert' => $totalExpenseProsjektert,
             'net_result' => $totalIncome - $totalExpense
         ]
     ]);
-    
+
 } catch (Exception $e) {
     error_log("Get event finances error: " . $e->getMessage());
     echo json_encode([
