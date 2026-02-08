@@ -2251,6 +2251,39 @@ try {
 </div>
 
 <script>
+const norskMnd = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des'];
+const norskMndLang = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
+const norskDag = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'];
+
+function formatNorskDato(dateStr, timeStr, opts = {}) {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const d = parseInt(parts[2], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const y = parts[0];
+    
+    let result = '';
+    if (opts.weekday) {
+        const dt = new Date(parseInt(y), m, d);
+        result += norskDag[dt.getDay()] + ' ';
+    }
+    if (opts.longMonth) {
+        result += `${d}. ${norskMndLang[m]} ${y}`;
+    } else {
+        result += `${d}. ${norskMnd[m]} ${y}`;
+    }
+    if (opts.includeTime && timeStr) {
+        result += ` kl. ${timeStr.substring(0, 5)}`;
+    }
+    return result;
+}
+
+function formatNorskTid(timeStr) {
+    if (!timeStr) return '';
+    return timeStr.substring(0, 5);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Load membership plans and payment methods for create form (these are needed for any tab)
     loadMembershipPlansForCreate();
@@ -2448,9 +2481,8 @@ async function loadEvents() {
             console.log('Rendering', uniqueEvents.length, 'unique events');
             
             eventsList.innerHTML = uniqueEvents.map(event => {
-                const startDate = new Date(event.start_date + ' ' + event.start_time);
-                const dateStr = startDate.toLocaleDateString('no-NO', { day: 'numeric', month: 'short', year: 'numeric' });
-                const timeStr = event.start_time ? event.start_time.substring(0, 5) : '';
+                const dateStr = formatNorskDato(event.start_date, event.start_time);
+                const timeStr = formatNorskTid(event.start_time);
                 
                 // Check if "Ingen påmelding" (no registration) event
                 const isNoRegistration = event.registration_type === 'none';
@@ -2864,14 +2896,7 @@ async function loadCheckinEventSelector() {
         
         if (result.success && result.events && result.events.length > 0) {
             cardsContainer.innerHTML = result.events.map(event => {
-                const eventDate = new Date(event.start_date + ' ' + event.start_time);
-                const dateStr = eventDate.toLocaleDateString('no-NO', { 
-                    day: 'numeric', 
-                    month: 'short', 
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
+                const dateStr = formatNorskDato(event.start_date, event.start_time, { includeTime: true });
                 
                 const escapedTitle = event.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
                 const escapedDateStr = dateStr.replace(/'/g, "\\'");
@@ -3370,7 +3395,7 @@ async function loadCheckins(eventId) {
                     const customerName = checkin.customer_name || 'Ukjent';
                     const customerEmail = checkin.customer_email || '';
                     const checkinTime = checkin.check_in_time 
-                        ? new Date(checkin.check_in_time).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) 
+                        ? (checkin.check_in_time ? checkin.check_in_time.substring(11, 16) || new Date(checkin.check_in_time).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) : '') 
                         : '-';
                     const membershipPlanName = checkin.membership_plan_name || null;
                     const isNoShow = checkin.payment_status === 'no_show';
@@ -3820,7 +3845,7 @@ async function loadEventsResults() {
                             <tbody>
                                 ${result.events.map(event => {
                                     const statusBadge = event.status === 'Kommende' ? 'bg-info' : event.status === 'Pågår' ? 'bg-warning' : 'bg-secondary';
-                                    const startDate = new Date(event.start_date).toLocaleDateString('no-NO', { day: 'numeric', month: 'short', year: 'numeric' });
+                                    const startDate = formatNorskDato(event.start_date, event.start_time);
                                     const netColor = event.net_result >= 0 ? 'text-success' : 'text-danger';
                                     
                                     return `
@@ -3830,7 +3855,7 @@ async function loadEventsResults() {
                                             </td>
                                             <td>
                                                 ${startDate}
-                                                ${event.start_time ? `<br><small class="text-muted">${event.start_time}</small>` : ''}
+                                                ${event.start_time ? `<br><small class="text-muted">kl. ${formatNorskTid(event.start_time)}</small>` : ''}
                                             </td>
                                             <td>
                                                 <span class="badge ${statusBadge}">${event.status}</span>
@@ -5017,7 +5042,7 @@ async function loadPendingRegistrations() {
                         <td class="text-center" style="min-width: 100px;">${priceHtml}</td>
                         <td>
                             <div><strong>${reg.event_title}</strong></div>
-                            <small class="text-muted">${reg.start_date} ${reg.start_time || ''}</small>
+                            <small class="text-muted">${formatNorskDato(reg.start_date, reg.start_time, { includeTime: true })}</small>
                         </td>
                         <td class="text-end" style="min-width: 160px;">
                             <button class="btn btn-sm btn-success me-1" onclick="approveRegistrationWithReason('${reg.id}')" title="Godkjenn">
@@ -5196,16 +5221,8 @@ async function loadAllRegistrations() {
         let html = '<div class="accordion" id="registrationsAccordion">';
         
         result.grouped_by_event.forEach((eventGroup, index) => {
-            const eventDate = new Date(eventGroup.start_date + ' ' + eventGroup.start_time);
-            const dateStr = eventDate.toLocaleDateString('no-NO', { 
-                day: 'numeric', 
-                month: 'long', 
-                year: 'numeric'
-            });
-            const timeStr = eventDate.toLocaleTimeString('no-NO', { 
-                hour: '2-digit', 
-                minute: '2-digit'
-            });
+            const dateStr = formatNorskDato(eventGroup.start_date, eventGroup.start_time, { longMonth: true });
+            const timeStr = formatNorskTid(eventGroup.start_time);
             
             const collapseId = `collapse-${eventGroup.event_id}`;
             const isFirst = index === 0;
@@ -5729,7 +5746,7 @@ async function syncCheckinToFullscreen() {
             const checkedList = document.getElementById('fullscreen-checked-list');
             if (result.checked_in && result.checked_in.length > 0) {
                 checkedList.innerHTML = result.checked_in.map(c => {
-                    const time = c.check_in_time ? new Date(c.check_in_time).toLocaleTimeString('no-NO', {hour:'2-digit', minute:'2-digit'}) : '-';
+                    const time = c.check_in_time ? (c.check_in_time.substring(11, 16) || '-') : '-';
                     const isNoShow = c.payment_status === 'no_show';
                     const membershipPlanName = c.membership_plan_name || null;
                     const isMember = membershipPlanName !== null;
@@ -6415,10 +6432,7 @@ function updateWizardSummary() {
     const startDate = form.querySelector('input[name="start_date"]')?.value;
     const startTime = form.querySelector('input[name="start_time"]')?.value;
     if (startDate) {
-        const dateObj = new Date(startDate + 'T' + (startTime || '00:00'));
-        document.getElementById('summary-date').textContent = dateObj.toLocaleDateString('no-NO', { 
-            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' 
-        }) + (startTime ? ` kl. ${startTime}` : '');
+        document.getElementById('summary-date').textContent = formatNorskDato(startDate, startTime, { weekday: true, longMonth: true, includeTime: !!startTime });
     }
     
     // Location
