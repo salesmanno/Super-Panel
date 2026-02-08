@@ -133,7 +133,7 @@ $schemas = getRentalSchemas();
     </div>
 </div>
 
-<!-- Modal for opprettelse/redigering av utleieobjekt med Wizard -->
+<!-- Modal for opprettelse/redigering av utleieobjekt -->
 <div class="modal fade" id="rentalModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -144,103 +144,18 @@ $schemas = getRentalSchemas();
             <div class="modal-body">
                 <form id="rentalForm">
                     <input type="hidden" id="rental_id" name="id">
-                    
-                    <!-- Wizard Progress -->
-                    <div class="rental-wizard-progress mb-4">
-                        <div class="d-flex justify-content-between position-relative">
-                            <div class="progress-line"></div>
-                            <div class="rental-wizard-step active" data-step="1">
-                                <div class="step-circle">1</div>
-                                <div class="step-label">Velg type</div>
-                            </div>
-                            <div class="rental-wizard-step" data-step="2">
-                                <div class="step-circle">2</div>
-                                <div class="step-label">Detaljer</div>
-                            </div>
-                            <div class="rental-wizard-step" data-step="3">
-                                <div class="step-circle">3</div>
-                                <div class="step-label">Bekreft</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Step 1: Velg objekttype -->
-                    <div class="rental-wizard-content" id="rental-wizard-step-1">
-                        <h5 class="mb-3 text-center">Hva slags utleieobjekt vil du legge til?</h5>
-                        <div class="row g-3" id="categoryCards">
-                            <?php foreach ($schemas as $key => $schema): ?>
-                            <div class="col-md-4 col-lg-3">
-                                <label class="rental-category-card">
-                                    <input type="radio" name="category" value="<?= $key ?>" class="d-none">
-                                    <div class="category-content p-3 border rounded text-center h-100">
-                                        <i class="bi <?= $schema['icon'] ?? 'bi-box' ?> fs-1 mb-2 d-block text-primary"></i>
-                                        <h6 class="mb-1"><?= htmlspecialchars($schema['label']) ?></h6>
-                                        <small class="text-muted"><?= htmlspecialchars($schema['description'] ?? '') ?></small>
-                                    </div>
-                                </label>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                    
-                    <!-- Step 2: Fyll ut detaljer -->
-                    <div class="rental-wizard-content" id="rental-wizard-step-2" style="display: none;">
-                        <div id="formFieldsContainer"></div>
-                    </div>
-                    
-                    <!-- Step 3: Bekreftelse -->
-                    <div class="rental-wizard-content" id="rental-wizard-step-3" style="display: none;">
-                        <h5 class="mb-3 text-center">Bekreft utleieobjekt</h5>
-                        <div id="rentalSummary" class="card bg-light">
-                            <div class="card-body">
-                                <div id="summaryContent"></div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Wizard Navigation -->
-                    <div class="rental-wizard-nav d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
-                        <button type="button" class="btn btn-outline-secondary" id="rental-wizard-prev" style="display: none;">
-                            <i class="bi bi-arrow-left me-1"></i>Tilbake
-                        </button>
-                        <div class="ms-auto">
-                            <button type="button" class="btn btn-primary" id="rental-wizard-next" disabled>
-                                Neste<i class="bi bi-arrow-right ms-1"></i>
-                            </button>
-                            <button type="button" class="btn btn-success" id="rental-wizard-submit" style="display: none;" onclick="saveRentalObject()">
-                                <i class="bi bi-check-circle me-1"></i>Opprett objekt
-                            </button>
-                        </div>
-                    </div>
+                    <div id="formFieldsContainer"></div>
                 </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                <button type="button" class="btn btn-primary" onclick="saveRentalObject()">
+                    <i class="bi bi-check-circle me-1"></i>Lagre
+                </button>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-.rental-wizard-progress { position: relative; }
-.rental-wizard-progress .progress-line {
-    position: absolute; top: 15px; left: 10%; right: 10%; height: 2px; background: #dee2e6; z-index: 0;
-}
-.rental-wizard-step {
-    display: flex; flex-direction: column; align-items: center; z-index: 1; background: #fff; padding: 0 10px;
-}
-.rental-wizard-step .step-circle {
-    width: 32px; height: 32px; border-radius: 50%; background: #dee2e6; color: #6c757d;
-    display: flex; align-items: center; justify-content: center; font-weight: bold; margin-bottom: 5px;
-}
-.rental-wizard-step.active .step-circle { background: #0d6efd; color: #fff; }
-.rental-wizard-step.completed .step-circle { background: #198754; color: #fff; }
-.rental-wizard-step .step-label { font-size: 0.75rem; color: #6c757d; }
-.rental-wizard-step.active .step-label { color: #0d6efd; font-weight: 600; }
-.rental-wizard-step.completed .step-label { color: #198754; }
-.rental-category-card { cursor: pointer; display: block; height: 100%; }
-.rental-category-card .category-content { transition: all 0.2s; }
-.rental-category-card:hover .category-content { border-color: #0d6efd !important; background: #f8f9fa; }
-.rental-category-card input:checked + .category-content { border-color: #0d6efd !important; background: #e7f1ff; box-shadow: 0 0 0 2px #0d6efd; }
-.rental-category-card input:checked + .category-content i { color: #0d6efd !important; }
-</style>
 
 <!-- Detaljvisning Modal -->
 <div class="modal fade" id="detailsModal" tabindex="-1">
@@ -379,162 +294,50 @@ function renderObjectCard(obj) {
     `;
 }
 
-let rentalWizardStep = 1;
-const rentalWizardTotalSteps = 3;
-let isEditMode = false;
-
 function showCreateRentalModal() {
-    isEditMode = false;
     document.getElementById('rentalModalTitle').textContent = 'Opprett nytt utleieobjekt';
     document.getElementById('rentalForm').reset();
     document.getElementById('rental_id').value = '';
-    
-    rentalWizardStep = 1;
-    updateRentalWizardUI();
-    
-    document.querySelectorAll('#categoryCards input[name="category"]').forEach(r => r.checked = false);
-    document.getElementById('formFieldsContainer').innerHTML = '';
-    document.getElementById('summaryContent').innerHTML = '';
-    
+    buildIntegratedForm();
     const modal = new bootstrap.Modal(document.getElementById('rentalModal'));
     modal.show();
 }
 
-function updateRentalWizardUI() {
-    for (let i = 1; i <= rentalWizardTotalSteps; i++) {
-        const stepContent = document.getElementById(`rental-wizard-step-${i}`);
-        const stepIndicator = document.querySelector(`.rental-wizard-step[data-step="${i}"]`);
-        
-        if (stepContent) stepContent.style.display = (i === rentalWizardStep) ? 'block' : 'none';
-        
-        if (stepIndicator) {
-            stepIndicator.classList.remove('active', 'completed');
-            if (i < rentalWizardStep) stepIndicator.classList.add('completed');
-            else if (i === rentalWizardStep) stepIndicator.classList.add('active');
-        }
-    }
-    
-    const prevBtn = document.getElementById('rental-wizard-prev');
-    const nextBtn = document.getElementById('rental-wizard-next');
-    const submitBtn = document.getElementById('rental-wizard-submit');
-    
-    if (prevBtn) prevBtn.style.display = (rentalWizardStep > 1) ? 'inline-block' : 'none';
-    if (nextBtn) nextBtn.style.display = (rentalWizardStep < rentalWizardTotalSteps) ? 'inline-block' : 'none';
-    if (submitBtn) submitBtn.style.display = (rentalWizardStep === rentalWizardTotalSteps) ? 'inline-block' : 'none';
-    
-    validateRentalWizardStep();
-}
-
-function validateRentalWizardStep() {
-    const nextBtn = document.getElementById('rental-wizard-next');
-    if (!nextBtn) return;
-    
-    let isValid = false;
-    
-    if (rentalWizardStep === 1) {
-        const selectedCategory = document.querySelector('#categoryCards input[name="category"]:checked');
-        isValid = !!selectedCategory;
-    } else if (rentalWizardStep === 2) {
-        const objectName = document.querySelector('#formFieldsContainer input[name="object_name"]');
-        const rentalPrice = document.querySelector('#formFieldsContainer input[name="rental_price"]');
-        isValid = objectName && objectName.value.trim() !== '' && rentalPrice && parseFloat(rentalPrice.value) > 0;
-    }
-    
-    nextBtn.disabled = !isValid;
-}
-
-function goToRentalWizardStep(step) {
-    if (step < 1 || step > rentalWizardTotalSteps) return;
-    
-    if (step > rentalWizardStep) {
-        if (rentalWizardStep === 1) {
-            const selectedCategory = document.querySelector('#categoryCards input[name="category"]:checked');
-            if (!selectedCategory) {
-                toast.quickError('Velg type', 'Du må velge en objekttype først');
-                return;
-            }
-            buildIntegratedForm(selectedCategory.value, {});
-        } else if (rentalWizardStep === 2 && step === 3) {
-            buildRentalSummary();
-        }
-    }
-    
-    rentalWizardStep = step;
-    updateRentalWizardUI();
-}
-
-function buildRentalSummary() {
-    const formData = getCurrentFormData();
-    const category = document.querySelector('#categoryCards input[name="category"]:checked')?.value || formData.category;
-    const schema = rentalSchemas[category];
-    
-    let html = `
-        <div class="row">
-            <div class="col-md-6">
-                <h6 class="text-muted mb-2">Grunnleggende info</h6>
-                <p class="mb-1"><strong>Navn:</strong> ${formData.object_name || '-'}</p>
-                <p class="mb-1"><strong>Type:</strong> ${schema?.label || category}</p>
-                <p class="mb-1"><strong>Pris per dag:</strong> ${formData.rental_price || 0} NOK</p>
-                ${formData.weekend_price ? `<p class="mb-1"><strong>Helgepris:</strong> ${formData.weekend_price} NOK</p>` : ''}
-            </div>
-            <div class="col-md-6">
-                <h6 class="text-muted mb-2">Lokasjon</h6>
-                <p class="mb-1"><strong>Adresse:</strong> ${formData.address || '-'}</p>
-                <p class="mb-1"><strong>By:</strong> ${formData.city || '-'}</p>
-                <p class="mb-1"><strong>Status:</strong> ${formData.is_available ? 'Tilgjengelig' : 'Ikke tilgjengelig'}</p>
-            </div>
-        </div>
-        ${formData.description ? `<div class="mt-3"><h6 class="text-muted mb-2">Beskrivelse</h6><p>${formData.description}</p></div>` : ''}
-    `;
-    
-    document.getElementById('summaryContent').innerHTML = html;
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('#categoryCards input[name="category"]').forEach(radio => {
-        radio.addEventListener('change', validateRentalWizardStep);
-    });
-    
-    document.getElementById('rental-wizard-next')?.addEventListener('click', function() {
-        goToRentalWizardStep(rentalWizardStep + 1);
-    });
-    
-    document.getElementById('rental-wizard-prev')?.addEventListener('click', function() {
-        goToRentalWizardStep(rentalWizardStep - 1);
-    });
-    
-    document.getElementById('formFieldsContainer')?.addEventListener('input', validateRentalWizardStep);
-});
-
 function buildIntegratedForm(category = '', existingData = {}) {
     const container = document.getElementById('formFieldsContainer');
-    const schema = rentalSchemas[category];
-    const categoryLabel = schema?.label || category;
     
     let html = `
-        <input type="hidden" name="category" value="${category}">
-        <div class="alert alert-info py-2 mb-3">
-            <i class="bi ${schema?.icon || 'bi-box'} me-2"></i>
-            <strong>Type:</strong> ${categoryLabel}
-        </div>
         <div class="row mb-3">
             <div class="col-md-6">
                 <label class="form-label">Objektnavn <span class="text-danger">*</span></label>
                 <input type="text" class="form-control" name="object_name" value="${existingData.object_name || ''}" required>
             </div>
             <div class="col-md-6">
-                <label class="form-label">Leiepris per dag (NOK) <span class="text-danger">*</span></label>
-                <input type="number" class="form-control" name="rental_price" step="0.01" value="${existingData.rental_price || ''}" required>
+                <label class="form-label">Kategori <span class="text-danger">*</span></label>
+                <select class="form-select" name="category" id="categorySelect" required onchange="buildIntegratedForm(this.value, getCurrentFormData())">
+                    <option value="">Velg kategori</option>
+    `;
+    
+    Object.entries(rentalSchemas).forEach(([key, schema]) => {
+        html += `<option value="${key}" ${key === category ? 'selected' : ''}>${schema.label}</option>`;
+    });
+    
+    html += `
+                </select>
             </div>
         </div>
         
         <div class="row mb-3">
-            <div class="col-md-6">
+            <div class="col-md-4">
+                <label class="form-label">Leiepris per dag (NOK) <span class="text-danger">*</span></label>
+                <input type="number" class="form-control" name="rental_price" step="0.01" value="${existingData.rental_price || ''}" required>
+            </div>
+            <div class="col-md-4">
                 <label class="form-label">Helgepris per dag (NOK)</label>
                 <input type="number" class="form-control" name="weekend_price" step="0.01" value="${existingData.weekend_price || 0}">
                 <small class="text-muted">0 = samme som ukedag</small>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <label class="form-label">Depositum (NOK)</label>
                 <input type="number" class="form-control" name="deposit_amount" step="0.01" value="${existingData.deposit_amount || 0}">
             </div>
@@ -728,17 +531,10 @@ async function editRentalObject(objectId) {
         return;
     }
     
-    isEditMode = true;
     document.getElementById('rentalModalTitle').textContent = 'Rediger utleieobjekt';
     document.getElementById('rental_id').value = obj.id;
     
-    const categoryRadio = document.querySelector(`#categoryCards input[name="category"][value="${obj.category}"]`);
-    if (categoryRadio) categoryRadio.checked = true;
-    
     buildIntegratedForm(obj.category, obj);
-    
-    rentalWizardStep = 2;
-    updateRentalWizardUI();
     
     const modal = new bootstrap.Modal(document.getElementById('rentalModal'));
     modal.show();
@@ -773,75 +569,22 @@ async function deleteRentalObject(objectId) {
     }
 }
 
-async function viewDetails(objectId) {
+function viewDetails(objectId) {
     const obj = allRentalObjects.find(o => o.id === objectId);
     if (!obj) return;
     
     const schema = rentalSchemas[obj.category];
     document.getElementById('detailsModalTitle').textContent = obj.object_name;
     
-    document.getElementById('detailsModalBody').innerHTML = `
-        <div class="text-center py-4">
-            <div class="spinner-border spinner-border-sm me-2"></div>
-            Laster tilgjengelighet...
-        </div>
-    `;
-    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
-    modal.show();
-    
-    let availabilityHTML = '';
-    try {
-        const response = await fetch(`/api/get_rental_availability.php?object_id=${objectId}`);
-        const result = await response.json();
-        
-        if (result.success) {
-            const av = result.availability;
-            const statusBadge = av.status === 'available' 
-                ? '<span class="badge bg-success fs-6"><i class="bi bi-check-circle me-1"></i>Ledig nå</span>'
-                : av.status === 'rented' 
-                    ? '<span class="badge bg-warning text-dark fs-6"><i class="bi bi-clock me-1"></i>Utleid</span>'
-                    : '<span class="badge bg-secondary fs-6"><i class="bi bi-x-circle me-1"></i>Utilgjengelig</span>';
-            
-            availabilityHTML = `
-                <div class="card bg-light mb-3">
-                    <div class="card-body">
-                        <h6 class="card-title mb-3"><i class="bi bi-calendar-check me-2"></i>Tilgjengelighet</h6>
-                        <div class="mb-2">${statusBadge}</div>
-                        ${av.upcoming_count > 0 ? `<small class="text-muted">${av.upcoming_count} kommende reservasjon(er)</small>` : ''}
-                        
-                        ${av.current_reservation ? `
-                            <div class="alert alert-warning py-2 mt-3 mb-0">
-                                <strong><i class="bi bi-person me-1"></i>Nåværende leie:</strong><br>
-                                ${av.current_reservation.customer_name || 'Ukjent kunde'}<br>
-                                <small>${formatDate(av.current_reservation.start_date)} - ${formatDate(av.current_reservation.end_date)}</small>
-                            </div>
-                        ` : ''}
-                        
-                        ${av.next_reservation ? `
-                            <div class="alert alert-info py-2 mt-3 mb-0">
-                                <strong><i class="bi bi-calendar-event me-1"></i>Neste reservasjon:</strong><br>
-                                ${av.next_reservation.customer_name || 'Ukjent kunde'}<br>
-                                <small>${formatDate(av.next_reservation.start_date)} - ${formatDate(av.next_reservation.end_date)}</small>
-                            </div>
-                        ` : '<div class="text-muted mt-2"><small>Ingen kommende reservasjoner</small></div>'}
-                    </div>
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('Error fetching availability:', error);
-        availabilityHTML = '<div class="alert alert-danger">Kunne ikke hente tilgjengelighet</div>';
-    }
-    
     let detailsHTML = `
         <div class="row">
             <div class="col-md-6">
-                ${availabilityHTML}
                 ${obj.image_url ? `<img src="${obj.image_url}" class="img-fluid rounded mb-3" alt="${obj.object_name}">` : ''}
-                <p><strong>Kategori:</strong> ${schema?.label || obj.category}</p>
+                <p><strong>Kategori:</strong> ${schema.label}</p>
                 <p><strong>Leiepris (ukedag):</strong> ${parseFloat(obj.rental_price).toFixed(0)} NOK/dag</p>
                 ${obj.weekend_price > 0 ? `<p><strong>Leiepris (helg):</strong> ${parseFloat(obj.weekend_price).toFixed(0)} NOK/dag</p>` : ''}
                 ${obj.deposit_amount > 0 ? `<p><strong>Depositum:</strong> ${parseFloat(obj.deposit_amount).toFixed(0)} NOK</p>` : ''}
+                <p><strong>Status:</strong> ${obj.is_available ? '<span class="badge bg-success">Tilgjengelig</span>' : '<span class="badge bg-secondary">Ikke tilgjengelig</span>'}</p>
                 ${obj.description ? `<p><strong>Beskrivelse:</strong><br>${obj.description}</p>` : ''}
             </div>
             <div class="col-md-6">
@@ -867,11 +610,7 @@ async function viewDetails(objectId) {
     `;
     
     document.getElementById('detailsModalBody').innerHTML = detailsHTML;
-}
-
-function formatDate(dateStr) {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' });
+    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+    modal.show();
 }
 </script>

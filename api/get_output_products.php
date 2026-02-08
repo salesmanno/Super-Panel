@@ -71,13 +71,13 @@ try {
                         }
                         break;
                     case 'rental':
-                        $nameStmt = $db->prepare("SELECT object_name FROM rental_objects WHERE id = ?");
+                        $nameStmt = $db->prepare("SELECT name FROM rental_objects WHERE id = ?");
                         $nameStmt->execute([$product['product_id']]);
                         $row = $nameStmt->fetch(PDO::FETCH_ASSOC);
                         if ($row) {
-                            $product['name'] = $row['object_name'];
+                            $product['name'] = $row['name'];
                             $updateStmt = $db->prepare("UPDATE output_products SET name = ? WHERE id = ?");
-                            $updateStmt->execute([$row['object_name'], $product['id']]);
+                            $updateStmt->execute([$row['name'], $product['id']]);
                         }
                         break;
                     case 'service':

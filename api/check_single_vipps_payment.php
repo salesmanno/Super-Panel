@@ -160,7 +160,7 @@ try {
         $authCode = $paymentStatus['authorization_code'] ?? null;
         $normalizedState = strtolower($state);
         
-        $newPaymentStatus = ($state === 'CAPTURED') ? 'paid' : 'pending';
+        $newPaymentStatus = in_array($state, ['AUTHORIZED', 'CAPTURED']) ? 'paid' : 'pending';
         
         $updateStmt = $db->prepare("
             UPDATE events_checkin ec

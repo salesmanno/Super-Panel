@@ -173,11 +173,10 @@
                                         <th>Kategori</th>
                                         <th>Betaling</th>
                                         <th class="text-end">Beløp</th>
-                                        <th class="text-end">Slett</th>
                                     </tr>
                                 </thead>
                                 <tbody id="income-transactions">
-                                    <tr><td colspan="6" class="text-center py-3 text-muted">Laster...</td></tr>
+                                    <tr><td colspan="5" class="text-center py-3 text-muted">Laster...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -248,11 +247,10 @@
                                         <th>Kategori</th>
                                         <th>Betaling</th>
                                         <th class="text-end">Beløp</th>
-                                        <th class="text-end">Slett</th>
                                     </tr>
                                 </thead>
                                 <tbody id="expense-transactions">
-                                    <tr><td colspan="6" class="text-center py-3 text-muted">Laster...</td></tr>
+                                    <tr><td colspan="5" class="text-center py-3 text-muted">Laster...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -663,11 +661,11 @@ async function loadIncomeData() {
             document.getElementById('income-total').textContent = formatCurrency(d.total || 0);
             document.getElementById('income-count').textContent = d.count || 0;
             
-            renderIncomeTransactions(d.transactions || [], d.grouped_tickets || []);
+            renderIncomeTransactions(d.transactions || []);
         } else {
             document.getElementById('income-total').textContent = formatCurrency(0);
             document.getElementById('income-count').textContent = '0';
-            renderIncomeTransactions([], []);
+            renderIncomeTransactions([]);
         }
     } catch (error) {
         console.error('Load income error:', error);
@@ -691,60 +689,23 @@ async function loadIncomeData() {
     }
 }
 
-function renderIncomeTransactions(transactions, groupedTickets) {
+function renderIncomeTransactions(transactions) {
     const tbody = document.getElementById('income-transactions');
     
-    const hasGroupedTickets = groupedTickets && groupedTickets.length > 0;
-    const hasTransactions = transactions && transactions.length > 0;
-    
-    if (!hasGroupedTickets && !hasTransactions) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3 text-muted">Ingen inntekter registrert</td></tr>';
+    if (!transactions.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Ingen inntekter registrert</td></tr>';
         return;
     }
     
-    let html = '';
-    
-    if (hasGroupedTickets) {
-        groupedTickets.forEach(g => {
-            const ticketLabel = g.ticket_type && g.ticket_type !== 'Ordinær' 
-                ? `<strong>${g.ticket_type}</strong>` 
-                : '';
-            html += `
-                <tr class="transaction-row income">
-                    <td><i class="bi bi-ticket-perforated me-1"></i>Billett</td>
-                    <td>
-                        <span>${g.event_title}</span> ${ticketLabel}
-                        <small class="text-muted d-block">${g.count} stk @ ${formatCurrency(g.unit_price)}</small>
-                    </td>
-                    <td><span class="badge bg-secondary module-badge">Arrangement</span></td>
-                    <td>Billettsalg</td>
-                    <td class="text-end text-success"><strong>+${formatCurrency(g.total)}</strong></td>
-                    <td class="text-end">-</td>
-                </tr>
-            `;
-        });
-    }
-    
-    if (hasTransactions) {
-        transactions.forEach(t => {
-            html += `
-                <tr class="transaction-row income">
-                    <td>${formatDate(t.transaction_date)}</td>
-                    <td>${t.item_name || '-'}</td>
-                    <td><span class="badge bg-secondary module-badge">${moduleLabels[t.category] || t.category}</span></td>
-                    <td>${paymentLabels[t.payment_method] || t.payment_method || '-'}</td>
-                    <td class="text-end text-success">+${formatCurrency(t.selling_price)}</td>
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="deleteLedgerEntry('${t.id}')" title="Slett">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-        });
-    }
-    
-    tbody.innerHTML = html;
+    tbody.innerHTML = transactions.map(t => `
+        <tr class="transaction-row income">
+            <td>${formatDate(t.transaction_date)}</td>
+            <td>${t.item_name || '-'}</td>
+            <td><span class="badge bg-secondary module-badge">${moduleLabels[t.category] || t.category}</span></td>
+            <td>${paymentLabels[t.payment_method] || t.payment_method || '-'}</td>
+            <td class="text-end text-success">+${formatCurrency(t.selling_price)}</td>
+        </tr>
+    `).join('');
 }
 
 async function loadExpenseData() {
@@ -797,7 +758,7 @@ function renderExpenseTransactions(transactions) {
     const tbody = document.getElementById('expense-transactions');
     
     if (!transactions.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3 text-muted">Ingen utgifter registrert</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Ingen utgifter registrert</td></tr>';
         return;
     }
     
@@ -808,11 +769,6 @@ function renderExpenseTransactions(transactions) {
             <td><span class="badge bg-secondary module-badge">${moduleLabels[t.category] || t.category}</span></td>
             <td>${paymentLabels[t.payment_method] || t.payment_method || '-'}</td>
             <td class="text-end text-danger">-${formatCurrency(t.amount)}</td>
-            <td class="text-end">
-                <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="deleteLedgerEntry('${t.id}')" title="Slett">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </td>
         </tr>
     `).join('');
 }
@@ -878,31 +834,6 @@ async function saveTransaction() {
     } catch (error) {
         console.error('Save transaction error:', error);
         alert('Kunne ikke lagre transaksjon');
-    }
-}
-
-async function deleteLedgerEntry(id) {
-    if (!confirm('Er du sikker på at du vil slette denne oppføringen fra hovedboken?')) return;
-    
-    try {
-        const response = await fetch('/api/delete_ledger_entry.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ id: id })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            loadEconomyOverview();
-            loadIncomeData();
-            loadExpenseData();
-        } else {
-            alert('Feil: ' + (result.message || 'Kunne ikke slette oppføring'));
-        }
-    } catch (error) {
-        console.error('Delete ledger entry error:', error);
-        alert('Feil ved sletting av oppføring');
     }
 }
 

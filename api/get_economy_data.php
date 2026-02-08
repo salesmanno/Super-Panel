@@ -118,17 +118,14 @@ try {
                 $params[] = $end_date . ' 23:59:59';
             }
             
+            // Get all income transactions (positive selling_price only)
             $stmt = $db->prepare("
                 SELECT 
-                    id,
                     transaction_date,
                     item_name,
                     module_source as category,
-                    item_type,
-                    source_id,
                     selling_price,
-                    payment_method,
-                    metadata
+                    payment_method
                 FROM unified_ledger 
                 WHERE company_id = ? 
                   AND status = 'active'
@@ -140,82 +137,7 @@ try {
             $stmt->execute($params);
             $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
-            $grouped_tickets = [];
-            $other_transactions = [];
-            $eventTitleCache = [];
-            
-            foreach ($transactions as $t) {
-                if ($t['item_type'] === 'event_ticket' || $t['item_type'] === 'event') {
-                    $meta = json_decode($t['metadata'] ?? '{}', true);
-                    $eventId = $meta['event_id'] ?? null;
-                    
-                    if (!$eventId) {
-                        $checkinId = $t['source_id'] ?? null;
-                        if ($checkinId) {
-                            $evLookup = $db->prepare("SELECT event_id FROM events_checkin WHERE id = ? LIMIT 1");
-                            $evLookup->execute([$checkinId]);
-                            $evRow = $evLookup->fetch(PDO::FETCH_ASSOC);
-                            $eventId = $evRow ? $evRow['event_id'] : $checkinId;
-                        } else {
-                            $eventId = 'unknown';
-                        }
-                    }
-                    
-                    if (!isset($eventTitleCache[$eventId])) {
-                        $itemName = $t['item_name'] ?? '';
-                        $isGenericName = empty($itemName) || strpos($itemName, 'Walk-in') !== false || strpos($itemName, 'Event Registration') !== false;
-                        
-                        if ($isGenericName) {
-                            $titleLookup = $db->prepare("SELECT title FROM events_eventdata WHERE id = ? LIMIT 1");
-                            $titleLookup->execute([$eventId]);
-                            $titleRow = $titleLookup->fetch(PDO::FETCH_ASSOC);
-                            $eventTitleCache[$eventId] = $titleRow ? $titleRow['title'] : ($meta['event_title'] ?? $itemName ?: 'Ukjent arrangement');
-                        } else {
-                            $eventTitleCache[$eventId] = $itemName;
-                        }
-                    }
-                    
-                    $eventTitle = $eventTitleCache[$eventId];
-                    $checkinId = $t['source_id'] ?? ($meta['checkin_id'] ?? null);
-                    $memberType = 'Ikke-medlem';
-                    if ($checkinId) {
-                        $memberLookup = $db->prepare("SELECT membership_plan_id FROM events_checkin WHERE id = ? LIMIT 1");
-                        $memberLookup->execute([$checkinId]);
-                        $memberRow = $memberLookup->fetch(PDO::FETCH_ASSOC);
-                        if ($memberRow && $memberRow['membership_plan_id']) {
-                            $memberType = 'Medlem';
-                        }
-                    }
-                    $price = floatval($t['selling_price']);
-                    $key = $eventId . '|' . $memberType . '|' . number_format($price, 2);
-                    
-                    if (!isset($grouped_tickets[$key])) {
-                        $grouped_tickets[$key] = [
-                            'event_title' => $eventTitle,
-                            'event_id' => $eventId,
-                            'ticket_type' => $memberType,
-                            'unit_price' => $price,
-                            'count' => 0,
-                            'total' => 0,
-                            'ids' => []
-                        ];
-                    }
-                    $grouped_tickets[$key]['count']++;
-                    $grouped_tickets[$key]['total'] += $price;
-                    $grouped_tickets[$key]['ids'][] = $t['id'];
-                } else {
-                    $other_transactions[] = $t;
-                }
-            }
-            
-            $stats_params = [$company_id];
-            $statsDateFilter = '';
-            if ($start_date && $end_date) {
-                $statsDateFilter = " AND transaction_date BETWEEN ? AND ?";
-                $stats_params[] = $start_date;
-                $stats_params[] = $end_date . ' 23:59:59';
-            }
-            
+            // Get summary stats
             $stmt = $db->prepare("
                 SELECT 
                     COALESCE(SUM(selling_price), 0) as total,
@@ -225,14 +147,13 @@ try {
                   AND status = 'active'
                   AND payment_status = 'completed'
                   AND selling_price > 0
-                  {$statsDateFilter}
+                  {$dateFilter}
             ");
-            $stmt->execute($stats_params);
+            $stmt->execute($params);
             $stats = $stmt->fetch(PDO::FETCH_ASSOC);
             
             $response['data'] = [
-                'transactions' => $other_transactions,
-                'grouped_tickets' => array_values($grouped_tickets),
+                'transactions' => $transactions,
                 'total' => floatval($stats['total']),
                 'average' => floatval($stats['average']),
                 'count' => count($transactions)
@@ -249,9 +170,9 @@ try {
                 $params[] = $end_date . ' 23:59:59';
             }
             
+            // Get all expense transactions (negative selling_price)
             $stmt = $db->prepare("
                 SELECT 
-                    id,
                     transaction_date,
                     item_name,
                     module_source as category,
