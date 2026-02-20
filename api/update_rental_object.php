@@ -88,7 +88,7 @@ try {
                         
                         // Handle checkbox values
                         if ($schema['fields'][$field]['type'] === 'checkbox') {
-                            $typeParams[] = $value ? 1 : 0;
+                            $typeParams[] = ($value && $value !== '0' && $value !== 0) ? 1 : 0;
                         } else {
                             $typeParams[] = $value !== '' ? $value : null;
                         }
@@ -114,7 +114,7 @@ try {
                         $typeValues[] = '?';
                         
                         if ($schema['fields'][$field]['type'] === 'checkbox') {
-                            $typeParams[] = $value ? 1 : 0;
+                            $typeParams[] = ($value && $value !== '0' && $value !== 0) ? 1 : 0;
                         } else {
                             $typeParams[] = $value !== '' ? $value : null;
                         }

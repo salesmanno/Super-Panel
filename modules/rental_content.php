@@ -29,17 +29,41 @@ $schemas = getRentalSchemas();
     </div>
 
     <div id="rental-create" class="subtab-content" style="display: none;">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title mb-3">Opprett nytt utleieobjekt</h5>
-                <form id="createRentalForm">
-                    <div id="createFormFieldsContainer"></div>
-                    <div class="mt-3">
-                        <button type="button" class="btn btn-primary" onclick="saveNewRentalObject()">
-                            <i class="bi bi-check-circle me-1"></i>Opprett objekt
+        <div id="createFormSection">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Opprett nytt utleieobjekt</h5>
+                    <form id="createRentalForm">
+                        <div id="createFormFieldsContainer"></div>
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-primary" onclick="showCreateSummary()">
+                                <i class="bi bi-eye me-1"></i>Forhåndsvis og opprett
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div id="createSummarySection" style="display: none;">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">Oppsummering - nytt utleieobjekt</h5>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="backToCreateForm()">
+                            <i class="bi bi-arrow-left me-1"></i>Tilbake til skjema
                         </button>
                     </div>
-                </form>
+                    <div id="createSummaryContent"></div>
+                    <hr>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-success" onclick="confirmSaveNewRentalObject()">
+                            <i class="bi bi-check-circle me-1"></i>Bekreft og opprett
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="backToCreateForm()">
+                            <i class="bi bi-pencil me-1"></i>Rediger
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -361,7 +385,10 @@ function buildFormFields(containerId, category = '', existingData = {}) {
         <div class="row mb-3">
             <div class="col-md-6">
                 <label class="form-label">Bilde URL</label>
-                <input type="text" class="form-control" name="image_url" value="${existingData.image_url || ''}" placeholder="https://...">
+                <input type="text" class="form-control" name="image_url" value="${existingData.image_url || ''}" placeholder="https://..." oninput="updateImagePreview(this, '${containerId}')">
+                <div id="${containerId}_imagePreview" class="mt-2">
+                    ${existingData.image_url ? `<img src="${existingData.image_url}" class="img-thumbnail" style="max-height: 150px; max-width: 100%;" onerror="this.style.display='none'">` : ''}
+                </div>
             </div>
             <div class="col-md-6">
                 <label class="form-label">Beskrivelse</label>
@@ -543,7 +570,19 @@ async function saveRentalObject() {
     }
 }
 
-async function saveNewRentalObject() {
+function updateImagePreview(input, containerId) {
+    const previewDiv = document.getElementById(containerId + '_imagePreview');
+    const url = input.value.trim();
+    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+        previewDiv.innerHTML = `<img src="${url}" class="img-thumbnail" style="max-height: 150px; max-width: 100%;" onerror="this.parentElement.innerHTML='<small class=\\'text-danger\\'>Kunne ikke laste bildet</small>'">`;
+    } else {
+        previewDiv.innerHTML = '';
+    }
+}
+
+let pendingCreateData = null;
+
+function showCreateSummary() {
     const form = document.getElementById('createRentalForm');
     if (!form.checkValidity()) {
         form.reportValidity();
@@ -551,33 +590,126 @@ async function saveNewRentalObject() {
     }
     
     const formData = new FormData(form);
+    const category = formData.get('category');
+    
+    if (!category) {
+        toast.quickError('Feil', 'Du må velge en kategori');
+        return;
+    }
     
     const data = {
         object_name: formData.get('object_name'),
-        category: formData.get('category'),
+        category: category,
         rental_price: parseFloat(formData.get('rental_price')),
         weekend_price: parseFloat(formData.get('weekend_price')) || 0,
         deposit_amount: parseFloat(formData.get('deposit_amount')) || 0,
         image_url: formData.get('image_url') || null,
         description: formData.get('description') || null,
-        is_available: formData.get('is_available') === 'on'
+        is_available: form.querySelector('[name="is_available"]')?.checked ?? true
     };
     
     const typeData = {};
-    for (let [key, value] of formData.entries()) {
-        if (key.startsWith('type_data[')) {
-            const fieldName = key.match(/type_data\[(.+)\]/)[1];
-            const inputElement = form.querySelector(`[name="${key}"]`);
-            if (inputElement && inputElement.type === 'checkbox') {
-                typeData[fieldName] = value === '1';
-            } else {
-                typeData[fieldName] = value || null;
+    const schema = rentalSchemas[category];
+    if (schema) {
+        Object.entries(schema.fields).forEach(([fieldName, field]) => {
+            const inputElement = form.querySelector(`[name="type_data[${fieldName}]"]`);
+            if (inputElement) {
+                if (field.type === 'checkbox') {
+                    typeData[fieldName] = inputElement.checked;
+                } else {
+                    typeData[fieldName] = inputElement.value || null;
+                }
             }
-        }
+        });
     }
     
     if (Object.keys(typeData).length > 0) {
         data.type_data = typeData;
+    }
+    
+    pendingCreateData = data;
+    
+    const categoryLabel = schema ? schema.label : category;
+    
+    let summaryHTML = '<div class="row">';
+    
+    summaryHTML += '<div class="col-md-4 mb-3">';
+    if (data.image_url) {
+        summaryHTML += `<img src="${data.image_url}" class="img-fluid rounded shadow-sm mb-2" style="max-height: 250px; width: 100%; object-fit: cover;" onerror="this.outerHTML='<div class=\\'bg-light rounded d-flex align-items-center justify-content-center\\' style=\\'height:200px\\'><i class=\\'bi bi-image fs-1 text-muted\\'></i></div>'">`;
+    } else {
+        summaryHTML += `<div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 200px;"><i class="bi bi-image fs-1 text-muted"></i></div>`;
+    }
+    summaryHTML += '</div>';
+    
+    summaryHTML += '<div class="col-md-4 mb-3">';
+    summaryHTML += '<h6 class="text-muted mb-2">Grunndata</h6>';
+    summaryHTML += `<table class="table table-sm table-borderless">`;
+    summaryHTML += `<tr><td class="text-muted" style="width:45%">Objektnavn</td><td><strong>${data.object_name}</strong></td></tr>`;
+    summaryHTML += `<tr><td class="text-muted">Kategori</td><td><span class="badge bg-primary">${categoryLabel}</span></td></tr>`;
+    summaryHTML += `<tr><td class="text-muted">Leiepris/dag</td><td><strong class="text-success">${data.rental_price.toFixed(0)} NOK</strong></td></tr>`;
+    if (data.weekend_price > 0) {
+        summaryHTML += `<tr><td class="text-muted">Helgepris/dag</td><td>${data.weekend_price.toFixed(0)} NOK</td></tr>`;
+    }
+    if (data.deposit_amount > 0) {
+        summaryHTML += `<tr><td class="text-muted">Depositum</td><td>${data.deposit_amount.toFixed(0)} NOK</td></tr>`;
+    }
+    summaryHTML += `<tr><td class="text-muted">Status</td><td>${data.is_available ? '<span class="badge bg-success">Tilgjengelig</span>' : '<span class="badge bg-secondary">Ikke tilgjengelig</span>'}</td></tr>`;
+    if (data.description) {
+        summaryHTML += `<tr><td class="text-muted">Beskrivelse</td><td>${data.description}</td></tr>`;
+    }
+    summaryHTML += '</table></div>';
+    
+    summaryHTML += '<div class="col-md-4 mb-3">';
+    if (data.type_data && schema && Object.keys(data.type_data).length > 0) {
+        summaryHTML += `<h6 class="text-muted mb-2">${categoryLabel} - detaljer</h6>`;
+        summaryHTML += '<table class="table table-sm table-borderless">';
+        Object.entries(data.type_data).forEach(([key, value]) => {
+            const field = schema.fields[key];
+            if (field && value !== null && value !== '') {
+                let displayValue = value;
+                if (field.type === 'checkbox') {
+                    displayValue = value ? '<i class="bi bi-check-circle-fill text-success"></i> Ja' : '<i class="bi bi-x-circle-fill text-danger"></i> Nei';
+                }
+                summaryHTML += `<tr><td class="text-muted" style="width:50%">${field.label}</td><td>${displayValue}</td></tr>`;
+            }
+        });
+        summaryHTML += '</table>';
+    } else {
+        summaryHTML += '<div class="text-muted"><small>Ingen kategori-spesifikke detaljer fylt inn</small></div>';
+    }
+    summaryHTML += '</div>';
+    
+    summaryHTML += '</div>';
+    
+    document.getElementById('createSummaryContent').innerHTML = summaryHTML;
+    document.getElementById('createFormSection').style.display = 'none';
+    document.getElementById('createSummarySection').style.display = 'block';
+}
+
+function backToCreateForm() {
+    document.getElementById('createSummarySection').style.display = 'none';
+    document.getElementById('createFormSection').style.display = 'block';
+}
+
+async function confirmSaveNewRentalObject() {
+    if (!pendingCreateData) {
+        toast.quickError('Feil', 'Ingen data å lagre');
+        return;
+    }
+    
+    const data = {...pendingCreateData};
+    data.is_available = data.is_available ? 1 : 0;
+    
+    if (data.type_data) {
+        const convertedTypeData = {};
+        Object.entries(data.type_data).forEach(([key, value]) => {
+            if (typeof value === 'boolean') {
+                convertedTypeData[key] = value ? 1 : 0;
+            } else {
+                convertedTypeData[key] = value;
+            }
+        });
+        data.type_data = convertedTypeData;
     }
     
     const toastId = toast.loading('Oppretter objekt...');
@@ -593,7 +725,9 @@ async function saveNewRentalObject() {
         
         if (result.success) {
             toast.success(toastId, 'Objekt opprettet', `${data.object_name} er lagret`);
-            form.reset();
+            pendingCreateData = null;
+            backToCreateForm();
+            document.getElementById('createRentalForm').reset();
             buildCreateForm();
             loadRentalObjects();
         } else {
