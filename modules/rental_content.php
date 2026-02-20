@@ -276,9 +276,10 @@ function renderRentalObjects(objects) {
 function renderObjectCard(obj) {
     const schema = rentalSchemas[obj.category];
     const categoryLabel = schema ? schema.label : obj.category;
-    const statusBadge = obj.is_available 
-        ? '<span class="badge bg-success">Tilgjengelig</span>'
-        : '<span class="badge bg-secondary">Ikke tilgjengelig</span>';
+    const isAvailable = obj.is_available == 1 || obj.is_available === true;
+    const toggleChecked = isAvailable ? 'checked' : '';
+    const cardOpacity = isAvailable ? '' : 'opacity: 0.55;';
+    const cardBorder = isAvailable ? '' : 'border: 2px dashed #dee2e6;';
     
     let badges = obj.badges || [];
     const badgesHtml = badges.length > 0 
@@ -286,23 +287,33 @@ function renderObjectCard(obj) {
         : '';
     
     const imageHtml = obj.image_url 
-        ? `<img src="${obj.image_url}" class="card-img-top" style="height: 200px; object-fit: cover;" alt="${obj.object_name}">`
+        ? `<img src="${obj.image_url}" class="card-img-top" style="height: 200px; object-fit: cover;${isAvailable ? '' : ' filter: grayscale(70%);'}" alt="${obj.object_name}">`
         : `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
              <i class="bi bi-image fs-1 text-muted"></i>
            </div>`;
     
     const weekendPrice = obj.weekend_price > 0 ? `<br><small class="text-muted">Helg: ${parseFloat(obj.weekend_price).toFixed(0)} NOK/dag</small>` : '';
     
+    const hiddenLabel = !isAvailable ? '<span class="badge bg-warning text-dark ms-2"><i class="bi bi-eye-slash me-1"></i>Skjult</span>' : '';
+    
     return `
-        <div class="col">
-            <div class="card h-100">
+        <div class="col" id="rental-card-${obj.id}">
+            <div class="card h-100" style="${cardBorder}${cardOpacity}">
                 ${imageHtml}
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h6 class="card-title mb-0">${obj.object_name}</h6>
-                        ${statusBadge}
+                        <div>
+                            <h6 class="card-title mb-0 d-inline">${obj.object_name}</h6>
+                            ${hiddenLabel}
+                        </div>
                     </div>
-                    <p class="badge bg-primary mb-2">${categoryLabel}</p>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-primary">${categoryLabel}</span>
+                        <div class="form-check form-switch mb-0" title="${isAvailable ? 'Synlig for kunder' : 'Skjult for kunder'}">
+                            <input class="form-check-input" type="checkbox" role="switch" id="avail-${obj.id}" ${toggleChecked} onchange="toggleAvailability('${obj.id}', this.checked)">
+                            <label class="form-check-label small" for="avail-${obj.id}">${isAvailable ? 'Synlig' : 'Skjult'}</label>
+                        </div>
+                    </div>
                     <div class="mb-2">
                         ${badgesHtml}
                     </div>
@@ -736,6 +747,39 @@ async function confirmSaveNewRentalObject() {
     } catch (error) {
         console.error('Error creating rental object:', error);
         toast.error(toastId, 'Feil', 'Kunne ikke opprette objekt');
+    }
+}
+
+async function toggleAvailability(objectId, isAvailable) {
+    const obj = allRentalObjects.find(o => o.id === objectId);
+    if (!obj) return;
+    
+    try {
+        const response = await fetch('/api/update_rental_object.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: objectId, is_available: isAvailable ? 1 : 0 })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            obj.is_available = isAvailable ? 1 : 0;
+            const filtered = rentalFilter 
+                ? allRentalObjects.filter(o => o.category === rentalFilter)
+                : allRentalObjects;
+            renderRentalObjects(filtered);
+            toast.quickSuccess(isAvailable ? 'Synlig' : 'Skjult', `${obj.object_name} er nå ${isAvailable ? 'synlig for kunder' : 'skjult fra kunder'}`);
+        } else {
+            const toggle = document.getElementById(`avail-${objectId}`);
+            if (toggle) toggle.checked = !isAvailable;
+            toast.quickError('Feil', result.message || 'Kunne ikke oppdatere');
+        }
+    } catch (error) {
+        console.error('Error toggling availability:', error);
+        const toggle = document.getElementById(`avail-${objectId}`);
+        if (toggle) toggle.checked = !isAvailable;
+        toast.quickError('Feil', 'Kunne ikke oppdatere tilgjengelighet');
     }
 }
 
