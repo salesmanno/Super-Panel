@@ -543,7 +543,10 @@ try {
             <!-- Rental subtabs -->
             <ul class="nav nav-pills py-2 subtabs" id="subtabs-rental" style="display: none;">
                 <li class="nav-item">
-                    <a class="nav-link active" href="#rental-objects">Se og opprett utleieobjekt</a>
+                    <a class="nav-link active" href="#rental-objects">Se utleieobjekt</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#rental-create">Opprett utleieobjekt</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="#rental-contracts">Kontrakt & betingelser</a>

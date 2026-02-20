@@ -7,12 +7,7 @@ $schemas = getRentalSchemas();
     <div id="rental-objects" class="subtab-content">
         <div class="card">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">Utleieobjekter</h5>
-                    <button class="btn btn-primary btn-sm" onclick="showCreateRentalModal()">
-                        <i class="bi bi-plus-circle me-1"></i>Nytt objekt
-                    </button>
-                </div>
+                <h5 class="card-title mb-3">Utleieobjekter</h5>
                 
                 <div class="mb-3">
                     <select class="form-select form-select-sm" id="categoryFilter" onchange="filterByCategory()">
@@ -29,6 +24,22 @@ $schemas = getRentalSchemas();
                         Laster inn data...
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="rental-create" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Opprett nytt utleieobjekt</h5>
+                <form id="createRentalForm">
+                    <div id="createFormFieldsContainer"></div>
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-primary" onclick="saveNewRentalObject()">
+                            <i class="bi bi-check-circle me-1"></i>Opprett objekt
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -133,12 +144,12 @@ $schemas = getRentalSchemas();
     </div>
 </div>
 
-<!-- Modal for opprettelse/redigering av utleieobjekt -->
+<!-- Modal for redigering av utleieobjekt -->
 <div class="modal fade" id="rentalModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="rentalModalTitle">Opprett nytt utleieobjekt</h5>
+                <h5 class="modal-title" id="rentalModalTitle">Rediger utleieobjekt</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -180,6 +191,7 @@ let rentalFilter = '';
 
 document.addEventListener('DOMContentLoaded', function() {
     loadRentalObjects();
+    buildCreateForm();
 });
 
 async function loadRentalObjects() {
@@ -294,17 +306,20 @@ function renderObjectCard(obj) {
     `;
 }
 
-function showCreateRentalModal() {
-    document.getElementById('rentalModalTitle').textContent = 'Opprett nytt utleieobjekt';
-    document.getElementById('rentalForm').reset();
-    document.getElementById('rental_id').value = '';
-    buildIntegratedForm();
-    const modal = new bootstrap.Modal(document.getElementById('rentalModal'));
-    modal.show();
+function buildCreateForm(category = '', existingData = {}) {
+    buildFormFields('createFormFieldsContainer', category, existingData);
 }
 
 function buildIntegratedForm(category = '', existingData = {}) {
-    const container = document.getElementById('formFieldsContainer');
+    buildFormFields('formFieldsContainer', category, existingData);
+}
+
+function buildFormFields(containerId, category = '', existingData = {}) {
+    const container = document.getElementById(containerId);
+    const formId = containerId === 'createFormFieldsContainer' ? 'createRentalForm' : 'rentalForm';
+    const rebuildFn = containerId === 'createFormFieldsContainer' ? 'buildCreateForm' : 'buildIntegratedForm';
+    const selectId = containerId === 'createFormFieldsContainer' ? 'createCategorySelect' : 'categorySelect';
+    const checkboxId = containerId === 'createFormFieldsContainer' ? 'createIsAvailable' : 'isAvailable';
     
     let html = `
         <div class="row mb-3">
@@ -314,7 +329,7 @@ function buildIntegratedForm(category = '', existingData = {}) {
             </div>
             <div class="col-md-6">
                 <label class="form-label">Kategori <span class="text-danger">*</span></label>
-                <select class="form-select" name="category" id="categorySelect" required onchange="buildIntegratedForm(this.value, getCurrentFormData())">
+                <select class="form-select" name="category" id="${selectId}" required onchange="${rebuildFn}(this.value, getFormData('${formId}'))">
                     <option value="">Velg kategori</option>
     `;
     
@@ -355,8 +370,8 @@ function buildIntegratedForm(category = '', existingData = {}) {
         </div>
         
         <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" name="is_available" id="isAvailable" ${(existingData.is_available === undefined || existingData.is_available === null || existingData.is_available === true || existingData.is_available === 1 || existingData.is_available === '1') ? 'checked' : ''}>
-            <label class="form-check-label" for="isAvailable">
+            <input class="form-check-input" type="checkbox" name="is_available" id="${checkboxId}" ${(existingData.is_available === undefined || existingData.is_available === null || existingData.is_available === true || existingData.is_available === 1 || existingData.is_available === '1') ? 'checked' : ''}>
+            <label class="form-check-label" for="${checkboxId}">
                 Tilgjengelig for utleie
             </label>
         </div>
@@ -426,8 +441,8 @@ function generateIntegratedFieldHTML(fieldName, field, value = '') {
     `;
 }
 
-function getCurrentFormData() {
-    const form = document.getElementById('rentalForm');
+function getFormData(formId) {
+    const form = document.getElementById(formId);
     const formData = new FormData(form);
     
     const data = {
@@ -454,6 +469,10 @@ function getCurrentFormData() {
     }
     
     return data;
+}
+
+function getCurrentFormData() {
+    return getFormData('rentalForm');
 }
 
 async function saveRentalObject() {
@@ -521,6 +540,68 @@ async function saveRentalObject() {
     } catch (error) {
         console.error('Error saving rental object:', error);
         toast.error(toastId, 'Feil', 'Kunne ikke lagre objekt');
+    }
+}
+
+async function saveNewRentalObject() {
+    const form = document.getElementById('createRentalForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const formData = new FormData(form);
+    
+    const data = {
+        object_name: formData.get('object_name'),
+        category: formData.get('category'),
+        rental_price: parseFloat(formData.get('rental_price')),
+        weekend_price: parseFloat(formData.get('weekend_price')) || 0,
+        deposit_amount: parseFloat(formData.get('deposit_amount')) || 0,
+        image_url: formData.get('image_url') || null,
+        description: formData.get('description') || null,
+        is_available: formData.get('is_available') === 'on'
+    };
+    
+    const typeData = {};
+    for (let [key, value] of formData.entries()) {
+        if (key.startsWith('type_data[')) {
+            const fieldName = key.match(/type_data\[(.+)\]/)[1];
+            const inputElement = form.querySelector(`[name="${key}"]`);
+            if (inputElement && inputElement.type === 'checkbox') {
+                typeData[fieldName] = value === '1';
+            } else {
+                typeData[fieldName] = value || null;
+            }
+        }
+    }
+    
+    if (Object.keys(typeData).length > 0) {
+        data.type_data = typeData;
+    }
+    
+    const toastId = toast.loading('Oppretter objekt...');
+    
+    try {
+        const response = await fetch('/api/create_rental_object.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            toast.success(toastId, 'Objekt opprettet', `${data.object_name} er lagret`);
+            form.reset();
+            buildCreateForm();
+            loadRentalObjects();
+        } else {
+            toast.error(toastId, 'Feil', result.message || 'Kunne ikke opprette objekt');
+        }
+    } catch (error) {
+        console.error('Error creating rental object:', error);
+        toast.error(toastId, 'Feil', 'Kunne ikke opprette objekt');
     }
 }
 
