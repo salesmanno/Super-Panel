@@ -36,18 +36,22 @@ try {
             exit;
         }
         
-        // Fetch type-specific data
+        // Fetch type-specific data (graceful if table doesn't exist)
         if ($object['category']) {
             $schema = getRentalSchema($object['category']);
             if ($schema) {
-                $typeStmt = $db->prepare("SELECT * FROM {$schema['table']} WHERE object_id = ?");
-                $typeStmt->execute([$object_id]);
-                $typeData = $typeStmt->fetch(PDO::FETCH_ASSOC);
-                
-                if ($typeData) {
-                    unset($typeData['object_id']); // Remove FK
-                    $object['type_data'] = $typeData;
-                    $object['type_label'] = $schema['label'];
+                $object['type_label'] = $schema['label'];
+                try {
+                    $typeStmt = $db->prepare("SELECT * FROM {$schema['table']} WHERE object_id = ?");
+                    $typeStmt->execute([$object_id]);
+                    $typeData = $typeStmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($typeData) {
+                        unset($typeData['object_id']);
+                        $object['type_data'] = $typeData;
+                    }
+                } catch (Exception $e) {
+                    // Type-specific table may not exist yet - skip gracefully
                 }
             }
         }
@@ -69,24 +73,25 @@ try {
         $stmt->execute([1, 1, 0, $admin['company_id']]);
         $objects = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Fetch type-specific data for each object
+        // Fetch type-specific data for each object (graceful if table doesn't exist)
         foreach ($objects as &$object) {
             if ($object['category']) {
                 $schema = getRentalSchema($object['category']);
                 if ($schema) {
                     $object['type_label'] = $schema['label'];
                     
-                    // Get type-specific summary data (key fields only)
-                    $typeStmt = $db->prepare("SELECT * FROM {$schema['table']} WHERE object_id = ?");
-                    $typeStmt->execute([$object['id']]);
-                    $typeData = $typeStmt->fetch(PDO::FETCH_ASSOC);
-                    
-                    if ($typeData) {
-                        unset($typeData['object_id']);
-                        $object['type_data'] = $typeData;
+                    try {
+                        $typeStmt = $db->prepare("SELECT * FROM {$schema['table']} WHERE object_id = ?");
+                        $typeStmt->execute([$object['id']]);
+                        $typeData = $typeStmt->fetch(PDO::FETCH_ASSOC);
                         
-                        // Create summary badges based on type
-                        $object['badges'] = createTypeBadges($object['category'], $typeData);
+                        if ($typeData) {
+                            unset($typeData['object_id']);
+                            $object['type_data'] = $typeData;
+                            $object['badges'] = createTypeBadges($object['category'], $typeData);
+                        }
+                    } catch (Exception $e) {
+                        // Type-specific table may not exist yet - skip gracefully
                     }
                 }
             }

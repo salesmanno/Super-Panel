@@ -7,10 +7,10 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     exit;
 }
 
-require_once __DIR__ . '/../includes/db_config.php';
-require_once __DIR__ . '/../includes/EmailService.php';
-
 try {
+    require_once __DIR__ . '/../includes/db_config.php';
+    require_once __DIR__ . '/../includes/EmailService.php';
+
     $db = getDBConnection();
     $emailService = new EmailService($db, $_SESSION['company_id']);
     
@@ -27,6 +27,6 @@ try {
         echo json_encode(['success' => true, 'alertNew' => $alertNew]);
     }
     
-} catch (Exception $e) {
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+} catch (Throwable $e) {
+    echo json_encode(['success' => false, 'alertNew' => 0, 'error' => $e->getMessage()]);
 }

@@ -2978,7 +2978,8 @@ async function loadEventCheckInCount(eventId) {
         const response = await fetch(`/api/get_event_checkins.php?event_id=${eventId}`);
         const result = await response.json();
         if (result.success && result.summary) {
-            document.getElementById(`checked-${eventId}`).textContent = result.summary.checked_in_count || 0;
+            const el = document.getElementById(`checked-${eventId}`);
+            if (el) el.textContent = result.summary.checked_in_count || 0;
         }
     } catch (error) {
         console.error('Error loading check-in count:', error);

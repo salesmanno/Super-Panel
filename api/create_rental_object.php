@@ -76,33 +76,36 @@ try {
     $stmt = $db->prepare("INSERT INTO rental_objects ($columnList) VALUES ($placeholders)");
     $stmt->execute($params);
     
-    // INSERT into type-specific table
+    // INSERT into type-specific table (graceful if table doesn't exist yet)
     if (!empty($data['type_data']) && is_array($data['type_data'])) {
-        $typeTable = $schema['table'];
-        $typeFields = ['object_id'];
-        $typeValues = ['?'];
-        $typeParams = [$object_id];
-        
-        foreach ($data['type_data'] as $field => $value) {
-            if (isset($schema['fields'][$field])) {
-                $typeFields[] = $field;
-                $typeValues[] = '?';
-                
-                // Handle checkbox (boolean) values
-                if ($schema['fields'][$field]['type'] === 'checkbox') {
-                    $typeParams[] = ($value && $value !== '0' && $value !== 0) ? 1 : 0;
-                } else {
-                    $typeParams[] = $value !== '' ? $value : null;
+        try {
+            $typeTable = $schema['table'];
+            $typeFields = ['object_id'];
+            $typeValues = ['?'];
+            $typeParams = [$object_id];
+            
+            foreach ($data['type_data'] as $field => $value) {
+                if (isset($schema['fields'][$field])) {
+                    $typeFields[] = $field;
+                    $typeValues[] = '?';
+                    
+                    if ($schema['fields'][$field]['type'] === 'checkbox') {
+                        $typeParams[] = ($value && $value !== '0' && $value !== 0) ? 1 : 0;
+                    } else {
+                        $typeParams[] = $value !== '' ? $value : null;
+                    }
                 }
             }
-        }
-        
-        if (count($typeFields) > 1) { // More than just object_id
-            $sql = "INSERT INTO $typeTable (" . implode(', ', $typeFields) . ") 
-                    VALUES (" . implode(', ', $typeValues) . ")";
             
-            $typeStmt = $db->prepare($sql);
-            $typeStmt->execute($typeParams);
+            if (count($typeFields) > 1) {
+                $sql = "INSERT INTO $typeTable (" . implode(', ', $typeFields) . ") 
+                        VALUES (" . implode(', ', $typeValues) . ")";
+                
+                $typeStmt = $db->prepare($sql);
+                $typeStmt->execute($typeParams);
+            }
+        } catch (Exception $e) {
+            // Type-specific table may not exist yet - base object still created successfully
         }
     }
     
