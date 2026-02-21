@@ -1,17 +1,20 @@
 <?php
 session_start();
-require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../includes/rental_schemas.php';
-
 header('Content-Type: application/json');
 
-// Autentiser bruker
-$admin = authenticateTenantAdmin();
-if (!$admin) {
+if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
     exit;
 }
+
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/rental_schemas.php';
+
+$admin = [
+    'tenant_admin_id' => $_SESSION['tenant_admin_id'],
+    'company_id' => $_SESSION['company_id']
+];
 
 // Hent input
 $data = json_decode(file_get_contents('php://input'), true);
