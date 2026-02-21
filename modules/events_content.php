@@ -2814,8 +2814,10 @@ async function loadPaymentMethods() {
     try {
         const response = await fetch('/api/get_payment_methods.php');
         const result = await response.json();
-        if (result.success) {
-            availablePaymentMethods = result.payment_methods || [];
+        if (result.success && result.payment_methods && result.payment_methods.length > 0) {
+            availablePaymentMethods = result.payment_methods;
+        } else {
+            availablePaymentMethods = [{ method_type: 'cash', method_name: 'Kontant', config: { icon: 'cash-stack' } }];
         }
     } catch (error) {
         console.error('Error loading payment methods:', error);
@@ -2833,26 +2835,35 @@ function getPaymentButtonsHtml(checkinId, customerName, ticketPrice, isPaid) {
     }
     
     const escapedName = customerName.replace(/'/g, "\\'");
-    let buttons = '<div class="btn-group" role="group">';
+    const defaultMethod = availablePaymentMethods.length > 0 ? availablePaymentMethods[0].method_type : 'cash';
     
-    availablePaymentMethods.forEach(pm => {
-        const icon = pm.config?.icon || 'wallet2';
-        const name = pm.method_name || pm.method_type;
-        let btnClass = 'btn-outline-secondary';
-        
-        if (pm.method_type === 'vipps') btnClass = 'btn-outline-warning';
-        else if (pm.method_type === 'cash') btnClass = 'btn-outline-success';
-        else if (pm.method_type === 'stripe') btnClass = 'btn-outline-primary';
-        
-        buttons += `<button class="btn btn-sm ${btnClass}" onclick="performCheckinWithMethod('${checkinId}', '${pm.method_type}')" title="${name}">
-            <i class="bi bi-${icon}"></i>
-        </button>`;
-    });
+    let buttons = `<button class="btn btn-sm btn-success me-1" onclick="performCheckinWithMethod('${checkinId}', '${defaultMethod}')" title="Sjekk inn">
+        <i class="bi bi-check-circle me-1"></i>Sjekk inn
+    </button>`;
     
-    buttons += `</div>
-        <button class="btn btn-sm btn-outline-dark ms-1" onclick="markNoShow('${checkinId}', '${escapedName}')" title="No-show">
-            <i class="bi bi-x-circle"></i>
-        </button>`;
+    if (availablePaymentMethods.length > 1) {
+        buttons += '<div class="btn-group me-1" role="group">';
+        availablePaymentMethods.forEach((pm, index) => {
+            if (index === 0) return;
+            const icon = pm.config?.icon || 'wallet2';
+            const name = pm.method_name || pm.method_type;
+            let btnClass = 'btn-outline-secondary';
+            
+            if (pm.method_type === 'vipps') btnClass = 'btn-outline-warning';
+            else if (pm.method_type === 'cash') btnClass = 'btn-outline-success';
+            else if (pm.method_type === 'stripe') btnClass = 'btn-outline-primary';
+            else if (pm.method_type === 'paypal') btnClass = 'btn-outline-info';
+            
+            buttons += `<button class="btn btn-sm ${btnClass}" onclick="performCheckinWithMethod('${checkinId}', '${pm.method_type}')" title="${name}">
+                <i class="bi bi-${icon}"></i>
+            </button>`;
+        });
+        buttons += '</div>';
+    }
+    
+    buttons += `<button class="btn btn-sm btn-outline-dark ms-1" onclick="markNoShow('${checkinId}', '${escapedName}')" title="No-show">
+        <i class="bi bi-x-circle"></i>
+    </button>`;
     
     return buttons;
 }

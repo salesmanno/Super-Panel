@@ -46,13 +46,28 @@ try {
     $updateParams = [];
     
     $allowedFields = ['object_name', 'serial_number', 'description', 'category', 
-                      'rental_price', 'weekend_price', 'deposit_amount', 'condition_notes', 'image_url',
-                      'is_available', 'is_active'];
+                      'rental_price', 'deposit_amount', 'condition_notes', 'image_url',
+                      'is_available', 'is_active', 'market_price'];
     
     foreach ($allowedFields as $field) {
         if (isset($data[$field])) {
             $updateFields[] = "$field = ?";
             $updateParams[] = $data[$field];
+        }
+    }
+    
+    // Handle rental_periods (JSON encode if array)
+    if (isset($data['rental_periods'])) {
+        $updateFields[] = "rental_periods = ?";
+        $updateParams[] = is_array($data['rental_periods']) ? json_encode($data['rental_periods']) : $data['rental_periods'];
+    }
+    
+    // Only update price columns if non-zero (columns may not exist yet in DB)
+    $optionalPriceCols = ['weekend_price', 'saturday_price', 'sunday_price'];
+    foreach ($optionalPriceCols as $col) {
+        if (!empty($data[$col]) && floatval($data[$col]) > 0) {
+            $updateFields[] = "$col = ?";
+            $updateParams[] = floatval($data[$col]);
         }
     }
     

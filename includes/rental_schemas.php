@@ -64,11 +64,6 @@ function getRentalSchemas() {
                 'av_equipment' => ['type' => 'textarea', 'label' => 'AV-utstyr (kommaseparert)', 'required' => false],
                 'tables_chairs_included' => ['type' => 'checkbox', 'label' => 'Bord og stoler inkludert', 'required' => false],
                 'parking_spaces' => ['type' => 'number', 'label' => 'Antall parkeringsplasser', 'required' => false],
-                'accessibility' => ['type' => 'text', 'label' => 'Tilgjengelighet', 'required' => false],
-                'alcohol_license' => ['type' => 'checkbox', 'label' => 'Skjenkebevilling', 'required' => false],
-                'catering_required' => ['type' => 'checkbox', 'label' => 'Catering påkrevd', 'required' => false],
-                'price_per_hour' => ['type' => 'number', 'label' => 'Pris per time (kr)', 'step' => '0.01', 'required' => false],
-                'min_hours' => ['type' => 'number', 'label' => 'Minimum antall timer', 'required' => false],
                 'cleaning_included' => ['type' => 'checkbox', 'label' => 'Rengjøring inkludert', 'required' => false],
                 'facilities' => ['type' => 'textarea', 'label' => 'Fasiliteter (kommaseparert)', 'required' => false]
             ]

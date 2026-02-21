@@ -292,7 +292,15 @@ function renderObjectCard(obj) {
              <i class="bi bi-image fs-1 text-muted"></i>
            </div>`;
     
-    const weekendPrice = obj.weekend_price > 0 ? `<br><small class="text-muted">Helg: ${parseFloat(obj.weekend_price).toFixed(0)} NOK/dag</small>` : '';
+    let weekendPrice = '';
+    if (obj.saturday_price > 0 || obj.sunday_price > 0) {
+        const parts = [];
+        if (obj.saturday_price > 0) parts.push(`Lør: ${parseFloat(obj.saturday_price).toFixed(0)}`);
+        if (obj.sunday_price > 0) parts.push(`Søn: ${parseFloat(obj.sunday_price).toFixed(0)}`);
+        weekendPrice = `<br><small class="text-muted">${parts.join(' / ')} NOK/dag</small>`;
+    } else if (obj.weekend_price > 0) {
+        weekendPrice = `<br><small class="text-muted">Helg: ${parseFloat(obj.weekend_price).toFixed(0)} NOK/dag</small>`;
+    }
     
     const hiddenLabel = !isAvailable ? '<span class="badge bg-warning text-dark ms-2"><i class="bi bi-eye-slash me-1"></i>Skjult</span>' : '';
     
@@ -377,37 +385,87 @@ function buildFormFields(containerId, category = '', existingData = {}) {
             </div>
         </div>
         
-        <div class="row mb-3">
-            <div class="col-md-4">
-                <label class="form-label">Leiepris per dag (NOK) <span class="text-danger">*</span></label>
-                <input type="number" class="form-control" name="rental_price" step="0.01" value="${existingData.rental_price || ''}" required>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Helgepris per dag (NOK)</label>
-                <input type="number" class="form-control" name="weekend_price" step="0.01" value="${existingData.weekend_price || 0}">
-                <small class="text-muted">0 = samme som ukedag</small>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Depositum (NOK)</label>
-                <input type="number" class="form-control" name="deposit_amount" step="0.01" value="${existingData.deposit_amount || 0}">
+        <h6 class="text-muted mt-3 mb-2"><i class="bi bi-cash-stack me-1"></i>Priser</h6>
+        <div class="card bg-light mb-3">
+            <div class="card-body py-2">
+                <div class="row">
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label mb-1">Leiepris per dag (NOK) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control form-control-sm" name="rental_price" step="0.01" value="${existingData.rental_price || ''}" required>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label mb-1">Depositum (NOK)</label>
+                        <input type="number" class="form-control form-control-sm" name="deposit_amount" step="0.01" value="${existingData.deposit_amount || 0}">
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label mb-1">Markedspris (NOK)</label>
+                        <input type="number" class="form-control form-control-sm" name="market_price" step="0.01" value="${existingData.market_price || ''}">
+                        <small class="text-muted">Veiledende/innkjøpspris</small>
+                    </div>
+                </div>
+                <div class="mt-1 mb-2">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="${containerId}_weekendToggle" 
+                            ${(existingData.weekend_price > 0 || existingData.saturday_price > 0 || existingData.sunday_price > 0) ? 'checked' : ''}
+                            onchange="toggleWeekendPricing(this, '${containerId}')">
+                        <label class="form-check-label" for="${containerId}_weekendToggle">Egne helgepriser</label>
+                    </div>
+                </div>
+                <div id="${containerId}_weekendPricing" style="display: ${(existingData.weekend_price > 0 || existingData.saturday_price > 0 || existingData.sunday_price > 0) ? 'block' : 'none'};">
+                    <div class="mb-2">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="${containerId}_pricingMode" id="${containerId}_modeUnified" value="unified"
+                                ${(existingData.saturday_price > 0 || existingData.sunday_price > 0) ? '' : 'checked'}
+                                onchange="togglePricingMode('${containerId}', 'unified')">
+                            <label class="form-check-label" for="${containerId}_modeUnified">Felles helgepris</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="${containerId}_pricingMode" id="${containerId}_modePerDay" value="perday"
+                                ${(existingData.saturday_price > 0 || existingData.sunday_price > 0) ? 'checked' : ''}
+                                onchange="togglePricingMode('${containerId}', 'perday')">
+                            <label class="form-check-label" for="${containerId}_modePerDay">Per dag (lør/søn)</label>
+                        </div>
+                    </div>
+                    <div id="${containerId}_unifiedPrice" style="display: ${(existingData.saturday_price > 0 || existingData.sunday_price > 0) ? 'none' : 'block'};">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label class="form-label mb-1">Helgepris per dag (NOK)</label>
+                                <input type="number" class="form-control form-control-sm" name="weekend_price" step="0.01" value="${existingData.weekend_price || 0}">
+                            </div>
+                        </div>
+                    </div>
+                    <div id="${containerId}_perDayPrice" style="display: ${(existingData.saturday_price > 0 || existingData.sunday_price > 0) ? 'block' : 'none'};">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label class="form-label mb-1">Lørdagspris (NOK)</label>
+                                <input type="number" class="form-control form-control-sm" name="saturday_price" step="0.01" value="${existingData.saturday_price || 0}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label mb-1">Søndagspris (NOK)</label>
+                                <input type="number" class="form-control form-control-sm" name="sunday_price" step="0.01" value="${existingData.sunday_price || 0}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         
+        <h6 class="text-muted mb-2"><i class="bi bi-card-image me-1"></i>Bilde og beskrivelse</h6>
         <div class="row mb-3">
             <div class="col-md-6">
-                <label class="form-label">Bilde URL</label>
-                <input type="text" class="form-control" name="image_url" value="${existingData.image_url || ''}" placeholder="https://..." oninput="updateImagePreview(this, '${containerId}')">
+                <label class="form-label mb-1">Bilde URL</label>
+                <input type="text" class="form-control form-control-sm" name="image_url" value="${existingData.image_url || ''}" placeholder="https://..." oninput="updateImagePreview(this, '${containerId}')">
                 <div id="${containerId}_imagePreview" class="mt-2">
                     ${existingData.image_url ? `<img src="${existingData.image_url}" class="img-thumbnail" style="max-height: 150px; max-width: 100%;" onerror="this.style.display='none'">` : ''}
                 </div>
             </div>
             <div class="col-md-6">
-                <label class="form-label">Beskrivelse</label>
-                <textarea class="form-control" name="description" rows="2">${existingData.description || ''}</textarea>
+                <label class="form-label mb-1">Beskrivelse</label>
+                <textarea class="form-control form-control-sm" name="description" rows="2">${existingData.description || ''}</textarea>
             </div>
         </div>
         
-        <div class="form-check mb-3">
+        <div class="form-check form-switch mb-3">
             <input class="form-check-input" type="checkbox" name="is_available" id="${checkboxId}" ${(existingData.is_available === undefined || existingData.is_available === null || existingData.is_available === true || existingData.is_available === 1 || existingData.is_available === '1') ? 'checked' : ''}>
             <label class="form-check-label" for="${checkboxId}">
                 Tilgjengelig for utleie
@@ -417,14 +475,15 @@ function buildFormFields(containerId, category = '', existingData = {}) {
     
     if (category && rentalSchemas[category]) {
         const schema = rentalSchemas[category];
-        html += '<hr><div class="row">';
+        html += `<h6 class="text-muted mb-2"><i class="bi bi-list-check me-1"></i>${schema.label} - spesifikke detaljer</h6>`;
+        html += '<div class="card bg-light mb-3"><div class="card-body py-2"><div class="row">';
         
         Object.entries(schema.fields).forEach(([fieldName, field]) => {
             const value = existingData.type_data?.[fieldName] || '';
             html += generateIntegratedFieldHTML(fieldName, field, value);
         });
         
-        html += '</div>';
+        html += '</div></div></div>';
     }
     
     container.innerHTML = html;
@@ -479,6 +538,33 @@ function generateIntegratedFieldHTML(fieldName, field, value = '') {
     `;
 }
 
+function toggleWeekendPricing(checkbox, containerId) {
+    const section = document.getElementById(containerId + '_weekendPricing');
+    section.style.display = checkbox.checked ? 'block' : 'none';
+    if (!checkbox.checked) {
+        const wpInput = section.querySelector('[name="weekend_price"]');
+        const spInput = section.querySelector('[name="saturday_price"]');
+        const snInput = section.querySelector('[name="sunday_price"]');
+        if (wpInput) wpInput.value = 0;
+        if (spInput) spInput.value = 0;
+        if (snInput) snInput.value = 0;
+    }
+}
+
+function togglePricingMode(containerId, mode) {
+    document.getElementById(containerId + '_unifiedPrice').style.display = mode === 'unified' ? 'block' : 'none';
+    document.getElementById(containerId + '_perDayPrice').style.display = mode === 'perday' ? 'block' : 'none';
+    if (mode === 'unified') {
+        const spInput = document.querySelector(`#${containerId}_perDayPrice [name="saturday_price"]`);
+        const snInput = document.querySelector(`#${containerId}_perDayPrice [name="sunday_price"]`);
+        if (spInput) spInput.value = 0;
+        if (snInput) snInput.value = 0;
+    } else {
+        const wpInput = document.querySelector(`#${containerId}_unifiedPrice [name="weekend_price"]`);
+        if (wpInput) wpInput.value = 0;
+    }
+}
+
 function getFormData(formId) {
     const form = document.getElementById(formId);
     const formData = new FormData(form);
@@ -487,7 +573,10 @@ function getFormData(formId) {
         object_name: formData.get('object_name') || '',
         rental_price: formData.get('rental_price') || '',
         weekend_price: formData.get('weekend_price') || 0,
+        saturday_price: formData.get('saturday_price') || 0,
+        sunday_price: formData.get('sunday_price') || 0,
         deposit_amount: formData.get('deposit_amount') || 0,
+        market_price: formData.get('market_price') || '',
         image_url: formData.get('image_url') || '',
         description: formData.get('description') || '',
         is_available: formData.get('is_available') === 'on',
@@ -529,7 +618,10 @@ async function saveRentalObject() {
         category: formData.get('category'),
         rental_price: parseFloat(formData.get('rental_price')),
         weekend_price: parseFloat(formData.get('weekend_price')) || 0,
+        saturday_price: parseFloat(formData.get('saturday_price')) || 0,
+        sunday_price: parseFloat(formData.get('sunday_price')) || 0,
         deposit_amount: parseFloat(formData.get('deposit_amount')) || 0,
+        market_price: parseFloat(formData.get('market_price')) || null,
         image_url: formData.get('image_url') || null,
         description: formData.get('description') || null,
         is_available: formData.get('is_available') === 'on'
@@ -613,7 +705,10 @@ function showCreateSummary() {
         category: category,
         rental_price: parseFloat(formData.get('rental_price')),
         weekend_price: parseFloat(formData.get('weekend_price')) || 0,
+        saturday_price: parseFloat(formData.get('saturday_price')) || 0,
+        sunday_price: parseFloat(formData.get('sunday_price')) || 0,
         deposit_amount: parseFloat(formData.get('deposit_amount')) || 0,
+        market_price: parseFloat(formData.get('market_price')) || null,
         image_url: formData.get('image_url') || null,
         description: formData.get('description') || null,
         is_available: form.querySelector('[name="is_available"]')?.checked ?? true
@@ -658,7 +753,10 @@ function showCreateSummary() {
     summaryHTML += `<tr><td class="text-muted" style="width:45%">Objektnavn</td><td><strong>${data.object_name}</strong></td></tr>`;
     summaryHTML += `<tr><td class="text-muted">Kategori</td><td><span class="badge bg-primary">${categoryLabel}</span></td></tr>`;
     summaryHTML += `<tr><td class="text-muted">Leiepris/dag</td><td><strong class="text-success">${data.rental_price.toFixed(0)} NOK</strong></td></tr>`;
-    if (data.weekend_price > 0) {
+    if (data.saturday_price > 0 || data.sunday_price > 0) {
+        if (data.saturday_price > 0) summaryHTML += `<tr><td class="text-muted">Lørdagspris</td><td>${data.saturday_price.toFixed(0)} NOK</td></tr>`;
+        if (data.sunday_price > 0) summaryHTML += `<tr><td class="text-muted">Søndagspris</td><td>${data.sunday_price.toFixed(0)} NOK</td></tr>`;
+    } else if (data.weekend_price > 0) {
         summaryHTML += `<tr><td class="text-muted">Helgepris/dag</td><td>${data.weekend_price.toFixed(0)} NOK</td></tr>`;
     }
     if (data.deposit_amount > 0) {
@@ -841,7 +939,9 @@ function viewDetails(objectId) {
                 ${obj.image_url ? `<img src="${obj.image_url}" class="img-fluid rounded mb-3" alt="${obj.object_name}">` : ''}
                 <p><strong>Kategori:</strong> ${schema.label}</p>
                 <p><strong>Leiepris (ukedag):</strong> ${parseFloat(obj.rental_price).toFixed(0)} NOK/dag</p>
-                ${obj.weekend_price > 0 ? `<p><strong>Leiepris (helg):</strong> ${parseFloat(obj.weekend_price).toFixed(0)} NOK/dag</p>` : ''}
+                ${obj.saturday_price > 0 ? `<p><strong>Lørdagspris:</strong> ${parseFloat(obj.saturday_price).toFixed(0)} NOK/dag</p>` : ''}
+                ${obj.sunday_price > 0 ? `<p><strong>Søndagspris:</strong> ${parseFloat(obj.sunday_price).toFixed(0)} NOK/dag</p>` : ''}
+                ${(obj.weekend_price > 0 && !obj.saturday_price && !obj.sunday_price) ? `<p><strong>Helgepris:</strong> ${parseFloat(obj.weekend_price).toFixed(0)} NOK/dag</p>` : ''}
                 ${obj.deposit_amount > 0 ? `<p><strong>Depositum:</strong> ${parseFloat(obj.deposit_amount).toFixed(0)} NOK</p>` : ''}
                 <p><strong>Status:</strong> ${obj.is_available ? '<span class="badge bg-success">Tilgjengelig</span>' : '<span class="badge bg-secondary">Ikke tilgjengelig</span>'}</p>
                 ${obj.description ? `<p><strong>Beskrivelse:</strong><br>${obj.description}</p>` : ''}

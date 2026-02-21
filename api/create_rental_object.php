@@ -37,17 +37,12 @@ try {
     $object_id = generateUUID();
     
     // INSERT into base rental_objects table
-    $stmt = $db->prepare("
-        INSERT INTO rental_objects (
-            id, company_id, output_product_id, object_name, serial_number, description,
-            category, rental_price, weekend_price, deposit_amount, condition_notes, image_url,
-            is_available, is_active, created_by
-        ) VALUES (
-            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
-        )
-    ");
-    
-    $stmt->execute([
+    // Columns match actual production table: rental_objects
+    $columns = ['id', 'company_id', 'output_product_id', 'object_name', 'serial_number', 
+                'description', 'category', 'rental_price', 'deposit_amount', 
+                'condition_notes', 'image_url', 'is_available', 'is_active', 'created_by',
+                'market_price', 'rental_periods'];
+    $params = [
         $object_id,
         $admin['company_id'],
         $data['output_product_id'] ?? null,
@@ -56,14 +51,30 @@ try {
         $data['description'] ?? null,
         $data['category'],
         $data['rental_price'] ?? 0,
-        $data['weekend_price'] ?? 0,
         $data['deposit_amount'] ?? 0,
         $data['condition_notes'] ?? null,
         $data['image_url'] ?? null,
         $data['is_available'] ?? 1,
         $data['is_active'] ?? 1,
-        $admin['tenant_admin_id']
-    ]);
+        $admin['tenant_admin_id'],
+        $data['market_price'] ?? null,
+        isset($data['rental_periods']) ? (is_array($data['rental_periods']) ? json_encode($data['rental_periods']) : $data['rental_periods']) : null
+    ];
+    
+    // Only add weekend/saturday/sunday price columns if non-zero (columns may not exist yet)
+    $optionalPriceCols = ['weekend_price', 'saturday_price', 'sunday_price'];
+    foreach ($optionalPriceCols as $col) {
+        if (!empty($data[$col]) && floatval($data[$col]) > 0) {
+            $columns[] = $col;
+            $params[] = floatval($data[$col]);
+        }
+    }
+    
+    $placeholders = implode(',', array_fill(0, count($columns), '?'));
+    $columnList = implode(', ', $columns);
+    
+    $stmt = $db->prepare("INSERT INTO rental_objects ($columnList) VALUES ($placeholders)");
+    $stmt->execute($params);
     
     // INSERT into type-specific table
     if (!empty($data['type_data']) && is_array($data['type_data'])) {
