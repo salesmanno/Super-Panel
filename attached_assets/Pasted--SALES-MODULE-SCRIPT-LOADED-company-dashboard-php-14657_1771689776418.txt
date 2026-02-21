@@ -1,0 +1,58 @@
+=== SALES MODULE SCRIPT LOADED ===
+company_dashboard.php:14657 Checking for sales elements:
+company_dashboard.php:14658 - #tab-sales exists: true
+company_dashboard.php:14659 - #content-sales exists: true
+company_dashboard.php:14660 - #products-list exists: true
+company_dashboard.php:14661 - #services-list exists: true
+company_dashboard.php:15265 DOMContentLoaded fired in sales module
+company_dashboard.php:15270 Sales tab button: <button class=​"nav-link " id=​"tab-sales" data-bs-toggle=​"tab" data-bs-target=​"#content-sales" type=​"button" role=​"tab" aria-selected=​"false" tabindex=​"-1">​…​</button>​
+company_dashboard.php:15271 Sales content pane: <div class=​"tab-pane fade " id=​"content-sales" role=​"tabpanel" aria-labelledby=​"tab-sales">​…​</div>​
+company_dashboard.php:11002 Error loading rental objects: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at loadRentalObjects (company_dashboard.php:10988:37)
+loadRentalObjects @ company_dashboard.php:11002Understand this error
+company_dashboard.php:17767 Email alert check failed: SyntaxError: Unexpected end of JSON input
+3company_dashboard.php:5366 Error loading check-in count: TypeError: Cannot set properties of null (setting 'textContent')
+    at loadEventCheckInCount (company_dashboard.php:5363:71)
+loadEventCheckInCount @ company_dashboard.php:5366Understand this error
+company_dashboard.php:17767 Email alert check failed: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at checkEmailAlert (company_dashboard.php:17756:45)
+2company_dashboard.php:11512 Error creating rental object: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at confirmSaveNewRentalObject (company_dashboard.php:11499:39)
+confirmSaveNewRentalObject @ company_dashboard.php:11512Understand this error
+8company_dashboard.php:17767 Email alert check failed: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at checkEmailAlert (company_dashboard.php:17756:45)
+company_dashboard.php:17767 Email alert check failed: SyntaxError: Unexpected end of JSON input
+company_dashboard.php:17767 Email alert check failed: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at checkEmailAlert (company_dashboard.php:17756:45)
+3company_dashboard.php:17767 Email alert check failed: SyntaxError: Unexpected end of JSON input
+2company_dashboard.php:17767 Email alert check failed: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at checkEmailAlert (company_dashboard.php:17756:45)
+company_dashboard.php:17767 Email alert check failed: SyntaxError: Unexpected end of JSON input
+11company_dashboard.php:17767 Email alert check failed: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at checkEmailAlert (company_dashboard.php:17756:45)
+company_dashboard.php:17767 Email alert check failed: SyntaxError: Unexpected end of JSON input
+4company_dashboard.php:17767 Email alert check failed: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at checkEmailAlert (company_dashboard.php:17756:45)
+company_dashboard.php:17767 Email alert check failed: SyntaxError: Unexpected end of JSON input
+company_dashboard.php:17767 Email alert check failed: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at checkEmailAlert (company_dashboard.php:17756:45)
+company_dashboard.php:17767 Email alert check failed: SyntaxError: Unexpected end of JSON input
+6company_dashboard.php:17767 Email alert check failed: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at checkEmailAlert (company_dashboard.php:17756:45)
+company_dashboard.php:17767 Email alert check failed: SyntaxError: Unexpected end of JSON input
+company_dashboard.php:17767 Email alert check failed: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at checkEmailAlert (company_dashboard.php:17756:45)
+company_dashboard.php:17767 Email alert check failed: SyntaxError: Unexpected end of JSON input
+company_dashboard.php:17767 Email alert check failed: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at checkEmailAlert (company_dashboard.php:17756:45)
+company_dashboard.php:17767 Email alert check failed: SyntaxError: Unexpected end of JSON input
+9company_dashboard.php:17767 Email alert check failed: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at checkEmailAlert (company_dashboard.php:17756:45)
+company_dashboard.php:17767 Email alert check failed: SyntaxError: Unexpected end of JSON input
+5company_dashboard.php:17767 Email alert check failed: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at checkEmailAlert (company_dashboard.php:17756:45)
+company_dashboard.php:17767 Email alert check failed: SyntaxError: Unexpected end of JSON input
+3company_dashboard.php:17767 Email alert check failed: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at checkEmailAlert (company_dashboard.php:17756:45)
+company_dashboard.php:11512 Error creating rental object: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at confirmSaveNewRentalObject (company_dashboard.php:11499:39)
