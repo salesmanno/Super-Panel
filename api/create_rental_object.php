@@ -52,9 +52,24 @@ try {
     
     // INSERT into base rental_objects table
     // Columns match actual production table: rental_objects
+    $imagesJson = null;
+    $primaryImageUrl = $data['image_url'] ?? null;
+    if (!empty($data['images']) && is_array($data['images'])) {
+        $imagesJson = json_encode($data['images']);
+        foreach ($data['images'] as $img) {
+            if (!empty($img['is_primary']) && !empty($img['url'])) {
+                $primaryImageUrl = $img['url'];
+                break;
+            }
+        }
+        if (!$primaryImageUrl && !empty($data['images'][0]['url'])) {
+            $primaryImageUrl = $data['images'][0]['url'];
+        }
+    }
+    
     $columns = ['id', 'company_id', 'output_product_id', 'object_name', 'serial_number', 
                 'description', 'category', 'rental_price', 'deposit_amount', 
-                'condition_notes', 'image_url', 'is_available', 'is_active', 'created_by',
+                'condition_notes', 'image_url', 'images', 'is_available', 'is_active', 'created_by',
                 'market_price', 'rental_periods'];
     $params = [
         $object_id,
@@ -67,7 +82,8 @@ try {
         $data['rental_price'] ?? 0,
         $data['deposit_amount'] ?? 0,
         $data['condition_notes'] ?? null,
-        $data['image_url'] ?? null,
+        $primaryImageUrl,
+        $imagesJson,
         $data['is_available'] ?? 1,
         $data['is_active'] ?? 1,
         $admin['tenant_admin_id'],
@@ -131,8 +147,8 @@ try {
         'object_id' => $object_id
     ]);
     
-} catch (Exception $e) {
-    if ($db->inTransaction()) {
+} catch (\Throwable $e) {
+    if (isset($db) && $db->inTransaction()) {
         $db->rollBack();
     }
     

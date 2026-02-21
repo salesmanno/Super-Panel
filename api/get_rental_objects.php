@@ -40,6 +40,13 @@ try {
             exit;
         }
         
+        if (!empty($object['images']) && is_string($object['images'])) {
+            $decoded = json_decode($object['images'], true);
+            $object['images'] = is_array($decoded) ? $decoded : [];
+        } else {
+            $object['images'] = [];
+        }
+        
         // Fetch type-specific data (graceful if table doesn't exist)
         if ($object['category']) {
             $schema = getRentalSchema($object['category']);
@@ -77,6 +84,15 @@ try {
         $stmt->execute([1, 1, 0, $admin['company_id']]);
         $objects = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
+        foreach ($objects as &$object) {
+            if (!empty($object['images']) && is_string($object['images'])) {
+                $decoded = json_decode($object['images'], true);
+                $object['images'] = is_array($decoded) ? $decoded : [];
+            } else {
+                $object['images'] = [];
+            }
+        }
+        
         // Fetch type-specific data for each object (graceful if table doesn't exist)
         foreach ($objects as &$object) {
             if ($object['category']) {
@@ -104,7 +120,7 @@ try {
         echo json_encode(['success' => true, 'objects' => $objects]);
     }
     
-} catch (Exception $e) {
+} catch (\Throwable $e) {
     http_response_code(500);
     echo json_encode([
         'success' => false,

@@ -59,7 +59,29 @@ try {
         }
     }
     
-    // Handle rental_periods (JSON encode if array)
+    if (isset($data['images'])) {
+        $imagesArray = is_array($data['images']) ? $data['images'] : json_decode($data['images'], true);
+        $updateFields[] = "images = ?";
+        $updateParams[] = is_array($imagesArray) ? json_encode($imagesArray) : '[]';
+        
+        if (is_array($imagesArray) && count($imagesArray) > 0) {
+            $primaryUrl = null;
+            foreach ($imagesArray as $img) {
+                if (!empty($img['is_primary']) && !empty($img['url'])) {
+                    $primaryUrl = $img['url'];
+                    break;
+                }
+            }
+            if (!$primaryUrl && !empty($imagesArray[0]['url'])) {
+                $primaryUrl = $imagesArray[0]['url'];
+            }
+            if ($primaryUrl) {
+                $updateFields[] = "image_url = ?";
+                $updateParams[] = $primaryUrl;
+            }
+        }
+    }
+    
     if (isset($data['rental_periods'])) {
         $updateFields[] = "rental_periods = ?";
         $updateParams[] = is_array($data['rental_periods']) ? json_encode($data['rental_periods']) : $data['rental_periods'];
@@ -154,8 +176,8 @@ try {
         'message' => 'Utleieobjekt oppdatert'
     ]);
     
-} catch (Exception $e) {
-    if ($db->inTransaction()) {
+} catch (\Throwable $e) {
+    if (isset($db) && $db->inTransaction()) {
         $db->rollBack();
     }
     

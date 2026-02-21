@@ -221,16 +221,27 @@ document.addEventListener('DOMContentLoaded', function() {
 async function loadRentalObjects() {
     try {
         const response = await fetch('/api/get_rental_objects.php');
-        const data = await response.json();
+        const text = await response.text();
+        let data;
+        try { data = JSON.parse(text); } catch(e) {
+            console.error('Invalid JSON from get_rental_objects:', text.substring(0, 200));
+            throw new Error('Serveren returnerte ugyldig data');
+        }
         
         if (data.success && data.objects) {
             allRentalObjects = data.objects;
+            allRentalObjects.forEach(obj => {
+                if (typeof obj.images === 'string') {
+                    try { obj.images = JSON.parse(obj.images); } catch(e) { obj.images = []; }
+                }
+                if (!Array.isArray(obj.images)) obj.images = [];
+            });
             renderRentalObjects(allRentalObjects);
         } else {
             document.getElementById('rentalObjectsContainer').innerHTML = `
                 <div class="text-center text-muted py-4">
                     <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                    Ingen utleieobjekter funnet
+                    ${data.message || 'Ingen utleieobjekter funnet'}
                 </div>
             `;
         }
@@ -286,8 +297,16 @@ function renderObjectCard(obj) {
         ? badges.map(b => `<span class="badge bg-info me-1">${b}</span>`).join('')
         : '';
     
-    const imageHtml = obj.image_url 
-        ? `<img src="${obj.image_url}" class="card-img-top" style="height: 200px; object-fit: cover;${isAvailable ? '' : ' filter: grayscale(70%);'}" alt="${obj.object_name}">`
+    const primaryImage = (obj.images && obj.images.length > 0) 
+        ? obj.images.find(img => img.is_primary) || obj.images[0] 
+        : (obj.image_url ? {url: obj.image_url} : null);
+    const imageCount = obj.images ? obj.images.length : (obj.image_url ? 1 : 0);
+    
+    const imageHtml = primaryImage 
+        ? `<div class="position-relative">
+             <img src="${primaryImage.url}" class="card-img-top" style="height: 200px; object-fit: cover;${isAvailable ? '' : ' filter: grayscale(70%);'}" alt="${obj.object_name}">
+             ${imageCount > 1 ? `<span class="position-absolute top-0 end-0 badge bg-dark bg-opacity-75 m-2"><i class="bi bi-images me-1"></i>${imageCount}</span>` : ''}
+           </div>`
         : `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
              <i class="bi bi-image fs-1 text-muted"></i>
            </div>`;
@@ -450,18 +469,34 @@ function buildFormFields(containerId, category = '', existingData = {}) {
             </div>
         </div>
         
-        <h6 class="text-muted mb-2"><i class="bi bi-card-image me-1"></i>Bilde og beskrivelse</h6>
+        <h6 class="text-muted mb-2"><i class="bi bi-card-image me-1"></i>Bilder og beskrivelse</h6>
         <div class="row mb-3">
-            <div class="col-md-6">
-                <label class="form-label mb-1">Bilde URL</label>
-                <input type="text" class="form-control form-control-sm" name="image_url" value="${existingData.image_url || ''}" placeholder="https://..." oninput="updateImagePreview(this, '${containerId}')">
-                <div id="${containerId}_imagePreview" class="mt-2">
-                    ${existingData.image_url ? `<img src="${existingData.image_url}" class="img-thumbnail" style="max-height: 150px; max-width: 100%;" onerror="this.style.display='none'">` : ''}
+            <div class="col-md-8">
+                <label class="form-label mb-1">Bilder (URL-er)</label>
+                <div id="${containerId}_imagesContainer">
+    `;
+    
+    const existingImages = existingData.images || [];
+    if (existingImages.length > 0) {
+        existingImages.forEach((img, idx) => {
+            const imgUrl = typeof img === 'string' ? img : (img.url || '');
+            const isPrimary = typeof img === 'object' && img.is_primary;
+            const caption = typeof img === 'object' ? (img.caption || '') : '';
+            html += buildImageRow(containerId, idx, imgUrl, isPrimary, caption);
+        });
+    } else {
+        html += buildImageRow(containerId, 0, '', true, '');
+    }
+    
+    html += `
                 </div>
+                <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="addImageRow('${containerId}')">
+                    <i class="bi bi-plus-circle me-1"></i>Legg til bilde
+                </button>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <label class="form-label mb-1">Beskrivelse</label>
-                <textarea class="form-control form-control-sm" name="description" rows="2">${existingData.description || ''}</textarea>
+                <textarea class="form-control form-control-sm" name="description" rows="4">${existingData.description || ''}</textarea>
             </div>
         </div>
         
@@ -577,9 +612,9 @@ function getFormData(formId) {
         sunday_price: formData.get('sunday_price') || 0,
         deposit_amount: formData.get('deposit_amount') || 0,
         market_price: formData.get('market_price') || '',
-        image_url: formData.get('image_url') || '',
         description: formData.get('description') || '',
         is_available: formData.get('is_available') === 'on',
+        images: collectImagesFromForm(form, formId === 'createRentalForm' ? 'createFormFieldsContainer' : 'formFieldsContainer'),
         type_data: {}
     };
     
@@ -622,9 +657,9 @@ async function saveRentalObject() {
         sunday_price: parseFloat(formData.get('sunday_price')) || 0,
         deposit_amount: parseFloat(formData.get('deposit_amount')) || 0,
         market_price: parseFloat(formData.get('market_price')) || null,
-        image_url: formData.get('image_url') || null,
         description: formData.get('description') || null,
-        is_available: formData.get('is_available') === 'on'
+        is_available: formData.get('is_available') === 'on',
+        images: collectImagesFromForm(form, 'formFieldsContainer')
     };
     
     if (isEdit) {
@@ -658,7 +693,12 @@ async function saveRentalObject() {
             body: JSON.stringify(data)
         });
         
-        const result = await response.json();
+        const text = await response.text();
+        let result;
+        try { result = JSON.parse(text); } catch(e) {
+            console.error('Invalid JSON from save:', text.substring(0, 200));
+            throw new Error('Serveren returnerte ugyldig data');
+        }
         
         if (result.success) {
             toast.success(toastId, isEdit ? 'Objekt oppdatert' : 'Objekt opprettet', `${data.object_name} er lagret`);
@@ -673,14 +713,74 @@ async function saveRentalObject() {
     }
 }
 
-function updateImagePreview(input, containerId) {
-    const previewDiv = document.getElementById(containerId + '_imagePreview');
+let imageRowCounter = 0;
+
+function buildImageRow(containerId, idx, url, isPrimary, caption) {
+    const rowId = 'imgrow_' + (imageRowCounter++);
+    return `
+        <div class="input-group input-group-sm mb-2 image-row" data-row-id="${rowId}">
+            <span class="input-group-text" title="Hovedbilde">
+                <input type="radio" name="${containerId}_primaryImage" value="${rowId}" ${isPrimary ? 'checked' : ''}>
+            </span>
+            <input type="text" class="form-control image-url-input" value="${url}" placeholder="https://bilde-url..." oninput="previewImageRow(this)">
+            <input type="text" class="form-control image-caption-input" value="${caption}" placeholder="Bildetekst" style="max-width: 150px;">
+            <button type="button" class="btn btn-outline-danger" onclick="removeImageRow(this)" title="Fjern bilde">
+                <i class="bi bi-x"></i>
+            </button>
+            <div class="w-100">
+                ${url ? `<img src="${url}" class="img-thumbnail mt-1" style="max-height: 60px;" onerror="this.style.display='none'">` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function addImageRow(containerId) {
+    const container = document.getElementById(containerId + '_imagesContainer');
+    container.insertAdjacentHTML('beforeend', buildImageRow(containerId, 0, '', false, ''));
+}
+
+function removeImageRow(btn) {
+    const row = btn.closest('.image-row');
+    const container = row.parentElement;
+    const wasPrimary = row.querySelector('input[type="radio"]').checked;
+    row.remove();
+    if (wasPrimary) {
+        const firstRadio = container.querySelector('input[type="radio"]');
+        if (firstRadio) firstRadio.checked = true;
+    }
+}
+
+function previewImageRow(input) {
+    const row = input.closest('.image-row');
+    const previewDiv = row.querySelector('.w-100');
     const url = input.value.trim();
     if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
-        previewDiv.innerHTML = `<img src="${url}" class="img-thumbnail" style="max-height: 150px; max-width: 100%;" onerror="this.parentElement.innerHTML='<small class=\\'text-danger\\'>Kunne ikke laste bildet</small>'">`;
+        previewDiv.innerHTML = `<img src="${url}" class="img-thumbnail mt-1" style="max-height: 60px;" onerror="this.style.display='none'">`;
     } else {
         previewDiv.innerHTML = '';
     }
+}
+
+function collectImagesFromForm(formElement, containerId) {
+    const rows = formElement.querySelectorAll('.image-row');
+    const images = [];
+    rows.forEach(row => {
+        const urlInput = row.querySelector('.image-url-input');
+        const captionInput = row.querySelector('.image-caption-input');
+        const radio = row.querySelector('input[type="radio"]');
+        const url = urlInput ? urlInput.value.trim() : '';
+        if (url) {
+            images.push({
+                url: url,
+                is_primary: radio ? radio.checked : false,
+                caption: captionInput ? captionInput.value.trim() : ''
+            });
+        }
+    });
+    if (images.length > 0 && !images.some(img => img.is_primary)) {
+        images[0].is_primary = true;
+    }
+    return images;
 }
 
 let pendingCreateData = null;
@@ -709,9 +809,9 @@ function showCreateSummary() {
         sunday_price: parseFloat(formData.get('sunday_price')) || 0,
         deposit_amount: parseFloat(formData.get('deposit_amount')) || 0,
         market_price: parseFloat(formData.get('market_price')) || null,
-        image_url: formData.get('image_url') || null,
         description: formData.get('description') || null,
-        is_available: form.querySelector('[name="is_available"]')?.checked ?? true
+        is_available: form.querySelector('[name="is_available"]')?.checked ?? true,
+        images: collectImagesFromForm(form, 'createFormFieldsContainer')
     };
     
     const typeData = {};
@@ -740,8 +840,18 @@ function showCreateSummary() {
     let summaryHTML = '<div class="row">';
     
     summaryHTML += '<div class="col-md-4 mb-3">';
-    if (data.image_url) {
-        summaryHTML += `<img src="${data.image_url}" class="img-fluid rounded shadow-sm mb-2" style="max-height: 250px; width: 100%; object-fit: cover;" onerror="this.outerHTML='<div class=\\'bg-light rounded d-flex align-items-center justify-content-center\\' style=\\'height:200px\\'><i class=\\'bi bi-image fs-1 text-muted\\'></i></div>'">`;
+    if (data.images && data.images.length > 0) {
+        const primaryImg = data.images.find(i => i.is_primary) || data.images[0];
+        summaryHTML += `<img src="${primaryImg.url}" class="img-fluid rounded shadow-sm mb-2" style="max-height: 250px; width: 100%; object-fit: cover;" onerror="this.outerHTML='<div class=\\'bg-light rounded d-flex align-items-center justify-content-center\\' style=\\'height:200px\\'><i class=\\'bi bi-image fs-1 text-muted\\'></i></div>'">`;
+        if (data.images.length > 1) {
+            summaryHTML += `<div class="d-flex gap-1 flex-wrap">`;
+            data.images.forEach((img, i) => {
+                if (img.url !== primaryImg.url) {
+                    summaryHTML += `<img src="${img.url}" class="img-thumbnail" style="max-height: 50px;" onerror="this.style.display='none'">`;
+                }
+            });
+            summaryHTML += `</div>`;
+        }
     } else {
         summaryHTML += `<div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 200px;"><i class="bi bi-image fs-1 text-muted"></i></div>`;
     }
@@ -830,7 +940,12 @@ async function confirmSaveNewRentalObject() {
             body: JSON.stringify(data)
         });
         
-        const result = await response.json();
+        const text = await response.text();
+        let result;
+        try { result = JSON.parse(text); } catch(e) {
+            console.error('Invalid JSON from create:', text.substring(0, 200));
+            throw new Error('Serveren returnerte ugyldig data');
+        }
         
         if (result.success) {
             toast.success(toastId, 'Objekt opprettet', `${data.object_name} er lagret`);
@@ -859,7 +974,9 @@ async function toggleAvailability(objectId, isAvailable) {
             body: JSON.stringify({ id: objectId, is_available: isAvailable ? 1 : 0 })
         });
         
-        const result = await response.json();
+        const text = await response.text();
+        let result;
+        try { result = JSON.parse(text); } catch(e) { throw new Error('Ugyldig svar'); }
         
         if (result.success) {
             obj.is_available = isAvailable ? 1 : 0;
@@ -912,7 +1029,9 @@ async function deleteRentalObject(objectId) {
             body: JSON.stringify({ id: objectId })
         });
         
-        const result = await response.json();
+        const text = await response.text();
+        let result;
+        try { result = JSON.parse(text); } catch(e) { throw new Error('Ugyldig svar'); }
         
         if (result.success) {
             toast.success(toastId, 'Objekt slettet', 'Objektet er fjernet fra systemet');
@@ -933,10 +1052,14 @@ function viewDetails(objectId) {
     const schema = rentalSchemas[obj.category];
     document.getElementById('detailsModalTitle').textContent = obj.object_name;
     
+    const detailImages = (obj.images && obj.images.length > 0) ? obj.images : (obj.image_url ? [{url: obj.image_url, is_primary: true}] : []);
+    const detailPrimary = detailImages.find(i => i.is_primary) || detailImages[0] || null;
+    
     let detailsHTML = `
         <div class="row">
             <div class="col-md-6">
-                ${obj.image_url ? `<img src="${obj.image_url}" class="img-fluid rounded mb-3" alt="${obj.object_name}">` : ''}
+                ${detailPrimary ? `<img src="${detailPrimary.url}" class="img-fluid rounded mb-2" alt="${obj.object_name}" id="detailMainImage">` : ''}
+                ${detailImages.length > 1 ? `<div class="d-flex gap-2 flex-wrap mb-3">${detailImages.map((img, i) => `<img src="${img.url}" class="img-thumbnail" style="max-height: 60px; cursor: pointer;${img === detailPrimary ? ' border: 2px solid #0d6efd;' : ''}" onclick="document.getElementById('detailMainImage').src='${img.url}'" title="${img.caption || ''}">`).join('')}</div>` : ''}
                 <p><strong>Kategori:</strong> ${schema.label}</p>
                 <p><strong>Leiepris (ukedag):</strong> ${parseFloat(obj.rental_price).toFixed(0)} NOK/dag</p>
                 ${obj.saturday_price > 0 ? `<p><strong>Lørdagspris:</strong> ${parseFloat(obj.saturday_price).toFixed(0)} NOK/dag</p>` : ''}
