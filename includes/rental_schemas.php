@@ -61,9 +61,11 @@ function getRentalSchemas() {
                 'capacity_seated' => ['type' => 'number', 'label' => 'Kapasitet sittende', 'required' => false],
                 'capacity_standing' => ['type' => 'number', 'label' => 'Kapasitet stående', 'required' => false],
                 'kitchen_type' => ['type' => 'select', 'label' => 'Kjøkken', 'options' => ['Ingen', 'Tekjøkken', 'Fullstendig'], 'required' => false],
-                'av_equipment' => ['type' => 'textarea', 'label' => 'AV-utstyr (kommaseparert)', 'required' => false],
+                'video_equipment' => ['type' => 'textarea', 'label' => 'Videoutstyr', 'required' => false],
+                'sound_systems' => ['type' => 'textarea', 'label' => 'Lydanlegg', 'required' => false],
                 'tables_chairs_included' => ['type' => 'checkbox', 'label' => 'Bord og stoler inkludert', 'required' => false],
                 'parking_spaces' => ['type' => 'number', 'label' => 'Antall parkeringsplasser', 'required' => false],
+                'min_days' => ['type' => 'number', 'label' => 'Minimum antall dager', 'required' => false],
                 'cleaning_included' => ['type' => 'checkbox', 'label' => 'Rengjøring inkludert', 'required' => false],
                 'facilities' => ['type' => 'textarea', 'label' => 'Fasiliteter (kommaseparert)', 'required' => false]
             ]
