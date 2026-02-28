@@ -11,9 +11,15 @@ require_once __DIR__ . '/../config/database.php';
 
 try {
     $db = getDBConnection();
-    
+    $companyId = $_SESSION['company_id'];
+    $cancelled = isset($_GET['cancelled']) && $_GET['cancelled'] == '1';
+
+    $cancelFilter = $cancelled
+        ? "AND mm.cancellation_active = 1"
+        : "AND (mm.cancellation_active IS NULL OR mm.cancellation_active = 0)";
+
     $stmt = $db->prepare("
-        SELECT 
+        SELECT
             mm.id as member_id,
             mm.member_code,
             mm.membership_plan_id,
@@ -21,6 +27,8 @@ try {
             mm.expiration_date as expiry_date,
             mm.auto_renew,
             mm.status,
+            mm.cancellation_active,
+            mm.cancellation_reasoning,
             c.id as customer_id,
             c.first_name,
             c.last_name,
@@ -35,21 +43,16 @@ try {
         LEFT JOIN tenant_customers c ON mm.customer_id = c.id
         LEFT JOIN membership_plans p ON mm.membership_plan_id = p.id
         WHERE mm.company_id = ?
+          {$cancelFilter}
         ORDER BY mm.created_at DESC
     ");
-    
-    $stmt->execute([$_SESSION['company_id']]);
+
+    $stmt->execute([$companyId]);
     $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    echo json_encode([
-        'success' => true,
-        'members' => $members
-    ]);
-    
+
+    echo json_encode(['success' => true, 'members' => $members]);
+
 } catch (Exception $e) {
     error_log("Error fetching members: " . $e->getMessage());
-    echo json_encode([
-        'success' => false,
-        'message' => 'Feil ved henting av medlemmer: ' . $e->getMessage()
-    ]);
+    echo json_encode(['success' => false, 'message' => 'Feil ved henting av medlemmer: ' . $e->getMessage()]);
 }

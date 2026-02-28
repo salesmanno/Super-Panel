@@ -23,7 +23,7 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Authentication**: Session-based system with robust backend validation, complete session tracking, and single-session enforcement.
 - **Tab Navigation System**: Utilizes Bootstrap 5's native tab component.
 - **Module & Privilege Management**: Granular access control via `tenant_admin_modules` and `tenant_company_modules` tables.
-- **Email Module**: Integrated email client with SMTP configuration, `EmailService.php` for automated notifications, and `SMTPClient.php` for authenticated SMTP sending. Webmail client with IMAP support (auto-detects folder names for Domeneshop), compose modal, and robust error handling.
+- **Email Module**: Full email client with queue-based sending via `SMTPClient.php` (socket-based, SSL port 465 / STARTTLS port 587). `EmailTemplate.php` wraps all outgoing emails in dual-branded HTML template. Webmail client uses 3-column layout (70vh, no position:fixed), compose writes to `email_queue`, mass-sending with mottakerpicker (kunder/aktive medlemmer), AutoMailer accordion in sidebar. API: `queue_email.php`, `get_email_queue.php`, `get_email_logs.php`, `get_recipients.php`, `send_email.php`, `process_email_queue.php` (MySQL INTERVAL 1 HOUR syntax, no mail()).
 - **Events Module**: Comprehensive CRUD for event management with `output_products` integration, configurable registration fields, scanner-based check-in, membership-based pricing, dynamic payment methods, and income/expense tracking. Includes a two-column check-in system with EAN13 barcode generation and a results module with key metrics.
 - **Ditt Nettsted Module**: Manages website configuration from `tenant_website_config` with an admin password-protected lock.
 - **Reservation Module**: Complete reservation management with agenda/calendar views, filtering, statistics, and visual calendar-based booking.
@@ -41,6 +41,7 @@ The design prioritizes a clean, compact dashboard with a simple navigation heade
 - **Database UUID Compliance**: MySQL production uses `char(36)` UUID format for `system_modules.id` and `output_products.module_id`.
 - **Event Check-in Data Integrity**: `events_checkin` stores `membership_plan_id` and `ticket_price` for historical accuracy, with `barcode` and `qrcode` columns for EAN13 and QR code storage.
 - **Payment Gateway Configuration**: All payment method availability is controlled by the Economy module via `economy_payment_gateways` table, requiring specific credentials for each gateway (Vipps, Stripe, PayPal). Cash payment availability is controlled by `tenant_companies.cash_payment`.
+- **Membership Cancellation**: `membership_members` has `cancellation_active TINYINT` and `cancellation_reasoning VARCHAR(256)`. Cancel via `api/cancel_member.php` (POST), reactive with `{reactivate: true}`. Dashboard has "Kansellerte" subtab. Active members view auto-excludes cancelled. Dates formatted dd.mm.yyyy via `fmtDate()` helper.
 
 ## External Dependencies
 - **Database**: Dual database support with PDO (Production: MySQL, Development/Testing: PostgreSQL).

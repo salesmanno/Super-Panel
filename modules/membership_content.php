@@ -107,19 +107,32 @@
                 </div>
                 <div class="d-flex justify-content-between align-items-center mt-3">
                     <small class="text-muted">Viser 0 av 0 medlemmer</small>
-                    <nav>
-                        <ul class="pagination pagination-sm mb-0">
-                            <li class="page-item disabled">
-                                <a class="page-link" href="#">Forrige</a>
-                            </li>
-                            <li class="page-item active">
-                                <a class="page-link" href="#">1</a>
-                            </li>
-                            <li class="page-item disabled">
-                                <a class="page-link" href="#">Neste</a>
-                            </li>
-                        </ul>
-                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="membership-cancelled" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title mb-3"><i class="bi bi-x-circle me-2 text-danger"></i>Kansellerte medlemskap</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Navn</th>
+                                <th>E-post</th>
+                                <th>Medlemstype</th>
+                                <th>Begrunnelse</th>
+                                <th>Handling</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cancelled-members-tbody">
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">Ingen kansellerte medlemmer</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -1100,14 +1113,14 @@ function renderMembersTable(members) {
                     <td>${member.address ? (member.address + ', ' + (member.poststed || '')) : '-'}</td>
                     <td class="editable-plan-cell" data-field="membership_plan_id" data-current-plan="${member.membership_plan_id || ''}">${member.membership_type || '-'}</td>
                     <td><span class="badge ${statusBadge}">${statusText}</span></td>
-                    <td>${member.join_date || '-'}</td>
-                    <td>${member.expiry_date || '-'}</td>
+                    <td>${fmtDate(member.join_date)}</td>
+                    <td>${fmtDate(member.expiry_date)}</td>
                     <td>
                         <button class="btn btn-sm btn-success" onclick="renewMembership('${member.member_id}')" title="Forny medlemskap">
                             <i class="bi bi-arrow-clockwise"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteMember('${member.member_id}', '${member.first_name} ${member.last_name}')" title="Slett medlem">
-                            <i class="bi bi-trash"></i>
+                        <button class="btn btn-sm btn-outline-warning" onclick="openCancelModal('${member.member_id}', '${member.first_name} ${member.last_name}')" title="Kanseller medlemskap">
+                            <i class="bi bi-x-circle"></i>
                         </button>
                     </td>
                 </tr>
@@ -1697,5 +1710,145 @@ async function registerPayment(memberId, memberName, amount, email) {
         alert('Feil ved registrering av betaling');
     }
 }
+
+// ===== DATOFORMAT HJELPER =====
+function fmtDate(d) {
+    if (!d) return '-';
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return d;
+    return dt.toLocaleDateString('nb-NO', {day:'2-digit', month:'2-digit', year:'numeric'});
+}
+
+// ===== KANSELLERTE MEDLEMMER =====
+async function loadCancelledMembers() {
+    const tbody = document.getElementById('cancelled-members-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3"><div class="spinner-border spinner-border-sm"></div></td></tr>';
+
+    try {
+        const resp = await fetch('../api/get_members.php?cancelled=1');
+        const data = await resp.json();
+
+        if (data.success && data.members && data.members.length > 0) {
+            tbody.innerHTML = data.members.map(m => `
+                <tr>
+                    <td>${m.first_name || ''} ${m.last_name || ''}</td>
+                    <td>${m.email || '-'}</td>
+                    <td>${m.membership_type || '-'}</td>
+                    <td><span class="text-muted fst-italic small">${m.cancellation_reasoning || 'Ingen begrunnelse'}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-success" onclick="reactivateMember('${m.member_id}')" title="Reaktiver">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Ingen kansellerte medlemmer</td></tr>';
+        }
+    } catch(err) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-danger text-center py-3">${err.message}</td></tr>`;
+    }
+}
+
+// Laster kansellerte ved klikk på subtab
+const cancelledTabLink = document.querySelector('a[href="#membership-cancelled"]');
+if (cancelledTabLink) {
+    cancelledTabLink.addEventListener('click', function() {
+        setTimeout(loadCancelledMembers, 100);
+    });
+}
+
+// Kanselleringsmodal
+let cancelTargetId = null;
+
+function openCancelModal(memberId, name) {
+    cancelTargetId = memberId;
+    document.getElementById('cancel-member-name').textContent = name;
+    document.getElementById('cancel-reason-input').value = '';
+    new bootstrap.Modal(document.getElementById('cancelMemberModal')).show();
+}
+
+async function confirmCancelMember() {
+    if (!cancelTargetId) return;
+    const reason = document.getElementById('cancel-reason-input').value.trim();
+    const btn = document.getElementById('confirm-cancel-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Kansellerer...';
+
+    try {
+        const resp = await fetch('../api/cancel_member.php', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            credentials: 'same-origin',
+            body: JSON.stringify({member_id: cancelTargetId, reason})
+        });
+        const data = await resp.json();
+
+        bootstrap.Modal.getInstance(document.getElementById('cancelMemberModal')).hide();
+        if (data.success) {
+            loadMembers();
+            loadCancelledMembers();
+        } else {
+            alert('Feil: ' + (data.error || 'Ukjent feil'));
+        }
+    } catch(err) {
+        alert('Feil: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-x-circle me-1"></i>Kanseller';
+        cancelTargetId = null;
+    }
+}
+
+async function reactivateMember(memberId) {
+    if (!confirm('Vil du reaktivere dette medlemskapet?')) return;
+    try {
+        const resp = await fetch('../api/cancel_member.php', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            credentials: 'same-origin',
+            body: JSON.stringify({member_id: memberId, reactivate: true})
+        });
+        const data = await resp.json();
+        if (data.success) {
+            loadMembers();
+            loadCancelledMembers();
+        } else {
+            alert('Feil: ' + (data.error || 'Ukjent feil'));
+        }
+    } catch(err) {
+        alert('Feil: ' + err.message);
+    }
+}
 </script>
+
+<!-- KANSELLERINGSMODAL -->
+<div class="modal fade" id="cancelMemberModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header py-2 border-bottom">
+                <h6 class="modal-title text-danger"><i class="bi bi-x-circle me-2"></i>Kanseller medlemskap</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Du er i ferd med å kansellere medlemskapet til <strong id="cancel-member-name"></strong>.</p>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Begrunnelse <span class="text-muted fw-normal">(valgfritt)</span></label>
+                    <textarea class="form-control" id="cancel-reason-input" rows="3" placeholder="Skriv inn årsak til kansellering..."></textarea>
+                </div>
+                <div class="alert alert-warning py-2 mb-0">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Medlemmet flyttes til «Kansellerte»-listen og kan reaktiveres ved behov.
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Avbryt</button>
+                <button class="btn btn-danger btn-sm" id="confirm-cancel-btn" onclick="confirmCancelMember()">
+                    <i class="bi bi-x-circle me-1"></i>Kanseller
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 

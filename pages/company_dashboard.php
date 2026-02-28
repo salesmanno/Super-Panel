@@ -522,6 +522,9 @@ try {
                 <li class="nav-item">
                     <a class="nav-link" href="#membership-income">Medlemsinntekter</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#membership-cancelled">Kansellerte</a>
+                </li>
             </ul>
             
             <!-- Reservations subtabs - Tjenesteadministrasjon -->

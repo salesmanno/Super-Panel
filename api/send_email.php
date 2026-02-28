@@ -27,71 +27,81 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/SMTPClient.php';
+require_once __DIR__ . '/../includes/EmailTemplate.php';
 
 try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
-    
+
     $data = json_decode(file_get_contents('php://input'), true);
-    
+
     if (empty($data['to']) || empty($data['subject'])) {
         ob_end_clean();
         echo json_encode(['success' => false, 'error' => 'Mottaker og emne er påkrevd']);
         exit;
     }
-    
-    $stmt = $db->prepare("
-        SELECT smtp_host, smtp_port, smtp_username, smtp_password_encrypted, email, display_name 
-        FROM email_configs 
-        WHERE company_id = ? 
-        LIMIT 1
-    ");
-    $stmt->execute([$companyId]);
-    $config = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$config || empty($config['smtp_host']) || empty($config['smtp_username'])) {
-        ob_end_clean();
-        echo json_encode(['success' => false, 'error' => 'SMTP ikke konfigurert']);
-        exit;
-    }
-    
+
     $to = filter_var($data['to'], FILTER_VALIDATE_EMAIL);
     if (!$to) {
         ob_end_clean();
         echo json_encode(['success' => false, 'error' => 'Ugyldig e-postadresse']);
         exit;
     }
-    
-    $subject = $data['subject'];
-    $body = $data['body'] ?? '';
+
+    $stmt = $db->prepare("
+        SELECT smtp_address, smtp_port, smtp_username, smtp_password_encrypted, email, display_name
+        FROM email_configs
+        WHERE company_id = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$companyId]);
+    $config = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$config || empty($config['smtp_address']) || empty($config['smtp_username'])) {
+        ob_end_clean();
+        echo json_encode(['success' => false, 'error' => 'SMTP ikke konfigurert (mangler smtp_address)']);
+        exit;
+    }
+
+    $companyStmt = $db->prepare("SELECT name, logo_url FROM tenant_companies WHERE id = ? LIMIT 1");
+    $companyStmt->execute([$companyId]);
+    $company = $companyStmt->fetch(PDO::FETCH_ASSOC);
+    $companyName = $company['name'] ?? '';
+    $logoUrl     = $company['logo_url'] ?? '';
+
+    $subject   = $data['subject'];
+    $rawBody   = $data['body'] ?? '';
+    $htmlBody  = EmailTemplate::wrap(nl2br(htmlspecialchars($rawBody)), $companyName, $logoUrl);
+
     $fromEmail = $config['email'] ?? $config['smtp_username'];
-    $fromName = $config['display_name'] ?? '';
-    
+    $fromName  = $config['display_name'] ?? $companyName;
+
     $smtp = new SMTPClient(
-        $config['smtp_host'],
+        $config['smtp_address'],
         $config['smtp_port'] ?? 465,
         $config['smtp_username'],
         $config['smtp_password_encrypted']
     );
-    
-    $result = $smtp->send($fromEmail, $fromName, $to, $subject, $body);
-    
+
+    $result = $smtp->send($fromEmail, $fromName, $to, $subject, $htmlBody);
+
     if ($result['success']) {
-        $logId = bin2hex(random_bytes(16));
-        $stmt = $db->prepare("
-            INSERT INTO email_logs (id, company_id, module_source, recipient_email, subject, status, created_at, sent_at)
-            VALUES (?, ?, 'webmail', ?, ?, 'sent', NOW(), NOW())
+        $logStmt = $db->prepare("
+            INSERT INTO email_logs
+                (id, company_id, from_email, from_name, to_email, subject, body_html, status, sent_at)
+            VALUES
+                (UUID(), ?, ?, ?, ?, ?, ?, 'sent', NOW())
         ");
-        $stmt->execute([$logId, $companyId, $to, $subject]);
-        
+        $logStmt->execute([$companyId, $fromEmail, $fromName, $to, $subject, $htmlBody]);
+
         ob_end_clean();
         echo json_encode(['success' => true, 'message' => 'E-post sendt']);
     } else {
         ob_end_clean();
         echo json_encode(['success' => false, 'error' => $result['error'] ?? 'Kunne ikke sende e-post']);
     }
-    
-} catch (Exception $e) {
+
+} catch (\Throwable $e) {
     ob_end_clean();
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }
