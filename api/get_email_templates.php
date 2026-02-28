@@ -28,6 +28,34 @@ try {
 
     $id      = $_GET['id'] ?? null;
     $preview = isset($_GET['preview']) && $_GET['preview'] == '1';
+    $edit    = isset($_GET['edit'])    && $_GET['edit']    == '1';
+
+    if ($id && $edit) {
+        $stmt = $db->prepare("
+            SELECT body_template, name, subject_template
+            FROM email_templates
+            WHERE id = ?
+              AND (company_id = ? OR company_id IS NULL)
+            LIMIT 1
+        ");
+        $stmt->execute([$id, $companyId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row) {
+            ob_end_clean();
+            echo json_encode(['success' => false, 'error' => 'Mal ikke funnet']);
+            exit;
+        }
+
+        ob_end_clean();
+        echo json_encode([
+            'success'  => true,
+            'body'     => $row['body_template'],
+            'name'     => $row['name'],
+            'subject'  => $row['subject_template']
+        ]);
+        exit;
+    }
 
     if ($id && $preview) {
         $stmt = $db->prepare("

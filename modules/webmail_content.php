@@ -100,6 +100,61 @@ try {
 .badge-sent { background: #198754; }
 .badge-failed { background: #dc3545; }
 
+/* Template bar */
+.wm-template-bar {
+    position: relative;
+    border-bottom: 1px solid #dee2e6;
+    padding: 8px 0 10px;
+    margin-bottom: 14px;
+}
+.wm-template-picker {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1050;
+    min-width: 240px;
+    max-height: 260px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    padding: 4px;
+}
+.wm-picker-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 4px; cursor: pointer;
+    font-size: 0.88rem;
+}
+.wm-picker-item:hover { background: #f0f4ff; }
+.wm-picker-item.active { background: #e7f1ff; color: #0d6efd; font-weight: 600; }
+
+/* Inline template editor */
+#wm-template-editor {
+    min-height: 320px;
+    max-height: 460px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 16px 20px;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    background: #fff;
+    outline: none;
+    cursor: text;
+}
+#wm-template-editor:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 3px rgba(13,110,253,0.12);
+}
+#wm-template-editor mark {
+    background: #fff3cd;
+    color: #856404;
+    border-radius: 3px;
+    padding: 0 3px;
+    font-style: normal;
+}
+
 /* Recipient tags */
 .recipient-tag {
     display: inline-flex; align-items: center; gap: 4px;
@@ -189,14 +244,33 @@ try {
 
         <!-- COMPOSE VIEW -->
         <div id="wm-view-compose" class="wm-content-pane" style="display:none;">
-            <div class="d-flex align-items-center gap-2 mb-3">
-                <h6 class="mb-0"><i class="bi bi-pencil-square me-2"></i>Ny e-post</h6>
-                <div id="wm-active-template-badge" style="display:none;" class="badge bg-info text-dark d-flex align-items-center gap-1">
-                    <i class="bi bi-file-earmark-text"></i>
-                    <span id="wm-active-template-name"></span>
-                    <span style="cursor:pointer;font-weight:bold;" onclick="wmClearTemplate()">&times;</span>
+
+            <!-- MAL-BAR øverst -->
+            <div class="wm-template-bar">
+                <div id="wm-tbar-empty" class="d-flex align-items-center gap-2">
+                    <span class="text-muted small">Ingen mal valgt</span>
+                    <button class="btn btn-sm btn-outline-primary" onclick="wmToggleTemplatePicker(event)">
+                        <i class="bi bi-file-earmark-text me-1"></i>Velg mal
+                    </button>
+                </div>
+                <div id="wm-tbar-active" style="display:none;" class="d-flex align-items-center gap-2">
+                    <span class="text-muted small">Mal:</span>
+                    <button class="btn btn-sm btn-light border" id="wm-tbar-name-btn" onclick="wmToggleTemplatePicker(event)">
+                        <i class="bi bi-file-earmark-text me-1 text-primary"></i>
+                        <span id="wm-tbar-name"></span>
+                        <i class="bi bi-chevron-down ms-1 small"></i>
+                    </button>
+                    <button class="btn btn-sm btn-link text-danger p-0" onclick="wmClearTemplate()" title="Fjern mal">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+                <div id="wm-template-picker" class="wm-template-picker" style="display:none;">
+                    <div id="wm-picker-list">
+                        <div class="text-center py-2 text-muted small">Laster...</div>
+                    </div>
                 </div>
             </div>
+
             <div class="mb-2">
                 <label class="form-label fw-semibold small mb-1">Til</label>
                 <div id="wm-to-tags" class="border rounded p-2 mb-1 d-flex flex-wrap gap-1" style="min-height:38px;cursor:text;" onclick="document.getElementById('wm-to-input').focus()"></div>
@@ -214,6 +288,10 @@ try {
             <div class="mb-3">
                 <label class="form-label fw-semibold small mb-1">Melding</label>
                 <textarea class="form-control" id="wm-body" rows="14" style="resize:vertical;font-size:0.9rem;"></textarea>
+                <div id="wm-template-editor" contenteditable="true" style="display:none;" spellcheck="true"></div>
+                <div id="wm-editor-hint" style="display:none;" class="text-muted small mt-1">
+                    <i class="bi bi-info-circle me-1"></i>Klikk i teksten for å redigere. Gule felt er datapunkter du kan endre eller slette.
+                </div>
             </div>
             <div class="d-flex gap-2">
                 <button class="btn btn-primary" onclick="wmSend()">
@@ -500,11 +578,17 @@ function renderTags() {
 }
 
 function wmClearTemplate() {
-    wmActiveTemplateId = null;
+    wmActiveTemplateId   = null;
     wmActiveTemplateName = null;
     wmActiveTemplateBody = null;
-    document.getElementById('wm-active-template-badge').style.display = 'none';
-    document.getElementById('wm-body').placeholder = '';
+    document.getElementById('wm-tbar-empty').style.display = 'flex';
+    document.getElementById('wm-tbar-active').style.display = 'none';
+    document.getElementById('wm-template-picker').style.display = 'none';
+    document.getElementById('wm-template-editor').style.display = 'none';
+    document.getElementById('wm-template-editor').innerHTML = '';
+    document.getElementById('wm-editor-hint').style.display = 'none';
+    document.getElementById('wm-body').style.display = '';
+    document.getElementById('wm-body').value = '';
 }
 
 async function wmSend() {
@@ -515,8 +599,17 @@ async function wmSend() {
     }
 
     const subject = document.getElementById('wm-subject').value.trim();
-    let body      = document.getElementById('wm-body').value.trim();
     const alertEl = document.getElementById('wm-compose-alert');
+
+    const editorEl = document.getElementById('wm-template-editor');
+    const usingEditor = editorEl.style.display !== 'none';
+    let body;
+    if (usingEditor) {
+        body = editorEl.innerHTML
+            .replace(/<mark[^>]*>([\s\S]*?)<\/mark>/gi, '$1');
+    } else {
+        body = document.getElementById('wm-body').value.trim();
+    }
 
     if (wmToList.length === 0) {
         alertEl.style.display = '';
@@ -527,17 +620,6 @@ async function wmSend() {
         alertEl.style.display = '';
         alertEl.innerHTML = '<div class="alert alert-warning">Emne er påkrevd</div>';
         return;
-    }
-
-    if (wmActiveTemplateId && wmActiveTemplateBody) {
-        const userText = body.replace(/^Skriv din melding her.*$/m, '').trim();
-        if (wmActiveTemplateBody.includes('{{message}}')) {
-            body = wmActiveTemplateBody.replace(/\{\{message\}\}/g, userText ? userText.replace(/\n/g, '<br>') : '');
-        } else {
-            body = userText
-                ? '<p>' + userText.replace(/\n/g, '<br>') + '</p>' + wmActiveTemplateBody
-                : wmActiveTemplateBody;
-        }
     }
 
     alertEl.style.display = '';
@@ -555,7 +637,6 @@ async function wmSend() {
         if (data.success) {
             alertEl.innerHTML = `<div class="alert alert-success"><i class="bi bi-check-circle me-2"></i>${data.message}</div>`;
             document.getElementById('wm-subject').value = '';
-            document.getElementById('wm-body').value = '';
             wmToList = [];
             renderTags();
             wmClearTemplate();
@@ -566,6 +647,59 @@ async function wmSend() {
         alertEl.innerHTML = `<div class="alert alert-danger">Feil: ${escapeH(err.message)}</div>`;
     }
 }
+
+/* ===== TEMPLATE PICKER I COMPOSE ===== */
+let wmPickerOpen = false;
+
+function wmToggleTemplatePicker(e) {
+    if (e) e.stopPropagation();
+    const picker = document.getElementById('wm-template-picker');
+    wmPickerOpen = !wmPickerOpen;
+    picker.style.display = wmPickerOpen ? 'block' : 'none';
+    if (wmPickerOpen) wmRenderPickerList();
+}
+
+async function wmRenderPickerList() {
+    const listEl = document.getElementById('wm-picker-list');
+    if (!wmAllTemplates.length) {
+        listEl.innerHTML = '<div class="text-center py-2 text-muted small">Laster...</div>';
+        try {
+            const resp = await fetch('/api/get_email_templates.php', {credentials:'same-origin'});
+            const data = JSON.parse(await resp.text());
+            if (data.success) { wmAllTemplates = data.templates || []; wmTemplatesLoaded = true; }
+        } catch(e) {}
+    }
+    if (!wmAllTemplates.length) {
+        listEl.innerHTML = '<div class="text-muted small p-2">Ingen maler funnet</div>';
+        return;
+    }
+    listEl.innerHTML = wmAllTemplates.map((t, i) => `
+        <div class="wm-picker-item ${wmActiveTemplateId===t.id?'active':''}"
+             data-picker-idx="${i}">
+            <i class="bi bi-file-earmark-text ${wmActiveTemplateId===t.id?'text-primary':'text-muted'}"></i>
+            <span>${escapeH(t.name)}</span>
+            ${wmActiveTemplateId===t.id ? '<i class="bi bi-check ms-auto text-primary"></i>' : ''}
+        </div>
+    `).join('');
+    listEl.querySelectorAll('.wm-picker-item').forEach(el => {
+        el.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const t = wmAllTemplates[parseInt(this.dataset.pickerIdx)];
+            if (t) wmUseTemplate(t.id, t.name, t.subject_template);
+        });
+    });
+}
+
+document.addEventListener('click', function(e) {
+    if (wmPickerOpen) {
+        const picker = document.getElementById('wm-template-picker');
+        const bar    = document.querySelector('.wm-template-bar');
+        if (picker && bar && !bar.contains(e.target)) {
+            picker.style.display = 'none';
+            wmPickerOpen = false;
+        }
+    }
+});
 
 /* ===== MOTTAKERPICKER ===== */
 let wmAllRecipients = [];
@@ -1011,27 +1145,57 @@ async function wmPreviewTemplateByKey(templateKey) {
 function wmUseTemplateFromPreview() {
     const p = window._wmPreviewData;
     if (!p) return;
-    wmUseTemplate(p.id, p.name, p.subject, p.html);
+    wmUseTemplate(p.id, p.name, p.subject);
 }
 
-function wmUseTemplate(id, name, subject, bodyHtml) {
+async function wmUseTemplate(id, name, subject) {
     wmActiveTemplateId   = id;
     wmActiveTemplateName = name;
-    wmActiveTemplateBody = bodyHtml;
+    wmActiveTemplateBody = null;
 
-    document.getElementById('wm-active-template-name').textContent = name;
-    document.getElementById('wm-active-template-badge').style.display = 'flex';
+    document.getElementById('wm-tbar-name').textContent = name;
+    document.getElementById('wm-tbar-empty').style.display = 'none';
+    document.getElementById('wm-tbar-active').style.display = 'flex';
+    document.getElementById('wm-template-picker').style.display = 'none';
+    wmPickerOpen = false;
 
-    document.getElementById('wm-subject').value = subject;
-    document.getElementById('wm-body').value = '';
-    document.getElementById('wm-body').placeholder = 'Skriv din melding her — teksten legges inn i malen ved sending';
+    if (subject) document.getElementById('wm-subject').value = subject;
 
-    wmToList = [];
-    renderTags();
     document.getElementById('wm-compose-alert').style.display = 'none';
 
     wmShow('compose', null);
     document.querySelectorAll('.wm-nav li a').forEach(a => a.classList.remove('active'));
+
+    const editorEl  = document.getElementById('wm-template-editor');
+    const hintEl    = document.getElementById('wm-editor-hint');
+    const textareaEl = document.getElementById('wm-body');
+
+    editorEl.innerHTML = '<div class="text-center text-muted py-3"><div class="spinner-border spinner-border-sm me-2"></div>Laster mal...</div>';
+    editorEl.style.display = 'block';
+    editorEl.contentEditable = 'false';
+    textareaEl.style.display = 'none';
+    hintEl.style.display = 'none';
+
+    try {
+        const resp = await fetch(`/api/get_email_templates.php?id=${encodeURIComponent(id)}&edit=1`, {credentials:'same-origin'});
+        const data = JSON.parse(await resp.text());
+
+        if (!data.success) {
+            editorEl.innerHTML = `<div class="alert alert-danger">${escapeH(data.error)}</div>`;
+            editorEl.contentEditable = 'false';
+            return;
+        }
+
+        const processed = data.body.replace(/\{\{([^}]+)\}\}/g, '<mark>{{$1}}</mark>');
+        editorEl.innerHTML = processed;
+        editorEl.contentEditable = 'true';
+        hintEl.style.display = 'block';
+        wmActiveTemplateBody = data.body;
+
+    } catch(err) {
+        editorEl.innerHTML = `<div class="alert alert-danger">Feil: ${escapeH(err.message)}</div>`;
+        editorEl.contentEditable = 'false';
+    }
 }
 
 function escapeH(t) {
