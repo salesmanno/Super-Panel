@@ -1119,9 +1119,6 @@ function renderMembersTable(members) {
                         <button class="btn btn-sm btn-success" onclick="renewMembership('${member.member_id}')" title="Forny medlemskap">
                             <i class="bi bi-arrow-clockwise"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-warning cancel-toggle-btn" onclick="toggleCancelRow('${member.member_id}', this)" title="Kanseller medlemskap">
-                            <i class="bi bi-x-circle"></i>
-                        </button>
                     </td>
                 </tr>
             `;
@@ -1757,94 +1754,6 @@ if (cancelledTabLink) {
     cancelledTabLink.addEventListener('click', function() {
         setTimeout(loadCancelledMembers, 100);
     });
-}
-
-// ===== INLINE KANSELLERING (ingen modal) =====
-function closeCancelRow(memberId) {
-    document.getElementById('cancel-inline-' + memberId)?.remove();
-    const tr = document.querySelector(`tr[data-member-id="${memberId}"]`);
-    const btn = tr?.querySelector('.cancel-toggle-btn');
-    if (btn) { btn.classList.remove('active', 'btn-warning'); btn.classList.add('btn-outline-warning'); }
-}
-
-function toggleCancelRow(memberId, btn) {
-    const existingRow = document.getElementById('cancel-inline-' + memberId);
-    if (existingRow) {
-        existingRow.remove();
-        btn.classList.remove('active', 'btn-warning');
-        btn.classList.add('btn-outline-warning');
-        return;
-    }
-
-    // Lukk alle andre åpne kanselleringsrader
-    document.querySelectorAll('[id^="cancel-inline-"]').forEach(r => r.remove());
-    document.querySelectorAll('.cancel-toggle-btn').forEach(b => {
-        b.classList.remove('active', 'btn-warning');
-        b.classList.add('btn-outline-warning');
-    });
-
-    btn.classList.remove('btn-outline-warning');
-    btn.classList.add('btn-warning', 'active');
-
-    const memberRow = btn.closest('tr');
-    const colCount = memberRow.querySelectorAll('td').length;
-
-    const inlineRow = document.createElement('tr');
-    inlineRow.id = 'cancel-inline-' + memberId;
-    inlineRow.style.cssText = 'background:#fff8f0;';
-    inlineRow.innerHTML = `
-        <td colspan="${colCount}" class="py-2 px-3">
-            <div class="d-flex align-items-center gap-2 flex-wrap">
-                <span class="text-warning-emphasis small fw-semibold">
-                    <i class="bi bi-exclamation-triangle me-1"></i>Kanseller:
-                </span>
-                <input type="text" class="form-control form-control-sm" id="cancel-reason-${memberId}"
-                       placeholder="Begrunnelse (valgfritt)" style="max-width:320px;">
-                <button class="btn btn-danger btn-sm" onclick="submitCancelMember('${memberId}', this)">
-                    <i class="bi bi-x-circle me-1"></i>Bekreft kansellering
-                </button>
-                <button class="btn btn-outline-secondary btn-sm" onclick="closeCancelRow('${memberId}')">
-                    Avbryt
-                </button>
-            </div>
-        </td>
-    `;
-    memberRow.insertAdjacentElement('afterend', inlineRow);
-    document.getElementById('cancel-reason-' + memberId)?.focus();
-}
-
-async function submitCancelMember(memberId, btn) {
-    const reason = document.getElementById('cancel-reason-' + memberId)?.value.trim() || '';
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Kansellerer...';
-
-    try {
-        const resp = await fetch('../api/cancel_member.php', {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            credentials: 'same-origin',
-            body: JSON.stringify({member_id: memberId, reason})
-        });
-        const data = await resp.json();
-        if (data.success) {
-            document.getElementById('cancel-inline-' + memberId)?.remove();
-            loadMembers();
-            loadCancelledMembers();
-        } else {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-x-circle me-1"></i>Bekreft kansellering';
-            const inlineRow = document.getElementById('cancel-inline-' + memberId);
-            if (inlineRow) {
-                const errEl = document.createElement('div');
-                errEl.className = 'text-danger small ms-2 mt-1';
-                errEl.textContent = data.error || 'Ukjent feil';
-                inlineRow.querySelector('.d-flex')?.appendChild(errEl);
-            }
-        }
-    } catch(err) {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-x-circle me-1"></i>Bekreft kansellering';
-    }
 }
 
 async function reactivateMember(memberId) {
