@@ -151,6 +151,9 @@ try {
             <li><a href="#" id="wm-nav-sent" onclick="wmShow('sent', this)">
                 <i class="bi bi-send-check"></i> Sendte
             </a></li>
+            <li><a href="#" id="wm-nav-templates" onclick="wmShow('templates', this)">
+                <i class="bi bi-file-earmark-text"></i> Maler
+            </a></li>
         </ul>
 
         <div class="wm-divider"></div>
@@ -186,7 +189,14 @@ try {
 
         <!-- COMPOSE VIEW -->
         <div id="wm-view-compose" class="wm-content-pane" style="display:none;">
-            <h6 class="mb-3"><i class="bi bi-pencil-square me-2"></i>Ny e-post</h6>
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <h6 class="mb-0"><i class="bi bi-pencil-square me-2"></i>Ny e-post</h6>
+                <div id="wm-active-template-badge" style="display:none;" class="badge bg-info text-dark d-flex align-items-center gap-1">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span id="wm-active-template-name"></span>
+                    <span style="cursor:pointer;font-weight:bold;" onclick="wmClearTemplate()">&times;</span>
+                </div>
+            </div>
             <div class="mb-2">
                 <label class="form-label fw-semibold small mb-1">Til</label>
                 <div id="wm-to-tags" class="border rounded p-2 mb-1 d-flex flex-wrap gap-1" style="min-height:38px;cursor:text;" onclick="document.getElementById('wm-to-input').focus()"></div>
@@ -256,6 +266,22 @@ try {
                 </button>
             </div>
             <div id="wm-logs-table"></div>
+        </div>
+
+        <!-- TEMPLATES VIEW -->
+        <div id="wm-view-templates" class="wm-main-inner" style="display:none;">
+            <div class="wm-list-pane" id="wm-template-list">
+                <div class="p-3 text-center text-muted">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                    <div class="small mt-2">Laster maler...</div>
+                </div>
+            </div>
+            <div class="wm-content-pane" id="wm-template-detail">
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-file-earmark-text fs-1 d-block mb-3 text-secondary"></i>
+                    <p>Velg en mal for å forhåndsvise den</p>
+                </div>
+            </div>
         </div>
 
     </div>
@@ -331,6 +357,7 @@ function wmShow(view, navEl) {
     document.getElementById('wm-view-inbox').style.display = 'none';
     document.getElementById('wm-view-queue').style.display = 'none';
     document.getElementById('wm-view-sent').style.display = 'none';
+    document.getElementById('wm-view-templates').style.display = 'none';
 
     wmCurrentView = view;
 
@@ -345,6 +372,9 @@ function wmShow(view, navEl) {
         wmLoadLogs();
     } else if (view === 'compose') {
         document.getElementById('wm-view-compose').style.display = 'block';
+    } else if (view === 'templates') {
+        document.getElementById('wm-view-templates').style.display = 'flex';
+        wmLoadTemplates();
     }
 }
 
@@ -414,6 +444,12 @@ async function wmOpenEmail(uid) {
 /* ===== COMPOSE ===== */
 let wmToList = [];
 
+let wmActiveTemplateId = null;
+let wmActiveTemplateName = null;
+let wmActiveTemplateBody = null;
+let wmTemplatesLoaded = false;
+let wmAutomailerLoaded = false;
+
 document.addEventListener('DOMContentLoaded', function() {
     const toInput = document.getElementById('wm-to-input');
     if (toInput) {
@@ -430,7 +466,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     wmShow('inbox', document.getElementById('wm-nav-inbox'));
-    loadAutomailerSettings();
+
+    const accordionEl = document.getElementById('wmAutomailerBody');
+    if (accordionEl) {
+        accordionEl.addEventListener('show.bs.collapse', function() {
+            if (!wmAutomailerLoaded) {
+                wmAutomailerLoaded = true;
+                loadAutomailerSettings();
+            }
+        });
+    }
 });
 
 function wmAddTag(email) {
@@ -455,6 +500,14 @@ function renderTags() {
     `).join('');
 }
 
+function wmClearTemplate() {
+    wmActiveTemplateId = null;
+    wmActiveTemplateName = null;
+    wmActiveTemplateBody = null;
+    document.getElementById('wm-active-template-badge').style.display = 'none';
+    document.getElementById('wm-body').placeholder = '';
+}
+
 async function wmSend() {
     const input = document.getElementById('wm-to-input').value.trim().replace(/,$/, '');
     if (input && input.includes('@')) {
@@ -463,7 +516,7 @@ async function wmSend() {
     }
 
     const subject = document.getElementById('wm-subject').value.trim();
-    const body    = document.getElementById('wm-body').value.trim();
+    let body      = document.getElementById('wm-body').value.trim();
     const alertEl = document.getElementById('wm-compose-alert');
 
     if (wmToList.length === 0) {
@@ -475,6 +528,17 @@ async function wmSend() {
         alertEl.style.display = '';
         alertEl.innerHTML = '<div class="alert alert-warning">Emne er påkrevd</div>';
         return;
+    }
+
+    if (wmActiveTemplateId && wmActiveTemplateBody) {
+        const userText = body.replace(/^Skriv din melding her.*$/m, '').trim();
+        if (wmActiveTemplateBody.includes('{{message}}')) {
+            body = wmActiveTemplateBody.replace(/\{\{message\}\}/g, userText ? userText.replace(/\n/g, '<br>') : '');
+        } else {
+            body = userText
+                ? '<p>' + userText.replace(/\n/g, '<br>') + '</p>' + wmActiveTemplateBody
+                : wmActiveTemplateBody;
+        }
     }
 
     alertEl.style.display = '';
@@ -495,6 +559,7 @@ async function wmSend() {
             document.getElementById('wm-body').value = '';
             wmToList = [];
             renderTags();
+            wmClearTemplate();
         } else {
             alertEl.innerHTML = `<div class="alert alert-danger">${escapeH(data.error)}</div>`;
         }
@@ -705,11 +770,33 @@ async function wmLoadLogs() {
 }
 
 /* ===== AUTOMAILER ===== */
+const wmColToTemplate = {
+    automail_events_confirm:      'event_confirmation',
+    automail_events_reminder_3d:  'event_confirmation',
+    automail_events_thankyou:     'event_confirmation',
+    automail_sales_order:         'sale_receipt',
+    automail_membership_welcome:  'membership_confirmation',
+    automail_membership_renewal:  'membership_confirmation',
+    automail_reservation_confirm: 'reservation_confirmation',
+    automail_reservation_reminder:'reservation_confirmation',
+    automail_rental_confirm:      'rental_confirmation',
+    automail_rental_return:       'rental_confirmation'
+};
+
 async function loadAutomailerSettings() {
+    const contentEl = document.getElementById('wm-automailer-content');
     try {
         const resp = await fetch('/api/get_automailer_settings.php', {credentials:'same-origin'});
-        const data = JSON.parse(await resp.text());
-        if (!data.success) return;
+        const text = await resp.text();
+        let data;
+        try { data = JSON.parse(text); } catch(e) {
+            contentEl.innerHTML = '<div class="text-danger small">Ugyldig respons fra server</div>';
+            return;
+        }
+        if (!data.success) {
+            contentEl.innerHTML = `<div class="text-danger small">${escapeH(data.error || 'Kunne ikke laste innstillinger')}</div>`;
+            return;
+        }
 
         const modules = data.modules || [];
         const settings = data.settings || {};
@@ -737,26 +824,37 @@ async function loadAutomailerSettings() {
             ]}
         ];
 
-        const html = moduleConfig
-            .filter(m => modules.includes(m.key))
-            .map(m => `
-                <div class="mb-2">
-                    <div class="fw-semibold small mb-1"><i class="bi bi-${m.icon} me-1 text-muted"></i>${m.label}</div>
-                    ${m.checks.map(c => `
-                        <div class="form-check ms-2 mb-1">
+        const filtered = moduleConfig.filter(m => modules.includes(m.key));
+
+        if (!filtered.length) {
+            contentEl.innerHTML = '<div class="text-muted small py-1">Ingen aktive moduler er koblet til denne brukeren. Moduler tildeles under administrasjon.</div>';
+            return;
+        }
+
+        const html = filtered.map(m => `
+            <div class="mb-2">
+                <div class="fw-semibold small mb-1"><i class="bi bi-${m.icon} me-1 text-muted"></i>${m.label}</div>
+                ${m.checks.map(c => `
+                    <div class="d-flex align-items-center gap-1 ms-2 mb-1">
+                        <div class="form-check mb-0 flex-grow-1">
                             <input class="form-check-input automail-setting" type="checkbox"
                                    id="am_${c.col}" data-column="${c.col}"
                                    ${(settings[c.col]==1||settings[c.col]==='1')?'checked':''}>
                             <label class="form-check-label small" for="am_${c.col}">${c.label}</label>
                         </div>
-                    `).join('')}
-                </div>
-            `).join('');
+                        <a href="#" class="small text-muted text-decoration-none" title="Forhåndsvis mal"
+                           onclick="wmPreviewTemplateByKey('${wmColToTemplate[c.col]||''}'); return false;">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </div>
+                `).join('')}
+            </div>
+        `).join('');
 
-        document.getElementById('wm-automailer-content').innerHTML = html || '<div class="text-muted small">Ingen aktive moduler</div>';
+        contentEl.innerHTML = html;
 
     } catch(err) {
-        document.getElementById('wm-automailer-content').innerHTML = '<div class="text-muted small">Kunne ikke laste</div>';
+        document.getElementById('wm-automailer-content').innerHTML = `<div class="text-danger small">Feil: ${escapeH(err.message)}</div>`;
     }
 }
 
@@ -779,6 +877,160 @@ async function saveAutomailerSettings() {
             if (btn) { btn.textContent = '✓ Lagret'; setTimeout(() => { btn.innerHTML = '<i class="bi bi-save me-1"></i>Lagre'; }, 2000); }
         }
     } catch(err) {}
+}
+
+/* ===== MALER ===== */
+let wmAllTemplates = [];
+let wmSelectedTemplateId = null;
+
+async function wmLoadTemplates() {
+    if (wmTemplatesLoaded && wmAllTemplates.length) {
+        wmRenderTemplateList(wmAllTemplates);
+        return;
+    }
+    const listEl = document.getElementById('wm-template-list');
+    listEl.innerHTML = '<div class="p-3 text-center text-muted"><div class="spinner-border spinner-border-sm"></div><div class="small mt-2">Laster maler...</div></div>';
+
+    try {
+        const resp = await fetch('/api/get_email_templates.php', {credentials:'same-origin'});
+        const data = JSON.parse(await resp.text());
+        if (!data.success) {
+            listEl.innerHTML = `<div class="p-3 text-danger small">${escapeH(data.error)}</div>`;
+            return;
+        }
+        wmAllTemplates = data.templates || [];
+        wmTemplatesLoaded = true;
+        wmRenderTemplateList(wmAllTemplates);
+    } catch(err) {
+        document.getElementById('wm-template-list').innerHTML = `<div class="p-3 text-danger small">${escapeH(err.message)}</div>`;
+    }
+}
+
+function wmTemplateKeyLabel(key) {
+    const map = {
+        sale_receipt: 'Salgskvittering',
+        event_confirmation: 'Arrangement – bekreftelse',
+        membership_confirmation: 'Medlemskap – bekreftelse',
+        rental_confirmation: 'Utleie – bekreftelse',
+        service_booking_confirmation: 'Tjeneste – bekreftelse',
+        reservation_confirmation: 'Reservasjon – bekreftelse'
+    };
+    return map[key] || key;
+}
+
+function wmRenderTemplateList(templates) {
+    const listEl = document.getElementById('wm-template-list');
+    if (!templates.length) {
+        listEl.innerHTML = '<div class="p-3 text-center text-muted small"><i class="bi bi-file-earmark-x fs-2 d-block mb-2"></i>Ingen maler funnet</div>';
+        return;
+    }
+    listEl.innerHTML = templates.map(t => `
+        <div class="wm-email-item d-flex align-items-center gap-2 ${wmSelectedTemplateId===t.id?'bg-primary bg-opacity-10':''}"
+             style="cursor:pointer;" onclick="wmSelectTemplate('${escapeH(t.id)}')">
+            <i class="bi bi-file-earmark-text text-secondary"></i>
+            <div class="flex-grow-1 overflow-hidden">
+                <div class="wm-from">${escapeH(t.name)}</div>
+                <div class="wm-subject">${escapeH(wmTemplateKeyLabel(t.template_key))}</div>
+            </div>
+            ${t.is_active=='1'||t.is_active===1
+                ? '<span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:0.65rem;">Aktiv</span>'
+                : '<span class="badge bg-secondary-subtle text-secondary border" style="font-size:0.65rem;">Inaktiv</span>'}
+        </div>
+    `).join('');
+}
+
+async function wmSelectTemplate(id) {
+    wmSelectedTemplateId = id;
+    wmRenderTemplateList(wmAllTemplates);
+
+    const detailEl = document.getElementById('wm-template-detail');
+    detailEl.innerHTML = '<div class="text-center py-5"><div class="spinner-border spinner-border-sm"></div><div class="small mt-2">Laster forhåndsvisning...</div></div>';
+
+    try {
+        const resp = await fetch(`/api/get_email_templates.php?id=${encodeURIComponent(id)}&preview=1`, {credentials:'same-origin'});
+        const data = JSON.parse(await resp.text());
+        if (!data.success) {
+            detailEl.innerHTML = `<div class="alert alert-danger m-3">${escapeH(data.error)}</div>`;
+            return;
+        }
+
+        const t = wmAllTemplates.find(x => x.id === id) || {};
+        const tName    = t.name || data.name || '';
+        const tSubject = t.subject_template || data.subject || '';
+        const tHtml    = data.html || '';
+
+        window._wmPreviewData = { id, name: tName, subject: tSubject, html: tHtml };
+
+        detailEl.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                    <h6 class="mb-1">${escapeH(tName)}</h6>
+                    <div class="text-muted small"><strong>Emne:</strong> ${escapeH(tSubject)}</div>
+                </div>
+                <button class="btn btn-sm btn-primary" onclick="wmUseTemplateFromPreview()">
+                    <i class="bi bi-pencil-square me-1"></i>Bruk mal
+                </button>
+            </div>
+            <div style="border:1px solid #dee2e6; border-radius:6px; overflow:hidden;">
+                <iframe id="wm-preview-iframe" style="width:100%;height:420px;border:none;" sandbox="allow-same-origin"></iframe>
+            </div>
+        `;
+        const iframe = document.getElementById('wm-preview-iframe');
+        if (iframe) {
+            iframe.contentDocument.open();
+            iframe.contentDocument.write(tHtml);
+            iframe.contentDocument.close();
+        }
+    } catch(err) {
+        document.getElementById('wm-template-detail').innerHTML = `<div class="alert alert-danger m-3">${escapeH(err.message)}</div>`;
+    }
+}
+
+async function wmPreviewTemplateByKey(templateKey) {
+    if (!templateKey) return;
+
+    if (!wmTemplatesLoaded || !wmAllTemplates.length) {
+        const resp = await fetch('/api/get_email_templates.php', {credentials:'same-origin'});
+        const data = JSON.parse(await resp.text());
+        if (data.success) { wmAllTemplates = data.templates || []; wmTemplatesLoaded = true; }
+    }
+
+    const t = wmAllTemplates.find(x => x.template_key === templateKey);
+    if (!t) {
+        alert('Fant ikke malen: ' + templateKey);
+        return;
+    }
+
+    wmShow('templates', document.getElementById('wm-nav-templates'));
+    wmSelectedTemplateId = t.id;
+    wmRenderTemplateList(wmAllTemplates);
+    wmSelectTemplate(t.id);
+}
+
+function wmUseTemplateFromPreview() {
+    const p = window._wmPreviewData;
+    if (!p) return;
+    wmUseTemplate(p.id, p.name, p.subject, p.html);
+}
+
+function wmUseTemplate(id, name, subject, bodyHtml) {
+    wmActiveTemplateId   = id;
+    wmActiveTemplateName = name;
+    wmActiveTemplateBody = bodyHtml;
+
+    document.getElementById('wm-active-template-name').textContent = name;
+    document.getElementById('wm-active-template-badge').style.display = 'flex';
+
+    document.getElementById('wm-subject').value = subject;
+    document.getElementById('wm-body').value = '';
+    document.getElementById('wm-body').placeholder = 'Skriv din melding her — teksten legges inn i malen ved sending';
+
+    wmToList = [];
+    renderTags();
+    document.getElementById('wm-compose-alert').style.display = 'none';
+
+    wmShow('compose', null);
+    document.querySelectorAll('.wm-nav li a').forEach(a => a.classList.remove('active'));
 }
 
 function escapeH(t) {
