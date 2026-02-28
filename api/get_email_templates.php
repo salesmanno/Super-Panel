@@ -47,12 +47,34 @@ try {
             exit;
         }
 
+        $cStmt = $db->prepare("
+            SELECT tc.name AS company_name, tc.logo_url,
+                   ec.email AS from_email, ec.display_name
+            FROM tenant_companies tc
+            LEFT JOIN email_configs ec ON ec.company_id = tc.id
+            WHERE tc.id = ?
+            LIMIT 1
+        ");
+        $cStmt->execute([$companyId]);
+        $company = $cStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
         ob_end_clean();
         echo json_encode([
-            'success'  => true,
-            'body'     => $row['body_template'],
-            'name'     => $row['name'],
-            'subject'  => $row['subject_template']
+            'success'      => true,
+            'body'         => $row['body_template'],
+            'name'         => $row['name'],
+            'subject'      => $row['subject_template'],
+            'company_data' => [
+                'company_name'  => $company['company_name'] ?? '',
+                'firmanavn'     => $company['company_name'] ?? '',
+                'from_email'    => $company['from_email']   ?? '',
+                'avsender_epost'=> $company['from_email']   ?? '',
+                'sender_email'  => $company['from_email']   ?? '',
+                'display_name'  => $company['display_name'] ?? '',
+                'avsender_navn' => $company['display_name'] ?? '',
+                'sender_name'   => $company['display_name'] ?? '',
+                'logo_url'      => $company['logo_url']     ?? '',
+            ]
         ]);
         exit;
     }

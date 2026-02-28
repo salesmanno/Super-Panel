@@ -1196,8 +1196,18 @@ async function wmUseTemplate(id, name, subject) {
             return;
         }
 
-        const processed = data.body.replace(/\{\{([^}]+)\}\}/g, '<mark>{{$1}}</mark>');
-        editorEl.innerHTML = processed;
+        const companyData = data.company_data || {};
+        let body = data.body;
+
+        body = body.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+            const trimmed = key.trim();
+            if (companyData[trimmed] !== undefined && companyData[trimmed] !== '') {
+                return escapeH(companyData[trimmed]);
+            }
+            return `<mark>{{${trimmed}}}</mark>`;
+        });
+
+        editorEl.innerHTML = body;
         editorEl.contentEditable = 'true';
         hintEl.style.display = 'block';
         wmActiveTemplateBody = data.body;
