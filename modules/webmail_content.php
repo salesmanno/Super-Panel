@@ -970,17 +970,15 @@ async function loadAutomailerSettings() {
             <div class="mb-2">
                 <div class="fw-semibold small mb-1"><i class="bi bi-${m.icon} me-1 text-muted"></i>${m.label}</div>
                 ${m.checks.map(c => `
-                    <div class="d-flex align-items-center gap-1 ms-2 mb-1">
-                        <div class="form-check mb-0 flex-grow-1">
-                            <input class="form-check-input automail-setting" type="checkbox"
+                    <div class="d-flex align-items-start gap-1 ms-2 mb-1">
+                        <div class="form-check mb-0 flex-grow-1" style="min-width:0;">
+                            <input class="form-check-input automail-setting mt-1" type="checkbox"
                                    id="am_${c.col}" data-column="${c.col}"
                                    ${(settings[c.col]==1||settings[c.col]==='1')?'checked':''}>
                             <label class="form-check-label small" for="am_${c.col}">${c.label}</label>
                         </div>
-                        <a href="#" class="small text-primary"
-                           onclick="wmPreviewTemplateByKey('${wmColToTemplate[c.col]||''}'); return false;">
-                            se mal
-                        </a>
+                        <a href="#" class="small text-primary text-nowrap"
+                           onclick="wmPreviewTemplateByKey('${wmColToTemplate[c.col]||''}','${c.label}'); return false;">se mal</a>
                     </div>
                 `).join('')}
             </div>
@@ -1121,22 +1119,34 @@ async function wmSelectTemplate(id) {
     }
 }
 
-async function wmPreviewTemplateByKey(templateKey) {
-    if (!templateKey) return;
+async function wmPreviewTemplateByKey(templateKey, label) {
+    wmShow('templates', document.getElementById('wm-nav-templates'));
 
     if (!wmTemplatesLoaded || !wmAllTemplates.length) {
-        const resp = await fetch('/api/get_email_templates.php', {credentials:'same-origin'});
-        const data = JSON.parse(await resp.text());
-        if (data.success) { wmAllTemplates = data.templates || []; wmTemplatesLoaded = true; }
+        const listEl = document.getElementById('wm-template-list');
+        listEl.innerHTML = '<div class="p-3 text-center text-muted"><div class="spinner-border spinner-border-sm"></div></div>';
+        try {
+            const resp = await fetch('/api/get_email_templates.php', {credentials:'same-origin'});
+            const data = JSON.parse(await resp.text());
+            if (data.success) { wmAllTemplates = data.templates || []; wmTemplatesLoaded = true; }
+        } catch(e) {}
     }
 
-    const t = wmAllTemplates.find(x => x.template_key === templateKey);
+    wmRenderTemplateList(wmAllTemplates);
+
+    const t = templateKey ? wmAllTemplates.find(x => x.template_key === templateKey) : null;
     if (!t) {
-        alert('Fant ikke malen: ' + templateKey);
+        const typeLabel = escapeH(label || templateKey || 'denne typen');
+        document.getElementById('wm-template-detail').innerHTML = `
+            <div class="d-flex flex-column align-items-center justify-content-center h-100 text-center p-4" style="min-height:220px;">
+                <i class="bi bi-file-earmark-plus text-muted mb-3" style="font-size:2.2rem;"></i>
+                <div class="fw-semibold mb-1">Ingen mal funnet</div>
+                <div class="text-muted small">Ingen mal er opprettet for <em>${typeLabel}</em> ennå.<br>
+                Opprett en mal og sett <code>template_key</code> til <code>${escapeH(templateKey||'')}</code>.</div>
+            </div>`;
         return;
     }
 
-    wmShow('templates', document.getElementById('wm-nav-templates'));
     wmSelectedTemplateId = t.id;
     wmRenderTemplateList(wmAllTemplates);
     wmSelectTemplate(t.id);
