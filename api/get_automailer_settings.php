@@ -53,7 +53,7 @@ try {
         SELECT sm.module_key 
         FROM tenant_admin_modules tam
         JOIN system_modules sm ON tam.module_id = sm.id
-        WHERE tam.admin_id = ? AND tam.can_access = 1
+        WHERE tam.tenant_admin_id = ?
     ");
     $stmt->execute([$adminId]);
     $modules = $stmt->fetchAll(PDO::FETCH_COLUMN);

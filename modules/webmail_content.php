@@ -251,7 +251,6 @@ try {
             <div class="btn-group btn-group-sm mb-3" id="wm-queue-filter">
                 <button class="btn btn-outline-secondary active" onclick="wmQueueFilter('all', this)">Alle</button>
                 <button class="btn btn-outline-secondary" onclick="wmQueueFilter('queued', this)">Venter</button>
-                <button class="btn btn-outline-secondary" onclick="wmQueueFilter('sent', this)">Sendt</button>
                 <button class="btn btn-outline-secondary" onclick="wmQueueFilter('failed', this)">Feilet</button>
             </div>
             <div id="wm-queue-table"></div>
@@ -667,7 +666,9 @@ async function wmLoadQueue() {
         if (pending > 0) { badge.textContent = pending; badge.style.display = ''; }
         else badge.style.display = 'none';
 
-        if (!data.queue || !data.queue.length) {
+        const queue = (data.queue || []).filter(r => r.status !== 'sent');
+
+        if (!queue.length) {
             el.innerHTML = '<div class="text-center text-muted py-4"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Ingen e-poster i køen</div>';
             return;
         }
@@ -686,7 +687,7 @@ async function wmLoadQueue() {
                     </tr>
                 </thead>
                 <tbody>
-                    ${data.queue.map(r => `
+                    ${queue.map(r => `
                         <tr>
                             <td><span class="badge badge-${r.status}">${wmStatusLabel(r.status)}</span></td>
                             <td class="small">${escapeH(r.recipient_email)}</td>

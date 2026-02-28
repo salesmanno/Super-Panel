@@ -32,7 +32,7 @@ try {
     if ($id && $preview) {
         $stmt = $db->prepare("
             SELECT et.body_template, et.name, et.subject_template,
-                   tc.company_name, tc.logo_url
+                   tc.name AS company_name, tc.logo_url
             FROM email_templates et
             JOIN tenant_companies tc ON tc.id = ?
             WHERE et.id = ?
