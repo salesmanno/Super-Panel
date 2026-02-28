@@ -567,9 +567,6 @@ try {
                 <li class="nav-item">
                     <a class="nav-link active" href="#webmail-client">E-post klient</a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#webmail-history">E-post historikk</a>
-                </li>
                 <?php if ($webmailConfigured): ?>
                 <li class="nav-item">
                     <a class="nav-link" href="#webmail-automailer">AutoMailer</a>
