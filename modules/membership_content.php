@@ -1119,7 +1119,7 @@ function renderMembersTable(members) {
                         <button class="btn btn-sm btn-success" onclick="renewMembership('${member.member_id}')" title="Forny medlemskap">
                             <i class="bi bi-arrow-clockwise"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-warning" onclick="openCancelModal('${member.member_id}', '${member.first_name} ${member.last_name}')" title="Kanseller medlemskap">
+                        <button class="btn btn-sm btn-outline-warning cancel-toggle-btn" onclick="toggleCancelRow('${member.member_id}', this)" title="Kanseller medlemskap">
                             <i class="bi bi-x-circle"></i>
                         </button>
                     </td>
@@ -1759,20 +1759,62 @@ if (cancelledTabLink) {
     });
 }
 
-// Kanselleringsmodal
-let cancelTargetId = null;
-
-function openCancelModal(memberId, name) {
-    cancelTargetId = memberId;
-    document.getElementById('cancel-member-name').textContent = name;
-    document.getElementById('cancel-reason-input').value = '';
-    new bootstrap.Modal(document.getElementById('cancelMemberModal')).show();
+// ===== INLINE KANSELLERING (ingen modal) =====
+function closeCancelRow(memberId) {
+    document.getElementById('cancel-inline-' + memberId)?.remove();
+    const tr = document.querySelector(`tr[data-member-id="${memberId}"]`);
+    const btn = tr?.querySelector('.cancel-toggle-btn');
+    if (btn) { btn.classList.remove('active', 'btn-warning'); btn.classList.add('btn-outline-warning'); }
 }
 
-async function confirmCancelMember() {
-    if (!cancelTargetId) return;
-    const reason = document.getElementById('cancel-reason-input').value.trim();
-    const btn = document.getElementById('confirm-cancel-btn');
+function toggleCancelRow(memberId, btn) {
+    const existingRow = document.getElementById('cancel-inline-' + memberId);
+    if (existingRow) {
+        existingRow.remove();
+        btn.classList.remove('active', 'btn-warning');
+        btn.classList.add('btn-outline-warning');
+        return;
+    }
+
+    // Lukk alle andre åpne kanselleringsrader
+    document.querySelectorAll('[id^="cancel-inline-"]').forEach(r => r.remove());
+    document.querySelectorAll('.cancel-toggle-btn').forEach(b => {
+        b.classList.remove('active', 'btn-warning');
+        b.classList.add('btn-outline-warning');
+    });
+
+    btn.classList.remove('btn-outline-warning');
+    btn.classList.add('btn-warning', 'active');
+
+    const memberRow = btn.closest('tr');
+    const colCount = memberRow.querySelectorAll('td').length;
+
+    const inlineRow = document.createElement('tr');
+    inlineRow.id = 'cancel-inline-' + memberId;
+    inlineRow.style.cssText = 'background:#fff8f0;';
+    inlineRow.innerHTML = `
+        <td colspan="${colCount}" class="py-2 px-3">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="text-warning-emphasis small fw-semibold">
+                    <i class="bi bi-exclamation-triangle me-1"></i>Kanseller:
+                </span>
+                <input type="text" class="form-control form-control-sm" id="cancel-reason-${memberId}"
+                       placeholder="Begrunnelse (valgfritt)" style="max-width:320px;">
+                <button class="btn btn-danger btn-sm" onclick="submitCancelMember('${memberId}', this)">
+                    <i class="bi bi-x-circle me-1"></i>Bekreft kansellering
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="closeCancelRow('${memberId}')">
+                    Avbryt
+                </button>
+            </div>
+        </td>
+    `;
+    memberRow.insertAdjacentElement('afterend', inlineRow);
+    document.getElementById('cancel-reason-' + memberId)?.focus();
+}
+
+async function submitCancelMember(memberId, btn) {
+    const reason = document.getElementById('cancel-reason-' + memberId)?.value.trim() || '';
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Kansellerer...';
 
@@ -1781,28 +1823,33 @@ async function confirmCancelMember() {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             credentials: 'same-origin',
-            body: JSON.stringify({member_id: cancelTargetId, reason})
+            body: JSON.stringify({member_id: memberId, reason})
         });
         const data = await resp.json();
-
-        bootstrap.Modal.getInstance(document.getElementById('cancelMemberModal')).hide();
         if (data.success) {
+            document.getElementById('cancel-inline-' + memberId)?.remove();
             loadMembers();
             loadCancelledMembers();
         } else {
-            alert('Feil: ' + (data.error || 'Ukjent feil'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-x-circle me-1"></i>Bekreft kansellering';
+            const inlineRow = document.getElementById('cancel-inline-' + memberId);
+            if (inlineRow) {
+                const errEl = document.createElement('div');
+                errEl.className = 'text-danger small ms-2 mt-1';
+                errEl.textContent = data.error || 'Ukjent feil';
+                inlineRow.querySelector('.d-flex')?.appendChild(errEl);
+            }
         }
     } catch(err) {
-        alert('Feil: ' + err.message);
-    } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-x-circle me-1"></i>Kanseller';
-        cancelTargetId = null;
+        btn.innerHTML = '<i class="bi bi-x-circle me-1"></i>Bekreft kansellering';
     }
 }
 
 async function reactivateMember(memberId) {
-    if (!confirm('Vil du reaktivere dette medlemskapet?')) return;
+    const btn = event?.currentTarget;
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
     try {
         const resp = await fetch('../api/cancel_member.php', {
             method: 'POST',
@@ -1815,40 +1862,11 @@ async function reactivateMember(memberId) {
             loadMembers();
             loadCancelledMembers();
         } else {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i>'; }
             alert('Feil: ' + (data.error || 'Ukjent feil'));
         }
     } catch(err) {
-        alert('Feil: ' + err.message);
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i>'; }
     }
 }
-</script>
-
-<!-- KANSELLERINGSMODAL -->
-<div class="modal fade" id="cancelMemberModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header py-2 border-bottom">
-                <h6 class="modal-title text-danger"><i class="bi bi-x-circle me-2"></i>Kanseller medlemskap</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-3">Du er i ferd med å kansellere medlemskapet til <strong id="cancel-member-name"></strong>.</p>
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Begrunnelse <span class="text-muted fw-normal">(valgfritt)</span></label>
-                    <textarea class="form-control" id="cancel-reason-input" rows="3" placeholder="Skriv inn årsak til kansellering..."></textarea>
-                </div>
-                <div class="alert alert-warning py-2 mb-0">
-                    <i class="bi bi-exclamation-triangle me-1"></i>
-                    Medlemmet flyttes til «Kansellerte»-listen og kan reaktiveres ved behov.
-                </div>
-            </div>
-            <div class="modal-footer py-2">
-                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Avbryt</button>
-                <button class="btn btn-danger btn-sm" id="confirm-cancel-btn" onclick="confirmCancelMember()">
-                    <i class="bi bi-x-circle me-1"></i>Kanseller
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
 
