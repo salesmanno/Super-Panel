@@ -842,9 +842,9 @@ async function loadAutomailerSettings() {
                                    ${(settings[c.col]==1||settings[c.col]==='1')?'checked':''}>
                             <label class="form-check-label small" for="am_${c.col}">${c.label}</label>
                         </div>
-                        <a href="#" class="small text-muted text-decoration-none" title="Forhåndsvis mal"
+                        <a href="#" class="small text-primary"
                            onclick="wmPreviewTemplateByKey('${wmColToTemplate[c.col]||''}'); return false;">
-                            <i class="bi bi-eye"></i>
+                            se mal
                         </a>
                     </div>
                 `).join('')}
