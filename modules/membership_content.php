@@ -1123,8 +1123,7 @@ function renderMembersTable(members) {
                         </button>
                         ${member.share_code && member.member_code ? `
                         <button class="btn btn-sm btn-outline-secondary ms-1"
-                                id="copy-btn-${member.member_id}"
-                                onclick="copyRenewalLink('${member.member_id}','${member.share_code}','${member.member_code}')"
+                                onclick="copyRenewalLink('${member.share_code}','${member.member_code}')"
                                 title="Kopier fornyelseslenke">
                             <i class="bi bi-clipboard"></i>
                         </button>` : ''}
@@ -1349,25 +1348,16 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Copy renewal link to clipboard
-function copyRenewalLink(memberId, shareCode, memberCode) {
+function copyRenewalLink(shareCode, memberCode) {
     if (!memberSubdomain || !shareCode || !memberCode) {
-        alert('Mangler data for å generere lenken.');
+        toast.quickError('Mangler data', 'Kunne ikke generere fornyelseslenken.');
         return;
     }
     const url = `https://${memberSubdomain}.salesman.no/${shareCode}/${memberCode}`;
     navigator.clipboard.writeText(url).then(() => {
-        const btn = document.getElementById(`copy-btn-${memberId}`);
-        if (btn) {
-            const original = btn.innerHTML;
-            btn.innerHTML = '<i class="bi bi-check2"></i>';
-            btn.classList.replace('btn-outline-secondary', 'btn-success');
-            setTimeout(() => {
-                btn.innerHTML = original;
-                btn.classList.replace('btn-success', 'btn-outline-secondary');
-            }, 2000);
-        }
+        toast.quickSuccess('Lenke kopiert', url);
     }).catch(() => {
-        prompt('Kopier lenken manuelt:', `https://${memberSubdomain}.salesman.no/${shareCode}/${memberCode}`);
+        prompt('Kopier lenken manuelt:', url);
     });
 }
 
