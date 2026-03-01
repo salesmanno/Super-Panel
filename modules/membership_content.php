@@ -873,6 +873,7 @@ async function loadMembers() {
         if (result.success && result.members) {
             console.log(`✅ Loading ${result.members.length} members`);
             allMembers = result.members;
+            memberSubdomain = result.subdomain || '';
             renderMembersTable(allMembers);
         } else {
             console.log('No members found or error:', result);
@@ -1059,6 +1060,7 @@ async function loadPlansForFilter() {
 
 // Filter members based on search, plan, and status
 let allMembers = [];
+let memberSubdomain = '';
 
 function applyMemberFilters() {
     const searchTerm = document.getElementById('member-search-input').value.toLowerCase();
@@ -1115,10 +1117,17 @@ function renderMembersTable(members) {
                     <td><span class="badge ${statusBadge}">${statusText}</span></td>
                     <td>${fmtDate(member.join_date)}</td>
                     <td>${fmtDate(member.expiry_date)}</td>
-                    <td>
+                    <td class="text-nowrap">
                         <button class="btn btn-sm btn-success" onclick="renewMembership('${member.member_id}')" title="Forny medlemskap">
                             <i class="bi bi-arrow-clockwise"></i>
                         </button>
+                        ${member.share_code && member.member_code ? `
+                        <button class="btn btn-sm btn-outline-secondary ms-1"
+                                id="copy-btn-${member.member_id}"
+                                onclick="copyRenewalLink('${member.member_id}','${member.share_code}','${member.member_code}')"
+                                title="Kopier fornyelseslenke">
+                            <i class="bi bi-clipboard"></i>
+                        </button>` : ''}
                     </td>
                 </tr>
             `;
@@ -1338,6 +1347,29 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Copy renewal link to clipboard
+function copyRenewalLink(memberId, shareCode, memberCode) {
+    if (!memberSubdomain || !shareCode || !memberCode) {
+        alert('Mangler data for å generere lenken.');
+        return;
+    }
+    const url = `https://${memberSubdomain}.salesman.no/${shareCode}/${memberCode}`;
+    navigator.clipboard.writeText(url).then(() => {
+        const btn = document.getElementById(`copy-btn-${memberId}`);
+        if (btn) {
+            const original = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check2"></i>';
+            btn.classList.replace('btn-outline-secondary', 'btn-success');
+            setTimeout(() => {
+                btn.innerHTML = original;
+                btn.classList.replace('btn-success', 'btn-outline-secondary');
+            }, 2000);
+        }
+    }).catch(() => {
+        prompt('Kopier lenken manuelt:', `https://${memberSubdomain}.salesman.no/${shareCode}/${memberCode}`);
+    });
+}
 
 // Renew membership function
 async function renewMembership(memberId) {

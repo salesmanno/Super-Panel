@@ -38,7 +38,8 @@ try {
             c.address_city as poststed,
             c.date_of_birth as dateofbirth,
             c.notes,
-            p.name as membership_type
+            p.name as membership_type,
+            p.share_code
         FROM membership_members mm
         LEFT JOIN tenant_customers c ON mm.customer_id = c.id
         LEFT JOIN membership_plans p ON mm.membership_plan_id = p.id
@@ -50,7 +51,11 @@ try {
     $stmt->execute([$companyId]);
     $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    echo json_encode(['success' => true, 'members' => $members]);
+    $subStmt = $db->prepare("SELECT subdomain FROM tenant_companies WHERE id = ? LIMIT 1");
+    $subStmt->execute([$companyId]);
+    $subdomain = $subStmt->fetchColumn() ?: '';
+
+    echo json_encode(['success' => true, 'members' => $members, 'subdomain' => $subdomain]);
 
 } catch (Exception $e) {
     error_log("Error fetching members: " . $e->getMessage());
