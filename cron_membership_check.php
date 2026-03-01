@@ -2,11 +2,14 @@
 <?php
 /**
  * Membership Expiry Cron
- * Runs daily via crontab: 0 7 * * * /usr/bin/php /path/to/cron_membership_check.php >> /tmp/membership_cron.log 2>&1
+ * Runs every 15 min via crontab: *\/15 * * * * /usr/bin/php /path/to/cron_membership_check.php >> /tmp/membership_cron.log 2>&1
  *
- * Finds members whose membership has expired and Automailer_Sent = 0,
- * queues a renewal reminder email, then sets Automailer_Sent = 1.
- * Safe to re-run: already-notified members are skipped.
+ * Automailer_Sent verdier (TINYINT):
+ *   0 = ikke varslet
+ *   1 = utløpsvarsel sendt (dette skriptet)
+ *   2 = purring sendt (fremtidig cron_membership_reminder.php)
+ *
+ * Safe to re-run: allerede-varslete medlemmer (Automailer_Sent >= 1) hoppes over.
  */
 
 require_once __DIR__ . '/config/database.php';

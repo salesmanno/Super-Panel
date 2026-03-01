@@ -1141,6 +1141,8 @@ function renderMembersTable(members) {
                     <td class="small text-nowrap">
                         <div class="text-muted">Fra: ${fmtDate(member.join_date)}</div>
                         <div class="text-muted">Til: ${fmtDate(member.expiry_date)}</div>
+                        ${parseInt(member.Automailer_Sent) === 1 ? `<span class="badge bg-warning text-dark mt-1" style="font-size:0.6rem;" title="Utløpsvarsel sendt"><i class="bi bi-envelope-check me-1"></i>Varsel sendt</span>` : ''}
+                        ${parseInt(member.Automailer_Sent) === 2 ? `<span class="badge bg-danger mt-1" style="font-size:0.6rem;" title="Purring sendt"><i class="bi bi-envelope-exclamation me-1"></i>Purring sendt</span>` : ''}
                     </td>
                     <td class="text-nowrap">
                         <button class="btn btn-sm btn-success" onclick="renewMembership('${member.member_id}')" title="Forny medlemskap">
