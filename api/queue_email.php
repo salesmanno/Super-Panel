@@ -69,16 +69,32 @@ try {
         exit;
     }
 
-    $stmt = $db->prepare("
+    $insertStmt = $db->prepare("
         INSERT INTO email_queue 
             (id, company_id, recipient_email, from_email, subject, body, module_source, status, priority, scheduled_at, created_at, updated_at)
         VALUES 
             (UUID(), ?, ?, ?, ?, ?, 'webmail', 'queued', 5, NOW(), NOW(), NOW())
     ");
 
+    $customerStmt = $db->prepare("
+        SELECT first_name, last_name
+        FROM tenant_customers
+        WHERE email = ? AND company_id = ?
+        LIMIT 1
+    ");
+
     $queued = 0;
     foreach ($validRecipients as $recipient) {
-        $stmt->execute([$companyId, $recipient, $fromEmail, $subject, $body]);
+        $customerStmt->execute([$recipient, $companyId]);
+        $customer = $customerStmt->fetch(PDO::FETCH_ASSOC);
+
+        $personalBody = str_replace(
+            ['{{cus_first_name}}', '{{cus_last_name}}'],
+            [$customer['first_name'] ?? '', $customer['last_name'] ?? ''],
+            $body
+        );
+
+        $insertStmt->execute([$companyId, $recipient, $fromEmail, $subject, $personalBody]);
         $queued++;
     }
 
