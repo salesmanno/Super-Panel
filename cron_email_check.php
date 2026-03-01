@@ -2,8 +2,8 @@
 <?php
 /**
  * Email IMAP Check Cron
- * Runs every few minutes via crontab:
- *   * * * * * /usr/bin/php /path/to/cron_email_check.php >> /tmp/email_check_cron.log 2>&1
+ * Runs every 10 minutes via crontab:
+ *   */10 * * * * /usr/bin/php /path/to/cron_email_check.php >> /tmp/email_check_cron.log 2>&1
  *
  * For each company with IMAP configured, checks for UNSEEN messages
  * and updates email_configs.alertNew accordingly.
