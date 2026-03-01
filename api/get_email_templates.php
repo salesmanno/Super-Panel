@@ -73,6 +73,7 @@ try {
             'name'         => $row['name'],
             'subject'      => $row['subject_template'],
             'company_data' => [
+                'name'            => $company['company_name']    ?? '',
                 'company_name'    => $company['company_name']    ?? '',
                 'firmanavn'       => $company['company_name']    ?? '',
                 'from_email'      => $company['from_email']      ?? '',
