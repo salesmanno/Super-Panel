@@ -2,6 +2,9 @@
 .editable-member-cell, .editable-plan-cell {
     cursor: pointer;
     position: relative;
+    display: block;
+    padding: 2px 4px;
+    border-radius: 3px;
     transition: background-color 0.2s;
 }
 .editable-member-cell:hover, .editable-plan-cell:hover {
@@ -11,10 +14,10 @@
     content: '\F4C4';
     font-family: 'bootstrap-icons';
     position: absolute;
-    right: 5px;
+    right: 4px;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     color: #0d6efd;
     opacity: 0.7;
 }
@@ -30,6 +33,24 @@
     border-radius: 4px;
     padding: 2px 6px;
     font-size: 0.875rem;
+}
+.member-tx-row td {
+    background: #f8f9fa;
+    padding: 8px 12px !important;
+}
+.member-tx-row .tx-table {
+    font-size: 0.8rem;
+    margin-bottom: 0;
+}
+.member-tx-row .tx-table th {
+    font-weight: 600;
+    color: #6b7280;
+    border-bottom: 1px solid #dee2e6;
+    padding: 4px 8px;
+}
+.member-tx-row .tx-table td {
+    padding: 4px 8px;
+    background: transparent !important;
 }
 </style>
 <div class="module-content">
@@ -84,21 +105,15 @@
                         <thead>
                             <tr>
                                 <th>Medlemsnr</th>
-                                <th>Fornavn</th>
-                                <th>Etternavn</th>
-                                <th>E-post</th>
-                                <th>Telefon</th>
-                                <th>Adresse</th>
-                                <th>Medlemstype</th>
-                                <th>Status</th>
-                                <th>Medlem siden</th>
-                                <th>Gyldig til</th>
+                                <th>Navn</th>
+                                <th>Kontaktinformasjon</th>
+                                <th>Periode</th>
                                 <th>Handling</th>
                             </tr>
                         </thead>
                         <tbody id="members-table-body">
                             <tr>
-                                <td colspan="11" class="text-center text-muted py-4">
+                                <td colspan="5" class="text-center text-muted py-4">
                                     Ingen medlemmer funnet
                                 </td>
                             </tr>
@@ -1107,16 +1122,26 @@ function renderMembersTable(members) {
             
             return `
                 <tr data-member-id="${member.member_id}" data-plan-id="${member.membership_plan_id || ''}">
-                    <td><code>${shortRef}</code></td>
-                    <td class="editable-member-cell" data-field="first_name">${member.first_name}</td>
-                    <td class="editable-member-cell" data-field="last_name">${member.last_name}</td>
-                    <td class="editable-member-cell" data-field="email">${member.email}</td>
-                    <td class="editable-member-cell" data-field="phone">${member.phone || '-'}</td>
-                    <td>${member.address ? (member.address + ', ' + (member.poststed || '')) : '-'}</td>
-                    <td class="editable-plan-cell" data-field="membership_plan_id" data-current-plan="${member.membership_plan_id || ''}">${member.membership_type || '-'}</td>
-                    <td><span class="badge ${statusBadge}">${statusText}</span></td>
-                    <td>${fmtDate(member.join_date)}</td>
-                    <td>${fmtDate(member.expiry_date)}</td>
+                    <td>
+                        <code class="d-block">${member.member_code || shortRef}</code>
+                        <span class="badge ${statusBadge} mt-1" style="font-size:0.65rem;">${statusText}</span>
+                    </td>
+                    <td>
+                        <div class="editable-member-cell" data-field="first_name">${escapeH(member.first_name)}</div>
+                        <div class="editable-member-cell text-muted" data-field="last_name">${escapeH(member.last_name)}</div>
+                    </td>
+                    <td>
+                        <div class="editable-member-cell small" data-field="phone">
+                            <i class="bi bi-telephone me-1 text-muted"></i>${escapeH(member.phone || '-')}
+                        </div>
+                        <div class="editable-member-cell small" data-field="email">
+                            <i class="bi bi-envelope me-1 text-muted"></i>${escapeH(member.email)}
+                        </div>
+                    </td>
+                    <td class="small text-nowrap">
+                        <div class="text-muted">Fra: ${fmtDate(member.join_date)}</div>
+                        <div class="text-muted">Til: ${fmtDate(member.expiry_date)}</div>
+                    </td>
                     <td class="text-nowrap">
                         <button class="btn btn-sm btn-success" onclick="renewMembership('${member.member_id}')" title="Forny medlemskap">
                             <i class="bi bi-arrow-clockwise"></i>
@@ -1127,6 +1152,11 @@ function renderMembersTable(members) {
                                 title="Kopier fornyelseslenke">
                             <i class="bi bi-clipboard"></i>
                         </button>` : ''}
+                        <button class="btn btn-sm btn-outline-info ms-1"
+                                onclick="toggleMemberTransactions('${member.member_id}', this)"
+                                title="Kontigentstatus">
+                            <i class="bi bi-cash-coin"></i>
+                        </button>
                     </td>
                 </tr>
             `;
@@ -1134,11 +1164,72 @@ function renderMembersTable(members) {
     } else {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="11" class="text-center text-muted py-4">
+                <td colspan="5" class="text-center text-muted py-4">
                     Ingen medlemmer funnet
                 </td>
             </tr>
         `;
+    }
+}
+
+// Inline transaction expand for kontigentstatus
+async function toggleMemberTransactions(memberId, btn) {
+    const row = btn.closest('tr');
+    const existingTxRow = row.nextElementSibling;
+
+    if (existingTxRow && existingTxRow.classList.contains('member-tx-row')) {
+        existingTxRow.remove();
+        btn.classList.remove('active');
+        return;
+    }
+
+    btn.classList.add('active');
+    const txRow = document.createElement('tr');
+    txRow.className = 'member-tx-row';
+    txRow.innerHTML = `<td colspan="5"><div class="text-muted small py-1"><i class="bi bi-hourglass-split me-1"></i>Henter transaksjoner...</div></td>`;
+    row.insertAdjacentElement('afterend', txRow);
+
+    try {
+        const resp = await fetch(`/api/get_member_transactions.php?member_id=${encodeURIComponent(memberId)}`, {credentials:'same-origin'});
+        const data = await resp.json();
+
+        if (!data.success) {
+            txRow.innerHTML = `<td colspan="5"><div class="alert alert-danger py-1 small mb-0">${escapeH(data.error)}</div></td>`;
+            return;
+        }
+
+        if (!data.transactions || data.transactions.length === 0) {
+            txRow.innerHTML = `<td colspan="5"><div class="text-muted small fst-italic py-1">
+                <i class="bi bi-info-circle me-1"></i>Ingen betalingsdata registrert — tildeles automatisk ved neste fornyelse.
+            </div></td>`;
+            return;
+        }
+
+        const rows = data.transactions.map(tx => {
+            const statusBadge = tx.payment_status === 'completed' ? 'bg-success' :
+                                tx.payment_status === 'pending'   ? 'bg-warning text-dark' : 'bg-secondary';
+            const amount = tx.selling_price !== null ? 'kr ' + parseFloat(tx.selling_price).toLocaleString('nb-NO', {minimumFractionDigits: 2}) : '-';
+            const date = tx.transaction_date ? tx.transaction_date.substring(0, 10).split('-').reverse().join('.') : '-';
+            return `<tr>
+                <td>${date}</td>
+                <td>${escapeH(tx.item_name || '-')}</td>
+                <td>${amount}</td>
+                <td class="text-capitalize">${escapeH(tx.payment_method || '-')}</td>
+                <td><span class="badge ${statusBadge}">${escapeH(tx.payment_status || '-')}</span></td>
+            </tr>`;
+        }).join('');
+
+        txRow.innerHTML = `<td colspan="5">
+            <table class="table tx-table table-borderless">
+                <thead><tr>
+                    <th>Dato</th><th>Beskrivelse</th><th>Beløp</th><th>Betalingsmåte</th><th>Status</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </td>`;
+
+    } catch (err) {
+        txRow.innerHTML = `<td colspan="5"><div class="alert alert-danger py-1 small mb-0">Feil: ${escapeH(err.message)}</div></td>`;
     }
 }
 
@@ -1801,4 +1892,11 @@ async function reactivateMember(memberId) {
     }
 }
 
+if (typeof escapeH !== 'function') {
+    function escapeH(t) {
+        const d = document.createElement('div');
+        d.textContent = t || '';
+        return d.innerHTML;
+    }
+}
 </script>
