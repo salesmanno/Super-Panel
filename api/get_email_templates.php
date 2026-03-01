@@ -53,7 +53,8 @@ try {
             SELECT tc.name AS company_name, tc.logo_url,
                    ec.email AS from_email, ec.display_name,
                    twg.header_bg_color,
-                   ts.first_name, ts.last_name
+                   ts.first_name, ts.last_name,
+                   tc.org_number, tc.address_street, tc.address_zip, tc.address_city, tc.contact_phone
             FROM tenant_companies tc
             LEFT JOIN email_configs ec ON ec.company_id = tc.id
             LEFT JOIN tenant_website_general twg ON twg.company_id = tc.id
@@ -84,6 +85,11 @@ try {
                 'header_bg_color' => $company['header_bg_color'] ?? '#ffffff',
                 'first_name'      => $company['first_name']      ?? '',
                 'last_name'       => $company['last_name']       ?? '',
+                'org_number'      => $company['org_number']      ?? '',
+                'address_street'  => $company['address_street']  ?? '',
+                'address_zip'     => $company['address_zip']     ?? '',
+                'address_city'    => $company['address_city']    ?? '',
+                'contact_phone'   => $company['contact_phone']   ?? '',
             ]
         ]);
         exit;
