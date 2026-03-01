@@ -227,6 +227,28 @@ try {
         .module-tabs .nav-link i {
             font-size: 1.1rem;
         }
+
+        .module-tabs .nav-link.email-has-new {
+            color: #dc2626;
+            border-bottom-color: #dc2626;
+        }
+
+        .module-tabs .nav-link.email-has-new:not(.active) {
+            background: rgba(220, 38, 38, 0.06);
+        }
+
+        .email-alert-badge {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+            vertical-align: middle;
+            animation: emailPulse 1.8s ease-in-out infinite;
+        }
+
+        @keyframes emailPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%       { opacity: 0.7; transform: scale(1.12); }
+        }
         
         .subtabs .nav-link {
             color: #6b7280;
@@ -1021,38 +1043,38 @@ try {
         const STORAGE_KEY_SUBTAB = 'salesman_active_subtab';
         
         // Email alert functions
+        function setEmailAlertUI(hasNew) {
+            document.querySelectorAll('.email-alert-badge').forEach(badge => {
+                badge.style.display = hasNew ? 'inline-block' : 'none';
+            });
+            const tab = document.getElementById('tab-webmail');
+            if (tab) {
+                if (hasNew) {
+                    tab.classList.add('email-has-new');
+                } else {
+                    tab.classList.remove('email-has-new');
+                }
+            }
+        }
+
         async function checkEmailAlert() {
             try {
-                const response = await fetch('/api/check_email_alert.php?action=check');
+                const response = await fetch('/api/check_email_alert.php');
                 const data = await response.json();
-                if (data.success && data.alertNew === 1) {
-                    document.querySelectorAll('.email-alert-badge').forEach(badge => {
-                        badge.style.display = 'inline-block';
-                    });
-                } else {
-                    document.querySelectorAll('.email-alert-badge').forEach(badge => {
-                        badge.style.display = 'none';
-                    });
-                }
-            } catch (e) {
-                console.log('Email alert check failed:', e);
-            }
+                setEmailAlertUI(data.success && data.alertNew === 1);
+            } catch (e) {}
         }
         
         async function resetEmailAlert() {
             try {
                 await fetch('/api/check_email_alert.php?action=reset');
-                document.querySelectorAll('.email-alert-badge').forEach(badge => {
-                    badge.style.display = 'none';
-                });
-            } catch (e) {
-                console.log('Email alert reset failed:', e);
-            }
+                setEmailAlertUI(false);
+            } catch (e) {}
         }
         
-        // Check email alert on page load and every 5 minutes
+        // Check email alert on page load and every 2 minutes
         checkEmailAlert();
-        setInterval(checkEmailAlert, 300000);
+        setInterval(checkEmailAlert, 120000);
         
         // Preload helper - use cached data from login transition if available
         const preloadCache = (function() {
