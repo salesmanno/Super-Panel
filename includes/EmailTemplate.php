@@ -5,16 +5,18 @@
  */
 class EmailTemplate {
 
-    public static function wrap($bodyHtml, $companyName = '', $companyLogoUrl = '') {
+    public static function wrap($bodyHtml, $companyName = '', $companyLogoUrl = '', $headerBgColor = '#ffffff') {
         $year = date('Y');
         $safeCompanyName = htmlspecialchars($companyName ?: 'Firmaet');
+        $safeHeaderBg = preg_match('/^#[0-9a-fA-F]{3,6}$/', $headerBgColor) ? $headerBgColor : '#ffffff';
+        $headerTextColor = ($safeHeaderBg === '#ffffff') ? '#6c757d' : '#ffffff';
 
         $logoHtml = '';
         if ($companyLogoUrl) {
             $safeLogoUrl = htmlspecialchars($companyLogoUrl);
             $logoHtml = "<img src=\"{$safeLogoUrl}\" alt=\"{$safeCompanyName}\" style=\"max-height:50px;max-width:180px;object-fit:contain;\">";
         } else {
-            $logoHtml = "<span style=\"font-size:22px;font-weight:700;color:#1a1a2e;\">{$safeCompanyName}</span>";
+            $logoHtml = "<span style=\"font-size:22px;font-weight:700;color:{$headerTextColor};\">{$safeCompanyName}</span>";
         }
 
         return <<<HTML
@@ -40,12 +42,12 @@ class EmailTemplate {
 
         <!-- COMPANY HEADER -->
         <tr>
-          <td style="background:#ffffff;padding:28px 32px 20px;border-bottom:1px solid #e9ecef;">
+          <td style="background:{$safeHeaderBg};padding:28px 32px 20px;border-bottom:1px solid #e9ecef;">
             <table width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td>{$logoHtml}</td>
                 <td style="text-align:right;vertical-align:middle;">
-                  <span style="font-size:13px;color:#6c757d;">{$safeCompanyName}</span>
+                  <span style="font-size:13px;color:{$headerTextColor};">{$safeCompanyName}</span>
                 </td>
               </tr>
             </table>

@@ -83,7 +83,7 @@ try {
                 'avsender_navn'   => $company['display_name']    ?? '',
                 'sender_name'     => $company['display_name']    ?? '',
                 'logo_url'        => $company['logo_url']        ?? '',
-                'header_bg_color' => $company['header_bg_color'] ?? '#ffffff',
+                'header_bg_color' => $company['header_bg_color'] ?? '',
                 'first_name'      => $company['first_name']      ?? '',
                 'last_name'       => $company['last_name']       ?? '',
                 'org_number'      => $company['org_number']      ?? '',
@@ -99,9 +99,11 @@ try {
     if ($id && $preview) {
         $stmt = $db->prepare("
             SELECT et.body_template, et.name, et.subject_template,
-                   tc.name AS company_name, tc.logo_url
+                   tc.name AS company_name, tc.logo_url,
+                   COALESCE(twg.header_bg_color, '#ffffff') AS header_bg_color
             FROM email_templates et
             JOIN tenant_companies tc ON tc.id = ?
+            LEFT JOIN tenant_website_general twg ON twg.company_id = tc.id
             WHERE et.id = ?
               AND (et.company_id = ? OR et.company_id IS NULL)
             LIMIT 1
@@ -118,7 +120,8 @@ try {
         $html = EmailTemplate::wrap(
             $row['body_template'],
             $row['company_name'] ?? '',
-            $row['logo_url'] ?? ''
+            $row['logo_url'] ?? '',
+            $row['header_bg_color'] ?? '#ffffff'
         );
 
         ob_end_clean();

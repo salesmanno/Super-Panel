@@ -101,11 +101,12 @@ function processEmail($db, $email) {
             throw new Exception("SMTP-konfigurasjon ikke funnet for firma {$email['company_id']}");
         }
 
-        $companyInfo = getCompanyInfo($db, $email['company_id']);
-        $companyName = $companyInfo['name'] ?? '';
-        $logoUrl     = $companyInfo['logo_url'] ?? '';
+        $companyInfo   = getCompanyInfo($db, $email['company_id']);
+        $companyName   = $companyInfo['name'] ?? '';
+        $logoUrl       = $companyInfo['logo_url'] ?? '';
+        $headerBgColor = $companyInfo['header_bg_color'] ?? '#ffffff';
 
-        $htmlBody = EmailTemplate::wrap($email['body'], $companyName, $logoUrl);
+        $htmlBody = EmailTemplate::wrap($email['body'], $companyName, $logoUrl, $headerBgColor);
 
         $smtp = new SMTPClient(
             $smtpConfig['smtp_address'] ?: $smtpConfig['smtp_host'],
@@ -196,7 +197,14 @@ function getSMTPConfig($db, $companyId) {
 }
 
 function getCompanyInfo($db, $companyId) {
-    $stmt = $db->prepare("SELECT name, logo_url FROM tenant_companies WHERE id = ? LIMIT 1");
+    $stmt = $db->prepare("
+        SELECT tc.name, tc.logo_url,
+               COALESCE(twg.header_bg_color, '#ffffff') AS header_bg_color
+        FROM tenant_companies tc
+        LEFT JOIN tenant_website_general twg ON twg.company_id = tc.id
+        WHERE tc.id = ?
+        LIMIT 1
+    ");
     $stmt->execute([$companyId]);
     return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 }

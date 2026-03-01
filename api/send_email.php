@@ -63,15 +63,23 @@ try {
         exit;
     }
 
-    $companyStmt = $db->prepare("SELECT name, logo_url FROM tenant_companies WHERE id = ? LIMIT 1");
+    $companyStmt = $db->prepare("
+        SELECT tc.name, tc.logo_url,
+               COALESCE(twg.header_bg_color, '#ffffff') AS header_bg_color
+        FROM tenant_companies tc
+        LEFT JOIN tenant_website_general twg ON twg.company_id = tc.id
+        WHERE tc.id = ?
+        LIMIT 1
+    ");
     $companyStmt->execute([$companyId]);
     $company = $companyStmt->fetch(PDO::FETCH_ASSOC);
-    $companyName = $company['name'] ?? '';
-    $logoUrl     = $company['logo_url'] ?? '';
+    $companyName   = $company['name'] ?? '';
+    $logoUrl       = $company['logo_url'] ?? '';
+    $headerBgColor = $company['header_bg_color'] ?? '#ffffff';
 
     $subject   = $data['subject'];
     $rawBody   = $data['body'] ?? '';
-    $htmlBody  = EmailTemplate::wrap(nl2br(htmlspecialchars($rawBody)), $companyName, $logoUrl);
+    $htmlBody  = EmailTemplate::wrap(nl2br(htmlspecialchars($rawBody)), $companyName, $logoUrl, $headerBgColor);
 
     $fromEmail = $config['email'] ?? $config['smtp_username'];
     $fromName  = $config['display_name'] ?? $companyName;
