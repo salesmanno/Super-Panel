@@ -912,6 +912,7 @@ const wmColToTemplate = {
     automail_sales_order:         'sale_receipt',
     automail_membership_welcome:  'membership_confirmation',
     automail_membership_renewal:  'membership_confirmation',
+    automail_membership_expired:  'membership_confirmation',
     automail_reservation_confirm: 'reservation_confirmation',
     automail_reservation_reminder:'reservation_confirmation',
     automail_rental_confirm:      'rental_confirmation',
@@ -947,8 +948,9 @@ async function loadAutomailerSettings() {
                 {col:'automail_events_thankyou',   label:'Takkebrev etter arrangement'}
             ]},
             {key:'membership',   label:'Medlemskap',    icon:'people',      checks:[
-                {col:'automail_membership_welcome', label:'Velkomst til nye medlemmer'},
-                {col:'automail_membership_renewal', label:'Fornyelsespåminnelse'}
+                {col:'automail_membership_welcome',  label:'Velkomst til nye medlemmer'},
+                {col:'automail_membership_renewal',  label:'Fornyelsespåminnelse'},
+                {col:'automail_membership_expired',  label:'Utløpsvarsling'}
             ]},
             {key:'reservations', label:'Reservasjoner', icon:'calendar-check', checks:[
                 {col:'automail_reservation_confirm',  label:'Bekreftelse ved reservasjon'},

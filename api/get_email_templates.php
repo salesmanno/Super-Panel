@@ -47,15 +47,22 @@ try {
             exit;
         }
 
+        $adminId = $_SESSION['tenant_admin_id'];
+
         $cStmt = $db->prepare("
             SELECT tc.name AS company_name, tc.logo_url,
-                   ec.email AS from_email, ec.display_name
+                   ec.email AS from_email, ec.display_name,
+                   twg.header_bg_color,
+                   ts.first_name, ts.last_name
             FROM tenant_companies tc
             LEFT JOIN email_configs ec ON ec.company_id = tc.id
+            LEFT JOIN tenant_website_general twg ON twg.company_id = tc.id
+            LEFT JOIN tenant_admins ta ON ta.company_id = tc.id AND ta.id = ?
+            LEFT JOIN tenant_staff ts ON ts.id = ta.tenant_staff_id
             WHERE tc.id = ?
             LIMIT 1
         ");
-        $cStmt->execute([$companyId]);
+        $cStmt->execute([$adminId, $companyId]);
         $company = $cStmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
         ob_end_clean();
@@ -65,15 +72,18 @@ try {
             'name'         => $row['name'],
             'subject'      => $row['subject_template'],
             'company_data' => [
-                'company_name'  => $company['company_name'] ?? '',
-                'firmanavn'     => $company['company_name'] ?? '',
-                'from_email'    => $company['from_email']   ?? '',
-                'avsender_epost'=> $company['from_email']   ?? '',
-                'sender_email'  => $company['from_email']   ?? '',
-                'display_name'  => $company['display_name'] ?? '',
-                'avsender_navn' => $company['display_name'] ?? '',
-                'sender_name'   => $company['display_name'] ?? '',
-                'logo_url'      => $company['logo_url']     ?? '',
+                'company_name'    => $company['company_name']    ?? '',
+                'firmanavn'       => $company['company_name']    ?? '',
+                'from_email'      => $company['from_email']      ?? '',
+                'avsender_epost'  => $company['from_email']      ?? '',
+                'sender_email'    => $company['from_email']      ?? '',
+                'display_name'    => $company['display_name']    ?? '',
+                'avsender_navn'   => $company['display_name']    ?? '',
+                'sender_name'     => $company['display_name']    ?? '',
+                'logo_url'        => $company['logo_url']        ?? '',
+                'header_bg_color' => $company['header_bg_color'] ?? '#ffffff',
+                'first_name'      => $company['first_name']      ?? '',
+                'last_name'       => $company['last_name']       ?? '',
             ]
         ]);
         exit;

@@ -17,13 +17,13 @@ echo "[{$startTime}] Membership expiry check started\n";
 try {
     $db = getDBConnection();
 
-    // Step 1: Get all companies with renewal AutoMailer enabled
+    // Step 1: Get all companies with expiry AutoMailer enabled
     $companyStmt = $db->query("
         SELECT ec.company_id, ec.email AS from_email, ec.display_name,
                tc.name AS company_name
         FROM email_configs ec
         JOIN tenant_companies tc ON tc.id = ec.company_id
-        WHERE ec.automail_membership_renewal = 1
+        WHERE ec.automail_membership_expired = 1
     ");
     $companies = $companyStmt->fetchAll(PDO::FETCH_ASSOC);
 
