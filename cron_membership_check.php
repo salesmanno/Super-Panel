@@ -127,6 +127,7 @@ try {
             if ($template) {
                 // Replace placeholders in template
                 $placeholders = [
+                    // Primærnøkler
                     '{{cus_first_name}}'  => $m['first_name'] ?? '',
                     '{{cus_last_name}}'   => $m['last_name']  ?? '',
                     '{{plan_name}}'       => $m['plan_name']  ?? '',
@@ -139,6 +140,17 @@ try {
                     '{{contact_phone}}'   => $contactPhone,
                     '{{org_number}}'      => $orgNumber,
                     '{{company_address}}' => $companyAddress,
+                    // Aliaser
+                    '{{first_name}}'      => $m['first_name']  ?? '',
+                    '{{last_name}}'       => $m['last_name']   ?? '',
+                    '{{membership_plan}}' => $m['plan_name']   ?? '',
+                    '{{name}}'            => $companyName,
+                    '{{tenant_name}}'     => $companyName,
+                    '{{expiration_date}}' => $expiryFmt,
+                    '{{company_phone}}'   => $contactPhone,
+                    '{{subdomain}}'       => $subdomain,
+                    '{{share_code}}'      => $m['share_code']  ?? '',
+                    '{{member_code}}'     => $m['member_code'] ?? '',
                 ];
                 $subject = str_replace(array_keys($placeholders), array_values($placeholders), $template['subject_template']);
                 $body    = str_replace(array_keys($placeholders), array_values($placeholders), $template['body_template']);
