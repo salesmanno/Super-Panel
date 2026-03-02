@@ -1112,10 +1112,10 @@ function renderMembersTable(members) {
             const expiryDate = member.expiry_date ? new Date(member.expiry_date) : null;
             const isExpired = expiryDate && expiryDate < today;
             
-            const statusBadge = member.status === 'active' && !isExpired ? 'bg-success' : 
-                               isExpired ? 'bg-danger' : 'bg-warning';
-            const statusText = member.status === 'active' && !isExpired ? 'Aktiv' : 
-                              isExpired ? 'Manglende betaling' : 'Venter';
+            const statusBadge = member.status === 'active' && !isExpired ? 'bg-success' :
+                               member.status === 'unpaid' || isExpired   ? 'bg-danger'  : 'bg-warning';
+            const statusText  = member.status === 'active' && !isExpired ? 'Aktiv' :
+                               member.status === 'unpaid' || isExpired   ? 'Ikke betalt' : 'Venter';
             
             // Generate shorter member reference (last 6 chars of member_id)
             const shortRef = member.member_id ? String(member.member_id).substring(0, 8).toUpperCase() : '-';

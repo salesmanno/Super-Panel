@@ -70,7 +70,22 @@ try {
         $tplStmt->execute([$companyId]);
         $template = $tplStmt->fetch(PDO::FETCH_ASSOC);
 
-        // Step 2: Find expired members not yet notified
+        // Step 2a: Mark all expired active members as 'unpaid'
+        $unpaidStmt = $db->prepare("
+            UPDATE membership_members
+            SET status = 'unpaid'
+            WHERE company_id = ?
+              AND expiration_date < CURDATE()
+              AND status = 'active'
+              AND (cancellation_active IS NULL OR cancellation_active = 0)
+        ");
+        $unpaidStmt->execute([$companyId]);
+        $markedUnpaid = $unpaidStmt->rowCount();
+        if ($markedUnpaid > 0) {
+            echo "[" . date('Y-m-d H:i:s') . "] Company {$companyId}: {$markedUnpaid} medlem(mer) satt til 'unpaid'.\n";
+        }
+
+        // Step 2b: Find expired members not yet notified
         $memberStmt = $db->prepare("
             SELECT
                 mm.id          AS member_id,
