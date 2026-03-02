@@ -43,15 +43,22 @@ try {
         $displayName = $company['display_name'] ?: $company['company_name'];
         $companyName = $company['company_name'];
 
+        // Fetch subdomain for renewal link
+        $subStmt = $db->prepare("SELECT subdomain FROM tenant_companies WHERE id = ? LIMIT 1");
+        $subStmt->execute([$companyId]);
+        $subdomain = $subStmt->fetchColumn() ?: '';
+
         // Step 2: Find expired members not yet notified
         $memberStmt = $db->prepare("
             SELECT
                 mm.id          AS member_id,
                 mm.expiration_date,
+                mm.member_code,
                 c.first_name,
                 c.last_name,
                 c.email,
-                p.name         AS plan_name
+                p.name         AS plan_name,
+                p.share_code
             FROM membership_members mm
             JOIN tenant_customers c   ON c.id = mm.customer_id
             JOIN membership_plans p   ON p.id = mm.membership_plan_id
@@ -92,11 +99,28 @@ try {
             $expiryFmt  = date('d.m.Y', strtotime($m['expiration_date']));
             $subject    = "Ditt medlemskap i {$companyName} har utløpt";
 
+            $renewalUrl = ($subdomain && $m['share_code'] && $m['member_code'])
+                ? "https://{$subdomain}.salesman.no/{$m['share_code']}/{$m['member_code']}"
+                : '';
+
+            $renewBtn = $renewalUrl
+                ? "<p style=\"text-align:center;margin:28px 0;\">
+                     <a href=\"{$renewalUrl}\"
+                        style=\"background:#0d6efd;color:#ffffff;padding:14px 32px;border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;display:inline-block;\">
+                       Forny medlemskap
+                     </a>
+                   </p>
+                   <p style=\"font-size:12px;color:#6c757d;text-align:center;\">
+                     Eller kopier lenken: <a href=\"{$renewalUrl}\" style=\"color:#0d6efd;\">{$renewalUrl}</a>
+                   </p>"
+                : '<p>Ta kontakt med oss for å fornye medlemskapet ditt.</p>';
+
             $body = "
 <p>Hei {$fullName},</p>
 <p>Ditt <strong>{$m['plan_name']}</strong>-medlemskap i <strong>{$companyName}</strong>
 utløpte <strong>{$expiryFmt}</strong>.</p>
-<p>Ta kontakt med oss for å fornye medlemskapet ditt og fortsette å nyte fordelene.</p>
+<p>Du kan fornye medlemskapet ditt ved å klikke på knappen nedenfor:</p>
+{$renewBtn}
 <p>Med vennlig hilsen,<br>{$displayName}</p>
 ";
 
