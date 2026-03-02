@@ -27,6 +27,7 @@ try {
             mm.expiration_date as expiry_date,
             mm.auto_renew,
             mm.status,
+            mm.payment_status,
             mm.Automailer_Sent,
             mm.cancellation_active,
             mm.cancellation_reasoning,
