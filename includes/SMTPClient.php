@@ -66,7 +66,6 @@ class SMTPClient {
             $headers .= "Message-ID: $msgId\r\n";
             $headers .= "MIME-Version: 1.0\r\n";
             $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-            $headers .= "Content-Transfer-Encoding: quoted-printable\r\n";
             $headers .= "Date: " . date('r') . "\r\n";
             $headers .= "X-Mailer: Salesman.no Mailer\r\n";
             $headers .= "\r\n";
