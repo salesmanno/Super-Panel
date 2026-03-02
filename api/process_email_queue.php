@@ -106,7 +106,11 @@ function processEmail($db, $email) {
         $logoUrl       = $companyInfo['logo_url'] ?? '';
         $headerBgColor = $companyInfo['header_bg_color'] ?? '#ffffff';
 
-        $htmlBody = EmailTemplate::wrap($email['body'], $companyName, $logoUrl, $headerBgColor);
+        $rawBody  = $email['body'];
+        $isFullHtml = stripos(ltrim($rawBody), '<!DOCTYPE') === 0 || stripos(ltrim($rawBody), '<html') === 0;
+        $htmlBody = $isFullHtml
+            ? $rawBody
+            : EmailTemplate::wrap($rawBody, $companyName, $logoUrl, $headerBgColor);
 
         $smtp = new SMTPClient(
             $smtpConfig['smtp_address'] ?: $smtpConfig['smtp_host'],

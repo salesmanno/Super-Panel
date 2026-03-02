@@ -59,12 +59,16 @@ class SMTPClient {
             $this->sendCommand("RCPT TO:<$to>", 250);
             $this->sendCommand("DATA", 354);
             
-            $headers = "From: $fromName <$from>\r\n";
+            $msgId = '<' . uniqid('', true) . '@salesman.no>';
+            $headers = "From: =?UTF-8?B?" . base64_encode($fromName) . "?= <$from>\r\n";
             $headers .= "To: $to\r\n";
             $headers .= "Subject: =?UTF-8?B?" . base64_encode($subject) . "?=\r\n";
+            $headers .= "Message-ID: $msgId\r\n";
             $headers .= "MIME-Version: 1.0\r\n";
             $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+            $headers .= "Content-Transfer-Encoding: quoted-printable\r\n";
             $headers .= "Date: " . date('r') . "\r\n";
+            $headers .= "X-Mailer: Salesman.no Mailer\r\n";
             $headers .= "\r\n";
             
             $message = $headers . $body . "\r\n.";
