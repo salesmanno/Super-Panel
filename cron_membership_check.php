@@ -23,7 +23,8 @@ try {
     // Step 1: Get all companies with expiry AutoMailer enabled
     $companyStmt = $db->query("
         SELECT ec.company_id, ec.email AS from_email, ec.display_name,
-               tc.name AS company_name
+               tc.name AS company_name, tc.logo_url, tc.contact_phone,
+               tc.address_street, tc.address_zip, tc.address_city, tc.org_number
         FROM email_configs ec
         JOIN tenant_companies tc ON tc.id = ec.company_id
         WHERE ec.automail_membership_expired = 1
@@ -38,10 +39,19 @@ try {
     $totalQueued = 0;
 
     foreach ($companies as $company) {
-        $companyId   = $company['company_id'];
-        $fromEmail   = $company['from_email'];
-        $displayName = $company['display_name'] ?: $company['company_name'];
-        $companyName = $company['company_name'];
+        $companyId      = $company['company_id'];
+        $fromEmail      = $company['from_email'];
+        $displayName    = $company['display_name'] ?: $company['company_name'];
+        $companyName    = $company['company_name'];
+        $logoUrl        = $company['logo_url']       ?? '';
+        $contactPhone   = $company['contact_phone']  ?? '';
+        $orgNumber      = $company['org_number']     ?? '';
+        $companyAddress = trim(
+            ($company['address_street'] ?? '') . ', ' .
+            ($company['address_zip']    ?? '') . ' ' .
+            ($company['address_city']   ?? ''),
+            ', '
+        );
 
         // Fetch subdomain for renewal link
         $subStmt = $db->prepare("SELECT subdomain FROM tenant_companies WHERE id = ? LIMIT 1");
@@ -117,14 +127,18 @@ try {
             if ($template) {
                 // Replace placeholders in template
                 $placeholders = [
-                    '{{cus_first_name}}' => $m['first_name'] ?? '',
-                    '{{cus_last_name}}'  => $m['last_name']  ?? '',
-                    '{{plan_name}}'      => $m['plan_name']  ?? '',
-                    '{{expiry_date}}'    => $expiryFmt,
-                    '{{renewal_url}}'    => $renewalUrl,
-                    '{{company_name}}'   => $companyName,
-                    '{{firmanavn}}'      => $companyName,
-                    '{{display_name}}'   => $displayName,
+                    '{{cus_first_name}}'  => $m['first_name'] ?? '',
+                    '{{cus_last_name}}'   => $m['last_name']  ?? '',
+                    '{{plan_name}}'       => $m['plan_name']  ?? '',
+                    '{{expiry_date}}'     => $expiryFmt,
+                    '{{renewal_url}}'     => $renewalUrl,
+                    '{{company_name}}'    => $companyName,
+                    '{{firmanavn}}'       => $companyName,
+                    '{{display_name}}'    => $displayName,
+                    '{{logo_url}}'        => $logoUrl,
+                    '{{contact_phone}}'   => $contactPhone,
+                    '{{org_number}}'      => $orgNumber,
+                    '{{company_address}}' => $companyAddress,
                 ];
                 $subject = str_replace(array_keys($placeholders), array_values($placeholders), $template['subject_template']);
                 $body    = str_replace(array_keys($placeholders), array_values($placeholders), $template['body_template']);
