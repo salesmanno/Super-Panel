@@ -1040,7 +1040,7 @@ function renderMembersTable(members) {
             const shortRef = member.member_id ? String(member.member_id).substring(0, 8).toUpperCase() : '-';
             
             return `
-                <tr data-member-id="${member.member_id}" data-plan-id="${member.membership_plan_id || ''}">
+                <tr data-member-id="${member.member_id}" data-plan-id="${member.membership_plan_id || ''}" data-address="${escapeH(member.address || '')}" data-poststed="${escapeH(member.poststed || '')}">
                     <td>
                         <code class="d-block">${member.member_code || shortRef}</code>
                         <span class="badge ${statusBadge} mt-1" style="font-size:0.65rem;">${statusText}</span>
@@ -1077,6 +1077,11 @@ function renderMembersTable(members) {
                                 onclick="toggleMemberTransactions('${member.member_id}', this)"
                                 title="Kontigentstatus">
                             <i class="bi bi-cash-coin"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary ms-1"
+                                onclick="toggleMemberAddress('${member.member_id}', this)"
+                                title="Adresse">
+                            <i class="bi bi-geo-alt"></i>
                         </button>
                     </td>
                 </tr>
@@ -1152,6 +1157,47 @@ async function toggleMemberTransactions(memberId, btn) {
     } catch (err) {
         txRow.innerHTML = `<td colspan="5"><div class="alert alert-danger py-1 small mb-0">Feil: ${escapeH(err.message)}</div></td>`;
     }
+}
+
+function toggleMemberAddress(memberId, btn) {
+    const row = btn.closest('tr');
+    const existing = row.nextElementSibling;
+
+    if (existing && existing.classList.contains('member-addr-row')) {
+        existing.remove();
+        btn.classList.remove('active');
+        return;
+    }
+
+    btn.classList.add('active');
+
+    const addr    = row.dataset.address  || '';
+    const poststed = row.dataset.poststed || '';
+
+    const addrRow = document.createElement('tr');
+    addrRow.className = 'member-addr-row';
+    addrRow.dataset.memberId = memberId;
+    addrRow.innerHTML = `
+        <td colspan="5" style="background:#f8f9fa;padding:10px 16px;">
+            <div class="d-flex gap-4 align-items-start flex-wrap">
+                <div style="min-width:180px;">
+                    <small class="text-muted d-block mb-1"><i class="bi bi-signpost me-1"></i>Gateadresse</small>
+                    <div class="editable-member-cell" data-field="address" style="min-width:160px;">${addr || '-'}</div>
+                </div>
+                <div style="min-width:130px;">
+                    <small class="text-muted d-block mb-1"><i class="bi bi-building me-1"></i>Poststed</small>
+                    <div class="editable-member-cell" data-field="poststed" style="min-width:110px;">${poststed || '-'}</div>
+                </div>
+                <div class="ms-auto align-self-center">
+                    <button class="btn btn-sm btn-link text-muted p-0" onclick="this.closest('.member-addr-row').remove(); document.querySelector('[data-member-id=\'${memberId}\'] .btn[title=\'Adresse\']')?.classList.remove('active');" title="Lukk">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </td>
+    `;
+
+    row.insertAdjacentElement('afterend', addrRow);
 }
 
 // Auto-load members when Membership tab is shown
