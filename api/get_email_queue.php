@@ -46,7 +46,7 @@ try {
 
     $stmt = $db->prepare("
         SELECT id, recipient_email, from_email, subject, status, attempts, max_attempts,
-               sent_at, error_message, created_at, scheduled_at, module_source
+               sent_at, error_message, created_at, scheduled_at, automail
         FROM email_queue
         WHERE {$where}
         ORDER BY created_at DESC

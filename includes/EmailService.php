@@ -27,7 +27,7 @@ class EmailService {
      *   template: string (template_key from email_templates)
      *   to: string (recipient email)
      *   data: array (placeholder values)
-     *   module_source: string ('sales', 'events', 'membership', 'rental', 'service')
+     *   automail: string|null (null = manuell/Sendte, verdi = automatisert kilde)
      *   source_id: string (ID from original module table)
      *   priority: int (optional, 1=highest, 10=lowest, default=5)
      *   scheduled_at: string (optional, timestamp when to send, default=NOW)
@@ -37,8 +37,8 @@ class EmailService {
     public function send($params) {
         try {
             // Validate required params
-            if (empty($params['template']) || empty($params['to']) || empty($params['module_source']) || empty($params['source_id'])) {
-                throw new Exception('Mangler påkrevde parametere (template, to, module_source, source_id)');
+            if (empty($params['template']) || empty($params['to']) || empty($params['automail']) || empty($params['source_id'])) {
+                throw new Exception('Mangler påkrevde parametere (template, to, automail, source_id)');
             }
             
             // 1. Get email template
@@ -60,7 +60,7 @@ class EmailService {
             // 4. Add to email queue
             $queueId = $this->queueEmail([
                 'template_id' => $template['id'],
-                'module_source' => $params['module_source'],
+                'automail' => $params['automail'],
                 'source_id' => $params['source_id'],
                 'recipient_email' => $params['to'],
                 'from_email' => $smtpConfig['from_email'],
@@ -220,7 +220,7 @@ class EmailService {
                 id,
                 company_id,
                 template_id,
-                module_source,
+                automail,
                 source_id,
                 recipient_email,
                 subject,
@@ -233,7 +233,7 @@ class EmailService {
             $logId,
             $this->companyId,
             $params['template_id'],
-            $params['module_source'],
+            $params['automail'] ?? null,
             $params['source_id'],
             $params['recipient_email'],
             $params['subject'],
@@ -311,7 +311,7 @@ class EmailService {
         $params = [$this->companyId];
         
         if ($moduleSource) {
-            $query .= " AND module_source = ?";
+            $query .= " AND automail = ?";
             $params[] = $moduleSource;
         }
         
@@ -341,7 +341,7 @@ class EmailService {
         $params = [$this->companyId];
         
         if ($moduleSource) {
-            $query .= " AND el.module_source = ?";
+            $query .= " AND el.automail = ?";
             $params[] = $moduleSource;
         }
         
@@ -372,7 +372,7 @@ class EmailService {
                 subject,
                 body,
                 template_id,
-                module_source,
+                automail,
                 source_id,
                 status,
                 priority,
@@ -390,7 +390,7 @@ class EmailService {
             $params['subject'],
             $params['body'],
             $params['template_id'],
-            $params['module_source'],
+            $params['automail'] ?? null,
             $params['source_id'],
             $params['priority'],
             $params['scheduled_at']

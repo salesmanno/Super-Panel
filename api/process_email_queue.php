@@ -132,40 +132,21 @@ function processEmail($db, $email) {
             ");
             $stmt->execute([$email['id']]);
 
-            try {
-                $logStmt = $db->prepare("
-                    INSERT INTO email_logs
-                        (id, company_id, from_email, from_name, to_email, subject, body_html, module_source, status, sent_at)
-                    VALUES
-                        (UUID(), ?, ?, ?, ?, ?, ?, ?, 'sent', NOW())
-                ");
-                $logStmt->execute([
-                    $email['company_id'],
-                    $fromEmail,
-                    $fromName,
-                    $email['recipient_email'],
-                    $email['subject'],
-                    $htmlBody,
-                    $email['module_source'] ?? 'system',
-                ]);
-            } catch (\PDOException $logEx) {
-                if (stripos($logEx->getMessage(), 'module_source') !== false) {
-                    $logStmt = $db->prepare("
-                        INSERT INTO email_logs
-                            (id, company_id, from_email, from_name, to_email, subject, body_html, status, sent_at)
-                        VALUES
-                            (UUID(), ?, ?, ?, ?, ?, ?, 'sent', NOW())
-                    ");
-                    $logStmt->execute([
-                        $email['company_id'],
-                        $fromEmail,
-                        $fromName,
-                        $email['recipient_email'],
-                        $email['subject'],
-                        $htmlBody,
-                    ]);
-                }
-            }
+            $logStmt = $db->prepare("
+                INSERT INTO email_logs
+                    (id, company_id, from_email, from_name, to_email, subject, body_html, automail, status, sent_at)
+                VALUES
+                    (UUID(), ?, ?, ?, ?, ?, ?, ?, 'sent', NOW())
+            ");
+            $logStmt->execute([
+                $email['company_id'],
+                $fromEmail,
+                $fromName,
+                $email['recipient_email'],
+                $email['subject'],
+                $htmlBody,
+                $email['automail'] ?? null,
+            ]);
 
             echo "✓ Sendt: {$email['id']} til {$email['recipient_email']}\n";
 

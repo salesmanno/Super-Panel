@@ -103,9 +103,9 @@ try {
         $insertStmt = $db->prepare("
             INSERT INTO email_queue
                 (id, company_id, recipient_email, from_email, subject, body,
-                 module_source, status, priority, scheduled_at, created_at, updated_at)
+                 automail, status, priority, scheduled_at, created_at, updated_at)
             VALUES
-                (UUID(), ?, ?, ?, ?, ?, 'membership', 'queued', 5, NOW(), NOW(), NOW())
+                (UUID(), ?, ?, ?, ?, ?, 'Membership', 'queued', 5, NOW(), NOW(), NOW())
         ");
 
         $updateStmt = $db->prepare("

@@ -94,25 +94,13 @@ try {
     $result = $smtp->send($fromEmail, $fromName, $to, $subject, $htmlBody);
 
     if ($result['success']) {
-        try {
-            $logStmt = $db->prepare("
-                INSERT INTO email_logs
-                    (id, company_id, from_email, from_name, to_email, subject, body_html, module_source, status, sent_at)
-                VALUES
-                    (UUID(), ?, ?, ?, ?, ?, ?, 'webmail', 'sent', NOW())
-            ");
-            $logStmt->execute([$companyId, $fromEmail, $fromName, $to, $subject, $htmlBody]);
-        } catch (\PDOException $logEx) {
-            if (stripos($logEx->getMessage(), 'module_source') !== false) {
-                $logStmt = $db->prepare("
-                    INSERT INTO email_logs
-                        (id, company_id, from_email, from_name, to_email, subject, body_html, status, sent_at)
-                    VALUES
-                        (UUID(), ?, ?, ?, ?, ?, ?, 'sent', NOW())
-                ");
-                $logStmt->execute([$companyId, $fromEmail, $fromName, $to, $subject, $htmlBody]);
-            }
-        }
+        $logStmt = $db->prepare("
+            INSERT INTO email_logs
+                (id, company_id, from_email, from_name, to_email, subject, body_html, status, sent_at)
+            VALUES
+                (UUID(), ?, ?, ?, ?, ?, ?, 'sent', NOW())
+        ");
+        $logStmt->execute([$companyId, $fromEmail, $fromName, $to, $subject, $htmlBody]);
 
         ob_end_clean();
         echo json_encode(['success' => true, 'message' => 'E-post sendt']);

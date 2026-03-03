@@ -46,22 +46,22 @@ try {
     $sourceType     = $_GET['source_type']     ?? '';
     $recipientEmail = trim($_GET['recipient_email'] ?? '');
 
-    $hasModuleSource = (bool) $db->query(
+    $hasAutomail = (bool) $db->query(
         "SELECT COUNT(*) FROM information_schema.COLUMNS
          WHERE TABLE_SCHEMA = DATABASE()
          AND TABLE_NAME = 'email_logs'
-         AND COLUMN_NAME = 'module_source'"
+         AND COLUMN_NAME = 'automail'"
     )->fetchColumn();
 
     $baseWhere  = 'WHERE company_id = ?';
     $baseParams = [$companyId];
 
     $sourceWhere = '';
-    if ($hasModuleSource) {
+    if ($hasAutomail) {
         if ($sourceType === 'manual') {
-            $sourceWhere = " AND (module_source = 'webmail' OR module_source IS NULL)";
+            $sourceWhere = ' AND automail IS NULL';
         } elseif ($sourceType === 'auto') {
-            $sourceWhere = " AND module_source IS NOT NULL AND module_source != 'webmail'";
+            $sourceWhere = ' AND automail IS NOT NULL';
         }
     }
 
@@ -75,17 +75,17 @@ try {
     $where  = $baseWhere . $sourceWhere . $recipientWhere;
     $params = array_merge($baseParams, $recipientParams);
 
-    if ($hasModuleSource) {
-        $select = "id, module_source, from_email, from_name, to_email, to_name, subject, body_html, status, error_message, sent_at, template_used";
+    if ($hasAutomail) {
+        $select = "id, automail, from_email, from_name, to_email, to_name, subject, body_html, status, error_message, sent_at, template_used";
     } else {
         $select = "id, from_email, from_name, to_email, to_name, subject, body_html, status, error_message, sent_at, template_used";
     }
 
     $result = runLogsQuery($db, $select, $where, $params, $limit, $offset);
 
-    if (!$hasModuleSource) {
+    if (!$hasAutomail) {
         foreach ($result['rows'] as &$row) {
-            $row['module_source'] = null;
+            $row['automail'] = null;
         }
         unset($row);
     }
