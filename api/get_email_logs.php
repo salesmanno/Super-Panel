@@ -25,21 +25,37 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
 
-    $limit  = min((int)($_GET['limit'] ?? 50), 200);
-    $offset = (int)($_GET['offset'] ?? 0);
+    $limit            = min((int)($_GET['limit'] ?? 50), 200);
+    $offset           = (int)($_GET['offset'] ?? 0);
+    $excludeAutomailer = isset($_GET['exclude_automailer']) && $_GET['exclude_automailer'] == '1';
+    $recipientEmail   = trim($_GET['recipient_email'] ?? '');
 
-    $countStmt = $db->prepare("SELECT COUNT(*) FROM email_logs WHERE company_id = ?");
-    $countStmt->execute([$companyId]);
+    $where  = 'WHERE company_id = ?';
+    $params = [$companyId];
+
+    if ($excludeAutomailer) {
+        $where .= " AND (module_source IS NULL OR module_source != 'membership')";
+    }
+
+    if ($recipientEmail !== '') {
+        $where .= ' AND to_email = ?';
+        $params[] = $recipientEmail;
+    }
+
+    $countStmt = $db->prepare("SELECT COUNT(*) FROM email_logs {$where}");
+    $countStmt->execute($params);
     $total = (int)$countStmt->fetchColumn();
 
+    $queryParams = array_merge($params, [$limit, $offset]);
     $stmt = $db->prepare("
-        SELECT id, from_email, from_name, to_email, to_name, subject, status, error_message, sent_at, template_used
+        SELECT id, module_source, from_email, from_name, to_email, to_name,
+               subject, body_html, status, error_message, sent_at, template_used
         FROM email_logs
-        WHERE company_id = ?
+        {$where}
         ORDER BY sent_at DESC
         LIMIT ? OFFSET ?
     ");
-    $stmt->execute([$companyId, $limit, $offset]);
+    $stmt->execute($queryParams);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     ob_end_clean();

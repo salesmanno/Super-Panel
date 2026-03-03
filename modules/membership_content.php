@@ -82,6 +82,26 @@
                         <i class="bi bi-plus-circle me-1"></i>Legg til medlem
                     </button>
                 </div>
+                <div id="member-stats-row" class="row g-2 mb-3">
+                    <div class="col-4">
+                        <div class="border rounded p-2 text-center">
+                            <div class="fs-5 fw-semibold" id="stat-total">—</div>
+                            <div class="text-muted" style="font-size:0.75rem;">Totale medlemmer</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="border rounded p-2 text-center">
+                            <div class="fs-5 fw-semibold" id="stat-expired">—</div>
+                            <div class="text-muted" style="font-size:0.75rem;">Utløpte</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="border rounded p-2 text-center">
+                            <div class="fs-5 fw-semibold" id="stat-renewed">—</div>
+                            <div class="text-muted" style="font-size:0.75rem;">Fornyede i år</div>
+                        </div>
+                    </div>
+                </div>
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <input type="text" class="form-control" id="member-search-input" placeholder="Søk etter fornavn, etternavn, e-post eller telefon...">
@@ -156,133 +176,35 @@
     <div id="membership-income" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title"><i class="bi bi-cash-stack me-2 text-success"></i>Medlemsinntekter <?php echo date('Y'); ?></h5>
-                <p class="text-muted">Oversikt over alle medlemsbetalinger og gjenværende betalinger for inneværende år</p>
-                
-                <div class="row mb-3">
-                    <div class="col-md-3">
-                        <div class="card bg-success text-white">
-                            <div class="card-body">
-                                <small>Samlet innbetalt (i år)</small>
-                                <h4 class="mb-0" id="income-paid-total">0 NOK</h4>
-                            </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary" onclick="changeIncomeYear(-1)" title="Forrige år"><i class="bi bi-chevron-left"></i></button>
+                            <span class="btn btn-outline-secondary disabled fw-semibold px-3" id="income-year-display"><?php echo date('Y'); ?></span>
+                            <button class="btn btn-outline-secondary" onclick="changeIncomeYear(1)" title="Neste år"><i class="bi bi-chevron-right"></i></button>
                         </div>
+                        <span class="text-muted small">Innmeldte og fornyede medlemmer</span>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card bg-primary text-white">
-                            <div class="card-body">
-                                <small>Forventet årsinntekt</small>
-                                <h4 class="mb-0" id="income-expected-annual">0 NOK</h4>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="card bg-warning text-white">
-                            <div class="card-body">
-                                <small>Gjenstår å betale</small>
-                                <h4 class="mb-0" id="income-remaining-total">0 NOK</h4>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="card bg-info text-white">
-                            <div class="card-body">
-                                <small>Aktive medlemmer</small>
-                                <h4 class="mb-0" id="income-active-count">0</h4>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <small class="text-muted">Betalinger</small>
-                                <h4 class="mb-0" id="income-transaction-count">0</h4>
-                            </div>
-                        </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <small id="income-backfill-result" class="text-muted" style="display:none;"></small>
+                        <button class="btn btn-outline-secondary btn-sm" id="income-backfill-btn" onclick="runLedgerBackfill()" title="Synkroniser fornyelser uten ledger-oppføring">
+                            <i class="bi bi-arrow-repeat me-1"></i>Synkroniser fornyelser
+                        </button>
                     </div>
                 </div>
-                
-                <!-- Månedlig betalingsoversikt -->
-                <div class="card mb-3">
-                    <div class="card-header bg-primary text-white">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0"><i class="bi bi-calendar3 me-2"></i>Månedlig betalingsoversikt <?php echo date('Y'); ?></h6>
-                            <div class="btn-group btn-group-sm">
-                                <button class="btn btn-light btn-sm" onclick="changePaymentYear(-1)" title="Forrige år">
-                                    <i class="bi bi-chevron-left"></i>
-                                </button>
-                                <span class="btn btn-light btn-sm disabled" id="payment-year-display"><?php echo date('Y'); ?></span>
-                                <button class="btn btn-light btn-sm" onclick="changePaymentYear(1)" title="Neste år">
-                                    <i class="bi bi-chevron-right"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="row" id="monthly-payments-grid">
-                            <div class="col-12 text-center text-muted py-3">
-                                <div class="spinner-border spinner-border-sm me-2"></div>
-                                Laster månedlig oversikt...
-                            </div>
-                        </div>
+
+                <div class="row g-2" id="income-calendar-grid">
+                    <div class="col-12 text-center text-muted py-4">
+                        <div class="spinner-border spinner-border-sm me-2"></div>Laster...
                     </div>
                 </div>
-                
-                <div class="card">
-                    <div class="card-header">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0"><i class="bi bi-people me-2"></i>Medlemsoversikt</h6>
-                            <div class="btn-group btn-group-sm" role="group">
-                                <input type="radio" class="btn-check" name="payment-filter" id="filter-all" value="all" checked>
-                                <label class="btn btn-outline-primary" for="filter-all">Alle</label>
-                                
-                                <input type="radio" class="btn-check" name="payment-filter" id="filter-paid" value="paid">
-                                <label class="btn btn-outline-success" for="filter-paid">Betalt</label>
-                                
-                                <input type="radio" class="btn-check" name="payment-filter" id="filter-partial" value="partial">
-                                <label class="btn btn-outline-warning" for="filter-partial">Delvis betalt</label>
-                                
-                                <input type="radio" class="btn-check" name="payment-filter" id="filter-unpaid" value="unpaid">
-                                <label class="btn btn-outline-danger" for="filter-unpaid">Ikke betalt</label>
-                            </div>
-                        </div>
+
+                <div id="income-month-detail" style="display:none;" class="mt-3 border rounded p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong id="income-month-title"></strong>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="closeIncomeMonthDetail()"><i class="bi bi-x"></i></button>
                     </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover table-striped">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th>Fornavn</th>
-                                        <th>Etternavn</th>
-                                        <th>E-post</th>
-                                        <th>Telefon</th>
-                                        <th>Adresse</th>
-                                        <th>Poststed</th>
-                                        <th>Fødselsdato</th>
-                                        <th>Medlemskapsplan</th>
-                                        <th class="text-end">Årlig pris</th>
-                                        <th class="text-end">Innbetalt</th>
-                                        <th class="text-end">Gjenværende</th>
-                                        <th>Betalingsstatus</th>
-                                        <th>Medlem siden</th>
-                                        <th>Gyldig til</th>
-                                        <th>Siste betaling</th>
-                                        <th>Ant. bet.</th>
-                                        <th>Auto-forny</th>
-                                        <th>Medlemsstatus</th>
-                                        <th>Handling</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="income-member-list">
-                                    <tr>
-                                        <td colspan="18" class="text-center text-muted py-3">
-                                            <i class="bi bi-hourglass-split me-2"></i>Laster medlemsdata...
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    <div id="income-month-body"></div>
                 </div>
             </div>
         </div>
@@ -879,19 +801,16 @@ async function submitMember() {
 }
 
 async function loadMembers() {
+    loadMemberStats();
     try {
         const response = await fetch('../api/get_members.php');
         const result = await response.json();
         
-        console.log('Members API response:', result);
-        
         if (result.success && result.members) {
-            console.log(`✅ Loading ${result.members.length} members`);
             allMembers = result.members;
             memberSubdomain = result.subdomain || '';
             renderMembersTable(allMembers);
         } else {
-            console.log('No members found or error:', result);
             allMembers = [];
             renderMembersTable([]);
         }
@@ -1488,9 +1407,170 @@ async function renewMembership(memberId) {
     }
 }
 
-// Load membership income statistics
-let currentMembershipFilter = 'all';
+// ===== MEMBER STATS =====
+async function loadMemberStats() {
+    try {
+        const resp = await fetch('/api/get_members.php?stats=1');
+        const data = await resp.json();
+        if (data.success) {
+            const s = document.getElementById('stat-total');
+            const e = document.getElementById('stat-expired');
+            const r = document.getElementById('stat-renewed');
+            if (s) s.textContent = data.total ?? '—';
+            if (e) e.textContent = data.expired ?? '—';
+            if (r) r.textContent = data.renewed_this_year ?? '—';
+        }
+    } catch(err) {
+        console.error('Feil ved henting av stats:', err);
+    }
+}
 
+// ===== MEMBERSHIP CALENDAR =====
+let currentIncomeYear = new Date().getFullYear();
+const incomeMonthNames = ['Januar','Februar','Mars','April','Mai','Juni',
+                          'Juli','August','September','Oktober','November','Desember'];
+
+function changeIncomeYear(delta) {
+    currentIncomeYear += delta;
+    document.getElementById('income-year-display').textContent = currentIncomeYear;
+    loadMembershipCalendar(currentIncomeYear);
+}
+
+async function loadMembershipCalendar(year) {
+    const grid = document.getElementById('income-calendar-grid');
+    if (!grid) return;
+    grid.innerHTML = '<div class="col-12 text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>Laster...</div>';
+    closeIncomeMonthDetail();
+
+    try {
+        const resp = await fetch(`/api/get_membership_calendar.php?year=${year}`);
+        const data = await resp.json();
+
+        if (!data.success) {
+            grid.innerHTML = `<div class="col-12 text-center text-danger py-3"><i class="bi bi-exclamation-circle me-2"></i>${data.error || 'Feil ved lasting'}</div>`;
+            return;
+        }
+
+        // Group by month index (0-11)
+        const byMonth = { new: {}, renewals: {} };
+        (data.new || []).forEach(r => {
+            const m = new Date(r.d).getMonth();
+            if (!byMonth.new[m]) byMonth.new[m] = [];
+            byMonth.new[m].push(r);
+        });
+        (data.renewals || []).forEach(r => {
+            const m = new Date(r.d).getMonth();
+            if (!byMonth.renewals[m]) byMonth.renewals[m] = [];
+            byMonth.renewals[m].push(r);
+        });
+
+        const now = new Date();
+        const isCurrentYear = year === now.getFullYear();
+
+        grid.innerHTML = incomeMonthNames.map((name, idx) => {
+            const newList  = byMonth.new[idx]      || [];
+            const renList  = byMonth.renewals[idx] || [];
+            const total    = newList.length + renList.length;
+            const isCur    = isCurrentYear && idx === now.getMonth();
+            const border   = isCur ? 'border-primary' : 'border';
+
+            const newBadge = newList.length  ? `<span class="badge bg-success me-1" title="Innmeldte">${newList.length} ny</span>` : '';
+            const renBadge = renList.length  ? `<span class="badge bg-primary" title="Fornyede">${renList.length} fornyet</span>` : '';
+            const empty    = !total          ? '<span class="text-muted" style="font-size:0.75rem;">—</span>' : '';
+
+            return `<div class="col-6 col-md-4 col-lg-3 mb-2">
+                <div class="${border} rounded p-2 h-100 ${total > 0 ? 'cursor-pointer' : ''}" style="${total>0?'cursor:pointer;':''}"
+                     onclick="${total > 0 ? `showIncomeMonthDetail(${idx}, '${name}', ${JSON.stringify(newList).replace(/"/g,'&quot;')}, ${JSON.stringify(renList).replace(/"/g,'&quot;')})` : ''}">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="fw-semibold ${isCur ? 'text-primary' : ''}">${name}</small>
+                        ${isCur ? '<span class="badge bg-primary" style="font-size:0.6rem;">nå</span>' : ''}
+                    </div>
+                    <div>${newBadge}${renBadge}${empty}</div>
+                </div>
+            </div>`;
+        }).join('');
+
+    } catch(err) {
+        grid.innerHTML = `<div class="col-12 text-center text-danger py-3"><i class="bi bi-exclamation-circle me-2"></i>${err.message}</div>`;
+    }
+}
+
+function showIncomeMonthDetail(monthIdx, monthName, newList, renList) {
+    const detail = document.getElementById('income-month-detail');
+    const title  = document.getElementById('income-month-title');
+    const body   = document.getElementById('income-month-body');
+    if (!detail) return;
+
+    title.textContent = `${monthName} ${currentIncomeYear}`;
+
+    let html = '';
+
+    if (newList.length) {
+        html += `<div class="mb-2"><span class="badge bg-success mb-1">Innmeldte (${newList.length})</span><ul class="list-unstyled mb-0 ms-1">`;
+        newList.forEach(r => {
+            html += `<li class="small"><i class="bi bi-person-plus text-success me-1"></i>${r.name} <span class="text-muted">— ${r.plan} — ${r.d}</span></li>`;
+        });
+        html += '</ul></div>';
+    }
+
+    if (renList.length) {
+        html += `<div><span class="badge bg-primary mb-1">Fornyede (${renList.length})</span><ul class="list-unstyled mb-0 ms-1">`;
+        renList.forEach(r => {
+            html += `<li class="small"><i class="bi bi-arrow-repeat text-primary me-1"></i>${r.name} <span class="text-muted">— ${r.plan} — ${r.d}</span></li>`;
+        });
+        html += '</ul></div>';
+    }
+
+    body.innerHTML = html || '<span class="text-muted small">Ingen hendelser denne måneden</span>';
+    detail.style.display = 'block';
+    detail.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function closeIncomeMonthDetail() {
+    const d = document.getElementById('income-month-detail');
+    if (d) d.style.display = 'none';
+}
+
+async function runLedgerBackfill() {
+    const btn = document.getElementById('income-backfill-btn');
+    const result = document.getElementById('income-backfill-result');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Kjører...';
+    if (result) { result.textContent = ''; result.style.display = 'none'; }
+
+    try {
+        const resp = await fetch('/api/run_backfill_renewal_ledger.php', {
+            method: 'POST', credentials: 'same-origin'
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+            if (result) {
+                result.textContent = data.message;
+                result.style.display = 'inline';
+                setTimeout(() => { result.style.display = 'none'; }, 8000);
+            }
+        } else {
+            alert('Feil: ' + (data.error || 'Ukjent feil'));
+        }
+    } catch(err) {
+        alert('Feil ved kjøring: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Synkroniser fornyelser';
+    }
+}
+
+// Income tab trigger
+const incomeTabLink = document.querySelector('a[href="#membership-income"]');
+if (incomeTabLink) {
+    incomeTabLink.addEventListener('click', function() {
+        setTimeout(() => loadMembershipCalendar(currentIncomeYear), 100);
+    });
+}
+
+// DEAD CODE KEPT FOR REFERENCE — replaced by new calendar:
 async function loadMembershipIncome(filter = 'all') {
     currentMembershipFilter = filter;
     

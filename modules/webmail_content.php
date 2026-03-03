@@ -206,6 +206,9 @@ try {
             <li><a href="#" id="wm-nav-sent" onclick="wmShow('sent', this)">
                 <i class="bi bi-send-check"></i> Sendte
             </a></li>
+            <li><a href="#" id="wm-nav-confirm" onclick="wmShow('confirm', this)">
+                <i class="bi bi-patch-check"></i> Bekreftelse
+            </a></li>
             <li><a href="#" id="wm-nav-templates" onclick="wmShow('templates', this)">
                 <i class="bi bi-file-earmark-text"></i> Maler
             </a></li>
@@ -338,11 +341,51 @@ try {
         <div id="wm-view-sent" class="wm-content-pane" style="display:none;">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h6 class="mb-0"><i class="bi bi-send-check me-2"></i>Sendte e-poster</h6>
-                <button class="btn btn-sm btn-outline-secondary" onclick="wmLoadLogs()">
-                    <i class="bi bi-arrow-clockwise"></i> Oppdater
-                </button>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-secondary" id="wm-automailer-toggle" onclick="wmToggleAutomailer()" title="Vis/skjul automailer-e-poster">
+                        <i class="bi bi-robot me-1"></i>Vis automailer
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="wmLoadLogs()">
+                        <i class="bi bi-arrow-clockwise"></i> Oppdater
+                    </button>
+                </div>
             </div>
             <div id="wm-logs-table"></div>
+            <div id="wm-sent-preview" style="display:none;" class="border rounded mt-3">
+                <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light">
+                    <div>
+                        <strong id="wm-preview-subject" class="d-block"></strong>
+                        <small class="text-muted" id="wm-preview-meta"></small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="wmReplyFromPreview()"><i class="bi bi-reply me-1"></i>Svar</button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="wmCloseSentPreview()"><i class="bi bi-x"></i></button>
+                    </div>
+                </div>
+                <iframe id="wm-preview-frame" style="width:100%;height:420px;border:0;" sandbox="allow-same-origin"></iframe>
+            </div>
+        </div>
+
+        <!-- CONFIRM VIEW -->
+        <div id="wm-view-confirm" class="wm-content-pane" style="display:none;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0"><i class="bi bi-patch-check me-2"></i>Bekreftelsessøk</h6>
+            </div>
+            <div class="input-group mb-3">
+                <input type="email" class="form-control" id="wm-confirm-email-input" placeholder="Søk på mottakers e-postadresse..." onkeydown="if(event.key==='Enter') wmLoadConfirm()">
+                <button class="btn btn-primary" onclick="wmLoadConfirm()"><i class="bi bi-search me-1"></i>Søk</button>
+            </div>
+            <div id="wm-confirm-table"></div>
+            <div id="wm-confirm-preview" style="display:none;" class="border rounded mt-3">
+                <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light">
+                    <div>
+                        <strong id="wm-cpreview-subject" class="d-block"></strong>
+                        <small class="text-muted" id="wm-cpreview-meta"></small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('wm-confirm-preview').style.display='none'"><i class="bi bi-x"></i></button>
+                </div>
+                <iframe id="wm-cpreview-frame" style="width:100%;height:420px;border:0;" sandbox="allow-same-origin"></iframe>
+            </div>
         </div>
 
         <!-- TEMPLATES VIEW -->
@@ -430,10 +473,11 @@ function wmShow(view, navEl) {
     document.querySelectorAll('.wm-nav li a').forEach(a => a.classList.remove('active'));
     if (navEl) navEl.classList.add('active');
 
-    document.getElementById('wm-view-compose').style.display = 'none';
-    document.getElementById('wm-view-inbox').style.display = 'none';
-    document.getElementById('wm-view-queue').style.display = 'none';
-    document.getElementById('wm-view-sent').style.display = 'none';
+    document.getElementById('wm-view-compose').style.display   = 'none';
+    document.getElementById('wm-view-inbox').style.display     = 'none';
+    document.getElementById('wm-view-queue').style.display     = 'none';
+    document.getElementById('wm-view-sent').style.display      = 'none';
+    document.getElementById('wm-view-confirm').style.display   = 'none';
     document.getElementById('wm-view-templates').style.display = 'none';
 
     wmCurrentView = view;
@@ -447,6 +491,8 @@ function wmShow(view, navEl) {
     } else if (view === 'sent') {
         document.getElementById('wm-view-sent').style.display = 'block';
         wmLoadLogs();
+    } else if (view === 'confirm') {
+        document.getElementById('wm-view-confirm').style.display = 'block';
     } else if (view === 'compose') {
         document.getElementById('wm-view-compose').style.display = 'block';
     } else if (view === 'templates') {
@@ -854,12 +900,30 @@ function wmStatusLabel(s) {
 }
 
 /* ===== SENDTE (LOGS) ===== */
+let wmShowAutomailer = false;
+let wmPreviewReplyTo = '';
+let wmPreviewReplySubject = '';
+
+function wmToggleAutomailer() {
+    wmShowAutomailer = !wmShowAutomailer;
+    const btn = document.getElementById('wm-automailer-toggle');
+    if (btn) {
+        btn.classList.toggle('active', wmShowAutomailer);
+        btn.title = wmShowAutomailer ? 'Skjul automailer-e-poster' : 'Vis automailer-e-poster';
+    }
+    wmLoadLogs();
+}
+
 async function wmLoadLogs() {
     const el = document.getElementById('wm-logs-table');
     el.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm"></div></div>';
+    wmCloseSentPreview();
+
+    const params = new URLSearchParams({ limit: 100 });
+    if (!wmShowAutomailer) params.set('exclude_automailer', '1');
 
     try {
-        const resp = await fetch('/api/get_email_logs.php?limit=100', {credentials:'same-origin'});
+        const resp = await fetch(`/api/get_email_logs.php?${params}`, {credentials:'same-origin'});
         const data = JSON.parse(await resp.text());
 
         if (!data.success) {
@@ -885,23 +949,138 @@ async function wmLoadLogs() {
                     </tr>
                 </thead>
                 <tbody>
-                    ${data.logs.map(r => `
-                        <tr>
-                            <td class="small">${escapeH(r.from_email)}</td>
+                    ${data.logs.map((r, i) => {
+                        const senderDisplay = r.from_name
+                            ? `${escapeH(r.from_name)}<br><small class="text-muted">${escapeH(r.from_email)}</small>`
+                            : escapeH(r.from_email);
+                        const logJson = JSON.stringify(r).replace(/'/g, "\\'");
+                        return `
+                        <tr style="cursor:pointer;" onclick="wmOpenSentEmail(${i})" data-log-idx="${i}">
+                            <td class="small">${senderDisplay}</td>
                             <td class="small">${escapeH(r.to_email)}</td>
                             <td class="small">${escapeH(r.subject)}</td>
                             <td><span class="badge ${r.status==='sent'?'bg-success':'bg-danger'}">${r.status==='sent'?'Sendt':'Feil'}</span></td>
                             <td class="small">${fmtDateTimeWm(r.sent_at)}</td>
-                        </tr>
-                    `).join('')}
+                        </tr>`;
+                    }).join('')}
                 </tbody>
             </table>
             </div>
-            <div class="text-muted small mt-2 px-1">Totalt ${data.total} poster</div>
+            <div class="text-muted small mt-2 px-1">Viser ${data.logs.length} av ${data.total} poster</div>
+        `;
+
+        window._wmSentLogs = data.logs;
+    } catch(err) {
+        el.innerHTML = `<div class="alert alert-danger">${escapeH(err.message)}</div>`;
+    }
+}
+
+function wmOpenSentEmail(idx) {
+    const logs = window._wmSentLogs || [];
+    const r = logs[idx];
+    if (!r) return;
+
+    document.getElementById('wm-preview-subject').textContent = r.subject || '(ingen emne)';
+    document.getElementById('wm-preview-meta').textContent =
+        `Fra: ${r.from_name || r.from_email}  →  Til: ${r.to_email}  |  ${fmtDateTimeWm(r.sent_at)}`;
+
+    wmPreviewReplyTo      = r.to_email  || '';
+    wmPreviewReplySubject = r.subject   || '';
+
+    const frame = document.getElementById('wm-preview-frame');
+    const body  = r.body_html || '<p class="text-muted p-3">Innhold ikke tilgjengelig</p>';
+    frame.srcdoc = body;
+
+    document.getElementById('wm-sent-preview').style.display = 'block';
+    document.getElementById('wm-sent-preview').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function wmCloseSentPreview() {
+    const p = document.getElementById('wm-sent-preview');
+    if (p) p.style.display = 'none';
+    wmPreviewReplyTo      = '';
+    wmPreviewReplySubject = '';
+}
+
+function wmReplyFromPreview() {
+    if (!wmPreviewReplyTo) return;
+    wmAddTag(wmPreviewReplyTo);
+    document.getElementById('wm-subject').value = wmPreviewReplySubject.startsWith('Re:')
+        ? wmPreviewReplySubject
+        : 'Re: ' + wmPreviewReplySubject;
+    wmShow('compose', null);
+}
+
+/* ===== BEKREFTELSESSØK ===== */
+async function wmLoadConfirm() {
+    const email = document.getElementById('wm-confirm-email-input')?.value.trim();
+    const el    = document.getElementById('wm-confirm-table');
+    if (!el) return;
+
+    if (!email) {
+        el.innerHTML = '<div class="text-muted small">Skriv inn en e-postadresse og klikk Søk.</div>';
+        return;
+    }
+
+    el.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm"></div></div>';
+    document.getElementById('wm-confirm-preview').style.display = 'none';
+
+    try {
+        const params = new URLSearchParams({ recipient_email: email, limit: 100 });
+        const resp = await fetch(`/api/get_email_logs.php?${params}`, {credentials:'same-origin'});
+        const data = JSON.parse(await resp.text());
+
+        if (!data.success) {
+            el.innerHTML = `<div class="alert alert-danger">${escapeH(data.error)}</div>`;
+            return;
+        }
+
+        if (!data.logs || !data.logs.length) {
+            el.innerHTML = `<div class="text-center text-muted py-4"><i class="bi bi-envelope-x fs-2 d-block mb-2"></i>Ingen e-poster funnet for <strong>${escapeH(email)}</strong></div>`;
+            return;
+        }
+
+        window._wmConfirmLogs = data.logs;
+
+        el.innerHTML = `
+            <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr><th>Emne</th><th>Type</th><th>Status</th><th>Dato</th></tr>
+                </thead>
+                <tbody>
+                    ${data.logs.map((r, i) => `
+                    <tr style="cursor:pointer;" onclick="wmOpenConfirmEmail(${i})">
+                        <td class="small">${escapeH(r.subject)}</td>
+                        <td><span class="badge bg-secondary" style="font-size:0.7rem;">${escapeH(r.module_source || '—')}</span></td>
+                        <td><span class="badge ${r.status==='sent'?'bg-success':'bg-danger'}">${r.status==='sent'?'Levert':'Feil'}</span></td>
+                        <td class="small">${fmtDateTimeWm(r.sent_at)}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+            </div>
+            <div class="text-muted small mt-2 px-1">${data.logs.length} e-post(er) funnet for ${escapeH(email)}</div>
         `;
     } catch(err) {
         el.innerHTML = `<div class="alert alert-danger">${escapeH(err.message)}</div>`;
     }
+}
+
+function wmOpenConfirmEmail(idx) {
+    const logs = window._wmConfirmLogs || [];
+    const r = logs[idx];
+    if (!r) return;
+
+    document.getElementById('wm-cpreview-subject').textContent = r.subject || '(ingen emne)';
+    document.getElementById('wm-cpreview-meta').textContent =
+        `Fra: ${r.from_name || r.from_email}  →  Til: ${r.to_email}  |  ${fmtDateTimeWm(r.sent_at)}`;
+
+    const frame = document.getElementById('wm-cpreview-frame');
+    frame.srcdoc = r.body_html || '<p class="text-muted p-3">Innhold ikke tilgjengelig</p>';
+
+    const preview = document.getElementById('wm-confirm-preview');
+    preview.style.display = 'block';
+    preview.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
 /* ===== AUTOMAILER ===== */

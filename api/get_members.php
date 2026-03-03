@@ -10,8 +10,46 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 require_once __DIR__ . '/../config/database.php';
 
 try {
-    $db = getDBConnection();
+    $db        = getDBConnection();
     $companyId = $_SESSION['company_id'];
+
+    if (isset($_GET['stats']) && $_GET['stats'] == '1') {
+        $totalStmt = $db->prepare("
+            SELECT COUNT(*) FROM membership_members
+            WHERE company_id = ?
+              AND (cancellation_active IS NULL OR cancellation_active = 0)
+        ");
+        $totalStmt->execute([$companyId]);
+        $total = (int)$totalStmt->fetchColumn();
+
+        $expiredStmt = $db->prepare("
+            SELECT COUNT(*) FROM membership_members
+            WHERE company_id = ?
+              AND (cancellation_active IS NULL OR cancellation_active = 0)
+              AND expiration_date < CURDATE()
+        ");
+        $expiredStmt->execute([$companyId]);
+        $expired = (int)$expiredStmt->fetchColumn();
+
+        $renewedStmt = $db->prepare("
+            SELECT COUNT(*) FROM membership_members_renew mmr
+            JOIN membership_members mm ON mm.id = mmr.membership_member_id
+            WHERE mm.company_id = ?
+              AND mmr.status = 'completed'
+              AND YEAR(mmr.completed_at) = YEAR(CURDATE())
+        ");
+        $renewedStmt->execute([$companyId]);
+        $renewedThisYear = (int)$renewedStmt->fetchColumn();
+
+        echo json_encode([
+            'success'           => true,
+            'total'             => $total,
+            'expired'           => $expired,
+            'renewed_this_year' => $renewedThisYear,
+        ]);
+        exit;
+    }
+
     $cancelled = isset($_GET['cancelled']) && $_GET['cancelled'] == '1';
 
     $cancelFilter = $cancelled
