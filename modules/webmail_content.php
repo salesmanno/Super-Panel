@@ -206,6 +206,9 @@ try {
             <li><a href="#" id="wm-nav-sent" onclick="wmShow('sent', this)">
                 <i class="bi bi-send-check"></i> Sendte
             </a></li>
+            <li><a href="#" id="wm-nav-autolog" onclick="wmShow('autolog', this)">
+                <i class="bi bi-robot"></i> Automatlogg
+            </a></li>
             <li><a href="#" id="wm-nav-confirm" onclick="wmShow('confirm', this)">
                 <i class="bi bi-patch-check"></i> Bekreftelse
             </a></li>
@@ -341,14 +344,9 @@ try {
         <div id="wm-view-sent" class="wm-content-pane" style="display:none;">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h6 class="mb-0"><i class="bi bi-send-check me-2"></i>Sendte e-poster</h6>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-sm btn-outline-secondary" id="wm-automailer-toggle" onclick="wmToggleAutomailer()" title="Vis/skjul automailer-e-poster">
-                        <i class="bi bi-robot me-1"></i>Vis automailer
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="wmLoadLogs()">
-                        <i class="bi bi-arrow-clockwise"></i> Oppdater
-                    </button>
-                </div>
+                <button class="btn btn-sm btn-outline-secondary" onclick="wmLoadLogs('manual')">
+                    <i class="bi bi-arrow-clockwise"></i> Oppdater
+                </button>
             </div>
             <div id="wm-logs-table"></div>
             <div id="wm-sent-preview" style="display:none;" class="border rounded mt-3">
@@ -363,6 +361,27 @@ try {
                     </div>
                 </div>
                 <iframe id="wm-preview-frame" style="width:100%;height:420px;border:0;" sandbox="allow-same-origin"></iframe>
+            </div>
+        </div>
+
+        <!-- AUTOMATLOGG VIEW -->
+        <div id="wm-view-autolog" class="wm-content-pane" style="display:none;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0"><i class="bi bi-robot me-2"></i>Automatlogg</h6>
+                <button class="btn btn-sm btn-outline-secondary" onclick="wmLoadLogs('auto')">
+                    <i class="bi bi-arrow-clockwise"></i> Oppdater
+                </button>
+            </div>
+            <div id="wm-autolog-table"></div>
+            <div id="wm-autolog-preview" style="display:none;" class="border rounded mt-3">
+                <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light">
+                    <div>
+                        <strong id="wm-alpreview-subject" class="d-block"></strong>
+                        <small class="text-muted" id="wm-alpreview-meta"></small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('wm-autolog-preview').style.display='none'"><i class="bi bi-x"></i></button>
+                </div>
+                <iframe id="wm-alpreview-frame" style="width:100%;height:420px;border:0;" sandbox="allow-same-origin"></iframe>
             </div>
         </div>
 
@@ -477,6 +496,7 @@ function wmShow(view, navEl) {
     document.getElementById('wm-view-inbox').style.display     = 'none';
     document.getElementById('wm-view-queue').style.display     = 'none';
     document.getElementById('wm-view-sent').style.display      = 'none';
+    document.getElementById('wm-view-autolog').style.display   = 'none';
     document.getElementById('wm-view-confirm').style.display   = 'none';
     document.getElementById('wm-view-templates').style.display = 'none';
 
@@ -490,7 +510,10 @@ function wmShow(view, navEl) {
         wmLoadQueue();
     } else if (view === 'sent') {
         document.getElementById('wm-view-sent').style.display = 'block';
-        wmLoadLogs();
+        wmLoadLogs('manual');
+    } else if (view === 'autolog') {
+        document.getElementById('wm-view-autolog').style.display = 'block';
+        wmLoadLogs('auto');
     } else if (view === 'confirm') {
         document.getElementById('wm-view-confirm').style.display = 'block';
     } else if (view === 'compose') {
@@ -899,28 +922,20 @@ function wmStatusLabel(s) {
     return labels[s] || s;
 }
 
-/* ===== SENDTE (LOGS) ===== */
-let wmShowAutomailer = false;
+/* ===== SENDTE + AUTOMATLOGG ===== */
 let wmPreviewReplyTo = '';
 let wmPreviewReplySubject = '';
 
-function wmToggleAutomailer() {
-    wmShowAutomailer = !wmShowAutomailer;
-    const btn = document.getElementById('wm-automailer-toggle');
-    if (btn) {
-        btn.classList.toggle('active', wmShowAutomailer);
-        btn.title = wmShowAutomailer ? 'Skjul automailer-e-poster' : 'Vis automailer-e-poster';
-    }
-    wmLoadLogs();
-}
+async function wmLoadLogs(sourceType = 'manual') {
+    const isAuto  = sourceType === 'auto';
+    const tableId = isAuto ? 'wm-autolog-table'   : 'wm-logs-table';
+    const el      = document.getElementById(tableId);
+    if (!el) return;
 
-async function wmLoadLogs() {
-    const el = document.getElementById('wm-logs-table');
     el.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm"></div></div>';
-    wmCloseSentPreview();
+    if (!isAuto) wmCloseSentPreview();
 
-    const params = new URLSearchParams({ limit: 100 });
-    if (!wmShowAutomailer) params.set('exclude_automailer', '1');
+    const params = new URLSearchParams({ limit: 100, source_type: sourceType });
 
     try {
         const resp = await fetch(`/api/get_email_logs.php?${params}`, {credentials:'same-origin'});
@@ -931,10 +946,18 @@ async function wmLoadLogs() {
             return;
         }
 
+        const emptyIcon = isAuto ? 'bi-robot' : 'bi-send-check';
+        const emptyText = isAuto ? 'Ingen automatisk sendte e-poster' : 'Ingen sendte e-poster';
+
         if (!data.logs || !data.logs.length) {
-            el.innerHTML = '<div class="text-center text-muted py-4"><i class="bi bi-send-check fs-2 d-block mb-2"></i>Ingen sendte e-poster</div>';
+            el.innerHTML = `<div class="text-center text-muted py-4"><i class="bi ${emptyIcon} fs-2 d-block mb-2"></i>${emptyText}</div>`;
             return;
         }
+
+        const storeKey = isAuto ? '_wmAutoLogs' : '_wmSentLogs';
+        window[storeKey] = data.logs;
+
+        const onClickFn = isAuto ? 'wmOpenAutoEmail' : 'wmOpenSentEmail';
 
         el.innerHTML = `
             <div class="table-responsive">
@@ -942,6 +965,7 @@ async function wmLoadLogs() {
                 <thead class="table-light">
                     <tr>
                         <th>Fra</th>
+                        ${isAuto ? '<th>Kilde</th>' : ''}
                         <th>Til</th>
                         <th>Emne</th>
                         <th>Status</th>
@@ -953,10 +977,13 @@ async function wmLoadLogs() {
                         const senderDisplay = r.from_name
                             ? `${escapeH(r.from_name)}<br><small class="text-muted">${escapeH(r.from_email)}</small>`
                             : escapeH(r.from_email);
-                        const logJson = JSON.stringify(r).replace(/'/g, "\\'");
+                        const sourceLabel = isAuto
+                            ? `<td><span class="badge bg-secondary" style="font-size:0.7rem;">${escapeH(r.module_source || '—')}</span></td>`
+                            : '';
                         return `
-                        <tr style="cursor:pointer;" onclick="wmOpenSentEmail(${i})" data-log-idx="${i}">
+                        <tr style="cursor:pointer;" onclick="${onClickFn}(${i})">
                             <td class="small">${senderDisplay}</td>
+                            ${sourceLabel}
                             <td class="small">${escapeH(r.to_email)}</td>
                             <td class="small">${escapeH(r.subject)}</td>
                             <td><span class="badge ${r.status==='sent'?'bg-success':'bg-danger'}">${r.status==='sent'?'Sendt':'Feil'}</span></td>
@@ -968,31 +995,44 @@ async function wmLoadLogs() {
             </div>
             <div class="text-muted small mt-2 px-1">Viser ${data.logs.length} av ${data.total} poster</div>
         `;
-
-        window._wmSentLogs = data.logs;
     } catch(err) {
         el.innerHTML = `<div class="alert alert-danger">${escapeH(err.message)}</div>`;
     }
 }
 
 function wmOpenSentEmail(idx) {
-    const logs = window._wmSentLogs || [];
-    const r = logs[idx];
+    const r = (window._wmSentLogs || [])[idx];
     if (!r) return;
 
     document.getElementById('wm-preview-subject').textContent = r.subject || '(ingen emne)';
     document.getElementById('wm-preview-meta').textContent =
         `Fra: ${r.from_name || r.from_email}  →  Til: ${r.to_email}  |  ${fmtDateTimeWm(r.sent_at)}`;
 
-    wmPreviewReplyTo      = r.to_email  || '';
-    wmPreviewReplySubject = r.subject   || '';
+    wmPreviewReplyTo      = r.to_email || '';
+    wmPreviewReplySubject = r.subject  || '';
 
-    const frame = document.getElementById('wm-preview-frame');
-    const body  = r.body_html || '<p class="text-muted p-3">Innhold ikke tilgjengelig</p>';
-    frame.srcdoc = body;
+    document.getElementById('wm-preview-frame').srcdoc =
+        r.body_html || '<p class="text-muted p-3">Innhold ikke tilgjengelig</p>';
 
-    document.getElementById('wm-sent-preview').style.display = 'block';
-    document.getElementById('wm-sent-preview').scrollIntoView({behavior:'smooth', block:'nearest'});
+    const p = document.getElementById('wm-sent-preview');
+    p.style.display = 'block';
+    p.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function wmOpenAutoEmail(idx) {
+    const r = (window._wmAutoLogs || [])[idx];
+    if (!r) return;
+
+    document.getElementById('wm-alpreview-subject').textContent = r.subject || '(ingen emne)';
+    document.getElementById('wm-alpreview-meta').textContent =
+        `Kilde: ${r.module_source || '—'}  |  Til: ${r.to_email}  |  ${fmtDateTimeWm(r.sent_at)}`;
+
+    document.getElementById('wm-alpreview-frame').srcdoc =
+        r.body_html || '<p class="text-muted p-3">Innhold ikke tilgjengelig</p>';
+
+    const p = document.getElementById('wm-autolog-preview');
+    p.style.display = 'block';
+    p.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
 function wmCloseSentPreview() {

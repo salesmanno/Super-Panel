@@ -96,9 +96,9 @@ try {
     if ($result['success']) {
         $logStmt = $db->prepare("
             INSERT INTO email_logs
-                (id, company_id, from_email, from_name, to_email, subject, body_html, status, sent_at)
+                (id, company_id, from_email, from_name, to_email, subject, body_html, module_source, status, sent_at)
             VALUES
-                (UUID(), ?, ?, ?, ?, ?, ?, 'sent', NOW())
+                (UUID(), ?, ?, ?, ?, ?, ?, 'webmail', 'sent', NOW())
         ");
         $logStmt->execute([$companyId, $fromEmail, $fromName, $to, $subject, $htmlBody]);
 

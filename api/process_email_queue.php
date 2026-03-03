@@ -134,9 +134,9 @@ function processEmail($db, $email) {
 
             $logStmt = $db->prepare("
                 INSERT INTO email_logs
-                    (id, company_id, from_email, from_name, to_email, subject, body_html, status, sent_at)
+                    (id, company_id, from_email, from_name, to_email, subject, body_html, module_source, status, sent_at)
                 VALUES
-                    (UUID(), ?, ?, ?, ?, ?, ?, 'sent', NOW())
+                    (UUID(), ?, ?, ?, ?, ?, ?, ?, 'sent', NOW())
             ");
             $logStmt->execute([
                 $email['company_id'],
@@ -144,7 +144,8 @@ function processEmail($db, $email) {
                 $fromName,
                 $email['recipient_email'],
                 $email['subject'],
-                $htmlBody
+                $htmlBody,
+                $email['module_source'] ?? 'system',
             ]);
 
             echo "✓ Sendt: {$email['id']} til {$email['recipient_email']}\n";

@@ -22,19 +22,21 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 require_once __DIR__ . '/../config/database.php';
 
 try {
-    $db = getDBConnection();
+    $db        = getDBConnection();
     $companyId = $_SESSION['company_id'];
 
-    $limit            = min((int)($_GET['limit'] ?? 50), 200);
-    $offset           = (int)($_GET['offset'] ?? 0);
-    $excludeAutomailer = isset($_GET['exclude_automailer']) && $_GET['exclude_automailer'] == '1';
-    $recipientEmail   = trim($_GET['recipient_email'] ?? '');
+    $limit         = min((int)($_GET['limit'] ?? 50), 200);
+    $offset        = (int)($_GET['offset'] ?? 0);
+    $sourceType    = $_GET['source_type']    ?? '';   // 'manual' | 'auto' | '' (all)
+    $recipientEmail = trim($_GET['recipient_email'] ?? '');
 
     $where  = 'WHERE company_id = ?';
     $params = [$companyId];
 
-    if ($excludeAutomailer) {
-        $where .= " AND (module_source IS NULL OR module_source != 'membership')";
+    if ($sourceType === 'manual') {
+        $where .= " AND (module_source = 'webmail' OR module_source IS NULL)";
+    } elseif ($sourceType === 'auto') {
+        $where .= " AND module_source IS NOT NULL AND module_source != 'webmail'";
     }
 
     if ($recipientEmail !== '') {
