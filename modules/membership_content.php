@@ -187,7 +187,7 @@
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <small id="income-backfill-result" class="text-muted" style="display:none;"></small>
-                        <button class="btn btn-outline-secondary btn-sm" id="income-backfill-btn" onclick="runLedgerBackfill()" title="Synkroniser fornyelser uten ledger-oppføring">
+                        <button class="btn btn-outline-primary btn-sm" id="income-backfill-btn" onclick="runLedgerBackfill()" title="Synkroniser fornyelser uten ledger-oppføring">
                             <i class="bi bi-arrow-repeat me-1"></i>Synkroniser fornyelser
                         </button>
                     </div>

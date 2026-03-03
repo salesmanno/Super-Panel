@@ -207,7 +207,7 @@ try {
                 <i class="bi bi-send-check"></i> Sendte
             </a></li>
             <li><a href="#" id="wm-nav-autolog" onclick="wmShow('autolog', this)">
-                <i class="bi bi-robot"></i> Automatlogg
+                <i class="bi bi-robot"></i> Autologg
             </a></li>
             <li><a href="#" id="wm-nav-confirm" onclick="wmShow('confirm', this)">
                 <i class="bi bi-patch-check"></i> Bekreftelse
@@ -367,9 +367,20 @@ try {
         <!-- AUTOMATLOGG VIEW -->
         <div id="wm-view-autolog" class="wm-content-pane" style="display:none;">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="mb-0"><i class="bi bi-robot me-2"></i>Automatlogg</h6>
+                <h6 class="mb-0"><i class="bi bi-robot me-2"></i>Autologg</h6>
                 <button class="btn btn-sm btn-outline-secondary" onclick="wmLoadLogs('auto')">
                     <i class="bi bi-arrow-clockwise"></i> Oppdater
+                </button>
+            </div>
+            <div class="input-group input-group-sm mb-3" style="max-width:380px;">
+                <input type="email" class="form-control" id="wm-autolog-search"
+                       placeholder="Filtrer på mottakers e-post..."
+                       onkeydown="if(event.key==='Enter') wmSearchAutoLog()">
+                <button class="btn btn-outline-secondary" onclick="wmSearchAutoLog()">
+                    <i class="bi bi-search"></i>
+                </button>
+                <button class="btn btn-outline-secondary" onclick="wmClearAutoSearch()" title="Nullstill søk">
+                    <i class="bi bi-x"></i>
                 </button>
             </div>
             <div id="wm-autolog-table"></div>
@@ -926,7 +937,18 @@ function wmStatusLabel(s) {
 let wmPreviewReplyTo = '';
 let wmPreviewReplySubject = '';
 
-async function wmLoadLogs(sourceType = 'manual') {
+function wmSearchAutoLog() {
+    const val = (document.getElementById('wm-autolog-search')?.value || '').trim();
+    wmLoadLogs('auto', val);
+}
+
+function wmClearAutoSearch() {
+    const inp = document.getElementById('wm-autolog-search');
+    if (inp) inp.value = '';
+    wmLoadLogs('auto');
+}
+
+async function wmLoadLogs(sourceType = 'manual', recipientEmail = '') {
     const isAuto  = sourceType === 'auto';
     const tableId = isAuto ? 'wm-autolog-table'   : 'wm-logs-table';
     const el      = document.getElementById(tableId);
@@ -936,6 +958,7 @@ async function wmLoadLogs(sourceType = 'manual') {
     if (!isAuto) wmCloseSentPreview();
 
     const params = new URLSearchParams({ limit: 100, source_type: sourceType });
+    if (recipientEmail) params.set('recipient_email', recipientEmail);
 
     try {
         const resp = await fetch(`/api/get_email_logs.php?${params}`, {credentials:'same-origin'});
