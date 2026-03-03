@@ -243,6 +243,13 @@ try {
                 </div>
             </div>
         </div>
+        <div class="wm-divider"></div>
+        <div class="px-2 pb-2">
+            <button class="btn btn-outline-secondary btn-sm w-100" onclick="wmRunDbMigration()" id="wm-migrate-btn" title="Legg til module_source-kolonne i email_logs og email_queue">
+                <i class="bi bi-database-gear me-1"></i><small>Kjør DB-migrasjon</small>
+            </button>
+            <div id="wm-migrate-result" class="mt-1" style="display:none;font-size:0.75rem;"></div>
+        </div>
     </div>
 
     <!-- MAIN -->
@@ -580,21 +587,75 @@ async function wmOpenEmail(uid) {
         const data = JSON.parse(await resp.text());
         if (data.success) {
             const e = data.email;
+            const fromAddr = (e.from_email || e.from || '').replace(/.*<(.+)>/, '$1').trim();
             detailEl.innerHTML = `
-                <h6>${escapeH(e.subject)}</h6>
-                <div class="text-muted small mb-3">
-                    <strong>Fra:</strong> ${escapeH(e.from)}<br>
-                    <strong>Til:</strong> ${escapeH(e.to)}<br>
-                    <strong>Dato:</strong> ${e.date}
+                <div class="d-flex justify-content-between align-items-start px-3 py-2 border-bottom bg-light">
+                    <div>
+                        <strong class="d-block">${escapeH(e.subject || '(ingen emne)')}</strong>
+                        <small class="text-muted">
+                            Fra: ${escapeH(e.from || '')} &nbsp;|&nbsp;
+                            Til: ${escapeH(e.to || '')} &nbsp;|&nbsp;
+                            ${escapeH(e.date || '')}
+                        </small>
+                    </div>
+                    <div class="d-flex gap-2 ms-3 flex-shrink-0">
+                        <button class="btn btn-sm btn-primary" id="wm-inbox-reply-btn">
+                            <i class="bi bi-reply me-1"></i>Svar
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" id="wm-inbox-close-btn">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
                 </div>
-                <hr>
-                <div style="font-size:0.9rem;">${e.body}</div>
+                <iframe id="wm-inbox-body-frame" style="width:100%;height:500px;border:0;" sandbox="allow-same-origin"></iframe>
             `;
+            document.getElementById('wm-inbox-body-frame').srcdoc = e.body || '<p class="text-muted p-3">Tomt innhold</p>';
+            document.getElementById('wm-inbox-reply-btn').addEventListener('click', () => wmReplyToIncoming(fromAddr, e.subject || ''));
+            document.getElementById('wm-inbox-close-btn').addEventListener('click', () => wmResetInboxDetail());
         } else {
             detailEl.innerHTML = `<div class="alert alert-danger">${escapeH(data.error || 'Feil ved henting')}</div>`;
         }
     } catch(err) {
         detailEl.innerHTML = `<div class="alert alert-danger">${escapeH(err.message)}</div>`;
+    }
+}
+
+function wmReplyToIncoming(fromAddr, subject) {
+    if (fromAddr) wmAddTag(fromAddr);
+    document.getElementById('wm-subject').value = subject.startsWith('Re:') ? subject : 'Re: ' + subject;
+    wmShow('compose', null);
+}
+
+function wmResetInboxDetail() {
+    const d = document.getElementById('wm-inbox-detail');
+    if (d) d.innerHTML = '<div class="text-center text-muted py-5"><i class="bi bi-envelope-open fs-1 d-block mb-3 text-secondary"></i><p>Velg en e-post</p></div>';
+}
+
+async function wmRunDbMigration() {
+    const btn = document.getElementById('wm-migrate-btn');
+    const res = document.getElementById('wm-migrate-result');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span><small>Kjører...</small>';
+    res.style.display = 'none';
+    try {
+        const resp = await fetch('/api/run_migrate_email_module_source.php', {method:'POST', credentials:'same-origin'});
+        const data = await resp.json();
+        res.style.display = 'block';
+        if (data.success) {
+            res.className = 'mt-1 text-success';
+            res.textContent = (data.altered || []).join(' | ') || 'Ferdig';
+        } else {
+            res.className = 'mt-1 text-danger';
+            res.textContent = (data.errors || [data.error]).join(' | ');
+        }
+    } catch(e) {
+        res.style.display = 'block';
+        res.className = 'mt-1 text-danger';
+        res.textContent = e.message;
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-database-gear me-1"></i><small>Kjør DB-migrasjon</small>';
     }
 }
 

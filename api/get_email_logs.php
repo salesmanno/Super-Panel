@@ -21,52 +21,77 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 
-try {
-    $db        = getDBConnection();
-    $companyId = $_SESSION['company_id'];
-
-    $limit         = min((int)($_GET['limit'] ?? 50), 200);
-    $offset        = (int)($_GET['offset'] ?? 0);
-    $sourceType    = $_GET['source_type']    ?? '';   // 'manual' | 'auto' | '' (all)
-    $recipientEmail = trim($_GET['recipient_email'] ?? '');
-
-    $where  = 'WHERE company_id = ?';
-    $params = [$companyId];
-
-    if ($sourceType === 'manual') {
-        $where .= " AND (module_source = 'webmail' OR module_source IS NULL)";
-    } elseif ($sourceType === 'auto') {
-        $where .= " AND module_source IS NOT NULL AND module_source != 'webmail'";
-    }
-
-    if ($recipientEmail !== '') {
-        $where .= ' AND to_email = ?';
-        $params[] = $recipientEmail;
-    }
-
+function runLogsQuery(PDO $db, string $select, string $where, array $params, int $limit, int $offset): array {
     $countStmt = $db->prepare("SELECT COUNT(*) FROM email_logs {$where}");
     $countStmt->execute($params);
     $total = (int)$countStmt->fetchColumn();
 
-    $queryParams = array_merge($params, [$limit, $offset]);
     $stmt = $db->prepare("
-        SELECT id, module_source, from_email, from_name, to_email, to_name,
-               subject, body_html, status, error_message, sent_at, template_used
+        SELECT {$select}
         FROM email_logs
         {$where}
         ORDER BY sent_at DESC
         LIMIT ? OFFSET ?
     ");
-    $stmt->execute($queryParams);
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->execute(array_merge($params, [$limit, $offset]));
+    return ['rows' => $stmt->fetchAll(PDO::FETCH_ASSOC), 'total' => $total];
+}
+
+try {
+    $db        = getDBConnection();
+    $companyId = $_SESSION['company_id'];
+
+    $limit          = min((int)($_GET['limit'] ?? 50), 200);
+    $offset         = (int)($_GET['offset'] ?? 0);
+    $sourceType     = $_GET['source_type']     ?? '';
+    $recipientEmail = trim($_GET['recipient_email'] ?? '');
+
+    $baseWhere  = 'WHERE company_id = ?';
+    $baseParams = [$companyId];
+
+    $sourceWhere = '';
+    if ($sourceType === 'manual') {
+        $sourceWhere = " AND (module_source = 'webmail' OR module_source IS NULL)";
+    } elseif ($sourceType === 'auto') {
+        $sourceWhere = " AND module_source IS NOT NULL AND module_source != 'webmail'";
+    }
+
+    $recipientWhere  = '';
+    $recipientParams = [];
+    if ($recipientEmail !== '') {
+        $recipientWhere    = ' AND to_email = ?';
+        $recipientParams[] = $recipientEmail;
+    }
+
+    $where  = $baseWhere . $sourceWhere . $recipientWhere;
+    $params = array_merge($baseParams, $recipientParams);
+
+    $selectFull    = "id, module_source, from_email, from_name, to_email, to_name, subject, body_html, status, error_message, sent_at, template_used";
+    $selectFallback = "id, from_email, from_name, to_email, to_name, subject, body_html, status, error_message, sent_at, template_used";
+
+    try {
+        $result = runLogsQuery($db, $selectFull, $where, $params, $limit, $offset);
+    } catch (\PDOException $e) {
+        if (stripos($e->getMessage(), 'module_source') !== false) {
+            $fallbackWhere  = $baseWhere . $recipientWhere;
+            $fallbackParams = array_merge($baseParams, $recipientParams);
+            $result = runLogsQuery($db, $selectFallback, $fallbackWhere, $fallbackParams, $limit, $offset);
+            foreach ($result['rows'] as &$row) {
+                $row['module_source'] = null;
+            }
+            unset($row);
+        } else {
+            throw $e;
+        }
+    }
 
     ob_end_clean();
     echo json_encode([
         'success' => true,
-        'logs'    => $rows,
-        'total'   => $total,
+        'logs'    => $result['rows'],
+        'total'   => $result['total'],
         'limit'   => $limit,
-        'offset'  => $offset
+        'offset'  => $offset,
     ]);
 
 } catch (\Throwable $e) {
