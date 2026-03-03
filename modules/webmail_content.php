@@ -195,24 +195,24 @@ try {
             <i class="bi bi-pencil-square me-1"></i>Ny e-post
         </button>
         <ul class="wm-nav">
-            <li><a href="#" class="active" id="wm-nav-inbox" onclick="wmShow('inbox', this)">
+            <li><a href="javascript:void(0)" class="active" id="wm-nav-inbox" onclick="wmShow('inbox', this)">
                 <i class="bi bi-inbox"></i> Innboks
                 <span class="badge bg-primary" id="wm-inbox-count" style="display:none;"></span>
             </a></li>
-            <li><a href="#" id="wm-nav-queue" onclick="wmShow('queue', this)">
+            <li><a href="javascript:void(0)" id="wm-nav-queue" onclick="wmShow('queue', this)">
                 <i class="bi bi-hourglass-split"></i> Mail-kø
                 <span class="badge bg-secondary" id="wm-queue-count" style="display:none;"></span>
             </a></li>
-            <li><a href="#" id="wm-nav-sent" onclick="wmShow('sent', this)">
+            <li><a href="javascript:void(0)" id="wm-nav-sent" onclick="wmShow('sent', this)">
                 <i class="bi bi-send-check"></i> Sendte
             </a></li>
-            <li><a href="#" id="wm-nav-autolog" onclick="wmShow('autolog', this)">
+            <li><a href="javascript:void(0)" id="wm-nav-autolog" onclick="wmShow('autolog', this)">
                 <i class="bi bi-robot"></i> Autologg
             </a></li>
-            <li><a href="#" id="wm-nav-confirm" onclick="wmShow('confirm', this)">
+            <li><a href="javascript:void(0)" id="wm-nav-confirm" onclick="wmShow('confirm', this)">
                 <i class="bi bi-patch-check"></i> Bekreftelse
             </a></li>
-            <li><a href="#" id="wm-nav-templates" onclick="wmShow('templates', this)">
+            <li><a href="javascript:void(0)" id="wm-nav-templates" onclick="wmShow('templates', this)">
                 <i class="bi bi-file-earmark-text"></i> Maler
             </a></li>
         </ul>

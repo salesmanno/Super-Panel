@@ -46,14 +46,23 @@ try {
     $sourceType     = $_GET['source_type']     ?? '';
     $recipientEmail = trim($_GET['recipient_email'] ?? '');
 
+    $hasModuleSource = (bool) $db->query(
+        "SELECT COUNT(*) FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'email_logs'
+         AND COLUMN_NAME = 'module_source'"
+    )->fetchColumn();
+
     $baseWhere  = 'WHERE company_id = ?';
     $baseParams = [$companyId];
 
     $sourceWhere = '';
-    if ($sourceType === 'manual') {
-        $sourceWhere = " AND (module_source = 'webmail' OR module_source IS NULL)";
-    } elseif ($sourceType === 'auto') {
-        $sourceWhere = " AND module_source IS NOT NULL AND module_source != 'webmail'";
+    if ($hasModuleSource) {
+        if ($sourceType === 'manual') {
+            $sourceWhere = " AND (module_source = 'webmail' OR module_source IS NULL)";
+        } elseif ($sourceType === 'auto') {
+            $sourceWhere = " AND module_source IS NOT NULL AND module_source != 'webmail'";
+        }
     }
 
     $recipientWhere  = '';
@@ -66,23 +75,19 @@ try {
     $where  = $baseWhere . $sourceWhere . $recipientWhere;
     $params = array_merge($baseParams, $recipientParams);
 
-    $selectFull    = "id, module_source, from_email, from_name, to_email, to_name, subject, body_html, status, error_message, sent_at, template_used";
-    $selectFallback = "id, from_email, from_name, to_email, to_name, subject, body_html, status, error_message, sent_at, template_used";
+    if ($hasModuleSource) {
+        $select = "id, module_source, from_email, from_name, to_email, to_name, subject, body_html, status, error_message, sent_at, template_used";
+    } else {
+        $select = "id, from_email, from_name, to_email, to_name, subject, body_html, status, error_message, sent_at, template_used";
+    }
 
-    try {
-        $result = runLogsQuery($db, $selectFull, $where, $params, $limit, $offset);
-    } catch (\PDOException $e) {
-        if (stripos($e->getMessage(), 'module_source') !== false) {
-            $fallbackWhere  = $baseWhere . $recipientWhere;
-            $fallbackParams = array_merge($baseParams, $recipientParams);
-            $result = runLogsQuery($db, $selectFallback, $fallbackWhere, $fallbackParams, $limit, $offset);
-            foreach ($result['rows'] as &$row) {
-                $row['module_source'] = null;
-            }
-            unset($row);
-        } else {
-            throw $e;
+    $result = runLogsQuery($db, $select, $where, $params, $limit, $offset);
+
+    if (!$hasModuleSource) {
+        foreach ($result['rows'] as &$row) {
+            $row['module_source'] = null;
         }
+        unset($row);
     }
 
     ob_end_clean();
