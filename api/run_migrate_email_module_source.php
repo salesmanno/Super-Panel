@@ -34,8 +34,8 @@ try {
     $db = getDBConnection();
 
     $statements = [
-        'email_logs.automail'  => "ALTER TABLE email_logs  ADD COLUMN automail VARCHAR(100) NULL DEFAULT NULL",
-        'email_queue.automail' => "ALTER TABLE email_queue ADD COLUMN automail VARCHAR(100) NULL DEFAULT NULL",
+        'email_logs.module_source'  => "ALTER TABLE email_logs ADD COLUMN module_source VARCHAR(100) NULL DEFAULT NULL",
+        'email_queue.module_source' => "ALTER TABLE email_queue ADD COLUMN module_source VARCHAR(100) NULL DEFAULT NULL",
     ];
 
     foreach ($statements as $label => $sql) {

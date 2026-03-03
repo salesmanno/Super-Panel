@@ -71,9 +71,9 @@ try {
 
     $insertStmt = $db->prepare("
         INSERT INTO email_queue
-            (id, company_id, recipient_email, from_email, subject, body, status, priority, scheduled_at, created_at, updated_at)
+            (id, company_id, recipient_email, from_email, subject, body, module_source, status, priority, scheduled_at, created_at, updated_at)
         VALUES
-            (UUID(), ?, ?, ?, ?, ?, 'queued', 5, NOW(), NOW(), NOW())
+            (UUID(), ?, ?, ?, ?, ?, 'webmail', 'queued', 5, NOW(), NOW(), NOW())
     ");
 
     $customerStmt = $db->prepare("

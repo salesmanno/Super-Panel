@@ -245,7 +245,7 @@ try {
         </div>
         <div class="wm-divider"></div>
         <div class="px-2 pb-2">
-            <button class="btn btn-outline-secondary btn-sm w-100" onclick="wmRunDbMigration()" id="wm-migrate-btn" title="Legg til automail-kolonne i email_logs og email_queue">
+            <button class="btn btn-outline-secondary btn-sm w-100" onclick="wmRunDbMigration()" id="wm-migrate-btn" title="Legg til module_source-kolonne i email_logs og email_queue">
                 <i class="bi bi-database-gear me-1"></i><small>Kjør DB-migrasjon</small>
             </button>
             <div id="wm-migrate-result" class="mt-1" style="display:none;font-size:0.75rem;"></div>
@@ -639,7 +639,7 @@ async function wmRunDbMigration() {
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span><small>Kjører...</small>';
     res.style.display = 'none';
     try {
-        const resp = await fetch('/api/run_migrate_email_module_source.php', {method:'POST', credentials:'same-origin'}); 
+        const resp = await fetch('/api/run_migrate_email_module_source.php', {method:'POST', credentials:'same-origin'});
         const data = await resp.json();
         res.style.display = 'block';
         if (data.success) {
@@ -1062,7 +1062,7 @@ async function wmLoadLogs(sourceType = 'manual', recipientEmail = '') {
                             ? `${escapeH(r.from_name)}<br><small class="text-muted">${escapeH(r.from_email)}</small>`
                             : escapeH(r.from_email);
                         const sourceLabel = isAuto
-                            ? `<td><span class="badge bg-secondary" style="font-size:0.7rem;">${escapeH(r.automail || '—')}</span></td>`
+                            ? `<td><span class="badge bg-secondary" style="font-size:0.7rem;">${escapeH(r.module_source || '—')}</span></td>`
                             : '';
                         return `
                         <tr style="cursor:pointer;" onclick="${onClickFn}(${i})">
@@ -1109,7 +1109,7 @@ function wmOpenAutoEmail(idx) {
 
     document.getElementById('wm-alpreview-subject').textContent = r.subject || '(ingen emne)';
     document.getElementById('wm-alpreview-meta').textContent =
-        `Kilde: ${r.automail || '—'}  |  Til: ${r.to_email}  |  ${fmtDateTimeWm(r.sent_at)}`;
+        `Kilde: ${r.module_source || '—'}  |  Til: ${r.to_email}  |  ${fmtDateTimeWm(r.sent_at)}`;
 
     document.getElementById('wm-alpreview-frame').srcdoc =
         r.body_html || '<p class="text-muted p-3">Innhold ikke tilgjengelig</p>';
@@ -1176,7 +1176,7 @@ async function wmLoadConfirm() {
                     ${data.logs.map((r, i) => `
                     <tr style="cursor:pointer;" onclick="wmOpenConfirmEmail(${i})">
                         <td class="small">${escapeH(r.subject)}</td>
-                        <td><span class="badge bg-secondary" style="font-size:0.7rem;">${escapeH(r.automail || '—')}</span></td>
+                        <td><span class="badge bg-secondary" style="font-size:0.7rem;">${escapeH(r.module_source || '—')}</span></td>
                         <td><span class="badge ${r.status==='sent'?'bg-success':'bg-danger'}">${r.status==='sent'?'Levert':'Feil'}</span></td>
                         <td class="small">${fmtDateTimeWm(r.sent_at)}</td>
                     </tr>`).join('')}
