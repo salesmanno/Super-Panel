@@ -1,5 +1,6 @@
 <?php
 session_start();
+session_write_close();
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {

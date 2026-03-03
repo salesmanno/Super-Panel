@@ -172,16 +172,7 @@ try {
             background: rgba(255, 255, 255, 0.9);
             border-radius: 2px;
             width: 0%;
-            animation: progressFill 2s ease-out 1.3s forwards;
-        }
-        
-        @keyframes progressFill {
-            from {
-                width: 0%;
-            }
-            to {
-                width: 100%;
-            }
+            transition: width 0.3s ease-out;
         }
     </style>
 </head>
@@ -225,11 +216,22 @@ try {
             '/api/get_sales_products.php',
             '/api/get_cart.php'
         ];
-        
+
         const preloadedData = {};
-        let dataLoaded = false;
-        let minTimeElapsed = false;
-        
+        let completed = 0;
+        const total = apiEndpoints.length;
+        const progressFill = document.querySelector('.progress-bar-fill');
+
+        function setProgress(pct) {
+            if (progressFill) progressFill.style.width = pct + '%';
+        }
+
+        function doRedirect() {
+            sessionStorage.setItem('dashboardPreload', JSON.stringify(preloadedData));
+            sessionStorage.setItem('dashboardPreloadTime', Date.now().toString());
+            window.location.href = '/pages/company_dashboard.php';
+        }
+
         async function preloadData() {
             const promises = apiEndpoints.map(async (endpoint) => {
                 try {
@@ -237,30 +239,18 @@ try {
                     const data = await response.json();
                     const key = endpoint.split('/').pop().split('?')[0].replace('.php', '');
                     preloadedData[key] = data;
-                } catch (e) {
-                    console.log('Preload error for ' + endpoint + ':', e);
-                }
+                } catch (e) {}
+                completed++;
+                setProgress(Math.round((completed / total) * 100));
             });
-            
+
             await Promise.allSettled(promises);
-            sessionStorage.setItem('dashboardPreload', JSON.stringify(preloadedData));
-            sessionStorage.setItem('dashboardPreloadTime', Date.now().toString());
-            dataLoaded = true;
-            checkRedirect();
+            doRedirect();
         }
-        
-        function checkRedirect() {
-            if (dataLoaded && minTimeElapsed) {
-                window.location.href = '/pages/company_dashboard.php';
-            }
-        }
-        
-        preloadData();
-        
-        setTimeout(function() {
-            minTimeElapsed = true;
-            checkRedirect();
-        }, 2500);
+
+        const hardTimeout = setTimeout(doRedirect, 6000);
+
+        preloadData().then(() => clearTimeout(hardTimeout));
     </script>
 </body>
 </html>

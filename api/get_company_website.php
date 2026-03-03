@@ -1,5 +1,6 @@
 <?php
 session_start();
+session_write_close();
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET');

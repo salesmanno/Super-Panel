@@ -1076,26 +1076,42 @@ try {
         checkEmailAlert();
         setInterval(checkEmailAlert, 120000);
         
-        // Preload helper - use cached data from login transition if available
+        // Preload cache — populated by login_transition.php
         const preloadCache = (function() {
             const stored = sessionStorage.getItem('dashboardPreload');
             const timestamp = sessionStorage.getItem('dashboardPreloadTime');
             if (stored && timestamp) {
                 const age = Date.now() - parseInt(timestamp);
-                if (age < 30000) { // Data is fresh (less than 30 seconds old)
+                if (age < 60000) {
                     sessionStorage.removeItem('dashboardPreload');
                     sessionStorage.removeItem('dashboardPreloadTime');
-                    return JSON.parse(stored);
+                    try { return JSON.parse(stored); } catch(e) {}
                 }
             }
             return null;
         })();
-        
+
+        // Transparent fetch interceptor — all GET fetches in modules use preloaded data first
+        if (preloadCache) {
+            const _nativeFetch = window.fetch.bind(window);
+            window.fetch = function(url, options) {
+                const method = (options && options.method) ? options.method.toUpperCase() : 'GET';
+                if (method === 'GET') {
+                    const key = String(url).split('/').pop().split('?')[0].replace('.php', '');
+                    if (preloadCache[key]) {
+                        const cached = preloadCache[key];
+                        delete preloadCache[key];
+                        return Promise.resolve(new Response(JSON.stringify(cached), {
+                            status: 200,
+                            headers: { 'Content-Type': 'application/json' }
+                        }));
+                    }
+                }
+                return _nativeFetch(url, options);
+            };
+        }
+
         async function fetchWithPreload(endpoint, options = {}) {
-            const key = endpoint.split('/').pop().split('?')[0].replace('.php', '');
-            if (preloadCache && preloadCache[key]) {
-                return { json: async () => preloadCache[key], ok: true };
-            }
             return fetch(endpoint, options);
         }
         

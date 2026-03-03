@@ -1,5 +1,6 @@
 <?php
 session_start();
+session_write_close();
 require_once '../config/database.php';
 
 header('Content-Type: application/json');

@@ -493,6 +493,7 @@ let wmRecipients = [];
 let wmQueueStatusFilter = 'all';
 let wmInboxFolder = 'inbox';
 let wmCurrentInboxEmails = [];
+let wmCurrentController = null;
 
 function fmtDateWm(d) {
     if (!d) return '-';
@@ -507,6 +508,11 @@ function fmtDateTimeWm(d) {
 }
 
 function wmShow(view, navEl) {
+    if (wmCurrentController) {
+        wmCurrentController.abort();
+    }
+    wmCurrentController = new AbortController();
+
     document.querySelectorAll('.wm-nav li a').forEach(a => a.classList.remove('active'));
     if (navEl) navEl.classList.add('active');
 
@@ -549,7 +555,7 @@ async function wmLoadInbox() {
     document.getElementById('wm-inbox-detail').innerHTML = '<div class="text-center text-muted py-5"><i class="bi bi-envelope-open fs-1 d-block mb-3 text-secondary"></i><p>Velg en e-post</p></div>';
 
     try {
-        const resp = await fetch('/api/get_emails.php?folder=inbox', {credentials:'same-origin'});
+        const resp = await fetch('/api/get_emails.php?folder=inbox', {credentials:'same-origin', signal: wmCurrentController?.signal});
         const text = await resp.text();
         let data;
         try { data = JSON.parse(text); } catch(e) { throw new Error('Ugyldig respons: ' + text.substring(0,100)); }
@@ -575,6 +581,7 @@ async function wmLoadInbox() {
             listEl.innerHTML = '<div class="p-3 text-center text-muted small"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Innboksen er tom</div>';
         }
     } catch(err) {
+        if (err.name === 'AbortError') return;
         listEl.innerHTML = `<div class="p-3 text-muted small text-danger">${escapeH(err.message)}</div>`;
     }
 }
@@ -583,7 +590,7 @@ async function wmOpenEmail(uid) {
     const detailEl = document.getElementById('wm-inbox-detail');
     detailEl.innerHTML = '<div class="text-center py-5"><div class="spinner-border"></div></div>';
     try {
-        const resp = await fetch(`/api/get_email_content.php?uid=${uid}&folder=inbox`, {credentials:'same-origin'});
+        const resp = await fetch(`/api/get_email_content.php?uid=${uid}&folder=inbox`, {credentials:'same-origin', signal: wmCurrentController?.signal});
         const data = JSON.parse(await resp.text());
         if (data.success) {
             const e = data.email;
@@ -928,7 +935,7 @@ async function wmLoadQueue() {
     el.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm"></div></div>';
 
     try {
-        const resp = await fetch(`/api/get_email_queue.php?status=${wmQueueStatusFilter}&limit=100`, {credentials:'same-origin'});
+        const resp = await fetch(`/api/get_email_queue.php?status=${wmQueueStatusFilter}&limit=100`, {credentials:'same-origin', signal: wmCurrentController?.signal});
         const data = JSON.parse(await resp.text());
 
         if (!data.success) {
@@ -978,6 +985,7 @@ async function wmLoadQueue() {
             <div class="text-muted small mt-2 px-1">Totalt ${data.total} poster</div>
         `;
     } catch(err) {
+        if (err.name === 'AbortError') return;
         el.innerHTML = `<div class="alert alert-danger">${escapeH(err.message)}</div>`;
     }
 }
@@ -1022,7 +1030,7 @@ async function wmLoadLogs(sourceType = 'manual', recipientEmail = '') {
     if (recipientEmail) params.set('recipient_email', recipientEmail);
 
     try {
-        const resp = await fetch(`/api/get_email_logs.php?${params}`, {credentials:'same-origin'});
+        const resp = await fetch(`/api/get_email_logs.php?${params}`, {credentials:'same-origin', signal: wmCurrentController?.signal});
         const data = JSON.parse(await resp.text());
 
         if (!data.success) {
@@ -1080,6 +1088,7 @@ async function wmLoadLogs(sourceType = 'manual', recipientEmail = '') {
             <div class="text-muted small mt-2 px-1">Viser ${data.logs.length} av ${data.total} poster</div>
         `;
     } catch(err) {
+        if (err.name === 'AbortError') return;
         el.innerHTML = `<div class="alert alert-danger">${escapeH(err.message)}</div>`;
     }
 }
@@ -1151,7 +1160,7 @@ async function wmLoadConfirm() {
 
     try {
         const params = new URLSearchParams({ recipient_email: email, limit: 100 });
-        const resp = await fetch(`/api/get_email_logs.php?${params}`, {credentials:'same-origin'});
+        const resp = await fetch(`/api/get_email_logs.php?${params}`, {credentials:'same-origin', signal: wmCurrentController?.signal});
         const data = JSON.parse(await resp.text());
 
         if (!data.success) {
@@ -1186,6 +1195,7 @@ async function wmLoadConfirm() {
             <div class="text-muted small mt-2 px-1">${data.logs.length} e-post(er) funnet for ${escapeH(email)}</div>
         `;
     } catch(err) {
+        if (err.name === 'AbortError') return;
         el.innerHTML = `<div class="alert alert-danger">${escapeH(err.message)}</div>`;
     }
 }
@@ -1313,8 +1323,14 @@ async function saveAutomailerSettings() {
         if (data.success) {
             const btn = document.querySelector('[onclick="saveAutomailerSettings()"]');
             if (btn) { btn.textContent = '✓ Lagret'; setTimeout(() => { btn.innerHTML = '<i class="bi bi-save me-1"></i>Lagre'; }, 2000); }
+        } else {
+            const contentEl = document.getElementById('wm-automailer-content');
+            if (contentEl) contentEl.insertAdjacentHTML('beforeend', '<div class="alert alert-danger mt-2 py-1 small">Lagring feilet</div>');
         }
-    } catch(err) {}
+    } catch(err) {
+        const contentEl = document.getElementById('wm-automailer-content');
+        if (contentEl) contentEl.insertAdjacentHTML('beforeend', `<div class="alert alert-danger mt-2 py-1 small">Feil: ${escapeH(err.message)}</div>`);
+    }
 }
 
 /* ===== MALER ===== */
@@ -1330,7 +1346,7 @@ async function wmLoadTemplates() {
     listEl.innerHTML = '<div class="p-3 text-center text-muted"><div class="spinner-border spinner-border-sm"></div><div class="small mt-2">Laster maler...</div></div>';
 
     try {
-        const resp = await fetch('/api/get_email_templates.php', {credentials:'same-origin'});
+        const resp = await fetch('/api/get_email_templates.php', {credentials:'same-origin', signal: wmCurrentController?.signal});
         const data = JSON.parse(await resp.text());
         if (!data.success) {
             listEl.innerHTML = `<div class="p-3 text-danger small">${escapeH(data.error)}</div>`;
@@ -1340,6 +1356,7 @@ async function wmLoadTemplates() {
         wmTemplatesLoaded = true;
         wmRenderTemplateList(wmAllTemplates);
     } catch(err) {
+        if (err.name === 'AbortError') return;
         document.getElementById('wm-template-list').innerHTML = `<div class="p-3 text-danger small">${escapeH(err.message)}</div>`;
     }
 }
@@ -1385,7 +1402,7 @@ async function wmSelectTemplate(id) {
     detailEl.innerHTML = '<div class="text-center py-5"><div class="spinner-border spinner-border-sm"></div><div class="small mt-2">Laster forhåndsvisning...</div></div>';
 
     try {
-        const resp = await fetch(`/api/get_email_templates.php?id=${encodeURIComponent(id)}&preview=1`, {credentials:'same-origin'});
+        const resp = await fetch(`/api/get_email_templates.php?id=${encodeURIComponent(id)}&preview=1`, {credentials:'same-origin', signal: wmCurrentController?.signal});
         const data = JSON.parse(await resp.text());
         if (!data.success) {
             detailEl.innerHTML = `<div class="alert alert-danger m-3">${escapeH(data.error)}</div>`;
@@ -1420,6 +1437,7 @@ async function wmSelectTemplate(id) {
             iframe.contentDocument.close();
         }
     } catch(err) {
+        if (err.name === 'AbortError') return;
         document.getElementById('wm-template-detail').innerHTML = `<div class="alert alert-danger m-3">${escapeH(err.message)}</div>`;
     }
 }
@@ -1431,10 +1449,10 @@ async function wmPreviewTemplateByKey(templateKey, label) {
         const listEl = document.getElementById('wm-template-list');
         listEl.innerHTML = '<div class="p-3 text-center text-muted"><div class="spinner-border spinner-border-sm"></div></div>';
         try {
-            const resp = await fetch('/api/get_email_templates.php', {credentials:'same-origin'});
+            const resp = await fetch('/api/get_email_templates.php', {credentials:'same-origin', signal: wmCurrentController?.signal});
             const data = JSON.parse(await resp.text());
             if (data.success) { wmAllTemplates = data.templates || []; wmTemplatesLoaded = true; }
-        } catch(e) {}
+        } catch(e) { if (e.name === 'AbortError') return; }
     }
 
     wmRenderTemplateList(wmAllTemplates);
