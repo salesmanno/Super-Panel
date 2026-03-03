@@ -14,6 +14,15 @@ try {
     $db        = getDBConnection();
     $companyId = $_SESSION['company_id'];
 
+    $hasNewExpiry = (bool) $db->query(
+        "SELECT COUNT(*) FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'membership_members_renew'
+         AND COLUMN_NAME = 'new_expiry_date'"
+    )->fetchColumn();
+
+    $expirySelect = $hasNewExpiry ? 'mmr.new_expiry_date,' : '';
+
     $stmt = $db->prepare("
         SELECT
             mmr.id             AS renewal_id,
@@ -22,7 +31,7 @@ try {
             mmr.payment_method,
             mmr.completed_at,
             mmr.created_at     AS renew_created_at,
-            mmr.new_expiry_date,
+            {$expirySelect}
             mm.customer_id,
             mm.company_id,
             p.name             AS plan_name,
@@ -57,7 +66,6 @@ try {
         exit;
     }
 
-    $ledger   = new UnifiedLedgerService($db, $companyId);
     $inserted = 0;
     $skipped  = 0;
     $errors   = 0;
@@ -73,11 +81,13 @@ try {
         try {
             $sellingPrice    = (float)($r['amount']    ?? $r['plan_price'] ?? 0);
             $paymentMethod   = $r['payment_method']    ?? 'renewal';
-            $transactionDate = $r['completed_at']      ?? $r['renew_created_at'] ?? date('Y-m-d H:i:s');
+            $rawDate         = $r['completed_at'] ?? $r['renew_created_at'] ?? null;
+            $transactionDate = $rawDate ?? date('Y-m-d H:i:s');
             $customerName    = trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? ''));
             $shortId         = substr($r['renewal_id'], 0, 8);
             $dateTag         = date('Ymd', strtotime($transactionDate));
 
+            $ledger = new UnifiedLedgerService($db, $r['company_id']);
             $result = $ledger->logTransaction([
                 'order_id'         => "MMR-{$shortId}-{$dateTag}",
                 'module_source'    => 'membership',

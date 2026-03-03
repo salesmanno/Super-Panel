@@ -30,6 +30,15 @@ echo "[{$startTime}] Ledger backfill started" . ($isDryRun ? ' [DRY RUN]' : '') 
 try {
     $db = getDBConnection();
 
+    $hasNewExpiry = (bool) $db->query(
+        "SELECT COUNT(*) FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'membership_members_renew'
+         AND COLUMN_NAME = 'new_expiry_date'"
+    )->fetchColumn();
+
+    $expirySelect = $hasNewExpiry ? 'mmr.new_expiry_date,' : '';
+
     $companyWhere  = '';
     $companyParams = [];
     if ($companyId) {
@@ -46,7 +55,7 @@ try {
             mmr.payment_method,
             mmr.completed_at,
             mmr.created_at     AS renew_created_at,
-            mmr.new_expiry_date,
+            {$expirySelect}
             mm.customer_id,
             mm.company_id,
             p.name             AS plan_name,
@@ -92,7 +101,8 @@ try {
 
         $sellingPrice    = (float)($r['amount']     ?? $r['plan_price'] ?? 0);
         $paymentMethod   = $r['payment_method']     ?? 'renewal';
-        $transactionDate = $r['completed_at']       ?? $r['renew_created_at'] ?? date('Y-m-d H:i:s');
+        $rawDate         = $r['completed_at'] ?? $r['renew_created_at'] ?? null;
+        $transactionDate = $rawDate ?? date('Y-m-d H:i:s');
         $shortId         = substr($r['renewal_id'], 0, 8);
         $dateTag         = date('Ymd', strtotime($transactionDate));
         $orderId         = "MMR-{$shortId}-{$dateTag}";
@@ -146,9 +156,9 @@ try {
     }
 
     echo "\n[" . date('Y-m-d H:i:s') . "] === FERDIG" . ($isDryRun ? ' (DRY RUN)' : '') . " ===\n";
-    echo "  Insertet : {$inserted}\n";
-    echo "  Hoppet over: {$skipped}\n";
-    echo "  Feil     : {$errors}\n";
+    echo "  Insertet    : {$inserted}\n";
+    echo "  Hoppet over : {$skipped}\n";
+    echo "  Feil        : {$errors}\n";
 
 } catch (\Throwable $e) {
     echo "[" . date('Y-m-d H:i:s') . "] KRITISK FEIL: " . $e->getMessage() . "\n";
