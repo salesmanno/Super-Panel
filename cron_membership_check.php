@@ -99,6 +99,11 @@ try {
             continue;
         }
 
+        if (!$template) {
+            echo "[" . date('Y-m-d H:i:s') . "] Company {$companyId}: ingen membership_expired-mal funnet — hopper over.\n";
+            continue;
+        }
+
         // Step 3: Prepare INSERT and UPDATE statements
         $insertStmt = $db->prepare("
             INSERT INTO email_queue
@@ -119,66 +124,38 @@ try {
         $count = 0;
 
         foreach ($members as $m) {
-            $fullName   = trim($m['first_name'] . ' ' . $m['last_name']);
-            $expiryFmt  = date('d.m.Y', strtotime($m['expiration_date']));
+            $expiryFmt = date('d.m.Y', strtotime($m['expiration_date']));
 
             $renewalUrl = ($subdomain && $m['share_code'] && $m['member_code'])
                 ? "https://{$subdomain}.salesman.no/{$m['share_code']}/{$m['member_code']}"
                 : '';
 
-            if ($template) {
-                // Replace placeholders in template
-                $placeholders = [
-                    // Primærnøkler
-                    '{{cus_first_name}}'  => $m['first_name'] ?? '',
-                    '{{cus_last_name}}'   => $m['last_name']  ?? '',
-                    '{{plan_name}}'       => $m['plan_name']  ?? '',
-                    '{{expiry_date}}'     => $expiryFmt,
-                    '{{renewal_url}}'     => $renewalUrl,
-                    '{{company_name}}'    => $companyName,
-                    '{{firmanavn}}'       => $companyName,
-                    '{{display_name}}'    => $displayName,
-                    '{{logo_url}}'        => $logoUrl,
-                    '{{contact_phone}}'   => $contactPhone,
-                    '{{org_number}}'      => $orgNumber,
-                    '{{company_address}}' => $companyAddress,
-                    // Aliaser
-                    '{{first_name}}'      => $m['first_name']  ?? '',
-                    '{{last_name}}'       => $m['last_name']   ?? '',
-                    '{{membership_plan}}' => $m['plan_name']   ?? '',
-                    '{{name}}'            => $companyName,
-                    '{{tenant_name}}'     => $companyName,
-                    '{{expiration_date}}' => $expiryFmt,
-                    '{{company_phone}}'   => $contactPhone,
-                    '{{subdomain}}'       => $subdomain,
-                    '{{share_code}}'      => $m['share_code']  ?? '',
-                    '{{member_code}}'     => $m['member_code'] ?? '',
-                ];
-                $subject = str_replace(array_keys($placeholders), array_values($placeholders), $template['subject_template']);
-                $body    = str_replace(array_keys($placeholders), array_values($placeholders), $template['body_template']);
-            } else {
-                // Fallback: hardcoded body with renewal button
-                $subject = "Ditt medlemskap i {$companyName} har utløpt";
-                $renewBtn = $renewalUrl
-                    ? "<p style=\"text-align:center;margin:28px 0;\">
-                         <a href=\"{$renewalUrl}\"
-                            style=\"background:#0d6efd;color:#ffffff;padding:14px 32px;border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;display:inline-block;\">
-                           Forny medlemskap
-                         </a>
-                       </p>
-                       <p style=\"font-size:12px;color:#6c757d;text-align:center;\">
-                         Eller kopier lenken: <a href=\"{$renewalUrl}\" style=\"color:#0d6efd;\">{$renewalUrl}</a>
-                       </p>"
-                    : '<p>Ta kontakt med oss for å fornye medlemskapet ditt.</p>';
-                $body = "
-<p>Hei {$fullName},</p>
-<p>Ditt <strong>{$m['plan_name']}</strong>-medlemskap i <strong>{$companyName}</strong>
-utløpte <strong>{$expiryFmt}</strong>.</p>
-<p>Du kan fornye medlemskapet ditt ved å klikke på knappen nedenfor:</p>
-{$renewBtn}
-<p>Med vennlig hilsen,<br>{$displayName}</p>
-";
-            }
+            $placeholders = [
+                '{{cus_first_name}}'  => $m['first_name'] ?? '',
+                '{{cus_last_name}}'   => $m['last_name']  ?? '',
+                '{{plan_name}}'       => $m['plan_name']  ?? '',
+                '{{expiry_date}}'     => $expiryFmt,
+                '{{renewal_url}}'     => $renewalUrl,
+                '{{company_name}}'    => $companyName,
+                '{{firmanavn}}'       => $companyName,
+                '{{display_name}}'    => $displayName,
+                '{{logo_url}}'        => $logoUrl,
+                '{{contact_phone}}'   => $contactPhone,
+                '{{org_number}}'      => $orgNumber,
+                '{{company_address}}' => $companyAddress,
+                '{{first_name}}'      => $m['first_name']  ?? '',
+                '{{last_name}}'       => $m['last_name']   ?? '',
+                '{{membership_plan}}' => $m['plan_name']   ?? '',
+                '{{name}}'            => $companyName,
+                '{{tenant_name}}'     => $companyName,
+                '{{expiration_date}}' => $expiryFmt,
+                '{{company_phone}}'   => $contactPhone,
+                '{{subdomain}}'       => $subdomain,
+                '{{share_code}}'      => $m['share_code']  ?? '',
+                '{{member_code}}'     => $m['member_code'] ?? '',
+            ];
+            $subject = str_replace(array_keys($placeholders), array_values($placeholders), $template['subject_template']);
+            $body    = str_replace(array_keys($placeholders), array_values($placeholders), $template['body_template']);
 
             // Queue the email
             $insertStmt->execute([
