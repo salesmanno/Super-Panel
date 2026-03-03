@@ -70,7 +70,7 @@ try {
         $tplStmt->execute([$companyId]);
         $template = $tplStmt->fetch(PDO::FETCH_ASSOC);
 
-        // Step 2: Find expired members not yet notified (Automailer_Sent = 0)
+        // Step 2: Find inactive expired members not yet notified
         $memberStmt = $db->prepare("
             SELECT
                 mm.id          AS member_id,
@@ -85,7 +85,8 @@ try {
             JOIN tenant_customers c   ON c.id = mm.customer_id
             JOIN membership_plans p   ON p.id = mm.membership_plan_id
             WHERE mm.company_id = ?
-              AND mm.expiration_date <= CURDATE()
+              AND mm.status = 'inactive'
+              AND mm.expiration_date < CURDATE()
               AND mm.Automailer_Sent = 0
               AND (mm.cancellation_active IS NULL OR mm.cancellation_active = 0)
               AND c.email IS NOT NULL
