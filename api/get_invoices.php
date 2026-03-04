@@ -14,21 +14,6 @@ try {
     $db        = getDBConnection();
     $companyId = $_SESSION['company_id'];
 
-    $migrations = [
-        "ALTER TABLE economy_invoices ADD COLUMN IF NOT EXISTS invoice_type VARCHAR(20) NOT NULL DEFAULT 'general'",
-        "ALTER TABLE economy_invoices ADD COLUMN IF NOT EXISTS membership_plan_id CHAR(36) DEFAULT NULL",
-        "ALTER TABLE economy_invoices ADD COLUMN IF NOT EXISTS membership_member_id CHAR(36) DEFAULT NULL",
-        "ALTER TABLE economy_invoices ADD COLUMN IF NOT EXISTS created_by_admin_id CHAR(36) DEFAULT NULL",
-        "ALTER TABLE economy_invoices ADD COLUMN IF NOT EXISTS status_updated_at DATETIME DEFAULT NULL",
-        "ALTER TABLE tenant_companies ADD COLUMN IF NOT EXISTS invoice_prefix VARCHAR(20) DEFAULT 'INV'",
-        "ALTER TABLE tenant_companies ADD COLUMN IF NOT EXISTS invoice_start_number INT DEFAULT 1000",
-        "ALTER TABLE tenant_companies ADD COLUMN IF NOT EXISTS invoice_due_days INT DEFAULT 30",
-        "ALTER TABLE tenant_companies ADD COLUMN IF NOT EXISTS invoice_terms TEXT DEFAULT NULL",
-    ];
-    foreach ($migrations as $sql) {
-        try { $db->exec($sql); } catch (Exception $e) { /* kolonne eksisterer allerede */ }
-    }
-
     $stmt = $db->prepare("
         SELECT
             i.id AS invoice_id,
@@ -71,17 +56,10 @@ try {
     }
     unset($inv);
 
-    $configStmt = $db->prepare("
-        SELECT invoice_prefix, invoice_start_number, invoice_due_days, invoice_terms
-        FROM tenant_companies WHERE id = ?
-    ");
-    $configStmt->execute([$companyId]);
-    $config = $configStmt->fetch(PDO::FETCH_ASSOC);
-
     echo json_encode([
         'success'        => true,
         'invoices'       => $invoices,
-        'invoice_config' => $config ?: [
+        'invoice_config' => [
             'invoice_prefix'       => 'INV',
             'invoice_start_number' => 1000,
             'invoice_due_days'     => 30,

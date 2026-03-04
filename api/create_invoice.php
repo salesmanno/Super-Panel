@@ -24,30 +24,10 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
 
-    foreach ([
-        "ALTER TABLE economy_invoices ADD COLUMN IF NOT EXISTS invoice_type VARCHAR(20) NOT NULL DEFAULT 'general'",
-        "ALTER TABLE economy_invoices ADD COLUMN IF NOT EXISTS membership_plan_id CHAR(36) DEFAULT NULL",
-        "ALTER TABLE economy_invoices ADD COLUMN IF NOT EXISTS membership_member_id CHAR(36) DEFAULT NULL",
-        "ALTER TABLE economy_invoices ADD COLUMN IF NOT EXISTS created_by_admin_id CHAR(36) DEFAULT NULL",
-        "ALTER TABLE tenant_companies ADD COLUMN IF NOT EXISTS invoice_prefix VARCHAR(20) DEFAULT 'INV'",
-        "ALTER TABLE tenant_companies ADD COLUMN IF NOT EXISTS invoice_start_number INT DEFAULT 1000",
-        "ALTER TABLE tenant_companies ADD COLUMN IF NOT EXISTS invoice_due_days INT DEFAULT 30",
-        "ALTER TABLE tenant_companies ADD COLUMN IF NOT EXISTS invoice_terms TEXT DEFAULT NULL",
-    ] as $sql) {
-        try { $db->exec($sql); } catch (Exception $e) {}
-    }
-
-    $configStmt = $db->prepare("
-        SELECT invoice_prefix, invoice_start_number, invoice_due_days, invoice_terms
-        FROM tenant_companies WHERE id = ?
-    ");
-    $configStmt->execute([$companyId]);
-    $config = $configStmt->fetch(PDO::FETCH_ASSOC);
-
-    $prefix   = $config['invoice_prefix'] ?? 'INV';
-    $startNum = (int)($config['invoice_start_number'] ?? 1000);
-    $dueDays  = (int)($config['invoice_due_days'] ?? 30);
-    $terms    = $config['invoice_terms'] ?? null;
+    $prefix   = 'INV';
+    $startNum = 1000;
+    $dueDays  = 30;
+    $terms    = null;
 
     $plan = null;
     $membershipPlanId = null;
@@ -129,11 +109,13 @@ try {
         if ($existing) {
             $customerId = $existing;
         } else {
+            $newCustomerId   = $db->query("SELECT UUID()")->fetchColumn();
+            $customerCode    = 'INV-' . strtoupper(substr(uniqid(), -6));
             $db->prepare("
-                INSERT INTO tenant_customers (company_id, first_name, last_name, email, source, created_at)
-                VALUES (?, ?, ?, ?, 'invoice_manual', NOW())
-            ")->execute([$companyId, $firstName, $lastName, $email ?: null]);
-            $customerId = $db->lastInsertId();
+                INSERT INTO tenant_customers (id, company_id, customer_code, first_name, last_name, email, source, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, 'invoice_manual', NOW())
+            ")->execute([$newCustomerId, $companyId, $customerCode, $firstName, $lastName, $email ?: null]);
+            $customerId = $newCustomerId;
         }
     }
 
@@ -173,19 +155,21 @@ try {
     $calculatedDue = $dueDate ?: date('Y-m-d', strtotime("+{$dueDays} days"));
     $paymentTerms  = $notes ?: $terms;
 
+    $invoiceId  = $db->query("SELECT UUID()")->fetchColumn();
     $insertStmt = $db->prepare("
         INSERT INTO economy_invoices
-            (company_id, customer_id, invoice_number, invoice_date, due_date,
+            (id, company_id, customer_id, invoice_number, invoice_date, due_date,
              subtotal, tax_rate, tax_amount, total_amount, currency,
              status, payment_terms, notes, sent_at,
              invoice_type, membership_plan_id, membership_member_id, created_by_admin_id)
         VALUES
-            (:company_id, :customer_id, :invoice_number, :invoice_date, :due_date,
+            (:id, :company_id, :customer_id, :invoice_number, :invoice_date, :due_date,
              :subtotal, 0, 0, :total_amount, :currency,
              'pending', :payment_terms, NULL, NOW(),
              :invoice_type, :membership_plan_id, :membership_member_id, :created_by_admin_id)
     ");
     $insertStmt->execute([
+        'id'                   => $invoiceId,
         'company_id'           => $companyId,
         'customer_id'          => $customerId,
         'invoice_number'       => $invoiceNumber,
@@ -200,8 +184,6 @@ try {
         'membership_member_id' => ($invoiceType === 'renewal') ? $membershipMemberId : null,
         'created_by_admin_id'  => $_SESSION['tenant_admin_id']
     ]);
-
-    $invoiceId = $db->lastInsertId();
     $db->commit();
 
     echo json_encode([
