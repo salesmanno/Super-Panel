@@ -412,16 +412,12 @@
                         </div>
                         <div id="inv-manual-customer-fields" class="col-12" style="display:none;">
                             <div class="row g-2 mt-0">
-                                <div class="col-md-4">
-                                    <label class="form-label form-label-sm">Fornavn</label>
-                                    <input type="text" id="inv-manual-first" class="form-control form-control-sm" placeholder="Fornavn">
+                                <div class="col-md-5">
+                                    <label class="form-label form-label-sm">Fullt navn <span class="text-danger">*</span></label>
+                                    <input type="text" id="inv-manual-name" class="form-control form-control-sm" placeholder="Ola Nordmann">
                                 </div>
-                                <div class="col-md-4">
-                                    <label class="form-label form-label-sm">Etternavn</label>
-                                    <input type="text" id="inv-manual-last" class="form-control form-control-sm" placeholder="Etternavn">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label form-label-sm">E-post</label>
+                                <div class="col-md-5">
+                                    <label class="form-label form-label-sm">E-post <small class="text-muted">(valgfri)</small></label>
                                     <input type="email" id="inv-manual-email" class="form-control form-control-sm" placeholder="epost@eksempel.no">
                                 </div>
                             </div>
