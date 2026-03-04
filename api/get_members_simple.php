@@ -33,8 +33,9 @@ try {
         LEFT JOIN membership_plans mp ON mp.id = mm.membership_plan_id
         WHERE mm.company_id = ?
           AND (mm.cancellation_active IS NULL OR mm.cancellation_active = 0)
-          AND mm.status IN ('active', 'pending')
-        ORDER BY c.first_name, c.last_name
+        ORDER BY
+          FIELD(mm.status, 'active', 'pending', 'expired', 'inactive'),
+          c.first_name, c.last_name
     ");
     $stmt->execute([$companyId]);
     $members = $stmt->fetchAll(PDO::FETCH_ASSOC);

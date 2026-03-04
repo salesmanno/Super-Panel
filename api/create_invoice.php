@@ -10,14 +10,15 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 require_once __DIR__ . '/../config/database.php';
 
 $body = json_decode(file_get_contents('php://input'), true);
-$invoiceType     = $body['invoice_type'] ?? 'general';
-$customerId      = $body['customer_id'] ?? null;
-$planId          = $body['plan_id'] ?? null;
-$quantity        = max(1, (int)($body['quantity'] ?? 1));
-$dueDate         = $body['due_date'] ?? null;
-$notes           = $body['notes'] ?? null;
+$invoiceType        = $body['invoice_type'] ?? 'general';
+$customerId         = $body['customer_id'] ?? null;
+$planId             = $body['plan_id'] ?? null;
+$quantity           = max(1, (int)($body['quantity'] ?? 1));
+$dueDate            = $body['due_date'] ?? null;
+$notes              = $body['notes'] ?? null;
 $membershipMemberId = $body['membership_member_id'] ?? null;
-$manualAmount    = isset($body['manual_amount']) ? (float)$body['manual_amount'] : null;
+$manualAmount       = isset($body['manual_amount']) ? (float)$body['manual_amount'] : null;
+$manualCustomer     = $body['manual_customer'] ?? null;
 
 try {
     $db = getDBConnection();
@@ -94,6 +95,32 @@ try {
         if (!$customerId) {
             echo json_encode(['success' => false, 'error' => 'Mangler kunde']);
             exit;
+        }
+    }
+
+    if ($customerId === '__manual__' || $manualCustomer) {
+        if (!$manualCustomer || empty(trim($manualCustomer['first_name'] ?? ''))) {
+            echo json_encode(['success' => false, 'error' => 'Fornavn er påkrevd ved manuell utfylling']);
+            exit;
+        }
+        $firstName = trim($manualCustomer['first_name']);
+        $lastName  = trim($manualCustomer['last_name'] ?? '');
+        $email     = trim($manualCustomer['email'] ?? '');
+        $existingStmt = $db->prepare("
+            SELECT id FROM tenant_customers
+            WHERE company_id = ? AND email = ? AND email != ''
+            LIMIT 1
+        ");
+        $existingStmt->execute([$companyId, $email]);
+        $existing = $existingStmt->fetchColumn();
+        if ($existing) {
+            $customerId = $existing;
+        } else {
+            $db->prepare("
+                INSERT INTO tenant_customers (company_id, first_name, last_name, email, source, created_at)
+                VALUES (?, ?, ?, ?, 'invoice_manual', NOW())
+            ")->execute([$companyId, $firstName, $lastName, $email ?: null]);
+            $customerId = $db->lastInsertId();
         }
     }
 

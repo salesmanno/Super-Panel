@@ -400,7 +400,7 @@
                     <div class="row g-2">
                         <div class="col-md-6">
                             <label class="form-label form-label-sm">Kunde <small class="text-muted">(uten aktivt medlemskap)</small></label>
-                            <select id="inv-customer" class="form-select form-select-sm">
+                            <select id="inv-customer" class="form-select form-select-sm" onchange="ecCustomerSelectChanged(this.value)">
                                 <option value="">Velg kunde...</option>
                             </select>
                         </div>
@@ -409,6 +409,22 @@
                             <select id="inv-plan" class="form-select form-select-sm" onchange="ecUpdateAmountPreview()">
                                 <option value="">Velg plan...</option>
                             </select>
+                        </div>
+                        <div id="inv-manual-customer-fields" class="col-12" style="display:none;">
+                            <div class="row g-2 mt-0">
+                                <div class="col-md-4">
+                                    <label class="form-label form-label-sm">Fornavn</label>
+                                    <input type="text" id="inv-manual-first" class="form-control form-control-sm" placeholder="Fornavn">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label form-label-sm">Etternavn</label>
+                                    <input type="text" id="inv-manual-last" class="form-control form-control-sm" placeholder="Etternavn">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label form-label-sm">E-post</label>
+                                    <input type="email" id="inv-manual-email" class="form-control form-control-sm" placeholder="epost@eksempel.no">
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label form-label-sm">Antall</label>
@@ -424,9 +440,9 @@
                 <div id="inv-section-renewal" style="display:none;">
                     <div class="row g-2">
                         <div class="col-md-7">
-                            <label class="form-label form-label-sm">Velg membre å fornye <small class="text-muted">(aktive membres)</small></label>
+                            <label class="form-label form-label-sm">Velg aktivt medlem å fornye</label>
                             <select id="inv-member" class="form-select form-select-sm" onchange="ecMemberSelected(this.value)">
-                                <option value="">Velg membre...</option>
+                                <option value="">Velg person...</option>
                             </select>
                         </div>
                     </div>
@@ -1296,14 +1312,22 @@ let ecAllInvoices = [];
 let ecPlanData    = [];
 let ecMemberData  = [];
 let ecInvConfig   = {};
+let ecActiveTerms = '';
 
 async function ecLoadInvoices() {
     try {
-        const res  = await fetch('/api/get_invoices.php');
-        const data = await res.json();
+        const [invRes, termsRes] = await Promise.all([
+            fetch('/api/get_invoices.php'),
+            fetch('/api/get_terms_conditions.php')
+        ]);
+        const data      = await invRes.json();
+        const termsData = await termsRes.json();
         if (!data.success) throw new Error(data.error);
         ecAllInvoices = data.invoices || [];
         ecInvConfig   = data.invoice_config || {};
+        if (termsData.success && termsData.data && termsData.data.length > 0) {
+            ecActiveTerms = termsData.data[0].content || '';
+        }
         ecApplyConfig();
         ecRenderBothLists();
         await Promise.all([ecPopulateCustomers(), ecPopulatePlans(), ecPopulateMembers()]);
@@ -1421,7 +1445,8 @@ function ecToggleCreateForm() {
     if (isHidden) {
         document.getElementById('inv-type').value = 'general';
         ecToggleFormByType('general');
-        document.getElementById('inv-notes').value = '';
+        document.getElementById('inv-notes').value = ecActiveTerms || '';
+        document.getElementById('inv-manual-customer-fields').style.display = 'none';
         ecApplyConfig();
     }
 }
@@ -1447,12 +1472,24 @@ async function ecPopulateCustomers() {
             : `<option value="">Ingen ${label} funnet</option>`;
 
         document.getElementById('inv-customer-general').innerHTML = makeOpts(dataAll.customers, 'kunder');
-        document.getElementById('inv-customer').innerHTML         = makeOpts(dataNew.customers, 'kunder uten aktivt medlemskap');
+
+        const newMemberOpts = '<option value="">Velg kunde...</option>'
+            + '<option value="__manual__">— Manuell utfylling —</option>'
+            + (dataNew.customers && dataNew.customers.length
+                ? dataNew.customers.map(c =>
+                    `<option value="${c.id}">${c.name}${c.email ? ' — ' + c.email : ''}</option>`).join('')
+                : '');
+        document.getElementById('inv-customer').innerHTML = newMemberOpts;
     } catch (e) {
         const err = '<option value="">Feil ved lasting</option>';
         document.getElementById('inv-customer').innerHTML         = err;
         document.getElementById('inv-customer-general').innerHTML = err;
     }
+}
+
+function ecCustomerSelectChanged(val) {
+    const manualFields = document.getElementById('inv-manual-customer-fields');
+    if (manualFields) manualFields.style.display = val === '__manual__' ? 'block' : 'none';
 }
 
 async function ecPopulatePlans() {
@@ -1544,9 +1581,21 @@ async function ecCreateInvoice() {
         const qty        = parseInt(document.getElementById('inv-qty').value) || 1;
         if (!customerId) { alert('Velg en kunde'); return; }
         if (!planId)     { alert('Velg en plan'); return; }
-        payload.customer_id = customerId;
-        payload.plan_id     = planId;
-        payload.quantity    = qty;
+
+        if (customerId === '__manual__') {
+            const firstName = document.getElementById('inv-manual-first').value.trim();
+            if (!firstName) { alert('Fornavn er påkrevd'); return; }
+            payload.customer_id    = '__manual__';
+            payload.manual_customer = {
+                first_name: firstName,
+                last_name:  document.getElementById('inv-manual-last').value.trim(),
+                email:      document.getElementById('inv-manual-email').value.trim()
+            };
+        } else {
+            payload.customer_id = customerId;
+        }
+        payload.plan_id  = planId;
+        payload.quantity = qty;
 
     } else if (invoiceType === 'renewal') {
         const memberId = document.getElementById('inv-member').value;
