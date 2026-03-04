@@ -53,7 +53,9 @@ try {
             ecd.private_key_encrypted,
             ecd.webhook_secret,
             ecd.is_active,
-            ecd.test_mode
+            ecd.test_mode,
+            ecd.fee_fixed,
+            ecd.fee_percent
         FROM economy_configuration_data ecd
         WHERE ecd.company_id = ?
         ORDER BY ecd.config_name
@@ -127,15 +129,17 @@ try {
         }
         
         $result[] = [
-            'id' => $config['id'],
-            'gateway_name' => $gatewayType,
-            'gateway_type' => $gatewayType,
-            'display_name' => $config['config_name'] ?: ($gatewayDisplayNames[$gatewayType] ?? ucfirst($gatewayType)),
-            'icon' => $gatewayIcons[$gatewayType] ?? 'wallet2',
+            'id'            => $config['id'],
+            'gateway_name'  => $gatewayType,
+            'gateway_type'  => $gatewayType,
+            'display_name'  => $config['config_name'] ?: ($gatewayDisplayNames[$gatewayType] ?? ucfirst($gatewayType)),
+            'icon'          => $gatewayIcons[$gatewayType] ?? 'wallet2',
             'is_configured' => $isConfigured,
-            'is_active' => (bool)$config['is_active'],
-            'test_mode' => (bool)$config['test_mode'],
-            'missing_fields' => $missingFields
+            'is_active'     => (bool)$config['is_active'],
+            'test_mode'     => (bool)$config['test_mode'],
+            'missing_fields'=> $missingFields,
+            'fee_fixed'     => (float)($config['fee_fixed']   ?? 0),
+            'fee_percent'   => (float)($config['fee_percent'] ?? 0)
         ];
     }
     

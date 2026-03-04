@@ -1063,6 +1063,35 @@ async function loadPaymentGateways() {
                 </button>`;
             }
             
+            const hasFees = ['vipps','stripe','paypal','klarna'].includes(gw.gateway_type);
+            const feeFixed   = (gw.fee_fixed   || 0).toFixed(2);
+            const feePercent = (gw.fee_percent || 0).toFixed(2);
+            const feePreview = (parseFloat(feeFixed) + 100 * parseFloat(feePercent) / 100).toFixed(2);
+
+            const feeSection = hasFees ? `
+                <hr class="my-2">
+                <p class="small fw-semibold text-muted mb-1">Transaksjonsgebyr</p>
+                <div class="row g-1 mb-1">
+                    <div class="col-6">
+                        <label class="form-label form-label-sm mb-0 text-muted" style="font-size:0.72rem">Fast gebyr (kr)</label>
+                        <input type="number" id="fee-fixed-${gwId}" class="form-control form-control-sm"
+                               value="${feeFixed}" min="0" step="0.01"
+                               oninput="gwFeePreview('${gwId}')">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label form-label-sm mb-0 text-muted" style="font-size:0.72rem">Prosent (%)</label>
+                        <input type="number" id="fee-pct-${gwId}" class="form-control form-control-sm"
+                               value="${feePercent}" min="0" max="100" step="0.01"
+                               oninput="gwFeePreview('${gwId}')">
+                    </div>
+                </div>
+                <div id="fee-preview-${gwId}" class="small text-muted mb-1">Gebyr på 100 kr: <strong>${feePreview} kr</strong></div>
+                <button class="btn btn-outline-secondary btn-sm w-100" onclick="saveGatewayFees('${gwId}', this)">
+                    <i class="bi bi-floppy me-1"></i>Lagre gebyr
+                </button>
+                <div id="fee-msg-${gwId}" class="small mt-1" style="min-height:1.2em"></div>
+            ` : '';
+
             return `
                 <div class="col-md-4 col-sm-6">
                     <div class="card h-100 ${isActive ? 'border-success' : ''}">
@@ -1074,6 +1103,7 @@ async function loadPaymentGateways() {
                             <p class="small text-muted mb-2">${desc}</p>
                             <div class="mb-2">${statusHtml}</div>
                             ${actionBtn}
+                            ${feeSection}
                         </div>
                     </div>
                 </div>
@@ -1105,6 +1135,48 @@ async function toggleGateway(gatewayId, gatewayName, activate) {
         }
     } catch (error) {
         console.error('Toggle gateway error:', error);
+    }
+}
+
+function gwFeePreview(gwId) {
+    const fixed   = parseFloat(document.getElementById('fee-fixed-' + gwId)?.value) || 0;
+    const pct     = parseFloat(document.getElementById('fee-pct-'   + gwId)?.value) || 0;
+    const preview = document.getElementById('fee-preview-' + gwId);
+    if (preview) {
+        const cost = (fixed + 100 * pct / 100).toFixed(2);
+        preview.innerHTML = `Gebyr på 100 kr: <strong>${cost} kr</strong>`;
+    }
+}
+
+async function saveGatewayFees(gwId, btn) {
+    const fixed   = parseFloat(document.getElementById('fee-fixed-' + gwId)?.value);
+    const pct     = parseFloat(document.getElementById('fee-pct-'   + gwId)?.value);
+    const msgEl   = document.getElementById('fee-msg-' + gwId);
+
+    if (isNaN(fixed) || isNaN(pct) || fixed < 0 || pct < 0 || pct > 100) {
+        if (msgEl) { msgEl.textContent = 'Ugyldige verdier'; msgEl.className = 'small mt-1 text-danger'; }
+        return;
+    }
+
+    const origHtml  = btn.innerHTML;
+    btn.disabled    = true;
+    btn.innerHTML   = '<span class="spinner-border spinner-border-sm"></span>';
+
+    try {
+        const res  = await fetch('/api/save_gateway_fees.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({gateway_id: gwId, fee_fixed: fixed, fee_percent: pct})
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        if (msgEl) { msgEl.textContent = 'Lagret'; msgEl.className = 'small mt-1 text-success'; }
+        setTimeout(() => { if (msgEl) msgEl.textContent = ''; }, 3000);
+    } catch (err) {
+        if (msgEl) { msgEl.textContent = 'Feil: ' + err.message; msgEl.className = 'small mt-1 text-danger'; }
+    } finally {
+        btn.disabled  = false;
+        btn.innerHTML = origHtml;
     }
 }
 
