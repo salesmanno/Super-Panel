@@ -20,6 +20,10 @@ try {
         "ALTER TABLE economy_invoices ADD COLUMN IF NOT EXISTS membership_member_id CHAR(36) DEFAULT NULL",
         "ALTER TABLE economy_invoices ADD COLUMN IF NOT EXISTS created_by_admin_id CHAR(36) DEFAULT NULL",
         "ALTER TABLE economy_invoices ADD COLUMN IF NOT EXISTS status_updated_at DATETIME DEFAULT NULL",
+        "ALTER TABLE tenant_companies ADD COLUMN IF NOT EXISTS invoice_prefix VARCHAR(20) DEFAULT 'INV'",
+        "ALTER TABLE tenant_companies ADD COLUMN IF NOT EXISTS invoice_start_number INT DEFAULT 1000",
+        "ALTER TABLE tenant_companies ADD COLUMN IF NOT EXISTS invoice_due_days INT DEFAULT 30",
+        "ALTER TABLE tenant_companies ADD COLUMN IF NOT EXISTS invoice_terms TEXT DEFAULT NULL",
     ];
     foreach ($migrations as $sql) {
         try { $db->exec($sql); } catch (Exception $e) { /* kolonne eksisterer allerede */ }
