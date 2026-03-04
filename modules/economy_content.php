@@ -436,9 +436,9 @@
                 <div id="inv-section-renewal" style="display:none;">
                     <div class="row g-2">
                         <div class="col-md-7">
-                            <label class="form-label form-label-sm">Velg aktivt medlem å fornye</label>
-                            <select id="inv-member" class="form-select form-select-sm" onchange="ecMemberSelected(this.value)">
-                                <option value="">Velg person...</option>
+                            <label class="form-label form-label-sm">Velg kunde å fornye</label>
+                            <select id="inv-customer-renewal" class="form-select form-select-sm" onchange="ecRenewalCustomerChanged(this.value)">
+                                <option value="">Velg kunde...</option>
                             </select>
                         </div>
                     </div>
@@ -1306,7 +1306,7 @@ document.addEventListener('subtab-changed', function(event) {
 
 let ecAllInvoices = [];
 let ecPlanData    = [];
-let ecMemberData  = [];
+let ecRenewalData = [];
 let ecInvConfig   = {};
 let ecActiveTerms = '';
 
@@ -1326,7 +1326,7 @@ async function ecLoadInvoices() {
         }
         ecApplyConfig();
         ecRenderBothLists();
-        await Promise.all([ecPopulateCustomers(), ecPopulatePlans(), ecPopulateMembers()]);
+        await Promise.all([ecPopulateCustomers(), ecPopulatePlans()]);
     } catch (err) {
         document.getElementById('inv-active-body').innerHTML =
             `<tr><td colspan="8" class="text-center text-danger py-3">${err.message}</td></tr>`;
@@ -1455,12 +1455,14 @@ function ecToggleFormByType(type) {
 
 async function ecPopulateCustomers() {
     try {
-        const [resAll, resNew] = await Promise.all([
+        const [resAll, resNew, resRenewal] = await Promise.all([
             fetch('/api/get_customers_simple.php'),
-            fetch('/api/get_customers_simple.php?context=new_member')
+            fetch('/api/get_customers_simple.php?context=new_member'),
+            fetch('/api/get_customers_simple.php?context=renewal')
         ]);
-        const dataAll = await resAll.json();
-        const dataNew = await resNew.json();
+        const dataAll     = await resAll.json();
+        const dataNew     = await resNew.json();
+        const dataRenewal = await resRenewal.json();
 
         const makeOpts = (list, label) => list && list.length
             ? '<option value="">Velg kunde...</option>' + list.map(c =>
@@ -1476,16 +1478,45 @@ async function ecPopulateCustomers() {
                     `<option value="${c.id}">${c.name}${c.email ? ' — ' + c.email : ''}</option>`).join('')
                 : '');
         document.getElementById('inv-customer').innerHTML = newMemberOpts;
+
+        ecRenewalData = dataRenewal.customers || [];
+        const renewalSel = document.getElementById('inv-customer-renewal');
+        renewalSel.innerHTML = ecRenewalData.length
+            ? '<option value="">Velg kunde...</option>' + ecRenewalData.map(c => {
+                const expiry = c.expiration_date ? ' — utløper ' + ecFmtDate(c.expiration_date) : '';
+                return `<option value="${c.id}">${c.name}${c.email ? ' (' + c.email + ')' : ''}${expiry}</option>`;
+              }).join('')
+            : '<option value="">Ingen kunder med eksisterende medlemskap funnet</option>';
+
     } catch (e) {
         const err = '<option value="">Feil ved lasting</option>';
-        document.getElementById('inv-customer').innerHTML         = err;
-        document.getElementById('inv-customer-general').innerHTML = err;
+        document.getElementById('inv-customer').innerHTML          = err;
+        document.getElementById('inv-customer-general').innerHTML  = err;
+        document.getElementById('inv-customer-renewal').innerHTML  = err;
     }
 }
 
 function ecCustomerSelectChanged(val) {
     const manualFields = document.getElementById('inv-manual-customer-fields');
     if (manualFields) manualFields.style.display = val === '__manual__' ? 'block' : 'none';
+}
+
+function ecRenewalCustomerChanged(customerId) {
+    const infoPanel = document.getElementById('inv-renewal-info');
+    const c = ecRenewalData.find(x => x.id == customerId);
+    if (!c) { infoPanel.style.display = 'none'; return; }
+    const months    = ecBillingCycleToMonths(c.billing_cycle);
+    const today     = new Date().toISOString().split('T')[0];
+    const baseDate  = (c.expiration_date && c.expiration_date > today) ? new Date(c.expiration_date) : new Date();
+    const newExpiry = new Date(baseDate);
+    newExpiry.setMonth(newExpiry.getMonth() + months);
+    const fmtNew = `${String(newExpiry.getDate()).padStart(2,'0')}.${String(newExpiry.getMonth()+1).padStart(2,'0')}.${newExpiry.getFullYear()}`;
+    document.getElementById('inv-ri-name').textContent       = c.name;
+    document.getElementById('inv-ri-plan').textContent       = c.plan_name || '—';
+    document.getElementById('inv-ri-expiry').textContent     = ecFmtDate(c.expiration_date);
+    document.getElementById('inv-ri-new-expiry').textContent = fmtNew;
+    document.getElementById('inv-ri-amount').textContent     = ecFmtAmount(c.plan_price, c.currency);
+    infoPanel.style.display = 'block';
 }
 
 async function ecPopulatePlans() {
@@ -1505,44 +1536,8 @@ async function ecPopulatePlans() {
     }
 }
 
-async function ecPopulateMembers() {
-    try {
-        const res  = await fetch('/api/get_members_simple.php');
-        const data = await res.json();
-        ecMemberData = data.members || [];
-        const sel  = document.getElementById('inv-member');
-        sel.innerHTML = ecMemberData.length
-            ? '<option value="">Velg membre...</option>' + ecMemberData.map(m => {
-                const expiry = m.expiration_date ? ' — utløper ' + ecFmtDate(m.expiration_date) : '';
-                return `<option value="${m.id}">${m.customer_name} (${m.member_code})${expiry}</option>`;
-              }).join('')
-            : '<option value="">Ingen aktive membres funnet</option>';
-    } catch (e) {
-        document.getElementById('inv-member').innerHTML = '<option value="">Feil ved lasting</option>';
-    }
-}
-
 function ecBillingCycleToMonths(cycle) {
     return {monthly: 1, quarterly: 3, yearly: 12}[cycle] ?? 12;
-}
-
-function ecMemberSelected(memberId) {
-    const infoPanel = document.getElementById('inv-renewal-info');
-    if (!memberId) { infoPanel.style.display = 'none'; return; }
-    const m = ecMemberData.find(x => x.id === memberId);
-    if (!m) { infoPanel.style.display = 'none'; return; }
-    const months   = ecBillingCycleToMonths(m.plan_billing_cycle);
-    const today    = new Date().toISOString().split('T')[0];
-    const baseDate = (m.expiration_date && m.expiration_date > today) ? new Date(m.expiration_date) : new Date();
-    const newExpiry = new Date(baseDate);
-    newExpiry.setMonth(newExpiry.getMonth() + months);
-    const fmtNew = `${String(newExpiry.getDate()).padStart(2,'0')}.${String(newExpiry.getMonth()+1).padStart(2,'0')}.${newExpiry.getFullYear()}`;
-    document.getElementById('inv-ri-name').textContent       = m.customer_name;
-    document.getElementById('inv-ri-plan').textContent       = m.plan_name || '—';
-    document.getElementById('inv-ri-expiry').textContent     = ecFmtDate(m.expiration_date);
-    document.getElementById('inv-ri-new-expiry').textContent = fmtNew;
-    document.getElementById('inv-ri-amount').textContent     = ecFmtAmount(m.plan_price, m.currency);
-    infoPanel.style.display = 'block';
 }
 
 function ecUpdateAmountPreview() {
@@ -1579,12 +1574,12 @@ async function ecCreateInvoice() {
         if (!planId)     { alert('Velg en plan'); return; }
 
         if (customerId === '__manual__') {
-            const firstName = document.getElementById('inv-manual-first').value.trim();
-            if (!firstName) { alert('Fornavn er påkrevd'); return; }
-            payload.customer_id    = '__manual__';
+            const fullName = document.getElementById('inv-manual-name').value.trim();
+            if (!fullName) { alert('Navn er påkrevd'); return; }
+            payload.customer_id     = '__manual__';
             payload.manual_customer = {
-                first_name: firstName,
-                last_name:  document.getElementById('inv-manual-last').value.trim(),
+                first_name: fullName,
+                last_name:  '',
                 email:      document.getElementById('inv-manual-email').value.trim()
             };
         } else {
@@ -1594,9 +1589,11 @@ async function ecCreateInvoice() {
         payload.quantity = qty;
 
     } else if (invoiceType === 'renewal') {
-        const memberId = document.getElementById('inv-member').value;
-        if (!memberId) { alert('Velg et membre å fornye'); return; }
-        payload.membership_member_id = memberId;
+        const customerId = document.getElementById('inv-customer-renewal').value;
+        if (!customerId) { alert('Velg en kunde å fornye'); return; }
+        const rc = ecRenewalData.find(x => x.id == customerId);
+        if (!rc) { alert('Kunde ikke funnet i fornyelseslisten'); return; }
+        payload.membership_member_id = rc.mm_id;
     }
 
     btn.disabled  = true;

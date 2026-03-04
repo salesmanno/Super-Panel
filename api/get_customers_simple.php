@@ -23,19 +23,45 @@ try {
             SELECT 1 FROM membership_members mm
             WHERE mm.customer_id = tc.id
               AND mm.company_id = ?
-              AND mm.status = 'active'
-              AND (mm.cancellation_active IS NULL OR mm.cancellation_active = 0)
         )";
         $params[] = $companyId;
-    } elseif ($context === 'has_membership') {
-        $where .= " AND EXISTS (
-            SELECT 1 FROM membership_members mm
-            WHERE mm.customer_id = tc.id
-              AND mm.company_id = ?
-              AND mm.status = 'active'
-              AND (mm.cancellation_active IS NULL OR mm.cancellation_active = 0)
-        )";
-        $params[] = $companyId;
+    }
+
+    if ($context === 'renewal') {
+        $stmt = $db->prepare("
+            SELECT
+                tc.id,
+                TRIM(CONCAT(COALESCE(tc.first_name,''), ' ', COALESCE(tc.last_name,''))) AS name,
+                tc.email,
+                tc.customer_code,
+                mm.id          AS mm_id,
+                mm.member_code,
+                mm.membership_plan_id AS plan_id,
+                mp.name        AS plan_name,
+                mp.price       AS plan_price,
+                mp.currency,
+                mp.billing_cycle,
+                mm.expiration_date,
+                mm.status      AS mm_status
+            FROM tenant_customers tc
+            INNER JOIN membership_members mm ON (
+                mm.customer_id = tc.id
+                AND mm.company_id = ?
+                AND mm.id = (
+                    SELECT mm2.id FROM membership_members mm2
+                    WHERE mm2.customer_id = tc.id AND mm2.company_id = ?
+                    ORDER BY mm2.expiration_date DESC, mm2.id DESC
+                    LIMIT 1
+                )
+            )
+            LEFT JOIN membership_plans mp ON mp.id = mm.membership_plan_id
+            WHERE tc.company_id = ? AND tc.status = 'active'
+            ORDER BY tc.first_name, tc.last_name
+        ");
+        $stmt->execute([$companyId, $companyId, $companyId]);
+        $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        echo json_encode(['success' => true, 'customers' => $customers]);
+        exit;
     }
 
     $stmt = $db->prepare("
