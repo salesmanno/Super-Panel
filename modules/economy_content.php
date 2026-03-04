@@ -358,6 +358,30 @@
                 <div id="invoice-create-form" style="display:none;" class="border rounded p-3 mb-3 bg-light">
                     <h6 class="mb-3">Opprett ny faktura</h6>
                     <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label form-label-sm fw-semibold">Fakturatype</label>
+                            <select id="inv-type" class="form-select form-select-sm" onchange="ecToggleFormByType(this.value)">
+                                <option value="general">Generell</option>
+                                <option value="new_member">Nytt medlemskap</option>
+                                <option value="renewal">Fornyelse</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="inv-section-general" class="row g-2 mt-1">
+                        <div class="col-md-6">
+                            <label class="form-label form-label-sm">Kunde</label>
+                            <select id="inv-customer-general" class="form-select form-select-sm">
+                                <option value="">Laster kunder...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label form-label-sm">Beløp (NOK)</label>
+                            <input type="number" id="inv-manual-amount" class="form-control form-control-sm" min="0" step="0.01" placeholder="0.00">
+                        </div>
+                    </div>
+
+                    <div id="inv-section-new-member" class="row g-2 mt-1" style="display:none;">
                         <div class="col-md-6">
                             <label class="form-label form-label-sm">Kunde</label>
                             <select id="inv-customer" class="form-select form-select-sm">
@@ -377,7 +401,30 @@
                         <div class="col-md-3 d-flex align-items-end">
                             <div id="inv-amount-preview" class="fw-bold text-success fs-6 pb-1"></div>
                         </div>
+                    </div>
+
+                    <div id="inv-section-renewal" class="row g-2 mt-1" style="display:none;">
                         <div class="col-md-6">
+                            <label class="form-label form-label-sm">Velg membre å fornye</label>
+                            <select id="inv-member" class="form-select form-select-sm" onchange="ecMemberSelected(this.value)">
+                                <option value="">Laster membres...</option>
+                            </select>
+                        </div>
+                        <div id="inv-renewal-info" class="col-12" style="display:none;">
+                            <div class="p-2 rounded border bg-white small">
+                                <div class="row g-1">
+                                    <div class="col-6"><span class="text-muted">Kunde:</span> <span id="inv-ri-name"></span></div>
+                                    <div class="col-6"><span class="text-muted">Plan:</span> <span id="inv-ri-plan"></span></div>
+                                    <div class="col-6"><span class="text-muted">Nåværende utløp:</span> <span id="inv-ri-expiry" class="text-danger fw-semibold"></span></div>
+                                    <div class="col-6"><span class="text-muted">Nytt utløp:</span> <span id="inv-ri-new-expiry" class="text-success fw-semibold"></span></div>
+                                    <div class="col-6"><span class="text-muted">Beløp:</span> <span id="inv-ri-amount" class="fw-semibold"></span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mt-1">
+                        <div class="col-md-4">
                             <label class="form-label form-label-sm">Forfallsdato</label>
                             <input type="date" id="inv-due" class="form-control form-control-sm">
                         </div>
@@ -386,6 +433,7 @@
                             <textarea id="inv-notes" class="form-control form-control-sm" rows="2"></textarea>
                         </div>
                     </div>
+
                     <div class="mt-3 d-flex gap-2">
                         <button class="btn btn-success btn-sm" onclick="ecCreateInvoice()">
                             <i class="bi bi-check2 me-1"></i>Opprett faktura
@@ -406,6 +454,7 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Fakturanr</th>
+                                <th>Type</th>
                                 <th>Kunde</th>
                                 <th>Beløp</th>
                                 <th>Utstedt</th>
@@ -415,7 +464,7 @@
                             </tr>
                         </thead>
                         <tbody id="invoice-list-body">
-                            <tr><td colspan="7" class="text-center py-3 text-muted">Laster...</td></tr>
+                            <tr><td colspan="8" class="text-center py-3 text-muted">Laster...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1129,6 +1178,8 @@ document.addEventListener('subtab-changed', function(event) {
 
 let ecAllInvoices = [];
 let ecPlanData = [];
+let ecMemberData = [];
+let ecInvConfig = {};
 
 async function ecLoadInvoices() {
     try {
@@ -1136,49 +1187,59 @@ async function ecLoadInvoices() {
         const data = await res.json();
         if (!data.success) throw new Error(data.error);
         ecAllInvoices = data.invoices || [];
-        const cfg = data.invoice_config || {};
-        if (cfg.invoice_due_days) {
-            const due = new Date();
-            due.setDate(due.getDate() + parseInt(cfg.invoice_due_days));
-            document.getElementById('inv-due').value = due.toISOString().split('T')[0];
-        }
-        if (cfg.invoice_terms) {
-            document.getElementById('inv-notes').value = cfg.invoice_terms;
-        }
+        ecInvConfig = data.invoice_config || {};
+        ecApplyConfig();
         ecRenderInvoices(ecAllInvoices);
-        await ecPopulateCustomers();
-        await ecPopulatePlans();
+        await Promise.all([ecPopulateCustomers(), ecPopulatePlans(), ecPopulateMembers()]);
     } catch (err) {
         document.getElementById('invoice-list-body').innerHTML =
-            `<tr><td colspan="7" class="text-center text-danger py-3">${err.message}</td></tr>`;
+            `<tr><td colspan="8" class="text-center text-danger py-3">${err.message}</td></tr>`;
     }
+}
+
+function ecApplyConfig() {
+    if (ecInvConfig.invoice_due_days) {
+        const due = new Date();
+        due.setDate(due.getDate() + parseInt(ecInvConfig.invoice_due_days));
+        document.getElementById('inv-due').value = due.toISOString().split('T')[0];
+    }
+    if (ecInvConfig.invoice_terms) {
+        document.getElementById('inv-notes').value = ecInvConfig.invoice_terms;
+    }
+}
+
+function ecInvoiceTypeBadge(type) {
+    if (type === 'new_member') return '<span class="badge bg-primary"><i class="bi bi-person-plus"></i> Nytt</span>';
+    if (type === 'renewal')    return '<span class="badge" style="background:#6f42c1"><i class="bi bi-arrow-repeat"></i> Fornyelse</span>';
+    return '<span class="badge bg-secondary">Generell</span>';
 }
 
 function ecRenderInvoices(invoices) {
     const tbody = document.getElementById('invoice-list-body');
     if (!invoices.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-3 text-muted">Ingen fakturaer</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-3 text-muted">Ingen fakturaer</td></tr>';
         return;
     }
     tbody.innerHTML = invoices.map(inv => {
-        let badge;
+        let statusBadge;
         if (inv.status === 'paid') {
-            badge = '<span class="badge bg-success">Betalt</span>';
+            statusBadge = '<span class="badge bg-success">Betalt</span>';
         } else if (inv.computed_overdue) {
-            badge = '<span class="badge bg-danger">Forfalt</span>';
+            statusBadge = '<span class="badge bg-danger">Forfalt</span>';
         } else {
-            badge = '<span class="badge bg-warning text-dark">Sendt</span>';
+            statusBadge = '<span class="badge bg-warning text-dark">Sendt</span>';
         }
         const markBtn = inv.status !== 'paid'
             ? `<button class="btn btn-outline-success btn-sm" onclick="ecMarkPaid('${inv.invoice_id}', this)">Marker betalt</button>`
             : '';
         return `<tr id="inv-row-${inv.invoice_id}">
             <td class="fw-semibold">${inv.invoice_number}</td>
+            <td>${ecInvoiceTypeBadge(inv.invoice_type || 'general')}</td>
             <td>${inv.customer_name || '<span class="text-muted">—</span>'}</td>
             <td>${parseFloat(inv.total_amount).toLocaleString('nb-NO', {minimumFractionDigits:2})} ${inv.currency}</td>
             <td>${ecFmtDate(inv.invoice_date)}</td>
             <td>${ecFmtDate(inv.due_date)}</td>
-            <td id="inv-status-${inv.invoice_id}">${badge}</td>
+            <td id="inv-status-${inv.invoice_id}">${statusBadge}</td>
             <td id="inv-action-${inv.invoice_id}">${markBtn}</td>
         </tr>`;
     }).join('');
@@ -1192,38 +1253,51 @@ function ecFmtDate(d) {
 
 function ecFilterInvoices(status, btn) {
     document.querySelectorAll('#invoice-filter-btns .filter-btn').forEach(b => {
-        b.className = b.className.replace(/btn-warning|btn-danger|btn-success|btn-primary/, 'btn-outline-' + (b === btn ? '' : 'secondary'));
+        b.classList.remove('btn-primary','btn-warning','btn-danger','btn-success');
+        b.classList.add('btn-outline-secondary');
     });
     if (btn) {
-        btn.className = btn.className.replace('btn-outline-secondary', 'btn-primary');
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-primary');
     }
     let filtered = ecAllInvoices;
-    if (status === 'paid') filtered = ecAllInvoices.filter(i => i.status === 'paid');
-    else if (status === 'sent') filtered = ecAllInvoices.filter(i => i.status === 'sent' && !i.computed_overdue);
+    if (status === 'paid')    filtered = ecAllInvoices.filter(i => i.status === 'paid');
+    else if (status === 'sent')    filtered = ecAllInvoices.filter(i => i.status === 'sent' && !i.computed_overdue);
     else if (status === 'overdue') filtered = ecAllInvoices.filter(i => i.computed_overdue);
     ecRenderInvoices(filtered);
 }
 
 function ecToggleCreateForm() {
     const form = document.getElementById('invoice-create-form');
-    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    const isHidden = form.style.display === 'none';
+    form.style.display = isHidden ? 'block' : 'none';
+    if (isHidden) {
+        document.getElementById('inv-type').value = 'general';
+        ecToggleFormByType('general');
+        ecApplyConfig();
+    }
+}
+
+function ecToggleFormByType(type) {
+    document.getElementById('inv-section-general').style.display    = type === 'general'    ? 'flex' : 'none';
+    document.getElementById('inv-section-new-member').style.display = type === 'new_member' ? 'flex' : 'none';
+    document.getElementById('inv-section-renewal').style.display    = type === 'renewal'    ? 'flex' : 'none';
 }
 
 async function ecPopulateCustomers() {
     try {
         const res = await fetch('/api/get_customers_simple.php');
         const data = await res.json();
-        const sel = document.getElementById('inv-customer');
-        if (data.success && data.customers.length) {
-            sel.innerHTML = '<option value="">Velg kunde...</option>' +
-                data.customers.map(c =>
-                    `<option value="${c.id}">${c.name}${c.email ? ' — ' + c.email : ''}</option>`
-                ).join('');
-        } else {
-            sel.innerHTML = '<option value="">Ingen kunder funnet</option>';
-        }
+        const opts = data.success && data.customers.length
+            ? '<option value="">Velg kunde...</option>' + data.customers.map(c =>
+                `<option value="${c.id}">${c.name}${c.email ? ' — ' + c.email : ''}</option>`).join('')
+            : '<option value="">Ingen kunder funnet</option>';
+        document.getElementById('inv-customer').innerHTML = opts;
+        document.getElementById('inv-customer-general').innerHTML = opts;
     } catch (e) {
-        document.getElementById('inv-customer').innerHTML = '<option value="">Feil ved lasting</option>';
+        const err = '<option value="">Feil ved lasting</option>';
+        document.getElementById('inv-customer').innerHTML = err;
+        document.getElementById('inv-customer-general').innerHTML = err;
     }
 }
 
@@ -1231,12 +1305,12 @@ async function ecPopulatePlans() {
     try {
         const res = await fetch('/api/get_membership_plans.php');
         const data = await res.json();
-        const sel = document.getElementById('inv-plan');
         ecPlanData = data.plans || [];
+        const sel = document.getElementById('inv-plan');
         if (ecPlanData.length) {
-            sel.innerHTML = '<option value="">Velg vare...</option>' +
+            sel.innerHTML = '<option value="">Velg plan...</option>' +
                 ecPlanData.map(p =>
-                    `<option value="${p.id}" data-price="${p.price}" data-currency="${p.currency || 'NOK'}">${p.name} — ${parseFloat(p.price).toLocaleString('nb-NO', {minimumFractionDigits:2})} ${p.currency || 'NOK'} / ${p.billing_cycle || ''}</option>`
+                    `<option value="${p.id}" data-price="${p.price}" data-currency="${p.currency || 'NOK'}" data-cycle="${p.billing_cycle || 'yearly'}">${p.name} — ${parseFloat(p.price).toLocaleString('nb-NO', {minimumFractionDigits:2})} ${p.currency || 'NOK'}</option>`
                 ).join('');
         } else {
             sel.innerHTML = '<option value="">Ingen planer funnet</option>';
@@ -1247,40 +1321,100 @@ async function ecPopulatePlans() {
     }
 }
 
+async function ecPopulateMembers() {
+    try {
+        const res = await fetch('/api/get_members_simple.php');
+        const data = await res.json();
+        ecMemberData = data.members || [];
+        const sel = document.getElementById('inv-member');
+        if (ecMemberData.length) {
+            sel.innerHTML = '<option value="">Velg membre...</option>' +
+                ecMemberData.map(m => {
+                    const expiry = m.expiration_date ? ' — utløper ' + ecFmtDate(m.expiration_date) : '';
+                    return `<option value="${m.id}">${m.customer_name} (${m.member_code})${expiry}</option>`;
+                }).join('');
+        } else {
+            sel.innerHTML = '<option value="">Ingen aktive membres funnet</option>';
+        }
+    } catch (e) {
+        document.getElementById('inv-member').innerHTML = '<option value="">Feil ved lasting</option>';
+    }
+}
+
+function ecBillingCycleToMonths(cycle) {
+    return {monthly: 1, quarterly: 3, yearly: 12}[cycle] ?? 12;
+}
+
+function ecMemberSelected(memberId) {
+    const infoPanel = document.getElementById('inv-renewal-info');
+    if (!memberId) { infoPanel.style.display = 'none'; return; }
+    const m = ecMemberData.find(x => x.id === memberId);
+    if (!m) { infoPanel.style.display = 'none'; return; }
+    const months   = ecBillingCycleToMonths(m.plan_billing_cycle);
+    const baseDate = (m.expiration_date && m.expiration_date > new Date().toISOString().split('T')[0])
+                     ? new Date(m.expiration_date) : new Date();
+    const newExpiry = new Date(baseDate);
+    newExpiry.setMonth(newExpiry.getMonth() + months);
+    const fmtNew = `${String(newExpiry.getDate()).padStart(2,'0')}.${String(newExpiry.getMonth()+1).padStart(2,'0')}.${newExpiry.getFullYear()}`;
+    document.getElementById('inv-ri-name').textContent   = m.customer_name;
+    document.getElementById('inv-ri-plan').textContent   = m.plan_name || '—';
+    document.getElementById('inv-ri-expiry').textContent = ecFmtDate(m.expiration_date);
+    document.getElementById('inv-ri-new-expiry').textContent = fmtNew;
+    document.getElementById('inv-ri-amount').textContent = parseFloat(m.plan_price || 0).toLocaleString('nb-NO', {minimumFractionDigits:2}) + ' ' + (m.currency || 'NOK');
+    infoPanel.style.display = 'block';
+}
+
 function ecUpdateAmountPreview() {
     const planSel = document.getElementById('inv-plan');
-    const qty = parseInt(document.getElementById('inv-qty').value) || 1;
-    const selected = planSel.options[planSel.selectedIndex];
+    const qty     = parseInt(document.getElementById('inv-qty').value) || 1;
+    const sel     = planSel.options[planSel.selectedIndex];
     const preview = document.getElementById('inv-amount-preview');
-    if (selected && selected.dataset.price) {
-        const price = parseFloat(selected.dataset.price);
-        const total = price * qty;
-        const currency = selected.dataset.currency || 'NOK';
-        preview.textContent = total.toLocaleString('nb-NO', {minimumFractionDigits:2}) + ' ' + currency;
+    if (sel && sel.dataset.price) {
+        const total = parseFloat(sel.dataset.price) * qty;
+        preview.textContent = total.toLocaleString('nb-NO', {minimumFractionDigits:2}) + ' ' + (sel.dataset.currency || 'NOK');
     } else {
         preview.textContent = '';
     }
 }
 
 async function ecCreateInvoice() {
-    const customerId = document.getElementById('inv-customer').value;
-    const planId = document.getElementById('inv-plan').value;
-    const qty = parseInt(document.getElementById('inv-qty').value) || 1;
-    const dueDate = document.getElementById('inv-due').value;
-    const notes = document.getElementById('inv-notes').value.trim();
+    const invoiceType = document.getElementById('inv-type').value;
+    const dueDate     = document.getElementById('inv-due').value;
+    const notes       = document.getElementById('inv-notes').value.trim();
+    const btn         = document.querySelector('#invoice-create-form .btn-success');
 
-    if (!customerId) { alert('Velg en kunde'); return; }
-    if (!planId) { alert('Velg en vare'); return; }
+    let payload = { invoice_type: invoiceType, due_date: dueDate, notes };
 
-    const btn = document.querySelector('#invoice-create-form .btn-success');
+    if (invoiceType === 'general') {
+        const customerId = document.getElementById('inv-customer-general').value;
+        const amount     = document.getElementById('inv-manual-amount').value;
+        if (!customerId) { alert('Velg en kunde'); return; }
+        payload.customer_id    = customerId;
+        payload.manual_amount  = amount ? parseFloat(amount) : 0;
+
+    } else if (invoiceType === 'new_member') {
+        const customerId = document.getElementById('inv-customer').value;
+        const planId     = document.getElementById('inv-plan').value;
+        const qty        = parseInt(document.getElementById('inv-qty').value) || 1;
+        if (!customerId) { alert('Velg en kunde'); return; }
+        if (!planId)     { alert('Velg en plan'); return; }
+        payload.customer_id = customerId;
+        payload.plan_id     = planId;
+        payload.quantity    = qty;
+
+    } else if (invoiceType === 'renewal') {
+        const memberId = document.getElementById('inv-member').value;
+        if (!memberId) { alert('Velg et membre å fornye'); return; }
+        payload.membership_member_id = memberId;
+    }
+
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Oppretter...';
-
     try {
-        const res = await fetch('/api/create_invoice.php', {
+        const res  = await fetch('/api/create_invoice.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({customer_id: customerId, plan_id: planId, quantity: qty, due_date: dueDate, notes})
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (!data.success) throw new Error(data.error);
@@ -1294,21 +1428,44 @@ async function ecCreateInvoice() {
     }
 }
 
+function ecShowToast(message, type = 'success') {
+    const toastId = 'ec-toast-' + Date.now();
+    const bg = type === 'success' ? 'bg-success' : 'bg-danger';
+    const html = `<div id="${toastId}" class="toast align-items-center text-white ${bg} border-0 position-fixed bottom-0 end-0 m-3" style="z-index:9999" role="alert">
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    const el = document.getElementById(toastId);
+    const t  = new bootstrap.Toast(el, {delay: 5000});
+    t.show();
+    el.addEventListener('hidden.bs.toast', () => el.remove());
+}
+
 async function ecMarkPaid(invoiceId, btn) {
     if (!confirm('Marker faktura som betalt?')) return;
     if (btn) { btn.disabled = true; btn.textContent = '...'; }
     try {
-        const res = await fetch('/api/mark_invoice_paid.php', {
+        const res  = await fetch('/api/mark_invoice_paid.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({invoice_id: invoiceId})
         });
         const data = await res.json();
         if (!data.success) throw new Error(data.error);
+
         document.getElementById('inv-status-' + invoiceId).innerHTML = '<span class="badge bg-success">Betalt</span>';
         document.getElementById('inv-action-' + invoiceId).innerHTML = '';
         const inv = ecAllInvoices.find(i => i.invoice_id === invoiceId);
         if (inv) { inv.status = 'paid'; inv.computed_overdue = false; }
+
+        if (data.action === 'new_member_activated') {
+            ecShowToast(`Nytt membre aktivert — kode: <strong>${data.member_code}</strong> — utløper ${ecFmtDate(data.expiration_date)}`);
+        } else if (data.action === 'renewal_completed') {
+            ecShowToast(`Fornyelse registrert — nytt utløp: <strong>${ecFmtDate(data.new_expiration_date)}</strong>`);
+        }
     } catch (err) {
         alert('Feil: ' + err.message);
         if (btn) { btn.disabled = false; btn.textContent = 'Marker betalt'; }

@@ -43,6 +43,9 @@ try {
             i.sent_at,
             i.paid_at,
             i.created_at,
+            i.invoice_type,
+            i.membership_plan_id,
+            i.membership_member_id,
             CONCAT(COALESCE(c.first_name, ''), ' ', COALESCE(c.last_name, '')) AS customer_name,
             c.email AS customer_email
         FROM economy_invoices i
