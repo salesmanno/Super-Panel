@@ -14,6 +14,17 @@ try {
     $db        = getDBConnection();
     $companyId = $_SESSION['company_id'];
 
+    $migrations = [
+        "ALTER TABLE economy_invoices ADD COLUMN IF NOT EXISTS invoice_type VARCHAR(20) NOT NULL DEFAULT 'general'",
+        "ALTER TABLE economy_invoices ADD COLUMN IF NOT EXISTS membership_plan_id CHAR(36) DEFAULT NULL",
+        "ALTER TABLE economy_invoices ADD COLUMN IF NOT EXISTS membership_member_id CHAR(36) DEFAULT NULL",
+        "ALTER TABLE economy_invoices ADD COLUMN IF NOT EXISTS created_by_admin_id CHAR(36) DEFAULT NULL",
+        "ALTER TABLE economy_invoices ADD COLUMN IF NOT EXISTS status_updated_at DATETIME DEFAULT NULL",
+    ];
+    foreach ($migrations as $sql) {
+        try { $db->exec($sql); } catch (Exception $e) { /* kolonne eksisterer allerede */ }
+    }
+
     $stmt = $db->prepare("
         SELECT
             i.id AS invoice_id,
@@ -36,11 +47,9 @@ try {
             i.membership_plan_id,
             i.membership_member_id,
             TRIM(CONCAT(COALESCE(c.first_name, ''), ' ', COALESCE(c.last_name, ''))) AS customer_name,
-            c.email AS customer_email,
-            ta.username AS created_by_username
+            c.email AS customer_email
         FROM economy_invoices i
         LEFT JOIN tenant_customers c ON c.id = i.customer_id
-        LEFT JOIN tenant_admins ta ON ta.id = i.created_by_admin_id
         WHERE i.company_id = ?
           AND i.status != 'dismantled'
         ORDER BY i.created_at DESC
@@ -78,5 +87,5 @@ try {
 
 } catch (Exception $e) {
     error_log("get_invoices error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'error' => 'Kunne ikke hente fakturaer']);
+    echo json_encode(['success' => false, 'error' => 'Kunne ikke hente fakturaer: ' . $e->getMessage()]);
 }

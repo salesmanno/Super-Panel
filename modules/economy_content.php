@@ -880,15 +880,22 @@ function renderIncomeTransactions(transactions) {
         return;
     }
     
-    tbody.innerHTML = transactions.map(t => `
+    tbody.innerHTML = transactions.map(t => {
+        const amount = t.vipps_adjusted
+            ? t.adjusted_amount
+            : (t.adjusted_amount ?? t.selling_price);
+        const feeNote = t.vipps_adjusted
+            ? ` <span class="text-muted small" title="Brutto: ${formatCurrency(t.gross_amount)} — Vipps-gebyr: ${formatCurrency(t.fee_amount)}" style="cursor:help">(etter gebyr)</span>`
+            : '';
+        return `
         <tr class="transaction-row income">
             <td>${formatDate(t.transaction_date)}</td>
             <td>${t.item_name || '-'}</td>
             <td><span class="badge bg-secondary module-badge">${moduleLabels[t.category] || t.category}</span></td>
             <td>${paymentLabels[t.payment_method] || t.payment_method || '-'}</td>
-            <td class="text-end text-success">+${formatCurrency(t.selling_price)}</td>
-        </tr>
-    `).join('');
+            <td class="text-end text-success">+${formatCurrency(amount)}${feeNote}</td>
+        </tr>`;
+    }).join('');
 }
 
 async function loadExpenseData() {
@@ -1311,6 +1318,7 @@ let ecInvConfig   = {};
 let ecActiveTerms = '';
 
 async function ecLoadInvoices() {
+    await Promise.all([ecPopulateCustomers(), ecPopulatePlans()]);
     try {
         const [invRes, termsRes] = await Promise.all([
             fetch('/api/get_invoices.php'),
@@ -1326,7 +1334,6 @@ async function ecLoadInvoices() {
         }
         ecApplyConfig();
         ecRenderBothLists();
-        await Promise.all([ecPopulateCustomers(), ecPopulatePlans()]);
     } catch (err) {
         document.getElementById('inv-active-body').innerHTML =
             `<tr><td colspan="8" class="text-center text-danger py-3">${err.message}</td></tr>`;
