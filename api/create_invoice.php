@@ -138,12 +138,12 @@ try {
             (company_id, customer_id, invoice_number, invoice_date, due_date,
              subtotal, tax_rate, tax_amount, total_amount, currency,
              status, payment_terms, notes, sent_at,
-             invoice_type, membership_plan_id, membership_member_id)
+             invoice_type, membership_plan_id, membership_member_id, created_by_admin_id)
         VALUES
             (:company_id, :customer_id, :invoice_number, :invoice_date, :due_date,
              :subtotal, 0, 0, :total_amount, :currency,
-             'sent', :payment_terms, NULL, NOW(),
-             :invoice_type, :membership_plan_id, :membership_member_id)
+             'pending', :payment_terms, NULL, NOW(),
+             :invoice_type, :membership_plan_id, :membership_member_id, :created_by_admin_id)
     ");
     $insertStmt->execute([
         'company_id'           => $companyId,
@@ -157,7 +157,8 @@ try {
         'payment_terms'        => $paymentTerms,
         'invoice_type'         => $invoiceType,
         'membership_plan_id'   => $membershipPlanId,
-        'membership_member_id' => ($invoiceType === 'renewal') ? $membershipMemberId : null
+        'membership_member_id' => ($invoiceType === 'renewal') ? $membershipMemberId : null,
+        'created_by_admin_id'  => $_SESSION['tenant_admin_id']
     ]);
 
     $invoiceId = $db->lastInsertId();

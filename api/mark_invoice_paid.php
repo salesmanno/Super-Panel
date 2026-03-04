@@ -44,15 +44,15 @@ try {
         echo json_encode(['success' => false, 'error' => 'Faktura ikke funnet']);
         exit;
     }
-    if ($invoice['status'] === 'paid') {
-        echo json_encode(['success' => false, 'error' => 'Faktura er allerede betalt']);
+    if (in_array($invoice['status'], ['paid', 'dismantled'])) {
+        echo json_encode(['success' => false, 'error' => 'Faktura er allerede betalt eller ugyldiggjort']);
         exit;
     }
 
     $db->beginTransaction();
 
     $db->prepare("
-        UPDATE economy_invoices SET status = 'paid', paid_at = NOW()
+        UPDATE economy_invoices SET status = 'paid', paid_at = NOW(), status_updated_at = NOW()
         WHERE id = ? AND company_id = ?
     ")->execute([$invoiceId, $companyId]);
 
