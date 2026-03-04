@@ -344,6 +344,84 @@
             </div>
         </div>
     </div>
+
+    <div id="economy-invoices" class="subtab-content" style="display: none;">
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0"><i class="bi bi-receipt me-2"></i>Fakturaer</h5>
+                    <button class="btn btn-primary btn-sm" onclick="ecToggleCreateForm()">
+                        <i class="bi bi-plus me-1"></i>Ny faktura
+                    </button>
+                </div>
+
+                <div id="invoice-create-form" style="display:none;" class="border rounded p-3 mb-3 bg-light">
+                    <h6 class="mb-3">Opprett ny faktura</h6>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label form-label-sm">Kunde</label>
+                            <select id="inv-customer" class="form-select form-select-sm">
+                                <option value="">Laster kunder...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label form-label-sm">Vare (medlemskapsplan)</label>
+                            <select id="inv-plan" class="form-select form-select-sm" onchange="ecUpdateAmountPreview()">
+                                <option value="">Laster planer...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label form-label-sm">Antall</label>
+                            <input type="number" id="inv-qty" class="form-control form-control-sm" value="1" min="1" onchange="ecUpdateAmountPreview()">
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <div id="inv-amount-preview" class="fw-bold text-success fs-6 pb-1"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label form-label-sm">Forfallsdato</label>
+                            <input type="date" id="inv-due" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label form-label-sm">Betalingsbetingelser / notat</label>
+                            <textarea id="inv-notes" class="form-control form-control-sm" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="mt-3 d-flex gap-2">
+                        <button class="btn btn-success btn-sm" onclick="ecCreateInvoice()">
+                            <i class="bi bi-check2 me-1"></i>Opprett faktura
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="ecToggleCreateForm()">Avbryt</button>
+                    </div>
+                </div>
+
+                <div class="mb-2 d-flex gap-1" id="invoice-filter-btns">
+                    <button class="btn btn-sm btn-primary filter-btn active" onclick="ecFilterInvoices('all', this)">Alle</button>
+                    <button class="btn btn-sm btn-outline-warning filter-btn" onclick="ecFilterInvoices('sent', this)">Sendt</button>
+                    <button class="btn btn-sm btn-outline-danger filter-btn" onclick="ecFilterInvoices('overdue', this)">Forfalt</button>
+                    <button class="btn btn-sm btn-outline-success filter-btn" onclick="ecFilterInvoices('paid', this)">Betalt</button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover" id="invoice-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fakturanr</th>
+                                <th>Kunde</th>
+                                <th>Beløp</th>
+                                <th>Utstedt</th>
+                                <th>Forfall</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="invoice-list-body">
+                            <tr><td colspan="7" class="text-center py-3 text-muted">Laster...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="modal fade" id="addTransactionModal" tabindex="-1">
@@ -1046,7 +1124,196 @@ document.addEventListener('subtab-changed', function(event) {
     else if (subtab === 'economy-pending') loadPendingPayments();
     else if (subtab === 'economy-payment') loadPaymentGateways();
     else if (subtab === 'economy-terms') loadTermsConditions();
+    else if (subtab === 'economy-invoices') ecLoadInvoices();
 });
+
+let ecAllInvoices = [];
+let ecPlanData = [];
+
+async function ecLoadInvoices() {
+    try {
+        const res = await fetch('/api/get_invoices.php');
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        ecAllInvoices = data.invoices || [];
+        const cfg = data.invoice_config || {};
+        if (cfg.invoice_due_days) {
+            const due = new Date();
+            due.setDate(due.getDate() + parseInt(cfg.invoice_due_days));
+            document.getElementById('inv-due').value = due.toISOString().split('T')[0];
+        }
+        if (cfg.invoice_terms) {
+            document.getElementById('inv-notes').value = cfg.invoice_terms;
+        }
+        ecRenderInvoices(ecAllInvoices);
+        await ecPopulateCustomers();
+        await ecPopulatePlans();
+    } catch (err) {
+        document.getElementById('invoice-list-body').innerHTML =
+            `<tr><td colspan="7" class="text-center text-danger py-3">${err.message}</td></tr>`;
+    }
+}
+
+function ecRenderInvoices(invoices) {
+    const tbody = document.getElementById('invoice-list-body');
+    if (!invoices.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-3 text-muted">Ingen fakturaer</td></tr>';
+        return;
+    }
+    tbody.innerHTML = invoices.map(inv => {
+        let badge;
+        if (inv.status === 'paid') {
+            badge = '<span class="badge bg-success">Betalt</span>';
+        } else if (inv.computed_overdue) {
+            badge = '<span class="badge bg-danger">Forfalt</span>';
+        } else {
+            badge = '<span class="badge bg-warning text-dark">Sendt</span>';
+        }
+        const markBtn = inv.status !== 'paid'
+            ? `<button class="btn btn-outline-success btn-sm" onclick="ecMarkPaid('${inv.invoice_id}', this)">Marker betalt</button>`
+            : '';
+        return `<tr id="inv-row-${inv.invoice_id}">
+            <td class="fw-semibold">${inv.invoice_number}</td>
+            <td>${inv.customer_name || '<span class="text-muted">—</span>'}</td>
+            <td>${parseFloat(inv.total_amount).toLocaleString('nb-NO', {minimumFractionDigits:2})} ${inv.currency}</td>
+            <td>${ecFmtDate(inv.invoice_date)}</td>
+            <td>${ecFmtDate(inv.due_date)}</td>
+            <td id="inv-status-${inv.invoice_id}">${badge}</td>
+            <td id="inv-action-${inv.invoice_id}">${markBtn}</td>
+        </tr>`;
+    }).join('');
+}
+
+function ecFmtDate(d) {
+    if (!d) return '—';
+    const parts = d.split('-');
+    return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : d;
+}
+
+function ecFilterInvoices(status, btn) {
+    document.querySelectorAll('#invoice-filter-btns .filter-btn').forEach(b => {
+        b.className = b.className.replace(/btn-warning|btn-danger|btn-success|btn-primary/, 'btn-outline-' + (b === btn ? '' : 'secondary'));
+    });
+    if (btn) {
+        btn.className = btn.className.replace('btn-outline-secondary', 'btn-primary');
+    }
+    let filtered = ecAllInvoices;
+    if (status === 'paid') filtered = ecAllInvoices.filter(i => i.status === 'paid');
+    else if (status === 'sent') filtered = ecAllInvoices.filter(i => i.status === 'sent' && !i.computed_overdue);
+    else if (status === 'overdue') filtered = ecAllInvoices.filter(i => i.computed_overdue);
+    ecRenderInvoices(filtered);
+}
+
+function ecToggleCreateForm() {
+    const form = document.getElementById('invoice-create-form');
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function ecPopulateCustomers() {
+    try {
+        const res = await fetch('/api/get_customers_simple.php');
+        const data = await res.json();
+        const sel = document.getElementById('inv-customer');
+        if (data.success && data.customers.length) {
+            sel.innerHTML = '<option value="">Velg kunde...</option>' +
+                data.customers.map(c =>
+                    `<option value="${c.id}">${c.name}${c.email ? ' — ' + c.email : ''}</option>`
+                ).join('');
+        } else {
+            sel.innerHTML = '<option value="">Ingen kunder funnet</option>';
+        }
+    } catch (e) {
+        document.getElementById('inv-customer').innerHTML = '<option value="">Feil ved lasting</option>';
+    }
+}
+
+async function ecPopulatePlans() {
+    try {
+        const res = await fetch('/api/get_membership_plans.php');
+        const data = await res.json();
+        const sel = document.getElementById('inv-plan');
+        ecPlanData = data.plans || [];
+        if (ecPlanData.length) {
+            sel.innerHTML = '<option value="">Velg vare...</option>' +
+                ecPlanData.map(p =>
+                    `<option value="${p.id}" data-price="${p.price}" data-currency="${p.currency || 'NOK'}">${p.name} — ${parseFloat(p.price).toLocaleString('nb-NO', {minimumFractionDigits:2})} ${p.currency || 'NOK'} / ${p.billing_cycle || ''}</option>`
+                ).join('');
+        } else {
+            sel.innerHTML = '<option value="">Ingen planer funnet</option>';
+        }
+        ecUpdateAmountPreview();
+    } catch (e) {
+        document.getElementById('inv-plan').innerHTML = '<option value="">Feil ved lasting</option>';
+    }
+}
+
+function ecUpdateAmountPreview() {
+    const planSel = document.getElementById('inv-plan');
+    const qty = parseInt(document.getElementById('inv-qty').value) || 1;
+    const selected = planSel.options[planSel.selectedIndex];
+    const preview = document.getElementById('inv-amount-preview');
+    if (selected && selected.dataset.price) {
+        const price = parseFloat(selected.dataset.price);
+        const total = price * qty;
+        const currency = selected.dataset.currency || 'NOK';
+        preview.textContent = total.toLocaleString('nb-NO', {minimumFractionDigits:2}) + ' ' + currency;
+    } else {
+        preview.textContent = '';
+    }
+}
+
+async function ecCreateInvoice() {
+    const customerId = document.getElementById('inv-customer').value;
+    const planId = document.getElementById('inv-plan').value;
+    const qty = parseInt(document.getElementById('inv-qty').value) || 1;
+    const dueDate = document.getElementById('inv-due').value;
+    const notes = document.getElementById('inv-notes').value.trim();
+
+    if (!customerId) { alert('Velg en kunde'); return; }
+    if (!planId) { alert('Velg en vare'); return; }
+
+    const btn = document.querySelector('#invoice-create-form .btn-success');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Oppretter...';
+
+    try {
+        const res = await fetch('/api/create_invoice.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({customer_id: customerId, plan_id: planId, quantity: qty, due_date: dueDate, notes})
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        ecToggleCreateForm();
+        await ecLoadInvoices();
+    } catch (err) {
+        alert('Feil: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Opprett faktura';
+    }
+}
+
+async function ecMarkPaid(invoiceId, btn) {
+    if (!confirm('Marker faktura som betalt?')) return;
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+    try {
+        const res = await fetch('/api/mark_invoice_paid.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({invoice_id: invoiceId})
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        document.getElementById('inv-status-' + invoiceId).innerHTML = '<span class="badge bg-success">Betalt</span>';
+        document.getElementById('inv-action-' + invoiceId).innerHTML = '';
+        const inv = ecAllInvoices.find(i => i.invoice_id === invoiceId);
+        if (inv) { inv.status = 'paid'; inv.computed_overdue = false; }
+    } catch (err) {
+        alert('Feil: ' + err.message);
+        if (btn) { btn.disabled = false; btn.textContent = 'Marker betalt'; }
+    }
+}
 
 async function loadTermsConditions() {
     try {
