@@ -215,8 +215,11 @@
         <div class="card">
             <div class="card-body">
 
-                <!-- Oppslagspanel -->
-                <div class="mb-4">
+                <!-- Oppslagspanel + statistikk -->
+                <div class="mb-4 d-flex gap-4 align-items-start">
+
+                    <!-- Venstre: oppslagspanel -->
+                    <div class="flex-grow-1">
                     <h6 class="fw-semibold mb-2"><i class="bi bi-search me-2 text-primary"></i>Slå opp på order_id</h6>
                     <div class="input-group input-group-sm" style="max-width:420px;">
                         <input type="text" class="form-control" id="mb-lookup-input" placeholder="Skriv inn order_id…">
@@ -261,7 +264,28 @@
                             <span id="mb-rl-save-msg" class="small"></span>
                         </div>
                     </div>
+                    </div>
+                    <!-- /Venstre -->
+
+                    <!-- Høyre: statistikk -->
+                    <div class="text-end" style="min-width:220px; flex-shrink:0;">
+                        <div class="mb-3">
+                            <div class="text-muted small">Sum completed &amp; paid</div>
+                            <div class="fs-5 fw-semibold text-dark" id="mb-stat-sum">–</div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="text-muted small">Fornyede medlemmer</div>
+                            <div class="fs-5 fw-semibold text-dark" id="mb-stat-renewed">–</div>
+                        </div>
+                        <div>
+                            <div class="text-muted small">Gyldige transaksjoner</div>
+                            <div class="fs-5 fw-semibold text-success" id="mb-stat-valid">–</div>
+                        </div>
+                    </div>
+                    <!-- /Høyre -->
+
                 </div>
+                <!-- /Oppslagspanel + statistikk -->
 
                 <!-- Paginert liste -->
                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -2019,10 +2043,24 @@ function mbCopyToast(msg) {
     el.addEventListener('hidden.bs.toast', () => el.remove());
 }
 
-// Trigger last når income-subtab klikkes
+async function mbLoadRenewalStats() {
+    try {
+        const resp = await fetch('/api/get_renewal_stats.php');
+        const data = await resp.json();
+        if (!data.success) return;
+        document.getElementById('mb-stat-sum').textContent =
+            'kr\u00a0' + parseFloat(data.sum_completed).toLocaleString('nb-NO', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('mb-stat-renewed').textContent = data.count_renewed;
+        document.getElementById('mb-stat-valid').textContent   = data.count_valid;
+    } catch(e) { console.error('mbLoadRenewalStats error', e); }
+}
+
 const mbRenewalTabLink = document.querySelector('a[href="#membership-renewals"]');
 if (mbRenewalTabLink) {
-    mbRenewalTabLink.addEventListener('click', () => setTimeout(() => mbLoadRenewalList(1), 100));
+    mbRenewalTabLink.addEventListener('click', () => setTimeout(() => {
+        mbLoadRenewalList(1);
+        mbLoadRenewalStats();
+    }, 100));
 }
 
 document.getElementById('mb-lookup-input')?.addEventListener('keydown', e => {
