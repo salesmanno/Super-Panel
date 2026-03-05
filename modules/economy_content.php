@@ -182,6 +182,96 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Fornyelser-seksjon -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-arrow-repeat me-2 text-primary"></i>Fornyelser</h6>
+                    </div>
+                    <div class="card-body">
+
+                        <!-- Oppslagspanel -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small text-muted">Slå opp på order_id</label>
+                            <div class="input-group input-group-sm" style="max-width:420px;">
+                                <input type="text" class="form-control" id="renewal-lookup-input" placeholder="Skriv inn order_id…">
+                                <button class="btn btn-outline-secondary" onclick="lookupRenewal()"><i class="bi bi-search"></i></button>
+                            </div>
+                            <div id="renewal-lookup-result" class="mt-3 p-3 border rounded bg-light" style="display:none; max-width:560px;">
+                                <div class="mb-2">
+                                    <span class="text-muted small">Navn</span>
+                                    <div class="fw-semibold" id="rl-name">–</div>
+                                </div>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <label class="form-label small mb-1">Fornyelse status</label>
+                                        <select class="form-select form-select-sm" id="rl-renewal-status">
+                                            <option value="pending">pending</option>
+                                            <option value="payment_pending">payment_pending</option>
+                                            <option value="completed">completed</option>
+                                            <option value="cancelled">cancelled</option>
+                                            <option value="expired">expired</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small mb-1">Betalingsstatus (membership)</label>
+                                        <select class="form-select form-select-sm" id="rl-payment-status">
+                                            <option value="paid">paid</option>
+                                            <option value="unpaid">unpaid</option>
+                                            <option value="pending">pending</option>
+                                            <option value="refunded">refunded</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small mb-1">Utløpsdato (membership)</label>
+                                    <input type="date" class="form-control form-control-sm" id="rl-expiration-date" style="max-width:200px;">
+                                </div>
+                                <input type="hidden" id="rl-renewal-id">
+                                <input type="hidden" id="rl-member-id">
+                                <div class="d-flex align-items-center gap-2">
+                                    <button class="btn btn-sm btn-primary" onclick="saveRenewalLookup()">
+                                        <i class="bi bi-floppy me-1"></i>Lagre
+                                    </button>
+                                    <span id="rl-save-msg" class="small"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Liste -->
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-semibold small">Alle fornyelser</span>
+                            <div class="input-group input-group-sm" style="max-width:300px;">
+                                <input type="text" class="form-control" id="renewal-search" placeholder="Søk order_id…">
+                                <button class="btn btn-outline-secondary" onclick="loadRenewalList(1)"><i class="bi bi-search"></i></button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Navn</th>
+                                        <th>Plan</th>
+                                        <th class="text-end">Beløp</th>
+                                        <th>Status</th>
+                                        <th>Dato</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="renewal-list-body">
+                                    <tr><td colspan="5" class="text-center text-muted py-3">Laster…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2" id="renewal-pagination" style="display:none!important;">
+                            <button class="btn btn-sm btn-outline-secondary" id="renewal-prev" onclick="loadRenewalList(renewalPage - 1)" disabled>&#8592;</button>
+                            <span class="small text-muted" id="renewal-page-info">Side 1 av 1</span>
+                            <button class="btn btn-sm btn-outline-secondary" id="renewal-next" onclick="loadRenewalList(renewalPage + 1)" disabled>&#8594;</button>
+                        </div>
+
+                    </div>
+                </div>
+                <!-- /Fornyelser-seksjon -->
+
             </div>
         </div>
     </div>
@@ -1303,7 +1393,7 @@ document.addEventListener('subtab-changed', function(event) {
     
     const subtab = event.detail.subtab;
     if (subtab === 'economy-results') loadEconomyOverview();
-    else if (subtab === 'economy-income') loadIncomeData();
+    else if (subtab === 'economy-income') { loadIncomeData(); loadRenewalList(1); }
     else if (subtab === 'economy-expense') loadExpenseData();
     else if (subtab === 'economy-pending') loadPendingPayments();
     else if (subtab === 'economy-payment') loadPaymentGateways();
@@ -1889,5 +1979,202 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }, 200);
+});
+
+// ── Fornyelser ────────────────────────────────────────────────────────────────
+
+let renewalPage       = 1;
+let renewalTotalPages = 1;
+
+const renewalStatusColors = {
+    completed:       'rgba(25,135,84,0.12)',
+    pending:         'rgba(255,193,7,0.2)',
+    payment_pending: 'rgba(13,202,240,0.15)',
+    cancelled:       'rgba(220,53,69,0.12)',
+    expired:         'rgba(108,117,125,0.12)',
+};
+
+function renewalStatusBg(status) {
+    return renewalStatusColors[status] || '';
+}
+
+async function lookupRenewal() {
+    const order_id = document.getElementById('renewal-lookup-input').value.trim();
+    if (!order_id) return;
+    const res = document.getElementById('renewal-lookup-result');
+    res.style.display = 'none';
+    document.getElementById('rl-save-msg').textContent = '';
+    try {
+        const resp = await fetch('/api/get_membership_renewals.php?lookup=' + encodeURIComponent(order_id));
+        const data = await resp.json();
+        if (!data.success) {
+            alert(data.message || 'Ikke funnet');
+            return;
+        }
+        const r = data.row;
+        document.getElementById('rl-name').textContent       = (r.first_name || '') + ' ' + (r.last_name || '');
+        document.getElementById('rl-renewal-id').value       = r.id;
+        document.getElementById('rl-member-id').value        = r.membership_member_id;
+        document.getElementById('rl-renewal-status').value   = r.renewal_status || 'pending';
+        document.getElementById('rl-payment-status').value   = r.payment_status  || 'unpaid';
+        document.getElementById('rl-expiration-date').value  = r.expiration_date  || '';
+        res.style.display = 'block';
+    } catch(e) {
+        console.error('Lookup error', e);
+    }
+}
+
+async function saveRenewalLookup() {
+    const renewal_id   = document.getElementById('rl-renewal-id').value;
+    const member_id    = document.getElementById('rl-member-id').value;
+    const rnStatus     = document.getElementById('rl-renewal-status').value;
+    const payStatus    = document.getElementById('rl-payment-status').value;
+    const expDate      = document.getElementById('rl-expiration-date').value;
+    const msgEl        = document.getElementById('rl-save-msg');
+    msgEl.textContent  = '';
+    msgEl.className    = 'small';
+
+    try {
+        const [r1, r2] = await Promise.all([
+            fetch('/api/update_renewal_status.php', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({id: renewal_id, status: rnStatus})
+            }).then(r => r.json()),
+            fetch('/api/update_member_fields.php', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({membership_member_id: member_id, payment_status: payStatus, expiration_date: expDate})
+            }).then(r => r.json()),
+        ]);
+
+        if (r1.success && r2.success) {
+            msgEl.textContent = '✓ Lagret';
+            msgEl.className   = 'small text-success';
+            loadRenewalList(renewalPage);
+        } else {
+            msgEl.textContent = (r1.message || r2.message || 'Feil ved lagring');
+            msgEl.className   = 'small text-danger';
+        }
+    } catch(e) {
+        msgEl.textContent = 'Nettverksfeil';
+        msgEl.className   = 'small text-danger';
+    }
+}
+
+async function loadRenewalList(page) {
+    page = page || 1;
+    renewalPage = page;
+    const search = encodeURIComponent(document.getElementById('renewal-search')?.value?.trim() || '');
+    const tbody  = document.getElementById('renewal-list-body');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Laster…</td></tr>';
+
+    try {
+        const resp = await fetch(`/api/get_membership_renewals.php?page=${page}&per_page=10&search=${search}`);
+        const data = await resp.json();
+        if (!data.success) { tbody.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-2">Feil ved lasting</td></tr>'; return; }
+
+        renewalTotalPages = Math.max(1, Math.ceil(data.total / data.per_page));
+
+        if (!data.rows || data.rows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Ingen fornyelser funnet</td></tr>';
+        } else {
+            tbody.innerHTML = data.rows.map(r => {
+                const dateStr = r.created_at ? r.created_at.substring(0, 10) : '–';
+                const amount  = r.amount ? 'kr ' + parseFloat(r.amount).toFixed(2) : '–';
+                const bg      = renewalStatusBg(r.renewal_status);
+                const options = ['pending','payment_pending','completed','cancelled','expired']
+                    .map(s => `<option value="${s}"${s===r.renewal_status?' selected':''}>${s}</option>`).join('');
+                return `<tr>
+                    <td>
+                        <span data-bs-toggle="tooltip" data-bs-placement="right" title="order_id: ${r.order_id}">
+                            ${r.member_name || '–'}
+                        </span>
+                        <span class="ms-1 text-muted" style="cursor:pointer;" title="Kopier order_id"
+                              onclick="navigator.clipboard.writeText('${r.order_id}').then(()=>showRenewalCopyToast())">
+                            <i class="bi bi-clipboard" style="font-size:.75rem;"></i>
+                        </span>
+                    </td>
+                    <td class="text-muted small">${r.plan_name || '–'}</td>
+                    <td class="text-end">${amount}</td>
+                    <td>
+                        <select class="form-select form-select-sm border-0 px-1"
+                                style="background:${bg}; width:auto; min-width:130px;"
+                                onchange="updateRenewalStatus('${r.id}', this.value, this)">
+                            ${options}
+                        </select>
+                    </td>
+                    <td class="text-muted small">${dateStr}</td>
+                </tr>`;
+            }).join('');
+
+            // Init Bootstrap tooltips for new rows
+            tbody.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+        }
+
+        // Pagination
+        const pageInfo = document.getElementById('renewal-page-info');
+        const prevBtn  = document.getElementById('renewal-prev');
+        const nextBtn  = document.getElementById('renewal-next');
+        const pagDiv   = document.getElementById('renewal-pagination');
+
+        pageInfo.textContent     = `Side ${renewalPage} av ${renewalTotalPages}`;
+        prevBtn.disabled         = renewalPage <= 1;
+        nextBtn.disabled         = renewalPage >= renewalTotalPages;
+        pagDiv.style.display     = data.total > data.per_page ? 'flex' : 'none';
+
+    } catch(e) {
+        console.error('loadRenewalList error', e);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-2">Nettverksfeil</td></tr>';
+    }
+}
+
+async function updateRenewalStatus(id, status, selectEl) {
+    try {
+        const resp = await fetch('/api/update_renewal_status.php', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({id, status})
+        });
+        const data = await resp.json();
+        if (data.success) {
+            if (selectEl) selectEl.style.background = renewalStatusBg(status);
+            showRenewalCopyToast('Status oppdatert');
+        } else {
+            alert(data.message || 'Feil ved oppdatering');
+        }
+    } catch(e) {
+        console.error('updateRenewalStatus error', e);
+    }
+}
+
+function showRenewalCopyToast(msg) {
+    msg = msg || 'order_id kopiert';
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        container.style.zIndex = '9999';
+        document.body.appendChild(container);
+    }
+    const id = 'rt' + Date.now();
+    container.insertAdjacentHTML('beforeend', `
+        <div id="${id}" class="toast align-items-center text-bg-success border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body">${msg}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>`);
+    const el = document.getElementById(id);
+    new bootstrap.Toast(el, {delay:2000}).show();
+    el.addEventListener('hidden.bs.toast', () => el.remove());
+}
+
+document.getElementById('renewal-lookup-input')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') lookupRenewal();
+});
+document.getElementById('renewal-search')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') loadRenewalList(1);
 });
 </script>
