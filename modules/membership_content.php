@@ -193,95 +193,6 @@
                     </div>
                 </div>
 
-                <!-- Fornyelsesliste -->
-                <div class="card mb-3">
-                    <div class="card-header py-2">
-                        <h6 class="mb-0"><i class="bi bi-arrow-repeat me-2 text-primary"></i>Fornyelser</h6>
-                    </div>
-                    <div class="card-body py-2">
-
-                        <!-- Oppslagspanel -->
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold small text-muted mb-1">Slå opp på order_id</label>
-                            <div class="input-group input-group-sm" style="max-width:420px;">
-                                <input type="text" class="form-control" id="mb-lookup-input" placeholder="Skriv inn order_id…">
-                                <button class="btn btn-outline-secondary" onclick="mbLookupRenewal()"><i class="bi bi-search"></i></button>
-                            </div>
-                            <div id="mb-lookup-result" class="mt-2 p-3 border rounded bg-light" style="display:none; max-width:560px;">
-                                <div class="mb-2">
-                                    <span class="text-muted small">Navn</span>
-                                    <div class="fw-semibold" id="mb-rl-name">–</div>
-                                </div>
-                                <div class="row g-2 mb-2">
-                                    <div class="col-6">
-                                        <label class="form-label small mb-1">Fornyelse status</label>
-                                        <select class="form-select form-select-sm" id="mb-rl-renewal-status">
-                                            <option value="pending">pending</option>
-                                            <option value="payment_pending">payment_pending</option>
-                                            <option value="completed">completed</option>
-                                            <option value="cancelled">cancelled</option>
-                                            <option value="expired">expired</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label small mb-1">Betalingsstatus (membership)</label>
-                                        <select class="form-select form-select-sm" id="mb-rl-payment-status">
-                                            <option value="paid">paid</option>
-                                            <option value="unpaid">unpaid</option>
-                                            <option value="pending">pending</option>
-                                            <option value="refunded">refunded</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label small mb-1">Utløpsdato (membership)</label>
-                                    <input type="date" class="form-control form-control-sm" id="mb-rl-expiration-date" style="max-width:200px;">
-                                </div>
-                                <input type="hidden" id="mb-rl-renewal-id">
-                                <input type="hidden" id="mb-rl-member-id">
-                                <div class="d-flex align-items-center gap-2">
-                                    <button class="btn btn-sm btn-primary" onclick="mbSaveRenewalLookup()">
-                                        <i class="bi bi-floppy me-1"></i>Lagre
-                                    </button>
-                                    <span id="mb-rl-save-msg" class="small"></span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Paginert liste -->
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-semibold small text-muted">Alle fornyelser</span>
-                            <div class="input-group input-group-sm" style="max-width:300px;">
-                                <input type="text" class="form-control" id="mb-renewal-search" placeholder="Søk order_id…">
-                                <button class="btn btn-outline-secondary" onclick="mbLoadRenewalList(1)"><i class="bi bi-search"></i></button>
-                            </div>
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Navn</th>
-                                        <th>Plan</th>
-                                        <th class="text-end">Beløp</th>
-                                        <th>Status</th>
-                                        <th>Dato</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="mb-renewal-list-body">
-                                    <tr><td colspan="5" class="text-center text-muted py-3">Laster…</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mt-2" id="mb-renewal-pagination" style="display:none;">
-                            <button class="btn btn-sm btn-outline-secondary" id="mb-renewal-prev" onclick="mbLoadRenewalList(mbRenewalPage - 1)" disabled>&#8592;</button>
-                            <span class="small text-muted" id="mb-renewal-page-info">Side 1 av 1</span>
-                            <button class="btn btn-sm btn-outline-secondary" id="mb-renewal-next" onclick="mbLoadRenewalList(mbRenewalPage + 1)" disabled>&#8594;</button>
-                        </div>
-
-                    </div>
-                </div>
-                <!-- /Fornyelsesliste -->
-
                 <div class="row g-2" id="income-calendar-grid">
                     <div class="col-12 text-center text-muted py-4">
                         <div class="spinner-border spinner-border-sm me-2"></div>Laster...
@@ -298,6 +209,95 @@
             </div>
         </div>
     </div>
+
+    <!-- Fornyelse subtab -->
+    <div id="membership-renewals" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+
+                <!-- Oppslagspanel -->
+                <div class="mb-4">
+                    <h6 class="fw-semibold mb-2"><i class="bi bi-search me-2 text-primary"></i>Slå opp på order_id</h6>
+                    <div class="input-group input-group-sm" style="max-width:420px;">
+                        <input type="text" class="form-control" id="mb-lookup-input" placeholder="Skriv inn order_id…">
+                        <button class="btn btn-outline-secondary" onclick="mbLookupRenewal()"><i class="bi bi-search"></i></button>
+                    </div>
+                    <div id="mb-lookup-result" class="mt-2 p-3 border rounded bg-light" style="display:none; max-width:560px;">
+                        <div class="mb-2">
+                            <span class="text-muted small">Navn</span>
+                            <div class="fw-semibold" id="mb-rl-name">–</div>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small mb-1">Fornyelse status</label>
+                                <select class="form-select form-select-sm" id="mb-rl-renewal-status">
+                                    <option value="pending">pending</option>
+                                    <option value="payment_pending">payment_pending</option>
+                                    <option value="completed">completed</option>
+                                    <option value="cancelled">cancelled</option>
+                                    <option value="expired">expired</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small mb-1">Betalingsstatus (membership)</label>
+                                <select class="form-select form-select-sm" id="mb-rl-payment-status">
+                                    <option value="paid">paid</option>
+                                    <option value="unpaid">unpaid</option>
+                                    <option value="pending">pending</option>
+                                    <option value="refunded">refunded</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small mb-1">Utløpsdato (membership)</label>
+                            <input type="date" class="form-control form-control-sm" id="mb-rl-expiration-date" style="max-width:200px;">
+                        </div>
+                        <input type="hidden" id="mb-rl-renewal-id">
+                        <input type="hidden" id="mb-rl-member-id">
+                        <div class="d-flex align-items-center gap-2">
+                            <button class="btn btn-sm btn-primary" onclick="mbSaveRenewalLookup()">
+                                <i class="bi bi-floppy me-1"></i>Lagre
+                            </button>
+                            <span id="mb-rl-save-msg" class="small"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Paginert liste -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-semibold mb-0">Alle fornyelser</h6>
+                    <div class="input-group input-group-sm" style="max-width:300px;">
+                        <input type="text" class="form-control" id="mb-renewal-search" placeholder="Søk order_id…">
+                        <button class="btn btn-outline-secondary" onclick="mbLoadRenewalList(1)"><i class="bi bi-search"></i></button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Navn</th>
+                                <th>Plan</th>
+                                <th class="text-end">Beløp</th>
+                                <th>Status</th>
+                                <th>Dato</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mb-renewal-list-body">
+                            <tr><td colspan="5" class="text-center text-muted py-3">Laster…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-2" id="mb-renewal-pagination" style="display:none;">
+                    <button class="btn btn-sm btn-outline-secondary" id="mb-renewal-prev" onclick="mbLoadRenewalList(mbRenewalPage - 1)" disabled>&#8592;</button>
+                    <span class="small text-muted" id="mb-renewal-page-info">Side 1 av 1</span>
+                    <button class="btn btn-sm btn-outline-secondary" id="mb-renewal-next" onclick="mbLoadRenewalList(mbRenewalPage + 1)" disabled>&#8594;</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <!-- /Fornyelse subtab -->
+
 </div>
 
 <!-- Modal for legg til medlem -->
@@ -1951,9 +1951,9 @@ function mbCopyToast(msg) {
 }
 
 // Trigger last når income-subtab klikkes
-const mbIncomeTabLink = document.querySelector('a[href="#membership-income"]');
-if (mbIncomeTabLink) {
-    mbIncomeTabLink.addEventListener('click', () => setTimeout(() => mbLoadRenewalList(1), 100));
+const mbRenewalTabLink = document.querySelector('a[href="#membership-renewals"]');
+if (mbRenewalTabLink) {
+    mbRenewalTabLink.addEventListener('click', () => setTimeout(() => mbLoadRenewalList(1), 100));
 }
 
 document.getElementById('mb-lookup-input')?.addEventListener('keydown', e => {

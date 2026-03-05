@@ -542,6 +542,9 @@ try {
                     <a class="nav-link" href="#membership-members">Medlemmer</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="#membership-renewals">Fornyelse</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="#membership-income">Medlemsinntekter</a>
                 </li>
                 <li class="nav-item">
