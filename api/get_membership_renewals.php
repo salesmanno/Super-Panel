@@ -80,11 +80,15 @@ try {
             mmr.id,
             mmr.order_id,
             mmr.amount,
-            mmr.status AS renewal_status,
+            mmr.status        AS renewal_status,
             mmr.created_at,
             mmr.payment_method,
+            mm.id             AS membership_member_id,
+            mm.payment_status,
+            mm.expiration_date,
+            mm.kontrollert,
             CONCAT(COALESCE(c.first_name,''), ' ', COALESCE(c.last_name,'')) AS member_name,
-            mp.name AS plan_name
+            mp.name           AS plan_name
         FROM membership_members_renew mmr
         JOIN membership_members mm  ON mm.id  = mmr.membership_member_id
         LEFT JOIN tenant_customers c  ON c.id   = mm.customer_id

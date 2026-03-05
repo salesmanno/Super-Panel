@@ -15,16 +15,37 @@ $company_id = $_SESSION['company_id'];
 $data       = json_decode(file_get_contents('php://input'), true);
 
 $membership_member_id = trim($data['membership_member_id'] ?? '');
-$payment_status       = trim($data['payment_status']       ?? '');
-$expiration_date      = trim($data['expiration_date']      ?? '');
-
-$allowed_payment = ['paid', 'unpaid', 'pending', 'refunded'];
+$allowed_payment      = ['paid', 'unpaid', 'pending', 'refunded'];
 
 if ($membership_member_id === '') {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'membership_member_id mangler']);
     exit;
 }
+
+// Kontrollert-toggle (standalone)
+if (array_key_exists('kontrollert', $data)) {
+    $kontrollert = $data['kontrollert'] ? 1 : 0;
+    try {
+        $db   = getDBConnection();
+        $stmt = $db->prepare("
+            UPDATE membership_members
+            SET kontrollert = ?
+            WHERE id = ? AND company_id = ?
+        ");
+        $stmt->execute([$kontrollert, $membership_member_id, $company_id]);
+        echo json_encode(['success' => true, 'kontrollert' => $kontrollert]);
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// Full update: payment_status + expiration_date
+$payment_status  = trim($data['payment_status']  ?? '');
+$expiration_date = trim($data['expiration_date'] ?? '');
+
 if (!in_array($payment_status, $allowed_payment, true)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Ugyldig payment_status']);
