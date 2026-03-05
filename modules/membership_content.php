@@ -193,6 +193,95 @@
                     </div>
                 </div>
 
+                <!-- Fornyelsesliste -->
+                <div class="card mb-3">
+                    <div class="card-header py-2">
+                        <h6 class="mb-0"><i class="bi bi-arrow-repeat me-2 text-primary"></i>Fornyelser</h6>
+                    </div>
+                    <div class="card-body py-2">
+
+                        <!-- Oppslagspanel -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small text-muted mb-1">Slå opp på order_id</label>
+                            <div class="input-group input-group-sm" style="max-width:420px;">
+                                <input type="text" class="form-control" id="mb-lookup-input" placeholder="Skriv inn order_id…">
+                                <button class="btn btn-outline-secondary" onclick="mbLookupRenewal()"><i class="bi bi-search"></i></button>
+                            </div>
+                            <div id="mb-lookup-result" class="mt-2 p-3 border rounded bg-light" style="display:none; max-width:560px;">
+                                <div class="mb-2">
+                                    <span class="text-muted small">Navn</span>
+                                    <div class="fw-semibold" id="mb-rl-name">–</div>
+                                </div>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <label class="form-label small mb-1">Fornyelse status</label>
+                                        <select class="form-select form-select-sm" id="mb-rl-renewal-status">
+                                            <option value="pending">pending</option>
+                                            <option value="payment_pending">payment_pending</option>
+                                            <option value="completed">completed</option>
+                                            <option value="cancelled">cancelled</option>
+                                            <option value="expired">expired</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small mb-1">Betalingsstatus (membership)</label>
+                                        <select class="form-select form-select-sm" id="mb-rl-payment-status">
+                                            <option value="paid">paid</option>
+                                            <option value="unpaid">unpaid</option>
+                                            <option value="pending">pending</option>
+                                            <option value="refunded">refunded</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small mb-1">Utløpsdato (membership)</label>
+                                    <input type="date" class="form-control form-control-sm" id="mb-rl-expiration-date" style="max-width:200px;">
+                                </div>
+                                <input type="hidden" id="mb-rl-renewal-id">
+                                <input type="hidden" id="mb-rl-member-id">
+                                <div class="d-flex align-items-center gap-2">
+                                    <button class="btn btn-sm btn-primary" onclick="mbSaveRenewalLookup()">
+                                        <i class="bi bi-floppy me-1"></i>Lagre
+                                    </button>
+                                    <span id="mb-rl-save-msg" class="small"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Paginert liste -->
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-semibold small text-muted">Alle fornyelser</span>
+                            <div class="input-group input-group-sm" style="max-width:300px;">
+                                <input type="text" class="form-control" id="mb-renewal-search" placeholder="Søk order_id…">
+                                <button class="btn btn-outline-secondary" onclick="mbLoadRenewalList(1)"><i class="bi bi-search"></i></button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Navn</th>
+                                        <th>Plan</th>
+                                        <th class="text-end">Beløp</th>
+                                        <th>Status</th>
+                                        <th>Dato</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="mb-renewal-list-body">
+                                    <tr><td colspan="5" class="text-center text-muted py-3">Laster…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2" id="mb-renewal-pagination" style="display:none;">
+                            <button class="btn btn-sm btn-outline-secondary" id="mb-renewal-prev" onclick="mbLoadRenewalList(mbRenewalPage - 1)" disabled>&#8592;</button>
+                            <span class="small text-muted" id="mb-renewal-page-info">Side 1 av 1</span>
+                            <button class="btn btn-sm btn-outline-secondary" id="mb-renewal-next" onclick="mbLoadRenewalList(mbRenewalPage + 1)" disabled>&#8594;</button>
+                        </div>
+
+                    </div>
+                </div>
+                <!-- /Fornyelsesliste -->
+
                 <div class="row g-2" id="income-calendar-grid">
                     <div class="col-12 text-center text-muted py-4">
                         <div class="spinner-border spinner-border-sm me-2"></div>Laster...
@@ -1695,4 +1784,182 @@ if (typeof escapeH !== 'function') {
         return d.innerHTML;
     }
 }
+
+// ── Fornyelsesliste (membership-income) ──────────────────────────────────────
+
+let mbRenewalPage       = 1;
+let mbRenewalTotalPages = 1;
+
+const mbRenewalStatusColors = {
+    completed:       'rgba(25,135,84,0.12)',
+    pending:         'rgba(255,193,7,0.2)',
+    payment_pending: 'rgba(13,202,240,0.15)',
+    cancelled:       'rgba(220,53,69,0.12)',
+    expired:         'rgba(108,117,125,0.12)',
+};
+
+async function mbLookupRenewal() {
+    const order_id = document.getElementById('mb-lookup-input').value.trim();
+    if (!order_id) return;
+    const resultEl = document.getElementById('mb-lookup-result');
+    resultEl.style.display = 'none';
+    document.getElementById('mb-rl-save-msg').textContent = '';
+    try {
+        const resp = await fetch('/api/get_membership_renewals.php?lookup=' + encodeURIComponent(order_id));
+        const data = await resp.json();
+        if (!data.success) { alert(data.message || 'Ikke funnet'); return; }
+        const r = data.row;
+        document.getElementById('mb-rl-name').textContent           = ((r.first_name || '') + ' ' + (r.last_name || '')).trim() || '–';
+        document.getElementById('mb-rl-renewal-id').value           = r.id;
+        document.getElementById('mb-rl-member-id').value            = r.membership_member_id;
+        document.getElementById('mb-rl-renewal-status').value       = r.renewal_status  || 'pending';
+        document.getElementById('mb-rl-payment-status').value       = r.payment_status   || 'unpaid';
+        document.getElementById('mb-rl-expiration-date').value      = r.expiration_date  || '';
+        resultEl.style.display = 'block';
+    } catch(e) { console.error('mbLookupRenewal error', e); }
+}
+
+async function mbSaveRenewalLookup() {
+    const renewal_id = document.getElementById('mb-rl-renewal-id').value;
+    const member_id  = document.getElementById('mb-rl-member-id').value;
+    const rnStatus   = document.getElementById('mb-rl-renewal-status').value;
+    const payStatus  = document.getElementById('mb-rl-payment-status').value;
+    const expDate    = document.getElementById('mb-rl-expiration-date').value;
+    const msgEl      = document.getElementById('mb-rl-save-msg');
+    msgEl.textContent = ''; msgEl.className = 'small';
+    try {
+        const [r1, r2] = await Promise.all([
+            fetch('/api/update_renewal_status.php', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({id: renewal_id, status: rnStatus})
+            }).then(r => r.json()),
+            fetch('/api/update_member_fields.php', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({membership_member_id: member_id, payment_status: payStatus, expiration_date: expDate})
+            }).then(r => r.json()),
+        ]);
+        if (r1.success && r2.success) {
+            msgEl.textContent = '✓ Lagret'; msgEl.className = 'small text-success';
+            mbLoadRenewalList(mbRenewalPage);
+        } else {
+            msgEl.textContent = r1.message || r2.message || 'Feil ved lagring';
+            msgEl.className = 'small text-danger';
+        }
+    } catch(e) { document.getElementById('mb-rl-save-msg').textContent = 'Nettverksfeil'; }
+}
+
+async function mbLoadRenewalList(page) {
+    page = page || 1;
+    mbRenewalPage = page;
+    const search = encodeURIComponent(document.getElementById('mb-renewal-search')?.value?.trim() || '');
+    const tbody  = document.getElementById('mb-renewal-list-body');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Laster…</td></tr>';
+    try {
+        const resp = await fetch(`/api/get_membership_renewals.php?page=${page}&per_page=10&search=${search}`);
+        const data = await resp.json();
+        if (!data.success) { tbody.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-2">Feil ved lasting</td></tr>'; return; }
+
+        mbRenewalTotalPages = Math.max(1, Math.ceil(data.total / data.per_page));
+
+        if (!data.rows || data.rows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Ingen fornyelser</td></tr>';
+        } else {
+            tbody.innerHTML = data.rows.map(r => {
+                const dateStr = r.created_at ? r.created_at.substring(0, 10) : '–';
+                const amount  = r.amount ? 'kr ' + parseFloat(r.amount).toFixed(2) : '–';
+                const bg      = mbRenewalStatusColors[r.renewal_status] || '';
+                const opts    = ['pending','payment_pending','completed','cancelled','expired']
+                    .map(s => `<option value="${s}"${s===r.renewal_status?' selected':''}>${s}</option>`).join('');
+                const safeId    = r.id.replace(/'/g, '');
+                const safeOrder = r.order_id.replace(/'/g, '').replace(/`/g, '');
+                return `<tr>
+                    <td>
+                        <span data-bs-toggle="tooltip" data-bs-placement="right" title="order_id: ${escapeH(r.order_id)}">
+                            ${escapeH(r.member_name || '–')}
+                        </span>
+                        <span class="ms-1 text-muted" style="cursor:pointer;" title="Kopier order_id"
+                              onclick="navigator.clipboard.writeText(${JSON.stringify(r.order_id)}).then(()=>mbCopyToast())">
+                            <i class="bi bi-clipboard" style="font-size:.75rem;"></i>
+                        </span>
+                    </td>
+                    <td class="text-muted small">${escapeH(r.plan_name || '–')}</td>
+                    <td class="text-end">${amount}</td>
+                    <td>
+                        <select class="form-select form-select-sm border-0 px-1"
+                                style="background:${bg}; width:auto; min-width:130px;"
+                                onchange="mbUpdateRenewalStatus(${JSON.stringify(r.id)}, this.value, this)">
+                            ${opts}
+                        </select>
+                    </td>
+                    <td class="text-muted small">${dateStr}</td>
+                </tr>`;
+            }).join('');
+            tbody.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+        }
+
+        const pagDiv   = document.getElementById('mb-renewal-pagination');
+        const pageInfo = document.getElementById('mb-renewal-page-info');
+        const prevBtn  = document.getElementById('mb-renewal-prev');
+        const nextBtn  = document.getElementById('mb-renewal-next');
+        pageInfo.textContent = `Side ${mbRenewalPage} av ${mbRenewalTotalPages}`;
+        prevBtn.disabled     = mbRenewalPage <= 1;
+        nextBtn.disabled     = mbRenewalPage >= mbRenewalTotalPages;
+        pagDiv.style.display = data.total > data.per_page ? 'flex' : 'none';
+
+    } catch(e) {
+        console.error('mbLoadRenewalList error', e);
+        document.getElementById('mb-renewal-list-body').innerHTML =
+            '<tr><td colspan="5" class="text-danger text-center py-2">Nettverksfeil</td></tr>';
+    }
+}
+
+async function mbUpdateRenewalStatus(id, status, selectEl) {
+    try {
+        const resp = await fetch('/api/update_renewal_status.php', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({id, status})
+        });
+        const data = await resp.json();
+        if (data.success) {
+            if (selectEl) selectEl.style.background = mbRenewalStatusColors[status] || '';
+            mbCopyToast('Status oppdatert');
+        } else { alert(data.message || 'Feil ved oppdatering'); }
+    } catch(e) { console.error('mbUpdateRenewalStatus error', e); }
+}
+
+function mbCopyToast(msg) {
+    msg = msg || 'order_id kopiert';
+    let container = document.getElementById('mb-toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'mb-toast-container';
+        container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        container.style.zIndex = '9999';
+        document.body.appendChild(container);
+    }
+    const uid = 'mbt' + Date.now();
+    container.insertAdjacentHTML('beforeend', `
+        <div id="${uid}" class="toast align-items-center text-bg-success border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body">${msg}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>`);
+    const el = document.getElementById(uid);
+    new bootstrap.Toast(el, {delay:2000}).show();
+    el.addEventListener('hidden.bs.toast', () => el.remove());
+}
+
+// Trigger last når income-subtab klikkes
+const mbIncomeTabLink = document.querySelector('a[href="#membership-income"]');
+if (mbIncomeTabLink) {
+    mbIncomeTabLink.addEventListener('click', () => setTimeout(() => mbLoadRenewalList(1), 100));
+}
+
+document.getElementById('mb-lookup-input')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') mbLookupRenewal();
+});
+document.getElementById('mb-renewal-search')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') mbLoadRenewalList(1);
+});
 </script>
