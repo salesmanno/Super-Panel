@@ -3407,7 +3407,7 @@ async function loadCheckins(eventId) {
                     const customerName = checkin.customer_name || 'Ukjent';
                     const customerEmail = checkin.customer_email || '';
                     const checkinTime = checkin.check_in_time 
-                        ? (checkin.check_in_time ? checkin.check_in_time.substring(11, 16) || new Date(checkin.check_in_time).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) : '') 
+                        ? (checkin.check_in_time ? checkin.check_in_time.substring(11, 16) || new Date(checkin.check_in_time).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit', hour12: false}) : '') 
                         : '-';
                     const membershipPlanName = checkin.membership_plan_name || null;
                     const isNoShow = checkin.payment_status === 'no_show';
@@ -6268,6 +6268,11 @@ function wizardGoToStep(step) {
     // Update summary on last step
     if (step === wizardTotalSteps) {
         updateWizardSummary();
+        // Hide registration fields section if no registration
+        const regFieldsSection = document.getElementById('registration-fields-section');
+        if (regFieldsSection) {
+            regFieldsSection.style.display = regType === 'none' ? 'none' : '';
+        }
     }
     
     // Initialize map when entering step 3

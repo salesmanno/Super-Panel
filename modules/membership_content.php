@@ -86,7 +86,7 @@
                     <div class="col-4">
                         <div class="border rounded p-2 text-center">
                             <div class="fs-5 fw-semibold" id="stat-total">—</div>
-                            <div class="text-muted" style="font-size:0.75rem;">Totale medlemmer</div>
+                            <div class="text-muted" style="font-size:0.75rem;">Aktive betalende</div>
                         </div>
                     </div>
                     <div class="col-4">

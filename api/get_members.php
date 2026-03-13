@@ -19,6 +19,8 @@ try {
             SELECT COUNT(*) FROM membership_members
             WHERE company_id = ?
               AND (cancellation_active IS NULL OR cancellation_active = 0)
+              AND payment_status = 'paid'
+              AND expiration_date > CURDATE()
         ");
         $totalStmt->execute([$companyId]);
         $total = (int)$totalStmt->fetchColumn();

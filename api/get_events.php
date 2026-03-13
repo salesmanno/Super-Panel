@@ -47,7 +47,8 @@ try {
         LEFT JOIN tenant_admins ta ON e.created_by = ta.id
         LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
         WHERE e.company_id = ? AND e.is_active = 1
-        ORDER BY e.start_date DESC, e.start_time DESC
+          AND e.start_date >= DATE_SUB(CURDATE(), INTERVAL 1 DAY)
+        ORDER BY e.start_date ASC, e.start_time ASC
     ");
     
     $stmt->execute([$_SESSION['company_id']]);
