@@ -41,6 +41,7 @@ try {
         'automail_membership_welcome',
         'automail_membership_renewal',
         'automail_membership_expired',
+        'automail_membership_reminder',
         'automail_reservation_confirm',
         'automail_reservation_reminder',
         'automail_rental_confirm',
