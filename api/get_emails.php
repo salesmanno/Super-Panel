@@ -128,6 +128,21 @@ try {
             if ($overview && is_array($overview)) {
                 $overview = array_reverse($overview);
                 
+                $isBounceFilterActive = ($targetFolder === 'INBOX');
+                $bounceFromPatterns  = ['mailer-daemon', 'postmaster'];
+                $bounceSubjectPhrases = [
+                    'mail delivery failed',
+                    'undelivered mail',
+                    'delivery status notification',
+                    'failure notice',
+                    'delivery failure',
+                    'returned mail',
+                    'auto: ',
+                    'automatisk svar',
+                    'non-delivery',
+                    'undeliverable',
+                ];
+
                 foreach ($overview as $msg) {
                     $from = isset($msg->from) ? @imap_utf8($msg->from) : '';
                     $subject = isset($msg->subject) ? @imap_utf8($msg->subject) : '(Ingen emne)';
@@ -136,7 +151,22 @@ try {
                     $fromEmail = $emailMatch[1] ?? $from;
                     $fromName = trim(preg_replace('/<[^>]+>/', '', $from));
                     if (empty($fromName)) $fromName = $fromEmail;
-                    
+
+                    if ($isBounceFilterActive) {
+                        $fromLower    = strtolower($fromEmail);
+                        $subjectLower = strtolower($subject);
+                        $isBounce = false;
+                        foreach ($bounceFromPatterns as $p) {
+                            if (str_contains($fromLower, $p)) { $isBounce = true; break; }
+                        }
+                        if (!$isBounce) {
+                            foreach ($bounceSubjectPhrases as $p) {
+                                if (str_contains($subjectLower, $p)) { $isBounce = true; break; }
+                            }
+                        }
+                        if ($isBounce) continue;
+                    }
+
                     $emails[] = [
                         'uid' => $msg->uid ?? $msg->msgno,
                         'msgno' => $msg->msgno,
