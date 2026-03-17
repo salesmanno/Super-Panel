@@ -174,10 +174,15 @@ function processEmail($db, $email) {
         }
 
     } catch (\Throwable $e) {
-        $attempts   = ($email['attempts'] ?? 0) + 1;
+        $attempts    = ($email['attempts'] ?? 0) + 1;
         $maxAttempts = $email['max_attempts'] ?? 3;
+        $errorMsg    = $e->getMessage();
 
-        if ($attempts < $maxAttempts) {
+        // 5xx SMTP-koder = permanent feil (ugyldig adresse, bruker finnes ikke, osv.)
+        // Ikke forsøk på nytt — sett direkte til 'failed'
+        $isPermanentSmtpError = (bool)preg_match('/fikk:\s*5\d\d/i', $errorMsg);
+
+        if (!$isPermanentSmtpError && $attempts < $maxAttempts) {
             $delayIndex   = min($attempts - 1, count($RETRY_DELAYS) - 1);
             $delayMinutes = $RETRY_DELAYS[$delayIndex];
 
@@ -190,8 +195,8 @@ function processEmail($db, $email) {
                     updated_at = NOW()
                 WHERE id = ?
             ");
-            $stmt->execute([$attempts, $e->getMessage(), $email['id']]);
-            echo "✗ Feilet (forsøk {$attempts}/{$maxAttempts}): {$email['id']} - {$e->getMessage()}\n";
+            $stmt->execute([$attempts, $errorMsg, $email['id']]);
+            echo "✗ Feilet (forsøk {$attempts}/{$maxAttempts}): {$email['id']} - {$errorMsg}\n";
         } else {
             $stmt = $db->prepare("
                 UPDATE email_queue
@@ -201,11 +206,12 @@ function processEmail($db, $email) {
                     updated_at = NOW()
                 WHERE id = ?
             ");
-            $stmt->execute([$attempts, $e->getMessage(), $email['id']]);
-            echo "✗✗ Permanent feil: {$email['id']} - {$e->getMessage()}\n";
+            $stmt->execute([$attempts, $errorMsg, $email['id']]);
+            $reason = $isPermanentSmtpError ? 'Permanent SMTP-feil (5xx)' : 'Maks forsøk nådd';
+            echo "✗✗ {$reason}: {$email['id']} - {$errorMsg}\n";
         }
 
-        error_log("E-post sendefeil (ID: {$email['id']}): " . $e->getMessage());
+        error_log("E-post sendefeil (ID: {$email['id']}): " . $errorMsg);
     }
 }
 
