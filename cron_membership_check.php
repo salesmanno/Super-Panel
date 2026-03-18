@@ -153,6 +153,7 @@ try {
                 '{{company_phone}}'   => $contactPhone,
                 '{{subdomain}}'       => $subdomain,
                 '{{share_code}}'      => $m['share_code']  ?? '',
+                '{{sharecode}}'       => $m['share_code']  ?? '',
                 '{{member_code}}'     => $m['member_code'] ?? '',
             ];
             $subject = str_replace(array_keys($placeholders), array_values($placeholders), $template['subject_template']);
