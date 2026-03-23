@@ -458,8 +458,7 @@
                     <div class="col-md-4">
                         <label class="form-label form-label-sm fw-semibold">Fakturatype</label>
                         <select id="inv-type" class="form-select form-select-sm" onchange="ecToggleFormByType(this.value)">
-                            <option value="general">Generell</option>
-                            <option value="new_member">Nytt medlemskap</option>
+                            <option value="new_member" selected>Nytt medlemskap</option>
                             <option value="renewal">Fornyelse</option>
                         </select>
                     </div>
@@ -1536,8 +1535,8 @@ function ecToggleCreateForm() {
     const isHidden = form.style.display === 'none';
     form.style.display = isHidden ? 'block' : 'none';
     if (isHidden) {
-        document.getElementById('inv-type').value = 'general';
-        ecToggleFormByType('general');
+        document.getElementById('inv-type').value = 'new_member';
+        ecToggleFormByType('new_member');
         document.getElementById('inv-notes').value = ecActiveTerms || '';
         document.getElementById('inv-manual-customer-fields').style.display = 'none';
         ecApplyConfig();
