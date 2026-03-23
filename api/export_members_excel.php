@@ -56,8 +56,6 @@ try {
         LEFT JOIN membership_plans p ON mm.membership_plan_id = p.id
         WHERE mm.company_id = ?
           AND (mm.cancellation_active IS NULL OR mm.cancellation_active = 0)
-          AND mm.payment_status = 'paid'
-          AND mm.expiration_date > CURDATE()
         ORDER BY c.last_name ASC, c.first_name ASC
     ");
     $stmt->execute([$companyId]);
