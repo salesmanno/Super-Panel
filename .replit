@@ -53,3 +53,7 @@ expertMode = true
 [deployment]
 run = ["sh", "-c", '''bash -c 'printf "%s\n\n%s" "$0" "$1"' "First argument" "Second argument"''']
 deploymentTarget = "cloudrun"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 30000

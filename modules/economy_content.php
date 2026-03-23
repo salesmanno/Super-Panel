@@ -466,6 +466,12 @@
                         <label class="form-label form-label-sm fw-semibold">Forfallsdato</label>
                         <input type="date" id="inv-due" class="form-control form-control-sm">
                     </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm fw-semibold">Bankkonto</label>
+                        <select id="inv-bank-account" class="form-select form-select-sm">
+                            <option value="">Velg konto...</option>
+                        </select>
+                    </div>
                 </div>
 
                 <hr class="my-2">
@@ -1407,7 +1413,7 @@ let ecInvConfig   = {};
 let ecActiveTerms = '';
 
 async function ecLoadInvoices() {
-    await Promise.all([ecPopulateCustomers(), ecPopulatePlans()]);
+    await Promise.all([ecPopulateCustomers(), ecPopulatePlans(), ecPopulateBankAccounts()]);
     try {
         const [invRes, termsRes] = await Promise.all([
             fetch('/api/get_invoices.php'),
@@ -1632,6 +1638,24 @@ async function ecPopulatePlans() {
     }
 }
 
+async function ecPopulateBankAccounts() {
+    try {
+        const res  = await fetch('/api/get_bank_accounts.php');
+        const data = await res.json();
+        const sel  = document.getElementById('inv-bank-account');
+        if (!sel) return;
+        const accounts = data.accounts || [];
+        sel.innerHTML = '<option value="">Velg konto...</option>'
+            + accounts.map(a => {
+                const label = [a.account_number, a.bank_name].filter(Boolean).join(' – ');
+                return `<option value="${a.id}">${label}</option>`;
+            }).join('');
+    } catch (e) {
+        const sel = document.getElementById('inv-bank-account');
+        if (sel) sel.innerHTML = '<option value="">Feil ved lasting</option>';
+    }
+}
+
 function ecBillingCycleToMonths(cycle) {
     return {monthly: 1, quarterly: 3, yearly: 12}[cycle] ?? 12;
 }
@@ -1649,11 +1673,12 @@ function ecUpdateAmountPreview() {
 }
 
 async function ecCreateInvoice() {
-    const invoiceType = document.getElementById('inv-type').value;
-    const dueDate     = document.getElementById('inv-due').value;
-    const notes       = document.getElementById('inv-notes').value.trim();
-    const btn         = document.querySelector('#invoice-create-form .btn-success');
-    let payload = { invoice_type: invoiceType, due_date: dueDate, notes };
+    const invoiceType   = document.getElementById('inv-type').value;
+    const dueDate       = document.getElementById('inv-due').value;
+    const notes         = document.getElementById('inv-notes').value.trim();
+    const bankAccountId = document.getElementById('inv-bank-account')?.value || null;
+    const btn           = document.querySelector('#invoice-create-form .btn-success');
+    let payload = { invoice_type: invoiceType, due_date: dueDate, notes, bank_account_id: bankAccountId || null };
 
     if (invoiceType === 'general') {
         const customerId = document.getElementById('inv-customer-general').value;

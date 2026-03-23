@@ -19,10 +19,19 @@ $notes              = $body['notes'] ?? null;
 $membershipMemberId = $body['membership_member_id'] ?? null;
 $manualAmount       = isset($body['manual_amount']) ? (float)$body['manual_amount'] : null;
 $manualCustomer     = $body['manual_customer'] ?? null;
+$bankAccountId      = $body['bank_account_id'] ?? null;
 
 try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
+
+    if ($bankAccountId) {
+        $baCheck = $db->prepare("SELECT id FROM economy_bank_accounts WHERE id = ? AND company_id = ? AND is_active = 1");
+        $baCheck->execute([$bankAccountId, $companyId]);
+        if (!$baCheck->fetchColumn()) {
+            $bankAccountId = null;
+        }
+    }
 
     $prefix   = 'INV';
     $startNum = 1000;
@@ -161,12 +170,14 @@ try {
             (id, company_id, customer_id, invoice_number, invoice_date, due_date,
              subtotal, tax_rate, tax_amount, total_amount, currency,
              status, payment_terms, notes, sent_at,
-             invoice_type, membership_plan_id, membership_member_id, created_by_admin_id)
+             invoice_type, membership_plan_id, membership_member_id, created_by_admin_id,
+             bank_account_id)
         VALUES
             (:id, :company_id, :customer_id, :invoice_number, :invoice_date, :due_date,
              :subtotal, 0, 0, :total_amount, :currency,
              'pending', :payment_terms, NULL, NOW(),
-             :invoice_type, :membership_plan_id, :membership_member_id, :created_by_admin_id)
+             :invoice_type, :membership_plan_id, :membership_member_id, :created_by_admin_id,
+             :bank_account_id)
     ");
     $insertStmt->execute([
         'id'                   => $invoiceId,
@@ -182,7 +193,8 @@ try {
         'invoice_type'         => $invoiceType,
         'membership_plan_id'   => $membershipPlanId,
         'membership_member_id' => ($invoiceType === 'renewal') ? $membershipMemberId : null,
-        'created_by_admin_id'  => $_SESSION['tenant_admin_id']
+        'created_by_admin_id'  => $_SESSION['tenant_admin_id'],
+        'bank_account_id'      => $bankAccountId
     ]);
     $db->commit();
 
