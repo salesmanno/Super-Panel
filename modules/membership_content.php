@@ -120,6 +120,80 @@
                         </select>
                     </div>
                 </div>
+
+                <div class="mb-3">
+                    <button class="btn btn-outline-success btn-sm" type="button" id="excel-export-toggle" onclick="toggleExcelExportPanel()">
+                        <i class="bi bi-file-earmark-excel me-1"></i>Last ned Excel
+                    </button>
+                    <div id="excel-export-panel" style="display:none;" class="mt-2 border rounded p-3 bg-light">
+                        <p class="mb-2 small fw-semibold">Velg felt som skal inkluderes i eksporten:</p>
+                        <div class="row g-2 mb-3">
+                            <div class="col-sm-4 col-6">
+                                <div class="form-check">
+                                    <input class="form-check-input excel-field-check" type="checkbox" value="first_name" id="ef-first_name" checked>
+                                    <label class="form-check-label small" for="ef-first_name">Fornavn</label>
+                                </div>
+                            </div>
+                            <div class="col-sm-4 col-6">
+                                <div class="form-check">
+                                    <input class="form-check-input excel-field-check" type="checkbox" value="last_name" id="ef-last_name" checked>
+                                    <label class="form-check-label small" for="ef-last_name">Etternavn</label>
+                                </div>
+                            </div>
+                            <div class="col-sm-4 col-6">
+                                <div class="form-check">
+                                    <input class="form-check-input excel-field-check" type="checkbox" value="email" id="ef-email" checked>
+                                    <label class="form-check-label small" for="ef-email">E-post</label>
+                                </div>
+                            </div>
+                            <div class="col-sm-4 col-6">
+                                <div class="form-check">
+                                    <input class="form-check-input excel-field-check" type="checkbox" value="phone" id="ef-phone" checked>
+                                    <label class="form-check-label small" for="ef-phone">Telefon</label>
+                                </div>
+                            </div>
+                            <div class="col-sm-4 col-6">
+                                <div class="form-check">
+                                    <input class="form-check-input excel-field-check" type="checkbox" value="address" id="ef-address" checked>
+                                    <label class="form-check-label small" for="ef-address">Adresse</label>
+                                </div>
+                            </div>
+                            <div class="col-sm-4 col-6">
+                                <div class="form-check">
+                                    <input class="form-check-input excel-field-check" type="checkbox" value="member_code" id="ef-member_code" checked>
+                                    <label class="form-check-label small" for="ef-member_code">Medlemsnummer</label>
+                                </div>
+                            </div>
+                            <div class="col-sm-4 col-6">
+                                <div class="form-check">
+                                    <input class="form-check-input excel-field-check" type="checkbox" value="membership_type" id="ef-membership_type" checked>
+                                    <label class="form-check-label small" for="ef-membership_type">Medlemskapsplan</label>
+                                </div>
+                            </div>
+                            <div class="col-sm-4 col-6">
+                                <div class="form-check">
+                                    <input class="form-check-input excel-field-check" type="checkbox" value="join_date" id="ef-join_date" checked>
+                                    <label class="form-check-label small" for="ef-join_date">Innmeldingsdato</label>
+                                </div>
+                            </div>
+                            <div class="col-sm-4 col-6">
+                                <div class="form-check">
+                                    <input class="form-check-input excel-field-check" type="checkbox" value="expiry_date" id="ef-expiry_date" checked>
+                                    <label class="form-check-label small" for="ef-expiry_date">Utløpsdato</label>
+                                </div>
+                            </div>
+                            <div class="col-sm-4 col-6">
+                                <div class="form-check">
+                                    <input class="form-check-input excel-field-check" type="checkbox" value="payment_status" id="ef-payment_status" checked>
+                                    <label class="form-check-label small" for="ef-payment_status">Betalingsstatus</label>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-success btn-sm" onclick="downloadMembersExcel()">
+                            <i class="bi bi-download me-1"></i>Last ned
+                        </button>
+                    </div>
+                </div>
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
@@ -2069,4 +2143,22 @@ document.getElementById('mb-lookup-input')?.addEventListener('keydown', e => {
 document.getElementById('mb-renewal-search')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') mbLoadRenewalList(1);
 });
+
+function toggleExcelExportPanel() {
+    const panel = document.getElementById('excel-export-panel');
+    if (panel) {
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+function downloadMembersExcel() {
+    const checks = document.querySelectorAll('.excel-field-check:checked');
+    const fields = Array.from(checks).map(cb => cb.value);
+    if (fields.length === 0) {
+        alert('Velg minst ett felt for eksport.');
+        return;
+    }
+    const url = '../api/export_members_excel.php?fields=' + encodeURIComponent(fields.join(','));
+    window.location.href = url;
+}
 </script>
