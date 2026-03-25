@@ -68,8 +68,8 @@ try {
         $stmt = $db->prepare("
             INSERT INTO tenant_customers (
                 id, company_id, customer_code, first_name, last_name, email, phone,
-                address, address_city, date_of_birth, notes, customer_type, status, is_member, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'individual', 'active', 1, NOW(), NOW())
+                address_street, address_city, address_zip, date_of_birth, notes, customer_type, status, is_member, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'individual', 'active', 1, NOW(), NOW())
         ");
         $stmt->execute([
             $customerId,
@@ -79,8 +79,9 @@ try {
             $data['last_name'],
             $data['email'],
             $data['phone'] ?? null,
-            $data['address'] ?? null,
-            $data['poststed'] ?? null,
+            $data['address_street'] ?? null,
+            $data['address_city'] ?? null,
+            $data['address_zip'] ?? null,
             $data['dateofbirth'] ?? null,
             $data['notes'] ?? null
         ]);
@@ -127,12 +128,18 @@ try {
     $memberCode = 'MBR-' . date('Y') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
     $memberId = bin2hex(random_bytes(18));
     
+    // payment_status: only store 'paid' explicitly; anything else → NULL
+    $paymentStatus = (isset($data['payment_status']) && $data['payment_status'] === 'paid') ? 'paid' : null;
+    
+    // paymentMethod
+    $paymentMethod = !empty($data['paymentMethod']) ? $data['paymentMethod'] : null;
+    
     // Create membership record
     $stmt = $db->prepare("
         INSERT INTO membership_members (
             id, company_id, customer_id, membership_plan_id, member_code,
-            status, join_date, expiration_date, auto_renew, created_at
-        ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, 1, NOW())
+            status, join_date, expiration_date, payment_status, paymentMethod, auto_renew, created_at
+        ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, 1, NOW())
     ");
     
     $stmt->execute([
@@ -142,7 +149,9 @@ try {
         $validPlanId,
         $memberCode,
         $joinDate,
-        $expirationDate
+        $expirationDate,
+        $paymentStatus,
+        $paymentMethod
     ]);
     
     // Update customer as member if not already

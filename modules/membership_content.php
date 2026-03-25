@@ -439,12 +439,16 @@
                             </div>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">Adresse</label>
-                                    <input type="text" class="form-control" name="address">
+                                    <label class="form-label">Gateadresse</label>
+                                    <input type="text" class="form-control" name="address_street">
                                 </div>
-                                <div class="col-md-6 mb-3">
+                                <div class="col-md-3 mb-3">
                                     <label class="form-label">Poststed</label>
-                                    <input type="text" class="form-control" name="poststed">
+                                    <input type="text" class="form-control" name="address_city">
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Postkode</label>
+                                    <input type="text" class="form-control" name="address_zip" maxlength="10">
                                 </div>
                             </div>
                             <div class="row">
@@ -453,8 +457,14 @@
                                     <input type="date" class="form-control" name="dateofbirth">
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">Bilde-URL</label>
-                                    <input type="url" class="form-control" name="image_url" placeholder="https://...">
+                                    <label class="form-label">Betalingsmetode</label>
+                                    <select class="form-select" name="paymentMethod">
+                                        <option value="">— Velg —</option>
+                                        <option value="Vipps">Vipps</option>
+                                        <option value="Kort">Kort</option>
+                                        <option value="Kontant">Kontant</option>
+                                        <option value="Faktura">Faktura</option>
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -944,14 +954,15 @@ async function submitMember() {
         last_name: formData.get('last_name'),
         email: formData.get('email'),
         phone: formData.get('phone'),
-        address: formData.get('address'),
-        poststed: formData.get('poststed'),
+        address_street: formData.get('address_street'),
+        address_city: formData.get('address_city'),
+        address_zip: formData.get('address_zip'),
         dateofbirth: formData.get('dateofbirth'),
         membership_plan_id: formData.get('membership_plan_id') || null,
         notes: formData.get('notes'),
-        image_url: formData.get('image_url') || null,
         join_date: formData.get('join_date') || null,
-        payment_status: formData.get('payment_status') || 'paid'
+        payment_status: formData.get('payment_status') || 'paid',
+        paymentMethod: formData.get('paymentMethod') || null
     };
     
     if (!memberData.first_name || !memberData.last_name || !memberData.email) {
