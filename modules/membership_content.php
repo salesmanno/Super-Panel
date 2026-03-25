@@ -456,16 +456,6 @@
                                     <label class="form-label">Fødselsdato</label>
                                     <input type="date" class="form-control" name="dateofbirth">
                                 </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Betalingsmetode</label>
-                                    <select class="form-select" name="paymentMethod">
-                                        <option value="">— Velg —</option>
-                                        <option value="Vipps">Vipps</option>
-                                        <option value="Kort">Kort</option>
-                                        <option value="Kontant">Kontant</option>
-                                        <option value="Faktura">Faktura</option>
-                                    </select>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -506,7 +496,7 @@
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Startdato</label>
-                                    <input type="date" class="form-control" name="join_date" id="member-join-date">
+                                    <input type="date" class="form-control" name="join_date" id="member-join-date" oninput="updateExpirationPreview()">
                                     <small class="text-muted">Standard: i dag</small>
                                 </div>
                                 <div class="col-md-6 mb-3">
@@ -515,6 +505,23 @@
                                         <option value="paid">Betalt</option>
                                         <option value="unpaid">Ubetalt</option>
                                     </select>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Betalingsmetode</label>
+                                    <select class="form-select" name="paymentMethod">
+                                        <option value="">— Velg —</option>
+                                        <option value="Vipps">Vipps</option>
+                                        <option value="Kort">Kort</option>
+                                        <option value="Kontant">Kontant</option>
+                                        <option value="Faktura">Faktura</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Utløpsdato <small class="text-muted">(beregnes automatisk)</small></label>
+                                    <input type="date" class="form-control bg-light" id="member-expiration-preview" disabled>
+                                    <small class="text-muted" id="member-expiration-hint">Velg plan og startdato</small>
                                 </div>
                             </div>
                             <div class="mb-3">
@@ -1041,6 +1048,7 @@ async function loadPlansForSelect() {
         if (joinDateInput && !joinDateInput.value) {
             joinDateInput.value = new Date().toISOString().split('T')[0];
         }
+        updateExpirationPreview();
         
         const addMemberBtn = document.getElementById('add-member-btn');
         
@@ -1155,6 +1163,39 @@ function selectMembershipPlan(planId, planIndex) {
     } else {
         infoBox.classList.add('d-none');
     }
+    
+    updateExpirationPreview();
+}
+
+function updateExpirationPreview() {
+    const joinDateInput = document.getElementById('member-join-date');
+    const expirationInput = document.getElementById('member-expiration-preview');
+    const hintEl = document.getElementById('member-expiration-hint');
+    const planId = document.getElementById('selected-plan-id') ? document.getElementById('selected-plan-id').value : null;
+    
+    if (!expirationInput) return;
+    
+    const joinDate = joinDateInput && joinDateInput.value
+        ? new Date(joinDateInput.value)
+        : new Date();
+    
+    const daysMap = { monthly: 30, quarterly: 90, yearly: 365 };
+    
+    if (planId && window.membershipPlans) {
+        const plan = window.membershipPlans.find(p => (p.plan_id || p.id) == planId);
+        if (plan) {
+            const days = daysMap[plan.billing_cycle] || 365;
+            const expDate = new Date(joinDate);
+            expDate.setDate(expDate.getDate() + days);
+            expirationInput.value = expDate.toISOString().split('T')[0];
+            const cycleLabel = { monthly: '30 dager', quarterly: '90 dager', yearly: '365 dager' }[plan.billing_cycle] || '365 dager';
+            if (hintEl) hintEl.textContent = `Startdato + ${cycleLabel} (${plan.billing_cycle})`;
+            return;
+        }
+    }
+    
+    expirationInput.value = '';
+    if (hintEl) hintEl.textContent = 'Velg plan og startdato';
 }
 
 async function deleteMember(memberId, memberName) {
