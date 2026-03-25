@@ -78,7 +78,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="card-title mb-0">Medlemsoversikt</h5>
-                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createMemberModal">
+                    <button class="btn btn-primary btn-sm" id="add-member-btn" data-bs-toggle="modal" data-bs-target="#createMemberModal">
                         <i class="bi bi-plus-circle me-1"></i>Legg til medlem
                     </button>
                 </div>
@@ -1043,7 +1043,10 @@ async function loadPlansForSelect() {
             joinDateInput.value = new Date().toISOString().split('T')[0];
         }
         
+        const addMemberBtn = document.getElementById('add-member-btn');
+        
         if (result.success && result.plans && result.plans.length > 0) {
+            if (addMemberBtn) addMemberBtn.style.display = '';
             // Store plans for later use
             window.membershipPlans = result.plans;
             
@@ -1097,6 +1100,7 @@ async function loadPlansForSelect() {
                 selectMembershipPlan(result.plans[0].plan_id, 0);
             }
         } else {
+            if (addMemberBtn) addMemberBtn.style.display = 'none';
             container.innerHTML = `
                 <div class="col-12">
                     <div class="alert alert-warning mb-0">
