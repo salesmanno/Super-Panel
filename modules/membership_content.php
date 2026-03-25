@@ -411,6 +411,20 @@
             </div>
             <div class="modal-body">
                 <form id="create-member-form">
+                    <!-- Kompakt plan-velger øverst -->
+                    <div class="row mb-3 align-items-end">
+                        <div class="col-md-7">
+                            <label class="form-label fw-semibold mb-1"><i class="bi bi-card-checklist me-1"></i>Medlemskapsplan</label>
+                            <select class="form-select" id="plan-select-dropdown" onchange="onPlanDropdownChange(this)">
+                                <option value="">Laster planer...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <small class="text-muted" id="plan-select-hint"></small>
+                        </div>
+                    </div>
+                    <input type="hidden" name="membership_plan_id" id="selected-plan-id">
+
                     <!-- Personinformasjon -->
                     <div class="card mb-3">
                         <div class="card-header bg-light py-2">
@@ -455,33 +469,6 @@
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Fødselsdato</label>
                                     <input type="date" class="form-control" name="dateofbirth">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Velg medlemskapsplan -->
-                    <div class="card mb-3">
-                        <div class="card-header bg-light py-2">
-                            <h6 class="mb-0"><i class="bi bi-card-checklist me-2"></i>Velg medlemskapsplan</h6>
-                        </div>
-                        <div class="card-body">
-                            <div id="membership-plan-cards" class="row g-2 mb-3">
-                                <div class="col-12 text-center text-muted py-3">
-                                    <div class="spinner-border spinner-border-sm me-2"></div>
-                                    Laster planer...
-                                </div>
-                            </div>
-                            <input type="hidden" name="membership_plan_id" id="selected-plan-id">
-                            
-                            <!-- Valgt plan info -->
-                            <div id="selected-plan-info" class="alert alert-success d-none">
-                                <div class="d-flex align-items-center">
-                                    <i class="bi bi-check-circle-fill me-2 fs-4"></i>
-                                    <div>
-                                        <strong id="selected-plan-name">-</strong>
-                                        <div class="small" id="selected-plan-details">-</div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -987,11 +974,12 @@ async function submitMember() {
             bootstrap.Modal.getInstance(document.getElementById('createMemberModal')).hide();
             form.reset();
             document.getElementById('selected-plan-id').value = '';
-            document.getElementById('selected-plan-info').classList.add('d-none');
-            document.querySelectorAll('.plan-card').forEach(c => {
-                c.style.borderColor = 'transparent';
-                c.style.backgroundColor = '';
-            });
+            const planHint = document.getElementById('plan-select-hint');
+            if (planHint) planHint.textContent = '';
+            const planDrop = document.getElementById('plan-select-dropdown');
+            if (planDrop) planDrop.value = '';
+            const payStatus = document.getElementById('member-payment-status');
+            if (payStatus) payStatus.value = 'paid';
             loadMembers();
         } else {
             toast.error(toastId, 'Registrering av medlem', result.message || 'Kunne ikke legge til medlem');
@@ -1030,135 +1018,75 @@ async function loadMembers() {
 }
 
 async function loadPlansForSelect() {
+    const dropdown = document.getElementById('plan-select-dropdown');
+    const hintEl = document.getElementById('plan-select-hint');
+    const addMemberBtn = document.getElementById('add-member-btn');
+
     try {
         const response = await fetch('../api/get_membership_plans.php');
         const result = await response.json();
-        
-        const container = document.getElementById('membership-plan-cards');
-        const hiddenInput = document.getElementById('selected-plan-id');
-        const infoBox = document.getElementById('selected-plan-info');
-        
+
         // Set default join date to today
         const joinDateInput = document.getElementById('member-join-date');
         if (joinDateInput && !joinDateInput.value) {
             joinDateInput.value = new Date().toISOString().split('T')[0];
         }
-        updateExpirationPreview();
-        
-        const addMemberBtn = document.getElementById('add-member-btn');
-        
+
         if (result.success && result.plans && result.plans.length > 0) {
             if (addMemberBtn) addMemberBtn.style.display = '';
-            // Store plans for later use
             window.membershipPlans = result.plans;
-            
-            // Build plan cards
-            let html = '';
+
+            const billingMap = { monthly: 'mnd', quarterly: 'kvartal', yearly: 'år' };
+            let opts = '<option value="">— Ingen plan —</option>';
             result.plans.forEach((plan, index) => {
-                const billingLabel = {
-                    'monthly': 'mnd',
-                    'quarterly': 'kvartal',
-                    'yearly': 'år'
-                }[plan.billing_cycle] || 'periode';
-                
-                const planImage = plan.image_url 
-                    ? `<img src="${plan.image_url}" alt="${plan.name}" class="rounded mb-2" style="height: 40px; width: auto; object-fit: contain;">`
-                    : `<i class="bi bi-card-heading fs-3 text-primary mb-2"></i>`;
-                
-                html += `
-                    <div class="col-md-4 col-sm-6">
-                        <div class="card h-100 plan-card" data-plan-id="${plan.plan_id}" data-plan-index="${index}" 
-                             onclick="selectMembershipPlan('${plan.plan_id}', ${index})" 
-                             style="cursor: pointer; transition: all 0.2s; border: 2px solid transparent;">
-                            <div class="card-body text-center p-3">
-                                ${planImage}
-                                <h6 class="card-title mb-1">${plan.name || plan.plan_name}</h6>
-                                <div class="fw-bold text-primary">${plan.price} kr<small class="text-muted">/${billingLabel}</small></div>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                const label = billingMap[plan.billing_cycle] || 'periode';
+                opts += `<option value="${plan.plan_id}" data-index="${index}">${plan.name || plan.plan_name} — ${plan.price} kr/${label}</option>`;
             });
-            
-            // Add "Ingen plan" option
-            html += `
-                <div class="col-md-4 col-sm-6">
-                    <div class="card h-100 plan-card" data-plan-id="" 
-                         onclick="selectMembershipPlan('', -1)" 
-                         style="cursor: pointer; transition: all 0.2s; border: 2px solid transparent;">
-                        <div class="card-body text-center p-3">
-                            <i class="bi bi-x-circle fs-3 text-muted mb-2"></i>
-                            <h6 class="card-title mb-1 text-muted">Ingen plan</h6>
-                            <div class="text-muted small">Legg til uten medlemskap</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            container.innerHTML = html;
-            
+            if (dropdown) dropdown.innerHTML = opts;
+
             // Auto-select if only one plan exists
             if (result.plans.length === 1) {
+                if (dropdown) dropdown.value = result.plans[0].plan_id;
                 selectMembershipPlan(result.plans[0].plan_id, 0);
+            } else {
+                updateExpirationPreview();
             }
         } else {
             if (addMemberBtn) addMemberBtn.style.display = 'none';
-            container.innerHTML = `
-                <div class="col-12">
-                    <div class="alert alert-warning mb-0">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        Ingen medlemskapsplaner funnet. <a href="#" onclick="document.querySelector('[data-bs-target=\\'#createPlanModal\\']').click()">Opprett en plan først.</a>
-                    </div>
-                </div>
-            `;
+            if (dropdown) {
+                dropdown.innerHTML = '<option value="">Ingen planer registrert</option>';
+                dropdown.disabled = true;
+            }
+            if (hintEl) hintEl.textContent = 'Opprett en medlemskapsplan først.';
         }
     } catch (error) {
         console.error('Error loading plans for select:', error);
-        document.getElementById('membership-plan-cards').innerHTML = `
-            <div class="col-12 text-center text-danger py-3">
-                <i class="bi bi-exclamation-triangle me-2"></i>Feil ved lasting av planer
-            </div>
-        `;
+        if (dropdown) dropdown.innerHTML = '<option value="">Feil ved lasting</option>';
     }
+}
+
+function onPlanDropdownChange(select) {
+    const idx = select.selectedIndex;
+    const opt = select.options[idx];
+    const planId = select.value;
+    const planIndex = planId ? parseInt(opt.dataset.index ?? -1) : -1;
+    selectMembershipPlan(planId, planIndex);
 }
 
 function selectMembershipPlan(planId, planIndex) {
     const hiddenInput = document.getElementById('selected-plan-id');
-    const infoBox = document.getElementById('selected-plan-info');
-    const nameEl = document.getElementById('selected-plan-name');
-    const detailsEl = document.getElementById('selected-plan-details');
-    
-    // Update hidden input
-    hiddenInput.value = planId;
-    
-    // Update visual selection
-    document.querySelectorAll('.plan-card').forEach(card => {
-        card.style.borderColor = 'transparent';
-        card.style.backgroundColor = '';
-    });
-    
-    const selectedCard = document.querySelector(`.plan-card[data-plan-id="${planId}"]`);
-    if (selectedCard) {
-        selectedCard.style.borderColor = '#198754';
-        selectedCard.style.backgroundColor = 'rgba(25, 135, 84, 0.05)';
-    }
-    
-    // Update info box
+    const hintEl = document.getElementById('plan-select-hint');
+
+    if (hiddenInput) hiddenInput.value = planId || '';
+
     if (planId && planIndex >= 0 && window.membershipPlans && window.membershipPlans[planIndex]) {
         const plan = window.membershipPlans[planIndex];
-        const billingLabel = {
-            'monthly': 'Månedlig',
-            'quarterly': 'Kvartalsvis',
-            'yearly': 'Årlig'
-        }[plan.billing_cycle] || plan.billing_cycle;
-        
-        nameEl.textContent = plan.name || plan.plan_name;
-        detailsEl.textContent = `${plan.price} kr - ${billingLabel} fakturering`;
-        infoBox.classList.remove('d-none');
+        const billingLabel = { monthly: 'Månedlig', quarterly: 'Kvartalsvis', yearly: 'Årlig' }[plan.billing_cycle] || plan.billing_cycle;
+        if (hintEl) hintEl.innerHTML = `<i class="bi bi-check-circle-fill text-success me-1"></i>${plan.price} kr &mdash; ${billingLabel} fakturering`;
     } else {
-        infoBox.classList.add('d-none');
+        if (hintEl) hintEl.textContent = '';
     }
-    
+
     updateExpirationPreview();
 }
 
