@@ -492,7 +492,6 @@
                                     <select class="form-select" name="paymentMethod" id="member-payment-method" onchange="onPaymentMethodChange(this)">
                                         <option value="">— Velg —</option>
                                         <option value="Vipps">Vipps</option>
-                                        <option value="Kort">Kort</option>
                                         <option value="Kontant">Kontant</option>
                                         <option value="Ikke betalt">Ikke betalt</option>
                                     </select>
@@ -958,6 +957,11 @@ async function submitMember() {
         return;
     }
     
+    if (!memberData.membership_plan_id) {
+        toast.quickWarning('Manglende plan', 'Vennligst velg en medlemskapsplan');
+        return;
+    }
+    
     const toastId = toast.loading('Legger til nytt medlem');
     
     try {
@@ -1044,13 +1048,9 @@ async function loadPlansForSelect() {
             });
             if (dropdown) dropdown.innerHTML = opts;
 
-            // Auto-select if only one plan exists
-            if (result.plans.length === 1) {
-                if (dropdown) dropdown.value = result.plans[0].plan_id;
-                selectMembershipPlan(result.plans[0].plan_id, 0);
-            } else {
-                updateExpirationPreview();
-            }
+            // Auto-select first plan always
+            if (dropdown) dropdown.value = result.plans[0].plan_id;
+            selectMembershipPlan(result.plans[0].plan_id, 0);
         } else {
             if (addMemberBtn) addMemberBtn.style.display = 'none';
             if (dropdown) {
@@ -1111,8 +1111,7 @@ function updateExpirationPreview() {
             const expDate = new Date(joinDate);
             expDate.setDate(expDate.getDate() + days);
             expirationInput.value = expDate.toISOString().split('T')[0];
-            const cycleLabel = { monthly: '30 dager', quarterly: '90 dager', yearly: '365 dager' }[plan.billing_cycle] || '365 dager';
-            if (hintEl) hintEl.textContent = `Startdato + ${cycleLabel} (${plan.billing_cycle})`;
+            if (hintEl) hintEl.textContent = '';
             return;
         }
     }

@@ -43,27 +43,28 @@ try {
         }
     }
     
-    // Check if customer with this email already exists (only if email provided)
-    $existingCustomer = null;
+    // Check if customer with this email already exists (if email provided) — block if found
     if (!empty($data['email'])) {
-        $checkStmt = $db->prepare("SELECT id FROM tenant_customers WHERE company_id = ? AND email = ?");
+        $checkStmt = $db->prepare("SELECT id, first_name, last_name FROM tenant_customers WHERE company_id = ? AND email = ?");
         $checkStmt->execute([$companyId, $data['email']]);
-        $existingCustomer = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        $existingEmail = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        if ($existingEmail) {
+            $name = trim($existingEmail['first_name'] . ' ' . $existingEmail['last_name']);
+            // Check if already a member
+            $memberCheck = $db->prepare("SELECT id FROM membership_members WHERE company_id = ? AND customer_id = ?");
+            $memberCheck->execute([$companyId, $existingEmail['id']]);
+            if ($memberCheck->fetch()) {
+                echo json_encode(['success' => false, 'message' => "E-post er allerede registrert på eksisterende medlem: $name"]);
+            } else {
+                echo json_encode(['success' => false, 'message' => "E-post er allerede registrert på kunde: $name"]);
+            }
+            exit;
+        }
     }
     
     $customerId = null;
     
-    if ($existingCustomer) {
-        $customerId = $existingCustomer['id'];
-        
-        // Check if already a member
-        $memberCheck = $db->prepare("SELECT id FROM membership_members WHERE company_id = ? AND customer_id = ?");
-        $memberCheck->execute([$companyId, $customerId]);
-        if ($memberCheck->fetch()) {
-            echo json_encode(['success' => false, 'message' => 'Denne kunden er allerede registrert som medlem']);
-            exit;
-        }
-    } else {
+    {
         // Create new customer in tenant_customers
         $customerId = bin2hex(random_bytes(18));
         $customerCode = 'CUST-' . date('Y') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
@@ -127,8 +128,9 @@ try {
         // If plan not found for this company, validPlanId stays null (safe)
     }
     
-    // Generate member code
+    // Generate member code and share code
     $memberCode = 'MBR-' . date('Y') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
+    $shareCode = strtoupper(substr(bin2hex(random_bytes(8)), 0, 12));
     $memberId = bin2hex(random_bytes(18));
     
     // payment_status: store 'paid' and 'unpaid' explicitly; anything else → NULL
@@ -141,9 +143,9 @@ try {
     // Create membership record
     $stmt = $db->prepare("
         INSERT INTO membership_members (
-            id, company_id, customer_id, membership_plan_id, member_code,
+            id, company_id, customer_id, membership_plan_id, member_code, share_code,
             status, join_date, expiration_date, payment_status, paymentMethod, auto_renew, created_at
-        ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, 1, NOW())
+        ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, 1, NOW())
     ");
     
     $stmt->execute([
@@ -152,15 +154,31 @@ try {
         $customerId,
         $validPlanId,
         $memberCode,
+        $shareCode,
         $joinDate,
         $expirationDate,
         $paymentStatus,
         $paymentMethod
     ]);
     
-    // Note: New memberships are NOT logged to unified_ledger here
-    // Payment should be logged via log_membership_payment.php when actual payment is received
-    // This prevents double-counting and ensures only real payments are tracked as income
+    // Log to unified_ledger when payment is confirmed as paid
+    if ($paymentStatus === 'paid' && $planPrice > 0) {
+        $ledger = new UnifiedLedgerService($db, $companyId);
+        $ledger->logTransaction([
+            'order_id'         => 'MEM-' . $memberCode,
+            'module_source'    => 'membership',
+            'item_type'        => 'membership',
+            'source_id'        => $memberId,
+            'item_name'        => $planName,
+            'quantity'         => 1,
+            'selling_price'    => $planPrice,
+            'customer_id'      => $customerId,
+            'payment_method'   => $paymentMethod,
+            'payment_status'   => 'completed',
+            'transaction_type' => 'income',
+            'category'         => 'Medlemskap',
+        ]);
+    }
     
     echo json_encode([
         'success' => true,
