@@ -128,8 +128,9 @@ try {
     $memberCode = 'MBR-' . date('Y') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
     $memberId = bin2hex(random_bytes(18));
     
-    // payment_status: only store 'paid' explicitly; anything else → NULL
-    $paymentStatus = (isset($data['payment_status']) && $data['payment_status'] === 'paid') ? 'paid' : null;
+    // payment_status: store 'paid' and 'unpaid' explicitly; anything else → NULL
+    $rawStatus = $data['payment_status'] ?? null;
+    $paymentStatus = in_array($rawStatus, ['paid', 'unpaid'], true) ? $rawStatus : null;
     
     // paymentMethod
     $paymentMethod = !empty($data['paymentMethod']) ? $data['paymentMethod'] : null;

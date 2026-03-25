@@ -513,8 +513,7 @@
                                     <label class="form-label">Betalingsstatus</label>
                                     <select class="form-select" name="payment_status" id="member-payment-status">
                                         <option value="paid">Betalt</option>
-                                        <option value="pending">Venter på betaling</option>
-                                        <option value="free">Gratis / Gave</option>
+                                        <option value="unpaid">Ubetalt</option>
                                     </select>
                                 </div>
                             </div>
