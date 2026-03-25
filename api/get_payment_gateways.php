@@ -20,21 +20,23 @@ if (!isset($_SESSION['company_id'])) {
 $company_id = $_SESSION['company_id'];
 
 $gatewayDisplayNames = [
-    'vipps' => 'Vipps',
-    'stripe' => 'Stripe',
-    'paypal' => 'PayPal',
-    'klarna' => 'Klarna',
-    'bank' => 'Bankoverføring',
-    'cash' => 'Kontant'
+    'vipps'    => 'Vipps',
+    'stripe'   => 'Stripe',
+    'paypal'   => 'PayPal',
+    'klarna'   => 'Klarna',
+    'bank'     => 'Bankoverføring',
+    'faktura'  => 'Faktura',
+    'cash'     => 'Kontant'
 ];
 
 $gatewayIcons = [
-    'vipps' => 'phone',
-    'stripe' => 'credit-card',
-    'paypal' => 'paypal',
-    'klarna' => 'bag-check',
-    'bank' => 'bank',
-    'cash' => 'cash-stack'
+    'vipps'   => 'phone',
+    'stripe'  => 'credit-card',
+    'paypal'  => 'paypal',
+    'klarna'  => 'bag-check',
+    'bank'    => 'bank',
+    'faktura' => 'receipt-cutoff',
+    'cash'    => 'cash-stack'
 ];
 
 try {
@@ -72,7 +74,35 @@ try {
     $bankStmt->execute([$company_id]);
     $bankResult = $bankStmt->fetch(PDO::FETCH_ASSOC);
     $hasActiveBankAccount = ($bankResult['count'] ?? 0) > 0;
-    
+
+    // Fetch active bank accounts for faktura display
+    $baStmt = $db->prepare("SELECT id, bank_name, account_number FROM economy_bank_accounts WHERE company_id = ? AND is_active = 1 ORDER BY bank_name");
+    $baStmt->execute([$company_id]);
+    $bankAccounts = $baStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Auto-create 'faktura' entry in economy_configuration_data if not exists
+    $fkCheck = $db->prepare("SELECT id FROM economy_configuration_data WHERE company_id = ? AND LOWER(gateway_type) = 'faktura' LIMIT 1");
+    $fkCheck->execute([$company_id]);
+    if (!$fkCheck->fetch()) {
+        $fkId = bin2hex(random_bytes(18));
+        $fkInsert = $db->prepare("
+            INSERT INTO economy_configuration_data (id, company_id, config_name, gateway_type, is_active, test_mode, created_at, updated_at)
+            VALUES (?, ?, 'Faktura', 'faktura', 0, 0, NOW(), NOW())
+        ");
+        $fkInsert->execute([$fkId, $company_id]);
+        // Re-fetch configurations to include new faktura row
+        $stmt = $db->prepare("
+            SELECT id, config_name, gateway_type, client_id, client_secret_encrypted,
+                   subscription_key, merchant_serial_number, public_key, private_key_encrypted,
+                   webhook_secret, is_active, test_mode, fee_fixed, fee_percent
+            FROM economy_configuration_data
+            WHERE company_id = ?
+            ORDER BY config_name
+        ");
+        $stmt->execute([$company_id]);
+        $configurations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     $result = [];
     
     $result[] = [
@@ -115,6 +145,12 @@ try {
                     $missingFields[] = 'bankkonto (opprett i Økonomi > Bankkontoer)';
                 }
                 break;
+            case 'faktura':
+                $isConfigured = $hasActiveBankAccount;
+                if (!$isConfigured) {
+                    $missingFields[] = 'bankkonto for faktura (opprett i Økonomi > Bankkontoer)';
+                }
+                break;
             case 'klarna':
                 if (empty($config['client_id'])) $missingFields[] = 'client_id';
                 if (empty($config['client_secret_encrypted'])) $missingFields[] = 'client_secret';
@@ -128,7 +164,7 @@ try {
                 }
         }
         
-        $result[] = [
+        $entry = [
             'id'            => $config['id'],
             'gateway_name'  => $gatewayType,
             'gateway_type'  => $gatewayType,
@@ -141,6 +177,10 @@ try {
             'fee_fixed'     => (float)($config['fee_fixed']   ?? 0),
             'fee_percent'   => (float)($config['fee_percent'] ?? 0)
         ];
+        if ($gatewayType === 'faktura') {
+            $entry['bank_accounts'] = $bankAccounts;
+        }
+        $result[] = $entry;
     }
     
     echo json_encode([

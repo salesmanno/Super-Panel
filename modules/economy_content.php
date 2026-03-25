@@ -1123,12 +1123,13 @@ async function saveTransaction() {
 }
 
 const gatewayDescriptions = {
-    'cash': 'Kontant betaling',
-    'vipps': 'Norsk mobilbetaling',
-    'stripe': 'Kort og nettbetaling',
-    'paypal': 'Internasjonal betaling',
-    'klarna': 'Betal senere',
-    'bank': 'Bankoverføring'
+    'cash':    'Kontant betaling',
+    'vipps':   'Norsk mobilbetaling',
+    'stripe':  'Kort og nettbetaling',
+    'paypal':  'Internasjonal betaling',
+    'klarna':  'Betal senere',
+    'bank':    'Bankoverføring',
+    'faktura': 'Fakturabetaling via bankkonto'
 };
 
 async function loadPaymentGateways() {
@@ -1182,6 +1183,19 @@ async function loadPaymentGateways() {
             const feePercent = (gw.fee_percent || 0).toFixed(2);
             const feePreview = (parseFloat(feeFixed) + 100 * parseFloat(feePercent) / 100).toFixed(2);
 
+            const fakturaSection = gw.gateway_type === 'faktura' ? `
+                <hr class="my-2">
+                <p class="small fw-semibold text-muted mb-1"><i class="bi bi-bank me-1"></i>Bankkontoer</p>
+                ${gw.bank_accounts && gw.bank_accounts.length > 0
+                    ? gw.bank_accounts.map(ba => `
+                        <div class="small text-dark mb-1">
+                            <span class="fw-semibold">${ba.bank_name || 'Bankkonto'}</span>
+                            <span class="text-muted ms-1">${ba.account_number}</span>
+                        </div>`).join('')
+                    : `<div class="small text-muted fst-italic">Ingen bankkontoer registrert ennå.<br>Legg til i Bankkontoer-seksjonen.</div>`
+                }
+            ` : '';
+
             const feeSection = hasFees ? `
                 <hr class="my-2">
                 <p class="small fw-semibold text-muted mb-1">Transaksjonsgebyr</p>
@@ -1217,6 +1231,7 @@ async function loadPaymentGateways() {
                             <p class="small text-muted mb-2">${desc}</p>
                             <div class="mb-2">${statusHtml}</div>
                             ${actionBtn}
+                            ${fakturaSection}
                             ${feeSection}
                         </div>
                     </div>

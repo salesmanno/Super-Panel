@@ -493,6 +493,7 @@
                             <h6 class="mb-0"><i class="bi bi-calendar-check me-2"></i>Medlemskapsdetaljer</h6>
                         </div>
                         <div class="card-body">
+                            <input type="hidden" name="payment_status" id="member-payment-status" value="paid">
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Startdato</label>
@@ -500,24 +501,18 @@
                                     <small class="text-muted">Standard: i dag</small>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">Betalingsstatus</label>
-                                    <select class="form-select" name="payment_status" id="member-payment-status">
-                                        <option value="paid">Betalt</option>
-                                        <option value="unpaid">Ubetalt</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
                                     <label class="form-label">Betalingsmetode</label>
-                                    <select class="form-select" name="paymentMethod">
+                                    <select class="form-select" name="paymentMethod" id="member-payment-method" onchange="onPaymentMethodChange(this)">
                                         <option value="">— Velg —</option>
                                         <option value="Vipps">Vipps</option>
                                         <option value="Kort">Kort</option>
                                         <option value="Kontant">Kontant</option>
-                                        <option value="Faktura">Faktura</option>
+                                        <option value="Ikke betalt">Ikke betalt</option>
                                     </select>
+                                    <small class="text-muted" id="payment-status-hint"></small>
                                 </div>
+                            </div>
+                            <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Utløpsdato <small class="text-muted">(beregnes automatisk)</small></label>
                                     <input type="date" class="form-control bg-light" id="member-expiration-preview" disabled>
@@ -967,8 +962,8 @@ async function submitMember() {
         membership_plan_id: formData.get('membership_plan_id') || null,
         notes: formData.get('notes'),
         join_date: formData.get('join_date') || null,
-        payment_status: formData.get('payment_status') || 'paid',
-        paymentMethod: formData.get('paymentMethod') || null
+        payment_status: formData.get('payment_status') || null,
+        paymentMethod: (formData.get('paymentMethod') === 'Ikke betalt' || !formData.get('paymentMethod')) ? null : formData.get('paymentMethod')
     };
     
     if (!memberData.first_name || !memberData.last_name) {
@@ -1196,6 +1191,25 @@ function updateExpirationPreview() {
     
     expirationInput.value = '';
     if (hintEl) hintEl.textContent = 'Velg plan og startdato';
+}
+
+function onPaymentMethodChange(select) {
+    const statusInput = document.getElementById('member-payment-status');
+    const hintEl = document.getElementById('payment-status-hint');
+    const val = select.value;
+    if (val === 'Ikke betalt') {
+        statusInput.value = 'unpaid';
+        if (hintEl) hintEl.textContent = 'Medlemskapet settes som inaktivt';
+        select.classList.add('text-warning');
+    } else if (val) {
+        statusInput.value = 'paid';
+        if (hintEl) hintEl.textContent = 'Medlemskapet settes som aktivt';
+        select.classList.remove('text-warning');
+    } else {
+        statusInput.value = '';
+        if (hintEl) hintEl.textContent = '';
+        select.classList.remove('text-warning');
+    }
 }
 
 async function deleteMember(memberId, memberName) {
