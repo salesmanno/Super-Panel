@@ -13,8 +13,8 @@ require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
 try {
     $data = json_decode(file_get_contents('php://input'), true);
     
-    if (empty($data['first_name']) || empty($data['last_name']) || empty($data['email'])) {
-        echo json_encode(['success' => false, 'message' => 'Mangler obligatoriske felt (fornavn, etternavn, e-post)']);
+    if (empty($data['first_name']) || empty($data['last_name'])) {
+        echo json_encode(['success' => false, 'message' => 'Mangler obligatoriske felt (fornavn og etternavn)']);
         exit;
     }
 
@@ -43,10 +43,13 @@ try {
         }
     }
     
-    // Check if customer with this email already exists
-    $checkStmt = $db->prepare("SELECT id FROM tenant_customers WHERE company_id = ? AND email = ?");
-    $checkStmt->execute([$companyId, $data['email']]);
-    $existingCustomer = $checkStmt->fetch(PDO::FETCH_ASSOC);
+    // Check if customer with this email already exists (only if email provided)
+    $existingCustomer = null;
+    if (!empty($data['email'])) {
+        $checkStmt = $db->prepare("SELECT id FROM tenant_customers WHERE company_id = ? AND email = ?");
+        $checkStmt->execute([$companyId, $data['email']]);
+        $existingCustomer = $checkStmt->fetch(PDO::FETCH_ASSOC);
+    }
     
     $customerId = null;
     
@@ -68,8 +71,8 @@ try {
         $stmt = $db->prepare("
             INSERT INTO tenant_customers (
                 id, company_id, customer_code, first_name, last_name, email, phone,
-                address_street, address_city, address_zip, date_of_birth, notes, customer_type, status, is_member, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'individual', 'active', 1, NOW(), NOW())
+                address_street, address_city, address_zip, date_of_birth, notes, customer_type, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'individual', 'active', NOW(), NOW())
         ");
         $stmt->execute([
             $customerId,
@@ -77,7 +80,7 @@ try {
             $customerCode,
             $data['first_name'],
             $data['last_name'],
-            $data['email'],
+            $data['email'] ?? null,
             $data['phone'] ?? null,
             $data['address_street'] ?? null,
             $data['address_city'] ?? null,
@@ -154,12 +157,6 @@ try {
         $paymentStatus,
         $paymentMethod
     ]);
-    
-    // Update customer as member if not already
-    if ($existingCustomer) {
-        $updateStmt = $db->prepare("UPDATE tenant_customers SET is_member = 1 WHERE id = ?");
-        $updateStmt->execute([$customerId]);
-    }
     
     // Note: New memberships are NOT logged to unified_ledger here
     // Payment should be logged via log_membership_payment.php when actual payment is received

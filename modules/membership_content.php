@@ -429,8 +429,8 @@
                             </div>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">E-post *</label>
-                                    <input type="email" class="form-control" name="email" required>
+                                    <label class="form-label">E-post</label>
+                                    <input type="email" class="form-control" name="email">
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Telefon</label>
@@ -964,8 +964,8 @@ async function submitMember() {
         paymentMethod: formData.get('paymentMethod') || null
     };
     
-    if (!memberData.first_name || !memberData.last_name || !memberData.email) {
-        toast.quickWarning('Manglende informasjon', 'Vennligst fyll ut alle obligatoriske felt (fornavn, etternavn, e-post)');
+    if (!memberData.first_name || !memberData.last_name) {
+        toast.quickWarning('Manglende informasjon', 'Vennligst fyll ut fornavn og etternavn');
         return;
     }
     
