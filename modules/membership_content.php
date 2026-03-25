@@ -1091,6 +1091,11 @@ async function loadPlansForSelect() {
             `;
             
             container.innerHTML = html;
+            
+            // Auto-select if only one plan exists
+            if (result.plans.length === 1) {
+                selectMembershipPlan(result.plans[0].plan_id, 0);
+            }
         } else {
             container.innerHTML = `
                 <div class="col-12">
