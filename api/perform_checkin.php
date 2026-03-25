@@ -161,8 +161,9 @@ try {
             ");
             $updateStmt->execute([$adminId, $newPaymentStatus, $newPaymentMethod, $checkinId]);
             
-            // Log to unified ledger if paid
-            if ($newPaymentStatus === 'paid' && $ticketPrice > 0) {
+            // Log to unified ledger only when attendee was previously unpaid/pending
+            // (forhåndsbetalte har allerede en ledger-oppføring og skal ikke dobbelregistreres)
+            if ($checkin['payment_status'] !== 'paid' && $newPaymentStatus === 'paid' && $ticketPrice > 0) {
                 $ledgerService = new UnifiedLedgerService($db, $companyId);
                 
                 $orderId = 'EVT-' . date('Ymd') . '-' . strtoupper(substr($checkinId, 0, 6));
