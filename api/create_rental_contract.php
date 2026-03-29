@@ -46,6 +46,7 @@ try {
     $object = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$object) {
+        $db->rollBack();
         http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Utleieobjekt ikke funnet']);
         exit;
@@ -133,10 +134,10 @@ try {
     if (isset($db) && $db->inTransaction()) {
         $db->rollBack();
     }
+    error_log('create_rental_contract error: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Feil ved opprettelse av kontrakt',
-        'error'   => $e->getMessage()
+        'message' => 'Feil ved opprettelse av kontrakt. Prøv igjen.'
     ]);
 }
