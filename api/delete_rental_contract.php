@@ -50,6 +50,16 @@ try {
     $db->prepare("DELETE FROM rental_contracts WHERE id = ? AND company_id = ?")
        ->execute([$data['id'], $companyId]);
 
+    $remainingStmt = $db->prepare("
+        SELECT COUNT(*) FROM rental_contracts
+        WHERE rental_object_id = ? AND company_id = ? AND status = 'active'
+    ");
+    $remainingStmt->execute([$contract['rental_object_id'], $companyId]);
+    if ($remainingStmt->fetchColumn() == 0) {
+        $db->prepare("UPDATE rental_objects SET is_available = 1 WHERE id = ? AND company_id = ?")
+           ->execute([$contract['rental_object_id'], $companyId]);
+    }
+
     $db->commit();
 
     echo json_encode(['success' => true, 'message' => 'Kontrakt slettet']);
