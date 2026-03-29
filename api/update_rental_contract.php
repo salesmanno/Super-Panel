@@ -99,6 +99,7 @@ try {
         }
     }
 
+    $ledgerWarning = null;
     if ($newPaymentStatus === 'paid' && $contract['payment_status'] !== 'paid') {
         $amount = floatval($data['total_amount'] ?? $contract['total_amount']);
         if ($amount > 0) {
@@ -126,13 +127,18 @@ try {
                 ]);
             } catch (\Throwable $ledgerErr) {
                 error_log('UnifiedLedger rental error: ' . $ledgerErr->getMessage());
+                $ledgerWarning = 'Kontrakt oppdatert, men regnskapsføring feilet: ' . $ledgerErr->getMessage();
             }
         }
     }
 
     $db->commit();
 
-    echo json_encode(['success' => true, 'message' => 'Kontrakt oppdatert']);
+    $response = ['success' => true, 'message' => 'Kontrakt oppdatert'];
+    if ($ledgerWarning) {
+        $response['warning'] = $ledgerWarning;
+    }
+    echo json_encode($response);
 
 } catch (\Throwable $e) {
     if (isset($db) && $db->inTransaction()) {

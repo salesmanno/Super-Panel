@@ -343,8 +343,8 @@ function renderObjectCard(obj) {
                             ${weekendPrice}
                         </div>
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-success" onclick="toggleContractForm('${obj.id}')" title="Opprett kontrakt" id="contract-btn-${obj.id}">
-                                <i class="bi bi-file-earmark-text"></i>
+                            <button class="btn btn-outline-success" onclick="toggleContractForm('${obj.id}')" title="Kontrakter" id="contract-btn-${obj.id}">
+                                <i class="bi bi-file-earmark-text me-1"></i>Kontrakt
                             </button>
                             <button class="btn btn-outline-primary" onclick="viewDetails('${obj.id}')" title="Detaljer">
                                 <i class="bi bi-eye"></i>
