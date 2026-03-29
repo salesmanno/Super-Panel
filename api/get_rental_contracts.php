@@ -64,10 +64,10 @@ try {
     echo json_encode(['success' => true, 'contracts' => $contracts]);
 
 } catch (\Throwable $e) {
+    error_log('get_rental_contracts error: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Feil ved henting av kontrakter',
-        'error'   => $e->getMessage()
+        'message' => 'Feil ved henting av kontrakter. Prøv igjen.'
     ]);
 }

@@ -113,7 +113,11 @@ try {
 
     if ($newPaymentStatus === 'paid' && $contract['payment_status'] !== 'paid') {
         $amount = floatval($data['total_amount'] ?? $contract['total_amount']);
-        if ($amount > 0) {
+        $existingLedger = $db->prepare(
+            "SELECT COUNT(*) FROM unified_ledger WHERE module_source = 'rental' AND source_id = ? AND company_id = ?"
+        );
+        $existingLedger->execute([$contract['id'], $companyId]);
+        if ($amount > 0 && $existingLedger->fetchColumn() == 0) {
             $ledger = new UnifiedLedgerService($db, $companyId);
             $ledgerResult = $ledger->logTransaction([
                 'order_id'         => generateOrderId(),
