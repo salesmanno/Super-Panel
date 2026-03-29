@@ -83,6 +83,17 @@ try {
     }
 
     if ($newStatus === 'active' && $contract['status'] !== 'active') {
+        $activeConflict = $db->prepare("
+            SELECT COUNT(*) FROM rental_contracts
+            WHERE rental_object_id = ? AND company_id = ? AND status = 'active' AND id != ?
+        ");
+        $activeConflict->execute([$contract['rental_object_id'], $companyId, $data['id']]);
+        if ($activeConflict->fetchColumn() > 0) {
+            $db->rollBack();
+            http_response_code(409);
+            echo json_encode(['success' => false, 'message' => 'Objektet er allerede utleid (aktiv kontrakt eksisterer). Avslutt eller kanseller eksisterende kontrakt først.']);
+            exit;
+        }
         $db->prepare("UPDATE rental_objects SET is_available = 0 WHERE id = ? AND company_id = ?")
            ->execute([$contract['rental_object_id'], $companyId]);
     }
