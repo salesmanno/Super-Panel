@@ -1518,6 +1518,7 @@ async function deleteContract(contractId, objectId) {
         if (data.success) {
             toast.success(toastId, 'Slettet', 'Kontrakt slettet');
             loadContracts(contractStatusFilter);
+            loadRentalObjects();
         } else {
             toast.error(toastId, 'Feil', data.message || 'Kunne ikke slette');
         }
