@@ -71,19 +71,20 @@ $schemas = getRentalSchemas();
     <div id="rental-contracts" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">Kontrakt & betingelser</h5>
-                <p class="text-muted">Administrer leieavtaler og betingelser</p>
-                <div class="mb-3">
-                    <label class="form-label">Last opp kontrakt mal</label>
-                    <input type="file" class="form-control" accept=".pdf,.doc,.docx">
-                    <small class="text-muted">Støttede formater: PDF, DOC, DOCX</small>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">Utleiekontrakter</h5>
+                    <div class="btn-group btn-group-sm" id="contractFilterBtns">
+                        <button class="btn btn-primary" id="cf-btn-all" onclick="filterContracts('all')">Alle</button>
+                        <button class="btn btn-outline-secondary" id="cf-btn-active" onclick="filterContracts('active')">Aktive</button>
+                        <button class="btn btn-outline-secondary" id="cf-btn-completed" onclick="filterContracts('completed')">Avsluttede</button>
+                        <button class="btn btn-outline-secondary" id="cf-btn-cancelled" onclick="filterContracts('cancelled')">Kansellerte</button>
+                        <button class="btn btn-outline-secondary" id="cf-btn-draft" onclick="filterContracts('draft')">Utkast</button>
+                    </div>
                 </div>
-                <div class="mt-4">
-                    <h6>Eksisterende dokumenter</h6>
-                    <div class="list-group">
-                        <div class="list-group-item text-center text-muted py-4">
-                            Ingen dokumenter lastet opp
-                        </div>
+                <div id="contractsListContainer">
+                    <div class="text-center text-muted py-4">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        Laster inn kontrakter...
                     </div>
                 </div>
             </div>
@@ -93,29 +94,12 @@ $schemas = getRentalSchemas();
     <div id="rental-upcoming" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">Kommende utleie</h5>
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Objekt</th>
-                                <th>Kunde</th>
-                                <th>Fra dato</th>
-                                <th>Til dato</th>
-                                <th>Varighet</th>
-                                <th>Beløp</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td colspan="7" class="text-center text-muted py-4">
-                                    <i class="bi bi-calendar-x fs-1 d-block mb-2"></i>
-                                    Ingen kommende utleie
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <h5 class="card-title mb-3">Aktive utleier</h5>
+                <div id="upcomingContractsContainer">
+                    <div class="text-center text-muted py-4">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        Laster inn data...
+                    </div>
                 </div>
             </div>
         </div>
@@ -216,6 +200,8 @@ let rentalFilter = '';
 document.addEventListener('DOMContentLoaded', function() {
     loadRentalObjects();
     buildCreateForm();
+    loadContracts('all');
+    loadUpcomingContracts();
 });
 
 async function loadRentalObjects() {
@@ -323,6 +309,9 @@ function renderObjectCard(obj) {
     
     const hiddenLabel = !isAvailable ? '<span class="badge bg-warning text-dark ms-2"><i class="bi bi-eye-slash me-1"></i>Skjult</span>' : '';
     
+    const dailyPrice = parseFloat(obj.rental_price) || 0;
+    const defaultDeposit = parseFloat(obj.deposit_amount) || 0;
+
     return `
         <div class="col" id="rental-card-${obj.id}">
             <div class="card h-100" style="${cardBorder}${cardOpacity}">
@@ -347,10 +336,13 @@ function renderObjectCard(obj) {
                     ${obj.description ? `<p class="card-text text-muted small">${obj.description.substring(0, 100)}${obj.description.length > 100 ? '...' : ''}</p>` : ''}
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <div>
-                            <strong class="text-primary">${parseFloat(obj.rental_price).toFixed(0)} NOK/dag</strong>
+                            <strong class="text-primary">${dailyPrice.toFixed(0)} NOK/dag</strong>
                             ${weekendPrice}
                         </div>
                         <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-success" onclick="toggleContractForm('${obj.id}')" title="Opprett kontrakt" id="contract-btn-${obj.id}">
+                                <i class="bi bi-file-earmark-text"></i>
+                            </button>
                             <button class="btn btn-outline-primary" onclick="viewDetails('${obj.id}')" title="Detaljer">
                                 <i class="bi bi-eye"></i>
                             </button>
@@ -359,6 +351,77 @@ function renderObjectCard(obj) {
                             </button>
                             <button class="btn btn-outline-danger" onclick="deleteRentalObject('${obj.id}')" title="Slett">
                                 <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="contract-panel-${obj.id}" class="card mt-2 border-success" style="display: none;">
+                <div class="card-header bg-success bg-opacity-10 d-flex justify-content-between align-items-center py-2">
+                    <h6 class="mb-0 text-success"><i class="bi bi-file-earmark-text me-1"></i>Kontrakter – ${obj.object_name}</h6>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleContractForm('${obj.id}')"><i class="bi bi-x"></i></button>
+                </div>
+                <div class="card-body p-3">
+                    <div id="obj-contracts-${obj.id}" class="mb-3 small"></div>
+                    <h6 class="text-muted mb-2 small text-uppercase">Opprett ny kontrakt</h6>
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label mb-1 small">Kunde</label>
+                            <div class="position-relative">
+                                <input type="text" class="form-control form-control-sm" id="cf-customer-name-${obj.id}"
+                                       placeholder="Søk etter kunde (navn / e-post)..." autocomplete="off"
+                                       oninput="searchContractCustomer('${obj.id}', this.value)">
+                                <input type="hidden" id="cf-customer-id-${obj.id}">
+                                <div id="cf-customer-dropdown-${obj.id}" class="dropdown-menu p-0" style="display:none; position:absolute; z-index:1050; width:100%; max-height:180px; overflow-y:auto;"></div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label mb-1 small">Fra dato <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control form-control-sm" id="cf-start-${obj.id}"
+                                   onchange="calcContractAmount('${obj.id}', ${dailyPrice})">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label mb-1 small">Til dato <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control form-control-sm" id="cf-end-${obj.id}"
+                                   onchange="calcContractAmount('${obj.id}', ${dailyPrice})">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label mb-1 small">Dager</label>
+                            <input type="number" class="form-control form-control-sm" id="cf-days-${obj.id}" readonly placeholder="–">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label mb-1 small">Totalpris (NOK) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control form-control-sm" id="cf-amount-${obj.id}" step="0.01" min="0" placeholder="0">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label mb-1 small">Depositum (NOK)</label>
+                            <input type="number" class="form-control form-control-sm" id="cf-deposit-${obj.id}" step="0.01" min="0" value="${defaultDeposit}">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label mb-1 small">Betalingsmetode</label>
+                            <select class="form-select form-select-sm" id="cf-payment-method-${obj.id}">
+                                <option value="">Ikke valgt</option>
+                                <option value="Kontant">Kontant</option>
+                                <option value="Vipps">Vipps</option>
+                                <option value="Faktura">Faktura</option>
+                                <option value="Kortbetaling">Kortbetaling</option>
+                                <option value="Bankoverføring">Bankoverføring</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label mb-1 small">Status</label>
+                            <select class="form-select form-select-sm" id="cf-status-${obj.id}">
+                                <option value="active" selected>Aktiv (marker objekt som utleid)</option>
+                                <option value="draft">Utkast</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label mb-1 small">Notater</label>
+                            <textarea class="form-control form-control-sm" id="cf-notes-${obj.id}" rows="2" placeholder="Eventuelle merknader..."></textarea>
+                        </div>
+                        <div class="col-12 mt-1">
+                            <button class="btn btn-success btn-sm" onclick="submitContract('${obj.id}')">
+                                <i class="bi bi-check-circle me-1"></i>Lagre kontrakt
                             </button>
                         </div>
                     </div>
@@ -1094,5 +1157,451 @@ function viewDetails(objectId) {
     document.getElementById('detailsModalBody').innerHTML = detailsHTML;
     const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
     modal.show();
+}
+
+// ─── CONTRACT MODULE ──────────────────────────────────────────────────────────
+
+let allContracts = [];
+let contractStatusFilter = 'all';
+let allCustomersCache = null;
+
+async function loadCustomersCache() {
+    if (allCustomersCache !== null) return allCustomersCache;
+    try {
+        const resp = await fetch('/api/get_customers_simple.php');
+        const data = await resp.json();
+        allCustomersCache = (data.success && Array.isArray(data.customers)) ? data.customers : [];
+    } catch (e) {
+        allCustomersCache = [];
+    }
+    return allCustomersCache;
+}
+
+async function toggleContractForm(objectId) {
+    const panel = document.getElementById('contract-panel-' + objectId);
+    if (!panel) return;
+    const isVisible = panel.style.display !== 'none';
+    if (isVisible) {
+        panel.style.display = 'none';
+        return;
+    }
+    panel.style.display = 'block';
+    loadObjectContracts(objectId);
+    loadCustomersCache();
+}
+
+async function loadObjectContracts(objectId) {
+    const container = document.getElementById('obj-contracts-' + objectId);
+    if (!container) return;
+    try {
+        const resp = await fetch('/api/get_rental_contracts.php?object_id=' + encodeURIComponent(objectId));
+        const data = await resp.json();
+        if (!data.success || !data.contracts || data.contracts.length === 0) {
+            container.innerHTML = '<p class="text-muted small mb-0">Ingen kontrakter registrert for dette objektet ennå.</p>';
+            return;
+        }
+        const rows = data.contracts.map(c => {
+            const statusBadge = contractStatusBadge(c.status);
+            const payBadge = contractPaymentBadge(c.payment_status);
+            return `<div class="d-flex justify-content-between align-items-center border-bottom py-1">
+                <span>${c.display_customer_name} &mdash; ${fmtDate(c.start_date)} – ${fmtDate(c.end_date)}</span>
+                <span class="d-flex gap-1">${statusBadge}${payBadge}</span>
+            </div>`;
+        }).join('');
+        container.innerHTML = `<div class="mb-2"><strong class="small">Eksisterende kontrakter:</strong>${rows}</div>`;
+    } catch (e) {
+        container.innerHTML = '';
+    }
+}
+
+function searchContractCustomer(objectId, query) {
+    const dropdown = document.getElementById('cf-customer-dropdown-' + objectId);
+    const hiddenId = document.getElementById('cf-customer-id-' + objectId);
+    if (!dropdown) return;
+
+    if (!query || query.length < 2) {
+        dropdown.style.display = 'none';
+        hiddenId.value = '';
+        return;
+    }
+
+    loadCustomersCache().then(customers => {
+        const q = query.toLowerCase();
+        const matches = customers.filter(c =>
+            (c.name && c.name.toLowerCase().includes(q)) ||
+            (c.email && c.email.toLowerCase().includes(q))
+        ).slice(0, 8);
+
+        if (matches.length === 0) {
+            dropdown.style.display = 'none';
+            return;
+        }
+
+        dropdown.innerHTML = matches.map(c =>
+            `<a href="#" class="dropdown-item py-1 small" onclick="selectContractCustomer('${objectId}', '${c.id}', '${c.name.replace(/'/g, "\\'")}'); return false;">
+                ${c.name}${c.email ? ` <span class="text-muted">(${c.email})</span>` : ''}
+            </a>`
+        ).join('');
+        dropdown.style.display = 'block';
+    });
+}
+
+function selectContractCustomer(objectId, customerId, customerName) {
+    const nameInput  = document.getElementById('cf-customer-name-' + objectId);
+    const hiddenId   = document.getElementById('cf-customer-id-'   + objectId);
+    const dropdown   = document.getElementById('cf-customer-dropdown-' + objectId);
+    if (nameInput) nameInput.value = customerName;
+    if (hiddenId)  hiddenId.value  = customerId;
+    if (dropdown)  dropdown.style.display = 'none';
+}
+
+function calcContractAmount(objectId, dailyPrice) {
+    const startInput = document.getElementById('cf-start-'  + objectId);
+    const endInput   = document.getElementById('cf-end-'    + objectId);
+    const daysInput  = document.getElementById('cf-days-'   + objectId);
+    const amtInput   = document.getElementById('cf-amount-' + objectId);
+    if (!startInput || !endInput) return;
+
+    const start = new Date(startInput.value);
+    const end   = new Date(endInput.value);
+    if (!startInput.value || !endInput.value || end <= start) {
+        if (daysInput) daysInput.value = '';
+        return;
+    }
+
+    const days = Math.round((end - start) / 86400000);
+    if (daysInput) daysInput.value = days;
+    if (amtInput && (!amtInput.value || parseFloat(amtInput.value) === 0)) {
+        amtInput.value = (days * dailyPrice).toFixed(2);
+    }
+}
+
+async function submitContract(objectId) {
+    const startVal  = document.getElementById('cf-start-'          + objectId)?.value;
+    const endVal    = document.getElementById('cf-end-'            + objectId)?.value;
+    const amtVal    = document.getElementById('cf-amount-'         + objectId)?.value;
+    const depVal    = document.getElementById('cf-deposit-'        + objectId)?.value;
+    const pmVal     = document.getElementById('cf-payment-method-' + objectId)?.value;
+    const statusVal = document.getElementById('cf-status-'         + objectId)?.value;
+    const notesVal  = document.getElementById('cf-notes-'          + objectId)?.value;
+    const custId    = document.getElementById('cf-customer-id-'    + objectId)?.value;
+    const custName  = document.getElementById('cf-customer-name-'  + objectId)?.value;
+
+    if (!startVal || !endVal) {
+        toast.quickError('Feil', 'Fra dato og til dato er påkrevd');
+        return;
+    }
+    if (new Date(endVal) <= new Date(startVal)) {
+        toast.quickError('Feil', 'Sluttdato må være etter startdato');
+        return;
+    }
+
+    const payload = {
+        rental_object_id: objectId,
+        start_date:       startVal,
+        end_date:         endVal,
+        total_amount:     parseFloat(amtVal)  || 0,
+        deposit_amount:   parseFloat(depVal)  || 0,
+        payment_method:   pmVal   || null,
+        status:           statusVal || 'active',
+        notes:            notesVal  || null,
+        customer_id:      custId    || null,
+        customer_name:    custName  || null
+    };
+
+    const toastId = toast.loading('Lagrer kontrakt...');
+    try {
+        const resp = await fetch('/api/create_rental_contract.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const text = await resp.text();
+        let result;
+        try { result = JSON.parse(text); } catch(e) { throw new Error('Ugyldig svar fra server'); }
+
+        if (result.success) {
+            toast.success(toastId, 'Kontrakt lagret', result.status === 'active' ? 'Objektet er markert som utleid' : 'Lagret som utkast');
+            document.getElementById('contract-panel-' + objectId).style.display = 'none';
+            loadRentalObjects();
+            loadContracts(contractStatusFilter);
+            loadUpcomingContracts();
+        } else {
+            toast.error(toastId, 'Feil', result.message || 'Kunne ikke lagre kontrakt');
+        }
+    } catch (err) {
+        toast.error(toastId, 'Feil', err.message);
+    }
+}
+
+// ─── CONTRACTS TAB ───────────────────────────────────────────────────────────
+
+async function loadContracts(status) {
+    contractStatusFilter = status || 'all';
+    const container = document.getElementById('contractsListContainer');
+    if (!container) return;
+
+    container.innerHTML = `<div class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Laster...</div>`;
+
+    try {
+        const url = status && status !== 'all'
+            ? '/api/get_rental_contracts.php?status=' + encodeURIComponent(status)
+            : '/api/get_rental_contracts.php';
+        const resp = await fetch(url);
+        const data = await resp.json();
+        if (data.success) {
+            allContracts = data.contracts || [];
+            renderContractsList(allContracts);
+        } else {
+            container.innerHTML = `<div class="alert alert-warning">${data.message || 'Feil ved henting av kontrakter'}</div>`;
+        }
+    } catch (e) {
+        container.innerHTML = `<div class="alert alert-danger">Feil ved lasting av kontrakter</div>`;
+    }
+}
+
+function filterContracts(status) {
+    contractStatusFilter = status;
+    const ids = ['all', 'active', 'completed', 'cancelled', 'draft'];
+    ids.forEach(s => {
+        const btn = document.getElementById('cf-btn-' + s);
+        if (!btn) return;
+        btn.className = s === status ? 'btn btn-primary' : 'btn btn-outline-secondary';
+    });
+    loadContracts(status);
+}
+
+function renderContractsList(contracts) {
+    const container = document.getElementById('contractsListContainer');
+    if (!container) return;
+
+    if (!contracts || contracts.length === 0) {
+        container.innerHTML = `<div class="text-center text-muted py-5">
+            <i class="bi bi-file-earmark-x fs-1 d-block mb-2"></i>
+            Ingen kontrakter funnet
+        </div>`;
+        return;
+    }
+
+    const rows = contracts.map(c => {
+        const statusBadge = contractStatusBadge(c.status);
+        const payBadge    = contractPaymentBadge(c.payment_status);
+
+        const markPaidBtn = c.payment_status !== 'paid'
+            ? `<button class="btn btn-outline-success btn-sm" onclick="markContractPaid('${c.id}')" title="Merk som betalt"><i class="bi bi-check-circle"></i></button>`
+            : '';
+
+        let statusActionBtn = '';
+        if (c.status === 'draft') {
+            statusActionBtn = `<button class="btn btn-outline-primary btn-sm" onclick="updateContractStatus('${c.id}', 'active', '${c.rental_object_id}')" title="Aktiver"><i class="bi bi-play-circle"></i></button>`;
+        } else if (c.status === 'active') {
+            statusActionBtn = `<button class="btn btn-outline-secondary btn-sm" onclick="updateContractStatus('${c.id}', 'completed', '${c.rental_object_id}')" title="Avslutt"><i class="bi bi-stop-circle"></i></button>`;
+        }
+
+        const cancelBtn = !['completed','cancelled'].includes(c.status)
+            ? `<button class="btn btn-outline-warning btn-sm" onclick="updateContractStatus('${c.id}', 'cancelled', '${c.rental_object_id}')" title="Kanseller"><i class="bi bi-x-circle"></i></button>`
+            : '';
+
+        const deleteBtn = c.status === 'draft'
+            ? `<button class="btn btn-outline-danger btn-sm" onclick="deleteContract('${c.id}', '${c.rental_object_id}')" title="Slett"><i class="bi bi-trash"></i></button>`
+            : '';
+
+        return `<tr>
+            <td class="small fw-semibold">${escHtml(c.object_name)}</td>
+            <td class="small">${escHtml(c.display_customer_name)}</td>
+            <td class="small text-nowrap">${fmtDate(c.start_date)}</td>
+            <td class="small text-nowrap">${fmtDate(c.end_date)}</td>
+            <td class="small text-nowrap">${c.rental_days ?? '–'} dager</td>
+            <td class="small text-nowrap">${parseFloat(c.total_amount || 0).toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:0})} NOK</td>
+            <td>${statusBadge}</td>
+            <td>${payBadge}</td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    ${markPaidBtn}${statusActionBtn}${cancelBtn}${deleteBtn}
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+
+    container.innerHTML = `<div class="table-responsive">
+        <table class="table table-hover table-sm align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Objekt</th>
+                    <th>Kunde</th>
+                    <th>Fra</th>
+                    <th>Til</th>
+                    <th>Dager</th>
+                    <th>Beløp</th>
+                    <th>Status</th>
+                    <th>Betaling</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
+    </div>`;
+}
+
+async function markContractPaid(contractId) {
+    const c = allContracts.find(x => x.id === contractId);
+    if (!c) return;
+    const toastId = toast.loading('Merker som betalt...');
+    try {
+        const resp = await fetch('/api/update_rental_contract.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: contractId, payment_status: 'paid', total_amount: c.total_amount, payment_method: c.payment_method })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            toast.success(toastId, 'Betalt', 'Kontrakt merket som betalt og logget i regnskap');
+            loadContracts(contractStatusFilter);
+        } else {
+            toast.error(toastId, 'Feil', data.message || 'Kunne ikke oppdatere');
+        }
+    } catch (e) {
+        toast.error(toastId, 'Feil', 'Nettverksfeil');
+    }
+}
+
+async function updateContractStatus(contractId, newStatus, objectId) {
+    const labels = { active: 'aktivere', completed: 'avslutte', cancelled: 'kansellere' };
+    if (!confirm(`Er du sikker på at du vil ${labels[newStatus] || 'oppdatere'} denne kontrakten?`)) return;
+    const toastId = toast.loading('Oppdaterer kontrakt...');
+    try {
+        const resp = await fetch('/api/update_rental_contract.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: contractId, status: newStatus })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            toast.success(toastId, 'Oppdatert', 'Kontraktstatus endret');
+            loadContracts(contractStatusFilter);
+            loadUpcomingContracts();
+            loadRentalObjects();
+        } else {
+            toast.error(toastId, 'Feil', data.message || 'Kunne ikke oppdatere');
+        }
+    } catch (e) {
+        toast.error(toastId, 'Feil', 'Nettverksfeil');
+    }
+}
+
+async function deleteContract(contractId, objectId) {
+    if (!confirm('Slette dette utkastet?')) return;
+    const toastId = toast.loading('Sletter...');
+    try {
+        const resp = await fetch('/api/delete_rental_contract.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: contractId })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            toast.success(toastId, 'Slettet', 'Kontrakt slettet');
+            loadContracts(contractStatusFilter);
+        } else {
+            toast.error(toastId, 'Feil', data.message || 'Kunne ikke slette');
+        }
+    } catch (e) {
+        toast.error(toastId, 'Feil', 'Nettverksfeil');
+    }
+}
+
+// ─── UPCOMING TAB ─────────────────────────────────────────────────────────────
+
+async function loadUpcomingContracts() {
+    const container = document.getElementById('upcomingContractsContainer');
+    if (!container) return;
+
+    try {
+        const resp = await fetch('/api/get_rental_contracts.php?upcoming=1');
+        const data = await resp.json();
+
+        if (!data.success || !data.contracts || data.contracts.length === 0) {
+            container.innerHTML = `<div class="text-center text-muted py-5">
+                <i class="bi bi-calendar-check fs-1 d-block mb-2"></i>
+                Ingen aktive utleier
+            </div>`;
+            return;
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const rows = data.contracts.map(c => {
+            const endDate = new Date(c.end_date);
+            const diffMs  = endDate - today;
+            const daysLeft = Math.max(0, Math.round(diffMs / 86400000));
+            const daysLeftBadge = daysLeft === 0
+                ? '<span class="badge bg-danger">I dag</span>'
+                : daysLeft <= 3
+                ? `<span class="badge bg-warning text-dark">${daysLeft} dager</span>`
+                : `<span class="badge bg-light text-dark border">${daysLeft} dager</span>`;
+
+            return `<tr>
+                <td class="small fw-semibold">${escHtml(c.object_name)}</td>
+                <td class="small">${escHtml(c.display_customer_name)}</td>
+                <td class="small text-nowrap">${fmtDate(c.start_date)}</td>
+                <td class="small text-nowrap">${fmtDate(c.end_date)}</td>
+                <td>${daysLeftBadge}</td>
+                <td class="small text-nowrap">${parseFloat(c.total_amount || 0).toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:0})} NOK</td>
+                <td>${contractPaymentBadge(c.payment_status)}</td>
+            </tr>`;
+        }).join('');
+
+        container.innerHTML = `<div class="table-responsive">
+            <table class="table table-hover table-sm align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Objekt</th>
+                        <th>Kunde</th>
+                        <th>Fra dato</th>
+                        <th>Til dato</th>
+                        <th>Dager igjen</th>
+                        <th>Beløp</th>
+                        <th>Betaling</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>`;
+    } catch (e) {
+        container.innerHTML = `<div class="alert alert-danger">Feil ved lasting av aktive utleier</div>`;
+    }
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+function contractStatusBadge(status) {
+    const map = {
+        draft:     '<span class="badge bg-secondary">Utkast</span>',
+        active:    '<span class="badge bg-success">Aktiv</span>',
+        completed: '<span class="badge bg-info text-dark">Avsluttet</span>',
+        cancelled: '<span class="badge bg-danger">Kansellert</span>'
+    };
+    return map[status] || `<span class="badge bg-light text-dark">${status}</span>`;
+}
+
+function contractPaymentBadge(paymentStatus) {
+    const map = {
+        unpaid:  '<span class="badge bg-warning text-dark">Ikke betalt</span>',
+        partial: '<span class="badge bg-info text-dark">Delvis betalt</span>',
+        paid:    '<span class="badge bg-success">Betalt</span>'
+    };
+    return map[paymentStatus] || `<span class="badge bg-light text-dark">${paymentStatus}</span>`;
+}
+
+function fmtDate(dateStr) {
+    if (!dateStr) return '–';
+    const [y, m, d] = dateStr.split('T')[0].split('-');
+    return `${d}.${m}.${y}`;
+}
+
+function escHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 </script>
