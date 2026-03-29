@@ -73,16 +73,20 @@ try {
     } else {
         // Get all objects for company
         $stmt = $db->prepare("
-            SELECT ro.*, 
-                   CASE WHEN ro.is_available = ? AND ro.is_active = ? THEN 'available'
-                        WHEN ro.is_available = ? THEN 'rented'
-                        ELSE 'inactive'
-                   END as display_status
+            SELECT ro.*,
+                   CASE
+                       WHEN ro.is_available = 1 AND ro.is_active = 1 THEN 'available'
+                       WHEN ro.is_available = 0 AND EXISTS (
+                           SELECT 1 FROM rental_contracts rc2
+                           WHERE rc2.rental_object_id = ro.id AND rc2.company_id = ro.company_id AND rc2.status = 'active'
+                       ) THEN 'rented'
+                       ELSE 'inactive'
+                   END AS display_status
             FROM rental_objects ro
             WHERE ro.company_id = ?
             ORDER BY ro.created_at DESC
         ");
-        $stmt->execute([1, 1, 0, $admin['company_id']]);
+        $stmt->execute([$admin['company_id']]);
         $objects = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         foreach ($objects as &$object) {

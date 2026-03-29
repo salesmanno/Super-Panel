@@ -110,49 +110,39 @@ try {
         }
     }
 
-    $ledgerWarning = null;
     if ($newPaymentStatus === 'paid' && $contract['payment_status'] !== 'paid') {
         $amount = floatval($data['total_amount'] ?? $contract['total_amount']);
         if ($amount > 0) {
-            try {
-                $ledger = new UnifiedLedgerService($db, $companyId);
-                $ledgerResult = $ledger->logTransaction([
-                    'order_id'         => generateOrderId(),
-                    'module_source'    => 'rental',
-                    'item_type'        => 'rental',
-                    'source_id'        => $contract['id'],
-                    'item_name'        => 'Utleie: ' . $contract['object_name'],
-                    'selling_price'    => $amount,
-                    'customer_id'      => $contract['customer_id'] ?: null,
-                    'payment_method'   => $data['payment_method'] ?? $contract['payment_method'],
-                    'payment_status'   => 'completed',
-                    'status'           => 'active',
-                    'transaction_type' => 'income',
-                    'category'         => 'Utleie',
-                    'metadata'         => [
-                        'customer_name' => $contract['customer_name'],
-                        'start_date'    => $contract['start_date'],
-                        'end_date'      => $contract['end_date'],
-                        'rental_days'   => $contract['rental_days']
-                    ]
-                ]);
-            } catch (\Throwable $ledgerErr) {
-                error_log('UnifiedLedger rental error: ' . $ledgerErr->getMessage());
-                $ledgerWarning = 'Kontrakt oppdatert, men regnskapsføring feilet (exception): ' . $ledgerErr->getMessage();
-            }
-            if (!isset($ledgerWarning) && isset($ledgerResult) && empty($ledgerResult['success'])) {
-                $ledgerWarning = 'Kontrakt oppdatert, men regnskapsføring ble ikke lagret: ' . ($ledgerResult['message'] ?? 'ukjent feil');
+            $ledger = new UnifiedLedgerService($db, $companyId);
+            $ledgerResult = $ledger->logTransaction([
+                'order_id'         => generateOrderId(),
+                'module_source'    => 'rental',
+                'item_type'        => 'rental',
+                'source_id'        => $contract['id'],
+                'item_name'        => 'Utleie: ' . $contract['object_name'],
+                'selling_price'    => $amount,
+                'customer_id'      => $contract['customer_id'] ?: null,
+                'payment_method'   => $data['payment_method'] ?? $contract['payment_method'],
+                'payment_status'   => 'completed',
+                'status'           => 'active',
+                'transaction_type' => 'income',
+                'category'         => 'Utleie',
+                'metadata'         => [
+                    'customer_name' => $contract['customer_name'],
+                    'start_date'    => $contract['start_date'],
+                    'end_date'      => $contract['end_date'],
+                    'rental_days'   => $contract['rental_days']
+                ]
+            ]);
+            if (empty($ledgerResult['success'])) {
+                throw new \RuntimeException('Regnskapsføring feilet: ' . ($ledgerResult['message'] ?? 'ukjent feil'));
             }
         }
     }
 
     $db->commit();
 
-    $response = ['success' => true, 'message' => 'Kontrakt oppdatert'];
-    if ($ledgerWarning) {
-        $response['warning'] = $ledgerWarning;
-    }
-    echo json_encode($response);
+    echo json_encode(['success' => true, 'message' => 'Kontrakt oppdatert']);
 
 } catch (\Throwable $e) {
     if (isset($db) && $db->inTransaction()) {

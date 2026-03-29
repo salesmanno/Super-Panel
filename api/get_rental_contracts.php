@@ -53,8 +53,8 @@ try {
             tc.email         AS customer_email,
             DATEDIFF(rc.end_date, CURDATE()) AS days_remaining
         FROM rental_contracts rc
-        INNER JOIN rental_objects ro  ON ro.id = rc.rental_object_id
-        LEFT  JOIN tenant_customers tc ON tc.id = rc.customer_id
+        INNER JOIN rental_objects ro  ON ro.id = rc.rental_object_id AND ro.company_id = rc.company_id
+        LEFT  JOIN tenant_customers tc ON tc.id = rc.customer_id AND tc.company_id = rc.company_id
         WHERE $whereClause
         ORDER BY rc.start_date ASC, rc.created_at DESC
     ");
