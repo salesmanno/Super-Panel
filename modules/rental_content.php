@@ -274,9 +274,10 @@ function renderObjectCard(obj) {
     const schema = rentalSchemas[obj.category];
     const categoryLabel = schema ? schema.label : obj.category;
     const isAvailable = obj.is_available == 1 || obj.is_available === true;
+    const isRented = !isAvailable && obj.display_status === 'rented';
     const toggleChecked = isAvailable ? 'checked' : '';
-    const cardOpacity = isAvailable ? '' : 'opacity: 0.55;';
-    const cardBorder = isAvailable ? '' : 'border: 2px dashed #dee2e6;';
+    const cardOpacity = isAvailable ? '' : 'opacity: 0.65;';
+    const cardBorder = isRented ? 'border: 2px solid #198754;' : (isAvailable ? '' : 'border: 2px dashed #dee2e6;');
     
     let badges = obj.badges || [];
     const badgesHtml = badges.length > 0 
@@ -307,7 +308,9 @@ function renderObjectCard(obj) {
         weekendPrice = `<br><small class="text-muted">Helg: ${parseFloat(obj.weekend_price).toFixed(0)} NOK/dag</small>`;
     }
     
-    const hiddenLabel = !isAvailable ? '<span class="badge bg-warning text-dark ms-2"><i class="bi bi-eye-slash me-1"></i>Skjult</span>' : '';
+    const hiddenLabel = isRented
+        ? '<span class="badge bg-success ms-2"><i class="bi bi-lock me-1"></i>Utleid</span>'
+        : (!isAvailable ? '<span class="badge bg-warning text-dark ms-2"><i class="bi bi-eye-slash me-1"></i>Inaktiv</span>' : '');
     
     const dailyPrice = parseFloat(obj.rental_price) || 0;
     const defaultDeposit = parseFloat(obj.deposit_amount) || 0;
@@ -1237,11 +1240,24 @@ function searchContractCustomer(objectId, query) {
             return;
         }
 
-        dropdown.innerHTML = matches.map(c =>
-            `<a href="#" class="dropdown-item py-1 small" onclick="selectContractCustomer('${objectId}', '${c.id}', '${c.name.replace(/'/g, "\\'")}'); return false;">
-                ${c.name}${c.email ? ` <span class="text-muted">(${c.email})</span>` : ''}
-            </a>`
-        ).join('');
+        dropdown.innerHTML = '';
+        matches.forEach(c => {
+            const a = document.createElement('a');
+            a.href = '#';
+            a.className = 'dropdown-item py-1 small';
+            a.textContent = c.name;
+            if (c.email) {
+                const em = document.createElement('span');
+                em.className = 'text-muted';
+                em.textContent = ' (' + c.email + ')';
+                a.appendChild(em);
+            }
+            a.addEventListener('click', function(e) {
+                e.preventDefault();
+                selectContractCustomer(objectId, c.id, c.name);
+            });
+            dropdown.appendChild(a);
+        });
         dropdown.style.display = 'block';
     });
 }

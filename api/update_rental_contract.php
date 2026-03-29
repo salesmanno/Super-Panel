@@ -88,8 +88,15 @@ try {
     }
 
     if (in_array($newStatus, ['completed', 'cancelled']) && $contract['status'] === 'active') {
-        $db->prepare("UPDATE rental_objects SET is_available = 1 WHERE id = ? AND company_id = ?")
-           ->execute([$contract['rental_object_id'], $companyId]);
+        $remainingStmt = $db->prepare("
+            SELECT COUNT(*) FROM rental_contracts
+            WHERE rental_object_id = ? AND company_id = ? AND status = 'active' AND id != ?
+        ");
+        $remainingStmt->execute([$contract['rental_object_id'], $companyId, $data['id']]);
+        if ($remainingStmt->fetchColumn() == 0) {
+            $db->prepare("UPDATE rental_objects SET is_available = 1 WHERE id = ? AND company_id = ?")
+               ->execute([$contract['rental_object_id'], $companyId]);
+        }
     }
 
     if ($newPaymentStatus === 'paid' && $contract['payment_status'] !== 'paid') {
