@@ -105,7 +105,7 @@ try {
         if ($amount > 0) {
             try {
                 $ledger = new UnifiedLedgerService($db, $companyId);
-                $ledger->logTransaction([
+                $ledgerResult = $ledger->logTransaction([
                     'order_id'         => generateOrderId(),
                     'module_source'    => 'rental',
                     'item_type'        => 'rental',
@@ -127,7 +127,10 @@ try {
                 ]);
             } catch (\Throwable $ledgerErr) {
                 error_log('UnifiedLedger rental error: ' . $ledgerErr->getMessage());
-                $ledgerWarning = 'Kontrakt oppdatert, men regnskapsføring feilet: ' . $ledgerErr->getMessage();
+                $ledgerWarning = 'Kontrakt oppdatert, men regnskapsføring feilet (exception): ' . $ledgerErr->getMessage();
+            }
+            if (!isset($ledgerWarning) && isset($ledgerResult) && empty($ledgerResult['success'])) {
+                $ledgerWarning = 'Kontrakt oppdatert, men regnskapsføring ble ikke lagret: ' . ($ledgerResult['message'] ?? 'ukjent feil');
             }
         }
     }

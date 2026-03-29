@@ -344,7 +344,7 @@ function renderObjectCard(obj) {
                         </div>
                         <div class="btn-group btn-group-sm">
                             <button class="btn btn-outline-success" onclick="toggleContractForm('${obj.id}')" title="Kontrakter" id="contract-btn-${obj.id}">
-                                <i class="bi bi-file-earmark-text me-1"></i>Kontrakt
+                                <i class="bi bi-file-earmark-text me-1"></i>Opprett kontrakt
                             </button>
                             <button class="btn btn-outline-primary" onclick="viewDetails('${obj.id}')" title="Detaljer">
                                 <i class="bi bi-eye"></i>
