@@ -1651,6 +1651,7 @@ async function loadRentalRequests() {
 }
 
 async function approveScheduleRequest(id) {
+    const toastId = toast.loading('Godkjenner forespørsel...');
     try {
         const resp = await fetch('/api/update_rental_schedule.php', {
             method: 'POST',
@@ -1659,19 +1660,20 @@ async function approveScheduleRequest(id) {
         });
         const data = await resp.json();
         if (data.success) {
-            toast.success('Forespørsel godkjent');
+            toast.success(toastId, 'Godkjent', 'Forespørselen er godkjent');
             loadRentalRequests();
             loadApprovedSchedule();
         } else {
-            toast.error(data.message || 'Feil ved godkjenning');
+            toast.error(toastId, 'Feil', data.message || 'Kunne ikke godkjenne forespørsel');
         }
     } catch (e) {
-        toast.error('Nettverksfeil. Prøv igjen.');
+        toast.error(toastId, 'Feil', 'Nettverksfeil. Prøv igjen.');
     }
 }
 
 async function declineScheduleRequest(id) {
     if (!confirm('Er du sikker på at du vil avslå denne forespørselen?')) return;
+    const toastId = toast.loading('Avslår forespørsel...');
     try {
         const resp = await fetch('/api/update_rental_schedule.php', {
             method: 'POST',
@@ -1680,13 +1682,13 @@ async function declineScheduleRequest(id) {
         });
         const data = await resp.json();
         if (data.success) {
-            toast.success('Forespørsel avslått');
+            toast.success(toastId, 'Avslått', 'Forespørselen er avslått');
             loadRentalRequests();
         } else {
-            toast.error(data.message || 'Feil ved avvisning');
+            toast.error(toastId, 'Feil', data.message || 'Kunne ikke avslå forespørsel');
         }
     } catch (e) {
-        toast.error('Nettverksfeil. Prøv igjen.');
+        toast.error(toastId, 'Feil', 'Nettverksfeil. Prøv igjen.');
     }
 }
 
@@ -1781,6 +1783,7 @@ async function loadApprovedSchedule() {
 }
 
 async function saveScheduleTime(id, field, value) {
+    const toastId = toast.loading('Lagrer tidspunkt...');
     try {
         const body = { id };
         body[field] = value || null;
@@ -1791,12 +1794,12 @@ async function saveScheduleTime(id, field, value) {
         });
         const data = await resp.json();
         if (data.success) {
-            toast.success('Tidspunkt lagret');
+            toast.success(toastId, 'Lagret', 'Tidspunkt er oppdatert');
         } else {
-            toast.error(data.message || 'Feil ved lagring');
+            toast.error(toastId, 'Feil', data.message || 'Kunne ikke lagre tidspunkt');
         }
     } catch (e) {
-        toast.error('Nettverksfeil. Prøv igjen.');
+        toast.error(toastId, 'Feil', 'Nettverksfeil. Prøv igjen.');
     }
 }
 

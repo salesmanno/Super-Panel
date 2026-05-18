@@ -22,11 +22,12 @@ try {
     $params = [$companyId];
 
     if ($approvedFilter !== null && in_array($approvedFilter, ['0', '1'], true)) {
-        $where[]  = 'rs.approved = ?';
-        $params[] = (int) $approvedFilter;
-
         if ($approvedFilter === '0') {
+            $where[] = '(rs.approved = 0 OR rs.approved IS NULL)';
             $where[] = "rs.status != 'declined'";
+        } else {
+            $where[]  = 'rs.approved = ?';
+            $params[] = 1;
         }
     }
 
