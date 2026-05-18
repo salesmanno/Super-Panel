@@ -37,7 +37,7 @@ try {
     $updateFields = [];
     $updateParams = [];
 
-    if (isset($data['approved']) && in_array((int)$data['approved'], [0, 1], true)) {
+    if (isset($data['approved']) && in_array((int)$data['approved'], [0, 1, 2], true)) {
         $updateFields[] = 'approved = ?';
         $updateParams[] = (int) $data['approved'];
     }

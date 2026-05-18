@@ -3,7 +3,7 @@
 -- Safe to run multiple times (IF NOT EXISTS guards)
 
 ALTER TABLE `rental_schedule`
-  ADD COLUMN IF NOT EXISTS `approved` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '0=pending, 1=approved',
+  ADD COLUMN IF NOT EXISTS `approved` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '0=pending, 1=godkjent, 2=avslått',
   ADD COLUMN IF NOT EXISTS `pickup_time` TIME NULL COMMENT 'Confirmed pickup time set by admin';
 
 -- Normalize legacy NULL values to 0 (pending) so the pending filter works correctly

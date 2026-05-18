@@ -1678,7 +1678,7 @@ async function declineScheduleRequest(id) {
         const resp = await fetch('/api/update_rental_schedule.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, approved: 0, status: 'declined' })
+            body: JSON.stringify({ id, approved: 2 })
         });
         const data = await resp.json();
         if (data.success) {
