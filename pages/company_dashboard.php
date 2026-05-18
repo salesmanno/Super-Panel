@@ -577,10 +577,10 @@ try {
                     <a class="nav-link" href="#rental-create">Opprett utleieobjekt</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#rental-contracts">Kontrakt & betingelser</a>
+                    <a class="nav-link" href="#rental-requests">Forespurt utleie</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#rental-requests">Forespurt utleie</a>
+                    <a class="nav-link" href="#rental-contracts">Kontrakt & betingelser</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="#rental-upcoming">Kommende utleie</a>

@@ -1366,7 +1366,7 @@ async function submitContract(objectId) {
             document.getElementById('contract-panel-' + objectId).style.display = 'none';
             loadRentalObjects();
             loadContracts(contractStatusFilter);
-            loadUpcomingContracts();
+            loadApprovedSchedule();
         } else {
             toast.error(toastId, 'Feil', result.message || 'Kunne ikke lagre kontrakt');
         }
@@ -1520,7 +1520,7 @@ async function updateContractStatus(contractId, newStatus, objectId) {
         if (data.success) {
             toast.success(toastId, 'Oppdatert', 'Kontraktstatus endret');
             loadContracts(contractStatusFilter);
-            loadUpcomingContracts();
+            loadApprovedSchedule();
             loadRentalObjects();
         } else {
             toast.error(toastId, 'Feil', data.message || 'Kunne ikke oppdatere');
@@ -1584,8 +1584,19 @@ async function loadRentalRequests() {
                 r.display_phone ? `<span class="d-block small text-muted">${escHtml(r.display_phone)}</span>` : ''
             ].join('');
 
+            const notesCell = r.notes
+                ? `<span class="d-block small text-muted mt-1" title="${escHtml(r.notes)}">
+                       <i class="bi bi-chat-left-text me-1"></i>${escHtml(r.notes.length > 60 ? r.notes.substring(0,60) + '…' : r.notes)}
+                   </span>`
+                : '';
+
+            const createdAt = r.created_at ? r.created_at.substring(0,10).split('-').reverse().join('.') : '–';
+
             return `<tr>
-                <td class="small fw-semibold">${escHtml(r.object_name)}</td>
+                <td class="small">
+                    <div class="fw-semibold">${escHtml(r.object_name)}</div>
+                    ${r.object_category ? `<span class="badge bg-light text-dark border">${escHtml(r.object_category)}</span>` : ''}
+                </td>
                 <td class="small">
                     <div>${escHtml(r.display_customer_name)}</div>
                     ${contactInfo}
@@ -1596,13 +1607,15 @@ async function loadRentalRequests() {
                 <td class="small text-nowrap">
                     ${fmtDate(r.end_date)} ${r.end_time ? r.end_time.substring(0,5) : ''}
                 </td>
-                <td>
+                <td class="small">
                     ${logisticsLabel}
                     ${deliveryAddr}
                 </td>
                 <td class="small text-nowrap">
                     ${parseFloat(r.rental_fee || 0).toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:0})} NOK
                 </td>
+                <td class="small text-nowrap text-muted">${createdAt}</td>
+                <td class="small">${notesCell || '<span class="text-muted">–</span>'}</td>
                 <td class="text-nowrap">
                     <button class="btn btn-success btn-sm me-1" onclick="approveScheduleRequest('${escHtml(r.id)}')">
                         <i class="bi bi-check-lg me-1"></i>Godkjenn
@@ -1624,6 +1637,8 @@ async function loadRentalRequests() {
                         <th>Til</th>
                         <th>Logistikk</th>
                         <th>Leiebeløp</th>
+                        <th>Innsendt</th>
+                        <th>Notater</th>
                         <th>Handling</th>
                     </tr>
                 </thead>
