@@ -32,28 +32,34 @@ try {
 
     $whereClause = implode(' AND ', $where);
 
-    $stmt = $db->prepare("
-        SELECT
-            rs.*,
-            ro.object_name,
-            ro.category      AS object_category,
-            ro.rental_price  AS object_daily_price,
-            COALESCE(
-                NULLIF(TRIM(rs.customer_name), ''),
-                NULLIF(TRIM(CONCAT(COALESCE(tc.first_name,''), ' ', COALESCE(tc.last_name,''))), ''),
-                'Ukjent kunde'
-            )                AS display_customer_name,
-            COALESCE(NULLIF(rs.customer_email,''), tc.email)  AS display_email,
-            COALESCE(NULLIF(rs.customer_phone,''), tc.phone)  AS display_phone,
-            DATEDIFF(rs.end_date, CURDATE()) AS days_remaining
-        FROM rental_schedule rs
-        INNER JOIN rental_objects ro ON ro.id = rs.rental_object_id AND ro.company_id = rs.company_id
-        LEFT  JOIN tenant_customers tc ON tc.id = rs.customer_id AND tc.company_id = rs.company_id
-        WHERE $whereClause
-        ORDER BY rs.start_date ASC, rs.created_at DESC
-    ");
-    $stmt->execute($params);
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    try {
+        $stmt = $db->prepare("
+            SELECT
+                rs.*,
+                ro.object_name,
+                ro.category      AS object_category,
+                ro.rental_price  AS object_daily_price,
+                COALESCE(
+                    NULLIF(TRIM(rs.customer_name), ''),
+                    NULLIF(TRIM(CONCAT(COALESCE(tc.first_name,''), ' ', COALESCE(tc.last_name,''))), ''),
+                    'Ukjent kunde'
+                )                AS display_customer_name,
+                COALESCE(NULLIF(rs.customer_email,''), tc.email)  AS display_email,
+                COALESCE(NULLIF(rs.customer_phone,''), tc.phone)  AS display_phone,
+                DATEDIFF(rs.end_date, CURDATE()) AS days_remaining
+            FROM rental_schedule rs
+            INNER JOIN rental_objects ro ON ro.id = rs.rental_object_id AND ro.company_id = rs.company_id
+            LEFT  JOIN tenant_customers tc ON tc.id = rs.customer_id AND tc.company_id = rs.company_id
+            WHERE $whereClause
+            ORDER BY rs.start_date ASC, rs.created_at DESC
+        ");
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (\Throwable $qe) {
+        // rental_schedule table or approved column may not exist yet — return empty list
+        error_log('get_rental_schedule query error (migration pending?): ' . $qe->getMessage());
+        $rows = [];
+    }
 
     echo json_encode(['success' => true, 'requests' => $rows]);
 

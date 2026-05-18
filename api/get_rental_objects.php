@@ -71,22 +71,39 @@ try {
         echo json_encode(['success' => true, 'object' => $object]);
         
     } else {
-        // Get all objects for company
-        $stmt = $db->prepare("
-            SELECT ro.*,
-                   CASE
-                       WHEN ro.is_available = 1 AND ro.is_active = 1 THEN 'available'
-                       WHEN ro.is_available = 0 AND EXISTS (
-                           SELECT 1 FROM rental_contracts rc2
-                           WHERE rc2.rental_object_id = ro.id AND rc2.company_id = ro.company_id AND rc2.status = 'active'
-                       ) THEN 'rented'
-                       ELSE 'inactive'
-                   END AS display_status
-            FROM rental_objects ro
-            WHERE ro.company_id = ?
-            ORDER BY ro.created_at DESC
-        ");
-        $stmt->execute([$admin['company_id']]);
+        // Get all objects — try full query with rental_contracts, fall back if table doesn't exist yet
+        try {
+            $stmt = $db->prepare("
+                SELECT ro.*,
+                       CASE
+                           WHEN ro.is_available = 1 AND ro.is_active = 1 THEN 'available'
+                           WHEN ro.is_available = 0 AND EXISTS (
+                               SELECT 1 FROM rental_contracts rc2
+                               WHERE rc2.rental_object_id = ro.id AND rc2.company_id = ro.company_id AND rc2.status = 'active'
+                           ) THEN 'rented'
+                           ELSE 'inactive'
+                       END AS display_status
+                FROM rental_objects ro
+                WHERE ro.company_id = ?
+                ORDER BY ro.created_at DESC
+            ");
+            $stmt->execute([$admin['company_id']]);
+        } catch (\Throwable $qe) {
+            // rental_contracts table may not exist yet — fall back to simple status
+            error_log('get_rental_objects fallback query (rental_contracts missing?): ' . $qe->getMessage());
+            $stmt = $db->prepare("
+                SELECT ro.*,
+                       CASE
+                           WHEN ro.is_available = 1 AND ro.is_active = 1 THEN 'available'
+                           WHEN ro.is_available = 0 THEN 'rented'
+                           ELSE 'inactive'
+                       END AS display_status
+                FROM rental_objects ro
+                WHERE ro.company_id = ?
+                ORDER BY ro.created_at DESC
+            ");
+            $stmt->execute([$admin['company_id']]);
+        }
         $objects = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         foreach ($objects as &$object) {

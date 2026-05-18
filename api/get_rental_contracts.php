@@ -40,26 +40,32 @@ try {
 
     $whereClause = implode(' AND ', $where);
 
-    $stmt = $db->prepare("
-        SELECT
-            rc.*,
-            ro.object_name,
-            ro.rental_price  AS object_daily_price,
-            ro.category      AS object_category,
-            COALESCE(rc.customer_name,
-                TRIM(CONCAT(COALESCE(tc.first_name,''), ' ', COALESCE(tc.last_name,''))),
-                'Ukjent kunde'
-            ) AS display_customer_name,
-            tc.email         AS customer_email,
-            DATEDIFF(rc.end_date, CURDATE()) AS days_remaining
-        FROM rental_contracts rc
-        INNER JOIN rental_objects ro  ON ro.id = rc.rental_object_id AND ro.company_id = rc.company_id
-        LEFT  JOIN tenant_customers tc ON tc.id = rc.customer_id AND tc.company_id = rc.company_id
-        WHERE $whereClause
-        ORDER BY rc.start_date ASC, rc.created_at DESC
-    ");
-    $stmt->execute($params);
-    $contracts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    try {
+        $stmt = $db->prepare("
+            SELECT
+                rc.*,
+                ro.object_name,
+                ro.rental_price  AS object_daily_price,
+                ro.category      AS object_category,
+                COALESCE(rc.customer_name,
+                    TRIM(CONCAT(COALESCE(tc.first_name,''), ' ', COALESCE(tc.last_name,''))),
+                    'Ukjent kunde'
+                ) AS display_customer_name,
+                tc.email         AS customer_email,
+                DATEDIFF(rc.end_date, CURDATE()) AS days_remaining
+            FROM rental_contracts rc
+            INNER JOIN rental_objects ro  ON ro.id = rc.rental_object_id AND ro.company_id = rc.company_id
+            LEFT  JOIN tenant_customers tc ON tc.id = rc.customer_id AND tc.company_id = rc.company_id
+            WHERE $whereClause
+            ORDER BY rc.start_date ASC, rc.created_at DESC
+        ");
+        $stmt->execute($params);
+        $contracts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (\Throwable $qe) {
+        // rental_contracts table may not exist yet — return empty list
+        error_log('get_rental_contracts table missing: ' . $qe->getMessage());
+        $contracts = [];
+    }
 
     echo json_encode(['success' => true, 'contracts' => $contracts]);
 
