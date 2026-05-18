@@ -91,10 +91,34 @@ $schemas = getRentalSchemas();
         </div>
     </div>
 
+    <div id="rental-requests" class="subtab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">Forespurt utleie</h5>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadRentalRequests()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Oppdater
+                    </button>
+                </div>
+                <div id="rentalRequestsContainer">
+                    <div class="text-center text-muted py-4">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        Laster inn forespørsler...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="rental-upcoming" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title mb-3">Aktive utleier</h5>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">Kommende utleie</h5>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadApprovedSchedule()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Oppdater
+                    </button>
+                </div>
                 <div id="upcomingContractsContainer">
                     <div class="text-center text-muted py-4">
                         <div class="spinner-border spinner-border-sm me-2" role="status"></div>
@@ -201,7 +225,8 @@ document.addEventListener('DOMContentLoaded', function() {
     loadRentalObjects();
     buildCreateForm();
     loadContracts('all');
-    loadUpcomingContracts();
+    loadRentalRequests();
+    loadApprovedSchedule();
 });
 
 async function loadRentalObjects() {
@@ -1527,20 +1552,143 @@ async function deleteContract(contractId, objectId) {
     }
 }
 
-// ─── UPCOMING TAB ─────────────────────────────────────────────────────────────
+// ─── FORESPURT UTLEIE TAB ────────────────────────────────────────────────────
 
-async function loadUpcomingContracts() {
+async function loadRentalRequests() {
+    const container = document.getElementById('rentalRequestsContainer');
+    if (!container) return;
+
+    try {
+        const resp = await fetch('/api/get_rental_schedule.php?approved=0');
+        const data = await resp.json();
+
+        if (!data.success || !data.requests || data.requests.length === 0) {
+            container.innerHTML = `<div class="text-center text-muted py-5">
+                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                Ingen ventende forespørsler
+            </div>`;
+            return;
+        }
+
+        const rows = data.requests.map(r => {
+            const logisticsLabel = r.logistics === 'delivery'
+                ? `<span class="badge bg-info text-dark">Levering</span>`
+                : `<span class="badge bg-secondary">Hentes</span>`;
+
+            const deliveryAddr = r.logistics === 'delivery' && r.delivery_address
+                ? `<div class="text-muted small mt-1"><i class="bi bi-geo-alt me-1"></i>${escHtml(r.delivery_address)}</div>`
+                : '';
+
+            const contactInfo = [
+                r.display_email ? `<a href="mailto:${escHtml(r.display_email)}" class="d-block small">${escHtml(r.display_email)}</a>` : '',
+                r.display_phone ? `<span class="d-block small text-muted">${escHtml(r.display_phone)}</span>` : ''
+            ].join('');
+
+            return `<tr>
+                <td class="small fw-semibold">${escHtml(r.object_name)}</td>
+                <td class="small">
+                    <div>${escHtml(r.display_customer_name)}</div>
+                    ${contactInfo}
+                </td>
+                <td class="small text-nowrap">
+                    ${fmtDate(r.start_date)} ${r.start_time ? r.start_time.substring(0,5) : ''}
+                </td>
+                <td class="small text-nowrap">
+                    ${fmtDate(r.end_date)} ${r.end_time ? r.end_time.substring(0,5) : ''}
+                </td>
+                <td>
+                    ${logisticsLabel}
+                    ${deliveryAddr}
+                </td>
+                <td class="small text-nowrap">
+                    ${parseFloat(r.rental_fee || 0).toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:0})} NOK
+                </td>
+                <td class="text-nowrap">
+                    <button class="btn btn-success btn-sm me-1" onclick="approveScheduleRequest('${escHtml(r.id)}')">
+                        <i class="bi bi-check-lg me-1"></i>Godkjenn
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="declineScheduleRequest('${escHtml(r.id)}')">
+                        <i class="bi bi-x-lg me-1"></i>Avslå
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        container.innerHTML = `<div class="table-responsive">
+            <table class="table table-hover table-sm align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Objekt</th>
+                        <th>Kunde</th>
+                        <th>Fra</th>
+                        <th>Til</th>
+                        <th>Logistikk</th>
+                        <th>Leiebeløp</th>
+                        <th>Handling</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>`;
+    } catch (e) {
+        container.innerHTML = `<div class="alert alert-danger">Feil ved lasting av forespørsler</div>`;
+    }
+}
+
+async function approveScheduleRequest(id) {
+    try {
+        const resp = await fetch('/api/update_rental_schedule.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, approved: 1, status: 'approved' })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            toast.success('Forespørsel godkjent');
+            loadRentalRequests();
+            loadApprovedSchedule();
+        } else {
+            toast.error(data.message || 'Feil ved godkjenning');
+        }
+    } catch (e) {
+        toast.error('Nettverksfeil. Prøv igjen.');
+    }
+}
+
+async function declineScheduleRequest(id) {
+    if (!confirm('Er du sikker på at du vil avslå denne forespørselen?')) return;
+    try {
+        const resp = await fetch('/api/update_rental_schedule.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, approved: 0, status: 'declined' })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            toast.success('Forespørsel avslått');
+            loadRentalRequests();
+        } else {
+            toast.error(data.message || 'Feil ved avvisning');
+        }
+    } catch (e) {
+        toast.error('Nettverksfeil. Prøv igjen.');
+    }
+}
+
+// ─── KOMMENDE UTLEIE TAB ─────────────────────────────────────────────────────
+
+async function loadApprovedSchedule() {
     const container = document.getElementById('upcomingContractsContainer');
     if (!container) return;
 
     try {
-        const resp = await fetch('/api/get_rental_contracts.php?upcoming=1');
+        const resp = await fetch('/api/get_rental_schedule.php?approved=1');
         const data = await resp.json();
 
-        if (!data.success || !data.contracts || data.contracts.length === 0) {
+        if (!data.success || !data.requests || data.requests.length === 0) {
             container.innerHTML = `<div class="text-center text-muted py-5">
                 <i class="bi bi-calendar-check fs-1 d-block mb-2"></i>
-                Ingen aktive utleier
+                Ingen godkjente kommende utleier
             </div>`;
             return;
         }
@@ -1548,8 +1696,8 @@ async function loadUpcomingContracts() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const rows = data.contracts.map(c => {
-            const endDate = new Date(c.end_date);
+        const rows = data.requests.map(r => {
+            const endDate = new Date(r.end_date);
             const diffMs  = endDate - today;
             const daysLeft = Math.max(0, Math.round(diffMs / 86400000));
             const daysLeftBadge = daysLeft === 0
@@ -1558,14 +1706,40 @@ async function loadUpcomingContracts() {
                 ? `<span class="badge bg-warning text-dark">${daysLeft} dager</span>`
                 : `<span class="badge bg-light text-dark border">${daysLeft} dager</span>`;
 
+            const contactInfo = [
+                r.display_email ? `<a href="mailto:${escHtml(r.display_email)}" class="d-block small">${escHtml(r.display_email)}</a>` : '',
+                r.display_phone ? `<span class="d-block small text-muted">${escHtml(r.display_phone)}</span>` : ''
+            ].join('');
+
+            const pickupVal  = r.pickup_time ? r.pickup_time.substring(0,5) : '';
+            const endTimeVal = r.end_time    ? r.end_time.substring(0,5)    : '';
+
             return `<tr>
-                <td class="small fw-semibold">${escHtml(c.object_name)}</td>
-                <td class="small">${escHtml(c.display_customer_name)}</td>
-                <td class="small text-nowrap">${fmtDate(c.start_date)}</td>
-                <td class="small text-nowrap">${fmtDate(c.end_date)}</td>
+                <td class="small fw-semibold">${escHtml(r.object_name)}</td>
+                <td class="small">
+                    <div>${escHtml(r.display_customer_name)}</div>
+                    ${contactInfo}
+                </td>
+                <td class="small text-nowrap">${fmtDate(r.start_date)}</td>
+                <td class="small">
+                    <input type="time" class="form-control form-control-sm"
+                        style="width:110px"
+                        value="${escHtml(pickupVal)}"
+                        title="Hentetidspunkt"
+                        onchange="saveScheduleTime('${escHtml(r.id)}', 'pickup_time', this.value)">
+                </td>
+                <td class="small text-nowrap">${fmtDate(r.end_date)}</td>
+                <td class="small">
+                    <input type="time" class="form-control form-control-sm"
+                        style="width:110px"
+                        value="${escHtml(endTimeVal)}"
+                        title="Sluttidspunkt"
+                        onchange="saveScheduleTime('${escHtml(r.id)}', 'end_time', this.value)">
+                </td>
                 <td>${daysLeftBadge}</td>
-                <td class="small text-nowrap">${parseFloat(c.total_amount || 0).toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:0})} NOK</td>
-                <td>${contractPaymentBadge(c.payment_status)}</td>
+                <td class="small text-nowrap">
+                    ${parseFloat(r.rental_fee || 0).toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:0})} NOK
+                </td>
             </tr>`;
         }).join('');
 
@@ -1576,17 +1750,38 @@ async function loadUpcomingContracts() {
                         <th>Objekt</th>
                         <th>Kunde</th>
                         <th>Fra dato</th>
+                        <th>Hentetid</th>
                         <th>Til dato</th>
+                        <th>Sluttid</th>
                         <th>Dager igjen</th>
-                        <th>Beløp</th>
-                        <th>Betaling</th>
+                        <th>Leiebeløp</th>
                     </tr>
                 </thead>
                 <tbody>${rows}</tbody>
             </table>
         </div>`;
     } catch (e) {
-        container.innerHTML = `<div class="alert alert-danger">Feil ved lasting av aktive utleier</div>`;
+        container.innerHTML = `<div class="alert alert-danger">Feil ved lasting av kommende utleier</div>`;
+    }
+}
+
+async function saveScheduleTime(id, field, value) {
+    try {
+        const body = { id };
+        body[field] = value || null;
+        const resp = await fetch('/api/update_rental_schedule.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await resp.json();
+        if (data.success) {
+            toast.success('Tidspunkt lagret');
+        } else {
+            toast.error(data.message || 'Feil ved lagring');
+        }
+    } catch (e) {
+        toast.error('Nettverksfeil. Prøv igjen.');
     }
 }
 
