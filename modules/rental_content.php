@@ -1796,9 +1796,9 @@ function renderRentalCalendar(container) {
     const maxDate    = calGetMaxDate();
     const minStart   = calMondayOf(new Date());
 
-    const canPrev = calViewStart > minStart;
+    const canPrev   = calViewStart > minStart;
     const nextStart = calAddDays(calViewStart, 14);
-    const canNext = nextStart <= maxDate;
+    const canNext   = calAddDays(nextStart, 13) <= maxDate;
 
     const DAY_LABELS = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'];
 
@@ -1815,10 +1815,12 @@ function renderRentalCalendar(container) {
         // Day header row
         let headerCells = '';
         for (let d = 0; d < 7; d++) {
-            const day    = calAddDays(wkStart, d);
-            const ds     = calDateStr(day);
+            const day     = calAddDays(wkStart, d);
+            const ds      = calDateStr(day);
             const isToday = ds === todayStr;
-            headerCells += `<div style="text-align:center;padding:4px 2px;background:${isToday ? '#dbeafe' : '#f8f9fa'};border-right:1px solid #dee2e6;border-bottom:1px solid #dee2e6;font-size:0.72rem;">
+            const isPast  = day > maxDate;
+            const bg      = isPast ? '#f0f0f0' : isToday ? '#dbeafe' : '#f8f9fa';
+            headerCells += `<div style="text-align:center;padding:4px 2px;background:${bg};border-right:1px solid #dee2e6;border-bottom:1px solid #dee2e6;font-size:0.72rem;${isPast ? 'opacity:0.45;' : ''}">
                 <div class="text-muted">${DAY_LABELS[d]}</div>
                 <div class="fw-bold${isToday ? ' text-primary' : ''}">${day.getDate()}.${String(day.getMonth()+1).padStart(2,'0')}</div>
             </div>`;
@@ -1875,11 +1877,18 @@ function renderRentalCalendar(container) {
     const endOfView = calAddDays(calViewStart, 13);
     const rangeLbl  = `${calViewStart.getDate()}.${String(calViewStart.getMonth()+1).padStart(2,'0')}.${calViewStart.getFullYear()} – ${endOfView.getDate()}.${String(endOfView.getMonth()+1).padStart(2,'0')}.${endOfView.getFullYear()}`;
 
-    // Legend
-    const legend = allApprovedRentals.map((r, i) => {
-        const c = CAL_COLORS[i % CAL_COLORS.length];
-        return `<span class="badge me-1 mb-1" style="background:${c.bg};color:${c.tx};cursor:pointer;font-weight:400;" onclick="showRentalCalDetail('${escHtml(r.id)}')">${escHtml(r.object_name || 'Ukjent')}</span>`;
-    }).join('');
+    // Legend — only rentals visible in current 2-week window
+    const viewWindowEnd = calAddDays(calViewStart, 13);
+    const legend = allApprovedRentals
+        .filter(r => {
+            const rs = calParseDate(r.start_date), re = calParseDate(r.end_date);
+            return rs && re && rs <= viewWindowEnd && re >= calViewStart;
+        })
+        .map((r, i) => {
+            const globalIdx = allApprovedRentals.indexOf(r);
+            const c = CAL_COLORS[globalIdx % CAL_COLORS.length];
+            return `<span class="badge me-1 mb-1" style="background:${c.bg};color:${c.tx};cursor:pointer;font-weight:400;" onclick="showRentalCalDetail('${escHtml(r.id)}')">${escHtml(r.object_name || 'Ukjent')}</span>`;
+        }).join('');
 
     container.innerHTML = `
         <div class="d-flex justify-content-between align-items-center mb-2">
