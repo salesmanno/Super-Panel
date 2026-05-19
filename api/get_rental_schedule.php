@@ -43,8 +43,9 @@ try {
                     NULLIF(TRIM(CONCAT(COALESCE(tc.first_name,''), ' ', COALESCE(tc.last_name,''))), ''),
                     'Ukjent kunde'
                 )                AS display_customer_name,
-                tc.email         AS display_email,
-                tc.phone AS display_phone,
+                tc.email            AS display_email,
+                tc.phone            AS display_phone,
+                tc.date_of_birth    AS date_of_birth,
                 DATEDIFF(rs.end_date, CURDATE()) AS days_remaining
             FROM rental_schedule rs
             LEFT  JOIN rental_objects ro  ON ro.id = rs.rental_object_id AND ro.company_id = rs.company_id

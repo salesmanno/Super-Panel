@@ -220,6 +220,13 @@ $schemas = getRentalSchemas();
 const rentalSchemas = <?= json_encode($schemas) ?>;
 let allRentalObjects = [];
 let rentalFilter = '';
+let allApprovedRentals = [];
+let calViewStart = null;
+const CAL_COLORS = [
+    {bg:'#0d6efd',tx:'#fff'},{bg:'#198754',tx:'#fff'},{bg:'#dc3545',tx:'#fff'},
+    {bg:'#fd7e14',tx:'#fff'},{bg:'#6610f2',tx:'#fff'},{bg:'#20c997',tx:'#fff'},
+    {bg:'#d63384',tx:'#fff'},{bg:'#0dcaf0',tx:'#000'},{bg:'#6c757d',tx:'#fff'},
+];
 
 document.addEventListener('DOMContentLoaded', function() {
     loadRentalObjects();
@@ -1552,7 +1559,16 @@ async function deleteContract(contractId, objectId) {
     }
 }
 
-// ─── FORESPURT UTLEIE TAB ────────────────────────────────────────────────────
+// ─── FORESPURT UTLEIE ────────────────────────────────────────────────────────
+
+function calcAge(dob) {
+    if (!dob) return null;
+    const b = new Date(dob), n = new Date();
+    let age = n.getFullYear() - b.getFullYear();
+    const m = n.getMonth() - b.getMonth();
+    if (m < 0 || (m === 0 && n.getDate() < b.getDate())) age--;
+    return age >= 0 ? age : null;
+}
 
 async function loadRentalRequests() {
     const container = document.getElementById('rentalRequestsContainer');
@@ -1579,6 +1595,9 @@ async function loadRentalRequests() {
                 ? `<div class="text-muted small mt-1"><i class="bi bi-geo-alt me-1"></i>${escHtml(r.delivery_address)}</div>`
                 : '';
 
+            const age = calcAge(r.date_of_birth);
+            const ageStr = age !== null ? `<span class="text-muted small ms-1">(${age} år)</span>` : '';
+
             const contactInfo = [
                 r.display_email ? `<a href="mailto:${escHtml(r.display_email)}" class="d-block small">${escHtml(r.display_email)}</a>` : '',
                 r.display_phone ? `<span class="d-block small text-muted">${escHtml(r.display_phone)}</span>` : ''
@@ -1594,11 +1613,11 @@ async function loadRentalRequests() {
 
             return `<tr>
                 <td class="small">
-                    <div class="fw-semibold">${escHtml(r.object_name)}</div>
+                    <div class="fw-semibold">${escHtml(r.object_name || '–')}</div>
                     ${r.object_category ? `<span class="badge bg-light text-dark border">${escHtml(r.object_category)}</span>` : ''}
                 </td>
                 <td class="small">
-                    <div>${escHtml(r.display_customer_name)}</div>
+                    <div>${escHtml(r.display_customer_name)}${ageStr}</div>
                     ${contactInfo}
                 </td>
                 <td class="small text-nowrap">
@@ -1660,7 +1679,10 @@ async function approveScheduleRequest(id) {
         });
         const data = await resp.json();
         if (data.success) {
-            toast.success(toastId, 'Godkjent', 'Forespørselen er godkjent');
+            const msg = data.email_queued
+                ? 'Forespørselen er godkjent — bekreftelse sendt'
+                : 'Forespørselen er godkjent';
+            toast.success(toastId, 'Godkjent', msg);
             loadRentalRequests();
             loadApprovedSchedule();
         } else {
@@ -1692,17 +1714,61 @@ async function declineScheduleRequest(id) {
     }
 }
 
-// ─── KOMMENDE UTLEIE TAB ─────────────────────────────────────────────────────
+// ─── KOMMENDE UTLEIE — KALENDER ──────────────────────────────────────────────
+
+function calMondayOf(d) {
+    const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const day = date.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    date.setDate(date.getDate() + diff);
+    return date;
+}
+
+function calAddDays(d, n) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+}
+
+function calDateStr(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function calParseDate(s) {
+    if (!s) return null;
+    const [y, m, d] = s.substring(0,10).split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
+
+function calGetMaxDate() {
+    const now = new Date();
+    const sixMonths = new Date(now.getFullYear(), now.getMonth() + 6, 1);
+    let lastEnd = new Date(0);
+    allApprovedRentals.forEach(r => {
+        const e = calParseDate(r.end_date);
+        if (e && e > lastEnd) lastEnd = e;
+    });
+    return lastEnd > sixMonths ? lastEnd : sixMonths;
+}
 
 async function loadApprovedSchedule() {
     const container = document.getElementById('upcomingContractsContainer');
     if (!container) return;
 
+    container.innerHTML = `<div class="text-center text-muted py-3">
+        <div class="spinner-border spinner-border-sm me-2" role="status"></div>Laster...
+    </div>`;
+
     try {
         const resp = await fetch('/api/get_rental_schedule.php?approved=1');
         const data = await resp.json();
 
-        if (!data.success || !data.requests || data.requests.length === 0) {
+        if (!data.success) {
+            container.innerHTML = `<div class="alert alert-danger">Feil ved lasting av utleier</div>`;
+            return;
+        }
+
+        allApprovedRentals = data.requests || [];
+
+        if (allApprovedRentals.length === 0) {
             container.innerHTML = `<div class="text-center text-muted py-5">
                 <i class="bi bi-calendar-check fs-1 d-block mb-2"></i>
                 Ingen godkjente kommende utleier
@@ -1710,76 +1776,165 @@ async function loadApprovedSchedule() {
             return;
         }
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const rows = data.requests.map(r => {
-            const endDate = new Date(r.end_date);
-            const diffMs  = endDate - today;
-            const daysLeft = Math.max(0, Math.round(diffMs / 86400000));
-            const daysLeftBadge = daysLeft === 0
-                ? '<span class="badge bg-danger">I dag</span>'
-                : daysLeft <= 3
-                ? `<span class="badge bg-warning text-dark">${daysLeft} dager</span>`
-                : `<span class="badge bg-light text-dark border">${daysLeft} dager</span>`;
-
-            const contactInfo = [
-                r.display_email ? `<a href="mailto:${escHtml(r.display_email)}" class="d-block small">${escHtml(r.display_email)}</a>` : '',
-                r.display_phone ? `<span class="d-block small text-muted">${escHtml(r.display_phone)}</span>` : ''
-            ].join('');
-
-            const pickupVal  = r.pickup_time ? r.pickup_time.substring(0,5) : '';
-            const endTimeVal = r.end_time    ? r.end_time.substring(0,5)    : '';
-
-            return `<tr>
-                <td class="small fw-semibold">${escHtml(r.object_name)}</td>
-                <td class="small">
-                    <div>${escHtml(r.display_customer_name)}</div>
-                    ${contactInfo}
-                </td>
-                <td class="small text-nowrap">${fmtDate(r.start_date)}</td>
-                <td class="small">
-                    <input type="time" class="form-control form-control-sm"
-                        style="width:110px"
-                        value="${escHtml(pickupVal)}"
-                        title="Hentetidspunkt"
-                        onchange="saveScheduleTime('${escHtml(r.id)}', 'pickup_time', this.value)">
-                </td>
-                <td class="small text-nowrap">${fmtDate(r.end_date)}</td>
-                <td class="small">
-                    <input type="time" class="form-control form-control-sm"
-                        style="width:110px"
-                        value="${escHtml(endTimeVal)}"
-                        title="Sluttidspunkt"
-                        onchange="saveScheduleTime('${escHtml(r.id)}', 'end_time', this.value)">
-                </td>
-                <td>${daysLeftBadge}</td>
-                <td class="small text-nowrap">
-                    ${parseFloat(r.rental_fee || 0).toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:0})} NOK
-                </td>
-            </tr>`;
-        }).join('');
-
-        container.innerHTML = `<div class="table-responsive">
-            <table class="table table-hover table-sm align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Objekt</th>
-                        <th>Kunde</th>
-                        <th>Fra dato</th>
-                        <th>Hentetid</th>
-                        <th>Til dato</th>
-                        <th>Sluttid</th>
-                        <th>Dager igjen</th>
-                        <th>Leiebeløp</th>
-                    </tr>
-                </thead>
-                <tbody>${rows}</tbody>
-            </table>
-        </div>`;
+        calViewStart = calMondayOf(new Date());
+        renderRentalCalendar(container);
     } catch (e) {
         container.innerHTML = `<div class="alert alert-danger">Feil ved lasting av kommende utleier</div>`;
     }
+}
+
+function calNavigate(dir) {
+    if (!calViewStart) return;
+    const container = document.getElementById('upcomingContractsContainer');
+    calViewStart = calAddDays(calViewStart, dir * 14);
+    renderRentalCalendar(container);
+}
+
+function renderRentalCalendar(container) {
+    const today      = new Date();
+    const todayStr   = calDateStr(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
+    const maxDate    = calGetMaxDate();
+    const minStart   = calMondayOf(new Date());
+
+    const canPrev = calViewStart > minStart;
+    const nextStart = calAddDays(calViewStart, 14);
+    const canNext = nextStart <= maxDate;
+
+    const DAY_LABELS = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'];
+
+    // Assign stable colors per rental
+    const colorMap = {};
+    allApprovedRentals.forEach((r, i) => { colorMap[r.id] = CAL_COLORS[i % CAL_COLORS.length]; });
+
+    // Build the 2-week grid
+    let weeksHtml = '';
+    for (let w = 0; w < 2; w++) {
+        const wkStart = calAddDays(calViewStart, w * 7);
+        const wkEnd   = calAddDays(wkStart, 6);
+
+        // Day header row
+        let headerCells = '';
+        for (let d = 0; d < 7; d++) {
+            const day    = calAddDays(wkStart, d);
+            const ds     = calDateStr(day);
+            const isToday = ds === todayStr;
+            headerCells += `<div style="text-align:center;padding:4px 2px;background:${isToday ? '#dbeafe' : '#f8f9fa'};border-right:1px solid #dee2e6;border-bottom:1px solid #dee2e6;font-size:0.72rem;">
+                <div class="text-muted">${DAY_LABELS[d]}</div>
+                <div class="fw-bold${isToday ? ' text-primary' : ''}">${day.getDate()}.${String(day.getMonth()+1).padStart(2,'0')}</div>
+            </div>`;
+        }
+
+        // Find rentals overlapping this week
+        const active = allApprovedRentals.filter(r => {
+            const rs = calParseDate(r.start_date), re = calParseDate(r.end_date);
+            return rs && re && rs <= wkEnd && re >= wkStart;
+        });
+
+        // Assign non-overlapping rows using greedy interval stacking
+        const placed = []; // {endCol, row}
+        const withRows = active.map(r => {
+            const rs = calParseDate(r.start_date), re = calParseDate(r.end_date);
+            const clampS = rs < wkStart ? wkStart : rs;
+            const clampE = re > wkEnd   ? wkEnd   : re;
+            const startCol = Math.round((clampS - wkStart) / 86400000) + 1;
+            const endCol   = Math.round((clampE - wkStart) / 86400000) + 2;
+            // Find lowest row with no conflict
+            let row = 1;
+            while (placed.some(p => p.row === row && p.endCol > startCol)) row++;
+            placed.push({ endCol, row });
+            return { r, startCol, endCol, row };
+        });
+
+        const maxRow = withRows.length > 0 ? Math.max(...withRows.map(x => x.row)) : 0;
+        const rentalAreaHeight = maxRow > 0 ? `${maxRow * 26 + 8}px` : '28px';
+
+        let bars = '';
+        withRows.forEach(({ r, startCol, endCol, row }) => {
+            const c     = colorMap[r.id];
+            const label = r.object_name || 'Ukjent';
+            const short = label.length > 22 ? label.substring(0, 20) + '…' : label;
+            bars += `<div style="grid-column:${startCol}/${endCol};grid-row:${row};background:${c.bg};color:${c.tx};border-radius:4px;padding:2px 6px;font-size:0.72rem;cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin:1px 2px;line-height:22px;"
+                         onclick="showRentalCalDetail('${escHtml(r.id)}')"
+                         title="${escHtml(label)} — ${fmtDate(r.start_date)} → ${fmtDate(r.end_date)}">
+                ${escHtml(short)}
+            </div>`;
+        });
+
+        const emptyMsg = active.length === 0
+            ? `<div style="grid-column:1/8;text-align:center;color:#bbb;font-size:0.72rem;padding:6px 0;">Ingen utleier</div>` : '';
+
+        weeksHtml += `<div style="margin-bottom:10px;border:1px solid #dee2e6;border-radius:6px;overflow:hidden;">
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);">${headerCells}</div>
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(${Math.max(maxRow,1)},26px);min-height:${rentalAreaHeight};padding:4px 0;background:#fff;align-items:start;">
+                ${bars}${emptyMsg}
+            </div>
+        </div>`;
+    }
+
+    // Date range label
+    const endOfView = calAddDays(calViewStart, 13);
+    const rangeLbl  = `${calViewStart.getDate()}.${String(calViewStart.getMonth()+1).padStart(2,'0')}.${calViewStart.getFullYear()} – ${endOfView.getDate()}.${String(endOfView.getMonth()+1).padStart(2,'0')}.${endOfView.getFullYear()}`;
+
+    // Legend
+    const legend = allApprovedRentals.map((r, i) => {
+        const c = CAL_COLORS[i % CAL_COLORS.length];
+        return `<span class="badge me-1 mb-1" style="background:${c.bg};color:${c.tx};cursor:pointer;font-weight:400;" onclick="showRentalCalDetail('${escHtml(r.id)}')">${escHtml(r.object_name || 'Ukjent')}</span>`;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <button class="btn btn-outline-secondary btn-sm" onclick="calNavigate(-1)" ${canPrev ? '' : 'disabled'}>
+                <i class="bi bi-chevron-left"></i> Forrige
+            </button>
+            <span class="fw-semibold small text-muted">${rangeLbl}</span>
+            <button class="btn btn-outline-secondary btn-sm" onclick="calNavigate(1)" ${canNext ? '' : 'disabled'}>
+                Neste <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+        ${weeksHtml}
+        <div class="mt-1">${legend}</div>`;
+}
+
+function showRentalCalDetail(id) {
+    const r = allApprovedRentals.find(x => x.id === id);
+    if (!r) return;
+
+    const duration = (() => {
+        const s = calParseDate(r.start_date), e = calParseDate(r.end_date);
+        if (!s || !e) return '–';
+        const d = Math.round((e - s) / 86400000) + 1;
+        return `${d} dag${d !== 1 ? 'er' : ''}`;
+    })();
+
+    const age = calcAge(r.date_of_birth);
+    const ageRow = age !== null
+        ? `<dt class="col-sm-4">Alder</dt><dd class="col-sm-8">${age} år</dd>` : '';
+
+    const logistics = r.logistics === 'delivery'
+        ? `Levering${r.delivery_address ? ' — ' + escHtml(r.delivery_address) : ''}` : 'Hentes';
+
+    document.getElementById('detailsModalTitle').textContent = r.object_name || 'Utleie';
+    document.getElementById('detailsModalBody').innerHTML = `
+        <dl class="row mb-0 small">
+            <dt class="col-sm-4">Kunde</dt>
+            <dd class="col-sm-8">${escHtml(r.display_customer_name)}</dd>
+            ${ageRow}
+            ${r.display_email ? `<dt class="col-sm-4">E-post</dt><dd class="col-sm-8"><a href="mailto:${escHtml(r.display_email)}">${escHtml(r.display_email)}</a></dd>` : ''}
+            ${r.display_phone ? `<dt class="col-sm-4">Telefon</dt><dd class="col-sm-8">${escHtml(r.display_phone)}</dd>` : ''}
+            <dt class="col-sm-4">Fra</dt>
+            <dd class="col-sm-8">${fmtDate(r.start_date)}${r.pickup_time ? ' kl. ' + r.pickup_time.substring(0,5) : ''}</dd>
+            <dt class="col-sm-4">Til</dt>
+            <dd class="col-sm-8">${fmtDate(r.end_date)}${r.end_time ? ' kl. ' + r.end_time.substring(0,5) : ''}</dd>
+            <dt class="col-sm-4">Varighet</dt>
+            <dd class="col-sm-8">${duration}</dd>
+            <dt class="col-sm-4">Leiebeløp</dt>
+            <dd class="col-sm-8">${parseFloat(r.rental_fee || 0).toLocaleString('nb-NO', {minimumFractionDigits:0,maximumFractionDigits:0})} NOK</dd>
+            <dt class="col-sm-4">Logistikk</dt>
+            <dd class="col-sm-8">${logistics}</dd>
+            ${r.notes ? `<dt class="col-sm-4">Notater</dt><dd class="col-sm-8">${escHtml(r.notes)}</dd>` : ''}
+        </dl>`;
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('detailsModal')).show();
 }
 
 async function saveScheduleTime(id, field, value) {
