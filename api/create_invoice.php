@@ -8,6 +8,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/request_date_time.php';
 
 $body = json_decode(file_get_contents('php://input'), true);
 $invoiceType        = $body['invoice_type'] ?? 'general';
@@ -22,6 +23,7 @@ $manualCustomer     = $body['manual_customer'] ?? null;
 $bankAccountId      = $body['bank_account_id'] ?? null;
 
 try {
+    $dueDate = normalizeRequestDate($dueDate, 'Forfallsdato');
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
 
@@ -205,6 +207,9 @@ try {
         'total_amount'   => $totalAmount
     ]);
 
+} catch (InvalidArgumentException $e) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 } catch (Exception $e) {
     if (isset($db) && $db->inTransaction()) $db->rollBack();
     error_log("create_invoice error: " . $e->getMessage());

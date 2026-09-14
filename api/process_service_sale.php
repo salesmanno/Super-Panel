@@ -2,6 +2,7 @@
 session_start();
 require_once '../config/database.php';
 require_once '../includes/UnifiedLedgerService.php';
+require_once '../includes/request_date_time.php';
 
 header('Content-Type: application/json');
 
@@ -39,6 +40,15 @@ if (!$output_product_id || !$service_type || !$customer_first_name || !$customer
 }
 
 try {
+    $join_date = normalizeRequestDate($join_date, 'Innmeldingsdato');
+    $expiry_date = normalizeRequestDate($expiry_date, 'Utløpsdato');
+    if (array_key_exists('customer_birth_date', $data)) {
+        $data['customer_birth_date'] = normalizeRequestDate(
+            $data['customer_birth_date'],
+            'Fødselsdato'
+        );
+    }
+
     $db->beginTransaction();
     
     // Check if this is a member price purchase (output_product_id ends with _member)
@@ -444,6 +454,9 @@ try {
                 echo json_encode(['success' => false, 'message' => 'Mangler booking-informasjon']);
                 exit;
             }
+
+            $reservation_date = normalizeRequestDate($reservation_date, 'Reservasjonsdato', false);
+            $reservation_time = normalizeRequestTime($reservation_time, 'Reservasjonstid', false);
             
             // SECURITY: Validate that product_id matches the reservation service and get authoritative data
             // Never trust client-supplied duration or service_id - fetch from database
@@ -607,8 +620,16 @@ try {
         'service_type' => $service_type
     ]);
     
+} catch (InvalidArgumentException $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 } catch (Exception $e) {
-    $db->rollBack();
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log("Service sale error: " . $e->getMessage());
     echo json_encode(['success' => false, 'message' => 'Feil ved salg av tjeneste: ' . $e->getMessage()]);
 }

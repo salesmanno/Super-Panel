@@ -8,6 +8,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/request_date_time.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -42,7 +43,17 @@ try {
     ");
     
     foreach ($data['dates'] as $dateEntry) {
-        $date = $dateEntry['date'];
+        $date = normalizeRequestDate($dateEntry['date'] ?? null, 'Dato', false);
+        $startTime = normalizeRequestTime(
+            $dateEntry['start_time'] ?? $data['default_start_time'] ?? '09:00:00',
+            'Starttid',
+            false
+        );
+        $endTime = normalizeRequestTime(
+            $dateEntry['end_time'] ?? $data['default_end_time'] ?? '17:00:00',
+            'Sluttid',
+            false
+        );
         $dayOfWeek = date('w', strtotime($date));
         
         $deleteStmt->execute([$companyId, $data['staff_id'], $date]);
@@ -52,8 +63,8 @@ try {
             $data['staff_id'],
             $date,
             $dayOfWeek,
-            $dateEntry['start_time'] ?? $data['default_start_time'] ?? '09:00:00',
-            $dateEntry['end_time'] ?? $data['default_end_time'] ?? '17:00:00',
+            $startTime,
+            $endTime,
             isset($dateEntry['is_working_day']) ? ($dateEntry['is_working_day'] ? 1 : 0) : 1,
             $dateEntry['availability_type'] ?? $data['availability_type'] ?? 'standard',
             $dateEntry['notes'] ?? $data['notes'] ?? null
@@ -67,6 +78,15 @@ try {
         'message' => count($data['dates']) . ' dager oppdatert'
     ]);
     
+} catch (InvalidArgumentException $e) {
+    if (isset($db) && $db->inTransaction()) {
+        $db->rollBack();
+    }
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ]);
 } catch (Exception $e) {
     if (isset($db) && $db->inTransaction()) {
         $db->rollBack();

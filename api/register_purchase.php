@@ -2,6 +2,7 @@
 session_start();
 require_once '../config/database.php';
 require_once '../includes/UnifiedLedgerService.php';
+require_once '../includes/request_date_time.php';
 
 header('Content-Type: application/json');
 
@@ -22,6 +23,7 @@ $invoiceNumber = $data['invoice_number'] ?? '';
 $notes = $data['notes'] ?? '';
 
 try {
+    $date = normalizeRequestDate($date, 'Kjøpsdato', false);
     $db = getDBConnection();
     $admin_id = $_SESSION['tenant_admin_id'];
     $company_id = $_SESSION['company_id'];
@@ -129,6 +131,9 @@ try {
         'new_stock' => $newStock
     ]);
     
+} catch (InvalidArgumentException $e) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 } catch (Exception $e) {
     if ($db->inTransaction()) {
         $db->rollBack();

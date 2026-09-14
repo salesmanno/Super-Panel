@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/ProductCatalogService.php';
 require_once __DIR__ . '/../includes/ShareLinkService.php';
+require_once __DIR__ . '/../includes/request_date_time.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -19,6 +20,15 @@ try {
         echo json_encode(['success' => false, 'message' => 'Mangler påkrevde felt']);
         exit;
     }
+
+    $data['start_date'] = normalizeRequestDate($data['start_date'], 'Startdato', false);
+    $data['start_time'] = normalizeRequestTime($data['start_time'], 'Starttid', false);
+    $data['end_date'] = normalizeRequestDate($data['end_date'] ?? null, 'Sluttdato');
+    $data['end_time'] = normalizeRequestTime($data['end_time'] ?? null, 'Sluttid');
+    $data['registration_deadline'] = normalizeRequestDate(
+        $data['registration_deadline'] ?? null,
+        'Påmeldingsfrist'
+    );
 
     $db = getDBConnection();
     
@@ -385,6 +395,12 @@ try {
         throw $e;
     }
     
+} catch (InvalidArgumentException $e) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ]);
 } catch (Exception $e) {
     error_log("Error creating event: " . $e->getMessage());
     echo json_encode([

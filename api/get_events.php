@@ -34,6 +34,13 @@ try {
             e.event_image_url,
             e.ticket_price,
             e.registration_type,
+            e.registration_deadline,
+            e.memberverification,
+            e.is_active,
+            CASE
+                WHEN COALESCE(e.end_date, e.start_date) < CURDATE() THEN 1
+                ELSE 0
+            END AS is_past,
             e.output_product_id,
             e.created_by,
             e.created_at,
@@ -46,9 +53,21 @@ try {
         FROM events_eventdata e
         LEFT JOIN tenant_admins ta ON e.created_by = ta.id
         LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
-        WHERE e.company_id = ? AND e.is_active = 1
-          AND e.start_date >= DATE_SUB(CURDATE(), INTERVAL 1 DAY)
-        ORDER BY e.start_date ASC, e.start_time ASC
+        WHERE e.company_id = ?
+        ORDER BY
+            CASE
+                WHEN e.is_active = 1 AND COALESCE(e.end_date, e.start_date) >= CURDATE() THEN 0
+                ELSE 1
+            END ASC,
+            CASE
+                WHEN e.is_active = 1 AND COALESCE(e.end_date, e.start_date) >= CURDATE() THEN e.start_date
+                ELSE NULL
+            END ASC,
+            CASE
+                WHEN e.is_active = 0 OR COALESCE(e.end_date, e.start_date) < CURDATE() THEN e.start_date
+                ELSE NULL
+            END DESC,
+            e.start_time ASC
     ");
     
     $stmt->execute([$_SESSION['company_id']]);

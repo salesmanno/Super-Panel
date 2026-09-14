@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/request_date_time.php';
 
 header('Content-Type: application/json');
 
@@ -17,6 +18,14 @@ $amount = $data['amount'] ?? 0;
 $date = $data['date'] ?? date('Y-m-d');
 $category = $data['category'] ?? 'other';
 $notes = $data['notes'] ?? '';
+
+try {
+    $date = normalizeRequestDate($date, 'Utgiftsdato', false);
+} catch (InvalidArgumentException $e) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    exit;
+}
 
 if (!$event_id || !$description || $amount <= 0) {
     echo json_encode(['success' => false, 'message' => 'Manglende eller ugyldig data']);

@@ -13,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/request_date_time.php';
 
 $data = json_decode(file_get_contents('php://input'), true);
 
@@ -21,21 +22,13 @@ if (!isset($data['booking_id']) || !isset($data['new_date']) || !isset($data['ne
     exit;
 }
 
-$newDate = $data['new_date'];
-$newTime = $data['new_time'];
-
-if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $newDate)) {
-    echo json_encode(['success' => false, 'message' => 'Ugyldig datoformat (bruk YYYY-MM-DD)']);
+try {
+    $newDate = normalizeRequestDate($data['new_date'], 'Ny dato', false);
+    $newTime = normalizeRequestTime($data['new_time'], 'Ny tid', false);
+} catch (InvalidArgumentException $e) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
     exit;
-}
-
-if (!preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $newTime)) {
-    echo json_encode(['success' => false, 'message' => 'Ugyldig tidsformat (bruk HH:MM)']);
-    exit;
-}
-
-if (strlen($newTime) === 5) {
-    $newTime .= ':00';
 }
 
 try {

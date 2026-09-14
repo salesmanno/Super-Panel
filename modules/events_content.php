@@ -30,6 +30,25 @@ try {
     transform: translateY(-2px);
 }
 
+.event-card.event-card-inactive {
+    opacity: 0.62;
+    filter: grayscale(70%);
+    background: #f8f9fa;
+}
+
+.event-card.event-card-inactive:hover {
+    opacity: 0.82;
+    filter: grayscale(45%);
+}
+
+.event-status-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 2;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
 .event-image {
     height: 180px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -887,29 +906,37 @@ try {
                                 
                                 <div class="mb-3" id="registration_deadline_container" style="display: none;">
                                     <label class="form-label">Frist for min. deltakere *</label>
-                                    <input type="date" class="form-control" name="registration_deadline" id="registration_deadline">
+                                    <input type="text" class="form-control" name="registration_deadline" id="registration_deadline"
+                                           inputmode="numeric" pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
+                                           placeholder="DD.MM.YYYY" maxlength="10" autocomplete="off">
                                     <small class="text-muted">Må være før startdato</small>
                                 </div>
                                 
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Startdato *</label>
-                                        <input type="date" class="form-control" name="start_date" required>
+                                        <input type="text" class="form-control" name="start_date" required
+                                               inputmode="numeric" pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
+                                               placeholder="DD.MM.YYYY" maxlength="10" autocomplete="off">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Starttid *</label>
-                                        <input type="time" class="form-control" name="start_time" required>
+                                        <input type="time" class="form-control" name="start_time" required step="60"
+                                               pattern="[0-9]{2}:[0-9]{2}" inputmode="numeric" placeholder="HH:mm" lang="nb-NO">
                                     </div>
                                 </div>
                                 
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Sluttdato</label>
-                                        <input type="date" class="form-control" name="end_date">
+                                        <input type="text" class="form-control" name="end_date"
+                                               inputmode="numeric" pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
+                                               placeholder="DD.MM.YYYY" maxlength="10" autocomplete="off">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Sluttid</label>
-                                        <input type="time" class="form-control" name="end_time">
+                                        <input type="time" class="form-control" name="end_time" step="60"
+                                               pattern="[0-9]{2}:[0-9]{2}" inputmode="numeric" placeholder="HH:mm" lang="nb-NO">
                                     </div>
                                 </div>
                                 
@@ -1868,29 +1895,37 @@ try {
                                 
                                 <div class="mb-3" id="edit-registration-deadline-container" style="display: none;">
                                     <label class="form-label">Frist for min. deltakere *</label>
-                                    <input type="date" class="form-control" name="registration_deadline" id="edit-registration-deadline">
+                                    <input type="text" class="form-control" name="registration_deadline" id="edit-registration-deadline"
+                                           inputmode="numeric" pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
+                                           placeholder="DD.MM.YYYY" maxlength="10" autocomplete="off">
                                     <small class="form-text text-muted">Må være før startdato</small>
                                 </div>
                                 
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Startdato *</label>
-                                        <input type="date" class="form-control" name="start_date" id="edit-start-date" required>
+                                        <input type="text" class="form-control" name="start_date" id="edit-start-date" required
+                                               inputmode="numeric" pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
+                                               placeholder="DD.MM.YYYY" maxlength="10" autocomplete="off">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Starttid *</label>
-                                        <input type="time" class="form-control" name="start_time" id="edit-start-time" required>
+                                        <input type="time" class="form-control" name="start_time" id="edit-start-time" required step="60"
+                                               pattern="[0-9]{2}:[0-9]{2}" inputmode="numeric" placeholder="HH:mm" lang="nb-NO">
                                     </div>
                                 </div>
                                 
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Sluttdato</label>
-                                        <input type="date" class="form-control" name="end_date" id="edit-end-date">
+                                        <input type="text" class="form-control" name="end_date" id="edit-end-date"
+                                               inputmode="numeric" pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
+                                               placeholder="DD.MM.YYYY" maxlength="10" autocomplete="off">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Sluttid</label>
-                                        <input type="time" class="form-control" name="end_time" id="edit-end-time">
+                                        <input type="time" class="form-control" name="end_time" id="edit-end-time" step="60"
+                                               pattern="[0-9]{2}:[0-9]{2}" inputmode="numeric" placeholder="HH:mm" lang="nb-NO">
                                     </div>
                                 </div>
                                 
@@ -2104,7 +2139,9 @@ try {
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Dato *</label>
-                        <input type="date" class="form-control" name="date" required>
+                        <input type="text" class="form-control" name="date" required
+                               inputmode="numeric" pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
+                               placeholder="DD.MM.YYYY" maxlength="10" autocomplete="off">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Notater</label>
@@ -2143,7 +2180,9 @@ try {
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Dato *</label>
-                        <input type="date" class="form-control" name="date" required>
+                        <input type="text" class="form-control" name="date" required
+                               inputmode="numeric" pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
+                               placeholder="DD.MM.YYYY" maxlength="10" autocomplete="off">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Kategori</label>
@@ -2255,18 +2294,80 @@ const norskMnd = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep',
 const norskMndLang = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
 const norskDag = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'];
 
+const norskDatePattern = /^\d{2}\.\d{2}\.\d{4}$/;
+const sqlDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+const time24HourPattern = /^\d{2}:\d{2}$/;
+
+function daysInCalendarMonth(year, month) {
+    if (month === 2) {
+        return (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)) ? 29 : 28;
+    }
+    return [4, 6, 9, 11].includes(month) ? 30 : 31;
+}
+
+// Parse dates as calendar components, never as a date string. This prevents
+// browser timezone/UTC conversion from changing the day being edited.
+function parseCalendarDate(value) {
+    const normalized = String(value || '').trim();
+    let match = normalized.match(norskDatePattern);
+    if (match) {
+        const [day, month, year] = normalized.split('.').map(Number);
+        if (month < 1 || month > 12 || day < 1 || day > daysInCalendarMonth(year, month)) {
+            return null;
+        }
+        return {year, month, day};
+    }
+
+    match = normalized.match(sqlDatePattern);
+    if (match) {
+        const [year, month, day] = normalized.split('-').map(Number);
+        if (month < 1 || month > 12 || day < 1 || day > daysInCalendarMonth(year, month)) {
+            return null;
+        }
+        return {year, month, day};
+    }
+
+    return null;
+}
+
+function sqlDateToNorsk(value) {
+    const parts = parseCalendarDate(value);
+    return parts ? `${String(parts.day).padStart(2, '0')}.${String(parts.month).padStart(2, '0')}.${parts.year}` : (value || '');
+}
+
+function norskDateToSql(value) {
+    const parts = parseCalendarDate(value);
+    return parts ? `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}` : (value || '');
+}
+
+function compareCalendarDates(first, second) {
+    const a = parseCalendarDate(first);
+    const b = parseCalendarDate(second);
+    if (!a || !b) return null;
+    if (a.year !== b.year) return a.year < b.year ? -1 : 1;
+    if (a.month !== b.month) return a.month < b.month ? -1 : 1;
+    if (a.day !== b.day) return a.day < b.day ? -1 : 1;
+    return 0;
+}
+
+function calendarWeekday(year, month, day) {
+    const offsets = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
+    const adjustedYear = month < 3 ? year - 1 : year;
+    return (adjustedYear + Math.floor(adjustedYear / 4) - Math.floor(adjustedYear / 100) +
+        Math.floor(adjustedYear / 400) + offsets[month - 1] + day) % 7;
+}
+
 function formatNorskDato(dateStr, timeStr, opts = {}) {
     if (!dateStr) return '';
-    const parts = dateStr.split('-');
-    if (parts.length !== 3) return dateStr;
-    const d = parseInt(parts[2], 10);
-    const m = parseInt(parts[1], 10) - 1;
-    const y = parts[0];
+    const dateParts = parseCalendarDate(dateStr);
+    if (!dateParts) return dateStr;
+    const d = dateParts.day;
+    const m = dateParts.month - 1;
+    const y = dateParts.year;
     
     let result = '';
     if (opts.weekday) {
-        const dt = new Date(parseInt(y), m, d);
-        result += norskDag[dt.getDay()] + ' ';
+        result += norskDag[calendarWeekday(y, m + 1, d)] + ' ';
     }
     if (opts.longMonth) {
         result += `${d}. ${norskMndLang[m]} ${y}`;
@@ -2284,7 +2385,61 @@ function formatNorskTid(timeStr) {
     return timeStr.substring(0, 5);
 }
 
+function validateDateTimeInput(element, label) {
+    if (!element) return true;
+    const value = element.value;
+    const isRequired = element.required;
+    let message = '';
+
+    if (!value) {
+        if (isRequired) message = `${label} må fylles ut`;
+    } else if (element.name === 'start_time' || element.name === 'end_time') {
+        const [hours, minutes] = time24HourPattern.test(value) ? value.split(':').map(Number) : [NaN, NaN];
+        if (!time24HourPattern.test(value) || hours > 23 || minutes > 59) {
+            message = `${label} må være på formatet HH:mm (24-timers klokke)`;
+        }
+    } else if (!norskDatePattern.test(value) || !parseCalendarDate(value)) {
+        message = `${label} må være en gyldig dato på formatet DD.MM.YYYY`;
+    }
+
+    element.setCustomValidity(message);
+    return !message;
+}
+
+function validateEventDateTimeInputs(form) {
+    if (!form) return true;
+    const fields = [
+        ['input[name="registration_deadline"]', 'Fristdato'],
+        ['input[name="start_date"]', 'Startdato'],
+        ['input[name="end_date"]', 'Sluttdato'],
+        ['input[name="start_time"]', 'Starttid'],
+        ['input[name="end_time"]', 'Sluttid']
+    ];
+    let valid = true;
+    fields.forEach(([selector, label]) => {
+        const element = form.querySelector(selector);
+        if (!validateDateTimeInput(element, label)) valid = false;
+    });
+    return valid;
+}
+
+function installDateTimeValidation() {
+    document.querySelectorAll(
+        'input[name="registration_deadline"], input[name="start_date"], input[name="end_date"], ' +
+        'input[name="start_time"], input[name="end_time"], #add-income-form input[name="date"], #add-expense-form input[name="date"]'
+    ).forEach(input => {
+        const label = input.name === 'start_date' ? 'Startdato' :
+            input.name === 'end_date' ? 'Sluttdato' :
+            input.name === 'start_time' ? 'Starttid' :
+            input.name === 'end_time' ? 'Sluttid' : 'Dato';
+        input.addEventListener('input', () => validateDateTimeInput(input, label));
+        input.addEventListener('blur', () => validateDateTimeInput(input, label));
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    installDateTimeValidation();
+
     // Load membership plans and payment methods for create form (these are needed for any tab)
     loadMembershipPlansForCreate();
     loadPaymentMethodsForCreate();
@@ -2312,6 +2467,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (createEventForm) {
         createEventForm.addEventListener('submit', async function(e) {
             e.preventDefault();
+
+            if (!validateEventDateTimeInputs(this)) {
+                toast.quickWarning('Validering', 'Kontroller datoer og klokkeslett. Bruk DD.MM.YYYY og HH:mm.');
+                return;
+            }
             
             const formData = new FormData(this);
             
@@ -2341,10 +2501,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (registrationDeadline && startDate) {
-                const deadlineDate = new Date(registrationDeadline);
-                const eventStartDate = new Date(startDate);
-                
-                if (deadlineDate >= eventStartDate) {
+                const dateComparison = compareCalendarDates(registrationDeadline, startDate);
+                if (dateComparison === null || dateComparison >= 0) {
                     toast.quickWarning('Validering', 'Frist for min. deltakere må være før startdato');
                     return;
                 }
@@ -2527,6 +2685,12 @@ async function loadEvents() {
                 const memberBadge = event.is_member_exclusive == 1 
                     ? '<span class="badge bg-warning event-badge-overlay">Kun medlemmer</span>' 
                     : '';
+                const isPast = event.is_past == 1;
+                const isInactive = event.is_active == 0;
+                const isUnavailable = isPast || isInactive;
+                const statusBadge = isInactive
+                    ? '<span class="badge bg-secondary event-status-badge">Inaktiv</span>'
+                    : (isPast ? '<span class="badge bg-dark event-status-badge">Avsluttet</span>' : '');
                 
                 const location = event.venue_name || event.event_city || 'Ikke angitt';
                 const capacity = event.max_attendees ? `${event.current_attendees || 0} / ${event.max_attendees}` : 'Ubegrenset';
@@ -2563,9 +2727,10 @@ async function loadEvents() {
                 
                 return `
                     <div class="col-md-4">
-                        <div class="event-card">
+                        <div class="event-card${isUnavailable ? ' event-card-inactive' : ''}">
                             ${imageHtml}
                             ${memberBadge}
+                            ${statusBadge}
                             <div class="event-body" onclick="toggleEventResults('${event.id}')" style="cursor: pointer;">
                                 <h5 class="event-title">${event.title}</h5>
                                 <div class="event-meta">
@@ -4121,17 +4286,17 @@ async function editEvent(eventId) {
         setFieldValue('edit-event-id', event.id);
         setFieldValue('edit-title', event.title);
         setFieldValue('edit-description', event.description);
-        setFieldValue('edit-start-date', event.start_date);
-        setFieldValue('edit-start-time', event.start_time);
-        setFieldValue('edit-end-date', event.end_date);
-        setFieldValue('edit-end-time', event.end_time);
+        setFieldValue('edit-start-date', sqlDateToNorsk(event.start_date));
+        setFieldValue('edit-start-time', formatNorskTid(event.start_time));
+        setFieldValue('edit-end-date', sqlDateToNorsk(event.end_date));
+        setFieldValue('edit-end-time', formatNorskTid(event.end_time));
         setFieldValue('edit-age-limit', event.age_limit);
         setFieldValue('edit-venue-name', event.venue_name);
         setFieldValue('edit-event-address', event.event_address);
         setFieldValue('edit-event-city', event.event_city);
         setFieldValue('edit-event-postal', event.event_postal);
         setFieldValue('edit-min-attendees', event.min_attendees);
-        setFieldValue('edit-registration-deadline', event.registration_deadline);
+        setFieldValue('edit-registration-deadline', sqlDateToNorsk(event.registration_deadline));
         setFieldValue('edit-max-attendees', event.max_attendees);
         setFieldValue('edit-ticket-price', event.ticket_price || 0);
         setFieldValue('edit-default-payment-method', event.default_payment_method);
@@ -4148,6 +4313,11 @@ async function editEvent(eventId) {
         const memberExclusiveCheckbox = document.getElementById('edit-member-exclusive');
         if (memberExclusiveCheckbox) {
             memberExclusiveCheckbox.checked = event.is_member_exclusive == 1;
+        }
+        const memberVerificationCheckbox = document.getElementById('edit-memberverification');
+        if (memberVerificationCheckbox) {
+            memberVerificationCheckbox.checked = event.memberverification == 1 ||
+                event.memberverification === true || event.memberverification === '1';
         }
         
         // Show/hide registration deadline if min_attendees is set
@@ -4177,7 +4347,6 @@ async function editEvent(eventId) {
                 setCheckboxFalse('edit-field-city');
                 setCheckboxFalse('edit-field-postal');
                 setCheckboxFalse('edit-field-age');
-                setCheckboxFalse('edit-memberverification');
                 
                 if (fieldsResult.success && fieldsResult.fields && fieldsResult.fields.length > 0) {
                     fieldsResult.fields.forEach(field => {
@@ -4191,11 +4360,6 @@ async function editEvent(eventId) {
                     console.log('No registration fields returned for this event');
                 }
                 
-                // Load memberverification from events_eventdata directly
-                if (event.memberverification) {
-                    const memberVerEl = document.getElementById('edit-memberverification');
-                    if (memberVerEl) memberVerEl.checked = true;
-                }
             } else {
                 console.warn(`HTTP ${fieldsResponse.status}: Kunne ikke hente registreringsfelt - fortsetter likevel`);
             }
@@ -4300,6 +4464,10 @@ if (editMinAttendeesInput && editDeadlineContainer) {
 // Save event changes
 async function saveEventChanges() {
     const form = document.getElementById('edit-event-form');
+    if (!validateEventDateTimeInputs(form)) {
+        toast.quickWarning('Validering', 'Kontroller datoer og klokkeslett. Bruk DD.MM.YYYY og HH:mm.');
+        return;
+    }
     const formData = new FormData(form);
     
     // Validate that at least one contact field is selected
@@ -4322,10 +4490,8 @@ async function saveEventChanges() {
     }
     
     if (registrationDeadline && startDate) {
-        const deadlineDate = new Date(registrationDeadline);
-        const eventStartDate = new Date(startDate);
-        
-        if (deadlineDate >= eventStartDate) {
+        const dateComparison = compareCalendarDates(registrationDeadline, startDate);
+        if (dateComparison === null || dateComparison >= 0) {
             toast.quickWarning('Validering', 'Frist for min. deltakere må være før startdato');
             return;
         }
@@ -4436,12 +4602,19 @@ function openAddExpenseModal() {
 async function saveIncome() {
     const form = document.getElementById('add-income-form');
     const formData = new FormData(form);
+    const dateInput = form.querySelector('input[name="date"]');
+    if (!validateDateTimeInput(dateInput, 'Dato')) {
+        toast.quickWarning('Validering', 'Dato må være en gyldig dato på formatet DD.MM.YYYY');
+        return;
+    }
     
     const data = {
         event_id: formData.get('event_id'),
         description: formData.get('description'),
         amount: parseFloat(formData.get('amount')),
-        date: formData.get('date'),
+        // Finance APIs persist SQL dates; convert the Norwegian display value
+        // without passing through Date/string parsing.
+        date: norskDateToSql(formData.get('date')),
         notes: formData.get('notes')
     };
     
@@ -4476,12 +4649,17 @@ async function saveIncome() {
 async function saveExpense() {
     const form = document.getElementById('add-expense-form');
     const formData = new FormData(form);
+    const dateInput = form.querySelector('input[name="date"]');
+    if (!validateDateTimeInput(dateInput, 'Dato')) {
+        toast.quickWarning('Validering', 'Dato må være en gyldig dato på formatet DD.MM.YYYY');
+        return;
+    }
     
     const data = {
         event_id: formData.get('event_id'),
         description: formData.get('description'),
         amount: parseFloat(formData.get('amount')),
-        date: formData.get('date'),
+        date: norskDateToSql(formData.get('date')),
         category: formData.get('category'),
         notes: formData.get('notes')
     };
@@ -6316,6 +6494,11 @@ function validateWizardStep(step) {
             const title = form.querySelector('input[name="title"]');
             const startDate = form.querySelector('input[name="start_date"]');
             const startTime = form.querySelector('input[name="start_time"]');
+
+            if (!validateEventDateTimeInputs(form)) {
+                alert('Kontroller datoer og klokkeslett. Bruk DD.MM.YYYY og HH:mm.');
+                return false;
+            }
             
             if (!title.value.trim()) {
                 alert('Fyll inn arrangementsnavn');

@@ -9,6 +9,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/request_date_time.php';
 
 $companyId = $_SESSION['company_id'];
 $data = json_decode(file_get_contents('php://input'), true);
@@ -16,6 +17,19 @@ $data = json_decode(file_get_contents('php://input'), true);
 if (empty($data['id'])) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'ID mangler']);
+    exit;
+}
+
+try {
+    if (array_key_exists('pickup_time', $data)) {
+        $data['pickup_time'] = normalizeRequestTime($data['pickup_time'], 'Hentetid');
+    }
+    if (array_key_exists('end_time', $data)) {
+        $data['end_time'] = normalizeRequestTime($data['end_time'], 'Sluttid');
+    }
+} catch (InvalidArgumentException $e) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
     exit;
 }
 

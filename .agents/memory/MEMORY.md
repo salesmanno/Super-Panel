@@ -1,0 +1,1 @@
+- [Dato- og tidsformat](date-time-format.md) — brukerflater bruker norsk dato og 24-timers klokke; databasen beholder kanonisk SQL-format.

@@ -2,6 +2,7 @@
 session_start();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
+require_once __DIR__ . '/../includes/request_date_time.php';
 
 header('Content-Type: application/json');
 
@@ -31,6 +32,8 @@ try {
     $paymentMethod = $data['payment_method'] ?? 'cash';
     $transactionDate = $data['transaction_date'] ?? date('Y-m-d');
     $notes = trim($data['notes'] ?? '');
+
+    $transactionDate = normalizeRequestDate($transactionDate, 'Transaksjonsdato', false);
     
     if (empty($itemName)) {
         echo json_encode(['success' => false, 'message' => 'Beskrivelse er påkrevd']);
@@ -107,6 +110,12 @@ try {
         ]);
     }
     
+} catch (InvalidArgumentException $e) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ]);
 } catch (Exception $e) {
     error_log("Add manual transaction error: " . $e->getMessage());
     echo json_encode([

@@ -2061,6 +2061,7 @@ try {
         setInterval(checkRefreshFlag, POLLING_CHECK_INTERVAL);
     </script>
     
+    <?php include __DIR__ . '/../includes/norwegian_datetime_inputs.php'; ?>
     <?php include __DIR__ . '/../includes/toast_notification.php'; ?>
 </body>
 </html>

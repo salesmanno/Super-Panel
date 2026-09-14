@@ -9,6 +9,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
+require_once __DIR__ . '/../includes/request_date_time.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -46,6 +47,7 @@ try {
     
     // Calculate new expiry date based on renewal date and membership plan
     $renewalDate = $data['renewal_date'] ?? date('Y-m-d');
+    $renewalDate = normalizeRequestDate($renewalDate, 'Fornyelsesdato', false);
     
     $durationMonths = 12; // Default to 12 months
     if (isset($member['duration_months'])) {
@@ -106,6 +108,15 @@ try {
         'renewal_date' => $renewalDate
     ]);
     
+} catch (InvalidArgumentException $ex) {
+    if (isset($db) && $db->inTransaction()) {
+        $db->rollBack();
+    }
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => $ex->getMessage()
+    ]);
 } catch (Exception $ex) {
     if (isset($db) && $db->inTransaction()) {
         $db->rollBack();

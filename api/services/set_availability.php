@@ -8,6 +8,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/request_date_time.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -16,6 +17,10 @@ try {
         echo json_encode(['success' => false, 'message' => 'Ansatt-ID og dato er påkrevd']);
         exit;
     }
+
+    $normalizedDate = normalizeRequestDate($data['date'], 'Dato', false);
+    $normalizedStartTime = normalizeRequestTime($data['start_time'] ?? '09:00:00', 'Starttid', false);
+    $normalizedEndTime = normalizeRequestTime($data['end_time'] ?? '17:00:00', 'Sluttid', false);
     
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
@@ -31,10 +36,10 @@ try {
         SELECT id FROM staff_availability 
         WHERE company_id = ? AND staff_id = ? AND date = ?
     ");
-    $checkStmt->execute([$companyId, $data['staff_id'], $data['date']]);
+    $checkStmt->execute([$companyId, $data['staff_id'], $normalizedDate]);
     $existing = $checkStmt->fetch();
     
-    $dayOfWeek = date('w', strtotime($data['date']));
+    $dayOfWeek = date('w', strtotime($normalizedDate));
     
     if ($existing) {
         $stmt = $db->prepare("
@@ -47,8 +52,8 @@ try {
             WHERE id = ?
         ");
         $stmt->execute([
-            $data['start_time'] ?? '09:00:00',
-            $data['end_time'] ?? '17:00:00',
+            $normalizedStartTime,
+            $normalizedEndTime,
             isset($data['is_working_day']) ? ($data['is_working_day'] ? 1 : 0) : 1,
             $data['availability_type'] ?? 'standard',
             $data['notes'] ?? null,
@@ -64,10 +69,10 @@ try {
         $stmt->execute([
             $companyId,
             $data['staff_id'],
-            $data['date'],
+            $normalizedDate,
             $dayOfWeek,
-            $data['start_time'] ?? '09:00:00',
-            $data['end_time'] ?? '17:00:00',
+            $normalizedStartTime,
+            $normalizedEndTime,
             isset($data['is_working_day']) ? ($data['is_working_day'] ? 1 : 0) : 1,
             $data['availability_type'] ?? 'standard',
             $data['notes'] ?? null
@@ -79,6 +84,12 @@ try {
         'message' => 'Tilgjengelighet oppdatert'
     ]);
     
+} catch (InvalidArgumentException $e) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ]);
 } catch (Exception $e) {
     error_log("Error setting availability: " . $e->getMessage());
     echo json_encode([
