@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/rental_request_fields.php';
 
 $companyId = $_SESSION['company_id'];
 
@@ -32,33 +33,39 @@ try {
 
     $whereClause = implode(' AND ', $where);
 
-    try {
-        $stmt = $db->prepare("
-            SELECT
-                rs.*,
-                ro.object_name,
-                ro.category      AS object_category,
-                ro.rental_price  AS object_daily_price,
-                COALESCE(
-                    NULLIF(TRIM(CONCAT(COALESCE(tc.first_name,''), ' ', COALESCE(tc.last_name,''))), ''),
-                    'Ukjent kunde'
-                )                AS display_customer_name,
-                tc.email            AS display_email,
-                tc.phone            AS display_phone,
-                tc.date_of_birth    AS date_of_birth,
-                DATEDIFF(rs.end_date, CURDATE()) AS days_remaining
-            FROM rental_schedule rs
-            LEFT  JOIN rental_objects ro  ON ro.id = rs.rental_object_id AND ro.company_id = rs.company_id
-            LEFT  JOIN tenant_customers tc ON tc.id = rs.customer_id  AND tc.company_id = rs.company_id
-            WHERE $whereClause
-            ORDER BY rs.start_date ASC, rs.created_at DESC
-        ");
-        $stmt->execute($params);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (\Throwable $qe) {
-        error_log('get_rental_schedule query error: ' . $qe->getMessage());
-        $rows = [];
+    $stmt = $db->prepare("
+        SELECT
+            rs.*,
+            ro.object_name,
+            ro.category      AS object_category,
+            ro.rental_price  AS object_daily_price,
+            COALESCE(
+                NULLIF(TRIM(CONCAT(COALESCE(tc.first_name,''), ' ', COALESCE(tc.last_name,''))), ''),
+                'Ukjent kunde'
+            )                AS display_customer_name,
+            tc.email         AS display_email,
+            tc.phone         AS display_phone,
+            tc.date_of_birth AS date_of_birth,
+            DATEDIFF(rs.end_date, CURDATE()) AS days_remaining
+        FROM rental_schedule rs
+        LEFT JOIN rental_objects ro
+          ON ro.id = rs.rental_object_id AND ro.company_id = rs.company_id
+        LEFT JOIN tenant_customers tc
+          ON tc.id = rs.customer_id AND tc.company_id = rs.company_id
+        WHERE $whereClause
+        ORDER BY rs.start_date ASC, rs.created_at DESC
+    ");
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as &$row) {
+        $row['request_fields'] = getRentalRequestFieldValues(
+            $db,
+            (string) $companyId,
+            (string) $row['rental_object_id'],
+            (string) $row['id']
+        );
     }
+    unset($row);
 
     echo json_encode(['success' => true, 'requests' => $rows]);
 

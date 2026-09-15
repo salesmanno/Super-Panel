@@ -1,16 +1,50 @@
 <?php
 require_once __DIR__ . '/../includes/rental_schemas.php';
+require_once __DIR__ . '/../includes/rental_customer_fields.php';
 $schemas = getRentalSchemas();
+$customerFieldDefinitions = getRentalCustomerFieldDefinitions();
 ?>
 
-<div class="module-content">
+<style>
+/* Rental / fjord signal — deliberately denser than the surrounding dashboard. */
+#rental-module { --rental-ink:#17324d; --rental-muted:#60758a; --rental-line:#d8e3ea; --rental-paper:#f5f8fa; --rental-teal:#087f8c; --rental-coral:#e56f54; --rental-navy:#163b5c; }
+#rental-module { color:var(--rental-ink); }
+#rental-module .card { border:1px solid var(--rental-line); border-radius:14px; box-shadow:0 6px 20px rgba(22,59,92,.06); overflow:hidden; }
+#rental-module .card-header { background:linear-gradient(90deg,#edf6f6,#f7fafb); border-bottom:1px solid var(--rental-line); }
+#rental-module .card-title { letter-spacing:-.02em; font-weight:700; }
+#rental-module .form-control,#rental-module .form-select { border-color:#cbd9e2; border-radius:9px; }
+#rental-module .form-control:focus,#rental-module .form-select:focus { border-color:var(--rental-teal); box-shadow:0 0 0 .2rem rgba(8,127,140,.13); }
+#rental-module .btn-primary { background:var(--rental-navy); border-color:var(--rental-navy); }
+#rental-module .btn-primary:hover { background:#0f2e47; transform:translateY(-1px); }
+#rental-module .btn-success { background:var(--rental-teal); border-color:var(--rental-teal); }
+#rental-module .badge.bg-primary { background:var(--rental-teal)!important; }
+#rental-module .rental-kicker { color:var(--rental-teal); font-size:.72rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+#rental-module .rental-toolbar { background:var(--rental-paper); border:1px solid var(--rental-line); border-radius:12px; padding:.7rem; }
+#rental-module .rental-object-card { transition:transform .18s ease, box-shadow .18s ease; }
+#rental-module .rental-object-card:hover { transform:translateY(-2px); box-shadow:0 12px 28px rgba(22,59,92,.12); }
+#rental-module .customer-field-row { background:#fff; border:1px solid var(--rental-line); border-radius:10px; padding:.65rem .8rem; transition:border-color .15s ease, background .15s ease; }
+#rental-module .customer-field-row:has(.customer-selected:checked) { border-color:#79b9bd; background:#f1fbfb; }
+#rental-module .metric-card { background:linear-gradient(135deg,#eef8f7,#f8fbfc); border-left:4px solid var(--rental-teal)!important; }
+#rental-module .metric-value { color:var(--rental-navy); font-size:1.45rem; font-weight:800; }
+#rental-module .table thead th { color:var(--rental-muted); font-size:.7rem; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; }
+#rental-module .table tbody tr { transition:background .15s ease; }
+#rental-module .table tbody tr:hover { background:#f1f8f8; }
+#rental-module .save-busy { pointer-events:none; opacity:.68; }
+@media(max-width:767.98px){#rental-module .btn-group{flex-wrap:wrap}#rental-module .table{min-width:760px}#rental-module .card-body{padding:1rem}.rental-mobile-scroll{overflow-x:auto}}
+</style>
+
+<div class="module-content" id="rental-module">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+        <div><div class="rental-kicker">Rental · kontrollsenter</div><h3 class="mb-1">Utleie med oversikt</h3><p class="text-muted mb-0 small">Objekter, forespørsler og kontrakter samlet på ett sted.</p></div>
+        <button class="btn btn-primary" type="button" onclick="openRentalCreate()"><i class="bi bi-plus-lg me-2"></i>Nytt utleieobjekt</button>
+    </div>
     <div id="rental-objects" class="subtab-content">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title mb-3">Utleieobjekter</h5>
+                <div class="d-flex justify-content-between align-items-center mb-3"><div><div class="rental-kicker">Inventar</div><h5 class="card-title mb-0">Utleieobjekter</h5></div><span class="badge rounded-pill text-bg-light border" id="rentalObjectCount">– objekter</span></div>
                 
                 <div class="mb-3">
-                    <select class="form-select form-select-sm" id="categoryFilter" onchange="filterByCategory()">
+                    <select class="form-select form-select-sm" id="categoryFilter" onchange="filterByCategory()" aria-label="Filtrer kategori">
                         <option value="">Alle kategorier</option>
                         <?php foreach ($schemas as $key => $schema): ?>
                             <option value="<?= $key ?>"><?= htmlspecialchars($schema['label']) ?></option>
@@ -132,45 +166,10 @@ $schemas = getRentalSchemas();
     <div id="rental-results" class="subtab-content" style="display: none;">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">Utleie resultat</h5>
-                <div class="row mb-4">
-                    <div class="col-md-3">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <small class="text-muted">Total omsetning</small>
-                                <h4 class="mb-0">0 NOK</h4>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <small class="text-muted">Antall utleier</small>
-                                <h4 class="mb-0">0</h4>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <small class="text-muted">Denne måneden</small>
-                                <h4 class="mb-0">0 NOK</h4>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <small class="text-muted">Gj.snitt per utleie</small>
-                                <h4 class="mb-0">0 NOK</h4>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle me-2"></i>
-                    Statistikk vil vises når du har registrert utleier
-                </div>
+                <div class="d-flex justify-content-between align-items-start mb-3"><div><div class="rental-kicker">Innsikt</div><h5 class="card-title mb-1">Utleieresultat</h5><p class="text-muted small mb-0">Tall fra registrerte kontrakter, oppdatert fra systemet.</p></div><button class="btn btn-sm btn-outline-secondary" onclick="loadRentalResults()"><i class="bi bi-arrow-clockwise me-1"></i>Oppdater</button></div>
+                <div id="rentalResultsState" class="text-muted small mb-3">Laster resultat…</div>
+                <div id="rentalResultsMetrics" class="row g-3 mb-4"></div>
+                <div id="rentalResultsTable"></div>
             </div>
         </div>
     </div>
@@ -218,6 +217,8 @@ $schemas = getRentalSchemas();
 
 <script>
 const rentalSchemas = <?= json_encode($schemas) ?>;
+const rentalCustomerFieldDefinitions = <?= json_encode($customerFieldDefinitions, JSON_UNESCAPED_UNICODE) ?>;
+const rentalCustomerFieldOrder = Object.keys(rentalCustomerFieldDefinitions);
 let allRentalObjects = [];
 let rentalFilter = '';
 let allApprovedRentals = [];
@@ -234,7 +235,16 @@ document.addEventListener('DOMContentLoaded', function() {
     loadContracts('all');
     loadRentalRequests();
     loadApprovedSchedule();
+    loadRentalResults();
 });
+
+function openRentalCreate() {
+    document.querySelectorAll('.subtab-content').forEach(el => el.style.display = 'none');
+    const target = document.getElementById('rental-create');
+    if (target) target.style.display = 'block';
+    buildCreateForm();
+    document.getElementById('createFormSection')?.scrollIntoView({behavior:'smooth', block:'start'});
+}
 
 async function loadRentalObjects() {
     try {
@@ -248,6 +258,8 @@ async function loadRentalObjects() {
         
         if (data.success && data.objects) {
             allRentalObjects = data.objects;
+            const countBadge = document.getElementById('rentalObjectCount');
+            if (countBadge) countBadge.textContent = `${allRentalObjects.length} objekter`;
             allRentalObjects.forEach(obj => {
                 if (typeof obj.images === 'string') {
                     try { obj.images = JSON.parse(obj.images); } catch(e) { obj.images = []; }
@@ -303,6 +315,7 @@ function renderRentalObjects(objects) {
 }
 
 function renderObjectCard(obj) {
+    const objectToken = encodeURIComponent(String(obj.id));
     const schema = rentalSchemas[obj.category];
     const categoryLabel = schema ? schema.label : obj.category;
     const isAvailable = obj.is_available == 1 || obj.is_available === true;
@@ -313,17 +326,18 @@ function renderObjectCard(obj) {
     
     let badges = obj.badges || [];
     const badgesHtml = badges.length > 0 
-        ? badges.map(b => `<span class="badge bg-info me-1">${b}</span>`).join('')
+        ? badges.map(b => `<span class="badge bg-info me-1">${escHtml(b)}</span>`).join('')
         : '';
     
-    const primaryImage = (obj.images && obj.images.length > 0) 
-        ? obj.images.find(img => img.is_primary) || obj.images[0] 
-        : (obj.image_url ? {url: obj.image_url} : null);
-    const imageCount = obj.images ? obj.images.length : (obj.image_url ? 1 : 0);
+    const safeImages = (Array.isArray(obj.images) ? obj.images : []).map(img => typeof img === 'string' ? {url: img} : img).filter(img => validRentalImageUrl(img?.url));
+    const primaryImage = safeImages.length
+        ? safeImages.find(img => img.is_primary) || safeImages[0]
+        : (validRentalImageUrl(obj.image_url) ? {url: obj.image_url} : null);
+    const imageCount = safeImages.length || (primaryImage ? 1 : 0);
     
     const imageHtml = primaryImage 
         ? `<div class="position-relative">
-             <img src="${primaryImage.url}" class="card-img-top" style="height: 200px; object-fit: cover;${isAvailable ? '' : ' filter: grayscale(70%);'}" alt="${obj.object_name}">
+             <img src="${escHtml(primaryImage.url)}" class="card-img-top" style="height: 200px; object-fit: cover;${isAvailable ? '' : ' filter: grayscale(70%);'}" alt="${escHtml(obj.object_name)}">
              ${imageCount > 1 ? `<span class="position-absolute top-0 end-0 badge bg-dark bg-opacity-75 m-2"><i class="bi bi-images me-1"></i>${imageCount}</span>` : ''}
            </div>`
         : `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
@@ -348,43 +362,43 @@ function renderObjectCard(obj) {
     const defaultDeposit = parseFloat(obj.deposit_amount) || 0;
 
     return `
-        <div class="col" id="rental-card-${obj.id}">
+        <div class="col" id="rental-card-${escAttr(obj.id)}">
             <div class="card h-100" style="${cardBorder}${cardOpacity}">
                 ${imageHtml}
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div>
-                            <h6 class="card-title mb-0 d-inline">${obj.object_name}</h6>
+                            <h6 class="card-title mb-0 d-inline">${escHtml(obj.object_name)}</h6>
                             ${hiddenLabel}
                         </div>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="badge bg-primary">${categoryLabel}</span>
+                        <span class="badge bg-primary">${escHtml(categoryLabel)}</span>
                         <div class="form-check form-switch mb-0" title="${isAvailable ? 'Synlig for kunder' : 'Skjult for kunder'}">
-                            <input class="form-check-input" type="checkbox" role="switch" id="avail-${obj.id}" ${toggleChecked} onchange="toggleAvailability('${obj.id}', this.checked)">
+                            <input class="form-check-input" type="checkbox" role="switch" id="avail-${escAttr(obj.id)}" ${toggleChecked} onchange="toggleAvailability(decodeURIComponent('${objectToken}'), this.checked)">
                             <label class="form-check-label small" for="avail-${obj.id}">${isAvailable ? 'Synlig' : 'Skjult'}</label>
                         </div>
                     </div>
                     <div class="mb-2">
                         ${badgesHtml}
                     </div>
-                    ${obj.description ? `<p class="card-text text-muted small">${obj.description.substring(0, 100)}${obj.description.length > 100 ? '...' : ''}</p>` : ''}
+                        ${obj.description ? `<p class="card-text text-muted small">${escHtml(obj.description.substring(0, 100))}${obj.description.length > 100 ? '...' : ''}</p>` : ''}
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <div>
-                            <strong class="text-primary">${dailyPrice.toFixed(0)} NOK/dag</strong>
+                    <strong class="text-primary">${dailyPrice.toLocaleString('nb-NO',{maximumFractionDigits:0})} NOK/dag</strong>
                             ${weekendPrice}
                         </div>
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-success" onclick="toggleContractForm('${obj.id}')" title="Kontrakter" id="contract-btn-${obj.id}">
+                            <button class="btn btn-outline-success" onclick="toggleContractForm(decodeURIComponent('${objectToken}'))" title="Kontrakter" id="contract-btn-${escAttr(obj.id)}">
                                 <i class="bi bi-file-earmark-text me-1"></i>Opprett kontrakt
                             </button>
-                            <button class="btn btn-outline-primary" onclick="viewDetails('${obj.id}')" title="Detaljer">
+                            <button class="btn btn-outline-primary" onclick="viewDetails(decodeURIComponent('${objectToken}'))" title="Detaljer">
                                 <i class="bi bi-eye"></i>
                             </button>
-                            <button class="btn btn-outline-secondary" onclick="editRentalObject('${obj.id}')" title="Rediger">
+                            <button class="btn btn-outline-secondary" onclick="editRentalObject(decodeURIComponent('${objectToken}'))" title="Rediger">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <button class="btn btn-outline-danger" onclick="deleteRentalObject('${obj.id}')" title="Slett">
+                            <button class="btn btn-outline-danger" onclick="deleteRentalObject(decodeURIComponent('${objectToken}'))" title="Slett">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
@@ -393,8 +407,8 @@ function renderObjectCard(obj) {
             </div>
             <div id="contract-panel-${obj.id}" class="card mt-2 border-success" style="display: none;">
                 <div class="card-header bg-success bg-opacity-10 d-flex justify-content-between align-items-center py-2">
-                    <h6 class="mb-0 text-success"><i class="bi bi-file-earmark-text me-1"></i>Kontrakter – ${obj.object_name}</h6>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleContractForm('${obj.id}')"><i class="bi bi-x"></i></button>
+                    <h6 class="mb-0 text-success"><i class="bi bi-file-earmark-text me-1"></i>Kontrakter – ${escHtml(obj.object_name)}</h6>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleContractForm(decodeURIComponent('${objectToken}'))"><i class="bi bi-x"></i></button>
                 </div>
                 <div class="card-body p-3">
                     <div id="obj-contracts-${obj.id}" class="mb-3 small"></div>
@@ -455,7 +469,7 @@ function renderObjectCard(obj) {
                             <textarea class="form-control form-control-sm" id="cf-notes-${obj.id}" rows="2" placeholder="Eventuelle merknader..."></textarea>
                         </div>
                         <div class="col-12 mt-1">
-                            <button class="btn btn-success btn-sm" onclick="submitContract('${obj.id}')">
+                            <button class="btn btn-success btn-sm" onclick="submitContract(decodeURIComponent('${objectToken}'))">
                                 <i class="bi bi-check-circle me-1"></i>Lagre kontrakt
                             </button>
                         </div>
@@ -485,7 +499,7 @@ function buildFormFields(containerId, category = '', existingData = {}) {
         <div class="row mb-3">
             <div class="col-md-6">
                 <label class="form-label">Objektnavn <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" name="object_name" value="${existingData.object_name || ''}" required>
+                <input type="text" class="form-control" name="object_name" value="${escAttr(existingData.object_name || '')}" required>
             </div>
             <div class="col-md-6">
                 <label class="form-label">Kategori <span class="text-danger">*</span></label>
@@ -508,15 +522,15 @@ function buildFormFields(containerId, category = '', existingData = {}) {
                 <div class="row">
                     <div class="col-md-4 mb-2">
                         <label class="form-label mb-1">Leiepris per dag (NOK) <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control form-control-sm" name="rental_price" step="0.01" value="${existingData.rental_price || ''}" required>
+                        <input type="number" class="form-control form-control-sm" name="rental_price" step="0.01" value="${escAttr(existingData.rental_price || '')}" required>
                     </div>
                     <div class="col-md-4 mb-2">
                         <label class="form-label mb-1">Depositum (NOK)</label>
-                        <input type="number" class="form-control form-control-sm" name="deposit_amount" step="0.01" value="${existingData.deposit_amount || 0}">
+                        <input type="number" class="form-control form-control-sm" name="deposit_amount" step="0.01" value="${escAttr(existingData.deposit_amount || 0)}">
                     </div>
                     <div class="col-md-4 mb-2">
                         <label class="form-label mb-1">Markedspris (NOK)</label>
-                        <input type="number" class="form-control form-control-sm" name="market_price" step="0.01" value="${existingData.market_price || ''}">
+                        <input type="number" class="form-control form-control-sm" name="market_price" step="0.01" value="${escAttr(existingData.market_price || '')}">
                         <small class="text-muted">Veiledende/innkjøpspris</small>
                     </div>
                 </div>
@@ -547,7 +561,7 @@ function buildFormFields(containerId, category = '', existingData = {}) {
                         <div class="row">
                             <div class="col-md-4">
                                 <label class="form-label mb-1">Helgepris per dag (NOK)</label>
-                                <input type="number" class="form-control form-control-sm" name="weekend_price" step="0.01" value="${existingData.weekend_price || 0}">
+                                <input type="number" class="form-control form-control-sm" name="weekend_price" step="0.01" value="${escAttr(existingData.weekend_price || 0)}">
                             </div>
                         </div>
                     </div>
@@ -555,11 +569,11 @@ function buildFormFields(containerId, category = '', existingData = {}) {
                         <div class="row">
                             <div class="col-md-4">
                                 <label class="form-label mb-1">Lørdagspris (NOK)</label>
-                                <input type="number" class="form-control form-control-sm" name="saturday_price" step="0.01" value="${existingData.saturday_price || 0}">
+                                <input type="number" class="form-control form-control-sm" name="saturday_price" step="0.01" value="${escAttr(existingData.saturday_price || 0)}">
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label mb-1">Søndagspris (NOK)</label>
-                                <input type="number" class="form-control form-control-sm" name="sunday_price" step="0.01" value="${existingData.sunday_price || 0}">
+                                <input type="number" class="form-control form-control-sm" name="sunday_price" step="0.01" value="${escAttr(existingData.sunday_price || 0)}">
                             </div>
                         </div>
                     </div>
@@ -594,7 +608,7 @@ function buildFormFields(containerId, category = '', existingData = {}) {
             </div>
             <div class="col-md-4">
                 <label class="form-label mb-1">Beskrivelse</label>
-                <textarea class="form-control form-control-sm" name="description" rows="4">${existingData.description || ''}</textarea>
+                        <textarea class="form-control form-control-sm" name="description" rows="4">${escHtml(existingData.description || '')}</textarea>
             </div>
         </div>
         
@@ -605,10 +619,36 @@ function buildFormFields(containerId, category = '', existingData = {}) {
             </label>
         </div>
     `;
+
+    const savedCustomerFields = Array.isArray(existingData.customer_fields) ? existingData.customer_fields : [];
+    const customerMap = {};
+    savedCustomerFields.forEach((field, index) => {
+        const key = field.key || field.field;
+        if (key) customerMap[key] = field;
+    });
+    const customerRenderOrder = rentalCustomerFieldOrder.slice().sort((a, b) => {
+        const aOrder = Number(customerMap[a]?.sort_order ?? customerMap[a]?.order ?? rentalCustomerFieldOrder.indexOf(a));
+        const bOrder = Number(customerMap[b]?.sort_order ?? customerMap[b]?.order ?? rentalCustomerFieldOrder.indexOf(b));
+        return aOrder - bOrder;
+    });
+    html += `<div class="card mb-3"><div class="card-body"><div class="d-flex justify-content-between align-items-start mb-2"><div><h6 class="mb-1"><i class="bi bi-person-vcard me-2"></i>Kundeopplysninger</h6><p class="text-muted small mb-0">Velg hva kunden må oppgi ved forespørsel. Påkrevde felt blir automatisk valgt.</p></div><span class="badge text-bg-light border">Personvern</span></div><div class="row g-2">`;
+    customerRenderOrder.forEach((key, index) => {
+        const saved = customerMap[key] || {};
+        const selected = saved.selected === undefined ? true : !!Number(saved.selected);
+        const required = !!Number(saved.required);
+        const label = rentalCustomerFieldDefinitions[key];
+        html += `<div class="col-12 col-md-6"><div class="customer-field-row d-flex align-items-center gap-2">
+            <input class="form-check-input customer-selected mt-0" type="checkbox" name="customer_selected[${key}]" value="1" id="${containerId}_customer_${key}" ${selected ? 'checked' : ''} onchange="toggleCustomerRequired(this,'${containerId}_required_${key}')">
+            <label class="flex-grow-1 small fw-semibold mb-0" for="${containerId}_customer_${key}">${escHtml(label)}</label>
+            <label class="small text-muted d-flex align-items-center gap-1 mb-0"><input class="form-check-input customer-required" type="checkbox" name="customer_required[${key}]" value="1" id="${containerId}_required_${key}" ${required ? 'checked' : ''} ${selected ? '' : 'disabled'}> Påkrevd</label>
+            <input type="hidden" name="customer_order[${key}]" value="${index}">
+        </div></div>`;
+    });
+    html += `</div></div></div>`;
     
     if (category && rentalSchemas[category]) {
         const schema = rentalSchemas[category];
-        html += `<h6 class="text-muted mb-2"><i class="bi bi-list-check me-1"></i>${schema.label} - spesifikke detaljer</h6>`;
+        html += `<h6 class="text-muted mb-2"><i class="bi bi-list-check me-1"></i>${escHtml(schema.label)} - spesifikke detaljer</h6>`;
         html += '<div class="card bg-light mb-3"><div class="card-body py-2"><div class="row">';
         
         Object.entries(schema.fields).forEach(([fieldName, field]) => {
@@ -630,11 +670,11 @@ function generateIntegratedFieldHTML(fieldName, field, value = '') {
     
     switch (field.type) {
         case 'text':
-            inputHTML = `<input type="text" class="form-control" name="type_data[${fieldName}]" value="${value || ''}" ${requiredAttr}>`;
+            inputHTML = `<input type="text" class="form-control" name="type_data[${escAttr(fieldName)}]" value="${escAttr(value || '')}" ${requiredAttr}>`;
             break;
         case 'number':
             const step = field.step || '1';
-            inputHTML = `<input type="number" class="form-control" name="type_data[${fieldName}]" step="${step}" value="${value || ''}" ${requiredAttr}>`;
+            inputHTML = `<input type="number" class="form-control" name="type_data[${escAttr(fieldName)}]" step="${escAttr(step)}" value="${escAttr(value || '')}" ${requiredAttr}>`;
             break;
         case 'checkbox':
             const checked = value === true || value === 1 || value === '1' ? 'checked' : '';
@@ -643,7 +683,7 @@ function generateIntegratedFieldHTML(fieldName, field, value = '') {
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="type_data[${fieldName}]" id="${fieldName}" value="1" ${checked}>
                         <label class="form-check-label" for="${fieldName}">
-                            ${field.label} ${required}
+                            ${escHtml(field.label)} ${required}
                         </label>
                     </div>
                 </div>
@@ -652,20 +692,20 @@ function generateIntegratedFieldHTML(fieldName, field, value = '') {
             inputHTML = `
                 <select class="form-select" name="type_data[${fieldName}]" ${requiredAttr}>
                     <option value="">Velg...</option>
-                    ${field.options.map(opt => `<option value="${opt}" ${value === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                    ${field.options.map(opt => `<option value="${escAttr(opt)}" ${value === opt ? 'selected' : ''}>${escHtml(opt)}</option>`).join('')}
                 </select>
             `;
             break;
         case 'textarea':
-            inputHTML = `<textarea class="form-control" name="type_data[${fieldName}]" rows="2" ${requiredAttr}>${value || ''}</textarea>`;
+            inputHTML = `<textarea class="form-control" name="type_data[${escAttr(fieldName)}]" rows="2" ${requiredAttr}>${escHtml(value || '')}</textarea>`;
             break;
         default:
-            inputHTML = `<input type="text" class="form-control" name="type_data[${fieldName}]" value="${value || ''}" ${requiredAttr}>`;
+            inputHTML = `<input type="text" class="form-control" name="type_data[${escAttr(fieldName)}]" value="${escAttr(value || '')}" ${requiredAttr}>`;
     }
     
     return `
         <div class="col-md-6 mb-3">
-            <label class="form-label">${field.label} ${required}</label>
+            <label class="form-label">${escHtml(field.label)} ${required}</label>
             ${inputHTML}
         </div>
     `;
@@ -715,6 +755,7 @@ function getFormData(formId) {
         images: collectImagesFromForm(form, formId === 'createRentalForm' ? 'createFormFieldsContainer' : 'formFieldsContainer'),
         type_data: {}
     };
+    data.customer_fields = collectCustomerFields(form);
     
     for (let [key, value] of formData.entries()) {
         if (key.startsWith('type_data[')) {
@@ -731,11 +772,35 @@ function getFormData(formId) {
     return data;
 }
 
+function toggleCustomerRequired(selected, requiredId) {
+    const required = document.getElementById(requiredId);
+    if (!required) return;
+    required.disabled = !selected.checked;
+    if (!selected.checked) required.checked = false;
+}
+
+function collectCustomerFields(form) {
+    return rentalCustomerFieldOrder.map((key, order) => {
+        const selected = form.querySelector(`[name="customer_selected[${key}]"]`);
+        const required = form.querySelector(`[name="customer_required[${key}]"]`);
+        return {
+            key,
+            label: rentalCustomerFieldDefinitions[key],
+            input_type: key === 'age' ? 'number' : (key === 'email' ? 'email' : 'text'),
+            selected: selected?.checked ? 1 : 0,
+            required: selected?.checked && required?.checked ? 1 : 0,
+            sort_order: Number(form.querySelector(`[name="customer_order[${key}]"]`)?.value ?? order)
+        };
+    });
+}
+
 function getCurrentFormData() {
     return getFormData('rentalForm');
 }
 
 async function saveRentalObject() {
+    const saveButton = document.querySelector('#rentalModal .modal-footer .btn-primary');
+    if (saveButton?.disabled) return;
     const form = document.getElementById('rentalForm');
     if (!form.checkValidity()) {
         form.reportValidity();
@@ -757,24 +822,28 @@ async function saveRentalObject() {
         market_price: parseFloat(formData.get('market_price')) || null,
         description: formData.get('description') || null,
         is_available: formData.get('is_available') === 'on',
-        images: collectImagesFromForm(form, 'formFieldsContainer')
+        images: collectImagesFromForm(form, 'formFieldsContainer'),
+        customer_fields: collectCustomerFields(form)
     };
     
     if (isEdit) {
         data.id = id;
     }
     
+    // Build type_data from the active schema, not FormData entries: unchecked
+    // checkboxes are omitted by the browser and must be sent explicitly as 0.
     const typeData = {};
-    for (let [key, value] of formData.entries()) {
-        if (key.startsWith('type_data[')) {
-            const fieldName = key.match(/type_data\[(.+)\]/)[1];
-            const inputElement = form.querySelector(`[name="${key}"]`);
-            if (inputElement && inputElement.type === 'checkbox') {
-                typeData[fieldName] = value === '1';
+    const activeSchema = rentalSchemas[data.category];
+    if (activeSchema && activeSchema.fields) {
+        Object.entries(activeSchema.fields).forEach(([fieldName, field]) => {
+            const inputElement = form.querySelector(`[name="type_data[${fieldName}]"]`);
+            if (!inputElement) return;
+            if (field.type === 'checkbox' || inputElement.type === 'checkbox') {
+                typeData[fieldName] = inputElement.checked ? 1 : 0;
             } else {
-                typeData[fieldName] = value || null;
+                typeData[fieldName] = inputElement.value === '' ? null : inputElement.value;
             }
-        }
+        });
     }
     
     if (Object.keys(typeData).length > 0) {
@@ -782,6 +851,7 @@ async function saveRentalObject() {
     }
     
     const toastId = toast.loading(isEdit ? 'Oppdaterer objekt...' : 'Oppretter objekt...');
+    if (saveButton) { saveButton.disabled = true; saveButton.classList.add('save-busy'); }
     
     try {
         const endpoint = isEdit ? '/api/update_rental_object.php' : '/api/create_rental_object.php';
@@ -808,6 +878,8 @@ async function saveRentalObject() {
     } catch (error) {
         console.error('Error saving rental object:', error);
         toast.error(toastId, 'Feil', 'Kunne ikke lagre objekt');
+    } finally {
+        if (saveButton) { saveButton.disabled = false; saveButton.classList.remove('save-busy'); }
     }
 }
 
@@ -815,18 +887,19 @@ let imageRowCounter = 0;
 
 function buildImageRow(containerId, idx, url, isPrimary, caption) {
     const rowId = 'imgrow_' + (imageRowCounter++);
+    const safeImageUrl = validRentalImageUrl(url) ? escAttr(url) : '';
     return `
-        <div class="input-group input-group-sm mb-2 image-row" data-row-id="${rowId}">
+        <div class="input-group input-group-sm mb-2 image-row" data-row-id="${escAttr(rowId)}">
             <span class="input-group-text" title="Hovedbilde">
                 <input type="radio" name="${containerId}_primaryImage" value="${rowId}" ${isPrimary ? 'checked' : ''}>
             </span>
-            <input type="text" class="form-control image-url-input" value="${url}" placeholder="https://bilde-url..." oninput="previewImageRow(this)">
-            <input type="text" class="form-control image-caption-input" value="${caption}" placeholder="Bildetekst" style="max-width: 150px;">
+            <input type="text" class="form-control image-url-input" value="${safeImageUrl}" placeholder="https://bilde-url..." oninput="previewImageRow(this)">
+            <input type="text" class="form-control image-caption-input" value="${escAttr(caption)}" placeholder="Bildetekst" style="max-width: 150px;">
             <button type="button" class="btn btn-outline-danger" onclick="removeImageRow(this)" title="Fjern bilde">
                 <i class="bi bi-x"></i>
             </button>
             <div class="w-100">
-                ${url ? `<img src="${url}" class="img-thumbnail mt-1" style="max-height: 60px;" onerror="this.style.display='none'">` : ''}
+                ${safeImageUrl ? `<img src="${safeImageUrl}" class="img-thumbnail mt-1" style="max-height: 60px;" alt="" onerror="this.remove()">` : ''}
             </div>
         </div>
     `;
@@ -852,11 +925,22 @@ function previewImageRow(input) {
     const row = input.closest('.image-row');
     const previewDiv = row.querySelector('.w-100');
     const url = input.value.trim();
-    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
-        previewDiv.innerHTML = `<img src="${url}" class="img-thumbnail mt-1" style="max-height: 60px;" onerror="this.style.display='none'">`;
+    if (validRentalImageUrl(url)) {
+        previewDiv.innerHTML = `<img src="${escAttr(url)}" class="img-thumbnail mt-1" alt="" style="max-height: 60px;" onerror="this.remove()">`;
     } else {
         previewDiv.innerHTML = '';
     }
+}
+
+function validRentalImageUrl(value) {
+    const valueString = String(value || '').trim();
+    if (!valueString || /[\u0000-\u001f"'<>]/.test(valueString)) return false;
+    if (/^https?:\/\//i.test(valueString)) return true;
+    return valueString.startsWith('/') && !valueString.startsWith('//');
+}
+
+function escAttr(value) {
+    return escHtml(value).replace(/'/g, '&#39;');
 }
 
 function collectImagesFromForm(formElement, containerId) {
@@ -867,7 +951,7 @@ function collectImagesFromForm(formElement, containerId) {
         const captionInput = row.querySelector('.image-caption-input');
         const radio = row.querySelector('input[type="radio"]');
         const url = urlInput ? urlInput.value.trim() : '';
-        if (url) {
+        if (url && validRentalImageUrl(url)) {
             images.push({
                 url: url,
                 is_primary: radio ? radio.checked : false,
@@ -909,7 +993,8 @@ function showCreateSummary() {
         market_price: parseFloat(formData.get('market_price')) || null,
         description: formData.get('description') || null,
         is_available: form.querySelector('[name="is_available"]')?.checked ?? true,
-        images: collectImagesFromForm(form, 'createFormFieldsContainer')
+        images: collectImagesFromForm(form, 'createFormFieldsContainer'),
+        customer_fields: collectCustomerFields(form)
     };
     
     const typeData = {};
@@ -919,7 +1004,7 @@ function showCreateSummary() {
             const inputElement = form.querySelector(`[name="type_data[${fieldName}]"]`);
             if (inputElement) {
                 if (field.type === 'checkbox') {
-                    typeData[fieldName] = inputElement.checked;
+                    typeData[fieldName] = inputElement.checked ? 1 : 0;
                 } else {
                     typeData[fieldName] = inputElement.value || null;
                 }
@@ -958,8 +1043,8 @@ function showCreateSummary() {
     summaryHTML += '<div class="col-md-4 mb-3">';
     summaryHTML += '<h6 class="text-muted mb-2">Grunndata</h6>';
     summaryHTML += `<table class="table table-sm table-borderless">`;
-    summaryHTML += `<tr><td class="text-muted" style="width:45%">Objektnavn</td><td><strong>${data.object_name}</strong></td></tr>`;
-    summaryHTML += `<tr><td class="text-muted">Kategori</td><td><span class="badge bg-primary">${categoryLabel}</span></td></tr>`;
+    summaryHTML += `<tr><td class="text-muted" style="width:45%">Objektnavn</td><td><strong>${escHtml(data.object_name)}</strong></td></tr>`;
+    summaryHTML += `<tr><td class="text-muted">Kategori</td><td><span class="badge bg-primary">${escHtml(categoryLabel)}</span></td></tr>`;
     summaryHTML += `<tr><td class="text-muted">Leiepris/dag</td><td><strong class="text-success">${data.rental_price.toFixed(0)} NOK</strong></td></tr>`;
     if (data.saturday_price > 0 || data.sunday_price > 0) {
         if (data.saturday_price > 0) summaryHTML += `<tr><td class="text-muted">Lørdagspris</td><td>${data.saturday_price.toFixed(0)} NOK</td></tr>`;
@@ -972,13 +1057,13 @@ function showCreateSummary() {
     }
     summaryHTML += `<tr><td class="text-muted">Status</td><td>${data.is_available ? '<span class="badge bg-success">Tilgjengelig</span>' : '<span class="badge bg-secondary">Ikke tilgjengelig</span>'}</td></tr>`;
     if (data.description) {
-        summaryHTML += `<tr><td class="text-muted">Beskrivelse</td><td>${data.description}</td></tr>`;
+        summaryHTML += `<tr><td class="text-muted">Beskrivelse</td><td>${escHtml(data.description)}</td></tr>`;
     }
     summaryHTML += '</table></div>';
     
     summaryHTML += '<div class="col-md-4 mb-3">';
     if (data.type_data && schema && Object.keys(data.type_data).length > 0) {
-        summaryHTML += `<h6 class="text-muted mb-2">${categoryLabel} - detaljer</h6>`;
+        summaryHTML += `<h6 class="text-muted mb-2">${escHtml(categoryLabel)} - detaljer</h6>`;
         summaryHTML += '<table class="table table-sm table-borderless">';
         Object.entries(data.type_data).forEach(([key, value]) => {
             const field = schema.fields[key];
@@ -987,7 +1072,7 @@ function showCreateSummary() {
                 if (field.type === 'checkbox') {
                     displayValue = value ? '<i class="bi bi-check-circle-fill text-success"></i> Ja' : '<i class="bi bi-x-circle-fill text-danger"></i> Nei';
                 }
-                summaryHTML += `<tr><td class="text-muted" style="width:50%">${field.label}</td><td>${displayValue}</td></tr>`;
+                summaryHTML += `<tr><td class="text-muted" style="width:50%">${escHtml(field.label)}</td><td>${field.type === 'checkbox' ? displayValue : escHtml(displayValue)}</td></tr>`;
             }
         });
         summaryHTML += '</table>';
@@ -1001,6 +1086,48 @@ function showCreateSummary() {
     document.getElementById('createSummaryContent').innerHTML = summaryHTML;
     document.getElementById('createFormSection').style.display = 'none';
     document.getElementById('createSummarySection').style.display = 'block';
+}
+
+async function loadRentalResults() {
+    const state = document.getElementById('rentalResultsState');
+    const metrics = document.getElementById('rentalResultsMetrics');
+    const table = document.getElementById('rentalResultsTable');
+    if (!state || !metrics || !table) return;
+    state.innerHTML = '<span class="placeholder-wave"><span class="placeholder col-4"></span></span>';
+    metrics.innerHTML = '';
+    table.innerHTML = '';
+    try {
+        const response = await fetch('/api/get_rental_results.php', {headers:{'Accept':'application/json'}});
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'Kunne ikke hente resultat');
+        const summary = data.summary || {};
+        const money = value => `${Number(value || 0).toLocaleString('nb-NO',{maximumFractionDigits:0})} NOK`;
+        const cards = [
+            ['Total omsetning', money(summary.total_revenue), 'bi-graph-up-arrow'],
+            ['Antall utleier', Number(summary.total_rentals || 0).toLocaleString('nb-NO'), 'bi-calendar2-check'],
+            ['Denne måneden', money(summary.monthly_revenue), 'bi-calendar3'],
+            ['Gj.snitt per betalt utleie', money(summary.average_per_paid_rental), 'bi-bar-chart']
+        ];
+        metrics.innerHTML = cards.map(([label,value,icon]) => `<div class="col-12 col-sm-6 col-xl-3"><div class="card metric-card h-100"><div class="card-body"><div class="d-flex justify-content-between text-muted small"><span>${label}</span><i class="bi ${icon}"></i></div><div class="metric-value mt-2">${value}</div></div></div></div>`).join('');
+        const distribution = summary.status_distribution || {};
+        const distributionHtml = Object.entries(distribution).map(([status,count]) => `<span class="badge rounded-pill text-bg-light border me-1">${rentalStatusBadge(status)} ${Number(count || 0).toLocaleString('nb-NO')}</span>`).join('');
+        if (distributionHtml) metrics.innerHTML += `<div class="col-12"><div class="small text-muted">Statusfordeling <span class="ms-2">${distributionHtml}</span></div></div>`;
+        const rows = Array.isArray(summary.recent_paid_contracts) ? summary.recent_paid_contracts : [];
+        state.textContent = rows.length ? `${rows.length} resultat` : 'Ingen utleier registrert ennå';
+        if (!rows.length) { table.innerHTML = '<div class="alert alert-light border"><i class="bi bi-inbox me-2"></i>Resultat vises når første utleie er registrert.</div>'; return; }
+        table.innerHTML = `<div class="rental-mobile-scroll"><table class="table table-sm align-middle"><thead><tr><th>Objekt</th><th>Periode</th><th>Kunde</th><th class="text-end">Beløp</th><th>Status</th></tr></thead><tbody>${rows.map(row => `<tr><td class="fw-semibold">${escHtml(row.object_name || '–')}</td><td>${fmtDate(row.start_date)}–${fmtDate(row.end_date)}</td><td>${escHtml(row.display_customer_name || row.customer_name || '–')}</td><td class="text-end">${money(row.total_amount ?? row.rental_fee)}</td><td>${rentalStatusBadge(row.status)}</td></tr>`).join('')}</tbody></table></div>`;
+    } catch (error) {
+        state.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Resultatet kunne ikke lastes.</span> <button class="btn btn-link btn-sm p-0" onclick="loadRentalResults()">Prøv igjen</button>';
+        metrics.innerHTML = '';
+        table.innerHTML = '';
+    }
+}
+
+function rentalStatusBadge(status) {
+    const labels = {approved:'Godkjent', rejected:'Avslått', active:'Aktiv', completed:'Avsluttet', cancelled:'Kansellert', draft:'Utkast'};
+    const classes = {approved:'success', active:'success', rejected:'danger', cancelled:'danger', completed:'info', draft:'secondary'};
+    return `<span class="badge text-bg-${classes[status] || 'light'}">${labels[status] || escHtml(status || '–')}</span>`;
 }
 
 function backToCreateForm() {
@@ -1151,21 +1278,22 @@ function viewDetails(objectId) {
     document.getElementById('detailsModalTitle').textContent = obj.object_name;
     
     const detailImages = (obj.images && obj.images.length > 0) ? obj.images : (obj.image_url ? [{url: obj.image_url, is_primary: true}] : []);
-    const detailPrimary = detailImages.find(i => i.is_primary) || detailImages[0] || null;
+    const safeDetailImages = detailImages.map(img => typeof img === 'string' ? {url: img} : img).filter(img => validRentalImageUrl(img?.url));
+    const detailPrimary = safeDetailImages.find(i => i.is_primary) || safeDetailImages[0] || null;
     
     let detailsHTML = `
         <div class="row">
             <div class="col-md-6">
-                ${detailPrimary ? `<img src="${detailPrimary.url}" class="img-fluid rounded mb-2" alt="${obj.object_name}" id="detailMainImage">` : ''}
-                ${detailImages.length > 1 ? `<div class="d-flex gap-2 flex-wrap mb-3">${detailImages.map((img, i) => `<img src="${img.url}" class="img-thumbnail" style="max-height: 60px; cursor: pointer;${img === detailPrimary ? ' border: 2px solid #0d6efd;' : ''}" onclick="document.getElementById('detailMainImage').src='${img.url}'" title="${img.caption || ''}">`).join('')}</div>` : ''}
-                <p><strong>Kategori:</strong> ${schema.label}</p>
+                ${detailPrimary ? `<img src="${escAttr(detailPrimary.url)}" class="img-fluid rounded mb-2" alt="${escAttr(obj.object_name)}" id="detailMainImage">` : ''}
+                ${safeDetailImages.length > 1 ? `<div class="d-flex gap-2 flex-wrap mb-3">${safeDetailImages.map((img) => `<img src="${escAttr(img.url)}" class="img-thumbnail detail-thumb" data-detail-url="${escAttr(img.url)}" style="max-height: 60px; cursor: pointer;${img === detailPrimary ? ' border: 2px solid #0d6efd;' : ''}" title="${escAttr(img.caption || '')}" alt="">`).join('')}</div>` : ''}
+                <p><strong>Kategori:</strong> ${escHtml(schema?.label || obj.category)}</p>
                 <p><strong>Leiepris (ukedag):</strong> ${parseFloat(obj.rental_price).toFixed(0)} NOK/dag</p>
                 ${obj.saturday_price > 0 ? `<p><strong>Lørdagspris:</strong> ${parseFloat(obj.saturday_price).toFixed(0)} NOK/dag</p>` : ''}
                 ${obj.sunday_price > 0 ? `<p><strong>Søndagspris:</strong> ${parseFloat(obj.sunday_price).toFixed(0)} NOK/dag</p>` : ''}
                 ${(obj.weekend_price > 0 && !obj.saturday_price && !obj.sunday_price) ? `<p><strong>Helgepris:</strong> ${parseFloat(obj.weekend_price).toFixed(0)} NOK/dag</p>` : ''}
                 ${obj.deposit_amount > 0 ? `<p><strong>Depositum:</strong> ${parseFloat(obj.deposit_amount).toFixed(0)} NOK</p>` : ''}
                 <p><strong>Status:</strong> ${obj.is_available ? '<span class="badge bg-success">Tilgjengelig</span>' : '<span class="badge bg-secondary">Ikke tilgjengelig</span>'}</p>
-                ${obj.description ? `<p><strong>Beskrivelse:</strong><br>${obj.description}</p>` : ''}
+                ${obj.description ? `<p><strong>Beskrivelse:</strong><br>${escHtml(obj.description)}</p>` : ''}
             </div>
             <div class="col-md-6">
                 <h6>Detaljer:</h6>
@@ -1179,7 +1307,7 @@ function viewDetails(objectId) {
                 if (field.type === 'checkbox') {
                     displayValue = value ? '<i class="bi bi-check-circle-fill text-success"></i> Ja' : '<i class="bi bi-x-circle-fill text-danger"></i> Nei';
                 }
-                detailsHTML += `<p><strong>${field.label}:</strong> ${displayValue}</p>`;
+                detailsHTML += `<p><strong>${escHtml(field.label)}:</strong> ${field.type === 'checkbox' ? displayValue : escHtml(displayValue)}</p>`;
             }
         });
     }
@@ -1190,6 +1318,12 @@ function viewDetails(objectId) {
     `;
     
     document.getElementById('detailsModalBody').innerHTML = detailsHTML;
+    document.querySelectorAll('#detailsModalBody .detail-thumb').forEach((thumb) => {
+        thumb.addEventListener('click', () => {
+            const main = document.getElementById('detailMainImage');
+            if (main) main.src = thumb.dataset.detailUrl;
+        });
+    });
     const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
     modal.show();
 }
@@ -1239,7 +1373,7 @@ async function loadObjectContracts(objectId) {
             const statusBadge = contractStatusBadge(c.status);
             const payBadge = contractPaymentBadge(c.payment_status);
             return `<div class="d-flex justify-content-between align-items-center border-bottom py-1">
-                <span>${c.display_customer_name} &mdash; ${fmtDate(c.start_date)} – ${fmtDate(c.end_date)}</span>
+                <span>${escHtml(c.display_customer_name || '–')} &mdash; ${fmtDate(c.start_date)} – ${fmtDate(c.end_date)}</span>
                 <span class="d-flex gap-1">${statusBadge}${payBadge}</span>
             </div>`;
         }).join('');
@@ -1312,14 +1446,14 @@ function calcContractAmount(objectId, dailyPrice) {
 
     const start = new Date(startInput.value);
     const end   = new Date(endInput.value);
-    if (!startInput.value || !endInput.value || end <= start) {
+    if (!startInput.value || !endInput.value || end < start) {
         if (daysInput) daysInput.value = '';
         return;
     }
 
-    const days = Math.round((end - start) / 86400000);
+    const days = Math.round((end - start) / 86400000) + 1;
     if (daysInput) daysInput.value = days;
-    if (amtInput && (!amtInput.value || parseFloat(amtInput.value) === 0)) {
+    if (amtInput) {
         amtInput.value = (days * dailyPrice).toFixed(2);
     }
 }
@@ -1339,8 +1473,13 @@ async function submitContract(objectId) {
         toast.quickError('Feil', 'Fra dato og til dato er påkrevd');
         return;
     }
-    if (new Date(endVal) <= new Date(startVal)) {
-        toast.quickError('Feil', 'Sluttdato må være etter startdato');
+    if (new Date(endVal) < new Date(startVal)) {
+        toast.quickError('Feil', 'Til-dato kan ikke være før fra-dato');
+        return;
+    }
+    const inclusiveDays = Math.round((new Date(endVal) - new Date(startVal)) / 86400000) + 1;
+    if (!Number.isFinite(inclusiveDays) || inclusiveDays < 1) {
+        toast.quickError('Feil', 'Datoperioden er ugyldig');
         return;
     }
 
@@ -1349,6 +1488,7 @@ async function submitContract(objectId) {
         start_date:       startVal,
         end_date:         endVal,
         total_amount:     parseFloat(amtVal)  || 0,
+        rental_days:      inclusiveDays,
         deposit_amount:   parseFloat(depVal)  || 0,
         payment_method:   pmVal   || null,
         status:           statusVal || 'active',
@@ -1401,7 +1541,7 @@ async function loadContracts(status) {
             allContracts = data.contracts || [];
             renderContractsList(allContracts);
         } else {
-            container.innerHTML = `<div class="alert alert-warning">${data.message || 'Feil ved henting av kontrakter'}</div>`;
+            container.innerHTML = `<div class="alert alert-warning">${escHtml(data.message || 'Feil ved henting av kontrakter')}</div>`;
         }
     } catch (e) {
         container.innerHTML = `<div class="alert alert-danger">Feil ved lasting av kontrakter</div>`;
@@ -1432,26 +1572,28 @@ function renderContractsList(contracts) {
     }
 
     const rows = contracts.map(c => {
+        const contractToken = encodeURIComponent(String(c.id));
+        const objectToken = encodeURIComponent(String(c.rental_object_id));
         const statusBadge = contractStatusBadge(c.status);
         const payBadge    = contractPaymentBadge(c.payment_status);
 
         const markPaidBtn = c.payment_status !== 'paid'
-            ? `<button class="btn btn-outline-success btn-sm" onclick="markContractPaid('${c.id}')" title="Merk som betalt"><i class="bi bi-check-circle"></i></button>`
+            ? `<button class="btn btn-outline-success btn-sm" onclick="markContractPaid(decodeURIComponent('${contractToken}'))" title="Merk som betalt"><i class="bi bi-check-circle"></i></button>`
             : '';
 
         let statusActionBtn = '';
         if (c.status === 'draft') {
-            statusActionBtn = `<button class="btn btn-outline-primary btn-sm" onclick="updateContractStatus('${c.id}', 'active', '${c.rental_object_id}')" title="Aktiver"><i class="bi bi-play-circle"></i></button>`;
+            statusActionBtn = `<button class="btn btn-outline-primary btn-sm" onclick="updateContractStatus(decodeURIComponent('${contractToken}'), 'active', decodeURIComponent('${objectToken}'))" title="Aktiver"><i class="bi bi-play-circle"></i></button>`;
         } else if (c.status === 'active') {
-            statusActionBtn = `<button class="btn btn-outline-secondary btn-sm" onclick="updateContractStatus('${c.id}', 'completed', '${c.rental_object_id}')" title="Avslutt"><i class="bi bi-stop-circle"></i></button>`;
+            statusActionBtn = `<button class="btn btn-outline-secondary btn-sm" onclick="updateContractStatus(decodeURIComponent('${contractToken}'), 'completed', decodeURIComponent('${objectToken}'))" title="Avslutt"><i class="bi bi-stop-circle"></i></button>`;
         }
 
         const cancelBtn = !['completed','cancelled'].includes(c.status)
-            ? `<button class="btn btn-outline-warning btn-sm" onclick="updateContractStatus('${c.id}', 'cancelled', '${c.rental_object_id}')" title="Kanseller"><i class="bi bi-x-circle"></i></button>`
+            ? `<button class="btn btn-outline-warning btn-sm" onclick="updateContractStatus(decodeURIComponent('${contractToken}'), 'cancelled', decodeURIComponent('${objectToken}'))" title="Kanseller"><i class="bi bi-x-circle"></i></button>`
             : '';
 
         const deleteBtn = c.status === 'draft'
-            ? `<button class="btn btn-outline-danger btn-sm" onclick="deleteContract('${c.id}', '${c.rental_object_id}')" title="Slett"><i class="bi bi-trash"></i></button>`
+            ? `<button class="btn btn-outline-danger btn-sm" onclick="deleteContract(decodeURIComponent('${contractToken}'), decodeURIComponent('${objectToken}'))" title="Slett"><i class="bi bi-trash"></i></button>`
             : '';
 
         return `<tr>
@@ -1570,6 +1712,20 @@ function calcAge(dob) {
     return age >= 0 ? age : null;
 }
 
+function rentalRequestFieldsHtml(fields, compact = false) {
+    if (!Array.isArray(fields) || fields.length === 0) return '';
+    const items = fields.filter(field => field && field.value !== null && field.value !== undefined && String(field.value).trim() !== '');
+    if (!items.length) return '';
+    const content = items.map(field => `
+        <div class="d-flex ${compact ? 'gap-1' : 'gap-2'}">
+            <span class="text-muted">${escHtml(field.label || field.field || 'Opplysning')}:</span>
+            <span class="fw-medium">${escHtml(field.value)}</span>
+        </div>`).join('');
+    return compact
+        ? `<div class="rental-request-fields small mt-1">${content}</div>`
+        : `<section class="rental-request-fields border rounded-3 p-3 mt-3 bg-light-subtle"><h6 class="small text-uppercase text-muted mb-2">Innsendte kundeopplysninger</h6><div class="row row-cols-1 row-cols-md-2 g-2">${items.map(field => `<div class="col"><div class="d-flex flex-column"><span class="text-muted small">${escHtml(field.label || field.field || 'Opplysning')}</span><span class="fw-medium">${escHtml(field.value)}</span></div></div>`).join('')}</div></section>`;
+}
+
 async function loadRentalRequests() {
     const container = document.getElementById('rentalRequestsContainer');
     if (!container) return;
@@ -1619,6 +1775,7 @@ async function loadRentalRequests() {
                 <td class="small">
                     <div>${escHtml(r.display_customer_name)}${ageStr}</div>
                     ${contactInfo}
+                    ${rentalRequestFieldsHtml(r.request_fields, true)}
                 </td>
                 <td class="small text-nowrap">
                     ${fmtDate(r.start_date)} ${r.start_time ? r.start_time.substring(0,5) : ''}
@@ -1700,7 +1857,7 @@ async function declineScheduleRequest(id) {
         const resp = await fetch('/api/update_rental_schedule.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, approved: 2 })
+            body: JSON.stringify({ id, approved: 2, status: 'rejected' })
         });
         const data = await resp.json();
         if (data.success) {
@@ -1887,7 +2044,7 @@ function renderRentalCalendar(container) {
         .map((r, i) => {
             const globalIdx = allApprovedRentals.indexOf(r);
             const c = CAL_COLORS[globalIdx % CAL_COLORS.length];
-            return `<span class="badge me-1 mb-1" style="background:${c.bg};color:${c.tx};cursor:pointer;font-weight:400;" onclick="showRentalCalDetail('${escHtml(r.id)}')">${escHtml(r.object_name || 'Ukjent')}</span>`;
+            return `<span class="badge me-1 mb-1" style="background:${c.bg};color:${c.tx};cursor:pointer;font-weight:400;" onclick="showRentalCalDetail(decodeURIComponent('${encodeURIComponent(String(r.id))}'))">${escHtml(r.object_name || 'Ukjent')}</span>`;
         }).join('');
 
     container.innerHTML = `
@@ -1927,8 +2084,9 @@ function showRentalCalDetail(id) {
         <dl class="row mb-0 small">
             <dt class="col-sm-4">Kunde</dt>
             <dd class="col-sm-8">${escHtml(r.display_customer_name)}</dd>
+            ${r.request_fields?.length ? `<div class="col-12">${rentalRequestFieldsHtml(r.request_fields)}</div>` : ''}
             ${ageRow}
-            ${r.display_email ? `<dt class="col-sm-4">E-post</dt><dd class="col-sm-8"><a href="mailto:${escHtml(r.display_email)}">${escHtml(r.display_email)}</a></dd>` : ''}
+            ${r.display_email ? `<dt class="col-sm-4">E-post</dt><dd class="col-sm-8"><a href="mailto:${escAttr(r.display_email)}">${escHtml(r.display_email)}</a></dd>` : ''}
             ${r.display_phone ? `<dt class="col-sm-4">Telefon</dt><dd class="col-sm-8">${escHtml(r.display_phone)}</dd>` : ''}
             <dt class="col-sm-4">Fra</dt>
             <dd class="col-sm-8">${fmtDate(r.start_date)}${r.pickup_time ? ' kl. ' + r.pickup_time.substring(0,5) : ''}</dd>
@@ -1974,7 +2132,8 @@ function contractStatusBadge(status) {
         draft:     '<span class="badge bg-secondary">Utkast</span>',
         active:    '<span class="badge bg-success">Aktiv</span>',
         completed: '<span class="badge bg-info text-dark">Avsluttet</span>',
-        cancelled: '<span class="badge bg-danger">Kansellert</span>'
+        cancelled: '<span class="badge bg-danger">Kansellert</span>',
+        rejected:  '<span class="badge bg-danger">Avslått</span>'
     };
     return map[status] || `<span class="badge bg-light text-dark">${status}</span>`;
 }

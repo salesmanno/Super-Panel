@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/rental_schemas.php';
+require_once __DIR__ . '/../includes/rental_customer_fields.php';
 
 $admin = [
     'tenant_admin_id' => $_SESSION['tenant_admin_id'],
@@ -18,6 +19,7 @@ $admin = [
 
 // Hent input
 $data = json_decode(file_get_contents('php://input'), true);
+$data = is_array($data) ? $data : [];
 
 // Valider required base fields
 if (empty($data['object_name']) || empty($data['category'])) {
@@ -79,8 +81,8 @@ try {
         $data['serial_number'] ?? null,
         $data['description'] ?? null,
         $data['category'],
-        $data['rental_price'] ?? 0,
-        $data['deposit_amount'] ?? 0,
+        array_key_exists('rental_price', $data) ? $data['rental_price'] : 0,
+        array_key_exists('deposit_amount', $data) ? $data['deposit_amount'] : 0,
         $data['condition_notes'] ?? null,
         $primaryImageUrl,
         $imagesJson,
@@ -91,12 +93,13 @@ try {
         isset($data['rental_periods']) ? (is_array($data['rental_periods']) ? json_encode($data['rental_periods']) : $data['rental_periods']) : null
     ];
     
-    // Only add weekend/saturday/sunday price columns if non-zero (columns may not exist yet)
+    // Optional price columns vary between older installations. Include
+    // explicit null/zero values as well; zero is a meaningful price.
     $optionalPriceCols = ['weekend_price', 'saturday_price', 'sunday_price'];
     foreach ($optionalPriceCols as $col) {
-        if (!empty($data[$col]) && floatval($data[$col]) > 0) {
+        if (array_key_exists($col, $data) && rentalObjectColumnExists($db, $col)) {
             $columns[] = $col;
-            $params[] = floatval($data[$col]);
+            $params[] = $data[$col] === null || $data[$col] === '' ? null : (float) $data[$col];
         }
     }
     
@@ -106,56 +109,75 @@ try {
     $stmt = $db->prepare("INSERT INTO rental_objects ($columnList) VALUES ($placeholders)");
     $stmt->execute($params);
     
-    // INSERT into type-specific table (graceful if table doesn't exist yet)
-    if (!empty($data['type_data']) && is_array($data['type_data'])) {
-        try {
-            $typeTable = $schema['table'];
-            $typeFields = ['object_id'];
-            $typeValues = ['?'];
-            $typeParams = [$object_id];
-            
-            foreach ($data['type_data'] as $field => $value) {
-                if (isset($schema['fields'][$field])) {
-                    $typeFields[] = $field;
-                    $typeValues[] = '?';
-                    
-                    if ($schema['fields'][$field]['type'] === 'checkbox') {
-                        $typeParams[] = ($value && $value !== '0' && $value !== 0) ? 1 : 0;
-                    } else {
-                        $typeParams[] = $value !== '' ? $value : null;
-                    }
-                }
-            }
-            
-            if (count($typeFields) > 1) {
-                $sql = "INSERT INTO $typeTable (" . implode(', ', $typeFields) . ") 
-                        VALUES (" . implode(', ', $typeValues) . ")";
-                
-                $typeStmt = $db->prepare($sql);
-                $typeStmt->execute($typeParams);
-            }
-        } catch (Exception $e) {
-            // Type-specific table may not exist yet - base object still created successfully
+    // The base row and its category row are one atomic operation. Do not
+    // silently create a base object when the category migration is missing.
+    if (array_key_exists('type_data', $data) && !is_array($data['type_data'])) {
+        throw new InvalidArgumentException('Objektets typedata er ugyldig');
+    }
+    $typeTable = $schema['table'];
+    $typeFields = ['object_id'];
+    $typeValues = ['?'];
+    $typeParams = [$object_id];
+    $typeData = $data['type_data'] ?? [];
+
+    foreach ($typeData as $field => $value) {
+        if (!array_key_exists($field, $schema['fields'])) {
+            continue;
+        }
+        $typeFields[] = $field;
+        $typeValues[] = '?';
+
+        if ($schema['fields'][$field]['type'] === 'checkbox') {
+            $typeParams[] = ($value && $value !== '0' && $value !== 0) ? 1 : 0;
+        } else {
+            $typeParams[] = $value !== '' ? $value : null;
         }
     }
+    if ($typeData && count($typeFields) === 1) {
+        throw new InvalidArgumentException('Ingen gyldige felt ble sendt for objektkategorien');
+    }
+
+    $typeStmt = $db->prepare(
+        "INSERT INTO $typeTable (" . implode(', ', $typeFields) . ")
+         VALUES (" . implode(', ', $typeValues) . ")"
+    );
+    $typeStmt->execute($typeParams);
+
+    $customerFieldInput = $data['customer_fields'] ?? $data['customer_field_settings'] ?? null;
+    $customerFields = saveRentalCustomerFieldSettings(
+        $db,
+        $admin['company_id'],
+        $object_id,
+        $customerFieldInput === null ? defaultRentalCustomerFieldSettings() : $customerFieldInput
+    );
     
     $db->commit();
     
     echo json_encode([
         'success' => true,
         'message' => 'Utleieobjekt opprettet',
-        'object_id' => $object_id
+        'object_id' => $object_id,
+        'customer_fields' => $customerFields
     ]);
     
+} catch (InvalidArgumentException $e) {
+    if (isset($db) && $db->inTransaction()) {
+        $db->rollBack();
+    }
+    error_log('create_rental_object validation error: ' . $e->getMessage());
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Ugyldige objektdata'
+    ]);
 } catch (\Throwable $e) {
     if (isset($db) && $db->inTransaction()) {
         $db->rollBack();
     }
-    
+    error_log('create_rental_object error: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Feil ved opprettelse av utleieobjekt',
-        'error' => $e->getMessage()
+        'message' => 'Feil ved opprettelse av utleieobjekt'
     ]);
 }

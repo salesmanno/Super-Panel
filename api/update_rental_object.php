@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/rental_schemas.php';
+require_once __DIR__ . '/../includes/rental_customer_fields.php';
 
 $admin = [
     'tenant_admin_id' => $_SESSION['tenant_admin_id'],
@@ -18,6 +19,7 @@ $admin = [
 
 // Hent input
 $data = json_decode(file_get_contents('php://input'), true);
+$data = is_array($data) ? $data : [];
 
 // Valider required fields
 if (empty($data['id'])) {
@@ -31,7 +33,7 @@ try {
     $db->beginTransaction();
     
     // Verify object exists and belongs to company
-    $stmt = $db->prepare("SELECT * FROM rental_objects WHERE id = ? AND company_id = ?");
+    $stmt = $db->prepare("SELECT * FROM rental_objects WHERE id = ? AND company_id = ? FOR UPDATE");
     $stmt->execute([$data['id'], $admin['company_id']]);
     $existing = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -43,7 +45,72 @@ try {
     
     // Use existing category if not provided in update
     $category = $data['category'] ?? $existing['category'];
+    if (!$category || !getRentalSchema($category)) {
+        $db->rollBack();
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Ugyldig objektkategori']);
+        exit;
+    }
     
+    $oldCategory = $existing['category'] ?? null;
+    $categoryChanged = $oldCategory !== $category;
+    if (array_key_exists('type_data', $data) && !is_array($data['type_data'])) {
+        throw new InvalidArgumentException('Objektets typedata er ugyldig');
+    }
+
+    /*
+     * Upsert the new category row before changing the base category. Both
+     * writes are in this transaction; a missing type table or invalid field
+     * therefore rolls back the complete edit instead of leaving a half-edit.
+     */
+    $hasTypeData = array_key_exists('type_data', $data);
+    if ($categoryChanged || $hasTypeData) {
+        $schema = getRentalSchema($category);
+        $typeTable = $schema['table'];
+        $typeData = $hasTypeData ? $data['type_data'] : [];
+        $typeFields = [];
+        $typeParams = [];
+
+        foreach ($typeData as $field => $value) {
+            if (!array_key_exists($field, $schema['fields'])) {
+                continue;
+            }
+            $typeFields[] = $field;
+            if ($schema['fields'][$field]['type'] === 'checkbox') {
+                $typeParams[] = ($value && $value !== '0' && $value !== 0) ? 1 : 0;
+            } else {
+                $typeParams[] = $value !== '' ? $value : null;
+            }
+        }
+        if ($typeData && !$typeFields) {
+            throw new InvalidArgumentException('Ingen gyldige felt ble sendt for objektkategorien');
+        }
+
+        $checkStmt = $db->prepare("SELECT object_id FROM $typeTable WHERE object_id = ?");
+        $checkStmt->execute([$data['id']]);
+        $typeExists = (bool) $checkStmt->fetchColumn();
+
+        if ($typeExists) {
+            if ($typeFields) {
+                $typeParams[] = $data['id'];
+                $db->prepare(
+                    "UPDATE $typeTable SET " . implode(', ', array_map(
+                        static fn (string $field): string => "$field = ?",
+                        $typeFields
+                    )) . " WHERE object_id = ?"
+                )->execute($typeParams);
+            }
+        } else {
+            $insertFields = array_merge(['object_id'], $typeFields);
+            $insertValues = array_fill(0, count($insertFields), '?');
+            array_unshift($typeParams, $data['id']);
+            $db->prepare(
+                "INSERT INTO $typeTable (" . implode(', ', $insertFields) . ")
+                 VALUES (" . implode(', ', $insertValues) . ")"
+            )->execute($typeParams);
+        }
+    }
+
     // UPDATE base rental_objects table
     $updateFields = [];
     $updateParams = [];
@@ -53,7 +120,7 @@ try {
                       'is_available', 'is_active', 'market_price'];
     
     foreach ($allowedFields as $field) {
-        if (isset($data[$field])) {
+        if (array_key_exists($field, $data)) {
             $updateFields[] = "$field = ?";
             $updateParams[] = $data[$field];
         }
@@ -87,12 +154,13 @@ try {
         $updateParams[] = is_array($data['rental_periods']) ? json_encode($data['rental_periods']) : $data['rental_periods'];
     }
     
-    // Only update price columns if non-zero (columns may not exist yet in DB)
+    // Optional price columns vary between older installations. Explicit
+    // null/zero values must still be persisted when supplied.
     $optionalPriceCols = ['weekend_price', 'saturday_price', 'sunday_price'];
     foreach ($optionalPriceCols as $col) {
-        if (!empty($data[$col]) && floatval($data[$col]) > 0) {
+        if (array_key_exists($col, $data) && rentalObjectColumnExists($db, $col)) {
             $updateFields[] = "$col = ?";
-            $updateParams[] = floatval($data[$col]);
+            $updateParams[] = $data[$col] === null || $data[$col] === '' ? null : (float) $data[$col];
         }
     }
     
@@ -105,86 +173,49 @@ try {
         $stmt->execute($updateParams);
     }
     
-    // UPDATE or INSERT type-specific data (graceful if table doesn't exist yet)
-    if (!empty($data['type_data']) && !empty($category)) {
-        $schema = getRentalSchema($category);
-        
-        if ($schema) {
-            try {
-                $typeTable = $schema['table'];
-                
-                $checkStmt = $db->prepare("SELECT object_id FROM $typeTable WHERE object_id = ?");
-                $checkStmt->execute([$data['id']]);
-                $typeExists = $checkStmt->fetch();
-                
-                if ($typeExists) {
-                    $typeUpdateFields = [];
-                    $typeParams = [];
-                    
-                    foreach ($data['type_data'] as $field => $value) {
-                        if (isset($schema['fields'][$field])) {
-                            $typeUpdateFields[] = "$field = ?";
-                            
-                            if ($schema['fields'][$field]['type'] === 'checkbox') {
-                                $typeParams[] = ($value && $value !== '0' && $value !== 0) ? 1 : 0;
-                            } else {
-                                $typeParams[] = $value !== '' ? $value : null;
-                            }
-                        }
-                    }
-                    
-                    if (!empty($typeUpdateFields)) {
-                        $typeParams[] = $data['id'];
-                        $sql = "UPDATE $typeTable SET " . implode(', ', $typeUpdateFields) . " 
-                                WHERE object_id = ?";
-                        $typeStmt = $db->prepare($sql);
-                        $typeStmt->execute($typeParams);
-                    }
-                } else {
-                    $typeFields = ['object_id'];
-                    $typeValues = ['?'];
-                    $typeParams = [$data['id']];
-                    
-                    foreach ($data['type_data'] as $field => $value) {
-                        if (isset($schema['fields'][$field])) {
-                            $typeFields[] = $field;
-                            $typeValues[] = '?';
-                            
-                            if ($schema['fields'][$field]['type'] === 'checkbox') {
-                                $typeParams[] = ($value && $value !== '0' && $value !== 0) ? 1 : 0;
-                            } else {
-                                $typeParams[] = $value !== '' ? $value : null;
-                            }
-                        }
-                    }
-                    
-                    $sql = "INSERT INTO $typeTable (" . implode(', ', $typeFields) . ") 
-                            VALUES (" . implode(', ', $typeValues) . ")";
-                    $typeStmt = $db->prepare($sql);
-                    $typeStmt->execute($typeParams);
-                }
-            } catch (Exception $e) {
-                // Type-specific table may not exist yet - base object still updated
-            }
-        }
+    if ($categoryChanged && $oldCategory && getRentalSchema($oldCategory)) {
+        $oldTypeTable = getRentalSchema($oldCategory)['table'];
+        $db->prepare("DELETE FROM $oldTypeTable WHERE object_id = ?")->execute([$data['id']]);
+    }
+
+    if (array_key_exists('customer_fields', $data) || array_key_exists('customer_field_settings', $data)) {
+        $customerInput = $data['customer_fields'] ?? $data['customer_field_settings'];
+        $customerFields = saveRentalCustomerFieldSettings(
+            $db,
+            $admin['company_id'],
+            $data['id'],
+            $customerInput
+        );
+    } else {
+        $customerFields = getRentalCustomerFieldSettings($db, $admin['company_id'], $data['id']);
     }
     
     $db->commit();
     
     echo json_encode([
         'success' => true,
-        'message' => 'Utleieobjekt oppdatert'
+        'message' => 'Utleieobjekt oppdatert',
+        'customer_fields' => $customerFields
     ]);
     
+} catch (InvalidArgumentException $e) {
+    if (isset($db) && $db->inTransaction()) {
+        $db->rollBack();
+    }
+    error_log('update_rental_object validation error: ' . $e->getMessage());
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Ugyldige objektdata'
+    ]);
 } catch (\Throwable $e) {
     if (isset($db) && $db->inTransaction()) {
         $db->rollBack();
     }
-    
+    error_log('update_rental_object error: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Feil ved oppdatering av utleieobjekt',
-        'error' => $e->getMessage()
+        'message' => 'Feil ved oppdatering av utleieobjekt'
     ]);
 }

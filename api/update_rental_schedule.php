@@ -28,8 +28,9 @@ try {
         $data['end_time'] = normalizeRequestTime($data['end_time'], 'Sluttid');
     }
 } catch (InvalidArgumentException $e) {
+    error_log('update_rental_schedule validation error: ' . $e->getMessage());
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Ugyldig tidspunkt']);
     exit;
 }
 
@@ -44,7 +45,8 @@ try {
                ro.object_name,
                tc.email AS customer_email, tc.first_name, tc.last_name
         FROM rental_schedule rs
-        LEFT JOIN rental_objects ro  ON ro.id = rs.rental_object_id
+        LEFT JOIN rental_objects ro
+          ON ro.id = rs.rental_object_id AND ro.company_id = rs.company_id
         LEFT JOIN tenant_customers tc ON tc.id = rs.customer_id AND tc.company_id = rs.company_id
         WHERE rs.id = ? AND rs.company_id = ?
     ");
@@ -62,19 +64,46 @@ try {
     $updateParams = [];
     $approvingNow = false;
 
-    if (isset($data['approved']) && in_array((int)$data['approved'], [0, 1, 2], true)) {
-        $newApproved = (int) $data['approved'];
+    $newApproved = null;
+    $newStatus = (string) ($row['status'] ?? 'pending');
+    $allowedStatuses = ['pending', 'approved', 'rejected', 'completed', 'cancelled'];
+    if (array_key_exists('status', $data)
+        && (!is_string($data['status']) || !in_array($data['status'], $allowedStatuses, true))) {
+        throw new InvalidArgumentException('Ugyldig forespørselsstatus');
+    }
+
+    if (array_key_exists('approved', $data)) {
+        $approvedValue = $data['approved'];
+        $validApproved = (is_int($approvedValue) && in_array($approvedValue, [0, 1, 2], true))
+            || (is_string($approvedValue) && in_array($approvedValue, ['0', '1', '2'], true));
+        if (!$validApproved) {
+            throw new InvalidArgumentException('Ugyldig godkjenningsstatus');
+        }
+        $newApproved = (int) $approvedValue;
+        $newStatus = [0 => 'pending', 1 => 'approved', 2 => 'rejected'][$newApproved];
+        if (array_key_exists('status', $data) && $data['status'] !== $newStatus) {
+            throw new InvalidArgumentException('Godkjenningsstatus og forespørselsstatus må samsvare');
+        }
         $updateFields[] = 'approved = ?';
         $updateParams[] = $newApproved;
         if ($newApproved === 1 && (int)$row['approved'] !== 1) {
             $approvingNow = true;
         }
-    }
-
-    $allowedStatuses = ['pending', 'approved', 'declined', 'completed', 'cancelled'];
-    if (!empty($data['status']) && in_array($data['status'], $allowedStatuses)) {
+        // Approval and status are intentionally written in the same UPDATE.
         $updateFields[] = 'status = ?';
-        $updateParams[] = $data['status'];
+        $updateParams[] = $newStatus;
+    } elseif (array_key_exists('status', $data)) {
+        $newStatus = $data['status'];
+        $updateFields[] = 'status = ?';
+        $updateParams[] = $newStatus;
+        if ($newStatus === 'approved' || $newStatus === 'rejected' || $newStatus === 'pending') {
+            $newApproved = ['pending' => 0, 'approved' => 1, 'rejected' => 2][$newStatus];
+            $updateFields[] = 'approved = ?';
+            $updateParams[] = $newApproved;
+            if ($newApproved === 1 && (int) $row['approved'] !== 1) {
+                $approvingNow = true;
+            }
+        }
     }
 
     if (array_key_exists('pickup_time', $data)) {
@@ -91,7 +120,13 @@ try {
 
     if (empty($updateFields)) {
         $db->rollBack();
-        echo json_encode(['success' => true, 'message' => 'Ingen endringer', 'email_queued' => false]);
+        echo json_encode([
+            'success' => true,
+            'message' => 'Ingen endringer',
+            'status' => (string) ($row['status'] ?? 'pending'),
+            'approved' => (int) ($row['approved'] ?? 0),
+            'email_queued' => false
+        ]);
         exit;
     }
 
@@ -164,9 +199,16 @@ try {
     echo json_encode([
         'success'      => true,
         'message'      => 'Forespørsel oppdatert',
+        'status'       => $newStatus,
+        'approved'     => $newApproved === null ? (int) ($row['approved'] ?? 0) : $newApproved,
         'email_queued' => $emailQueued,
     ]);
 
+} catch (InvalidArgumentException $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
+    error_log('update_rental_schedule validation error: ' . $e->getMessage());
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Ugyldig forespørselsdata']);
 } catch (\Throwable $e) {
     if (isset($db) && $db->inTransaction()) $db->rollBack();
     error_log('update_rental_schedule error: ' . $e->getMessage());

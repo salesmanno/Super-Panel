@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
+require_once __DIR__ . '/../includes/rental_payment.php';
 
 $companyId = $_SESSION['company_id'];
 $data = json_decode(file_get_contents('php://input'), true);
@@ -31,7 +32,8 @@ try {
     $stmt = $db->prepare("
         SELECT rc.*, ro.object_name, ro.company_id AS obj_company_id
         FROM rental_contracts rc
-        INNER JOIN rental_objects ro ON ro.id = rc.rental_object_id
+        INNER JOIN rental_objects ro
+          ON ro.id = rc.rental_object_id AND ro.company_id = rc.company_id
         WHERE rc.id = ? AND rc.company_id = ?
     ");
     $stmt->execute([$data['id'], $companyId]);
@@ -42,6 +44,47 @@ try {
         http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Kontrakt ikke funnet']);
         exit;
+    }
+
+    $activationRequested = ($data['status'] ?? null) === 'active'
+        && $contract['status'] !== 'active';
+    if ($activationRequested) {
+        // Serialize activation attempts for this object before checking the
+        // date interval. This closes the race between two administrators.
+        $objectLock = $db->prepare(
+            'SELECT id FROM rental_objects WHERE id = ? AND company_id = ? FOR UPDATE'
+        );
+        $objectLock->execute([$contract['rental_object_id'], $companyId]);
+        if (!$objectLock->fetchColumn()) {
+            $db->rollBack();
+            http_response_code(404);
+            echo json_encode(['success' => false, 'message' => 'Utleieobjekt ikke funnet']);
+            exit;
+        }
+
+        // FOR UPDATE is a locking/current read in InnoDB, rather than a
+        // repeatable-read snapshot. It sees contracts committed after the
+        // initial contract lookup while the object lock is held.
+        $activeConflict = $db->prepare("
+            SELECT id FROM rental_contracts
+            WHERE rental_object_id = ? AND company_id = ? AND status = 'active' AND id != ?
+              AND start_date <= ? AND end_date >= ?
+            LIMIT 1
+            FOR UPDATE
+        ");
+        $activeConflict->execute([
+            $contract['rental_object_id'],
+            $companyId,
+            $data['id'],
+            $contract['end_date'],
+            $contract['start_date']
+        ]);
+        if ($activeConflict->fetchColumn() !== false) {
+            $db->rollBack();
+            http_response_code(409);
+            echo json_encode(['success' => false, 'message' => 'Objektet er allerede utleid (aktiv kontrakt eksisterer). Avslutt eller kanseller eksisterende kontrakt først.']);
+            exit;
+        }
     }
 
     $updateFields = [];
@@ -73,6 +116,15 @@ try {
             $newPaymentStatus = $data['payment_status'];
             $updateFields[] = 'payment_status = ?';
             $updateParams[] = $newPaymentStatus;
+            $paidAtTransition = rentalPaidAtTransition($contract['payment_status'], $newPaymentStatus);
+            if ($paidAtTransition === 'set_now') {
+                // Set only on the first paid transition; repeating the same
+                // request must not move the historical payment timestamp.
+                $updateFields[] = 'paid_at = NOW()';
+            } elseif ($paidAtTransition === 'clear') {
+                // An explicit unpaid/partial update is a payment reversal.
+                $updateFields[] = 'paid_at = NULL';
+            }
         }
     }
 
@@ -84,17 +136,6 @@ try {
     }
 
     if ($newStatus === 'active' && $contract['status'] !== 'active') {
-        $activeConflict = $db->prepare("
-            SELECT COUNT(*) FROM rental_contracts
-            WHERE rental_object_id = ? AND company_id = ? AND status = 'active' AND id != ?
-        ");
-        $activeConflict->execute([$contract['rental_object_id'], $companyId, $data['id']]);
-        if ($activeConflict->fetchColumn() > 0) {
-            $db->rollBack();
-            http_response_code(409);
-            echo json_encode(['success' => false, 'message' => 'Objektet er allerede utleid (aktiv kontrakt eksisterer). Avslutt eller kanseller eksisterende kontrakt først.']);
-            exit;
-        }
         $db->prepare("UPDATE rental_objects SET is_available = 0 WHERE id = ? AND company_id = ?")
            ->execute([$contract['rental_object_id'], $companyId]);
     }

@@ -1,0 +1,156 @@
+<?php
+
+require_once __DIR__ . '/../includes/request_date_time.php';
+require_once __DIR__ . '/../includes/rental_customer_fields.php';
+require_once __DIR__ . '/../includes/rental_payment.php';
+require_once __DIR__ . '/../includes/rental_request.php';
+require_once __DIR__ . '/../includes/rental_results.php';
+
+$failures = [];
+$assert = static function ($condition, string $message) use (&$failures): void {
+    if (!$condition) {
+        $failures[] = $message;
+    }
+};
+
+$settings = normalizeRentalCustomerFieldSettings([
+    ['field' => 'email', 'selected' => 1, 'required' => 1, 'order' => 2],
+    ['field' => 'first_name', 'selected' => 0, 'order' => 0],
+]);
+$byField = [];
+foreach ($settings as $setting) {
+    $byField[$setting['field']] = $setting;
+}
+$assert(count($settings) === 8, 'All supported customer fields are retained');
+$assert($byField['email']['selected'] === 1 && $byField['email']['required'] === 1,
+    'Required customer field is selected');
+$assert($byField['phone']['selected'] === 0, 'Unsubmitted customer fields are optional');
+$sortOrderSettings = normalizeRentalCustomerFieldSettings([
+    ['field' => 'first_name', 'sort_order' => 7],
+]);
+$sortOrderByField = [];
+foreach ($sortOrderSettings as $setting) {
+    $sortOrderByField[$setting['field']] = $setting;
+}
+$assert($sortOrderByField['first_name']['order'] === 7, 'sort_order is accepted');
+$assert(normalizeRequestDate('02.03.2026') === '2026-03-02', 'Norwegian contract date is normalized');
+
+$start = new DateTimeImmutable('2026-03-02');
+$end = new DateTimeImmutable('2026-03-02');
+$assert($start->diff($end)->days + 1 === 1, 'Same-day rental is one inclusive day');
+$assert(
+    '2026-03-10' <= '2026-03-12' && '2026-03-15' >= '2026-03-12',
+    'Inclusive date interval overlap is detected'
+);
+
+$results = calculateRentalResults([
+    'total_revenue' => '1250.50',
+    'total_rentals' => '3',
+    'monthly_revenue' => '500.00',
+    'paid_contract_count' => '2',
+], ['active' => 2, 'completed' => 1]);
+$assert($results['total_revenue'] === 1250.5, 'Paid revenue is numeric and preserved');
+$assert($results['total_rentals'] === 3, 'Cancelled drafts are excluded by aggregate input');
+$assert($results['average_per_paid_rental'] === 625.25, 'Average uses paid contract count');
+$assert($results['status_distribution']['active'] === 2, 'Status distribution is retained');
+$emptyResults = calculateRentalResults([
+    'total_revenue' => 0,
+    'total_rentals' => 0,
+    'monthly_revenue' => 0,
+    'paid_contract_count' => 0,
+]);
+$assert($emptyResults['average_per_paid_rental'] === 0.0, 'Average avoids division by zero');
+$assert(
+    rentalPaidAtTransition('unpaid', 'paid') === 'set_now',
+    'First paid transition sets paid_at'
+);
+$assert(
+    rentalPaidAtTransition('paid', 'paid') === 'keep',
+    'Repeated paid update preserves paid_at'
+);
+$assert(
+    rentalPaidAtTransition('paid', 'partial') === 'clear',
+    'Explicit payment reversal clears paid_at'
+);
+$originProxy = [
+    'HTTP_HOST' => 'rental.example:443',
+    'HTTP_ORIGIN' => 'https://rental.example',
+    'HTTP_X_FORWARDED_PROTO' => 'https',
+    'HTTPS' => 'off',
+];
+$assert(rentalRequestSameOrigin($originProxy), 'TLS proxy origin is accepted');
+$originProxy['HTTP_X_FORWARDED_PROTO'] = 'ftp, https';
+$assert(!rentalRequestSameOrigin($originProxy), 'Invalid forwarded protocol is rejected');
+$assert(
+    rentalPublicEligibilitySql('ro') === 'ro.is_active = 1 AND ro.is_available = 1',
+    'Public rental visibility requires both active and available'
+);
+$invalidAliasRejected = false;
+try {
+    rentalPublicEligibilitySql('ro; DROP TABLE rental_objects');
+} catch (InvalidArgumentException $e) {
+    $invalidAliasRejected = true;
+}
+$assert($invalidAliasRejected, 'Public eligibility SQL rejects unsafe aliases');
+$renderedField = renderRentalRequestField([
+    'field' => 'email',
+    'label' => 'E-post',
+    'selected' => 1,
+    'required' => 1,
+]);
+$assert(
+    str_contains($renderedField, 'name="fields[email]"')
+    && str_contains($renderedField, 'type="email"')
+    && str_contains($renderedField, ' required'),
+    'Selected required request field renders with matching input contract'
+);
+$assert(
+    renderRentalRequestField(['field' => 'phone', 'selected' => 0]) === '',
+    'Unselected request field is not rendered'
+);
+$existingCustomer = ['first_name' => 'Gammel', 'last_name' => 'Kunde', 'email' => 'old@example.test'];
+$display = rentalRequestCustomerDisplay(
+    ['first_name' => 'Ny', 'email' => 'new@example.test'],
+    $existingCustomer
+);
+$assert($display['name'] === 'Ny Kunde' && $display['email'] === 'new@example.test',
+    'Request snapshot values take precedence without mutating linked customer');
+$assert($existingCustomer['first_name'] === 'Gammel' && $existingCustomer['email'] === 'old@example.test',
+    'Linked tenant customer remains unchanged');
+$requestSettings = [
+    ['field' => 'email', 'selected' => 1, 'required' => 1, 'order' => 0],
+    ['field' => 'first_name', 'selected' => 0, 'required' => 0, 'order' => 1],
+];
+try {
+    validateRentalRequestInput([
+        'fields' => [],
+        'start_date' => '2026-04-01',
+        'end_date' => '2026-04-01',
+        'start_time' => '10:00',
+        'end_time' => '11:00',
+        'logistics' => 'pick_up',
+    ], $requestSettings);
+    $failures[] = 'Required selected customer field is enforced';
+} catch (InvalidArgumentException $e) {
+    // Expected.
+}
+try {
+    validateRentalRequestInput([
+        'fields' => ['first_name' => 'Should be rejected'],
+        'start_date' => '2026-04-01',
+        'end_date' => '2026-04-01',
+        'start_time' => '10:00',
+        'end_time' => '11:00',
+        'logistics' => 'pick_up',
+    ], $requestSettings);
+    $failures[] = 'Unselected customer field is rejected';
+} catch (InvalidArgumentException $e) {
+    // Expected.
+}
+
+if ($failures) {
+    fwrite(STDERR, implode(PHP_EOL, $failures) . PHP_EOL);
+    exit(1);
+}
+
+echo "rental regression tests passed\n";

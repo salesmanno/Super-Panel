@@ -11,6 +11,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/rental_schemas.php';
+require_once __DIR__ . '/../includes/rental_customer_fields.php';
 
 $admin = [
     'tenant_admin_id' => $_SESSION['tenant_admin_id'],
@@ -67,6 +68,12 @@ try {
                 }
             }
         }
+
+        $object['customer_fields'] = getRentalCustomerFieldSettings(
+            $db,
+            $admin['company_id'],
+            $object_id
+        );
         
         echo json_encode(['success' => true, 'object' => $object]);
         
@@ -113,6 +120,11 @@ try {
             } else {
                 $object['images'] = [];
             }
+            $object['customer_fields'] = getRentalCustomerFieldSettings(
+                $db,
+                $admin['company_id'],
+                $object['id']
+            );
         }
         
         // Fetch type-specific data for each object (graceful if table doesn't exist)
@@ -143,11 +155,11 @@ try {
     }
     
 } catch (\Throwable $e) {
+    error_log('get_rental_objects error: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Feil ved henting av utleieobjekter',
-        'error' => $e->getMessage()
+        'message' => 'Feil ved henting av utleieobjekter'
     ]);
 }
 

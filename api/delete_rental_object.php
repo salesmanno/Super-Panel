@@ -70,10 +70,10 @@ try {
     ]);
     
 } catch (\Throwable $e) {
+    error_log('delete_rental_object error: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Feil ved sletting av utleieobjekt',
-        'error' => $e->getMessage()
+        'message' => 'Feil ved sletting av utleieobjekt'
     ]);
 }

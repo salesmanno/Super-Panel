@@ -9,6 +9,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/request_date_time.php';
 
 $companyId = $_SESSION['company_id'];
 $adminId   = $_SESSION['tenant_admin_id'];
@@ -21,12 +22,19 @@ if (empty($data['rental_object_id']) || empty($data['start_date']) || empty($dat
     exit;
 }
 
-$startDate = $data['start_date'];
-$endDate   = $data['end_date'];
-
-if ($endDate <= $startDate) {
+try {
+    $startDate = normalizeRequestDate($data['start_date'], 'Startdato', false);
+    $endDate = normalizeRequestDate($data['end_date'], 'Sluttdato', false);
+} catch (InvalidArgumentException $e) {
+    error_log('create_rental_contract validation error: ' . $e->getMessage());
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Sluttdato må være etter startdato']);
+    echo json_encode(['success' => false, 'message' => 'Ugyldig start- eller sluttdato']);
+    exit;
+}
+
+if ($endDate < $startDate) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Sluttdato kan ikke være før startdato']);
     exit;
 }
 
@@ -41,7 +49,9 @@ try {
     $db = getDBConnection();
     $db->beginTransaction();
 
-    $stmt = $db->prepare("SELECT id, object_name, deposit_amount FROM rental_objects WHERE id = ? AND company_id = ?");
+    // Lock the object while checking active contracts, preventing two
+    // concurrent requests from creating overlapping active rentals.
+    $stmt = $db->prepare("SELECT id, object_name, deposit_amount FROM rental_objects WHERE id = ? AND company_id = ? FOR UPDATE");
     $stmt->execute([$data['rental_object_id'], $companyId]);
     $object = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -52,7 +62,10 @@ try {
         exit;
     }
 
-    $rentalDays = (int) ((strtotime($endDate) - strtotime($startDate)) / 86400);
+    $startDateValue = new DateTimeImmutable($startDate);
+    $endDateValue = new DateTimeImmutable($endDate);
+    // Both rental dates are occupied, therefore a same-day rental is one day.
+    $rentalDays = (int) $startDateValue->diff($endDateValue)->days + 1;
     $totalAmount = floatval($data['total_amount'] ?? 0);
     $depositAmount = floatval($data['deposit_amount'] ?? $object['deposit_amount'] ?? 0);
 
@@ -80,8 +93,9 @@ try {
         $activeCheck = $db->prepare("
             SELECT COUNT(*) FROM rental_contracts
             WHERE rental_object_id = ? AND company_id = ? AND status = 'active'
+              AND start_date <= ? AND end_date >= ?
         ");
-        $activeCheck->execute([$data['rental_object_id'], $companyId]);
+        $activeCheck->execute([$data['rental_object_id'], $companyId, $endDate, $startDate]);
         if ($activeCheck->fetchColumn() > 0) {
             $db->rollBack();
             http_response_code(409);
