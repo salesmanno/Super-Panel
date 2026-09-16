@@ -1,0 +1,40 @@
+<?php
+require_once __DIR__ . '/../includes/rental_preview.php';
+if (rentalPreviewIsBlocked()) { http_response_code(404); exit; }
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_name('salesman_rental_preview');
+    session_set_cookie_params(['httponly'=>true,'samesite'=>'Strict','secure'=>rentalPreviewCookieSecure(),'path'=>'/']);
+    session_start();
+}
+$error = '';
+if (isset($_GET['logout'])) {
+    $_SESSION = [];
+    session_destroy();
+    header('Location: rental_preview.php');
+    exit;
+}
+if (!rentalPreviewSessionActive() && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $submittedUsername = (string)($_POST['username'] ?? '');
+    if (rentalPreviewRateIsLocked($submittedUsername)) {
+        $error = 'For mange mislykkede forsøk. Prøv igjen senere.';
+    } elseif (!rentalPreviewCsrfIsValid($_SESSION['rental_preview_csrf'] ?? null, $_POST['csrf'] ?? null)) {
+        rentalPreviewRateRecordFailure($submittedUsername);
+        $error = 'Økten utløp. Last siden på nytt.';
+    } elseif (!rentalPreviewUsernameIsValid($submittedUsername) || !rentalPreviewPasswordIsValid((string)($_POST['password'] ?? ''))) {
+        rentalPreviewRateRecordFailure($submittedUsername);
+        $error = 'Brukernavn eller passord stemmer ikke.';
+    } else {
+        rentalPreviewRateClear($submittedUsername);
+        session_regenerate_id(true);
+        $_SESSION['rental_preview_authenticated'] = true;
+        unset($_SESSION['rental_preview_csrf']);
+        header('Location: rental_preview.php');
+        exit;
+    }
+}
+if (!rentalPreviewSessionActive()) {
+    if (empty($_SESSION['rental_preview_csrf'])) $_SESSION['rental_preview_csrf'] = bin2hex(random_bytes(32));
+    ?><!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rental preview</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"><style>body{background:#eaf1f2;color:#17324d;font-family:system-ui,sans-serif}.login{max-width:440px;margin:10vh auto}.mark{color:#087f8c;letter-spacing:.14em;text-transform:uppercase;font-size:.75rem;font-weight:800}.card{border:0;border-radius:20px;box-shadow:0 18px 60px #17324d18}</style></head><body><main class="login px-3"><div class="mb-4"><div class="mark">Salesman / intern visning</div><h1 class="mt-2 fw-bold">Rental, i arbeid.</h1><p class="text-secondary">En trygg titt på den redesignede utleiemodulen med syntetiske data.</p></div><div class="card p-4"><h2 class="h5 mb-3">Logg inn til forhåndsvisning</h2><?php if($error): ?><div class="alert alert-danger"><?= htmlspecialchars($error) ?></div><?php endif; ?><form method="post"><input type="hidden" name="csrf" value="<?= htmlspecialchars($_SESSION['rental_preview_csrf']) ?>"><label class="form-label">Brukernavn</label><input class="form-control mb-3" name="username" autocomplete="username" required><label class="form-label">Passord</label><input class="form-control mb-4" type="password" name="password" autocomplete="current-password" required><button class="btn btn-dark w-100">Åpne preview</button></form></div><p class="small text-secondary mt-3">Kun tilgjengelig i utviklingsmiljø.</p></main></body></html><?php exit; }
+?><!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rental preview · Salesman</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"><link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"><style>body{background:#eef3f4;color:#17324d;font-family:system-ui,sans-serif}.preview-nav{background:#163b5c}.preview-banner{background:#fff4df;border:1px solid #f0d49a;color:#654b1a}.shell{max-width:1320px}.subtabs .nav-link{color:#60758a}.subtabs .nav-link.active{background:#087f8c;color:#fff}.tab-content{background:#fff;border-radius:16px;padding:1.5rem;box-shadow:0 8px 30px #17324d0d}@media(max-width:767px){.tab-content{padding:1rem}}</style></head><body><nav class="navbar preview-nav navbar-dark"><div class="container shell"><span class="navbar-brand fw-semibold"><i class="bi bi-key me-2"></i>Salesman Rental <span class="badge text-bg-warning ms-2">Preview</span></span><a class="btn btn-sm btn-outline-light" href="?logout=1">Logg ut</a></div></nav><main class="container shell py-4"><div class="preview-banner rounded-3 p-3 mb-4"><strong><i class="bi bi-eye me-2"></i>Syntetisk, skrivebeskyttet visning</strong><span class="d-block small mt-1">Dette er ikke en ende-til-ende DB-test. Du kan utforske skjemaer, filtre og detaljer, men ingenting lagres.</span></div><div class="d-flex align-items-end justify-content-between mb-3"><div><div class="text-uppercase small fw-bold text-info-emphasis">Utleie / kontrollsenter</div><h1 class="h3 mb-1">Drift med oversikt</h1><p class="text-secondary mb-0">Eksempeldata for en norsk utleiehverdag.</p></div><span class="small text-secondary">Innlogget preview</span></div><nav class="subtabs mb-3" aria-label="Rental faner"><ul class="nav nav-pills flex-wrap gap-1"><li class="nav-item"><a class="nav-link active" href="#rental-objects">Objekter</a></li><li class="nav-item"><a class="nav-link" href="#rental-create">Opprett</a></li><li class="nav-item"><a class="nav-link" href="#rental-contracts">Kontrakter</a></li><li class="nav-item"><a class="nav-link" href="#rental-requests">Forespørsler</a></li><li class="nav-item"><a class="nav-link" href="#rental-upcoming">Kommende</a></li><li class="nav-item"><a class="nav-link" href="#rental-results">Resultater</a></li></ul></nav><div class="tab-content"><script src="/assets/rental_preview.js"></script><?php require __DIR__ . '/../modules/rental_content.php'; ?></div></main><script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script><script>window.toast={loading:function(){return null},success:function(){},quickError:function(t,m){window.rentalPreviewToast(m||t)},error:function(t,m){window.rentalPreviewToast(m||t)}};window.rentalPreviewToast=function(message){let e=document.getElementById('previewToast');if(!e){e=document.createElement('div');e.id='previewToast';e.className='toast position-fixed bottom-0 end-0 m-3';e.innerHTML='<div class="toast-body"></div>';document.body.appendChild(e)}e.querySelector('.toast-body').textContent=message;bootstrap.Toast.getOrCreateInstance(e).show()};</script><script>
+document.addEventListener('DOMContentLoaded',function(){const blocked=['saveRentalObject','deleteRentalObject','toggleAvailability','submitContract','approveScheduleRequest','declineScheduleRequest','confirmSaveNewRentalObject','updateRentalContract','deleteRentalContract'];blocked.forEach(function(name){window[name]=function(){window.rentalPreviewToast('Skrivebeskyttet forhåndsvisning — ingen endringer lagres.')}});document.querySelectorAll('[onclick*="openRentalCreate"]').forEach(function(b){b.addEventListener('click',function(){document.querySelector('a[href="#rental-create"]')?.click()})});const guard=function(){document.querySelectorAll('#rental-module input[type="checkbox"],#rental-module .form-switch input').forEach(function(e){e.disabled=true});document.querySelectorAll('#rental-module button').forEach(function(b){const s=(b.getAttribute('onclick')||'');if(/save|delete|toggleAvailability|submitContract|approve|decline|confirm/i.test(s)){b.disabled=true;b.title='Skrivebeskyttet forhåndsvisning'}})};new MutationObserver(guard).observe(document.getElementById('rental-module'),{childList:true,subtree:true});guard();document.querySelectorAll('.subtabs a').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();document.querySelectorAll('.subtabs .active').forEach(x=>x.classList.remove('active'));a.classList.add('active');document.querySelectorAll('#rental-module .subtab-content').forEach(x=>x.style.display='none');document.querySelector(a.getAttribute('href'))?.style.removeProperty('display')})})});
+</script></body></html>
