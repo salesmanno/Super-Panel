@@ -2,16 +2,26 @@
 session_start();
 require_once '../config/database.php';
 require_once '../includes/auth_check.php';
+require_once '../includes/announcement_helpers.php';
 
 header('Content-Type: application/json');
+if (!isset($_SESSION['tenant_admin_id'], $_SESSION['company_id'])) {
+    http_response_code(401);
+    echo json_encode(['success'=>false,'message'=>'Ikke autentisert'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
     
-    if (!isset($data['id'])) {
+    if (!is_array($data) || !isset($data['id']) || !is_scalar($data['id']) || trim((string)$data['id']) === '') {
+        http_response_code(422);
         echo json_encode(['success' => false, 'message' => 'Nyhet-ID mangler']);
         exit;
     }
+    $validated = announcement_validate_payload($data);
+    if (!$validated['ok']) { http_response_code(422); echo json_encode(['success'=>false,'message'=>$validated['message']], JSON_UNESCAPED_UNICODE); exit; }
+    $clean = $validated['data'];
     
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
@@ -36,20 +46,16 @@ try {
                 is_published = ?,
                 publish_at = ?,
                 expire_at = ?,
-                is_pinned = ?,
+                is_pinned = ?, announcement_type = ?, priority = ?,
                 updated_at = NOW()
             WHERE id = ? AND company_id = ?";
     
     $stmt = $db->prepare($sql);
     
     $stmt->execute([
-        $data['title'],
-        $data['content'],
-        $data['image_url'] ?? null,
-        isset($data['is_published']) ? (int)$data['is_published'] : 0,
-        $data['publish_at'] ?? null,
-        $data['expire_at'] ?? null,
-        isset($data['is_pinned']) ? (int)$data['is_pinned'] : 0,
+        $clean['title'], $clean['content'], $clean['image_url'], (int)$clean['is_published'],
+        $clean['publish_at'], $clean['expire_at'], (int)$clean['is_pinned'],
+        $clean['announcement_type'], $clean['priority'],
         $data['id'],
         $companyId
     ]);
@@ -59,8 +65,11 @@ try {
     $deleteStmt = $db->prepare($deleteProductSql);
     $deleteStmt->execute([$data['id'], $companyId]);
     
-    if (isset($data['product']) && !empty($data['product']['output_product_id'])) {
-        $product = $data['product'];
+    if (isset($clean['product']) && $clean['product'] !== null) {
+        $product = $clean['product'];
+        $ownership = $db->prepare('SELECT id FROM output_products WHERE id = ? AND company_id = ?');
+        $ownership->execute([$product['output_product_id'], $companyId]);
+        if (!$ownership->fetchColumn()) throw new InvalidArgumentException('Produktet tilhører ikke dette firmaet');
         $productSql = "INSERT INTO announcement_products (
             company_id,
             announcement_id,
@@ -73,7 +82,7 @@ try {
         $productStmt = $db->prepare($productSql);
         $productStmt->execute([
             $companyId,
-            $data['id'],
+        $data['id'],
             $product['output_product_id'],
             $product['discount_percent'] ?? 0,
             $product['max_quantity'] ?? null,
@@ -86,16 +95,16 @@ try {
     echo json_encode([
         'success' => true,
         'message' => 'Nyhet oppdatert'
-    ]);
+    ], JSON_UNESCAPED_UNICODE);
     
 } catch (Exception $e) {
     if (isset($db) && $db->inTransaction()) {
         $db->rollBack();
     }
     error_log('Update announcement error: ' . $e->getMessage());
-    http_response_code(500);
+    http_response_code($e instanceof InvalidArgumentException ? 422 : 500);
     echo json_encode([
         'success' => false,
         'message' => 'Kunne ikke oppdatere nyhet'
-    ]);
+    ], JSON_UNESCAPED_UNICODE);
 }

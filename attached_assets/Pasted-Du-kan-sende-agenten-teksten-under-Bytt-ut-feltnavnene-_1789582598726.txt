@@ -1,0 +1,193 @@
+Du kan sende agenten teksten under. Bytt ut feltnavnene dersom databasen i det andre prosjektet bruker andre navn.
+
+---
+
+## Prompt til agenten
+
+Lag en simulert forhåndsvisning av den offentlige nyhetsoversikten i adminpanelet. Forhåndsvisningen skal vise så presist som mulig hvordan de publiserte sakene automatisk blir presentert for leserne.
+
+### Viktig avgrensning
+
+Dette er **ikke et verktøy for manuell plassering**:
+
+- Ikke lag dra-og-slipp.
+- Ikke lag knapper for å flytte saker opp eller ned.
+- Ikke opprett et manuelt sorteringsfelt.
+- Ikke skriv plassering, størrelse eller visningsvariant tilbake til databasen.
+- Layouten skal beregnes utelukkende fra nyhetsdataene som allerede finnes.
+
+### Datagrunnlag
+
+Bruk disse feltene, eller tilsvarende felt i prosjektet:
+
+- `id`
+- `title`
+- `content`
+- `image_url`
+- `announcement_type`
+- `priority`
+- `publish_at`
+- `expire_at`
+- `is_pinned`
+- `is_published`
+- Eventuell tilknyttet produktinformasjon
+
+Forhåndsvisningen skal bare inkludere saker som er publisert og tilgjengelige på valgt tidspunkt.
+
+### Automatisk rangering
+
+Sorter sakene deterministisk i denne rekkefølgen:
+
+1. Festede saker før ikke-festede saker.
+2. Deretter prioritet:
+   - `urgent`
+   - `high`
+   - `normal`
+   - `low`
+3. Deretter nyeste `publish_at` først.
+4. Bruk `id` som siste tie-breaker, slik at like saker alltid får samme rekkefølge.
+
+Ikke stol på rekkefølgen databasen tilfeldigvis returnerer radene i.
+
+### Hvordan plasseringen bestemmes
+
+Etter sortering:
+
+- Sak nummer 1 blir hovedsaken.
+- Sak nummer 2–5 vises som sekundære saker.
+- Resterende saker vises i et kompakt nyhetsarkiv.
+- Dersom det ikke finnes en festet sak, blir saken med høyest prioritet og nyeste publiseringstid hovedsak.
+- På desktop skal sekundærsakene vises i to kolonner.
+- På mobil skal alle saker vises i én kolonne.
+
+Denne beregningen skal skje på nytt når administratoren endrer relevante felt i skjemaet, slik at forhåndsvisningen oppdateres umiddelbart.
+
+### Visuelt uttrykk
+
+Forhåndsvisningen skal føles som en profesjonell, lokal nyhetsside:
+
+- Én tydelig og stor hovedsak.
+- Romslige sekundærkort i to kolonner.
+- Et roligere og mer kompakt arkiv under.
+- Venstrejustert redaksjonell typografi.
+- Tydelig skille mellom kategori, tittel, utdrag og publiseringstid.
+- God luft og lesbarhet.
+- Et varmt og tillitsvekkende uttrykk, ikke et generisk admin-kortgrid.
+- Designet skal samtidig harmonere med resten av adminpanelet.
+
+Forhåndsvisningen må merkes tydelig som en simulering, for eksempel:
+
+> Forhåndsvisning av nyhetssiden  
+> Plassering og størrelse beregnes automatisk fra festing, prioritet og publiseringstid.
+
+### Kortinnhold
+
+Hvert kort skal kunne vise:
+
+- Type eller kategori som en liten etikett.
+- Full lagret tittel.
+- Et naturlig tekstutdrag.
+- Publiseringstid.
+- Bilde når saken har et bilde.
+- Tydelig merke for festede saker.
+- Relevant produktinformasjon dersom saken er koblet til et produkt.
+
+Bruk gjerne norske navn for kjente typer:
+
+- `event` → «Arrangement»
+- `info` → «Informasjon»
+- `news` → «Nyhet»
+- `promotion` → «Aktuelt»
+- `urgent` → «Viktig melding»
+- Ukjent type → «Kunngjøring»
+
+### Tekstbehandling
+
+- Titler må ikke skrives om eller erstattes med første linje i innholdet.
+- Full tittel skal være tilgjengelig i forhåndsvisning eller detaljvisning.
+- Tekstutdrag skal kuttes ved en naturlig ordgrense, aldri midt i et ord.
+- Skill mellom korte og lengre utdrag basert på kortets størrelse.
+- Normaliser `CRLF` og `LF`.
+- Bevar avsnitt og enkle linjeskift i detaljvisningen.
+- Alt innhold skal behandles som ren tekst og escapes.
+- Ikke kjør HTML som er skrevet inn av administratoren.
+- Kun applikasjonen får generere kontrollerte elementer som `<p>` og `<br>`.
+
+### Simulering i adminpanelet
+
+Forhåndsvisningen skal støtte minst disse situasjonene:
+
+1. Valgt sak er hovedsak.
+2. Valgt sak er sekundærsak.
+3. Valgt sak ligger i arkivet.
+4. Ingen saker er festet.
+5. Flere saker har samme prioritet.
+6. En sak mangler bilde.
+7. En sak har svært lang tittel eller langt innhold.
+8. En sak er knyttet til et produkt.
+
+Vis gjerne en kort forklaring ved den valgte saken:
+
+- «Denne saken blir hovedsak fordi den er festet.»
+- «Denne saken plasseres foran normalsaker fordi den har høy prioritet.»
+- «Denne saken blir sekundærsak basert på publiseringstid.»
+- «Denne saken ligger i arkivet fordi fire saker rangeres høyere.»
+
+Forklaringen må beregnes fra de faktiske dataene, ikke hardkodes til bestemte eksempelnyheter.
+
+### Responsiv forhåndsvisning
+
+Legg til mulighet for å se simuleringen som:
+
+- Desktop
+- Mobil
+
+Dette er kun en visningsbryter for forhåndsvisningen. Den skal ikke endre eller lagre nyhetsdata.
+
+Desktop:
+
+- Stor hovedsak.
+- Sekundærsaker i to kolonner.
+- Kompakt arkiv.
+
+Mobil:
+
+- Én kolonne.
+- Hovedsak først.
+- Sekundærsaker og arkiv under.
+- Ingen horisontal scrolling.
+- Lange titler og produktfelt må brytes korrekt.
+
+### Tilgjengelighet
+
+- Kort som kan åpnes må kunne aktiveres med tastatur.
+- Bruk synlig fokusmarkering.
+- Detaljvisning skal ha korrekt dialogsemantikk.
+- Escape skal lukke detaljvisningen.
+- Fokus skal flyttes inn i dialogen og tilbake til kortet ved lukking.
+- Respekter `prefers-reduced-motion`.
+- Ikke bruk farge alene for å kommunisere festing eller prioritet.
+
+### Kvalitetskrav
+
+- Bruk ekte data fra adminskjemaet og databasen, ikke separate hardkodede eksempeldata når ekte data er tilgjengelige.
+- Samme data skal alltid gi samme rangering.
+- Simuleringen skal bruke samme rangeringsfunksjon eller delte regler som den offentlige nyhetssiden, slik at de ikke utvikler seg forskjellig.
+- Produktkoblinger og eksisterende publiseringsregler må fortsette å fungere.
+- Ikke foreta databasemigrasjoner uten at det er uttrykkelig bestilt.
+- Ikke bygg nye administrative arbeidsflyter utover forhåndsvisningen.
+
+### Ferdig når
+
+- Administratoren ser hvordan aktuelle nyheter vil rangeres.
+- Hovedsak, sekundærsaker og arkiv samsvarer med de automatiske reglene.
+- Endringer i festing, prioritet, publiseringstid, tittel, innhold og bilde oppdaterer simuleringen.
+- Desktop viser to sekundærkolonner og mobil viser én.
+- Lange tekster, manglende bilder og lik rangering håndteres uten ustabil layout.
+- Ingen plassering eller presentasjonsmetadata lagres i databasen.
+
+---
+
+Det viktigste å understreke overfor agenten er:
+
+> «Dette skal være en forhåndsvisning av en automatisk, datadrevet rangering – ikke en visuell sidebygger. Admin redigerer nyhetenes egenskaper, mens systemet beregner størrelse og plassering.»

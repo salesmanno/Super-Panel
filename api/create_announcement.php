@@ -2,20 +2,23 @@
 session_start();
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['tenant_admin_id'])) {
+if (!isset($_SESSION['tenant_admin_id'], $_SESSION['company_id'])) {
     echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
     exit;
 }
 
 require_once '../config/database.php';
+require_once '../includes/announcement_helpers.php';
 
 try {
-    $data = json_decode(file_get_contents('php://input'), true);
-    
-    if (!isset($data['title']) || !isset($data['content'])) {
-        echo json_encode(['success' => false, 'message' => 'Tittel og innhold er påkrevd']);
+    $raw = json_decode(file_get_contents('php://input'), true);
+    $validated = announcement_validate_payload($raw);
+    if (!$validated['ok']) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'message' => $validated['message']], JSON_UNESCAPED_UNICODE);
         exit;
     }
+    $data = $validated['data'];
     
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
@@ -39,11 +42,11 @@ try {
                 is_published,
                 publish_at,
                 expire_at,
-                is_pinned,
+                is_pinned, announcement_type, priority,
                 created_at,
                 updated_at
             ) VALUES (
-                ?,?,?,?,?,?,?,?,?,?,NOW(),NOW()
+                ?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW()
             )";
     
     $stmt = $db->prepare($sql);
@@ -58,13 +61,18 @@ try {
         isset($data['is_published']) ? (int)$data['is_published'] : 0,
         ($data['publish_at'] ?? null) ?: date('Y-m-d H:i:s'),
         $data['expire_at'] ?? null,
-        isset($data['is_pinned']) ? (int)$data['is_pinned'] : 0
+        isset($data['is_pinned']) ? (int)$data['is_pinned'] : 0,
+        announcement_type($data['announcement_type'] ?? null),
+        announcement_priority($data['priority'] ?? null)
     ];
     
     $stmt->execute($params);
     
     if (isset($data['product']) && !empty($data['product']['output_product_id'])) {
         $product = $data['product'];
+        $ownership = $db->prepare('SELECT id FROM output_products WHERE id = ? AND company_id = ?');
+        $ownership->execute([$product['output_product_id'], $companyId]);
+        if (!$ownership->fetchColumn()) throw new InvalidArgumentException('Produktet tilhører ikke dette firmaet');
         $productSql = "INSERT INTO announcement_products (
             company_id,
             announcement_id,
@@ -91,16 +99,16 @@ try {
         'success' => true,
         'message' => 'Nyhet opprettet',
         'announcement_id' => $announcementId
-    ]);
+    ], JSON_UNESCAPED_UNICODE);
     
 } catch (Exception $e) {
     if (isset($db) && $db->inTransaction()) {
         $db->rollBack();
     }
     error_log('Create announcement error: ' . $e->getMessage());
-    http_response_code(500);
+    http_response_code($e instanceof InvalidArgumentException ? 422 : 500);
     echo json_encode([
         'success' => false,
         'message' => 'Kunne ikke opprette nyhet'
-    ]);
+    ], JSON_UNESCAPED_UNICODE);
 }

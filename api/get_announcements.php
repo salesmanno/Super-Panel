@@ -9,6 +9,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once '../config/database.php';
+require_once '../includes/announcement_helpers.php';
 
 try {
     $db = getDBConnection();
@@ -30,6 +31,8 @@ try {
                 a.publish_at,
                 a.expire_at,
                 a.is_pinned,
+                a.announcement_type,
+                a.priority,
                 a.created_at,
                 a.updated_at
             FROM {$tableName} a
@@ -44,7 +47,9 @@ try {
         $params[] = 1;
     }
     
-    $sql .= " ORDER BY a.is_pinned DESC, a.publish_at DESC";
+    $sql .= " ORDER BY a.is_pinned DESC,
+              FIELD(a.priority, 'urgent','high','normal','low'),
+              a.publish_at DESC, a.id ASC";
     
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
@@ -56,9 +61,11 @@ try {
     
     if (!empty($announcementIds)) {
         $placeholders = implode(',', array_fill(0, count($announcementIds), '?'));
-        $productSql = "SELECT announcement_id, output_product_id, discount_percent, max_quantity, expiry_date 
-                       FROM announcement_products 
-                       WHERE announcement_id IN ($placeholders) AND company_id = ?";
+        $productSql = "SELECT ap.announcement_id, ap.output_product_id, ap.discount_percent, ap.max_quantity, ap.expiry_date,
+                              op.name AS product_name, op.product_type
+                       FROM announcement_products ap
+                       LEFT JOIN output_products op ON op.id = ap.output_product_id AND op.company_id = ap.company_id
+                       WHERE ap.announcement_id IN ($placeholders) AND ap.company_id = ?";
         $productStmt = $db->prepare($productSql);
         $productStmt->execute(array_merge($announcementIds, [$companyId]));
         
@@ -67,7 +74,9 @@ try {
                 'output_product_id' => $row['output_product_id'],
                 'discount_percent' => (int)$row['discount_percent'],
                 'max_quantity' => $row['max_quantity'] ? (int)$row['max_quantity'] : null,
-                'expiry_date' => $row['expiry_date']
+                'expiry_date' => $row['expiry_date'],
+                'name' => $row['product_name'],
+                'product_type' => $row['product_type']
             ];
         }
     }
@@ -76,13 +85,16 @@ try {
     foreach ($announcements as &$announcement) {
         $announcement['is_published'] = (bool)$announcement['is_published'];
         $announcement['is_pinned'] = (bool)$announcement['is_pinned'];
+        $announcement['announcement_type'] = announcement_type($announcement['announcement_type'] ?? null);
+        $announcement['priority'] = announcement_priority($announcement['priority'] ?? null);
         $announcement['product'] = $productMap[$announcement['id']] ?? null;
     }
+    announcement_sort($announcements);
     
     echo json_encode([
         'success' => true,
         'announcements' => $announcements
-    ]);
+    ], JSON_UNESCAPED_UNICODE);
     
 } catch (Exception $e) {
     error_log('Get announcements error: ' . $e->getMessage());
