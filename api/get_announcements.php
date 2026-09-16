@@ -48,7 +48,7 @@ try {
     }
     
     $sql .= " ORDER BY a.is_pinned DESC,
-              FIELD(a.priority, 'urgent','high','normal','low'),
+              CAST(a.priority AS UNSIGNED) ASC,
               a.publish_at DESC, a.id ASC";
     
     $stmt = $db->prepare($sql);

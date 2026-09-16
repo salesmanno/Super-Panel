@@ -1,14 +1,24 @@
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory;
     else root.AnnouncementRanking = factory;
-})(typeof self !== 'undefined' ? self : this, function (items, priorityMap) {
-    const map = priorityMap || { urgent: 0, high: 1, normal: 2, low: 3 };
+})(typeof self !== 'undefined' ? self : this, function (items) {
+    const legacy = { urgent: 1, high: 3, normal: 5, low: 8 };
+    const priorityValue = value => {
+        if (typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 10) return value;
+        if (typeof value === 'string' && /^(?:[1-9]|10)$/.test(value)) return Number(value);
+        return legacy[String(value)] || 5;
+    };
     function compare(a, b) {
         const pin = (Number(Boolean(b.is_pinned)) - Number(Boolean(a.is_pinned)));
         if (pin) return pin;
-        const priority = (map[a.priority] ?? map.normal ?? 2) - (map[b.priority] ?? map.normal ?? 2);
+        const priority = priorityValue(a.priority) - priorityValue(b.priority);
         if (priority) return priority;
-        const date = (b.publish_at ? Date.parse(b.publish_at) : 0) - (a.publish_at ? Date.parse(a.publish_at) : 0);
+        const dateValue = value => {
+            if (!value) return 0;
+            const parsed = Date.parse(String(value).replace(' ', 'T'));
+            return Number.isNaN(parsed) ? 0 : parsed;
+        };
+        const date = dateValue(b.publish_at) - dateValue(a.publish_at);
         if (date) return date;
         const aId = String(a.id ?? '');
         const bId = String(b.id ?? '');

@@ -4,15 +4,24 @@
  * can use exactly the same validation and ranking rules.
  */
 const ANNOUNCEMENT_TYPES = ['event', 'info', 'news', 'promotion', 'urgent'];
-const ANNOUNCEMENT_PRIORITIES = ['urgent', 'high', 'normal', 'low'];
-const ANNOUNCEMENT_PRIORITY_RANK = ['urgent' => 0, 'high' => 1, 'normal' => 2, 'low' => 3];
+const ANNOUNCEMENT_PRIORITY_MIN = 1;
+const ANNOUNCEMENT_PRIORITY_MAX = 10;
+const ANNOUNCEMENT_PRIORITY_DEFAULT = 5;
+const ANNOUNCEMENT_LEGACY_PRIORITIES = ['urgent' => 1, 'high' => 3, 'normal' => 5, 'low' => 8];
 const ANNOUNCEMENT_CONTENT_MAX = 100000;
 
 function announcement_type($value): string {
     return in_array($value, ANNOUNCEMENT_TYPES, true) ? $value : 'info';
 }
-function announcement_priority($value): string {
-    return in_array($value, ANNOUNCEMENT_PRIORITIES, true) ? $value : 'normal';
+/** Normalize values read during the legacy text-to-number transition. */
+function announcement_priority($value): int {
+    if (is_int($value) && $value >= ANNOUNCEMENT_PRIORITY_MIN && $value <= ANNOUNCEMENT_PRIORITY_MAX) return $value;
+    if (is_string($value) && preg_match('/^(?:[1-9]|10)$/', trim($value))) return (int)$value;
+    return ANNOUNCEMENT_LEGACY_PRIORITIES[(string)$value] ?? ANNOUNCEMENT_PRIORITY_DEFAULT;
+}
+function announcement_priority_for_write($value): ?int {
+    if (is_int($value) && $value >= ANNOUNCEMENT_PRIORITY_MIN && $value <= ANNOUNCEMENT_PRIORITY_MAX) return $value;
+    return null;
 }
 function announcement_parse_datetime($value, string $field, array &$errors): ?string {
     if ($value === null || $value === '') return null;
@@ -59,8 +68,10 @@ function announcement_validate_payload($data): array {
             $product = ['output_product_id'=>(string)$product['output_product_id'], 'discount_percent'=>(int)$discount, 'max_quantity'=>$max === null || $max === '' ? null : (int)$max, 'expiry_date'=>$expiry ?: null];
         }
     }
+    $priority = array_key_exists('priority', $data) ? announcement_priority_for_write($data['priority']) : ANNOUNCEMENT_PRIORITY_DEFAULT;
+    if ($priority === null) $errors[] = 'Prioritet må være et heltall mellom 1 og 10';
     if ($errors) return ['ok'=>false, 'message'=>implode('. ', $errors)];
-    return ['ok'=>true, 'data'=>['title'=>$title,'content'=>$content,'image_url'=>$image,'is_published'=>(bool)($data['is_published'] ?? false),'is_pinned'=>(bool)($data['is_pinned'] ?? false),'announcement_type'=>announcement_type($data['announcement_type'] ?? null),'priority'=>announcement_priority($data['priority'] ?? null),'publish_at'=>$publish,'expire_at'=>$expire,'product'=>$product]];
+    return ['ok'=>true, 'data'=>['title'=>$title,'content'=>$content,'image_url'=>$image,'is_published'=>(bool)($data['is_published'] ?? false),'is_pinned'=>(bool)($data['is_pinned'] ?? false),'announcement_type'=>announcement_type($data['announcement_type'] ?? null),'priority'=>$priority,'publish_at'=>$publish,'expire_at'=>$expire,'product'=>$product]];
 }
 function announcement_is_active(array $a, ?DateTimeImmutable $now = null): bool {
     $now = $now ?: new DateTimeImmutable('now');
@@ -70,7 +81,7 @@ function announcement_is_active(array $a, ?DateTimeImmutable $now = null): bool 
 }
 function announcement_rank(array $a): array {
     $date = !empty($a['publish_at']) ? strtotime($a['publish_at']) : 0;
-    return [(int)!empty($a['is_pinned']) ? 0 : 1, ANNOUNCEMENT_PRIORITY_RANK[announcement_priority($a['priority'] ?? null)], -$date, (string)($a['id'] ?? '')];
+    return [(int)!empty($a['is_pinned']) ? 0 : 1, announcement_priority($a['priority'] ?? null), -$date, (string)($a['id'] ?? '')];
 }
 function announcement_sort(array &$items): void {
     usort($items, static function ($a, $b) {
@@ -78,7 +89,6 @@ function announcement_sort(array &$items): void {
         for ($i=0; $i<3; $i++) if ($ra[$i] !== $rb[$i]) return $ra[$i] <=> $rb[$i];
         if ($ra[3] === $rb[3]) return 0;
         return strcmp($ra[3], $rb[3]);
-        return 0;
     });
 }
 function announcement_excerpt(string $text, int $length = 150): string {
