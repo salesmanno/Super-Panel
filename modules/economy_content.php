@@ -13,12 +13,35 @@
 }
 .transaction-row {
     border-left: 3px solid transparent;
+    cursor: pointer;
 }
 .transaction-row.income {
     border-left-color: #198754;
 }
 .transaction-row.expense {
     border-left-color: #dc3545;
+}
+.transaction-row:focus-visible {
+    outline: 3px solid #087f8c;
+    outline-offset: -3px;
+}
+.economy-transaction-modal-body {
+    gap: 1rem;
+}
+.economy-transaction-modal-details {
+    min-width: 0;
+    max-height: 65vh;
+    overflow-y: auto;
+}
+@media (max-width: 575.98px) {
+    .economy-transaction-modal-body {
+        gap: 0.4rem;
+        padding-inline: 0.65rem;
+    }
+    .economy-transaction-nav {
+        --bs-btn-padding-x: 0.55rem;
+        --bs-btn-padding-y: 0.4rem;
+    }
 }
 .filter-btn.active {
     font-weight: 600;
@@ -87,7 +110,7 @@
                 
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0">Siste transaksjoner</h6>
+                        <h6 class="mb-0">Transaksjoner</h6>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -101,10 +124,15 @@
                                         <th class="text-end">Beløp</th>
                                     </tr>
                                 </thead>
-                                <tbody id="recent-transactions">
+                                <tbody id="recent-transactions" aria-live="polite" aria-atomic="true">
                                     <tr><td colspan="5" class="text-center py-3 text-muted">Laster...</td></tr>
                                 </tbody>
                             </table>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center p-2 border-top">
+                            <button class="btn btn-sm btn-outline-secondary" id="economy-transactions-prev" type="button">← Forrige</button>
+                            <span class="small text-muted" id="economy-transactions-page" aria-live="polite" aria-atomic="true">Side 1 av 1 · viser 0–0 av 0 transaksjoner</span>
+                            <button class="btn btn-sm btn-outline-secondary" id="economy-transactions-next" type="button">Neste →</button>
                         </div>
                     </div>
                 </div>
@@ -828,6 +856,15 @@
     </div>
 </div>
 
+<div class="modal fade" id="economyTransactionModal" tabindex="-1" aria-labelledby="economyTransactionModalTitle">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" id="economyTransactionModalTitle">Transaksjonsdetaljer</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Lukk"></button></div>
+            <div class="modal-body d-flex align-items-center economy-transaction-modal-body"><button type="button" class="btn btn-primary btn-lg flex-shrink-0 economy-transaction-nav" id="economy-transaction-prev" aria-label="Forrige transaksjon">←</button><div id="economyTransactionDetails" class="flex-grow-1 economy-transaction-modal-details"></div><button type="button" class="btn btn-primary btn-lg flex-shrink-0 economy-transaction-nav" id="economy-transaction-next" aria-label="Neste transaksjon">→</button></div>
+        </div>
+    </div>
+</div>
+
 <script>
 const moduleLabels = {
     'sales': 'Salg',
@@ -856,14 +893,42 @@ function formatCurrency(amount) {
 
 function formatDate(dateStr) {
     if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('nb-NO');
+    const parsed = new Date(String(dateStr).replace(' ', 'T'));
+    return Number.isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString('nb-NO');
 }
 
-async function loadEconomyOverview() {
+function formatDateTime(dateStr) {
+    if (!dateStr) return '-';
+    const parsed = new Date(String(dateStr).replace(' ', 'T'));
+    if (Number.isNaN(parsed.getTime())) return '-';
+    return parsed.toLocaleString('nb-NO', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+}
+
+let economyTransactionPage = 1;
+let economyTransactionTotalPages = 1;
+let economyTransactionRows = [];
+let economyTransactionIndex = 0;
+let economyTransactionTotal = 0;
+let economyTransactionLoading = false;
+let economyTransactionRequest = 0;
+let economyModalNavigationLoading = false;
+let economyCurrentLedgerId = null;
+const economyEsc = value => String(value ?? '-').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+
+async function loadEconomyOverview(requestedPage = economyTransactionPage) {
+    const request = ++economyTransactionRequest;
+    const previous = { page: economyTransactionPage, totalPages: economyTransactionTotalPages, total: economyTransactionTotal, rows: economyTransactionRows.slice() };
     try {
-        const response = await fetch('/api/get_economy_data.php?view=overview');
+        const response = await fetch(`/api/get_economy_data.php?view=overview&page=${requestedPage}&per_page=10`);
         const result = await response.json();
-        
+        if (request !== economyTransactionRequest) return false;
         if (result.success && result.data) {
             const d = result.data;
             document.getElementById('stat-total-income').textContent = formatCurrency(d.total_income || 0);
@@ -874,25 +939,23 @@ async function loadEconomyOverview() {
             document.getElementById('stat-year-expenses').textContent = formatCurrency(d.year_expenses || 0);
             document.getElementById('stat-count').textContent = d.transaction_count || 0;
             
-            renderRecentTransactions(d.recent_transactions || []);
+            economyTransactionPage = Number(d.page || economyTransactionPage);
+            economyTransactionTotalPages = Number(d.total_pages || 1);
+            economyTransactionTotal = Number(d.total || 0);
+            economyTransactionRows = d.transactions || d.recent_transactions || [];
+            renderRecentTransactions(economyTransactionRows);
+            return true;
         } else {
-            // Show zeros if no data or error
-            document.getElementById('stat-total-income').textContent = formatCurrency(0);
-            document.getElementById('stat-total-expenses').textContent = formatCurrency(0);
-            document.getElementById('stat-profit').textContent = formatCurrency(0);
-            document.getElementById('stat-month').textContent = formatCurrency(0);
-            document.getElementById('stat-year-income').textContent = formatCurrency(0);
-            document.getElementById('stat-year-expenses').textContent = formatCurrency(0);
-            document.getElementById('stat-count').textContent = '0';
-            console.log('Economy API response:', result);
+            throw new Error(result.message || 'Kunne ikke laste transaksjoner');
         }
     } catch (error) {
+        if (request !== economyTransactionRequest) return false;
         console.error('Load overview error:', error);
-        // Show zeros on error
-        document.getElementById('stat-total-income').textContent = formatCurrency(0);
-        document.getElementById('stat-total-expenses').textContent = formatCurrency(0);
-        document.getElementById('stat-profit').textContent = formatCurrency(0);
-        document.getElementById('stat-month').textContent = formatCurrency(0);
+        economyTransactionPage = previous.page; economyTransactionTotalPages = previous.totalPages;
+        economyTransactionTotal = previous.total; economyTransactionRows = previous.rows;
+        renderRecentTransactions(economyTransactionRows);
+        document.getElementById('recent-transactions').insertAdjacentHTML('afterbegin', '<tr><td colspan="5" class="text-center py-3 text-danger">Feil ved lasting av transaksjoner</td></tr>');
+        return false;
     }
 }
 
@@ -901,25 +964,98 @@ function renderRecentTransactions(transactions) {
     
     if (!transactions.length) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Ingen transaksjoner funnet</td></tr>';
+        updateEconomyTransactionPager(0);
         return;
     }
     
-    tbody.innerHTML = transactions.map(t => {
+    tbody.innerHTML = transactions.map((t, index) => {
         const isIncome = parseFloat(t.selling_price) > 0;
         const amount = Math.abs(parseFloat(t.selling_price));
         return `
             <tr class="transaction-row ${isIncome ? 'income' : 'expense'}">
-                <td>${formatDate(t.transaction_date)}</td>
-                <td>${t.item_name || '-'}</td>
-                <td><span class="badge bg-secondary module-badge">${moduleLabels[t.module_source] || t.module_source}</span></td>
-                <td>${paymentLabels[t.payment_method] || t.payment_method || '-'}</td>
+                <td>${economyEsc(formatDate(t.transaction_date))}</td>
+                <td><button type="button" class="btn btn-link p-0 text-start economy-transaction-detail" aria-label="Åpne detaljer for ${economyEsc(t.item_name)}" data-transaction-index="${index}">${economyEsc(t.item_name)}</button></td>
+                <td><span class="badge bg-secondary module-badge">${economyEsc(moduleLabels[t.module_source] || t.module_source)}</span></td>
+                <td>${economyEsc(paymentLabels[t.payment_method] || t.payment_method)}</td>
                 <td class="text-end ${isIncome ? 'text-success' : 'text-danger'}">
                     ${isIncome ? '+' : '-'}${formatCurrency(amount)}
                 </td>
             </tr>
         `;
     }).join('');
+    tbody.querySelectorAll('.economy-transaction-detail').forEach(row => {
+        row.addEventListener('click', () => openEconomyTransaction(Number(row.dataset.transactionIndex)));
+    });
+    updateEconomyTransactionPager(transactions.length);
 }
+
+function updateEconomyTransactionPager(count) {
+    const info = document.getElementById('economy-transactions-page');
+    const first = economyTransactionTotal ? ((economyTransactionPage - 1) * 10 + 1) : 0;
+    const last = economyTransactionTotal ? first + count - 1 : 0;
+    if (info) info.textContent = `Side ${economyTransactionPage} av ${economyTransactionTotalPages} · viser ${first}–${last} av ${economyTransactionTotal} transaksjoner`;
+    const prev = document.getElementById('economy-transactions-prev'), next = document.getElementById('economy-transactions-next');
+    if (prev) prev.disabled = economyTransactionLoading || economyTransactionPage <= 1;
+    if (next) next.disabled = economyTransactionLoading || economyTransactionPage >= economyTransactionTotalPages;
+}
+
+async function loadEconomyTransactionPage(page, focusIndex) {
+    if (economyTransactionLoading || page < 1 || page > economyTransactionTotalPages) return;
+    economyTransactionLoading = true;
+    const tbody = document.getElementById('recent-transactions');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Laster transaksjoner…</td></tr>';
+    updateEconomyTransactionPager(0);
+    const success = await loadEconomyOverview(page);
+    economyTransactionLoading = false;
+    updateEconomyTransactionPager(economyTransactionRows.length);
+    if (!success) return false;
+    if (typeof focusIndex === 'number') {
+        const actualIndex = focusIndex < 0 ? economyTransactionRows.length - 1 : focusIndex;
+        if (economyTransactionRows[actualIndex]) openEconomyTransaction(actualIndex);
+    }
+}
+
+function openEconomyTransaction(index) {
+    economyTransactionIndex = index;
+    const t = economyTransactionRows[index] || {};
+    economyCurrentLedgerId = t.ledger_id || null;
+    const fields = [['Transaksjons-ID', t.ledger_id], ['Dato og tid', formatDateTime(t.transaction_date)], ['Beskrivelse', t.item_name], ['Modul', moduleLabels[t.module_source] || t.module_source], ['Type', t.item_type], ['Transaksjonstype', t.transaction_type], ['Kategori', t.category], ['Antall', t.quantity], ['Kunde', t.customer_name], ['Kundefirma', t.customer_company], ['E-post', t.customer_email], ['Telefon', t.customer_phone], ['Kundekode', t.customer_code], ['Ordre-ID', t.order_id], ['Kilde-ID', t.source_id], ['Betaling', paymentLabels[t.payment_method] || t.payment_method], ['Betalingsstatus', t.payment_status], ['Status', t.ledger_status], ['Salgspris', t.selling_price == null ? null : formatCurrency(t.selling_price)], ['Kostpris', t.cost_price == null ? null : formatCurrency(t.cost_price)], ['Resultat', t.profit == null ? null : formatCurrency(t.profit)], ['Metadata', t.metadata && Object.keys(t.metadata).length ? JSON.stringify(t.metadata) : null]];
+    document.getElementById('economyTransactionDetails').innerHTML = '<dl class="row mb-0">' + fields.map(([label, value]) => `<dt class="col-sm-4">${economyEsc(label)}</dt><dd class="col-sm-8">${economyEsc(value)}</dd>`).join('') + '</dl>';
+    document.getElementById('economy-transaction-prev').disabled = economyTransactionIndex === 0 && economyTransactionPage === 1;
+    document.getElementById('economy-transaction-next').disabled = economyTransactionIndex === economyTransactionRows.length - 1 && economyTransactionPage === economyTransactionTotalPages;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('economyTransactionModal')).show();
+}
+
+async function moveEconomyTransaction(direction) {
+    if (economyModalNavigationLoading) return;
+    const target = economyTransactionIndex + direction;
+    if (target >= 0 && target < economyTransactionRows.length) return openEconomyTransaction(target);
+    if ((direction < 0 && economyTransactionPage > 1) || (direction > 0 && economyTransactionPage < economyTransactionTotalPages)) {
+        economyModalNavigationLoading = true;
+        try {
+            await loadEconomyTransactionPage(economyTransactionPage + direction, direction < 0 ? -1 : 0);
+        } finally {
+            economyModalNavigationLoading = false;
+        }
+    }
+}
+
+document.addEventListener('click', e => {
+    if (e.target.id === 'economy-transactions-prev') loadEconomyTransactionPage(economyTransactionPage - 1);
+    if (e.target.id === 'economy-transactions-next') loadEconomyTransactionPage(economyTransactionPage + 1);
+    if (e.target.id === 'economy-transaction-prev') moveEconomyTransaction(-1);
+    if (e.target.id === 'economy-transaction-next') moveEconomyTransaction(1);
+});
+document.addEventListener('keydown', e => {
+    const modal = document.getElementById('economyTransactionModal');
+    if (!modal?.classList.contains('show') || ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) return;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); moveEconomyTransaction(-1); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); moveEconomyTransaction(1); }
+});
+document.getElementById('economyTransactionModal')?.addEventListener('hidden.bs.modal', () => {
+    const replacement = [...document.querySelectorAll('.economy-transaction-detail')].find(button => economyTransactionRows[Number(button.dataset.transactionIndex)]?.ledger_id === economyCurrentLedgerId);
+    (replacement || document.getElementById('economy-transactions-next') || document.getElementById('economy-transactions-prev'))?.focus();
+});
 
 async function loadIncomeData() {
     const startDate = document.getElementById('income-start-date')?.value;

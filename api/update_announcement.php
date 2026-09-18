@@ -91,10 +91,20 @@ try {
     }
     
     $db->commit();
+
+    $storedContentStmt = $db->prepare(
+        'SELECT content FROM tenant_announcements WHERE id = ? AND company_id = ?'
+    );
+    $storedContentStmt->execute([$data['id'], $companyId]);
+    $storedContent = (string) $storedContentStmt->fetchColumn();
     
     echo json_encode([
         'success' => true,
-        'message' => 'Nyhet oppdatert'
+        'message' => 'Nyhet oppdatert',
+        'announcement_id' => $data['id'],
+        'content' => $storedContent,
+        'content_html' => announcement_content_to_html($storedContent),
+        'content_text' => announcement_content_to_plain_text($storedContent),
     ], JSON_UNESCAPED_UNICODE);
     
 } catch (Exception $e) {

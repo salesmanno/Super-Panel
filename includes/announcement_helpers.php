@@ -9,6 +9,10 @@ const ANNOUNCEMENT_PRIORITY_MAX = 10;
 const ANNOUNCEMENT_PRIORITY_DEFAULT = 5;
 const ANNOUNCEMENT_LEGACY_PRIORITIES = ['urgent' => 1, 'high' => 3, 'normal' => 5, 'low' => 8];
 const ANNOUNCEMENT_CONTENT_MAX = 100000;
+const ANNOUNCEMENT_ALLOWED_CONTENT_TAGS = [
+    'div', 'p', 'br', 'h2', 'h3', 'h4', 'h5', 'ul', 'ol', 'li',
+    'strong', 'em', 'u', 's', 'blockquote', 'pre', 'code', 'a'
+];
 
 function announcement_type($value): string {
     return in_array($value, ANNOUNCEMENT_TYPES, true) ? $value : 'info';
@@ -36,6 +40,117 @@ function announcement_parse_datetime($value, string $field, array &$errors): ?st
     $errors[] = "{$field} har ugyldig format";
     return null;
 }
+
+/**
+ * Sanitize editor HTML while keeping legacy plain text untouched.
+ *
+ * The content column intentionally remains the single storage field. Rich
+ * content is stored as a small allowlisted HTML fragment; legacy text remains
+ * text and gets projected to HTML only when it is rendered.
+ */
+function announcement_content_is_html(string $content): bool {
+    return preg_match('/<\s*\/?\s*[a-z][^>]*>/i', $content) === 1;
+}
+
+function announcement_sanitize_href(string $href): ?string {
+    $href = trim(html_entity_decode($href, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    if ($href === '') return null;
+    if (str_starts_with($href, '//')) return null;
+    $scheme = strtolower((string) parse_url($href, PHP_URL_SCHEME));
+    if ($scheme !== '' && !in_array($scheme, ['http', 'https', 'mailto'], true)) return null;
+    if (preg_match('/[\x00-\x1f\x7f]/', $href)) return null;
+    return $href;
+}
+
+function announcement_sanitize_content(string $content): string {
+    $content = preg_replace("/\r\n?/", "\n", $content) ?? $content;
+    if (!announcement_content_is_html($content)) return $content;
+
+    $document = new DOMDocument('1.0', 'UTF-8');
+    $previous = libxml_use_internal_errors(true);
+    $loaded = $document->loadHTML(
+        '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body><div id="announcement-content-root">'
+        . $content
+        . '</div></body></html>',
+        LIBXML_HTML_NOIMPLIED | LIBXML_NONET
+    );
+    libxml_clear_errors();
+    libxml_use_internal_errors($previous);
+    if (!$loaded) return htmlspecialchars($content, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+    $root = $document->getElementById('announcement-content-root');
+    if (!$root) return '';
+
+    $sanitizeNode = static function (DOMNode $node) use (&$sanitizeNode): void {
+        if ($node->nodeType === XML_COMMENT_NODE) {
+            $node->parentNode?->removeChild($node);
+            return;
+        }
+        if ($node->nodeType !== XML_ELEMENT_NODE) {
+            foreach (iterator_to_array($node->childNodes ?? []) as $child) {
+                $sanitizeNode($child);
+            }
+            return;
+        }
+
+        $tag = strtolower($node->nodeName);
+        if (!in_array($tag, ANNOUNCEMENT_ALLOWED_CONTENT_TAGS, true)) {
+            if (in_array($tag, ['script', 'style', 'iframe', 'object', 'embed', 'svg', 'math', 'noscript'], true)) {
+                $node->parentNode?->removeChild($node);
+                return;
+            }
+            foreach (iterator_to_array($node->childNodes) as $child) $sanitizeNode($child);
+            $parent = $node->parentNode;
+            if ($parent) {
+                while ($node->firstChild) $parent->insertBefore($node->firstChild, $node);
+                $parent->removeChild($node);
+            }
+            return;
+        }
+
+        if ($node->hasAttributes()) {
+            foreach (iterator_to_array($node->attributes) as $attribute) {
+                $name = strtolower($attribute->name);
+                if ($tag === 'a' && $name === 'href') {
+                    $href = announcement_sanitize_href($attribute->value);
+                    if ($href === null) $node->removeAttributeNode($attribute);
+                    else $node->setAttribute('href', $href);
+                } else {
+                    $node->removeAttributeNode($attribute);
+                }
+            }
+        }
+        if ($tag === 'a' && $node->hasAttribute('href')) {
+            $node->setAttribute('target', '_blank');
+            $node->setAttribute('rel', 'noopener noreferrer');
+        }
+        foreach (iterator_to_array($node->childNodes) as $child) $sanitizeNode($child);
+    };
+
+    foreach (iterator_to_array($root->childNodes) as $child) $sanitizeNode($child);
+    $html = '';
+    foreach ($root->childNodes as $child) $html .= $document->saveHTML($child);
+    return trim($html);
+}
+
+function announcement_content_to_html(string $content): string {
+    if (announcement_content_is_html($content)) return announcement_sanitize_content($content);
+    $normalized = preg_replace("/\r\n?/", "\n", $content) ?? $content;
+    return str_replace("\n", '<br />', htmlspecialchars($normalized, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+}
+
+function announcement_content_to_plain_text(string $content): string {
+    if (!announcement_content_is_html($content)) {
+        return preg_replace("/\r\n?/", "\n", $content) ?? $content;
+    }
+    $html = announcement_content_to_html($content);
+    $html = preg_replace('/<(?:div|p|h[2-5]|blockquote|pre)>\s*<br\s*\/?>\s*<\/(?:div|p|h[2-5]|blockquote|pre)>/i', "\n", $html) ?? $html;
+    $html = preg_replace('/<br\s*\/?>/i', "\n", $html) ?? $html;
+    $html = preg_replace('/<\/(?:div|p|h[2-5]|li|blockquote|pre)>/i', "\n", $html) ?? $html;
+    $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    return $text;
+}
+
 function announcement_validate_payload($data): array {
     if (!is_array($data)) return ['ok'=>false, 'message'=>'Ugyldig JSON-data'];
     $errors = [];
@@ -43,7 +158,11 @@ function announcement_validate_payload($data): array {
         if (!isset($data[$key]) || !is_string($data[$key]) || trim($data[$key]) === '') $errors[] = "{$label} er påkrevd";
     }
     $title = is_string($data['title'] ?? null) ? trim($data['title']) : '';
-    $content = is_string($data['content'] ?? null) ? preg_replace("/\r\n?/", "\n", trim($data['content'])) : '';
+    $content = is_string($data['content'] ?? null) ? announcement_sanitize_content($data['content']) : '';
+    $content = trim($content);
+    if (trim(announcement_content_to_plain_text($content)) === '') {
+        $errors[] = 'Innhold kan ikke være tomt';
+    }
     if (mb_strlen($title) > 255) $errors[] = 'Tittel kan ikke være lengre enn 255 tegn';
     if (mb_strlen($content) > ANNOUNCEMENT_CONTENT_MAX) $errors[] = 'Innholdet er for langt';
     foreach (['is_published'=>'publisering', 'is_pinned'=>'festing'] as $key=>$label) {
@@ -92,6 +211,7 @@ function announcement_sort(array &$items): void {
     });
 }
 function announcement_excerpt(string $text, int $length = 150): string {
+    $text = announcement_content_to_plain_text($text);
     $text = preg_replace("/\r\n?/", "\n", trim($text));
     if (mb_strlen($text) <= $length) return $text;
     $cut = mb_substr($text, 0, $length);

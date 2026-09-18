@@ -48,6 +48,20 @@ try {
 
     switch ($view) {
         case 'overview':
+            // The transaction browser is deliberately paged independently of the
+            // aggregate queries below. Keep the latter untouched: dashboard totals
+            // must not change when a user changes page.
+            $page = filter_var($_GET['page'] ?? 1, FILTER_VALIDATE_INT, ['options' => ['default' => 1]]);
+            $perPage = filter_var($_GET['per_page'] ?? 10, FILTER_VALIDATE_INT, ['options' => ['default' => 10]]);
+            $page = max(1, min(100000, (int) $page));
+            $perPage = max(1, min(100, (int) $perPage));
+            $countStmt = $db->prepare("SELECT COUNT(*) FROM unified_ledger WHERE company_id = ? AND status = 'active'");
+            $countStmt->execute([$company_id]);
+            $transactionTotal = (int) $countStmt->fetchColumn();
+            $totalPages = max(1, (int) ceil($transactionTotal / $perPage));
+            $page = min($page, $totalPages);
+            $offset = ($page - 1) * $perPage;
+
             $stmt = $db->prepare("
                 SELECT
                     COALESCE(SUM(
@@ -117,19 +131,41 @@ try {
 
             $stmt = $db->prepare("
                 SELECT
-                    transaction_date,
-                    item_name,
-                    module_source,
-                    selling_price,
-                    payment_method
-                FROM unified_ledger
-                WHERE company_id = ?
-                  AND status = 'active'
-                ORDER BY transaction_date DESC
-                LIMIT 10
+                    ul.id AS ledger_id, ul.order_id, ul.source_id, ul.customer_id,
+                    ul.item_name, ul.item_type, ul.quantity,
+                    ul.module_source, ul.category, ul.transaction_type,
+                    ul.selling_price, ul.cost_price,
+                    CASE WHEN ul.cost_price IS NULL THEN NULL
+                         ELSE ul.selling_price - ul.cost_price END AS profit,
+                    ul.payment_method, ul.payment_status, ul.status AS ledger_status,
+                    ul.transaction_date, ul.metadata,
+                    NULLIF(TRIM(CONCAT(COALESCE(tc.first_name, ''), ' ', COALESCE(tc.last_name, ''))), '') AS customer_name,
+                    tc.company_name AS customer_company, tc.email AS customer_email,
+                    tc.phone AS customer_phone, tc.customer_code
+                FROM unified_ledger ul
+                LEFT JOIN tenant_customers tc
+                    ON tc.id = ul.customer_id AND tc.company_id = ul.company_id
+                WHERE ul.company_id = ? AND ul.status = 'active'
+                ORDER BY ul.transaction_date DESC, ul.id DESC
+                LIMIT {$perPage} OFFSET {$offset}
             ");
             $stmt->execute([$company_id]);
             $recentTransactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($recentTransactions as &$transaction) {
+                $metadata = [];
+                if (!empty($transaction['metadata'])) {
+                    $decoded = json_decode($transaction['metadata'], true);
+                    if (is_array($decoded)) $metadata = $decoded;
+                }
+                $transaction['metadata'] = $metadata;
+                if (!$transaction['customer_name']) {
+                    $transaction['customer_name'] = $metadata['customer_name'] ?? null;
+                }
+                if (!$transaction['customer_email']) {
+                    $transaction['customer_email'] = $metadata['customer_email'] ?? null;
+                }
+            }
+            unset($transaction);
 
             $totalIncome = floatval($income['total_income']);
             $totalExp    = floatval($expenses['total_expenses']);
@@ -143,6 +179,11 @@ try {
                 'year_expenses'       => floatval($yearData['year_expenses']),
                 'transaction_count'   => intval($income['transaction_count']),
                 'recent_transactions' => $recentTransactions,
+                'transactions'        => $recentTransactions,
+                'page'                => $page,
+                'per_page'            => $perPage,
+                'total'               => $transactionTotal,
+                'total_pages'         => $totalPages,
                 'vipps_fee_fixed'     => $vippsFixed,
                 'vipps_fee_percent'   => $vippsPct,
             ];

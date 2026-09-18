@@ -24,18 +24,56 @@ check_rule(announcement_priority('1') === 1 && announcement_priority('10') === 1
 foreach (range(1, 10) as $priority) check_rule(announcement_priority_for_write($priority) === $priority, 'numeric priority accepted');
 foreach ([0, 11, 5.5, '5', '5.0', null, false] as $priority) check_rule(announcement_priority_for_write($priority) === null, 'invalid numeric priority rejected');
 check_rule(announcement_excerpt("Long\ntext with a very long final word", 10) === "Long\ntext…", 'word-boundary excerpt');
-check_rule(announcement_excerpt("<script>alert(1)</script>") === "<script>alert(1)</script>", 'helper preserves text for caller escaping');
+check_rule(announcement_excerpt("<script>alert(1)</script>") === "", 'unsafe markup is removed from excerpts');
+$oneLineBreak = "a\nb";
+$twoLineBreaks = "a\n\nb";
+check_rule(announcement_content_to_plain_text(announcement_content_to_html($oneLineBreak)) === $oneLineBreak, 'single legacy newline round trips exactly');
+check_rule(announcement_content_to_plain_text(announcement_content_to_html($twoLineBreaks)) === $twoLineBreaks, 'multiple legacy newlines round trip exactly');
+check_rule(announcement_content_to_html($oneLineBreak) === 'a<br />b' && announcement_content_to_html($twoLineBreaks) === 'a<br /><br />b', 'legacy HTML projection does not retain source newlines');
 $fixture = json_decode(file_get_contents(__DIR__ . '/fixtures/announcement_ranking.json'), true);
 announcement_sort($fixture['items']);
 check_rule(array_column($fixture['items'], 'id') === $fixture['expected'], 'cross-runtime ranking fixture');
 $valid = announcement_validate_payload(['title'=>'  Tittel ','content'=>"a\r\nb",'priority'=>10,'is_published'=>true,'is_pinned'=>0,'image_url'=>'https://example.test/a.jpg','publish_at'=>'2025-01-01T10:00','expire_at'=>'2025-01-02 10:00:00','product'=>['output_product_id'=>'p','discount_percent'=>10,'max_quantity'=>2,'expiry_date'=>'2025-02-01']]);
 check_rule($valid['ok'] && $valid['data']['content'] === "a\nb", 'valid payload normalization');
+$rich = announcement_sanitize_content('<h3>Overskrift</h3><p>Første avsnitt</p><p><br></p><p><strong>Viktig</strong> <em>tekst</em> <a href="https://example.test/info" style="color:red">lenke</a></p><ul><li>Punkt</li></ul>');
+check_rule(str_contains($rich, '<h3>Overskrift</h3>') && str_contains($rich, '<strong>Viktig</strong>') && str_contains($rich, '<a href="https://example.test/info"'), 'allowed rich formatting survives sanitization');
+check_rule(str_contains($rich, '<p><br></p>') && !str_contains($rich, 'style='), 'blank paragraphs survive and styling is removed');
+$unsafe = announcement_sanitize_content('<p>Trygt</p><script>alert(1)</script><img src=x onerror=alert(1)><a href="javascript:alert(1)">farlig</a><span onclick="evil()">tekst</span>');
+check_rule(str_contains($unsafe, 'Trygt') && !str_contains($unsafe, 'script') && !str_contains($unsafe, 'onerror') && !str_contains($unsafe, 'javascript:') && str_contains($unsafe, 'tekst'), 'unsafe tags, attributes and URLs are removed');
+$emptyRichContent = ['<script>alert(1)</script>', '<br>', '<p>   </p>', '<div><br></div>', ''];
+foreach ($emptyRichContent as $emptyContent) {
+    check_rule(!announcement_validate_payload(['title'=>'x', 'content'=>$emptyContent])['ok'], 'empty semantic content is rejected');
+}
+$legacy = "Linje én\n\nLinje tre";
+check_rule(announcement_content_to_plain_text($legacy) === $legacy, 'plain text round trip preserves blank lines');
+check_rule(announcement_content_to_plain_text($rich) === "Overskrift\nFørste avsnitt\n\nViktig tekst lenke\nPunkt\n", 'rich content round trip exposes readable text');
 foreach ([['title'=>'','content'=>'x'],['title'=>str_repeat('x',256),'content'=>'x'],['title'=>'x','content'=>'x','image_url'=>'javascript:alert(1)'],['title'=>'x','content'=>'x','is_published'=>'1'],['title'=>'x','content'=>'x','publish_at'=>'bad'],['title'=>'x','content'=>'x','publish_at'=>'2025-01-02','expire_at'=>'2025-01-01'],['title'=>'x','content'=>'x','product'=>['output_product_id'=>'p','discount_percent'=>101]]] as $invalid) check_rule(!announcement_validate_payload($invalid)['ok'], 'invalid payload rejected');
 foreach ([0, 11, 5.5, '5', '5.0'] as $priority) check_rule(!announcement_validate_payload(['title'=>'x','content'=>'x','priority'=>$priority])['ok'], 'invalid payload priority rejected');
 foreach (['2025-02-30 10:00:00','tomorrow','2025-01-01T10:00:00Z','2025-01-01T10:00:61'] as $badDate) check_rule(!announcement_validate_payload(['title'=>'x','content'=>'x','publish_at'=>$badDate])['ok'], 'strict date rejected');
 check_rule(!announcement_validate_payload(['title'=>'x','content'=>'x','image_url'=>'https://example.test/'.str_repeat('a',250)])['ok'], 'long image URL rejected');
 $priorityEndpoint = file_get_contents(__DIR__ . '/../api/update_announcement_priority.php');
 check_rule(str_contains($priorityEndpoint, 'company_id = ?') && !str_contains($priorityEndpoint, 'title ='), 'priority endpoint is tenant scoped and only updates priority');
+$createEndpoint = file_get_contents(__DIR__ . '/../api/create_announcement.php');
+$updateEndpoint = file_get_contents(__DIR__ . '/../api/update_announcement.php');
+$editorModule = file_get_contents(__DIR__ . '/../modules/announcements_content.php');
+foreach ([$createEndpoint, $updateEndpoint] as $endpoint) {
+    check_rule(
+        str_contains($endpoint, "'content_html' => announcement_content_to_html")
+        && str_contains($endpoint, "'content_text' => announcement_content_to_plain_text"),
+        'save endpoints return server-sanitized content projections'
+    );
+}
+check_rule(
+    str_contains($editorModule, "content:x.content,content_html:x.content_html,content_text:x.content_text")
+    && !str_contains($editorModule, "content_html:contentValue(),content_text:contentToText(contentValue())")
+    && str_contains($editorModule, "excerpt(a.content_text||''")
+    && str_contains($editorModule, "setContentHtml(a.content_html)")
+    && !str_contains($editorModule, "excerpt(a.content,")
+    && !str_contains($editorModule, "setContentHtml(a.content)")
+    && str_contains($editorModule, "validateContentEditor")
+    && str_contains($editorModule, "editor.focus()"),
+    'editor optimistic state uses only server-returned content projections'
+);
 $priorityMigration = file_get_contents(__DIR__ . '/../db_migrations/tenant_announcement_priority_numeric.sql');
 foreach (["WHEN 'urgent' THEN 1", "WHEN 'high' THEN 3", "WHEN 'normal' THEN 5", "WHEN 'low' THEN 8", 'TINYINT UNSIGNED NOT NULL DEFAULT 5'] as $migrationRule) {
     check_rule(str_contains($priorityMigration, $migrationRule), 'priority migration contains canonical mapping and type');

@@ -90,6 +90,8 @@ try {
         $announcement['priority'] = announcement_priority($announcement['priority'] ?? null);
         $announcement['clicks'] = (int)($announcement['clicks'] ?? 0);
         $announcement['product'] = $productMap[$announcement['id']] ?? null;
+        $announcement['content_html'] = announcement_content_to_html((string)($announcement['content'] ?? ''));
+        $announcement['content_text'] = announcement_content_to_plain_text((string)($announcement['content'] ?? ''));
     }
     announcement_sort($announcements);
     

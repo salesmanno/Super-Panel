@@ -395,6 +395,7 @@ try {
             color: #991b1b;
         }
     </style>
+    <link rel="stylesheet" href="../assets/dashboard-module-theme.css">
 </head>
 <body>
     <!-- Navigation -->
@@ -659,7 +660,7 @@ try {
                 <p class="mb-0">Kontakt administrator for å få tilgang til moduler</p>
             </div>
         <?php else: ?>
-            <div class="tab-content">
+            <div class="tab-content dashboard-module-theme">
                 <?php 
                 // Rendre innhold for ALLE moduler (inkludert skjulte), men kun første synlige skal være aktiv
                 $allModulesForDisplay = array_merge($officialModules, $userModules);

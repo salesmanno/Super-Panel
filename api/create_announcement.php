@@ -94,11 +94,20 @@ try {
     }
     
     $db->commit();
+
+    $storedContentStmt = $db->prepare(
+        'SELECT content FROM tenant_announcements WHERE id = ? AND company_id = ?'
+    );
+    $storedContentStmt->execute([$announcementId, $companyId]);
+    $storedContent = (string) $storedContentStmt->fetchColumn();
     
     echo json_encode([
         'success' => true,
         'message' => 'Nyhet opprettet',
-        'announcement_id' => $announcementId
+        'announcement_id' => $announcementId,
+        'content' => $storedContent,
+        'content_html' => announcement_content_to_html($storedContent),
+        'content_text' => announcement_content_to_plain_text($storedContent),
     ], JSON_UNESCAPED_UNICODE);
     
 } catch (Exception $e) {
