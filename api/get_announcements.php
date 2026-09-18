@@ -33,6 +33,7 @@ try {
                 a.is_pinned,
                 a.announcement_type,
                 a.priority,
+                COALESCE(a.Clicks, 0) AS clicks,
                 a.created_at,
                 a.updated_at
             FROM {$tableName} a
@@ -87,6 +88,7 @@ try {
         $announcement['is_pinned'] = (bool)$announcement['is_pinned'];
         $announcement['announcement_type'] = announcement_type($announcement['announcement_type'] ?? null);
         $announcement['priority'] = announcement_priority($announcement['priority'] ?? null);
+        $announcement['clicks'] = (int)($announcement['clicks'] ?? 0);
         $announcement['product'] = $productMap[$announcement['id']] ?? null;
     }
     announcement_sort($announcements);

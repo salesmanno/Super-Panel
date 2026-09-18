@@ -9,7 +9,7 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
 /* Rental / fjord signal — deliberately denser than the surrounding dashboard. */
 #rental-module { --rental-ink:#17324d; --rental-muted:#60758a; --rental-line:#d8e3ea; --rental-paper:#f5f8fa; --rental-teal:#087f8c; --rental-coral:#e56f54; --rental-navy:#163b5c; }
 #rental-module { color:var(--rental-ink); }
-#rental-module .card { border:1px solid var(--rental-line); border-radius:14px; box-shadow:0 6px 20px rgba(22,59,92,.06); overflow:hidden; }
+#rental-module .card { border:1px solid var(--rental-line); border-radius:12px; box-shadow:0 2px 8px rgba(22,59,92,.04); overflow:hidden; }
 #rental-module .card-header { background:linear-gradient(90deg,#edf6f6,#f7fafb); border-bottom:1px solid var(--rental-line); }
 #rental-module .card-title { letter-spacing:-.02em; font-weight:700; }
 #rental-module .form-control,#rental-module .form-select { border-color:#cbd9e2; border-radius:9px; }
@@ -20,8 +20,17 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
 #rental-module .badge.bg-primary { background:var(--rental-teal)!important; }
 #rental-module .rental-kicker { color:var(--rental-teal); font-size:.72rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
 #rental-module .rental-toolbar { background:var(--rental-paper); border:1px solid var(--rental-line); border-radius:12px; padding:.7rem; }
-#rental-module .rental-object-card { transition:transform .18s ease, box-shadow .18s ease; }
-#rental-module .rental-object-card:hover { transform:translateY(-2px); box-shadow:0 12px 28px rgba(22,59,92,.12); }
+#rental-module .rental-object-card { border-color:#dfe5e8; border-radius:10px; box-shadow:none; background:#fff; }
+#rental-module .rental-object-card:hover { border-color:#cbd5da; }
+#rental-module .rental-object-card.is-muted { opacity:.78; background:#fafafa; }
+#rental-module .rental-object-card.is-rented { border-left:3px solid #7da08a; }
+#rental-module .rental-object-image { height:150px; object-fit:cover; filter:saturate(.72); }
+#rental-module .rental-object-card.is-muted .rental-object-image { filter:grayscale(55%); }
+#rental-module .rental-category,#rental-module .rental-attribute { color:#53666f; background:#eef1f2; border:1px solid #dce2e5; font-weight:500; }
+#rental-module .rental-price { color:var(--rental-ink); font-size:.92rem; font-weight:650; }
+#rental-module .rental-object-actions .btn { color:#667780; border-color:#d5dde1; background:#fff; }
+#rental-module .rental-object-actions .btn:hover { color:var(--rental-ink); border-color:#aebbc1; background:#f5f7f8; }
+#rental-module .rental-object-actions .btn.rental-delete:hover { color:#a63f3f; border-color:#d9aaaa; background:#fff7f7; }
 #rental-module .customer-field-row { background:#fff; border:1px solid var(--rental-line); border-radius:10px; padding:.65rem .8rem; transition:border-color .15s ease, background .15s ease; }
 #rental-module .customer-field-row:has(.customer-selected:checked) { border-color:#79b9bd; background:#f1fbfb; }
 #rental-module .metric-card { background:linear-gradient(135deg,#eef8f7,#f8fbfc); border-left:4px solid var(--rental-teal)!important; }
@@ -321,12 +330,11 @@ function renderObjectCard(obj) {
     const isAvailable = obj.is_available == 1 || obj.is_available === true;
     const isRented = !isAvailable && obj.display_status === 'rented';
     const toggleChecked = isAvailable ? 'checked' : '';
-    const cardOpacity = isAvailable ? '' : 'opacity: 0.65;';
-    const cardBorder = isRented ? 'border: 2px solid #198754;' : (isAvailable ? '' : 'border: 2px dashed #dee2e6;');
+    const cardStateClass = isRented ? ' is-rented is-muted' : (isAvailable ? '' : ' is-muted');
     
     let badges = obj.badges || [];
     const badgesHtml = badges.length > 0 
-        ? badges.map(b => `<span class="badge bg-info me-1">${escHtml(b)}</span>`).join('')
+        ? badges.map(b => `<span class="badge rental-attribute me-1">${escHtml(b)}</span>`).join('')
         : '';
     
     const safeImages = (Array.isArray(obj.images) ? obj.images : []).map(img => typeof img === 'string' ? {url: img} : img).filter(img => validRentalImageUrl(img?.url));
@@ -337,10 +345,10 @@ function renderObjectCard(obj) {
     
     const imageHtml = primaryImage 
         ? `<div class="position-relative">
-             <img src="${escHtml(primaryImage.url)}" class="card-img-top" style="height: 200px; object-fit: cover;${isAvailable ? '' : ' filter: grayscale(70%);'}" alt="${escHtml(obj.object_name)}">
+             <img src="${escHtml(primaryImage.url)}" class="card-img-top rental-object-image" alt="${escHtml(obj.object_name)}">
              ${imageCount > 1 ? `<span class="position-absolute top-0 end-0 badge bg-dark bg-opacity-75 m-2"><i class="bi bi-images me-1"></i>${imageCount}</span>` : ''}
            </div>`
-        : `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+        : `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 150px;">
              <i class="bi bi-image fs-1 text-muted"></i>
            </div>`;
     
@@ -355,15 +363,15 @@ function renderObjectCard(obj) {
     }
     
     const hiddenLabel = isRented
-        ? '<span class="badge bg-success ms-2"><i class="bi bi-lock me-1"></i>Utleid</span>'
-        : (!isAvailable ? '<span class="badge bg-warning text-dark ms-2"><i class="bi bi-eye-slash me-1"></i>Inaktiv</span>' : '');
+        ? '<span class="badge text-bg-light border text-secondary ms-2"><i class="bi bi-lock me-1"></i>Utleid</span>'
+        : (!isAvailable ? '<span class="badge text-bg-light border text-secondary ms-2"><i class="bi bi-eye-slash me-1"></i>Inaktiv</span>' : '');
     
     const dailyPrice = parseFloat(obj.rental_price) || 0;
     const defaultDeposit = parseFloat(obj.deposit_amount) || 0;
 
     return `
         <div class="col" id="rental-card-${escAttr(obj.id)}">
-            <div class="card h-100" style="${cardBorder}${cardOpacity}">
+            <div class="card h-100 rental-object-card${cardStateClass}">
                 ${imageHtml}
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
@@ -373,7 +381,7 @@ function renderObjectCard(obj) {
                         </div>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="badge bg-primary">${escHtml(categoryLabel)}</span>
+                        <span class="badge rental-category">${escHtml(categoryLabel)}</span>
                         <div class="form-check form-switch mb-0" title="${isAvailable ? 'Synlig for kunder' : 'Skjult for kunder'}">
                             <input class="form-check-input" type="checkbox" role="switch" id="avail-${escAttr(obj.id)}" ${toggleChecked} onchange="toggleAvailability(decodeURIComponent('${objectToken}'), this.checked)">
                             <label class="form-check-label small" for="avail-${obj.id}">${isAvailable ? 'Synlig' : 'Skjult'}</label>
@@ -385,20 +393,20 @@ function renderObjectCard(obj) {
                         ${obj.description ? `<p class="card-text text-muted small">${escHtml(obj.description.substring(0, 100))}${obj.description.length > 100 ? '...' : ''}</p>` : ''}
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <div>
-                    <strong class="text-primary">${dailyPrice.toLocaleString('nb-NO',{maximumFractionDigits:0})} NOK/dag</strong>
+                    <strong class="rental-price">${dailyPrice.toLocaleString('nb-NO',{maximumFractionDigits:0})} NOK/dag</strong>
                             ${weekendPrice}
                         </div>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-success" onclick="toggleContractForm(decodeURIComponent('${objectToken}'))" title="Kontrakter" id="contract-btn-${escAttr(obj.id)}">
+                        <div class="btn-group btn-group-sm rental-object-actions">
+                            <button class="btn" onclick="toggleContractForm(decodeURIComponent('${objectToken}'))" title="Kontrakter" id="contract-btn-${escAttr(obj.id)}">
                                 <i class="bi bi-file-earmark-text me-1"></i>Opprett kontrakt
                             </button>
-                            <button class="btn btn-outline-primary" onclick="viewDetails(decodeURIComponent('${objectToken}'))" title="Detaljer">
+                            <button class="btn" onclick="viewDetails(decodeURIComponent('${objectToken}'))" title="Detaljer">
                                 <i class="bi bi-eye"></i>
                             </button>
-                            <button class="btn btn-outline-secondary" onclick="editRentalObject(decodeURIComponent('${objectToken}'))" title="Rediger">
+                            <button class="btn" onclick="editRentalObject(decodeURIComponent('${objectToken}'))" title="Rediger">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <button class="btn btn-outline-danger" onclick="deleteRentalObject(decodeURIComponent('${objectToken}'))" title="Slett">
+                            <button class="btn rental-delete" onclick="deleteRentalObject(decodeURIComponent('${objectToken}'))" title="Slett">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
