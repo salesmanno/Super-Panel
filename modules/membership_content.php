@@ -294,18 +294,26 @@
 
                     <!-- Venstre: oppslagspanel -->
                     <div class="flex-grow-1">
-                    <h6 class="fw-semibold mb-2"><i class="bi bi-search me-2 text-primary"></i>Slå opp på order_id</h6>
+                    <h6 class="fw-semibold mb-2"><i class="bi bi-search me-2 text-primary"></i>Slå opp fornyelse eller medlem</h6>
                     <div class="input-group input-group-sm" style="max-width:420px;">
-                        <input type="text" class="form-control" id="mb-lookup-input" placeholder="Skriv inn order_id…">
-                        <button class="btn btn-outline-secondary" onclick="mbLookupRenewal()"><i class="bi bi-search"></i></button>
+                        <input type="text" class="form-control" id="mb-lookup-input" placeholder="Order-ID eller medlemskode…" onkeydown="if(event.key==='Enter'){event.preventDefault();mbLookupRenewal();}">
+                        <button class="btn btn-outline-secondary" id="mb-lookup-button" onclick="mbLookupRenewal()" aria-label="Søk"><i class="bi bi-search"></i></button>
                     </div>
+                    <div id="mb-lookup-feedback" class="small mt-1" role="status" aria-live="polite"></div>
                     <div id="mb-lookup-result" class="mt-2 p-3 border rounded bg-light" style="display:none; max-width:560px;">
-                        <div class="mb-2">
-                            <span class="text-muted small">Navn</span>
-                            <div class="fw-semibold" id="mb-rl-name">–</div>
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                                <span class="text-muted small">Navn</span>
+                                <div class="fw-semibold" id="mb-rl-name">–</div>
+                                <div class="small text-muted" id="mb-rl-plan">–</div>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge text-bg-light border" id="mb-rl-match-type">Fornyelse</span>
+                                <div class="small text-muted mt-1" id="mb-rl-member-code">–</div>
+                            </div>
                         </div>
                         <div class="row g-2 mb-2">
-                            <div class="col-6">
+                            <div class="col-6" id="mb-rl-renewal-field">
                                 <label class="form-label small mb-1">Fornyelse status</label>
                                 <select class="form-select form-select-sm" id="mb-rl-renewal-status">
                                     <option value="pending">pending</option>
@@ -314,6 +322,7 @@
                                     <option value="cancelled">cancelled</option>
                                     <option value="expired">expired</option>
                                 </select>
+                                <div class="form-text" id="mb-rl-renewal-help"></div>
                             </div>
                             <div class="col-6">
                                 <label class="form-label small mb-1">Betalingsstatus (membership)</label>
@@ -332,7 +341,7 @@
                         <input type="hidden" id="mb-rl-renewal-id">
                         <input type="hidden" id="mb-rl-member-id">
                         <div class="d-flex align-items-center gap-2">
-                            <button class="btn btn-sm btn-primary" onclick="mbSaveRenewalLookup()">
+                            <button class="btn btn-sm btn-primary" id="mb-rl-save-button" onclick="mbSaveRenewalLookup()">
                                 <i class="bi bi-floppy me-1"></i>Lagre
                             </button>
                             <span id="mb-rl-save-msg" class="small"></span>
@@ -1891,6 +1900,8 @@ if (typeof escapeH !== 'function') {
 
 let mbRenewalPage       = 1;
 let mbRenewalTotalPages = 1;
+let mbLookupRevision    = 0;
+let mbLookupHasRenewal  = false;
 
 const mbRenewalStatusColors = {
     completed:       'rgba(25,135,84,0.12)',
@@ -1901,24 +1912,56 @@ const mbRenewalStatusColors = {
 };
 
 async function mbLookupRenewal() {
-    const order_id = document.getElementById('mb-lookup-input').value.trim();
-    if (!order_id) return;
+    const lookup = document.getElementById('mb-lookup-input').value.trim();
+    if (!lookup) return;
+    const revision = ++mbLookupRevision;
     const resultEl = document.getElementById('mb-lookup-result');
+    const feedbackEl = document.getElementById('mb-lookup-feedback');
+    const lookupButton = document.getElementById('mb-lookup-button');
     resultEl.style.display = 'none';
+    feedbackEl.textContent = 'Søker…';
+    feedbackEl.className = 'small mt-1 text-muted';
+    lookupButton.disabled = true;
+    mbLookupHasRenewal = false;
+    document.getElementById('mb-rl-renewal-id').value = '';
+    document.getElementById('mb-rl-member-id').value = '';
     document.getElementById('mb-rl-save-msg').textContent = '';
     try {
-        const resp = await fetch('/api/get_membership_renewals.php?lookup=' + encodeURIComponent(order_id));
+        const resp = await fetch('/api/get_membership_renewals.php?lookup=' + encodeURIComponent(lookup));
         const data = await resp.json();
-        if (!data.success) { alert(data.message || 'Ikke funnet'); return; }
+        if (revision !== mbLookupRevision) return;
+        if (!resp.ok || !data.success) {
+            feedbackEl.textContent = data.message || 'Ikke funnet';
+            feedbackEl.className = 'small mt-1 text-danger';
+            return;
+        }
         const r = data.row;
+        mbLookupHasRenewal = Boolean(r.has_renewal && r.id);
         document.getElementById('mb-rl-name').textContent           = ((r.first_name || '') + ' ' + (r.last_name || '')).trim() || '–';
-        document.getElementById('mb-rl-renewal-id').value           = r.id;
-        document.getElementById('mb-rl-member-id').value            = r.membership_member_id;
+        document.getElementById('mb-rl-plan').textContent           = r.plan_name || 'Ingen medlemsplan';
+        document.getElementById('mb-rl-member-code').textContent    = r.member_code || 'Ingen medlemskode';
+        document.getElementById('mb-rl-match-type').textContent     = r.lookup_type === 'member' ? 'Medlem' : 'Fornyelse';
+        document.getElementById('mb-rl-renewal-id').value           = r.id || '';
+        document.getElementById('mb-rl-member-id').value            = r.membership_member_id || '';
         document.getElementById('mb-rl-renewal-status').value       = r.renewal_status  || 'pending';
         document.getElementById('mb-rl-payment-status').value       = r.payment_status   || 'unpaid';
-        document.getElementById('mb-rl-expiration-date').value      = r.expiration_date  || '';
+        document.getElementById('mb-rl-expiration-date').value      = r.expiration_date ? r.expiration_date.substring(0, 10) : '';
+        document.getElementById('mb-rl-renewal-status').disabled    = !mbLookupHasRenewal;
+        document.getElementById('mb-rl-renewal-field').classList.toggle('opacity-50', !mbLookupHasRenewal);
+        document.getElementById('mb-rl-renewal-help').textContent   = mbLookupHasRenewal
+            ? (r.lookup_type === 'member' ? 'Viser siste registrerte fornyelse.' : '')
+            : 'Medlemmet har ingen registrert fornyelse.';
+        feedbackEl.textContent = r.lookup_type === 'member' ? 'Medlem funnet' : 'Fornyelse funnet';
+        feedbackEl.className = 'small mt-1 text-success';
         resultEl.style.display = 'block';
-    } catch(e) { console.error('mbLookupRenewal error', e); }
+    } catch(e) {
+        if (revision !== mbLookupRevision) return;
+        console.error('mbLookupRenewal error', e);
+        feedbackEl.textContent = 'Kunne ikke gjennomføre søket';
+        feedbackEl.className = 'small mt-1 text-danger';
+    } finally {
+        if (revision === mbLookupRevision) lookupButton.disabled = false;
+    }
 }
 
 async function mbSaveRenewalLookup() {
@@ -1928,26 +1971,40 @@ async function mbSaveRenewalLookup() {
     const payStatus  = document.getElementById('mb-rl-payment-status').value;
     const expDate    = document.getElementById('mb-rl-expiration-date').value;
     const msgEl      = document.getElementById('mb-rl-save-msg');
+    const saveButton = document.getElementById('mb-rl-save-button');
     msgEl.textContent = ''; msgEl.className = 'small';
+    if (!member_id) {
+        msgEl.textContent = 'Medlem mangler';
+        msgEl.className = 'small text-danger';
+        return;
+    }
+    saveButton.disabled = true;
     try {
-        const [r1, r2] = await Promise.all([
-            fetch('/api/update_renewal_status.php', {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({id: renewal_id, status: rnStatus})
-            }).then(r => r.json()),
-            fetch('/api/update_member_fields.php', {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({membership_member_id: member_id, payment_status: payStatus, expiration_date: expDate})
-            }).then(r => r.json()),
-        ]);
-        if (r1.success && r2.success) {
+        const response = await fetch('/api/update_membership_lookup.php', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                membership_member_id: member_id,
+                renewal_id: mbLookupHasRenewal ? renewal_id : '',
+                renewal_status: mbLookupHasRenewal ? rnStatus : '',
+                payment_status: payStatus,
+                expiration_date: expDate
+            })
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
             msgEl.textContent = '✓ Lagret'; msgEl.className = 'small text-success';
-            mbLoadRenewalList(mbRenewalPage);
+            if (mbLookupHasRenewal) mbLoadRenewalList(mbRenewalPage);
         } else {
-            msgEl.textContent = r1.message || r2.message || 'Feil ved lagring';
+            msgEl.textContent = data.message || 'Feil ved lagring';
             msgEl.className = 'small text-danger';
         }
-    } catch(e) { document.getElementById('mb-rl-save-msg').textContent = 'Nettverksfeil'; }
+    } catch(e) {
+        msgEl.textContent = 'Nettverksfeil';
+        msgEl.className = 'small text-danger';
+    } finally {
+        saveButton.disabled = false;
+    }
 }
 
 function mbCopyOrder(el) {

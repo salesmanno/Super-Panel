@@ -72,14 +72,23 @@ try {
     $stmt->execute([$payment_status, $exp_value, $membership_member_id, $company_id]);
 
     if ($stmt->rowCount() === 0) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'message' => 'Medlem ikke funnet']);
-        exit;
+        $existsStmt = $db->prepare("
+            SELECT 1
+            FROM membership_members
+            WHERE id = ? AND company_id = ?
+        ");
+        $existsStmt->execute([$membership_member_id, $company_id]);
+        if (!$existsStmt->fetchColumn()) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'message' => 'Medlem ikke funnet']);
+            exit;
+        }
     }
 
     echo json_encode(['success' => true]);
 
 } catch (Exception $e) {
+    error_log('update_member_fields error: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Kunne ikke oppdatere medlem']);
 }

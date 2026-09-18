@@ -47,14 +47,23 @@ try {
     $stmt->execute([$status, $id, $company_id]);
 
     if ($stmt->rowCount() === 0) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'message' => 'Rad ikke funnet']);
-        exit;
+        $existsStmt = $db->prepare("
+            SELECT 1
+            FROM membership_members_renew
+            WHERE id = ? AND company_id = ?
+        ");
+        $existsStmt->execute([$id, $company_id]);
+        if (!$existsStmt->fetchColumn()) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'message' => 'Rad ikke funnet']);
+            exit;
+        }
     }
 
     echo json_encode(['success' => true]);
 
 } catch (Exception $e) {
+    error_log('update_renewal_status error: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Kunne ikke oppdatere fornyelse']);
 }

@@ -15,9 +15,9 @@ $company_id = $_SESSION['company_id'];
 try {
     $db = getDBConnection();
 
-    // Lookup mode: exact order_id match, returns full detail for edit panel
+    // Lookup mode: exact renewal order_id first, then exact member_code.
     if (isset($_GET['lookup']) && $_GET['lookup'] !== '') {
-        $order_id = trim($_GET['lookup']);
+        $lookup = trim($_GET['lookup']);
         $stmt = $db->prepare("
             SELECT
                 mmr.id,
@@ -31,24 +31,86 @@ try {
                 mm.payment_status,
                 mm.expiration_date,
                 mm.status         AS member_status,
+                mm.member_code,
                 c.first_name,
                 c.last_name,
                 mp.name           AS plan_name
             FROM membership_members_renew mmr
-            JOIN membership_members mm  ON mm.id  = mmr.membership_member_id
-            LEFT JOIN tenant_customers c  ON c.id   = mm.customer_id
-            LEFT JOIN membership_plans mp ON mp.id  = mmr.membership_plan_id
+            JOIN membership_members mm
+                ON mm.id = mmr.membership_member_id AND mm.company_id = mmr.company_id
+            LEFT JOIN tenant_customers c
+                ON c.id = mm.customer_id AND c.company_id = mm.company_id
+            LEFT JOIN membership_plans mp
+                ON mp.id = mmr.membership_plan_id AND mp.company_id = mmr.company_id
             WHERE mmr.company_id = ?
               AND mmr.order_id   = ?
             LIMIT 1
         ");
-        $stmt->execute([$company_id, $order_id]);
+        $stmt->execute([$company_id, $lookup]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$row) {
-            echo json_encode(['success' => false, 'message' => 'Ikke funnet']);
+        if ($row) {
+            $row['lookup_type'] = 'renewal';
+            $row['has_renewal'] = true;
+            echo json_encode(['success' => true, 'row' => $row]);
             exit;
         }
+
+        $memberStmt = $db->prepare("
+            SELECT
+                latest_renewal.id,
+                latest_renewal.order_id,
+                latest_renewal.amount,
+                latest_renewal.status AS renewal_status,
+                latest_renewal.created_at,
+                latest_renewal.completed_at,
+                latest_renewal.payment_method,
+                mm.id AS membership_member_id,
+                mm.payment_status,
+                mm.expiration_date,
+                mm.status AS member_status,
+                mm.member_code,
+                c.first_name,
+                c.last_name,
+                mp.name AS plan_name
+            FROM membership_members mm
+            LEFT JOIN tenant_customers c
+                ON c.id = mm.customer_id AND c.company_id = mm.company_id
+            LEFT JOIN membership_plans mp
+                ON mp.id = mm.membership_plan_id AND mp.company_id = mm.company_id
+            LEFT JOIN membership_members_renew latest_renewal
+                ON latest_renewal.id = (
+                    SELECT mmr_latest.id
+                    FROM membership_members_renew mmr_latest
+                    WHERE mmr_latest.membership_member_id = mm.id
+                      AND mmr_latest.company_id = mm.company_id
+                    ORDER BY mmr_latest.created_at DESC, mmr_latest.id DESC
+                    LIMIT 1
+                )
+            WHERE mm.company_id = ?
+              AND UPPER(mm.member_code) = UPPER(?)
+            LIMIT 2
+        ");
+        $memberStmt->execute([$company_id, $lookup]);
+        $memberRows = $memberStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (count($memberRows) > 1) {
+            http_response_code(409);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Flere medlemmer har denne medlemskoden. Kontroller medlemsdataene.'
+            ]);
+            exit;
+        }
+        if (!$memberRows) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'message' => 'Ingen fornyelse eller medlem funnet']);
+            exit;
+        }
+
+        $row = $memberRows[0];
+        $row['lookup_type'] = 'member';
+        $row['has_renewal'] = !empty($row['id']);
         echo json_encode(['success' => true, 'row' => $row]);
         exit;
     }
@@ -111,5 +173,7 @@ try {
     ]);
 
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    error_log('get_membership_renewals error: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Kunne ikke hente fornyelser']);
 }
