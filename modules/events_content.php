@@ -3961,27 +3961,32 @@ document.querySelector('[href="#events-checkin"]')?.addEventListener('click', fu
     setTimeout(() => loadCheckinEventSelector(), 100);
 });
 
-// Load events results with cards layout
+function eventResultsEscape(value) {
+    const element = document.createElement('div');
+    element.textContent = value == null ? '' : String(value);
+    return element.innerHTML;
+}
+
+function eventResultsMoney(value) {
+    return `${new Intl.NumberFormat('nb-NO', {maximumFractionDigits: 0}).format(Number(value) || 0)} kr`;
+}
+
+// Load event results from canonical event, ledger and attendee data
 async function loadEventsResults() {
-    console.log('loadEventsResults() called');
     const resultsList = document.getElementById('events-results-list');
+    const summaryDiv = document.getElementById('events-results-summary');
     resultsList.innerHTML = '<div class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>Laster resultater...</div>';
     
     try {
         const response = await fetch('/api/get_events_results.php');
-        console.log('API response status:', response.status);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const result = await response.json();
-        console.log('API result:', result);
-        
-        if (!result.success) throw new Error(result.message || 'Ukjent feil');
+        if (!response.ok || !result.success) throw new Error(result.message || `HTTP ${response.status}`);
         
         // Show/update summary
-        const summaryDiv = document.getElementById('events-results-summary');
         if (summaryDiv && result.summary) {
             summaryDiv.style.display = 'block';
             document.getElementById('summary-total-events').textContent = result.summary.total_events;
-            document.getElementById('summary-total-revenue').textContent = parseFloat(result.summary.total_revenue).toFixed(0) + ' kr';
+            document.getElementById('summary-total-revenue').textContent = eventResultsMoney(result.summary.total_revenue);
             document.getElementById('summary-total-attendees').textContent = result.summary.total_attendees;
             document.getElementById('summary-upcoming-events').textContent = result.summary.upcoming_events;
             
@@ -3990,13 +3995,13 @@ async function loadEventsResults() {
             const mostExp = result.summary.most_expensive || {title: 'N/A', price: 0};
             const mostAtt = result.summary.most_attended || {title: 'N/A', attendees: 0};
             
-            document.getElementById('summary-most-profitable').textContent = mostProf.title ? mostProf.title.substring(0, 15) : '-';
-            document.getElementById('summary-most-profitable-value').textContent = parseFloat(mostProf.profit || 0).toFixed(0) + ' kr';
+            document.getElementById('summary-most-profitable').textContent = mostProf.title && mostProf.title !== 'N/A' ? mostProf.title : '-';
+            document.getElementById('summary-most-profitable-value').textContent = eventResultsMoney(mostProf.profit);
             
-            document.getElementById('summary-most-expensive').textContent = mostExp.title ? mostExp.title.substring(0, 15) : '-';
-            document.getElementById('summary-most-expensive-value').textContent = parseFloat(mostExp.price || 0).toFixed(0) + ' kr';
+            document.getElementById('summary-most-expensive').textContent = mostExp.title && mostExp.title !== 'N/A' ? mostExp.title : '-';
+            document.getElementById('summary-most-expensive-value').textContent = eventResultsMoney(mostExp.price);
             
-            document.getElementById('summary-most-attended').textContent = mostAtt.title ? mostAtt.title.substring(0, 15) : '-';
+            document.getElementById('summary-most-attended').textContent = mostAtt.title && mostAtt.title !== 'N/A' ? mostAtt.title : '-';
             document.getElementById('summary-most-attended-value').textContent = (mostAtt.attendees || 0) + ' deltakere';
         }
         
@@ -4023,31 +4028,32 @@ async function loadEventsResults() {
                                 ${result.events.map(event => {
                                     const statusBadge = event.status === 'Kommende' ? 'bg-info' : event.status === 'Pågår' ? 'bg-warning' : 'bg-secondary';
                                     const startDate = formatNorskDato(event.start_date, event.start_time);
-                                    const netColor = event.net_result >= 0 ? 'text-success' : 'text-danger';
+                                    const netResult = Number(event.net_result) || 0;
+                                    const netColor = netResult >= 0 ? 'text-success' : 'text-danger';
                                     
                                     return `
                                         <tr>
                                             <td>
-                                                <strong>${event.title}</strong>
+                                                <strong>${eventResultsEscape(event.title)}</strong>
                                             </td>
                                             <td>
-                                                ${startDate}
+                                                ${eventResultsEscape(startDate)}
                                                 ${event.start_time ? `<br><small class="text-muted">kl. ${formatNorskTid(event.start_time)}</small>` : ''}
                                             </td>
                                             <td>
-                                                <span class="badge ${statusBadge}">${event.status}</span>
+                                                <span class="badge ${statusBadge}">${eventResultsEscape(event.status)}</span>
                                             </td>
                                             <td class="text-center">
-                                                <span class="badge bg-primary">${event.attendee_count || 0}</span>
+                                                <span class="badge bg-primary">${Number(event.attendee_count) || 0}</span>
                                             </td>
                                             <td class="text-end text-success">
-                                                <strong>${parseFloat(event.income || 0).toFixed(0)} kr</strong>
+                                                <strong>${eventResultsMoney(event.income)}</strong>
                                             </td>
                                             <td class="text-end text-danger">
-                                                ${parseFloat(event.expense || 0).toFixed(0)} kr
+                                                ${eventResultsMoney(event.expense)}
                                             </td>
                                             <td class="text-end fw-bold ${netColor}">
-                                                ${parseFloat(event.net_result || 0).toFixed(0)} kr
+                                                ${eventResultsMoney(netResult)}
                                             </td>
                                         </tr>
                                     `;
@@ -4068,6 +4074,7 @@ async function loadEventsResults() {
         }
     } catch (error) {
         console.error('Error loading events results:', error);
+        if (summaryDiv) summaryDiv.style.display = 'none';
         document.getElementById('events-results-list').innerHTML = `
             <div class="col-12">
                 <div class="alert alert-danger text-center mb-0">
@@ -4094,7 +4101,7 @@ async function toggleEventResults(eventId) {
     }
 }
 
-// Load event finances from events_checkin + unified_ledger
+// Load actual paid income and expenses from unified_ledger
 async function loadEventFinances(eventId) {
     try {
         const response = await fetch(`/api/get_event_finances.php?event_id=${eventId}`);
@@ -4103,18 +4110,16 @@ async function loadEventFinances(eventId) {
         if (result.success) {
             const incomeList = document.getElementById(`event-income-${eventId}`);
             const expenseList = document.getElementById(`event-expense-${eventId}`);
-            const eventTitle = result.event_title || 'Arrangement';
+            const incomeGroups = result.income_groups || result.checkin_income || [];
             
             let incomeHtml = '';
             
-            // Display check-in income (from events_checkin table)
-            // Grouped by price: standard price = Ikke-medlem, other = Medlem
-            if (result.checkin_income && result.checkin_income.length > 0) {
-                result.checkin_income.forEach(group => {
+            if (incomeGroups.length > 0) {
+                incomeGroups.forEach(group => {
                     incomeHtml += `
                         <div class="event-finance-item">
                             <div>
-                                <span>${eventTitle} <strong>${group.label}</strong></span>
+                                <span><strong>${eventResultsEscape(group.label)}</strong></span>
                                 <small class="text-muted d-block">${group.count} stk @ ${group.price.toFixed(0)} NOK</small>
                             </div>
                             <strong class="text-success">+${group.total.toFixed(2)} NOK</strong>
@@ -4125,14 +4130,13 @@ async function loadEventFinances(eventId) {
             
             incomeList.innerHTML = incomeHtml || '<small class="text-muted">Ingen inntekter registrert</small>';
             
-            // Display expenses (from unified_ledger)
             if (result.expense_groups && Object.keys(result.expense_groups).length > 0) {
                 expenseList.innerHTML = Object.entries(result.expense_groups)
                     .sort((a, b) => b[1].total - a[1].total)
                     .map(([name, data]) => `
                         <div class="event-finance-item">
                             <div>
-                                <span>${name}</span>
+                                <span>${eventResultsEscape(name)}</span>
                                 <small class="text-muted d-block">${data.count} stk</small>
                             </div>
                             <strong class="text-danger">-${data.total.toFixed(2)} NOK</strong>
@@ -4720,7 +4724,7 @@ async function viewEventDetails(eventId, eventTitle = 'Arrangement') {
                         };
                     }
                     grouped[key].total_amount += Math.abs(parseFloat(t.total_amount));
-                    grouped[key].count++;
+                    grouped[key].count += Number(t.quantity) || 1;
                 });
                 
                 // Convert to array and sort (income first, then by amount desc)
@@ -4739,7 +4743,7 @@ async function viewEventDetails(eventId, eventTitle = 'Arrangement') {
                     return `
                         <tr>
                             <td><span class="badge ${g.entry_type === 'income' ? 'bg-success' : 'bg-danger'}"><i class="bi bi-${typeIcon} me-1"></i>${typeText}</span></td>
-                            <td>${g.item_name} <span class="text-muted">(${g.count})</span></td>
+                            <td>${eventResultsEscape(g.item_name)} <span class="text-muted">(${g.count})</span></td>
                             <td class="${typeClass}"><strong>${g.total_amount.toLocaleString('nb-NO')} NOK</strong></td>
                         </tr>
                     `;

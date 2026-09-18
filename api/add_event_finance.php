@@ -12,18 +12,32 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 
 $data = json_decode(file_get_contents('php://input'), true);
 
+if (!is_array($data)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Ugyldig forespørsel']);
+    exit;
+}
+
 $event_id = $data['event_id'] ?? null;
 $type = $data['type'] ?? null; // 'income' or 'expense'
 $item_name = $data['item_name'] ?? null;
 $amount = $data['amount'] ?? null;
 $payment_method = $data['payment_method'] ?? 'cash';
 
-if (!$event_id || !$type || !$item_name || !$amount) {
+if (
+    !$event_id
+    || !in_array($type, ['income', 'expense'], true)
+    || !is_string($item_name)
+    || trim($item_name) === ''
+    || !is_numeric($amount)
+) {
+    http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Mangler påkrevde felt']);
     exit;
 }
 
-if ($amount <= 0) {
+if ((float) $amount <= 0) {
+    http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Beløp må være større enn 0']);
     exit;
 }
@@ -34,13 +48,14 @@ try {
     
     // Verify event exists and belongs to this company
     $eventStmt = $db->prepare("
-        SELECT id, title FROM events_eventdata 
-        WHERE id = ? AND company_id = ?
+        SELECT id, title FROM events_eventdata
+        WHERE id = ? AND company_id = ? AND is_active = 1
     ");
     $eventStmt->execute([$event_id, $company_id]);
     $event = $eventStmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$event) {
+        http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Arrangement ikke funnet']);
         exit;
     }
@@ -49,10 +64,10 @@ try {
     $ledgerService = new UnifiedLedgerService($db, $company_id);
     
     // Generate unique order ID
-    $orderId = 'EVENT-' . strtoupper(substr(md5(uniqid()), 0, 8));
+    $orderId = 'EVENT-' . strtoupper(bin2hex(random_bytes(6)));
     
     // For expenses, make amount negative
-    $selling_price = $type === 'expense' ? -abs($amount) : abs($amount);
+    $selling_price = $type === 'expense' ? -abs((float) $amount) : abs((float) $amount);
     
     // Log to unified ledger
     $result = $ledgerService->logTransaction([
@@ -60,7 +75,7 @@ try {
         'module_source' => 'events',
         'item_type' => $type === 'expense' ? 'expense' : 'income',
         'source_id' => $event_id,
-        'item_name' => $item_name,
+        'item_name' => trim($item_name),
         'quantity' => 1,
         'selling_price' => $selling_price,
         'payment_method' => $payment_method,
@@ -77,34 +92,24 @@ try {
     ]);
     
     if ($result['success']) {
-        // Update events_results
-        try {
-            $updateResultsStmt = $db->prepare("
-                INSERT INTO events_results (event_id, company_id, status, created_at, updated_at)
-                VALUES (?, ?, 'active', NOW(), NOW())
-                ON DUPLICATE KEY UPDATE updated_at = NOW()
-            ");
-            $updateResultsStmt->execute([$event_id, $company_id]);
-        } catch (Exception $resultsErr) {
-            error_log("Warning: Could not create events_results record: " . $resultsErr->getMessage());
-        }
-        
         echo json_encode([
             'success' => true,
             'message' => $type === 'expense' ? 'Utgift lagt til' : 'Inntekt lagt til',
             'ledger_id' => $result['ledger_id']
         ]);
     } else {
+        http_response_code(500);
         echo json_encode([
             'success' => false,
-            'message' => $result['message']
+            'message' => 'Kunne ikke lagre hovedboksposten'
         ]);
     }
     
 } catch (Exception $e) {
     error_log("Add event finance error: " . $e->getMessage());
+    http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Feil ved lagring: ' . $e->getMessage()
+        'message' => 'Kunne ikke lagre arrangementsøkonomien'
     ]);
 }

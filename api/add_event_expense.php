@@ -2,6 +2,7 @@
 session_start();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/request_date_time.php';
+require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
 
 header('Content-Type: application/json');
 
@@ -35,11 +36,10 @@ if (!$event_id || !$description || $amount <= 0) {
 try {
     $db = getDBConnection();
     $company_id = $_SESSION['company_id'];
-    $dbType = getDBType();
     
     $stmt = $db->prepare("
         SELECT id, title FROM events_eventdata 
-        WHERE id = ? AND company_id = ?
+        WHERE id = ? AND company_id = ? AND is_active = 1
     ");
     $stmt->execute([$event_id, $company_id]);
     $event = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -49,43 +49,37 @@ try {
         exit;
     }
     
-    if ($dbType === 'mysql') {
-        $entryId = sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0x0fff) | 0x4000,
-            mt_rand(0, 0x3fff) | 0x8000,
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
-        );
-    } else {
-        $entryId = null;
-    }
-    
-    $orderId = 'EVENT_EXPENSE_' . time() . '_' . substr(md5(random_bytes(16)), 0, 8);
-    
     $categoryLabel = $category ? " ({$category})" : '';
-    
-    $entryId = bin2hex(random_bytes(16));
-    
-    $stmt = $db->prepare("
-        INSERT INTO unified_ledger (
-            id, order_id, company_id, module_source, item_type, source_id,
-            item_name, quantity, selling_price, cost_price, 
-            customer_name, customer_email, payment_method, payment_status, transaction_date, notes
-        ) VALUES (
-            ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?
-        )
-    ");
-    
     $itemName = $event['title'] . ' - ' . $description . $categoryLabel;
-    
-    $stmt->execute([
-        $entryId, $orderId, $company_id, 'events', 'event_expense', $event_id,
-        $itemName, 1, 0, $amount,
-        'Manuel registrering', '', 'manual', 'completed', $date, $notes
+
+    $ledger = new UnifiedLedgerService($db, $company_id);
+    $result = $ledger->logTransaction([
+        'order_id' => 'EVENT-EXPENSE-' . strtoupper(bin2hex(random_bytes(6))),
+        'module_source' => 'events',
+        'item_type' => 'event_expense',
+        'source_id' => $event_id,
+        'item_name' => $itemName,
+        'quantity' => 1,
+        'selling_price' => -abs((float) $amount),
+        'cost_price' => null,
+        'payment_method' => 'manual',
+        'payment_status' => 'completed',
+        'status' => 'active',
+        'transaction_type' => 'expense',
+        'category' => 'Arrangement',
+        'transaction_date' => $date . ' 00:00:00',
+        'metadata' => [
+            'event_id' => $event_id,
+            'event_title' => $event['title'],
+            'manual_entry' => true,
+            'category' => $category,
+            'notes' => $notes,
+        ],
     ]);
+
+    if (!$result['success']) {
+        throw new RuntimeException('Hovedbokføringen mislyktes');
+    }
     
     echo json_encode([
         'success' => true,
@@ -94,8 +88,9 @@ try {
     
 } catch (Exception $e) {
     error_log("Error adding event expense: " . $e->getMessage());
+    http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Feil ved lagring av utgift: ' . $e->getMessage()
+        'message' => 'Kunne ikke lagre utgiften'
     ]);
 }
