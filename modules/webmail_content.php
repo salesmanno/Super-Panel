@@ -998,7 +998,7 @@ function wmQueueFilter(status, btn) {
 }
 
 function wmStatusLabel(s) {
-    const labels = {queued:'Venter', sending:'Sender', sent:'Sendt', failed:'Feilet'};
+    const labels = {queued:'Venter', sending:'Sender', sent:'SMTP akseptert', failed:'Feilet'};
     return labels[s] || s;
 }
 
@@ -1078,7 +1078,7 @@ async function wmLoadLogs(sourceType = 'manual', recipientEmail = '') {
                             ${sourceLabel}
                             <td class="small">${escapeH(r.to_email)}</td>
                             <td class="small">${escapeH(r.subject)}</td>
-                            <td><span class="badge ${r.status==='sent'?'bg-success':'bg-danger'}">${r.status==='sent'?'Sendt':'Feil'}</span></td>
+                            <td><span class="badge ${r.status==='sent'?'bg-success':'bg-danger'}">${r.status==='sent'?'SMTP akseptert':'Feil'}</span></td>
                             <td class="small">${fmtDateTimeWm(r.sent_at)}</td>
                         </tr>`;
                     }).join('')}
@@ -1186,7 +1186,7 @@ async function wmLoadConfirm() {
                     <tr style="cursor:pointer;" onclick="wmOpenConfirmEmail(${i})">
                         <td class="small">${escapeH(r.subject)}</td>
                         <td><span class="badge bg-secondary" style="font-size:0.7rem;">${escapeH(r.module_source || '—')}</span></td>
-                        <td><span class="badge ${r.status==='sent'?'bg-success':'bg-danger'}">${r.status==='sent'?'Levert':'Feil'}</span></td>
+                        <td><span class="badge ${r.status==='sent'?'bg-success':'bg-danger'}">${r.status==='sent'?'SMTP akseptert':'Feil'}</span></td>
                         <td class="small">${fmtDateTimeWm(r.sent_at)}</td>
                     </tr>`).join('')}
                 </tbody>

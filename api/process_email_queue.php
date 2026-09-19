@@ -167,7 +167,10 @@ function processEmail($db, $email) {
                 }
             }
 
-            echo "✓ Sendt: {$email['id']} til {$email['recipient_email']}\n";
+            $messageId = $result['message_id'] ?? 'ukjent';
+            $smtpResponse = preg_replace('/\s+/', ' ', (string) ($result['smtp_response'] ?? '250 akseptert'));
+            echo "✓ SMTP akseptert: {$email['id']} til {$email['recipient_email']}"
+                . " | Message-ID: {$messageId} | Svar: {$smtpResponse}\n";
 
         } else {
             throw new Exception($result['error'] ?? 'Ukjent SMTP-feil');

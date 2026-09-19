@@ -92,12 +92,16 @@ class SMTPClient {
             $encodedBody = quoted_printable_encode($body);
             $encodedBody = preg_replace('/^\\./m', '..', $encodedBody) ?? $encodedBody;
             $message = $headers . $encodedBody . "\r\n.";
-            $this->sendCommand($message, 250);
+            $acceptanceResponse = $this->sendCommand($message, 250);
             
             $this->sendCommand("QUIT", 221);
             
             fclose($this->socket);
-            return ['success' => true];
+            return [
+                'success' => true,
+                'message_id' => $msgId,
+                'smtp_response' => $acceptanceResponse,
+            ];
             
         } catch (Exception $e) {
             if ($this->socket) {
