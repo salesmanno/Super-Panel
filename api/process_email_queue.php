@@ -125,19 +125,24 @@ function processEmail($db, $email) {
         $result = $smtp->send($fromEmail, $fromName, $email['recipient_email'], $email['subject'], $htmlBody);
 
         if ($result['success']) {
+            $messageId = $result['message_id'] ?? 'ukjent';
+            $smtpResponse = preg_replace('/\s+/', ' ', (string) ($result['smtp_response'] ?? '250 akseptert'));
+            $acceptanceDetails = "SMTP akseptert | Message-ID: {$messageId} | Svar: {$smtpResponse}";
+
             $stmt = $db->prepare("
                 UPDATE email_queue
-                SET status = 'sent', sent_at = NOW(), updated_at = NOW()
+                SET status = 'sent', sent_at = NOW(), error_message = ?, updated_at = NOW()
                 WHERE id = ?
             ");
-            $stmt->execute([$email['id']]);
+            $stmt->execute([$acceptanceDetails, $email['id']]);
 
             try {
                 $logStmt = $db->prepare("
                     INSERT INTO email_logs
-                        (id, company_id, from_email, from_name, to_email, subject, body_html, module_source, status, sent_at)
+                        (id, company_id, from_email, from_name, to_email, subject, body_html,
+                         module_source, status, error_message, sent_at)
                     VALUES
-                        (UUID(), ?, ?, ?, ?, ?, ?, ?, 'sent', NOW())
+                        (UUID(), ?, ?, ?, ?, ?, ?, ?, 'sent', ?, NOW())
                 ");
                 $logStmt->execute([
                     $email['company_id'],
@@ -147,14 +152,16 @@ function processEmail($db, $email) {
                     $email['subject'],
                     $htmlBody,
                     $email['module_source'] ?? 'system',
+                    $acceptanceDetails,
                 ]);
             } catch (\PDOException $logEx) {
                 if (stripos($logEx->getMessage(), 'module_source') !== false) {
                     $logStmt = $db->prepare("
                         INSERT INTO email_logs
-                            (id, company_id, from_email, from_name, to_email, subject, body_html, status, sent_at)
+                            (id, company_id, from_email, from_name, to_email, subject,
+                             body_html, status, error_message, sent_at)
                         VALUES
-                            (UUID(), ?, ?, ?, ?, ?, ?, 'sent', NOW())
+                            (UUID(), ?, ?, ?, ?, ?, ?, 'sent', ?, NOW())
                     ");
                     $logStmt->execute([
                         $email['company_id'],
@@ -163,12 +170,11 @@ function processEmail($db, $email) {
                         $email['recipient_email'],
                         $email['subject'],
                         $htmlBody,
+                        $acceptanceDetails,
                     ]);
                 }
             }
 
-            $messageId = $result['message_id'] ?? 'ukjent';
-            $smtpResponse = preg_replace('/\s+/', ' ', (string) ($result['smtp_response'] ?? '250 akseptert'));
             echo "✓ SMTP akseptert: {$email['id']} til {$email['recipient_email']}"
                 . " | Message-ID: {$messageId} | Svar: {$smtpResponse}\n";
 
@@ -242,10 +248,12 @@ function getCompanyInfo($db, $companyId) {
     return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 }
 
-if (php_sapi_name() === 'cli') {
-    processQueue();
-} else {
-    header('Content-Type: application/json');
-    processQueue();
-    echo json_encode(['success' => true, 'message' => 'Kø prosessert']);
+if (!defined('EMAIL_QUEUE_PROCESSOR_NO_AUTO_RUN')) {
+    if (php_sapi_name() === 'cli') {
+        processQueue();
+    } else {
+        header('Content-Type: application/json');
+        processQueue();
+        echo json_encode(['success' => true, 'message' => 'Kø prosessert']);
+    }
 }

@@ -7,7 +7,8 @@
  * Usage: Add to crontab or run via workflow
  */
 
-// Include the queue processor
+// Include without auto-running; this script invokes the processor once below.
+define('EMAIL_QUEUE_PROCESSOR_NO_AUTO_RUN', true);
 require_once __DIR__ . '/api/process_email_queue.php';
 
 echo "[" . date('Y-m-d H:i:s') . "] Email queue processor started\n";

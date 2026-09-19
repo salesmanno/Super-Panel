@@ -1099,7 +1099,8 @@ function wmOpenSentEmail(idx) {
 
     document.getElementById('wm-preview-subject').textContent = r.subject || '(ingen emne)';
     document.getElementById('wm-preview-meta').textContent =
-        `Fra: ${r.from_name || r.from_email}  →  Til: ${r.to_email}  |  ${fmtDateTimeWm(r.sent_at)}`;
+        `Fra: ${r.from_name || r.from_email}  →  Til: ${r.to_email}  |  ${fmtDateTimeWm(r.sent_at)}`
+        + (r.error_message ? `  |  ${r.error_message}` : '');
 
     wmPreviewReplyTo      = r.to_email || '';
     wmPreviewReplySubject = r.subject  || '';
@@ -1118,7 +1119,8 @@ function wmOpenAutoEmail(idx) {
 
     document.getElementById('wm-alpreview-subject').textContent = r.subject || '(ingen emne)';
     document.getElementById('wm-alpreview-meta').textContent =
-        `Kilde: ${r.module_source || '—'}  |  Til: ${r.to_email}  |  ${fmtDateTimeWm(r.sent_at)}`;
+        `Kilde: ${r.module_source || '—'}  |  Til: ${r.to_email}  |  ${fmtDateTimeWm(r.sent_at)}`
+        + (r.error_message ? `  |  ${r.error_message}` : '');
 
     document.getElementById('wm-alpreview-frame').srcdoc =
         r.body_html || '<p class="text-muted p-3">Innhold ikke tilgjengelig</p>';
@@ -1207,7 +1209,8 @@ function wmOpenConfirmEmail(idx) {
 
     document.getElementById('wm-cpreview-subject').textContent = r.subject || '(ingen emne)';
     document.getElementById('wm-cpreview-meta').textContent =
-        `Fra: ${r.from_name || r.from_email}  →  Til: ${r.to_email}  |  ${fmtDateTimeWm(r.sent_at)}`;
+        `Fra: ${r.from_name || r.from_email}  →  Til: ${r.to_email}  |  ${fmtDateTimeWm(r.sent_at)}`
+        + (r.error_message ? `  |  ${r.error_message}` : '');
 
     const frame = document.getElementById('wm-cpreview-frame');
     frame.srcdoc = r.body_html || '<p class="text-muted p-3">Innhold ikke tilgjengelig</p>';
