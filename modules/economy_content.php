@@ -47,7 +47,6 @@
     font-weight: 600;
 }
 </style>
-
 <div class="module-content">
     <div id="economy-results" class="subtab-content">
         <div class="card">

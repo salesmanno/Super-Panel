@@ -98,7 +98,6 @@
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 </style>
-
 <div class="module-content">
     <div id="sales-varesalg" class="subtab-content active">
         <!-- Fullscreen Button -->
@@ -185,19 +184,19 @@
                                 <label class="form-label small">Kontant betaling</label>
                                 <div class="d-flex gap-2 flex-wrap">
                                     <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPayment(50)" style="position: relative; overflow: hidden;">
-                                        <span style="font-size: 1.2em;">💵</span><br><small>50</small>
+                                        <span class="fw-semibold" aria-hidden="true">NOK</span><br><small>50</small>
                                     </button>
                                     <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPayment(100)" style="position: relative; overflow: hidden;">
-                                        <span style="font-size: 1.2em;">💵</span><br><small>100</small>
+                                        <span class="fw-semibold" aria-hidden="true">NOK</span><br><small>100</small>
                                     </button>
                                     <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPayment(200)" style="position: relative; overflow: hidden;">
-                                        <span style="font-size: 1.2em;">💵</span><br><small>200</small>
+                                        <span class="fw-semibold" aria-hidden="true">NOK</span><br><small>200</small>
                                     </button>
                                     <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPayment(500)" style="position: relative; overflow: hidden;">
-                                        <span style="font-size: 1.3em;">💶</span><br><small>500</small>
+                                        <span class="fw-semibold" aria-hidden="true">NOK</span><br><small>500</small>
                                     </button>
                                     <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPayment(1000)" style="position: relative; overflow: hidden;">
-                                        <span style="font-size: 1.4em;">💷</span><br><small>1000</small>
+                                        <span class="fw-semibold" aria-hidden="true">NOK</span><br><small>1000</small>
                                     </button>
                                 </div>
                             </div>
@@ -1149,19 +1148,19 @@
                                 <label class="form-label small">Kontant betaling</label>
                                 <div class="d-flex gap-2 flex-wrap">
                                     <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPaymentFullscreen(50)" style="position: relative; overflow: hidden;">
-                                        <span style="font-size: 1.2em;">💵</span><br><small>50</small>
+                                        <span class="fw-semibold" aria-hidden="true">NOK</span><br><small>50</small>
                                     </button>
                                     <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPaymentFullscreen(100)" style="position: relative; overflow: hidden;">
-                                        <span style="font-size: 1.2em;">💵</span><br><small>100</small>
+                                        <span class="fw-semibold" aria-hidden="true">NOK</span><br><small>100</small>
                                     </button>
                                     <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPaymentFullscreen(200)" style="position: relative; overflow: hidden;">
-                                        <span style="font-size: 1.2em;">💵</span><br><small>200</small>
+                                        <span class="fw-semibold" aria-hidden="true">NOK</span><br><small>200</small>
                                     </button>
                                     <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPaymentFullscreen(500)" style="position: relative; overflow: hidden;">
-                                        <span style="font-size: 1.3em;">💶</span><br><small>500</small>
+                                        <span class="fw-semibold" aria-hidden="true">NOK</span><br><small>500</small>
                                     </button>
                                     <button type="button" class="btn btn-outline-success flex-fill" onclick="applyCashPaymentFullscreen(1000)" style="position: relative; overflow: hidden;">
-                                        <span style="font-size: 1.4em;">💷</span><br><small>1000</small>
+                                        <span class="fw-semibold" aria-hidden="true">NOK</span><br><small>1000</small>
                                     </button>
                                 </div>
                             </div>
@@ -1594,7 +1593,7 @@ async function applyCashPayment(amount) {
         // Still need more money
         paymentStatus.className = 'alert alert-warning mb-3';
         paymentStatusText.innerHTML = `
-            <div><strong>Mottatt:</strong> ${cashReceived.toFixed(2)} NOK 💵</div>
+            <div><strong>Mottatt:</strong> ${cashReceived.toFixed(2)} NOK</div>
             <div class="text-danger"><strong>Restbeløp:</strong> ${remaining.toFixed(2)} NOK</div>
             <small class="text-muted">Trykk en annen pengeknapp eller fullfør manuelt</small>
         `;
@@ -1604,8 +1603,8 @@ async function applyCashPayment(amount) {
         const change = remaining < 0 ? Math.abs(remaining) : 0;
         paymentStatus.className = 'alert alert-success mb-3';
         paymentStatusText.innerHTML = `
-            <div><strong>Mottatt:</strong> ${cashReceived.toFixed(2)} NOK 💵</div>
-            ${change > 0 ? `<div class="text-success fs-5"><strong>Vekslepenger:</strong> ${change.toFixed(2)} NOK 💰</div>` : '<div class="text-success">✅ Eksakt beløp betalt</div>'}
+            <div><strong>Mottatt:</strong> ${cashReceived.toFixed(2)} NOK</div>
+            ${change > 0 ? `<div class="text-success fs-5"><strong>Vekslepenger:</strong> ${change.toFixed(2)} NOK</div>` : '<div class="text-success">Eksakt beløp betalt</div>'}
             <div class="mt-2"><small class="text-muted">Gjennomfører salg...</small></div>
         `;
         paymentMethodSelect.value = 'cash';
@@ -1638,7 +1637,7 @@ async function performCheckout(salesModule, change = 0) {
             let message = `✅ Salg gjennomført!\nAntall varer: ${result.items_sold}\nTotalsum: ${result.total.toFixed(2)} NOK`;
             
             if (change > 0) {
-                message += `\n💰 Vekslepenger: ${change.toFixed(2)} NOK`;
+                message += `\nVekslepenger: ${change.toFixed(2)} NOK`;
             }
             
             toast.quickSuccess('Betaling', message);
@@ -1694,7 +1693,7 @@ async function applyCashPaymentFullscreen(amount) {
         // Still need more money
         paymentStatus.className = 'alert alert-warning mb-3';
         paymentStatusText.innerHTML = `
-            <div><strong>Mottatt:</strong> ${cashReceivedFullscreen.toFixed(2)} NOK 💵</div>
+            <div><strong>Mottatt:</strong> ${cashReceivedFullscreen.toFixed(2)} NOK</div>
             <div class="text-danger"><strong>Restbeløp:</strong> ${remaining.toFixed(2)} NOK</div>
             <small class="text-muted">Trykk en annen pengeknapp eller fullfør manuelt</small>
         `;
@@ -1704,8 +1703,8 @@ async function applyCashPaymentFullscreen(amount) {
         const change = remaining < 0 ? Math.abs(remaining) : 0;
         paymentStatus.className = 'alert alert-success mb-3';
         paymentStatusText.innerHTML = `
-            <div><strong>Mottatt:</strong> ${cashReceivedFullscreen.toFixed(2)} NOK 💵</div>
-            ${change > 0 ? `<div class="text-success fs-5"><strong>Vekslepenger:</strong> ${change.toFixed(2)} NOK 💰</div>` : '<div class="text-success">✅ Eksakt beløp betalt</div>'}
+            <div><strong>Mottatt:</strong> ${cashReceivedFullscreen.toFixed(2)} NOK</div>
+            ${change > 0 ? `<div class="text-success fs-5"><strong>Vekslepenger:</strong> ${change.toFixed(2)} NOK</div>` : '<div class="text-success">Eksakt beløp betalt</div>'}
             <div class="mt-2"><small class="text-muted">Gjennomfører salg...</small></div>
         `;
         paymentMethodSelect.value = 'cash';
@@ -1738,7 +1737,7 @@ async function performCheckoutFullscreen(change = 0) {
             let message = `✅ Salg gjennomført!\nAntall varer: ${result.items_sold}\nTotalsum: ${result.total.toFixed(2)} NOK`;
             
             if (change > 0) {
-                message += `\n💰 Vekslepenger: ${change.toFixed(2)} NOK`;
+                message += `\nVekslepenger: ${change.toFixed(2)} NOK`;
             }
             
             toast.quickSuccess('Betaling', message);
@@ -1795,7 +1794,7 @@ if (salesModule) {
             if (cashReceived > 0) {
                 const change = cashReceived - result.total;
                 if (change > 0) {
-                    message += `\n💰 Vekslepenger: ${change.toFixed(2)} NOK`;
+                    message += `\nVekslepenger: ${change.toFixed(2)} NOK`;
                 }
             }
             
@@ -2907,7 +2906,7 @@ function initFullscreenSales() {
                     if (cashReceivedFullscreen > 0) {
                         const change = cashReceivedFullscreen - result.total;
                         if (change > 0) {
-                            message += `\n💰 Vekslepenger: ${change.toFixed(2)} NOK`;
+                            message += `\nVekslepenger: ${change.toFixed(2)} NOK`;
                         }
                     }
                     

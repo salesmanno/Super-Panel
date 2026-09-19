@@ -660,7 +660,7 @@ try {
                 <p class="mb-0">Kontakt administrator for å få tilgang til moduler</p>
             </div>
         <?php else: ?>
-            <div class="tab-content dashboard-module-theme">
+            <div class="tab-content">
                 <?php 
                 // Rendre innhold for ALLE moduler (inkludert skjulte), men kun første synlige skal være aktiv
                 $allModulesForDisplay = array_merge($officialModules, $userModules);
@@ -669,7 +669,7 @@ try {
                 foreach ($allModulesForDisplay as $module): 
                     $isActive = ($module['module_key'] === $firstVisibleKey);
                 ?>
-                    <div class="tab-pane fade <?= $isActive ? 'show active' : '' ?>" 
+                    <div class="tab-pane fade <?= $isActive ? 'show active' : '' ?> <?= $module['module_key'] !== 'rental' ? 'dashboard-module-theme' : '' ?>"
                          id="content-<?= $module['module_key'] ?>" 
                          role="tabpanel">
                         <?php 
@@ -894,7 +894,7 @@ try {
                 <?php endforeach; ?>
                 
                 <!-- Announcements Tab Content (always available for all admins) -->
-                <div class="tab-pane fade" 
+                <div class="tab-pane fade dashboard-module-theme"
                      id="content-announcements" 
                      role="tabpanel">
                     <?php include __DIR__ . '/../modules/announcements_content.php'; ?>
@@ -952,10 +952,10 @@ try {
     </div>
 
     <!-- Ditt Nettsted Modal (Full Page) -->
-    <div class="modal fade" id="dittNettstedPasswordModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal fade dashboard-module-theme" id="dittNettstedPasswordModal" tabindex="-1" data-bs-backdrop="static">
         <div class="modal-dialog modal-fullscreen">
             <div class="modal-content">
-                <div class="modal-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="modal-header text-white">
                     <h5 class="modal-title">
                         <i class="bi bi-building me-2"></i>Firmadetaljer
                     </h5>

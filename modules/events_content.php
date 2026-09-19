@@ -742,7 +742,6 @@ try {
     }
 }
 </style>
-
 <div class="module-content">
     <div id="events-my" class="subtab-content">
         <div class="d-flex justify-content-between align-items-center mb-4">

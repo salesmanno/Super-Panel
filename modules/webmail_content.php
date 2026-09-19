@@ -177,7 +177,6 @@ try {
     .wm-automailer-accordion { display: none; }
 }
 </style>
-
 <?php if (!$webmailConfigured): ?>
 <div class="alert alert-warning d-flex align-items-center gap-3 mb-3">
     <i class="bi bi-exclamation-triangle-fill fs-4"></i>
