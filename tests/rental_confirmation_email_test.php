@@ -40,11 +40,27 @@ rental_email_check($variables['date_from'] === '25.09.2026', 'start date uses No
 rental_email_check($variables['date_to'] === '27.09.2026', 'end date uses Norwegian format');
 rental_email_check($variables['total_price'] === '4 400,00', 'price is formatted');
 rental_email_check($variables['price'] === '4 000,00', 'base price excludes selected cleaning');
+rental_email_check(
+    $variables['total_price'] === '4 400,00'
+    && $variables['total_rental_expenses'] === '4 000,00',
+    'email total price adds cleaning to the base rental expenses'
+);
 rental_email_check($variables['rental_start'] === $variables['date_from'], 'legacy start alias is populated');
 rental_email_check($variables['rental_fee'] === $variables['total_price'], 'legacy fee alias is populated');
 rental_email_check($variables['pickup_time'] === '15:00', 'pickup time is rendered without seconds');
 rental_email_check($variables['end_time'] === '11:00', 'end time is rendered without seconds');
 rental_email_check($variables['rental_days'] === '3', 'rental days are inclusive');
+
+$withoutCleaning = buildRentalConfirmationVariables([
+    'rental_fee' => '4000.00',
+    'cleaning' => 0,
+    'cleaning_fee' => '400.00',
+]);
+rental_email_check(
+    $withoutCleaning['price'] === '4 000,00'
+    && $withoutCleaning['total_price'] === '4 000,00',
+    'email total price excludes cleaning when it is not selected'
+);
 
 $completeTemplate = implode('|', [
     '{{logo_url}}', '{{first_name}}', '{{last_name}}', '{{tenant_name}}',

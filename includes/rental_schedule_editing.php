@@ -4,13 +4,23 @@ function rentalMoneyToCents($amount): int {
     return (int) round((float) $amount * 100);
 }
 
-function rentalFeeAfterCleaningToggle($currentFee, int $currentCleaning, int $newCleaning, $cleaningFee): float {
-    $currentCents = rentalMoneyToCents($currentFee);
+function rentalBaseExpenses($storedTotal, int $cleaning, $cleaningFee): float {
+    $storedCents = rentalMoneyToCents($storedTotal);
     $cleaningCents = max(0, rentalMoneyToCents($cleaningFee));
-    $baseCents = $currentCents - ($currentCleaning === 1 ? $cleaningCents : 0);
-    $newTotalCents = max(0, $baseCents + ($newCleaning === 1 ? $cleaningCents : 0));
 
-    return $newTotalCents / 100;
+    return max(0, $storedCents - ($cleaning === 1 ? $cleaningCents : 0)) / 100;
+}
+
+function rentalTotalPrice($totalRentalExpenses, int $cleaning, $cleaningFee): float {
+    $baseCents = max(0, rentalMoneyToCents($totalRentalExpenses));
+    $cleaningCents = max(0, rentalMoneyToCents($cleaningFee));
+
+    return ($baseCents + ($cleaning === 1 ? $cleaningCents : 0)) / 100;
+}
+
+function rentalFeeAfterCleaningToggle($currentFee, int $currentCleaning, int $newCleaning, $cleaningFee): float {
+    $totalRentalExpenses = rentalBaseExpenses($currentFee, $currentCleaning, $cleaningFee);
+    return rentalTotalPrice($totalRentalExpenses, $newCleaning, $cleaningFee);
 }
 
 function validateRentalSchedulePeriod(

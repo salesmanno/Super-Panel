@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/rental_schedule_editing.php';
+
 class RentalConfirmationEmailException extends RuntimeException {}
 
 function formatRentalConfirmationDate(?string $date): string {
@@ -46,11 +48,13 @@ function buildRentalConfirmationVariables(array $rental): array {
     }
     $dateFrom = formatRentalConfirmationDate($rental['start_date'] ?? null);
     $dateTo = formatRentalConfirmationDate($rental['end_date'] ?? null);
-    $totalAmount = (float) ($rental['rental_fee'] ?? 0);
-    $cleaningAmount = (int) ($rental['cleaning'] ?? 0) === 1
-        ? (float) ($rental['cleaning_fee'] ?? 0)
-        : 0.0;
-    $price = number_format(max(0, $totalAmount - $cleaningAmount), 2, ',', ' ');
+    $cleaning = (int) ($rental['cleaning'] ?? 0) === 1 ? 1 : 0;
+    $cleaningFee = (float) ($rental['cleaning_fee'] ?? 0);
+    $totalRentalExpenses = array_key_exists('total_rental_expenses', $rental)
+        ? max(0, (float) $rental['total_rental_expenses'])
+        : rentalBaseExpenses($rental['rental_fee'] ?? 0, $cleaning, $cleaningFee);
+    $totalAmount = rentalTotalPrice($totalRentalExpenses, $cleaning, $cleaningFee);
+    $price = number_format($totalRentalExpenses, 2, ',', ' ');
     $totalPrice = number_format($totalAmount, 2, ',', ' ');
     $companyName = (string) ($rental['company_name'] ?? '');
     $objectName = (string) ($rental['object_name'] ?? '');
@@ -82,14 +86,15 @@ function buildRentalConfirmationVariables(array $rental): array {
             $rental['end_date'] ?? null
         ),
         'price' => $price,
+        'total_rental_expenses' => $price,
         'total_price' => $totalPrice,
         'rental_fee' => $totalPrice,
         'order_id' => (string) ($rental['id'] ?? ''),
         'payment_method' => (string) ($rental['payment_method'] ?? ''),
         'pickup_time' => formatRentalConfirmationTime($rental['pickup_time'] ?? null),
         'end_time' => formatRentalConfirmationTime($rental['end_time'] ?? null),
-        'cleaning' => (int) ($rental['cleaning'] ?? 0) === 1 ? 'Ja' : 'Nei',
-        'cleaning_fee' => number_format((float) ($rental['cleaning_fee'] ?? 0), 2, ',', ' '),
+        'cleaning' => $cleaning === 1 ? 'Ja' : 'Nei',
+        'cleaning_fee' => number_format($cleaningFee, 2, ',', ' '),
         'logistics' => (string) ($rental['logistics'] ?? ''),
         'notes' => (string) ($rental['notes'] ?? ''),
         'company_name' => $companyName,

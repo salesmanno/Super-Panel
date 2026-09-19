@@ -37,6 +37,18 @@ foreach ($sortOrderSettings as $setting) {
 $assert($sortOrderByField['first_name']['order'] === 7, 'sort_order is accepted');
 $assert(normalizeRequestDate('02.03.2026') === '2026-03-02', 'Norwegian contract date is normalized');
 $assert(
+    rentalBaseExpenses(5500, 1, 750) === 4750.0,
+    'Base rental expenses subtract cleaning already included in the stored total'
+);
+$assert(
+    rentalTotalPrice(4750, 1, 750) === 5500.0,
+    'Total price adds cleaning to base rental expenses when selected'
+);
+$assert(
+    rentalTotalPrice(4750, 0, 750) === 4750.0,
+    'Total price excludes cleaning when it is not selected'
+);
+$assert(
     rentalFeeAfterCleaningToggle(5500, 1, 0, 750) === 4750.0,
     'Turning cleaning off subtracts the venue cleaning fee from the total'
 );
