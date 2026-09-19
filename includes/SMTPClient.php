@@ -22,8 +22,6 @@ class SMTPClient {
             }
             $fromName = str_replace(["\r", "\n"], '', (string) $fromName);
             $subject = str_replace(["\r", "\n"], '', (string) $subject);
-            $fromDomain = strtolower((string) substr(strrchr($from, '@'), 1));
-
             $context = stream_context_create([
                 'ssl' => [
                     'verify_peer' => true,
@@ -52,7 +50,7 @@ class SMTPClient {
             
             $this->getResponse();
             
-            $this->sendCommand("EHLO " . $fromDomain, 250);
+            $this->sendCommand("EHLO " . gethostname(), 250);
             
             if ($this->port == 587) {
                 $this->sendCommand("STARTTLS", 220);
@@ -64,7 +62,7 @@ class SMTPClient {
                 if ($tlsEnabled !== true) {
                     throw new Exception('Kunne ikke opprette en verifisert TLS-forbindelse til SMTP-serveren');
                 }
-                $this->sendCommand("EHLO " . $fromDomain, 250);
+                $this->sendCommand("EHLO " . gethostname(), 250);
             }
             
             $this->sendCommand("AUTH LOGIN", 334);
@@ -75,23 +73,19 @@ class SMTPClient {
             $this->sendCommand("RCPT TO:<$to>", 250);
             $this->sendCommand("DATA", 354);
             
-            $msgId = '<' . bin2hex(random_bytes(16)) . '@' . $fromDomain . '>';
+            $msgId = '<' . uniqid('', true) . '@salesman.no>';
             $headers = "From: =?UTF-8?B?" . base64_encode($fromName) . "?= <$from>\r\n";
             $headers .= "To: $to\r\n";
-            $headers .= "Reply-To: $from\r\n";
             $headers .= "Subject: =?UTF-8?B?" . base64_encode($subject) . "?=\r\n";
             $headers .= "Message-ID: $msgId\r\n";
             $headers .= "MIME-Version: 1.0\r\n";
             $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-            $headers .= "Content-Transfer-Encoding: quoted-printable\r\n";
             $headers .= "Date: " . date('r') . "\r\n";
-            $headers .= "Auto-Submitted: auto-generated\r\n";
             $headers .= "X-Mailer: Salesman.no Mailer\r\n";
             $headers .= "\r\n";
 
-            $encodedBody = quoted_printable_encode($body);
-            $encodedBody = preg_replace('/^\\./m', '..', $encodedBody) ?? $encodedBody;
-            $message = $headers . $encodedBody . "\r\n.";
+            $safeBody = preg_replace('/^\./m', '..', $body) ?? $body;
+            $message = $headers . $safeBody . "\r\n.";
             $acceptanceResponse = $this->sendCommand($message, 250);
             
             $this->sendCommand("QUIT", 221);
