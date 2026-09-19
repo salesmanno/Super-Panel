@@ -1821,8 +1821,16 @@ async function loadRentalRequests() {
                     ${deliveryAddr}
                 </td>
                 <td class="small" style="min-width:9rem">
-                    <div class="fw-semibold text-nowrap rental-request-total">
-                        ${rentalFee.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK
+                    <div class="fw-semibold text-nowrap rental-request-base-fee">
+                        ${baseRentalFee.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK
+                    </div>
+                    <div class="small text-muted rental-request-cleaning-fee">
+                        ${cleaningSelected && cleaningFee > 0
+                            ? `+ ${cleaningFee.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK renhold`
+                            : 'Ingen renhold'}
+                    </div>
+                    <div class="small fw-semibold text-nowrap mt-1 rental-request-total">
+                        Totalt: ${rentalFee.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK
                     </div>
                     <div class="form-check form-switch mt-1">
                         <input class="form-check-input rental-request-cleaning" type="checkbox"
@@ -1902,8 +1910,14 @@ function updateRentalRequestInlineTotal(checkbox) {
     const cleaningFee = Number(row.dataset.cleaningFee || 0);
     const total = base + (checkbox.checked ? cleaningFee : 0);
     const totalEl = row.querySelector('.rental-request-total');
+    const cleaningEl = row.querySelector('.rental-request-cleaning-fee');
     if (totalEl) {
-        totalEl.textContent = `${total.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK`;
+        totalEl.textContent = `Totalt: ${total.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK`;
+    }
+    if (cleaningEl) {
+        cleaningEl.textContent = checkbox.checked && cleaningFee > 0
+            ? `+ ${cleaningFee.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK renhold`
+            : 'Ingen renhold';
     }
 }
 
@@ -2175,6 +2189,17 @@ function showRentalCalDetail(id) {
 
     const logistics = r.logistics === 'delivery'
         ? `Levering${r.delivery_address ? ' — ' + escHtml(r.delivery_address) : ''}` : 'Hentes';
+    const rentalTotal = parseFloat(r.rental_fee || 0);
+    const cleaningFee = parseFloat(r.cleaning_fee || 0);
+    const cleaningSelected = Number(r.cleaning || 0) === 1;
+    const baseRentalFee = Math.max(0, rentalTotal - (cleaningSelected ? cleaningFee : 0));
+    const moneyNoDecimals = value => value.toLocaleString('nb-NO', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+    });
+    const cleaningBreakdown = cleaningSelected && cleaningFee > 0
+        ? `<div class="text-muted">+ ${moneyNoDecimals(cleaningFee)} NOK renhold</div>`
+        : '<div class="text-muted">Ingen renhold</div>';
 
     document.getElementById('detailsModalTitle').textContent = r.object_name || 'Utleie';
     document.getElementById('detailsModalBody').innerHTML = `
@@ -2192,7 +2217,11 @@ function showRentalCalDetail(id) {
             <dt class="col-sm-4">Varighet</dt>
             <dd class="col-sm-8">${duration}</dd>
             <dt class="col-sm-4">Leiebeløp</dt>
-            <dd class="col-sm-8">${parseFloat(r.rental_fee || 0).toLocaleString('nb-NO', {minimumFractionDigits:0,maximumFractionDigits:0})} NOK</dd>
+            <dd class="col-sm-8">
+                <div>${moneyNoDecimals(baseRentalFee)} NOK</div>
+                ${cleaningBreakdown}
+                <div class="fw-semibold mt-1">Totalt: ${moneyNoDecimals(rentalTotal)} NOK</div>
+            </dd>
             <dt class="col-sm-4">Logistikk</dt>
             <dd class="col-sm-8">${logistics}</dd>
             ${r.notes ? `<dt class="col-sm-4">Notater</dt><dd class="col-sm-8">${escHtml(r.notes)}</dd>` : ''}

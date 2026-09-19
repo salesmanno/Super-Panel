@@ -48,6 +48,14 @@ $assert(
     rentalFeeAfterCleaningToggle(5500, 1, 1, 750) === 5500.0,
     'Keeping cleaning enabled does not add the fee twice'
 );
+$rentalContent = file_get_contents(__DIR__ . '/../modules/rental_content.php');
+$assert(
+    str_contains($rentalContent, 'rentalFee - (cleaningSelected ? cleaningFee : 0)')
+    && str_contains($rentalContent, 'rental-request-cleaning-fee')
+    && str_contains($rentalContent, 'Ingen renhold')
+    && str_contains($rentalContent, 'Totalt:'),
+    'Rental request UI separates base rent, cleaning addition, and total'
+);
 validateRentalSchedulePeriod('2026-09-25', '15:00:00', '2026-09-27', '11:00:00');
 $invalidRentalPeriodRejected = false;
 try {
