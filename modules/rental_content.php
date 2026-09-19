@@ -1966,11 +1966,14 @@ async function declineScheduleRequest(id) {
         const resp = await fetch('/api/update_rental_schedule.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, ...inlineData, approved: 2, status: 'rejected' })
+            body: JSON.stringify({ id, ...inlineData, approved: 1, status: 'rejected' })
         });
         const data = await resp.json();
         if (data.success) {
-            toast.success(toastId, 'Avslått', 'Forespørselen er avslått');
+            const msg = data.email_queued
+                ? 'Forespørselen er avslått — beskjed lagt i e-postkø'
+                : 'Forespørselen er avslått';
+            toast.success(toastId, 'Avslått', msg);
             loadRentalRequests();
         } else {
             toast.error(toastId, 'Feil', data.message || 'Kunne ikke avslå forespørsel');

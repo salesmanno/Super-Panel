@@ -4,7 +4,7 @@
 
      Placeholders:
      {{logo_url}}, {{first_name}}, {{last_name}}, {{tenant_name}},
-     {{status}},  ← "Innvilget" eller "Avslått"
+     {{status}},  ← "Godkjent" eller "Avslått"
      {{rental_object}}, {{rental_start}}, {{rental_end}}, {{rental_days}},
      {{start_date}}, {{end_date}}, {{pickup_time}}, {{end_time}},
      {{account_number}},
@@ -25,7 +25,7 @@
        Beløpet kommer fra rental_venues.cleaning_fee (formatert i backend).
 
      Backend må sende inn:
-       - status         (string)    "Innvilget" eller "Avslått"
+       - status         (string)    "Godkjent" eller "Avslått"
        - cleaning       (int 0/1)   fra rental_schedule.cleaning
        - cleaning_fee   (string)    fra rental_venues.cleaning_fee, ferdig formatert
 -->

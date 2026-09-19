@@ -106,25 +106,18 @@ try {
         }
     }
 
-    $approvalRequested = (array_key_exists('approved', $data) && (string) $data['approved'] === '1')
-        || (($data['status'] ?? null) === 'approved');
-    if ($approvalRequested && (int) $row['approved'] === 1) {
-        $db->rollBack();
-        http_response_code(409);
-        echo json_encode([
-            'success' => false,
-            'already_approved' => true,
-            'message' => 'Forespørselen er allerede godkjent.'
-        ]);
-        exit;
-    }
     if ((int) ($row['approved'] ?? 0) !== 0 || (string) ($row['status'] ?? 'pending') !== 'pending') {
         $db->rollBack();
         http_response_code(409);
+        $alreadyApproved = (string) ($row['status'] ?? '') === 'approved'
+            && ($data['status'] ?? null) === 'approved';
         echo json_encode([
             'success' => false,
+            'already_approved' => $alreadyApproved,
             'stale_request' => true,
-            'message' => 'Forespørselen er allerede behandlet. Last inn listen på nytt.'
+            'message' => $alreadyApproved
+                ? 'Forespørselen er allerede godkjent.'
+                : 'Forespørselen er allerede behandlet. Last inn listen på nytt.'
         ]);
         exit;
     }
@@ -154,7 +147,7 @@ try {
 
     $updateFields = [];
     $updateParams = [];
-    $approvingNow = false;
+    $finalizingNow = false;
 
     $newApproved = null;
     $newStatus = (string) ($row['status'] ?? 'pending');
@@ -166,21 +159,22 @@ try {
 
     if (array_key_exists('approved', $data)) {
         $approvedValue = $data['approved'];
-        $validApproved = (is_int($approvedValue) && in_array($approvedValue, [0, 1, 2], true))
-            || (is_string($approvedValue) && in_array($approvedValue, ['0', '1', '2'], true));
+        $validApproved = (is_int($approvedValue) && in_array($approvedValue, [0, 1], true))
+            || (is_string($approvedValue) && in_array($approvedValue, ['0', '1'], true));
         if (!$validApproved) {
             throw new InvalidArgumentException('Ugyldig godkjenningsstatus');
         }
         $newApproved = (int) $approvedValue;
-        $newStatus = [0 => 'pending', 1 => 'approved', 2 => 'rejected'][$newApproved];
-        if (array_key_exists('status', $data) && $data['status'] !== $newStatus) {
+        $newStatus = $data['status'] ?? ($newApproved === 1 ? 'approved' : 'pending');
+        $validStatusForApproved = $newApproved === 1
+            ? in_array($newStatus, ['approved', 'rejected'], true)
+            : $newStatus === 'pending';
+        if (!$validStatusForApproved) {
             throw new InvalidArgumentException('Godkjenningsstatus og forespørselsstatus må samsvare');
         }
         $updateFields[] = 'approved = ?';
         $updateParams[] = $newApproved;
-        if ($newApproved === 1 && (int)$row['approved'] !== 1) {
-            $approvingNow = true;
-        }
+        $finalizingNow = $newApproved === 1;
         // Approval and status are intentionally written in the same UPDATE.
         $updateFields[] = 'status = ?';
         $updateParams[] = $newStatus;
@@ -189,13 +183,15 @@ try {
         $updateFields[] = 'status = ?';
         $updateParams[] = $newStatus;
         if ($newStatus === 'approved' || $newStatus === 'rejected' || $newStatus === 'pending') {
-            $newApproved = ['pending' => 0, 'approved' => 1, 'rejected' => 2][$newStatus];
+            $newApproved = $newStatus === 'pending' ? 0 : 1;
             $updateFields[] = 'approved = ?';
             $updateParams[] = $newApproved;
-            if ($newApproved === 1 && (int) $row['approved'] !== 1) {
-                $approvingNow = true;
-            }
+            $finalizingNow = $newApproved === 1;
         }
+    }
+    $row['status'] = $newStatus;
+    if ($newApproved !== null) {
+        $row['approved'] = $newApproved;
     }
 
     $effectiveStartDate = $data['start_date'] ?? $row['start_date'];
@@ -281,9 +277,9 @@ try {
         throw new RuntimeException('Forespørselen ble endret av en annen bruker. Last inn listen på nytt.');
     }
 
-    // Auto-email on approval
+    // Auto-email on either final rental decision.
     $emailQueued = false;
-    if ($approvingNow) {
+    if ($finalizingNow) {
         $cfgStmt = $db->prepare("
             SELECT email, display_name, automail_rental_confirm
             FROM email_configs
@@ -296,12 +292,12 @@ try {
         if ($cfg && (int) $cfg['automail_rental_confirm'] === 1) {
             if (!filter_var($row['customer_email'], FILTER_VALIDATE_EMAIL)) {
                 throw new RentalConfirmationEmailException(
-                    'Forespørselen kan ikke godkjennes fordi kunden mangler en gyldig e-postadresse.'
+                    'Forespørselen kan ikke behandles fordi kunden mangler en gyldig e-postadresse.'
                 );
             }
             if (!filter_var($cfg['email'] ?? null, FILTER_VALIDATE_EMAIL)) {
                 throw new RentalConfirmationEmailException(
-                    'Forespørselen kan ikke godkjennes fordi avsenderadressen for e-post ikke er gyldig.'
+                    'Forespørselen kan ikke behandles fordi avsenderadressen for e-post ikke er gyldig.'
                 );
             }
 
@@ -315,13 +311,17 @@ try {
             $tpl = $tplStmt->fetch(PDO::FETCH_ASSOC);
             if (!$tpl) {
                 throw new RentalConfirmationEmailException(
-                    'Forespørselen kan ikke godkjennes fordi e-postmalen for utleiebekreftelse mangler.'
+                    'Forespørselen kan ikke behandles fordi e-postmalen for utleiebeslutning mangler.'
                 );
             }
 
+            $decisionTemplates = resolveRentalDecisionTemplates(
+                $tpl['subject_template'],
+                $tpl['body_template']
+            );
             $vars = buildRentalConfirmationVariables($row);
-            $subject = renderRentalConfirmationTemplate($tpl['subject_template'], $vars);
-            $body = renderRentalConfirmationTemplate($tpl['body_template'], $vars);
+            $subject = renderRentalConfirmationTemplate($decisionTemplates['subject'], $vars);
+            $body = renderRentalConfirmationTemplate($decisionTemplates['body'], $vars);
 
             $scheduledAtSql = $isConcurrencyTestRequest
                 ? 'DATE_ADD(NOW(), INTERVAL 1 DAY)'

@@ -319,8 +319,8 @@ try {
             (id, company_id, template_key, name, subject_template, body_template, is_active)
          VALUES
             (?, ?, 'rental_confirmation', 'Concurrency Test',
-             'CONF {{date_from}} {{pickup_time}} {{total_price}}',
-             'BODY {{date_to}} {{end_time}} {{cleaning}} {{cleaning_fee}}', 1)"
+             'CONF {{status}} {{date_from}} {{pickup_time}} {{total_price}}',
+              'BODY {{date_to}} {{end_time}} {{status}} {{cleaning}} {{cleaning_label}} {{cleaning_fee}} {{#if (neq status \"Avslått\")}}PAYMENT{{/if}}', 1)"
     )->execute([concurrencyTestUuid(), $companyId]);
 
     concurrencyTestCreateSession($sessionPath, $sessionA, $companyId);
@@ -385,8 +385,8 @@ try {
     $queue = concurrencyTestQueueRows($db, $companyId, $scheduleId);
     concurrencyTestAssert(count($queue) === 1, 'Duplicate approval must queue exactly one confirmation');
     concurrencyTestAssert(
-        str_contains($queue[0]['subject'], '10.03.2035 15:30 1 750,00')
-        && str_contains($queue[0]['body'], '12.03.2035 11:15 Ja 750,00'),
+        str_contains($queue[0]['subject'], 'Godkjent 10.03.2035 15:30 1 750,00')
+        && str_contains($queue[0]['body'], '12.03.2035 11:15 Godkjent Ja Ja 750,00 PAYMENT'),
         'Queued confirmation must render the winning edited values'
     );
     concurrencyTestAssert(
@@ -410,7 +410,7 @@ try {
     ];
     $rejectMixed = [
         'id' => $mixedId,
-        'approved' => 2,
+        'approved' => 1,
         'status' => 'rejected',
         'start_date' => '2035-05-10',
         'pickup_time' => '16:00',
@@ -443,7 +443,7 @@ try {
         'Locked rejection must win and stale approval must report a conflict'
     );
     concurrencyTestAssert(
-        (int) $storedMixed['approved'] === 2
+        (int) $storedMixed['approved'] === 1
         && $storedMixed['status'] === 'rejected'
         && $storedMixed['start_date'] === '2035-05-10'
         && substr($storedMixed['pickup_time'], 0, 5) === '16:00'
@@ -454,8 +454,15 @@ try {
         'Winning rejection must atomically persist its complete tuple'
     );
     concurrencyTestAssert(
-        count(concurrencyTestQueueRows($db, $companyId, $mixedId)) === 0,
-        'Winning rejection must not queue a confirmation'
+        count(concurrencyTestQueueRows($db, $companyId, $mixedId)) === 1,
+        'Winning rejection must queue exactly one decision email'
+    );
+    $rejectionQueue = concurrencyTestQueueRows($db, $companyId, $mixedId);
+    concurrencyTestAssert(
+        str_contains($rejectionQueue[0]['subject'], 'Avslått 10.05.2035 16:00 1 000,00')
+        && str_contains($rejectionQueue[0]['body'], '11.05.2035 12:00 Avslått Nei Nei 750,00')
+        && !str_contains($rejectionQueue[0]['body'], 'PAYMENT'),
+        'Rejected email must render the rejected branch without payment content'
     );
     $testPassed = true;
 } finally {

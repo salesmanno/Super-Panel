@@ -82,7 +82,7 @@ try {
         "SELECT rs.id
          FROM rental_schedule rs
          WHERE rs.company_id = ? AND rs.rental_object_id = ?
-           AND (rs.approved = 1 OR rs.status IN ('approved', 'active'))
+           AND rs.status IN ('approved', 'active')
            AND CONCAT(rs.start_date, ' ', rs.start_time) < ?
            AND CONCAT(rs.end_date, ' ', rs.end_time) > ?
          LIMIT 1

@@ -24,10 +24,12 @@ try {
 
     if ($approvedFilter !== null && in_array($approvedFilter, ['0', '1', '2'], true)) {
         if ($approvedFilter === '0') {
-            $where[] = '(rs.approved = 0 OR rs.approved IS NULL)';
+            $where[] = '(rs.approved = 0 OR rs.approved IS NULL) AND rs.status = \'pending\'';
+        } elseif ($approvedFilter === '1') {
+            $where[] = 'rs.approved = 1 AND rs.status = \'approved\'';
         } else {
-            $where[]  = 'rs.approved = ?';
-            $params[] = (int) $approvedFilter;
+            // Compatibility for historical rows that stored rejected as approved = 2.
+            $where[] = 'rs.status = \'rejected\'';
         }
     }
 

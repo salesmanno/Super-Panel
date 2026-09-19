@@ -4,6 +4,33 @@ require_once __DIR__ . '/rental_schedule_editing.php';
 
 class RentalConfirmationEmailException extends RuntimeException {}
 
+function rentalDecisionDefaultTemplates(): array {
+    $bodyPath = __DIR__
+        . '/../attached_assets/Pasted--E-postmal-for-bekreftelse-av-utleieperiode-Brukes-for-_1789844944612.txt';
+    $body = file_get_contents($bodyPath);
+    if ($body === false) {
+        throw new RentalConfirmationEmailException(
+            'Standardmalen for utleiebeslutning kunne ikke lastes.'
+        );
+    }
+    return [
+        'subject' => '{{status}}: {{rental_object}} – {{start_date}} til {{end_date}}',
+        'body' => $body,
+    ];
+}
+
+function resolveRentalDecisionTemplates(string $subject, string $body): array {
+    $defaults = rentalDecisionDefaultTemplates();
+    $supportsBothOutcomes = str_contains($body, '{{status}}')
+        && str_contains($body, '{{#if')
+        && str_contains($body, '"Avslått"');
+
+    return [
+        'subject' => str_contains($subject, '{{status}}') ? $subject : $defaults['subject'],
+        'body' => $supportsBothOutcomes ? $body : $defaults['body'],
+    ];
+}
+
 function formatRentalConfirmationDate(?string $date): string {
     if (!$date) {
         return '';
@@ -58,6 +85,7 @@ function buildRentalConfirmationVariables(array $rental): array {
     $totalPrice = number_format($totalAmount, 2, ',', ' ');
     $companyName = (string) ($rental['company_name'] ?? '');
     $objectName = (string) ($rental['object_name'] ?? '');
+    $status = (string) ($rental['status'] ?? '') === 'rejected' ? 'Avslått' : 'Godkjent';
     $companyAddress = trim(implode(', ', array_filter([
         trim((string) ($rental['address_street'] ?? '')),
         trim(
@@ -89,11 +117,13 @@ function buildRentalConfirmationVariables(array $rental): array {
         'total_rental_expenses' => $price,
         'total_price' => $totalPrice,
         'rental_fee' => $totalPrice,
+        'status' => $status,
         'order_id' => (string) ($rental['id'] ?? ''),
         'payment_method' => (string) ($rental['payment_method'] ?? ''),
         'pickup_time' => formatRentalConfirmationTime($rental['pickup_time'] ?? null),
         'end_time' => formatRentalConfirmationTime($rental['end_time'] ?? null),
-        'cleaning' => $cleaning === 1 ? 'Ja' : 'Nei',
+        'cleaning' => $cleaning,
+        'cleaning_label' => $cleaning === 1 ? 'Ja' : 'Nei',
         'cleaning_fee' => number_format($cleaningFee, 2, ',', ' '),
         'logistics' => (string) ($rental['logistics'] ?? ''),
         'notes' => (string) ($rental['notes'] ?? ''),
@@ -109,9 +139,114 @@ function buildRentalConfirmationVariables(array $rental): array {
     ];
 }
 
+function rentalTemplateCondition(string $expression, array $variables): bool {
+    $expression = trim($expression);
+    if (preg_match('/^\((eq|neq)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+"([^"]*)"\)$/', $expression, $matches)) {
+        $actual = (string) ($variables[$matches[2]] ?? '');
+        $equal = $actual === $matches[3];
+        return $matches[1] === 'eq' ? $equal : !$equal;
+    }
+    if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $expression)) {
+        return !empty($variables[$expression]);
+    }
+    throw new RentalConfirmationEmailException('E-postmalen inneholder en ugyldig betingelse.');
+}
+
+function validateRentalConditionalBlocks(string $template, array $variables): void {
+    preg_match_all(
+        '/\{\{#if\s+(.+?)\}\}|\{\{else\}\}|\{\{\/if\}\}/',
+        $template,
+        $tokens,
+        PREG_SET_ORDER
+    );
+    $stack = [];
+    foreach ($tokens as $token) {
+        if (str_starts_with($token[0], '{{#if')) {
+            rentalTemplateCondition($token[1], $variables);
+            $stack[] = false;
+        } elseif ($token[0] === '{{else}}') {
+            if ($stack === [] || $stack[array_key_last($stack)] === true) {
+                throw new RentalConfirmationEmailException('E-postmalen inneholder en ugyldig else-blokk.');
+            }
+            $stack[array_key_last($stack)] = true;
+        } else {
+            if ($stack === []) {
+                throw new RentalConfirmationEmailException('E-postmalen inneholder en ugyldig avslutning.');
+            }
+            array_pop($stack);
+        }
+    }
+    if ($stack !== [] || preg_match('/\{\{#if|\{\{else\}\}|\{\{\/if\}\}/', preg_replace(
+        '/\{\{#if\s+(.+?)\}\}|\{\{else\}\}|\{\{\/if\}\}/',
+        '',
+        $template
+    ) ?? $template)) {
+        throw new RentalConfirmationEmailException('E-postmalen inneholder ugyldige betingede blokker.');
+    }
+}
+
+function renderRentalConditionalBlocks(string $template, array $variables): string {
+    $openingPattern = '/\{\{#if\s+(.+?)\}\}/';
+    while (preg_match($openingPattern, $template, $opening, PREG_OFFSET_CAPTURE)) {
+        $blockStart = $opening[0][1];
+        $contentStart = $blockStart + strlen($opening[0][0]);
+        $scanOffset = $contentStart;
+        $depth = 1;
+        $elseStart = null;
+        $elseEnd = null;
+        $blockEndStart = null;
+        $blockEnd = null;
+
+        while (preg_match('/\{\{#if\s+.+?\}\}|\{\{else\}\}|\{\{\/if\}\}/', $template, $token, PREG_OFFSET_CAPTURE, $scanOffset)) {
+            $tokenText = $token[0][0];
+            $tokenStart = $token[0][1];
+            $tokenEnd = $tokenStart + strlen($tokenText);
+            if (str_starts_with($tokenText, '{{#if')) {
+                $depth++;
+            } elseif ($tokenText === '{{/if}}') {
+                $depth--;
+                if ($depth === 0) {
+                    $blockEndStart = $tokenStart;
+                    $blockEnd = $tokenEnd;
+                    break;
+                }
+            } elseif ($tokenText === '{{else}}' && $depth === 1 && $elseStart === null) {
+                $elseStart = $tokenStart;
+                $elseEnd = $tokenEnd;
+            }
+            $scanOffset = $tokenEnd;
+        }
+
+        if ($blockEndStart === null || $blockEnd === null) {
+            throw new RentalConfirmationEmailException('E-postmalen inneholder en uavsluttet betinget blokk.');
+        }
+
+        $trueEnd = $elseStart ?? $blockEndStart;
+        $trueBranch = substr($template, $contentStart, $trueEnd - $contentStart);
+        $falseBranch = $elseEnd === null
+            ? ''
+            : substr($template, $elseEnd, $blockEndStart - $elseEnd);
+        $selected = rentalTemplateCondition($opening[1][0], $variables)
+            ? $trueBranch
+            : $falseBranch;
+        $selected = renderRentalConditionalBlocks($selected, $variables);
+        $template = substr_replace($template, $selected, $blockStart, $blockEnd - $blockStart);
+    }
+
+    if (str_contains($template, '{{else}}') || str_contains($template, '{{/if}}')) {
+        throw new RentalConfirmationEmailException('E-postmalen inneholder ugyldige betingede blokker.');
+    }
+    return $template;
+}
+
 function renderRentalConfirmationTemplate(string $template, array $variables): string {
+    validateRentalConditionalBlocks($template, $variables);
+    $template = renderRentalConditionalBlocks($template, $variables);
     foreach ($variables as $key => $value) {
-        $template = str_replace('{{' . $key . '}}', (string) $value, $template);
+        $displayValue = $key === 'cleaning'
+            ? (string) ($variables['cleaning_label'] ?? ((int) $value === 1 ? 'Ja' : 'Nei'))
+            : (string) $value;
+        $template = str_replace('{{' . $key . '}}', $displayValue, $template);
     }
 
     return preg_replace('/\{\{[^}]+\}\}/', '', $template) ?? $template;
