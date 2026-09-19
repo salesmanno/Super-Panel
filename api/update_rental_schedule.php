@@ -26,6 +26,23 @@ try {
     $db = getDBConnection();
     $db->beginTransaction();
 
+    $concurrencyTestToken = getenv('RENTAL_CONCURRENCY_TEST_TOKEN') ?: '';
+    $isConcurrencyTestRequest = getenv('RUN_RENTAL_CONCURRENCY_TEST') === '1'
+        && $concurrencyTestToken !== ''
+        && hash_equals(
+            $concurrencyTestToken,
+            (string) ($_SERVER['HTTP_X_RENTAL_CONCURRENCY_TOKEN'] ?? '')
+        );
+    $concurrencyTestRole = $isConcurrencyTestRequest
+        ? (string) ($_SERVER['HTTP_X_RENTAL_CONCURRENCY_ROLE'] ?? '')
+        : '';
+    if ($concurrencyTestRole === 'contender') {
+        $contenderPath = getenv('RENTAL_CONCURRENCY_CONTENDER_PATH') ?: '';
+        if ($contenderPath !== '') {
+            file_put_contents($contenderPath, (string) getmypid(), LOCK_EX);
+        }
+    }
+
     $stmt = $db->prepare("
         SELECT rs.id, rs.company_id, rs.approved, rs.status,
                rs.start_date, rs.end_date, rs.rental_fee, rs.customer_id,
@@ -55,6 +72,23 @@ try {
         http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Forespørsel ikke funnet']);
         exit;
+    }
+
+    if ($concurrencyTestRole === 'holder') {
+        $holderPath = getenv('RENTAL_CONCURRENCY_HOLDER_PATH') ?: '';
+        $contenderPath = getenv('RENTAL_CONCURRENCY_CONTENDER_PATH') ?: '';
+        if ($holderPath !== '' && $contenderPath !== '') {
+            file_put_contents($holderPath, (string) getmypid(), LOCK_EX);
+            $contenderDeadline = microtime(true) + 5;
+            while (!is_file($contenderPath) && microtime(true) < $contenderDeadline) {
+                usleep(10000);
+            }
+            if (!is_file($contenderPath)) {
+                throw new RuntimeException(
+                    'Samtidighetstesten mottok ikke en andre worker før tidsfristen.'
+                );
+            }
+        }
     }
 
     $approvalRequested = (array_key_exists('approved', $data) && (string) $data['approved'] === '1')
@@ -274,13 +308,17 @@ try {
             $subject = renderRentalConfirmationTemplate($tpl['subject_template'], $vars);
             $body = renderRentalConfirmationTemplate($tpl['body_template'], $vars);
 
+            $scheduledAtSql = $isConcurrencyTestRequest
+                ? 'DATE_ADD(NOW(), INTERVAL 1 DAY)'
+                : 'NOW()';
             $db->prepare("
                 INSERT INTO email_queue
                     (id, company_id, recipient_email, from_email, subject, body,
                      template_id, module_source, source_id, status, priority,
                      scheduled_at, created_at, updated_at)
                 VALUES
-                    (UUID(), ?, ?, ?, ?, ?, ?, 'rental', ?, 'queued', 5, NOW(), NOW(), NOW())
+                    (UUID(), ?, ?, ?, ?, ?, ?, 'rental', ?, 'queued', 5,
+                     {$scheduledAtSql}, NOW(), NOW())
             ")->execute([
                 $companyId,
                 $row['customer_email'],
