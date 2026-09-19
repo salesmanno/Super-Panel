@@ -54,13 +54,28 @@ try {
                tc.email AS profile_customer_email,
                tc.first_name AS profile_first_name,
                tc.last_name AS profile_last_name,
-               company.name AS company_name
+               company.name AS company_name,
+               COALESCE(NULLIF(company.logo_url, ''), NULLIF(twg.logo_url, ''), '') AS logo_url,
+               COALESCE(NULLIF(twg.header_bg_color, ''), '#ffffff') AS header_bg_color,
+               company.contact_phone, company.address_street, company.address_zip,
+               company.address_city, company.org_number,
+               (
+                   SELECT eba.account_number
+                   FROM economy_bank_accounts eba
+                   WHERE eba.company_id = rs.company_id
+                     AND eba.is_active = 1
+                     AND eba.account_number IS NOT NULL
+                     AND eba.account_number <> ''
+                   ORDER BY eba.bank_name ASC, eba.account_number ASC
+                   LIMIT 1
+               ) AS account_number
         FROM rental_schedule rs
         LEFT JOIN rental_objects ro
           ON ro.id = rs.rental_object_id AND ro.company_id = rs.company_id
         LEFT JOIN rental_venues rv ON rv.object_id = ro.id
         LEFT JOIN tenant_customers tc ON tc.id = rs.customer_id AND tc.company_id = rs.company_id
         LEFT JOIN tenant_companies company ON company.id = rs.company_id
+        LEFT JOIN tenant_website_general twg ON twg.company_id = rs.company_id
         WHERE rs.id = ? AND rs.company_id = ?
         FOR UPDATE
     ");

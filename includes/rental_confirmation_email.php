@@ -19,6 +19,20 @@ function formatRentalConfirmationTime(?string $time): string {
     return substr($time, 0, 5);
 }
 
+function rentalConfirmationDays(?string $startDate, ?string $endDate): string {
+    if (!$startDate || !$endDate) {
+        return '';
+    }
+
+    $start = DateTimeImmutable::createFromFormat('!Y-m-d', substr($startDate, 0, 10));
+    $end = DateTimeImmutable::createFromFormat('!Y-m-d', substr($endDate, 0, 10));
+    if (!$start || !$end || $end < $start) {
+        return '';
+    }
+
+    return (string) ($start->diff($end)->days + 1);
+}
+
 function buildRentalConfirmationVariables(array $rental): array {
     $customerName = trim((string) ($rental['customer_name'] ?? ''));
     if ($customerName !== '') {
@@ -32,19 +46,45 @@ function buildRentalConfirmationVariables(array $rental): array {
     }
     $dateFrom = formatRentalConfirmationDate($rental['start_date'] ?? null);
     $dateTo = formatRentalConfirmationDate($rental['end_date'] ?? null);
-    $totalPrice = number_format((float) ($rental['rental_fee'] ?? 0), 2, ',', ' ');
+    $totalAmount = (float) ($rental['rental_fee'] ?? 0);
+    $cleaningAmount = (int) ($rental['cleaning'] ?? 0) === 1
+        ? (float) ($rental['cleaning_fee'] ?? 0)
+        : 0.0;
+    $price = number_format(max(0, $totalAmount - $cleaningAmount), 2, ',', ' ');
+    $totalPrice = number_format($totalAmount, 2, ',', ' ');
+    $companyName = (string) ($rental['company_name'] ?? '');
+    $objectName = (string) ($rental['object_name'] ?? '');
+    $companyAddress = trim(implode(', ', array_filter([
+        trim((string) ($rental['address_street'] ?? '')),
+        trim(
+            (string) ($rental['address_zip'] ?? '')
+            . ' '
+            . (string) ($rental['address_city'] ?? '')
+        ),
+    ], static fn(string $part): bool => $part !== '')));
 
     return [
         'customer_name' => $customerName,
         'cus_first_name' => $firstName,
         'cus_last_name' => $lastName,
-        'object_name' => (string) ($rental['object_name'] ?? ''),
+        'first_name' => $firstName,
+        'last_name' => $lastName,
+        'object_name' => $objectName,
+        'rental_object' => $objectName,
         'date_from' => $dateFrom,
         'date_to' => $dateTo,
+        'start_date' => $dateFrom,
+        'end_date' => $dateTo,
         'rental_start' => $dateFrom,
         'rental_end' => $dateTo,
+        'rental_days' => rentalConfirmationDays(
+            $rental['start_date'] ?? null,
+            $rental['end_date'] ?? null
+        ),
+        'price' => $price,
         'total_price' => $totalPrice,
         'rental_fee' => $totalPrice,
+        'order_id' => (string) ($rental['id'] ?? ''),
         'payment_method' => (string) ($rental['payment_method'] ?? ''),
         'pickup_time' => formatRentalConfirmationTime($rental['pickup_time'] ?? null),
         'end_time' => formatRentalConfirmationTime($rental['end_time'] ?? null),
@@ -52,7 +92,15 @@ function buildRentalConfirmationVariables(array $rental): array {
         'cleaning_fee' => number_format((float) ($rental['cleaning_fee'] ?? 0), 2, ',', ' '),
         'logistics' => (string) ($rental['logistics'] ?? ''),
         'notes' => (string) ($rental['notes'] ?? ''),
-        'company_name' => (string) ($rental['company_name'] ?? ''),
+        'company_name' => $companyName,
+        'tenant_name' => $companyName,
+        'logo_url' => (string) ($rental['logo_url'] ?? ''),
+        'header_bg_color' => (string) ($rental['header_bg_color'] ?? '#ffffff'),
+        'company_phone' => (string) ($rental['contact_phone'] ?? ''),
+        'contact_phone' => (string) ($rental['contact_phone'] ?? ''),
+        'company_address' => $companyAddress,
+        'org_number' => (string) ($rental['org_number'] ?? ''),
+        'account_number' => (string) ($rental['account_number'] ?? ''),
     ];
 }
 
