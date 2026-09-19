@@ -39,6 +39,7 @@ try {
             ro.object_name,
             ro.category      AS object_category,
             ro.rental_price  AS object_daily_price,
+            COALESCE(rv.cleaning_fee, 0) AS cleaning_fee,
             COALESCE(
                 NULLIF(TRIM(CONCAT(COALESCE(tc.first_name,''), ' ', COALESCE(tc.last_name,''))), ''),
                 'Ukjent kunde'
@@ -50,6 +51,7 @@ try {
         FROM rental_schedule rs
         LEFT JOIN rental_objects ro
           ON ro.id = rs.rental_object_id AND ro.company_id = rs.company_id
+        LEFT JOIN rental_venues rv ON rv.object_id = ro.id
         LEFT JOIN tenant_customers tc
           ON tc.id = rs.customer_id AND tc.company_id = rs.company_id
         WHERE $whereClause

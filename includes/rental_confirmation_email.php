@@ -11,6 +11,14 @@ function formatRentalConfirmationDate(?string $date): string {
     return $parsed ? $parsed->format('d.m.Y') : $date;
 }
 
+function formatRentalConfirmationTime(?string $time): string {
+    if (!$time) {
+        return '';
+    }
+
+    return substr($time, 0, 5);
+}
+
 function buildRentalConfirmationVariables(array $rental): array {
     $customerName = trim((string) ($rental['customer_name'] ?? ''));
     if ($customerName !== '') {
@@ -38,8 +46,10 @@ function buildRentalConfirmationVariables(array $rental): array {
         'total_price' => $totalPrice,
         'rental_fee' => $totalPrice,
         'payment_method' => (string) ($rental['payment_method'] ?? ''),
-        'pickup_time' => (string) ($rental['pickup_time'] ?? ''),
-        'end_time' => (string) ($rental['end_time'] ?? ''),
+        'pickup_time' => formatRentalConfirmationTime($rental['pickup_time'] ?? null),
+        'end_time' => formatRentalConfirmationTime($rental['end_time'] ?? null),
+        'cleaning' => (int) ($rental['cleaning'] ?? 0) === 1 ? 'Ja' : 'Nei',
+        'cleaning_fee' => number_format((float) ($rental['cleaning_fee'] ?? 0), 2, ',', ' '),
         'logistics' => (string) ($rental['logistics'] ?? ''),
         'notes' => (string) ($rental['notes'] ?? ''),
         'company_name' => (string) ($rental['company_name'] ?? ''),

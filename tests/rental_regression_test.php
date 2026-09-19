@@ -5,6 +5,8 @@ require_once __DIR__ . '/../includes/rental_customer_fields.php';
 require_once __DIR__ . '/../includes/rental_payment.php';
 require_once __DIR__ . '/../includes/rental_request.php';
 require_once __DIR__ . '/../includes/rental_results.php';
+require_once __DIR__ . '/../includes/rental_schedule_editing.php';
+require_once __DIR__ . '/../includes/rental_schemas.php';
 
 $failures = [];
 $assert = static function ($condition, string $message) use (&$failures): void {
@@ -34,6 +36,31 @@ foreach ($sortOrderSettings as $setting) {
 }
 $assert($sortOrderByField['first_name']['order'] === 7, 'sort_order is accepted');
 $assert(normalizeRequestDate('02.03.2026') === '2026-03-02', 'Norwegian contract date is normalized');
+$assert(
+    rentalFeeAfterCleaningToggle(5500, 1, 0, 750) === 4750.0,
+    'Turning cleaning off subtracts the venue cleaning fee from the total'
+);
+$assert(
+    rentalFeeAfterCleaningToggle(4750, 0, 1, 750) === 5500.0,
+    'Turning cleaning on adds the venue cleaning fee to the total'
+);
+$assert(
+    rentalFeeAfterCleaningToggle(5500, 1, 1, 750) === 5500.0,
+    'Keeping cleaning enabled does not add the fee twice'
+);
+validateRentalSchedulePeriod('2026-09-25', '15:00:00', '2026-09-27', '11:00:00');
+$invalidRentalPeriodRejected = false;
+try {
+    validateRentalSchedulePeriod('2026-09-27', '15:00:00', '2026-09-27', '11:00:00');
+} catch (InvalidArgumentException $e) {
+    $invalidRentalPeriodRejected = true;
+}
+$assert($invalidRentalPeriodRejected, 'Rental end date and time cannot precede pickup');
+$venueSchema = getRentalSchema('venue');
+$assert(
+    isset($venueSchema['fields']['cleaning_fee']),
+    'Venue cleaning fee is configurable through the rental object schema'
+);
 
 $start = new DateTimeImmutable('2026-03-02');
 $end = new DateTimeImmutable('2026-03-02');

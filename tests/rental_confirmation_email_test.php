@@ -30,6 +30,8 @@ rental_email_check($variables['date_to'] === '27.09.2026', 'end date uses Norweg
 rental_email_check($variables['total_price'] === '4 400,00', 'price is formatted');
 rental_email_check($variables['rental_start'] === $variables['date_from'], 'legacy start alias is populated');
 rental_email_check($variables['rental_fee'] === $variables['total_price'], 'legacy fee alias is populated');
+rental_email_check($variables['pickup_time'] === '15:00', 'pickup time is rendered without seconds');
+rental_email_check($variables['end_time'] === '11:00', 'end time is rendered without seconds');
 
 $rendered = renderRentalConfirmationTemplate(
     '{{customer_name}}: {{object_name}}, {{date_from}}–{{date_to}}, {{total_price}} NOK, {{company_name}} {{unknown}}',
@@ -53,6 +55,11 @@ foreach ([
     "rs.customer_email AS request_customer_email",
     "FILTER_VALIDATE_EMAIL",
     "throw new RentalConfirmationEmailException",
+    "'already_approved' => true",
+    "'stale_request' => true",
+    "AND (approved = 0 OR approved IS NULL) AND status = 'pending'",
+    "validateRentalSchedulePeriod",
+    "rentalFeeAfterCleaningToggle",
 ] as $fragment) {
     rental_email_check(str_contains($endpoint, $fragment), "endpoint contains {$fragment}");
 }

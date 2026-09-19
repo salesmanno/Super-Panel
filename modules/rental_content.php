@@ -1774,8 +1774,16 @@ async function loadRentalRequests() {
                 : '';
 
             const createdAt = r.created_at ? r.created_at.substring(0,10).split('-').reverse().join('.') : '–';
+            const rentalFee = parseFloat(r.rental_fee || 0);
+            const cleaningFee = parseFloat(r.cleaning_fee || 0);
+            const cleaningSelected = Number(r.cleaning || 0) === 1;
+            const baseRentalFee = Math.max(0, rentalFee - (cleaningSelected ? cleaningFee : 0));
+            const pickupTime = (r.pickup_time || r.start_time || '').substring(0, 5);
+            const endTime = (r.end_time || '').substring(0, 5);
 
-            return `<tr>
+            return `<tr data-rental-request-id="${escHtml(r.id)}"
+                        data-base-rental-fee="${baseRentalFee}"
+                        data-cleaning-fee="${cleaningFee}">
                 <td class="small">
                     <div class="fw-semibold">${escHtml(r.object_name || '–')}</div>
                     ${r.object_category ? `<span class="badge bg-light text-dark border">${escHtml(r.object_category)}</span>` : ''}
@@ -1785,18 +1793,40 @@ async function loadRentalRequests() {
                     ${contactInfo}
                     ${rentalRequestFieldsHtml(r.request_fields, true)}
                 </td>
-                <td class="small text-nowrap">
-                    ${fmtDate(r.start_date)} ${r.start_time ? r.start_time.substring(0,5) : ''}
+                <td class="small">
+                    <div class="d-flex flex-column gap-1" style="min-width:8.5rem">
+                        <input type="date" class="form-control form-control-sm rental-request-start-date"
+                               value="${escHtml(r.start_date || '')}" aria-label="Startdato">
+                        <input type="time" class="form-control form-control-sm rental-request-pickup-time"
+                               value="${escHtml(pickupTime)}" aria-label="Hentetid">
+                    </div>
                 </td>
-                <td class="small text-nowrap">
-                    ${fmtDate(r.end_date)} ${r.end_time ? r.end_time.substring(0,5) : ''}
+                <td class="small">
+                    <div class="d-flex flex-column gap-1" style="min-width:8.5rem">
+                        <input type="date" class="form-control form-control-sm rental-request-end-date"
+                               value="${escHtml(r.end_date || '')}" aria-label="Sluttdato">
+                        <input type="time" class="form-control form-control-sm rental-request-end-time"
+                               value="${escHtml(endTime)}" aria-label="Sluttid">
+                    </div>
                 </td>
                 <td class="small">
                     ${logisticsLabel}
                     ${deliveryAddr}
                 </td>
-                <td class="small text-nowrap">
-                    ${parseFloat(r.rental_fee || 0).toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:0})} NOK
+                <td class="small" style="min-width:9rem">
+                    <div class="fw-semibold text-nowrap rental-request-total">
+                        ${rentalFee.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK
+                    </div>
+                    <div class="form-check form-switch mt-1">
+                        <input class="form-check-input rental-request-cleaning" type="checkbox"
+                               ${cleaningSelected ? 'checked' : ''}
+                               ${cleaningFee <= 0 ? 'disabled' : ''}
+                               onchange="updateRentalRequestInlineTotal(this)"
+                               aria-label="Inkluder renhold">
+                        <label class="form-check-label small text-nowrap">
+                            Renhold${cleaningFee > 0 ? ` (${cleaningFee.toLocaleString('nb-NO', {maximumFractionDigits:2})} kr)` : ''}
+                        </label>
+                    </div>
                 </td>
                 <td class="small text-nowrap text-muted">${createdAt}</td>
                 <td class="small">${notesCell || '<span class="text-muted">–</span>'}</td>
@@ -1834,13 +1864,58 @@ async function loadRentalRequests() {
     }
 }
 
+function getRentalRequestInlinePayload(id) {
+    const row = document.querySelector(`[data-rental-request-id="${CSS.escape(String(id))}"]`);
+    if (!row) throw new Error('Forespørselsraden ble ikke funnet');
+
+    const startDate = row.querySelector('.rental-request-start-date')?.value || '';
+    const pickupTime = row.querySelector('.rental-request-pickup-time')?.value || '';
+    const endDate = row.querySelector('.rental-request-end-date')?.value || '';
+    const endTime = row.querySelector('.rental-request-end-time')?.value || '';
+    if (!startDate || !pickupTime || !endDate || !endTime) {
+        throw new Error('Dato, hentetid og sluttid må fylles ut');
+    }
+    if (`${endDate}T${endTime}` < `${startDate}T${pickupTime}`) {
+        throw new Error('Sluttdato og sluttid kan ikke være før oppstart');
+    }
+
+    return {
+        start_date: startDate,
+        pickup_time: pickupTime,
+        end_date: endDate,
+        end_time: endTime,
+        cleaning: row.querySelector('.rental-request-cleaning')?.checked ? 1 : 0
+    };
+}
+
+function updateRentalRequestInlineTotal(checkbox) {
+    const row = checkbox.closest('[data-rental-request-id]');
+    if (!row) return;
+    const base = Number(row.dataset.baseRentalFee || 0);
+    const cleaningFee = Number(row.dataset.cleaningFee || 0);
+    const total = base + (checkbox.checked ? cleaningFee : 0);
+    const totalEl = row.querySelector('.rental-request-total');
+    if (totalEl) {
+        totalEl.textContent = `${total.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK`;
+    }
+}
+
+function setRentalRequestRowBusy(id, busy) {
+    const row = document.querySelector(`[data-rental-request-id="${CSS.escape(String(id))}"]`);
+    row?.querySelectorAll('button, input').forEach(control => {
+        control.disabled = busy || (control.classList.contains('rental-request-cleaning') && Number(row.dataset.cleaningFee || 0) <= 0);
+    });
+}
+
 async function approveScheduleRequest(id) {
     const toastId = toast.loading('Godkjenner forespørsel...');
     try {
+        const inlineData = getRentalRequestInlinePayload(id);
+        setRentalRequestRowBusy(id, true);
         const resp = await fetch('/api/update_rental_schedule.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, approved: 1, status: 'approved' })
+            body: JSON.stringify({ id, ...inlineData, approved: 1, status: 'approved' })
         });
         const data = await resp.json();
         if (data.success) {
@@ -1851,10 +1926,13 @@ async function approveScheduleRequest(id) {
             loadRentalRequests();
             loadApprovedSchedule();
         } else {
-            toast.error(toastId, 'Feil', data.message || 'Kunne ikke godkjenne forespørsel');
+            const title = data.already_approved ? 'Allerede godkjent' : 'Feil';
+            toast.error(toastId, title, data.message || 'Kunne ikke godkjenne forespørsel');
+            setRentalRequestRowBusy(id, false);
         }
     } catch (e) {
-        toast.error(toastId, 'Feil', 'Nettverksfeil. Prøv igjen.');
+        setRentalRequestRowBusy(id, false);
+        toast.error(toastId, 'Feil', e.message || 'Nettverksfeil. Prøv igjen.');
     }
 }
 
@@ -1862,10 +1940,12 @@ async function declineScheduleRequest(id) {
     if (!confirm('Er du sikker på at du vil avslå denne forespørselen?')) return;
     const toastId = toast.loading('Avslår forespørsel...');
     try {
+        const inlineData = getRentalRequestInlinePayload(id);
+        setRentalRequestRowBusy(id, true);
         const resp = await fetch('/api/update_rental_schedule.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, approved: 2, status: 'rejected' })
+            body: JSON.stringify({ id, ...inlineData, approved: 2, status: 'rejected' })
         });
         const data = await resp.json();
         if (data.success) {
@@ -1873,9 +1953,11 @@ async function declineScheduleRequest(id) {
             loadRentalRequests();
         } else {
             toast.error(toastId, 'Feil', data.message || 'Kunne ikke avslå forespørsel');
+            setRentalRequestRowBusy(id, false);
         }
     } catch (e) {
-        toast.error(toastId, 'Feil', 'Nettverksfeil. Prøv igjen.');
+        setRentalRequestRowBusy(id, false);
+        toast.error(toastId, 'Feil', e.message || 'Nettverksfeil. Prøv igjen.');
     }
 }
 

@@ -11,6 +11,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/request_date_time.php';
 require_once __DIR__ . '/../includes/rental_confirmation_email.php';
+require_once __DIR__ . '/../includes/rental_schedule_editing.php';
 
 $companyId = $_SESSION['company_id'];
 $data = json_decode(file_get_contents('php://input'), true);
@@ -22,30 +23,17 @@ if (empty($data['id'])) {
 }
 
 try {
-    if (array_key_exists('pickup_time', $data)) {
-        $data['pickup_time'] = normalizeRequestTime($data['pickup_time'], 'Hentetid');
-    }
-    if (array_key_exists('end_time', $data)) {
-        $data['end_time'] = normalizeRequestTime($data['end_time'], 'Sluttid');
-    }
-} catch (InvalidArgumentException $e) {
-    error_log('update_rental_schedule validation error: ' . $e->getMessage());
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Ugyldig tidspunkt']);
-    exit;
-}
-
-try {
     $db = getDBConnection();
     $db->beginTransaction();
 
     $stmt = $db->prepare("
         SELECT rs.id, rs.company_id, rs.approved, rs.status,
                rs.start_date, rs.end_date, rs.rental_fee, rs.customer_id,
-               rs.pickup_time, rs.end_time, rs.logistics, rs.notes,
+               rs.pickup_time, rs.start_time, rs.end_time, rs.logistics, rs.notes,
+               COALESCE(rs.cleaning, 0) AS cleaning,
                rs.customer_name AS request_customer_name,
                rs.customer_email AS request_customer_email,
-               ro.object_name,
+               ro.object_name, COALESCE(rv.cleaning_fee, 0) AS cleaning_fee,
                tc.email AS profile_customer_email,
                tc.first_name AS profile_first_name,
                tc.last_name AS profile_last_name,
@@ -53,6 +41,7 @@ try {
         FROM rental_schedule rs
         LEFT JOIN rental_objects ro
           ON ro.id = rs.rental_object_id AND ro.company_id = rs.company_id
+        LEFT JOIN rental_venues rv ON rv.object_id = ro.id
         LEFT JOIN tenant_customers tc ON tc.id = rs.customer_id AND tc.company_id = rs.company_id
         LEFT JOIN tenant_companies company ON company.id = rs.company_id
         WHERE rs.id = ? AND rs.company_id = ?
@@ -66,6 +55,42 @@ try {
         http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Forespørsel ikke funnet']);
         exit;
+    }
+
+    $approvalRequested = (array_key_exists('approved', $data) && (string) $data['approved'] === '1')
+        || (($data['status'] ?? null) === 'approved');
+    if ($approvalRequested && (int) $row['approved'] === 1) {
+        $db->rollBack();
+        http_response_code(409);
+        echo json_encode([
+            'success' => false,
+            'already_approved' => true,
+            'message' => 'Forespørselen er allerede godkjent.'
+        ]);
+        exit;
+    }
+    if ((int) ($row['approved'] ?? 0) !== 0 || (string) ($row['status'] ?? 'pending') !== 'pending') {
+        $db->rollBack();
+        http_response_code(409);
+        echo json_encode([
+            'success' => false,
+            'stale_request' => true,
+            'message' => 'Forespørselen er allerede behandlet. Last inn listen på nytt.'
+        ]);
+        exit;
+    }
+
+    if (array_key_exists('start_date', $data)) {
+        $data['start_date'] = normalizeRequestDate($data['start_date'], 'Startdato', false);
+    }
+    if (array_key_exists('end_date', $data)) {
+        $data['end_date'] = normalizeRequestDate($data['end_date'], 'Sluttdato', false);
+    }
+    if (array_key_exists('pickup_time', $data)) {
+        $data['pickup_time'] = normalizeRequestTime($data['pickup_time'], 'Hentetid', false);
+    }
+    if (array_key_exists('end_time', $data)) {
+        $data['end_time'] = normalizeRequestTime($data['end_time'], 'Sluttid', false);
     }
 
     $requestCustomerName = trim((string) ($row['request_customer_name'] ?? ''));
@@ -124,16 +149,62 @@ try {
         }
     }
 
+    $effectiveStartDate = $data['start_date'] ?? $row['start_date'];
+    $effectivePickupTime = $data['pickup_time'] ?? ($row['pickup_time'] ?: $row['start_time']);
+    $effectiveEndDate = $data['end_date'] ?? $row['end_date'];
+    $effectiveEndTime = $data['end_time'] ?? $row['end_time'];
+    validateRentalSchedulePeriod(
+        $effectiveStartDate,
+        $effectivePickupTime,
+        $effectiveEndDate,
+        $effectiveEndTime
+    );
+
+    if (array_key_exists('start_date', $data)) {
+        $updateFields[] = 'start_date = ?';
+        $updateParams[] = $data['start_date'];
+        $row['start_date'] = $data['start_date'];
+    }
     if (array_key_exists('pickup_time', $data)) {
         $pt = $data['pickup_time'];
         $updateFields[] = 'pickup_time = ?';
-        $updateParams[] = ($pt !== null && $pt !== '') ? $pt : null;
+        $updateParams[] = $pt;
+        $row['pickup_time'] = $pt;
+    } else {
+        $row['pickup_time'] = $effectivePickupTime;
     }
-
+    if (array_key_exists('end_date', $data)) {
+        $updateFields[] = 'end_date = ?';
+        $updateParams[] = $data['end_date'];
+        $row['end_date'] = $data['end_date'];
+    }
     if (array_key_exists('end_time', $data)) {
         $et = $data['end_time'];
         $updateFields[] = 'end_time = ?';
-        $updateParams[] = ($et !== null && $et !== '') ? $et : null;
+        $updateParams[] = $et;
+        $row['end_time'] = $et;
+    }
+
+    if (array_key_exists('cleaning', $data)) {
+        $cleaningValue = $data['cleaning'];
+        $validCleaning = (is_int($cleaningValue) && in_array($cleaningValue, [0, 1], true))
+            || (is_string($cleaningValue) && in_array($cleaningValue, ['0', '1'], true));
+        if (!$validCleaning) {
+            throw new InvalidArgumentException('Ugyldig valg for renhold');
+        }
+        $newCleaning = (int) $cleaningValue;
+        $newRentalFee = rentalFeeAfterCleaningToggle(
+            $row['rental_fee'],
+            (int) $row['cleaning'],
+            $newCleaning,
+            $row['cleaning_fee']
+        );
+        $updateFields[] = 'cleaning = ?';
+        $updateParams[] = $newCleaning;
+        $updateFields[] = 'rental_fee = ?';
+        $updateParams[] = number_format($newRentalFee, 2, '.', '');
+        $row['cleaning'] = $newCleaning;
+        $row['rental_fee'] = $newRentalFee;
     }
 
     if (empty($updateFields)) {
@@ -151,8 +222,15 @@ try {
     $updateParams[] = $data['id'];
     $updateParams[] = $companyId;
 
-    $db->prepare("UPDATE rental_schedule SET " . implode(', ', $updateFields) . " WHERE id = ? AND company_id = ?")
-       ->execute($updateParams);
+    $updateStmt = $db->prepare(
+        "UPDATE rental_schedule SET " . implode(', ', $updateFields)
+        . " WHERE id = ? AND company_id = ?"
+        . " AND (approved = 0 OR approved IS NULL) AND status = 'pending'"
+    );
+    $updateStmt->execute($updateParams);
+    if ($updateStmt->rowCount() !== 1) {
+        throw new RuntimeException('Forespørselen ble endret av en annen bruker. Last inn listen på nytt.');
+    }
 
     // Auto-email on approval
     $emailQueued = false;
@@ -231,7 +309,7 @@ try {
     if (isset($db) && $db->inTransaction()) $db->rollBack();
     error_log('update_rental_schedule validation error: ' . $e->getMessage());
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Ugyldig forespørselsdata']);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 } catch (RentalConfirmationEmailException $e) {
     if (isset($db) && $db->inTransaction()) $db->rollBack();
     error_log('rental automail validation error: ' . $e->getMessage());
