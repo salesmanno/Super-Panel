@@ -1742,7 +1742,14 @@ async function loadRentalRequests() {
         const resp = await fetch('/api/get_rental_schedule.php?approved=0');
         const data = await resp.json();
 
-        if (!data.success || !data.requests || data.requests.length === 0) {
+        if (!resp.ok || !data.success) {
+            container.innerHTML = `<div class="alert alert-danger">
+                Kunne ikke laste forespørslene. Databasen kan være midlertidig utilgjengelig.
+            </div>`;
+            return;
+        }
+
+        if (!data.requests || data.requests.length === 0) {
             container.innerHTML = `<div class="text-center text-muted py-5">
                 <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                 Ingen ventende forespørsler
@@ -1920,7 +1927,7 @@ async function approveScheduleRequest(id) {
         const data = await resp.json();
         if (data.success) {
             const msg = data.email_queued
-                ? 'Forespørselen er godkjent — bekreftelse sendt'
+                ? 'Forespørselen er godkjent — bekreftelse lagt i e-postkø'
                 : 'Forespørselen er godkjent';
             toast.success(toastId, 'Godkjent', msg);
             loadRentalRequests();
