@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/request_date_time.php';
+require_once __DIR__ . '/../includes/rental_confirmation_email.php';
 
 $companyId = $_SESSION['company_id'];
 $data = json_decode(file_get_contents('php://input'), true);
@@ -42,13 +43,20 @@ try {
         SELECT rs.id, rs.company_id, rs.approved, rs.status,
                rs.start_date, rs.end_date, rs.rental_fee, rs.customer_id,
                rs.pickup_time, rs.end_time, rs.logistics, rs.notes,
+               rs.customer_name AS request_customer_name,
+               rs.customer_email AS request_customer_email,
                ro.object_name,
-               tc.email AS customer_email, tc.first_name, tc.last_name
+               tc.email AS profile_customer_email,
+               tc.first_name AS profile_first_name,
+               tc.last_name AS profile_last_name,
+               company.name AS company_name
         FROM rental_schedule rs
         LEFT JOIN rental_objects ro
           ON ro.id = rs.rental_object_id AND ro.company_id = rs.company_id
         LEFT JOIN tenant_customers tc ON tc.id = rs.customer_id AND tc.company_id = rs.company_id
+        LEFT JOIN tenant_companies company ON company.id = rs.company_id
         WHERE rs.id = ? AND rs.company_id = ?
+        FOR UPDATE
     ");
     $stmt->execute([$data['id'], $companyId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -59,6 +67,16 @@ try {
         echo json_encode(['success' => false, 'message' => 'Forespørsel ikke funnet']);
         exit;
     }
+
+    $requestCustomerName = trim((string) ($row['request_customer_name'] ?? ''));
+    $profileCustomerName = trim(
+        (string) ($row['profile_first_name'] ?? '') . ' ' . (string) ($row['profile_last_name'] ?? '')
+    );
+    $row['customer_name'] = $requestCustomerName !== '' ? $requestCustomerName : $profileCustomerName;
+    $requestCustomerEmail = trim((string) ($row['request_customer_email'] ?? ''));
+    $row['customer_email'] = $requestCustomerEmail !== ''
+        ? $requestCustomerEmail
+        : trim((string) ($row['profile_customer_email'] ?? ''));
 
     $updateFields = [];
     $updateParams = [];
@@ -136,65 +154,70 @@ try {
     $db->prepare("UPDATE rental_schedule SET " . implode(', ', $updateFields) . " WHERE id = ? AND company_id = ?")
        ->execute($updateParams);
 
-    $db->commit();
-
     // Auto-email on approval
     $emailQueued = false;
-    if ($approvingNow && !empty($row['customer_email'])) {
-        try {
-            $cfgStmt = $db->prepare("
-                SELECT email, display_name, automail_rental_confirm
-                FROM email_configs
-                WHERE company_id = ? AND is_active = 1
+    if ($approvingNow) {
+        $cfgStmt = $db->prepare("
+            SELECT email, display_name, automail_rental_confirm
+            FROM email_configs
+            WHERE company_id = ? AND is_active = 1
+            LIMIT 1
+        ");
+        $cfgStmt->execute([$companyId]);
+        $cfg = $cfgStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($cfg && (int) $cfg['automail_rental_confirm'] === 1) {
+            if (!filter_var($row['customer_email'], FILTER_VALIDATE_EMAIL)) {
+                throw new RentalConfirmationEmailException(
+                    'Forespørselen kan ikke godkjennes fordi kunden mangler en gyldig e-postadresse.'
+                );
+            }
+            if (!filter_var($cfg['email'] ?? null, FILTER_VALIDATE_EMAIL)) {
+                throw new RentalConfirmationEmailException(
+                    'Forespørselen kan ikke godkjennes fordi avsenderadressen for e-post ikke er gyldig.'
+                );
+            }
+
+            $tplStmt = $db->prepare("
+                SELECT id, subject_template, body_template
+                FROM email_templates
+                WHERE company_id = ? AND template_key = 'rental_confirmation' AND is_active = 1
                 LIMIT 1
             ");
-            $cfgStmt->execute([$companyId]);
-            $cfg = $cfgStmt->fetch(PDO::FETCH_ASSOC);
-
-            if ($cfg && !empty($cfg['automail_rental_confirm'])) {
-                $tplStmt = $db->prepare("
-                    SELECT subject_template, body_template
-                    FROM email_templates
-                    WHERE company_id = ? AND template_key = 'rentalinvoice' AND is_active = 1
-                    LIMIT 1
-                ");
-                $tplStmt->execute([$companyId]);
-                $tpl = $tplStmt->fetch(PDO::FETCH_ASSOC);
-
-                if ($tpl) {
-                    $vars = [
-                        '{{cus_first_name}}' => $row['first_name'] ?? '',
-                        '{{cus_last_name}}'  => $row['last_name']  ?? '',
-                        '{{rental_start}}'   => $row['start_date'] ?? '',
-                        '{{rental_end}}'     => $row['end_date']   ?? '',
-                        '{{rental_fee}}'     => number_format((float)($row['rental_fee'] ?? 0), 2, ',', ' '),
-                        '{{object_name}}'    => $row['object_name'] ?? '',
-                    ];
-                    $subject = str_replace(array_keys($vars), array_values($vars), $tpl['subject_template']);
-                    $body    = str_replace(array_keys($vars), array_values($vars), $tpl['body_template']);
-
-                    $db->prepare("
-                        INSERT INTO email_queue
-                            (id, company_id, recipient_email, from_email, subject, body,
-                             module_source, source_id, status, priority, scheduled_at, created_at, updated_at)
-                        VALUES
-                            (UUID(), ?, ?, ?, ?, ?, 'rental', ?, 'queued', 5, NOW(), NOW(), NOW())
-                    ")->execute([
-                        $companyId,
-                        $row['customer_email'],
-                        $cfg['email'],
-                        $subject,
-                        $body,
-                        $data['id'],
-                    ]);
-
-                    $emailQueued = true;
-                }
+            $tplStmt->execute([$companyId]);
+            $tpl = $tplStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$tpl) {
+                throw new RentalConfirmationEmailException(
+                    'Forespørselen kan ikke godkjennes fordi e-postmalen for utleiebekreftelse mangler.'
+                );
             }
-        } catch (\Throwable $emailErr) {
-            error_log('rental automail error: ' . $emailErr->getMessage());
+
+            $vars = buildRentalConfirmationVariables($row);
+            $subject = renderRentalConfirmationTemplate($tpl['subject_template'], $vars);
+            $body = renderRentalConfirmationTemplate($tpl['body_template'], $vars);
+
+            $db->prepare("
+                INSERT INTO email_queue
+                    (id, company_id, recipient_email, from_email, subject, body,
+                     template_id, module_source, source_id, status, priority,
+                     scheduled_at, created_at, updated_at)
+                VALUES
+                    (UUID(), ?, ?, ?, ?, ?, ?, 'rental', ?, 'queued', 5, NOW(), NOW(), NOW())
+            ")->execute([
+                $companyId,
+                $row['customer_email'],
+                $cfg['email'],
+                $subject,
+                $body,
+                $tpl['id'],
+                $data['id'],
+            ]);
+
+            $emailQueued = true;
         }
     }
+
+    $db->commit();
 
     echo json_encode([
         'success'      => true,
@@ -209,6 +232,11 @@ try {
     error_log('update_rental_schedule validation error: ' . $e->getMessage());
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Ugyldig forespørselsdata']);
+} catch (RentalConfirmationEmailException $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
+    error_log('rental automail validation error: ' . $e->getMessage());
+    http_response_code(422);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 } catch (\Throwable $e) {
     if (isset($db) && $db->inTransaction()) $db->rollBack();
     error_log('update_rental_schedule error: ' . $e->getMessage());
