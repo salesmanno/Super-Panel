@@ -93,9 +93,17 @@ function getEmailsToSend($db, $companyId) {
 function processEmail($db, $email) {
     global $RETRY_DELAYS;
 
-    try {
-        updateEmailStatus($db, $email['id'], 'sending');
+    $claim = $db->prepare("
+        UPDATE email_queue
+        SET status = 'sending', updated_at = NOW()
+        WHERE id = ? AND company_id = ? AND status = 'queued'
+    ");
+    $claim->execute([$email['id'], $email['company_id']]);
+    if ($claim->rowCount() !== 1) {
+        return;
+    }
 
+    try {
         $smtpConfig = getSMTPConfig($db, $email['company_id']);
         if (!$smtpConfig) {
             throw new Exception("SMTP-konfigurasjon ikke funnet for firma {$email['company_id']}");
@@ -129,12 +137,26 @@ function processEmail($db, $email) {
             $smtpResponse = preg_replace('/\s+/', ' ', (string) ($result['smtp_response'] ?? '250 akseptert'));
             $acceptanceDetails = "SMTP akseptert | Message-ID: {$messageId} | Svar: {$smtpResponse}";
 
-            $stmt = $db->prepare("
-                UPDATE email_queue
-                SET status = 'sent', sent_at = NOW(), error_message = ?, updated_at = NOW()
-                WHERE id = ?
-            ");
-            $stmt->execute([$acceptanceDetails, $email['id']]);
+            $db->beginTransaction();
+            try {
+                $stmt = $db->prepare("
+                    UPDATE email_queue
+                    SET status = 'sent', sent_at = NOW(), error_message = ?, updated_at = NOW()
+                    WHERE id = ?
+                ");
+                $stmt->execute([$acceptanceDetails, $email['id']]);
+                if (($email['module_source'] ?? '') === 'rental_checkin') {
+                    $db->prepare("
+                        UPDATE rental_schedule
+                        SET checkin_email_sent_at = NOW()
+                        WHERE id = ? AND company_id = ? AND checkin_email_sent_at IS NULL
+                    ")->execute([$email['source_id'], $email['company_id']]);
+                }
+                $db->commit();
+            } catch (Throwable $statusError) {
+                if ($db->inTransaction()) $db->rollBack();
+                throw $statusError;
+            }
 
             try {
                 $logStmt = $db->prepare("

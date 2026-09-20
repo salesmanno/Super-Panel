@@ -1231,6 +1231,7 @@ const wmColToTemplate = {
     automail_membership_reminder: 'membership_reminder',
     automail_reservation_confirm: 'reservation_confirmation',
     automail_reservation_reminder:'reservation_confirmation',
+    rental_confirm:               'rental_checkin',
     automail_rental_confirm:      'rental_confirmation',
     automail_rental_return:       'rental_confirmation'
 };
@@ -1256,6 +1257,7 @@ async function loadAutomailerSettings() {
         const moduleConfig = [
             {key:'rental',       label:'Utleie',        icon:'key',         checks:[
                 {col:'automail_rental_confirm', label:'Bekreftelse ved ny booking'},
+                {col:'rental_confirm',          label:'Innsjekkinstruksjoner på startdato'},
                 {col:'automail_rental_return',  label:'Returpåminnelse'}
             ]},
             {key:'events',       label:'Arrangement',   icon:'calendar-event', checks:[
@@ -1371,6 +1373,7 @@ function wmTemplateKeyLabel(key) {
         event_confirmation: 'Arrangement – bekreftelse',
         membership_confirmation: 'Medlemskap – bekreftelse',
         rental_confirmation: 'Utleie – bekreftelse',
+        rental_checkin: 'Utleie – innsjekk',
         service_booking_confirmation: 'Tjeneste – bekreftelse',
         reservation_confirmation: 'Reservasjon – bekreftelse'
     };

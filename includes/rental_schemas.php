@@ -68,7 +68,8 @@ function getRentalSchemas() {
                 'min_days' => ['type' => 'number', 'label' => 'Minimum antall dager', 'required' => false],
                 'cleaning_included' => ['type' => 'checkbox', 'label' => 'Rengjøring inkludert', 'required' => false],
                 'cleaning_fee' => ['type' => 'number', 'label' => 'Rengjøringsavgift (kr)', 'step' => '0.01', 'required' => false],
-                'facilities' => ['type' => 'textarea', 'label' => 'Fasiliteter (kommaseparert)', 'required' => false]
+                 'facilities' => ['type' => 'textarea', 'label' => 'Fasiliteter (kommaseparert)', 'required' => false],
+                 'access_code' => ['type' => 'text', 'label' => 'Tilgangskode', 'maxlength' => 6, 'required' => false]
             ]
         ],
         

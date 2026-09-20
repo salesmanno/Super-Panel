@@ -46,10 +46,11 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
 #rental-module .table tbody tr { transition:background .15s ease; }
 #rental-module .table tbody tr:hover { background:#f1f8f8; }
 #rental-module .rental-upcoming-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr)); gap:.75rem; }
-#rental-module .rental-upcoming-card { border:1px solid var(--rental-line); border-radius:10px; padding:.85rem; background:#fff; }
+#rental-module .rental-upcoming-card { border:1px solid var(--rental-line); border-radius:12px; padding:1rem; background:#fff; min-height:210px; }
 #rental-module .rental-upcoming-card:hover { border-color:#9ec9cc; box-shadow:0 4px 12px rgba(22,59,92,.08); }
 #rental-module .rental-customer-links a { color:var(--rental-teal); text-decoration:none; }
 #rental-module .rental-customer-links a:hover { text-decoration:underline; }
+#rental-module .rental-checkin-sent { color:#198754; }
 #rental-module .save-busy { pointer-events:none; opacity:.68; }
 @media(max-width:767.98px){#rental-module .btn-group{flex-wrap:wrap}#rental-module .table{min-width:760px}#rental-module .card-body{padding:1rem}.rental-mobile-scroll{overflow-x:auto}}
 </style>
@@ -666,7 +667,7 @@ function buildFormFields(containerId, category = '', existingData = {}) {
         </div></div>`;
     });
     html += `</div></div></div>`;
-    
+
     if (category && rentalSchemas[category]) {
         const schema = rentalSchemas[category];
         html += `<h6 class="text-muted mb-2"><i class="bi bi-list-check me-1"></i>${escHtml(schema.label)} - spesifikke detaljer</h6>`;
@@ -676,9 +677,27 @@ function buildFormFields(containerId, category = '', existingData = {}) {
             const value = existingData.type_data?.[fieldName] || '';
             html += generateIntegratedFieldHTML(fieldName, field, value);
         });
+        if (category === 'venue' && !Object.prototype.hasOwnProperty.call(schema.fields, 'access_code')) {
+            html += generateIntegratedFieldHTML('access_code', {
+                type: 'text',
+                label: 'Tilgangskode',
+                required: false
+            }, existingData.type_data?.access_code || '');
+        }
         
         html += '</div></div></div>';
     }
+
+    html += `
+        <div class="card mb-3">
+            <div class="card-body">
+                <label class="form-label mb-1" for="${containerId}_rentalText">Leietekst</label>
+                <textarea class="form-control" id="${containerId}_rentalText" name="rental_text" rows="3" maxlength="1000"
+                    placeholder="Praktisk informasjon om leien...">${escHtml(existingData.rental_text || '')}</textarea>
+                <small class="text-muted">Teksten kan brukes i informasjonen til leietaker (maks. 1000 tegn).</small>
+            </div>
+        </div>
+    `;
     
     container.innerHTML = html;
 }
@@ -691,7 +710,7 @@ function generateIntegratedFieldHTML(fieldName, field, value = '') {
     
     switch (field.type) {
         case 'text':
-            inputHTML = `<input type="text" class="form-control" name="type_data[${escAttr(fieldName)}]" value="${escAttr(value || '')}" ${requiredAttr}>`;
+            inputHTML = `<input type="text" class="form-control" name="type_data[${escAttr(fieldName)}]" value="${escAttr(value || '')}" ${field.maxlength ? `maxlength="${Number(field.maxlength)}"` : ''} ${requiredAttr}>`;
             break;
         case 'number':
             const step = field.step || '1';
@@ -772,6 +791,7 @@ function getFormData(formId) {
         deposit_amount: formData.get('deposit_amount') || 0,
         market_price: formData.get('market_price') || '',
         description: formData.get('description') || '',
+        rental_text: formData.get('rental_text') || '',
         is_available: formData.get('is_available') === 'on',
         images: collectImagesFromForm(form, formId === 'createRentalForm' ? 'createFormFieldsContainer' : 'formFieldsContainer'),
         type_data: {}
@@ -842,6 +862,7 @@ async function saveRentalObject() {
         deposit_amount: parseFloat(formData.get('deposit_amount')) || 0,
         market_price: parseFloat(formData.get('market_price')) || null,
         description: formData.get('description') || null,
+        rental_text: formData.get('rental_text') || null,
         is_available: formData.get('is_available') === 'on',
         images: collectImagesFromForm(form, 'formFieldsContainer'),
         customer_fields: collectCustomerFields(form)
@@ -865,6 +886,12 @@ async function saveRentalObject() {
                 typeData[fieldName] = inputElement.value === '' ? null : inputElement.value;
             }
         });
+    }
+    if (data.category === 'venue') {
+        const accessCodeInput = form.querySelector('[name="type_data[access_code]"]');
+        if (accessCodeInput) {
+            typeData.access_code = accessCodeInput.value.trim() || '0000';
+        }
     }
     
     if (Object.keys(typeData).length > 0) {
@@ -1013,6 +1040,7 @@ function showCreateSummary() {
         deposit_amount: parseFloat(formData.get('deposit_amount')) || 0,
         market_price: parseFloat(formData.get('market_price')) || null,
         description: formData.get('description') || null,
+        rental_text: formData.get('rental_text') || null,
         is_available: form.querySelector('[name="is_available"]')?.checked ?? true,
         images: collectImagesFromForm(form, 'createFormFieldsContainer'),
         customer_fields: collectCustomerFields(form)
@@ -1031,6 +1059,10 @@ function showCreateSummary() {
                 }
             }
         });
+        if (category === 'venue') {
+            const accessCodeInput = form.querySelector('[name="type_data[access_code]"]');
+            if (accessCodeInput) typeData.access_code = accessCodeInput.value.trim() || null;
+        }
     }
     
     if (Object.keys(typeData).length > 0) {
@@ -1315,6 +1347,7 @@ function viewDetails(objectId) {
                 ${obj.deposit_amount > 0 ? `<p><strong>Depositum:</strong> ${parseFloat(obj.deposit_amount).toFixed(0)} NOK</p>` : ''}
                 <p><strong>Status:</strong> ${obj.is_available ? '<span class="badge bg-success">Tilgjengelig</span>' : '<span class="badge bg-secondary">Ikke tilgjengelig</span>'}</p>
                 ${obj.description ? `<p><strong>Beskrivelse:</strong><br>${escHtml(obj.description)}</p>` : ''}
+                ${obj.rental_text ? `<p><strong>Leietekst:</strong><br>${escHtml(obj.rental_text)}</p>` : ''}
             </div>
             <div class="col-md-6">
                 <h6>Detaljer:</h6>
@@ -1331,6 +1364,9 @@ function viewDetails(objectId) {
                 detailsHTML += `<p><strong>${escHtml(field.label)}:</strong> ${field.type === 'checkbox' ? displayValue : escHtml(displayValue)}</p>`;
             }
         });
+    }
+    if (obj.category === 'venue' && obj.type_data?.access_code) {
+        detailsHTML += `<p><strong>Tilgangskode:</strong> ${escHtml(obj.type_data.access_code)}</p>`;
     }
     
     detailsHTML += `
@@ -2177,8 +2213,9 @@ function renderRentalCalendar(container) {
     const upcomingCards = visibleRentals.map(r => {
         const id = encodeURIComponent(String(r.id));
         const customerName = escHtml(r.display_customer_name || r.customer_name || 'Ukjent kunde');
+        const checkinSent = Boolean(r.checkin_email_sent_at);
         const email = r.display_email
-            ? `<a href="mailto:${escAttr(r.display_email)}"><i class="bi bi-envelope me-1"></i>${escHtml(r.display_email)}</a>`
+            ? `<a href="mailto:${escAttr(r.display_email)}"><i class="bi bi-envelope me-1${checkinSent ? ' rental-checkin-sent' : ''}"${checkinSent ? ' title="Innsjekkinstruksjoner sendt"' : ''}></i>${escHtml(r.display_email)}</a>`
             : '<span class="text-muted">Ingen e-post</span>';
         const phone = r.display_phone
             ? `<a href="tel:${escAttr(r.display_phone)}"><i class="bi bi-telephone me-1"></i>${escHtml(r.display_phone)}</a>`
@@ -2194,6 +2231,12 @@ function renderRentalCalendar(container) {
             </div>
             <div class="fw-semibold small mb-1"><i class="bi bi-person me-1"></i>${customerName}</div>
             <div class="rental-customer-links small d-grid gap-1 mb-3">${email}${phone}</div>
+            <div class="d-flex flex-wrap gap-2 small mb-3">
+                <span class="text-muted"><i class="bi bi-key me-1"></i>Tilgangskode:
+                    <strong>${escHtml(r.key_box_code || '–')}</strong>
+                </span>
+                ${checkinSent ? `<span class="rental-checkin-sent"><i class="bi bi-envelope-check me-1"></i>Sendt ${fmtDate(r.checkin_email_sent_at)}</span>` : ''}
+            </div>
             <div class="d-flex justify-content-between align-items-center gap-2">
                 <span class="fw-semibold">${total} NOK</span>
                 <button class="btn btn-sm btn-outline-primary" type="button" onclick="showRentalCalDetail(decodeURIComponent('${id}'))">
@@ -2250,12 +2293,15 @@ function showRentalCalDetail(id) {
     const paymentDetails = isPaid
         ? `<div class="small text-muted mt-1">${r.payment_method ? escHtml(r.payment_method) : 'Betalingsmåte ikke oppgitt'}${r.paid_at ? ' · ' + fmtDate(r.paid_at) : ''}</div>`
         : '';
+    const paidLabel = isPaid
+        ? `Betalt${r.paid_at ? ' (' + fmtDate(r.paid_at) + ')' : ''}`
+        : 'Registrer betaling';
     const actionPanel = `
         <div class="rental-toolbar mt-4">
-            <div class="row g-2 align-items-end">
-                <div class="col-md">
+            <div class="d-grid gap-2">
+                <div>
                     <label class="form-label small fw-semibold" for="rentalSchedulePaymentMethod">Betalingsmåte</label>
-                    <select class="form-select form-select-sm" id="rentalSchedulePaymentMethod" ${isPaid ? 'disabled' : ''}>
+                    <select class="form-select form-select-sm" id="rentalSchedulePaymentMethod" onchange="toggleRentalPaymentButton(this.value)" ${isPaid ? 'disabled' : ''}>
                         <option value="">Velg betalingsmåte</option>
                         <option value="vipps">Vipps</option>
                         <option value="card">Kort</option>
@@ -2265,14 +2311,14 @@ function showRentalCalDetail(id) {
                         <option value="other">Annet</option>
                     </select>
                 </div>
-                <div class="col-md-auto d-grid">
-                    <button class="btn btn-success btn-sm" type="button"
+                <div class="d-grid">
+                    <button class="btn btn-success btn-sm" type="button" id="rentalSchedulePaymentButton"
                             onclick="registerRentalSchedulePayment('${escAttr(String(r.id))}')"
-                            ${isPaid ? 'disabled' : ''}>
-                        <i class="bi bi-check-circle me-1"></i>${isPaid ? 'Betaling registrert' : 'Registrer betaling'}
+                            disabled>
+                        <i class="bi bi-check-circle me-1"></i>${paidLabel}
                     </button>
                 </div>
-                <div class="col-md-auto d-grid">
+                <div class="d-grid">
                     <button class="btn btn-outline-danger btn-sm" type="button"
                             onclick="cancelRentalSchedule('${escAttr(String(r.id))}')">
                         <i class="bi bi-x-circle me-1"></i>Avlys leie
@@ -2304,6 +2350,12 @@ function showRentalCalDetail(id) {
             </dd>
             <dt class="col-sm-4">Betaling</dt>
             <dd class="col-sm-8">${contractPaymentBadge(r.payment_status || 'unpaid')}${paymentDetails}</dd>
+             <dt class="col-sm-4">Tilgangskode</dt>
+             <dd class="col-sm-8"><span class="font-monospace">${escHtml(r.key_box_code || '–')}</span></dd>
+             <dt class="col-sm-4">Innsjekk-e-post</dt>
+             <dd class="col-sm-8">${r.checkin_email_sent_at
+                 ? `<span class="rental-checkin-sent"><i class="bi bi-envelope-check me-1"></i>Sendt ${fmtDate(r.checkin_email_sent_at)}</span>`
+                 : '<span class="text-muted"><i class="bi bi-envelope me-1"></i>Ikke sendt</span>'}</dd>
             <dt class="col-sm-4">Logistikk</dt>
             <dd class="col-sm-8">${logistics}</dd>
             ${r.notes ? `<dt class="col-sm-4">Notater</dt><dd class="col-sm-8">${escHtml(r.notes)}</dd>` : ''}
@@ -2348,6 +2400,11 @@ async function registerRentalSchedulePayment(id) {
         return;
     }
     await updateRentalScheduleLifecycle(id, 'mark_paid', method);
+}
+
+function toggleRentalPaymentButton(method) {
+    const button = document.getElementById('rentalSchedulePaymentButton');
+    if (button) button.disabled = !method;
 }
 
 async function cancelRentalSchedule(id) {

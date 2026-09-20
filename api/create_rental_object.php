@@ -102,6 +102,10 @@ try {
             $params[] = $data[$col] === null || $data[$col] === '' ? null : (float) $data[$col];
         }
     }
+    if (array_key_exists('rental_text', $data) && rentalObjectColumnExists($db, 'rental_text')) {
+        $columns[] = 'rental_text';
+        $params[] = $data['rental_text'] === '' ? null : mb_substr((string) $data['rental_text'], 0, 1000);
+    }
     
     $placeholders = implode(',', array_fill(0, count($columns), '?'));
     $columnList = implode(', ', $columns);
@@ -123,6 +127,13 @@ try {
     foreach ($typeData as $field => $value) {
         if (!array_key_exists($field, $schema['fields'])) {
             continue;
+        }
+        if ($field === 'access_code') {
+            $value = trim((string) $value);
+            if ($value !== '' && !preg_match('/^[A-Za-z0-9]{1,6}$/', $value)) {
+                throw new InvalidArgumentException('Tilgangskoden kan bare inneholde 1–6 bokstaver eller tall');
+            }
+            $value = $value === '' ? '0000' : $value;
         }
         $typeFields[] = $field;
         $typeValues[] = '?';

@@ -75,6 +75,13 @@ try {
             if (!array_key_exists($field, $schema['fields'])) {
                 continue;
             }
+            if ($field === 'access_code') {
+                $value = trim((string) $value);
+                if ($value !== '' && !preg_match('/^[A-Za-z0-9]{1,6}$/', $value)) {
+                    throw new InvalidArgumentException('Tilgangskoden kan bare inneholde 1–6 bokstaver eller tall');
+                }
+                $value = $value === '' ? '0000' : $value;
+            }
             $typeFields[] = $field;
             if ($schema['fields'][$field]['type'] === 'checkbox') {
                 $typeParams[] = ($value && $value !== '0' && $value !== 0) ? 1 : 0;
@@ -117,12 +124,14 @@ try {
     
     $allowedFields = ['object_name', 'serial_number', 'description', 'category', 
                       'rental_price', 'deposit_amount', 'condition_notes', 'image_url',
-                      'is_available', 'is_active', 'market_price'];
+                      'is_available', 'is_active', 'market_price', 'rental_text'];
     
     foreach ($allowedFields as $field) {
         if (array_key_exists($field, $data)) {
             $updateFields[] = "$field = ?";
-            $updateParams[] = $data[$field];
+            $updateParams[] = $field === 'rental_text'
+                ? ($data[$field] === '' ? null : mb_substr((string) $data[$field], 0, 1000))
+                : $data[$field];
         }
     }
     

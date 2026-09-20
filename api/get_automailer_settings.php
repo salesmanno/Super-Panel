@@ -39,6 +39,7 @@ try {
             automail_membership_reminder,
             automail_reservation_confirm,
             automail_reservation_reminder,
+            rental_confirm,
             automail_rental_confirm,
             automail_rental_return
         FROM email_configs 

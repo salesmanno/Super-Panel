@@ -50,7 +50,8 @@ try {
                COALESCE(rs.cleaning, 0) AS cleaning,
                rs.customer_name AS request_customer_name,
                rs.customer_email AS request_customer_email,
-               ro.object_name, COALESCE(rv.cleaning_fee, 0) AS cleaning_fee,
+               ro.object_name, ro.rental_text, rv.access_code,
+               COALESCE(rv.cleaning_fee, 0) AS cleaning_fee,
                tc.email AS profile_customer_email,
                tc.first_name AS profile_first_name,
                tc.last_name AS profile_last_name,
@@ -192,6 +193,13 @@ try {
     $row['status'] = $newStatus;
     if ($newApproved !== null) {
         $row['approved'] = $newApproved;
+    }
+    if ($finalizingNow && $newStatus === 'approved') {
+        $updateFields[] = 'key_box_code = ?';
+        $updateParams[] = $row['access_code'] !== null && $row['access_code'] !== ''
+            ? $row['access_code']
+            : null;
+        $row['key_box_code'] = $updateParams[array_key_last($updateParams)];
     }
 
     $effectiveStartDate = $data['start_date'] ?? $row['start_date'];

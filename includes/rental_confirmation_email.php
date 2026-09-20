@@ -103,6 +103,8 @@ function buildRentalConfirmationVariables(array $rental): array {
         'last_name' => $lastName,
         'object_name' => $objectName,
         'rental_object' => $objectName,
+        'rental_text' => (string) ($rental['rental_text'] ?? ''),
+        'key_box_code' => (string) ($rental['key_box_code'] ?? ''),
         'date_from' => $dateFrom,
         'date_to' => $dateTo,
         'start_date' => $dateFrom,
@@ -122,12 +124,19 @@ function buildRentalConfirmationVariables(array $rental): array {
         'payment_method' => (string) ($rental['payment_method'] ?? ''),
         'pickup_time' => formatRentalConfirmationTime($rental['pickup_time'] ?? null),
         'end_time' => formatRentalConfirmationTime($rental['end_time'] ?? null),
+        'pickup_address' => (string) (
+            $rental['delivery_address']
+            ?? $rental['pickup_address']
+            ?? $companyAddress
+        ),
+        'contact_person' => (string) ($rental['contact_person'] ?? $rental['company_name'] ?? ''),
         'cleaning' => $cleaning,
         'cleaning_label' => $cleaning === 1 ? 'Ja' : 'Nei',
         'cleaning_fee' => number_format($cleaningFee, 2, ',', ' '),
         'logistics' => (string) ($rental['logistics'] ?? ''),
         'notes' => (string) ($rental['notes'] ?? ''),
         'company_name' => $companyName,
+        'company' => $companyName,
         'tenant_name' => $companyName,
         'logo_url' => (string) ($rental['logo_url'] ?? ''),
         'header_bg_color' => (string) ($rental['header_bg_color'] ?? '#ffffff'),

@@ -10,7 +10,11 @@
 // Include without auto-running; this script invokes the processor once below.
 define('EMAIL_QUEUE_PROCESSOR_NO_AUTO_RUN', true);
 require_once __DIR__ . '/api/process_email_queue.php';
+require_once __DIR__ . '/includes/rental_checkin_email.php';
 
 echo "[" . date('Y-m-d H:i:s') . "] Email queue processor started\n";
+$checkinDb = getDBConnection();
+echo "[" . date('Y-m-d H:i:s') . "] Rental innsjekk lagt i kø: "
+    . queueRentalCheckinEmails($checkinDb) . "\n";
 processQueue();
 echo "[" . date('Y-m-d H:i:s') . "] Email queue processor finished\n";
