@@ -41,6 +41,9 @@ try {
             ro.object_name,
             ro.category      AS object_category,
             ro.rental_price  AS object_daily_price,
+            ro.weekend_price AS object_weekend_price,
+            ro.saturday_price AS object_saturday_price,
+            ro.sunday_price AS object_sunday_price,
             COALESCE(rv.cleaning_fee, 0) AS cleaning_fee,
             COALESCE(
                 NULLIF(TRIM(CONCAT(COALESCE(tc.first_name,''), ' ', COALESCE(tc.last_name,''))), ''),

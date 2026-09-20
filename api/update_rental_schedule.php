@@ -12,6 +12,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/request_date_time.php';
 require_once __DIR__ . '/../includes/rental_confirmation_email.php';
 require_once __DIR__ . '/../includes/rental_schedule_editing.php';
+require_once __DIR__ . '/../includes/rental_request.php';
 
 $companyId = $_SESSION['company_id'];
 $data = json_decode(file_get_contents('php://input'), true);
@@ -44,13 +45,16 @@ try {
     }
 
     $stmt = $db->prepare("
-        SELECT rs.id, rs.company_id, rs.approved, rs.status,
+        SELECT rs.id, rs.company_id, rs.rental_object_id, rs.approved, rs.status,
                rs.start_date, rs.end_date, rs.rental_fee, rs.customer_id,
                rs.pickup_time, rs.start_time, rs.end_time, rs.logistics, rs.notes,
                COALESCE(rs.cleaning, 0) AS cleaning,
+               rs.price_adjustment_type, COALESCE(rs.price_adjustment_cents, 0) AS price_adjustment_cents,
+               rs.price_adjustment_explanation,
                rs.customer_name AS request_customer_name,
                rs.customer_email AS request_customer_email,
-               ro.object_name, ro.rental_text, rv.access_code,
+               ro.object_name, ro.rental_text, ro.rental_price, ro.weekend_price,
+               ro.saturday_price, ro.sunday_price, rv.access_code,
                COALESCE(rv.cleaning_fee, 0) AS cleaning_fee,
                tc.email AS profile_customer_email,
                tc.first_name AS profile_first_name,
@@ -129,9 +133,8 @@ try {
     if (array_key_exists('end_date', $data)) {
         $data['end_date'] = normalizeRequestDate($data['end_date'], 'Sluttdato', false);
     }
-    if (array_key_exists('pickup_time', $data)) {
-        $data['pickup_time'] = normalizeRequestTime($data['pickup_time'], 'Hentetid', false);
-    }
+    // Ignore legacy clients attempting to customize the fixed pickup time.
+    $data['pickup_time'] = '08:00:00';
     if (array_key_exists('end_time', $data)) {
         $data['end_time'] = normalizeRequestTime($data['end_time'], 'Sluttid', false);
     }
@@ -203,7 +206,7 @@ try {
     }
 
     $effectiveStartDate = $data['start_date'] ?? $row['start_date'];
-    $effectivePickupTime = $data['pickup_time'] ?? ($row['pickup_time'] ?: $row['start_time']);
+    $effectivePickupTime = '08:00:00';
     $effectiveEndDate = $data['end_date'] ?? $row['end_date'];
     $effectiveEndTime = $data['end_time'] ?? $row['end_time'];
     validateRentalSchedulePeriod(
@@ -218,14 +221,9 @@ try {
         $updateParams[] = $data['start_date'];
         $row['start_date'] = $data['start_date'];
     }
-    if (array_key_exists('pickup_time', $data)) {
-        $pt = $data['pickup_time'];
-        $updateFields[] = 'pickup_time = ?';
-        $updateParams[] = $pt;
-        $row['pickup_time'] = $pt;
-    } else {
-        $row['pickup_time'] = $effectivePickupTime;
-    }
+    $updateFields[] = 'pickup_time = ?';
+    $updateParams[] = '08:00:00';
+    $row['pickup_time'] = '08:00:00';
     if (array_key_exists('end_date', $data)) {
         $updateFields[] = 'end_date = ?';
         $updateParams[] = $data['end_date'];
@@ -238,6 +236,34 @@ try {
         $row['end_time'] = $et;
     }
 
+    $adjustmentType = array_key_exists('price_adjustment_type', $data)
+        ? (string) $data['price_adjustment_type']
+        : (string) ($row['price_adjustment_type'] ?? '');
+    $adjustmentAmount = array_key_exists('price_adjustment_amount', $data)
+        ? $data['price_adjustment_amount']
+        : ((int) ($row['price_adjustment_cents'] ?? 0) / 100);
+    if ($adjustmentType !== '' && !in_array($adjustmentType, ['discount', 'surcharge'], true)) {
+        throw new InvalidArgumentException('Ugyldig type prisjustering.');
+    }
+    $adjustmentCents = $adjustmentType === '' ? 0 : rentalAdjustmentCents($adjustmentType, $adjustmentAmount);
+    $adjustmentExplanation = array_key_exists('price_adjustment_explanation', $data)
+        ? trim((string) $data['price_adjustment_explanation'])
+        : (string) ($row['price_adjustment_explanation'] ?? '');
+    if (strlen($adjustmentExplanation) > 1000) {
+        throw new InvalidArgumentException('Forklaringen på prisjusteringen er for lang.');
+    }
+    if (array_key_exists('price_adjustment_type', $data)
+        || array_key_exists('price_adjustment_amount', $data)
+        || array_key_exists('price_adjustment_explanation', $data)) {
+        $updateFields[] = 'price_adjustment_type = ?';
+        $updateParams[] = $adjustmentType !== '' && $adjustmentCents !== 0 ? $adjustmentType : null;
+        $updateFields[] = 'price_adjustment_cents = ?';
+        $updateParams[] = abs($adjustmentCents);
+        $updateFields[] = 'price_adjustment_explanation = ?';
+        $updateParams[] = $adjustmentExplanation !== '' ? $adjustmentExplanation : null;
+    }
+
+    $newCleaning = (int) ($row['cleaning'] ?? 0);
     if (array_key_exists('cleaning', $data)) {
         $cleaningValue = $data['cleaning'];
         $validCleaning = (is_int($cleaningValue) && in_array($cleaningValue, [0, 1], true))
@@ -246,18 +272,39 @@ try {
             throw new InvalidArgumentException('Ugyldig valg for renhold');
         }
         $newCleaning = (int) $cleaningValue;
-        $newRentalFee = rentalFeeAfterCleaningToggle(
-            $row['rental_fee'],
-            (int) $row['cleaning'],
-            $newCleaning,
-            $row['cleaning_fee']
-        );
         $updateFields[] = 'cleaning = ?';
         $updateParams[] = $newCleaning;
+        $row['cleaning'] = $newCleaning;
+    }
+
+    $pricingChanged = array_key_exists('start_date', $data)
+        || array_key_exists('end_date', $data)
+        || array_key_exists('cleaning', $data)
+        || array_key_exists('price_adjustment_type', $data)
+        || array_key_exists('price_adjustment_amount', $data)
+        || array_key_exists('price_adjustment_explanation', $data);
+    if ($pricingChanged) {
+        $baseCents = rentalPeriodPriceCents($row, $effectiveStartDate, $effectiveEndDate);
+        $cleaningCents = $newCleaning === 1
+            ? max(0, rentalMoneyToCents($row['cleaning_fee'] ?? 0))
+            : 0;
+        $newRentalFee = max(0, $baseCents + $cleaningCents + $adjustmentCents) / 100;
         $updateFields[] = 'rental_fee = ?';
         $updateParams[] = number_format($newRentalFee, 2, '.', '');
-        $row['cleaning'] = $newCleaning;
         $row['rental_fee'] = $newRentalFee;
+    }
+
+    $blackoutConflict = $db->prepare(
+        "SELECT id FROM rental_blackouts
+         WHERE company_id = ? AND rental_object_id = ?
+           AND start_date <= ? AND end_date >= ?
+         LIMIT 1 FOR UPDATE"
+    );
+    $blackoutConflict->execute([
+        $companyId, $row['rental_object_id'], $effectiveEndDate, $effectiveStartDate
+    ]);
+    if ($blackoutConflict->fetchColumn() !== false) {
+        throw new RentalRequestConflictException('Tidsrommet er blokkert');
     }
 
     if (empty($updateFields)) {
@@ -366,6 +413,10 @@ try {
         'email_queued' => $emailQueued,
     ]);
 
+} catch (RentalRequestConflictException $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
+    http_response_code(409);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 } catch (InvalidArgumentException $e) {
     if (isset($db) && $db->inTransaction()) $db->rollBack();
     error_log('update_rental_schedule validation error: ' . $e->getMessage());

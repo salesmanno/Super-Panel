@@ -51,6 +51,10 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
 #rental-module .rental-customer-links a { color:var(--rental-teal); text-decoration:none; }
 #rental-module .rental-customer-links a:hover { text-decoration:underline; }
 #rental-module .rental-checkin-sent { color:#198754; }
+#rental-module .rental-calendar-grid { min-width:680px; }
+#rental-module .rental-calendar-day { min-height:62px; padding:.55rem .35rem!important; font-size:.82rem; }
+#rental-module .rental-calendar-bar { min-height:38px; line-height:17px!important; padding:3px 7px!important; }
+#rental-module .rental-blackout { background:#fff3cd; border:1px solid #e6c86e; color:#664d03; }
 #rental-module .save-busy { pointer-events:none; opacity:.68; }
 @media(max-width:767.98px){#rental-module .btn-group{flex-wrap:wrap}#rental-module .table{min-width:760px}#rental-module .card-body{padding:1rem}.rental-mobile-scroll{overflow-x:auto}}
 </style>
@@ -175,6 +179,20 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
                         <i class="bi bi-arrow-clockwise me-1"></i>Oppdater
                     </button>
                 </div>
+                <div id="rentalBlackoutManager" class="rental-toolbar mb-3">
+                    <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                        <div><div class="rental-kicker">Intern planlegging</div><h6 class="mb-0">Sperreperiode uten kunde</h6></div>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" onclick="loadRentalBlackouts()"><i class="bi bi-arrow-clockwise"></i><span class="visually-hidden">Oppdater sperringer</span></button>
+                    </div>
+                    <form id="rentalBlackoutForm" class="row g-2 align-items-end" onsubmit="saveRentalBlackout(event)">
+                        <input type="hidden" id="rentalBlackoutId">
+                        <div class="col-12 col-lg-4"><label class="form-label small" for="rentalBlackoutObjects">Utleieobjekter</label><select id="rentalBlackoutObjects" class="form-select form-select-sm" multiple required size="3" aria-describedby="rentalBlackoutObjectHelp"></select><div id="rentalBlackoutObjectHelp" class="form-text">Velg ett eller flere objekter.</div></div>
+                        <div class="col-6 col-lg-2"><label class="form-label small" for="rentalBlackoutStart">Fra dato</label><input id="rentalBlackoutStart" class="form-control form-control-sm" type="date" required></div>
+                        <div class="col-6 col-lg-2"><label class="form-label small" for="rentalBlackoutEnd">Til dato</label><input id="rentalBlackoutEnd" class="form-control form-control-sm" type="date" required></div>
+                        <div class="col-12 col-lg-4 d-flex gap-2"><button class="btn btn-sm btn-primary" type="submit"><i class="bi bi-lock me-1"></i><span id="rentalBlackoutSubmitLabel">Sperr periode</span></button><button class="btn btn-sm btn-outline-secondary" type="button" onclick="resetRentalBlackoutForm()">Avbryt</button></div>
+                    </form>
+                    <div id="rentalBlackoutList" class="mt-3"></div>
+                </div>
                 <div id="upcomingContractsContainer">
                     <div class="text-center text-muted py-4">
                         <div class="spinner-border spinner-border-sm me-2" role="status"></div>
@@ -245,6 +263,7 @@ const rentalLifecycleCsrf = <?= json_encode($rentalLifecycleCsrf) ?>;
 let allRentalObjects = [];
 let rentalFilter = '';
 let allApprovedRentals = [];
+let allRentalBlackouts = [];
 let calViewStart = null;
 const CAL_COLORS = [
     {bg:'#0d6efd',tx:'#fff'},{bg:'#198754',tx:'#fff'},{bg:'#dc3545',tx:'#fff'},
@@ -258,6 +277,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadContracts('all');
     loadRentalRequests();
     loadApprovedSchedule();
+    loadRentalBlackouts();
     loadRentalResults();
 });
 
@@ -1783,6 +1803,61 @@ function rentalRequestFieldsHtml(fields, compact = false) {
         : `<section class="rental-request-fields border rounded-3 p-3 mt-3 bg-light-subtle"><h6 class="small text-uppercase text-muted mb-2">Innsendte kundeopplysninger</h6><div class="row row-cols-1 row-cols-md-2 g-2">${items.map(field => `<div class="col"><div class="d-flex flex-column"><span class="text-muted small">${escHtml(field.label || field.field || 'Opplysning')}</span><span class="fw-medium">${escHtml(field.value)}</span></div></div>`).join('')}</div></section>`;
 }
 
+function rentalPeriodBasePrice(object, startDate, endDate) {
+    if (!object || !startDate || !endDate) return 0;
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T00:00:00`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 0;
+    const daily = Number(object.rental_price || 0);
+    const weekend = Number(object.weekend_price || 0);
+    const saturday = Number(object.saturday_price || 0);
+    const sunday = Number(object.sunday_price || 0);
+    let total = 0;
+    for (const day = new Date(start); day <= end; day.setDate(day.getDate() + 1)) {
+        const weekday = day.getDay();
+        total += weekday === 6 && saturday > 0 ? saturday
+            : weekday === 0 && sunday > 0 ? sunday
+            : (weekday === 0 || weekday === 6) && weekend > 0 ? weekend
+            : daily;
+    }
+    return Math.round(total * 100) / 100;
+}
+
+function rentalAdjustmentFromRow(row) {
+    const type = row.querySelector('.rental-request-adjustment-type')?.value || 'none';
+    const amount = Math.max(0, Number(row.querySelector('.rental-request-adjustment-amount')?.value || 0));
+    const explanation = (row.querySelector('.rental-request-adjustment-explanation')?.value || '').trim();
+    return { type, amount: Math.round(amount * 100) / 100, explanation };
+}
+
+function refreshRentalRequestPrice(row) {
+    const object = allRentalObjects.find(item => String(item.id) === String(row.dataset.objectId)) || {
+        rental_price: row.dataset.dailyPrice,
+        weekend_price: row.dataset.weekendPrice,
+        saturday_price: row.dataset.saturdayPrice,
+        sunday_price: row.dataset.sundayPrice
+    };
+    const base = rentalPeriodBasePrice(
+        object,
+        row.querySelector('.rental-request-start-date')?.value,
+        row.querySelector('.rental-request-end-date')?.value
+    );
+    const cleaning = row.querySelector('.rental-request-cleaning')?.checked ? Number(row.dataset.cleaningFee || 0) : 0;
+    const adjustment = rentalAdjustmentFromRow(row);
+    const adjustmentValue = adjustment.type === 'discount' ? -adjustment.amount : adjustment.type === 'surcharge' ? adjustment.amount : 0;
+    const total = Math.max(0, Math.round((base + cleaning + adjustmentValue) * 100) / 100);
+    row.dataset.baseRentalFee = base;
+    row.dataset.rentalTotal = total;
+    const baseEl = row.querySelector('.rental-request-base-fee');
+    const totalEl = row.querySelector('.rental-request-total');
+    if (baseEl) baseEl.textContent = `${base.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK`;
+    if (totalEl) totalEl.textContent = `Totalt: ${total.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK`;
+    const adjustmentEl = row.querySelector('.rental-request-adjustment-summary');
+    if (adjustmentEl) adjustmentEl.textContent = adjustment.amount > 0 && adjustment.type !== 'none'
+        ? `${adjustment.type === 'discount' ? '−' : '+'} ${adjustment.amount.toLocaleString('nb-NO', {maximumFractionDigits:2})} NOK${adjustment.explanation ? ` · ${adjustment.explanation}` : ''}`
+        : 'Ingen prisjustering';
+}
+
 async function loadRentalRequests() {
     const container = document.getElementById('rentalRequestsContainer');
     if (!container) return;
@@ -1833,11 +1908,23 @@ async function loadRentalRequests() {
             const rentalFee = parseFloat(r.rental_fee || 0);
             const cleaningFee = parseFloat(r.cleaning_fee || 0);
             const cleaningSelected = Number(r.cleaning || 0) === 1;
-            const baseRentalFee = Math.max(0, rentalFee - (cleaningSelected ? cleaningFee : 0));
-            const pickupTime = (r.pickup_time || r.start_time || '').substring(0, 5);
+            const storedAdjustmentType = r.price_adjustment_type || 'none';
+            const storedAdjustmentAmount = Math.max(0, Number(r.price_adjustment_cents || 0) / 100);
+            const storedAdjustmentValue = storedAdjustmentType === 'discount'
+                ? -storedAdjustmentAmount
+                : storedAdjustmentType === 'surcharge' ? storedAdjustmentAmount : 0;
+            const baseRentalFee = Math.max(
+                0,
+                rentalFee - (cleaningSelected ? cleaningFee : 0) - storedAdjustmentValue
+            );
             const endTime = (r.end_time || '').substring(0, 5);
 
             return `<tr data-rental-request-id="${escHtml(r.id)}"
+                        data-object-id="${escHtml(r.rental_object_id || '')}"
+                        data-daily-price="${escAttr(r.object_daily_price || 0)}"
+                        data-weekend-price="${escAttr(r.object_weekend_price || 0)}"
+                        data-saturday-price="${escAttr(r.object_saturday_price || 0)}"
+                        data-sunday-price="${escAttr(r.object_sunday_price || 0)}"
                         data-base-rental-fee="${baseRentalFee}"
                         data-cleaning-fee="${cleaningFee}">
                 <td class="small">
@@ -1853,8 +1940,7 @@ async function loadRentalRequests() {
                     <div class="d-flex flex-column gap-1" style="min-width:8.5rem">
                         <input type="date" class="form-control form-control-sm rental-request-start-date"
                                value="${escHtml(r.start_date || '')}" aria-label="Startdato">
-                        <input type="time" class="form-control form-control-sm rental-request-pickup-time"
-                               value="${escHtml(pickupTime)}" aria-label="Hentetid">
+                        <span class="badge text-bg-light border py-2">Henting kl. 08:00</span>
                     </div>
                 </td>
                 <td class="small">
@@ -1881,11 +1967,17 @@ async function loadRentalRequests() {
                     <div class="small fw-semibold text-nowrap mt-1 rental-request-total">
                         Totalt: ${rentalFee.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK
                     </div>
+                    <div class="row g-1 mt-1">
+                        <div class="col-5"><label class="visually-hidden" for="adjustment-type-${escAttr(r.id)}">Prisjusteringstype</label><select id="adjustment-type-${escAttr(r.id)}" class="form-select form-select-sm rental-request-adjustment-type" onchange="refreshRentalRequestPrice(this.closest('[data-rental-request-id]'))"><option value="none"${storedAdjustmentType === 'none' ? ' selected' : ''}>Ingen justering</option><option value="discount"${storedAdjustmentType === 'discount' ? ' selected' : ''}>Rabatt</option><option value="surcharge"${storedAdjustmentType === 'surcharge' ? ' selected' : ''}>Tillegg</option></select></div>
+                        <div class="col-7"><label class="visually-hidden" for="adjustment-amount-${escAttr(r.id)}">Prisjustering beløp</label><input id="adjustment-amount-${escAttr(r.id)}" class="form-control form-control-sm rental-request-adjustment-amount" type="number" min="0" step="0.01" value="${storedAdjustmentAmount || ''}" placeholder="Beløp" oninput="refreshRentalRequestPrice(this.closest('[data-rental-request-id]'))"></div>
+                        <div class="col-12"><label class="visually-hidden" for="adjustment-explanation-${escAttr(r.id)}">Prisjustering forklaring</label><input id="adjustment-explanation-${escAttr(r.id)}" class="form-control form-control-sm rental-request-adjustment-explanation" type="text" maxlength="1000" value="${escAttr(r.price_adjustment_explanation || '')}" placeholder="Forklaring (valgfritt)" oninput="refreshRentalRequestPrice(this.closest('[data-rental-request-id]'))"></div>
+                    </div>
+                    <div class="small text-muted rental-request-adjustment-summary">Ingen prisjustering</div>
                     <div class="form-check form-switch mt-1">
                         <input class="form-check-input rental-request-cleaning" type="checkbox"
                                ${cleaningSelected ? 'checked' : ''}
                                ${cleaningFee <= 0 ? 'disabled' : ''}
-                               onchange="updateRentalRequestInlineTotal(this)"
+                                onchange="refreshRentalRequestPrice(this.closest('[data-rental-request-id]'))"
                                aria-label="Inkluder renhold">
                         <label class="form-check-label small text-nowrap">
                             Renhold${cleaningFee > 0 ? ` (${cleaningFee.toLocaleString('nb-NO', {maximumFractionDigits:2})} kr)` : ''}
@@ -1923,6 +2015,12 @@ async function loadRentalRequests() {
                 <tbody>${rows}</tbody>
             </table>
         </div>`;
+        container.querySelectorAll('[data-rental-request-id]').forEach(row => {
+            row.querySelectorAll('.rental-request-start-date, .rental-request-end-date').forEach(input => {
+                input.addEventListener('change', () => refreshRentalRequestPrice(row));
+            });
+            refreshRentalRequestPrice(row);
+        });
     } catch (e) {
         container.innerHTML = `<div class="alert alert-danger">Feil ved lasting av forespørsler</div>`;
     }
@@ -1933,41 +2031,33 @@ function getRentalRequestInlinePayload(id) {
     if (!row) throw new Error('Forespørselsraden ble ikke funnet');
 
     const startDate = row.querySelector('.rental-request-start-date')?.value || '';
-    const pickupTime = row.querySelector('.rental-request-pickup-time')?.value || '';
     const endDate = row.querySelector('.rental-request-end-date')?.value || '';
     const endTime = row.querySelector('.rental-request-end-time')?.value || '';
-    if (!startDate || !pickupTime || !endDate || !endTime) {
-        throw new Error('Dato, hentetid og sluttid må fylles ut');
+    if (!startDate || !endDate || !endTime) {
+        throw new Error('Fra-, til- og sluttid må fylles ut');
     }
-    if (`${endDate}T${endTime}` < `${startDate}T${pickupTime}`) {
+    if (`${endDate}T${endTime}` < `${startDate}T08:00`) {
         throw new Error('Sluttdato og sluttid kan ikke være før oppstart');
     }
 
+    const adjustment = rentalAdjustmentFromRow(row);
+    const rentalFee = Number(row.dataset.rentalTotal || 0);
     return {
         start_date: startDate,
-        pickup_time: pickupTime,
+        pickup_time: '08:00',
         end_date: endDate,
         end_time: endTime,
-        cleaning: row.querySelector('.rental-request-cleaning')?.checked ? 1 : 0
+        cleaning: row.querySelector('.rental-request-cleaning')?.checked ? 1 : 0,
+        rental_fee: rentalFee,
+        price_adjustment_type: adjustment.type === 'none' ? '' : adjustment.type,
+        price_adjustment_amount: adjustment.amount,
+        price_adjustment_explanation: adjustment.explanation
     };
 }
 
 function updateRentalRequestInlineTotal(checkbox) {
     const row = checkbox.closest('[data-rental-request-id]');
-    if (!row) return;
-    const base = Number(row.dataset.baseRentalFee || 0);
-    const cleaningFee = Number(row.dataset.cleaningFee || 0);
-    const total = base + (checkbox.checked ? cleaningFee : 0);
-    const totalEl = row.querySelector('.rental-request-total');
-    const cleaningEl = row.querySelector('.rental-request-cleaning-fee');
-    if (totalEl) {
-        totalEl.textContent = `Totalt: ${total.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK`;
-    }
-    if (cleaningEl) {
-        cleaningEl.textContent = checkbox.checked && cleaningFee > 0
-            ? `+ ${cleaningFee.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK renhold`
-            : 'Ingen renhold';
-    }
+    if (row) refreshRentalRequestPrice(row);
 }
 
 function setRentalRequestRowBusy(id, busy) {
@@ -2034,6 +2124,93 @@ async function declineScheduleRequest(id) {
     }
 }
 
+function renderRentalBlackouts() {
+    const select = document.getElementById('rentalBlackoutObjects');
+    if (select && select.options.length === 0) {
+        select.innerHTML = allRentalObjects.map(obj => `<option value="${escAttr(obj.id)}">${escHtml(obj.object_name || 'Utleieobjekt')}</option>`).join('');
+    }
+    const list = document.getElementById('rentalBlackoutList');
+    if (!list) return;
+    list.innerHTML = allRentalBlackouts.length ? allRentalBlackouts.map(item => {
+        const names = (item.objects || []).map(obj => obj.object_name || obj.name).filter(Boolean);
+        const objectNames = names.length ? names.join(', ') : (item.object_name || 'Utleieobjekt');
+        return `<div class="rental-blackout rounded-2 p-2 mb-2 d-flex justify-content-between align-items-center gap-2">
+            <div><strong>${escHtml(objectNames)}</strong><div class="small">${escHtml(item.start_date || '')} – ${escHtml(item.end_date || '')}</div><div class="small">Allerede akseptert utleie av ${escHtml(item.company_name || 'firmaet')}</div></div>
+            <div class="btn-group btn-group-sm"><button class="btn btn-outline-secondary" type="button" onclick="editRentalBlackout('${escAttr(item.id)}')">Rediger</button><button class="btn btn-outline-danger" type="button" onclick="deleteRentalBlackout('${escAttr(item.id)}')">Slett</button></div>
+        </div>`;
+    }).join('') : '<div class="small text-muted">Ingen interne sperringer.</div>';
+}
+
+async function loadRentalBlackouts() {
+    try {
+        const response = await fetch('/api/rental_blackouts.php');
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || 'Kunne ikke laste sperringer');
+        allRentalBlackouts = data.blackouts || [];
+        if (Array.isArray(data.objects) && allRentalObjects.length === 0) allRentalObjects = data.objects;
+        renderRentalBlackouts();
+        if (calViewStart) renderRentalCalendar(document.getElementById('upcomingContractsContainer'));
+    } catch (error) {
+        const list = document.getElementById('rentalBlackoutList');
+        if (list) list.innerHTML = `<div class="small text-danger">${escHtml(error.message)}</div>`;
+    }
+}
+
+function resetRentalBlackoutForm() {
+    const form = document.getElementById('rentalBlackoutForm');
+    form?.reset();
+    const id = document.getElementById('rentalBlackoutId');
+    if (id) id.value = '';
+    const label = document.getElementById('rentalBlackoutSubmitLabel');
+    if (label) label.textContent = 'Sperr periode';
+}
+
+function editRentalBlackout(id) {
+    const item = allRentalBlackouts.find(entry => String(entry.id) === String(id));
+    if (!item) return;
+    document.getElementById('rentalBlackoutId').value = item.id;
+    document.getElementById('rentalBlackoutStart').value = item.start_date || '';
+    document.getElementById('rentalBlackoutEnd').value = item.end_date || '';
+    const selected = new Set((item.object_ids || (item.objects || []).map(obj => obj.id)).map(String));
+    document.querySelectorAll('#rentalBlackoutObjects option').forEach(option => option.selected = selected.has(String(option.value)));
+    document.getElementById('rentalBlackoutSubmitLabel').textContent = 'Lagre endring';
+}
+
+async function saveRentalBlackout(event) {
+    event.preventDefault();
+    const objectIds = Array.from(document.getElementById('rentalBlackoutObjects').selectedOptions).map(option => option.value);
+    const startDate = document.getElementById('rentalBlackoutStart').value;
+    const endDate = document.getElementById('rentalBlackoutEnd').value;
+    if (!objectIds.length || !startDate || !endDate || endDate < startDate) {
+        toast.error(null, 'Ugyldig periode', 'Velg objekter og en gyldig fra-/til-dato.');
+        return;
+    }
+    const id = document.getElementById('rentalBlackoutId').value;
+    const response = await fetch('/api/rental_blackouts.php' + (id ? `?id=${encodeURIComponent(id)}` : ''), {
+        method: id ? 'PUT' : 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({id, rental_object_ids: objectIds, start_date: startDate, end_date: endDate})
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+        toast.error(null, 'Kunne ikke lagre sperring', data.message || 'Prøv igjen.');
+        return;
+    }
+    resetRentalBlackoutForm();
+    await loadRentalBlackouts();
+}
+
+async function deleteRentalBlackout(id) {
+    if (!confirm('Slett denne interne sperringen?')) return;
+    const response = await fetch(`/api/rental_blackouts.php?id=${encodeURIComponent(id)}`, {method:'DELETE'});
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+        toast.error(null, 'Kunne ikke slette sperring', data.message || 'Prøv igjen.');
+        return;
+    }
+    await loadRentalBlackouts();
+}
+
 // ─── KOMMENDE UTLEIE — KALENDER ──────────────────────────────────────────────
 
 function calMondayOf(d) {
@@ -2066,6 +2243,10 @@ function calGetMaxDate() {
         const e = calParseDate(r.end_date);
         if (e && e > lastEnd) lastEnd = e;
     });
+    allRentalBlackouts.forEach(item => {
+        const e = calParseDate(item.end_date);
+        if (e && e > lastEnd) lastEnd = e;
+    });
     return lastEnd > sixMonths ? lastEnd : sixMonths;
 }
 
@@ -2087,14 +2268,6 @@ async function loadApprovedSchedule() {
         }
 
         allApprovedRentals = data.requests || [];
-
-        if (allApprovedRentals.length === 0) {
-            container.innerHTML = `<div class="text-center text-muted py-5">
-                <i class="bi bi-calendar-check fs-1 d-block mb-2"></i>
-                Ingen godkjente kommende utleier
-            </div>`;
-            return;
-        }
 
         calViewStart = calMondayOf(new Date());
         renderRentalCalendar(container);
@@ -2140,7 +2313,7 @@ function renderRentalCalendar(container) {
             const isToday = ds === todayStr;
             const isPast  = day > maxDate;
             const bg      = isPast ? '#f0f0f0' : isToday ? '#dbeafe' : '#f8f9fa';
-            headerCells += `<div style="text-align:center;padding:4px 2px;background:${bg};border-right:1px solid #dee2e6;border-bottom:1px solid #dee2e6;font-size:0.72rem;${isPast ? 'opacity:0.45;' : ''}">
+            headerCells += `<div class="rental-calendar-day" style="text-align:center;background:${bg};border-right:1px solid #dee2e6;border-bottom:1px solid #dee2e6;${isPast ? 'opacity:0.45;' : ''}">
                 <div class="text-muted">${DAY_LABELS[d]}</div>
                 <div class="fw-bold${isToday ? ' text-primary' : ''}">${day.getDate()}.${String(day.getMonth()+1).padStart(2,'0')}</div>
             </div>`;
@@ -2167,27 +2340,44 @@ function renderRentalCalendar(container) {
             return { r, startCol, endCol, row };
         });
 
-        const maxRow = withRows.length > 0 ? Math.max(...withRows.map(x => x.row)) : 0;
-        const rentalAreaHeight = maxRow > 0 ? `${maxRow * 26 + 8}px` : '28px';
+        const blackoutRows = allRentalBlackouts.filter(item => {
+            const bs = calParseDate(item.start_date), be = calParseDate(item.end_date);
+            return bs && be && bs <= wkEnd && be >= wkStart;
+        }).map(item => {
+            const bs = calParseDate(item.start_date), be = calParseDate(item.end_date);
+            const clampS = bs < wkStart ? wkStart : bs;
+            const clampE = be > wkEnd ? wkEnd : be;
+            const startCol = Math.round((clampS - wkStart) / 86400000) + 1;
+            const endCol = Math.round((clampE - wkStart) / 86400000) + 2;
+            const row = Math.max(1, maxRow + 1);
+            return {item, startCol, endCol, row};
+        });
+        const blackoutMaxRow = blackoutRows.length ? Math.max(...blackoutRows.map(x => x.row)) : 0;
+        const totalRows = Math.max(maxRow, blackoutMaxRow, 1);
+        const rentalAreaHeight = `${totalRows * 42 + 8}px`;
 
         let bars = '';
         withRows.forEach(({ r, startCol, endCol, row }) => {
             const c     = colorMap[r.id];
             const label = r.object_name || 'Ukjent';
             const short = label.length > 22 ? label.substring(0, 20) + '…' : label;
-            bars += `<div style="grid-column:${startCol}/${endCol};grid-row:${row};background:${c.bg};color:${c.tx};border-radius:4px;padding:2px 6px;font-size:0.72rem;cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin:1px 2px;line-height:22px;"
+            bars += `<div class="rental-calendar-bar" style="grid-column:${startCol}/${endCol};grid-row:${row};background:${c.bg};color:${c.tx};border-radius:4px;font-size:0.72rem;cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin:1px 2px;"
                          onclick="showRentalCalDetail('${escHtml(r.id)}')"
                          title="${escHtml(label)} — ${fmtDate(r.start_date)} → ${fmtDate(r.end_date)}">
-                ${escHtml(short)}
+                 <strong>${escHtml(short)}</strong><span class="d-block small">Kode: ${escHtml(r.key_box_code || '–')}</span>
             </div>`;
+        });
+        blackoutRows.forEach(({item, startCol, endCol, row}) => {
+            const label = `Allerede akseptert utleie av ${item.company_name || 'firmaet'}`;
+            bars += `<div class="rental-calendar-bar rental-blackout" style="grid-column:${startCol}/${endCol};grid-row:${row};border-radius:4px;font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;margin:1px 2px;" title="${escAttr(label)}">${escHtml(label)}</div>`;
         });
 
         const emptyMsg = active.length === 0
             ? `<div style="grid-column:1/8;text-align:center;color:#bbb;font-size:0.72rem;padding:6px 0;">Ingen utleier</div>` : '';
 
         weeksHtml += `<div style="margin-bottom:10px;border:1px solid #dee2e6;border-radius:6px;overflow:hidden;">
-            <div style="display:grid;grid-template-columns:repeat(7,1fr);">${headerCells}</div>
-            <div style="display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(${Math.max(maxRow,1)},26px);min-height:${rentalAreaHeight};padding:4px 0;background:#fff;align-items:start;">
+            <div class="rental-calendar-grid" style="display:grid;grid-template-columns:repeat(7,1fr);">${headerCells}</div>
+            <div class="rental-calendar-grid" style="display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(${totalRows},42px);min-height:${rentalAreaHeight};padding:4px 0;background:#fff;align-items:start;">
                 ${bars}${emptyMsg}
             </div>
         </div>`;
@@ -2281,7 +2471,14 @@ function showRentalCalDetail(id) {
     const rentalTotal = parseFloat(r.rental_fee || 0);
     const cleaningFee = parseFloat(r.cleaning_fee || 0);
     const cleaningSelected = Number(r.cleaning || 0) === 1;
-    const baseRentalFee = Math.max(0, rentalTotal - (cleaningSelected ? cleaningFee : 0));
+    const adjustmentAmount = Math.max(0, Number(r.price_adjustment_cents || 0) / 100);
+    const adjustmentValue = r.price_adjustment_type === 'discount'
+        ? -adjustmentAmount
+        : r.price_adjustment_type === 'surcharge' ? adjustmentAmount : 0;
+    const baseRentalFee = Math.max(
+        0,
+        rentalTotal - (cleaningSelected ? cleaningFee : 0) - adjustmentValue
+    );
     const moneyNoDecimals = value => value.toLocaleString('nb-NO', {
         minimumFractionDigits: 0,
         maximumFractionDigits: 2
@@ -2289,6 +2486,9 @@ function showRentalCalDetail(id) {
     const cleaningBreakdown = cleaningSelected && cleaningFee > 0
         ? `<div class="text-muted">+ ${moneyNoDecimals(cleaningFee)} NOK renhold</div>`
         : '<div class="text-muted">Ingen renhold</div>';
+    const adjustmentBreakdown = adjustmentAmount > 0 && r.price_adjustment_type
+        ? `<div class="text-muted">${r.price_adjustment_type === 'discount' ? '−' : '+'} ${moneyNoDecimals(adjustmentAmount)} NOK Prisjustering${r.price_adjustment_explanation ? ` · ${escHtml(r.price_adjustment_explanation)}` : ''}</div>`
+        : '<div class="text-muted">Ingen prisjustering</div>';
     const isPaid = (r.payment_status || 'unpaid') === 'paid';
     const paymentDetails = isPaid
         ? `<div class="small text-muted mt-1">${r.payment_method ? escHtml(r.payment_method) : 'Betalingsmåte ikke oppgitt'}${r.paid_at ? ' · ' + fmtDate(r.paid_at) : ''}</div>`
@@ -2346,6 +2546,7 @@ function showRentalCalDetail(id) {
             <dd class="col-sm-8">
                 <div>${moneyNoDecimals(baseRentalFee)} NOK</div>
                 ${cleaningBreakdown}
+                 ${adjustmentBreakdown}
                 <div class="fw-semibold mt-1">Totalt: ${moneyNoDecimals(rentalTotal)} NOK</div>
             </dd>
             <dt class="col-sm-4">Betaling</dt>

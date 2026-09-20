@@ -6,6 +6,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/rental_customer_fields.php';
 require_once __DIR__ . '/../includes/rental_request.php';
 require_once __DIR__ . '/../includes/rental_request_fields.php';
+require_once __DIR__ . '/../includes/rental_schedule_editing.php';
 
 function rentalRequestUuid(): string
 {
@@ -58,7 +59,8 @@ try {
     $db->beginTransaction();
 
     $objectStmt = $db->prepare(
-        'SELECT id, company_id, object_name, rental_price, created_by
+        'SELECT id, company_id, object_name, rental_price, weekend_price,
+                saturday_price, sunday_price, created_by
          FROM rental_objects
          WHERE id = ? AND ' . rentalPublicEligibilitySql() . '
          FOR UPDATE'
@@ -76,6 +78,19 @@ try {
     $validated = validateRentalRequestInput($data, $settings);
     $startDateTime = $validated['start_date'] . ' ' . $validated['start_time'];
     $endDateTime = $validated['end_date'] . ' ' . $validated['end_time'];
+
+    $blackoutConflict = $db->prepare(
+        "SELECT id FROM rental_blackouts
+         WHERE company_id = ? AND rental_object_id = ?
+           AND start_date <= ? AND end_date >= ?
+         LIMIT 1 FOR UPDATE"
+    );
+    $blackoutConflict->execute([
+        $object['company_id'], $objectId, $validated['end_date'], $validated['start_date']
+    ]);
+    if ($blackoutConflict->fetchColumn() !== false) {
+        throw new RentalRequestConflictException('Tidsrommet er blokkert');
+    }
 
     // Approved/active requests and active contracts reserve the object.
     $scheduleConflict = $db->prepare(
@@ -185,17 +200,17 @@ try {
     $customerName = $customerDisplay['name'];
     $customerEmail = $customerDisplay['email'];
     $customerPhone = $customerDisplay['phone'];
-    $days = (new DateTimeImmutable($validated['start_date']))
-        ->diff(new DateTimeImmutable($validated['end_date']))->days + 1;
-    $rentalFee = (float) ($object['rental_price'] ?? 0) * $days;
+    $rentalFee = rentalPeriodPriceCents(
+        $object, $validated['start_date'], $validated['end_date']
+    ) / 100;
     $requestId = rentalRequestUuid();
 
     $insert = $db->prepare(
         'INSERT INTO rental_schedule
          (id, company_id, rental_object_id, customer_id, customer_name,
           customer_email, customer_phone, start_date, start_time, end_date,
-          end_time, logistics, rental_fee, status, approved, notes, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'pending\', 0, ?, ?)'
+           end_time, logistics, rental_fee, pickup_time, status, approved, notes, created_by)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'pending\', 0, ?, ?)'
     );
     $insert->execute([
         $requestId,
@@ -211,6 +226,7 @@ try {
         $validated['end_time'],
         $validated['logistics'],
         $rentalFee,
+        '08:00:00',
         $validated['notes'] ?: null,
         $object['created_by'],
     ]);

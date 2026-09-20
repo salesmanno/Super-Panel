@@ -167,7 +167,8 @@ function validateRentalRequestInput(array $data, array $settings): array
 
     $startDate = normalizeRequestDate($data['start_date'] ?? null, 'Startdato', false);
     $endDate = normalizeRequestDate($data['end_date'] ?? null, 'Sluttdato', false);
-    $startTime = normalizeRequestTime($data['start_time'] ?? null, 'Starttid', false);
+    // Pickup is a product invariant, not a customer-selectable value.
+    $startTime = '08:00:00';
     $endTime = normalizeRequestTime($data['end_time'] ?? null, 'Sluttid', false);
     if ($endDate < $startDate || ($endDate === $startDate && $endTime < $startTime)) {
         throw new InvalidArgumentException('Sluttidspunkt må være etter starttidspunkt');

@@ -60,6 +60,26 @@ $assert(
     rentalFeeAfterCleaningToggle(5500, 1, 1, 750) === 5500.0,
     'Keeping cleaning enabled does not add the fee twice'
 );
+$assert(
+    rentalPeriodPriceCents([
+        'rental_price' => '100.00',
+        'weekend_price' => '150.00',
+        'saturday_price' => '175.00',
+        'sunday_price' => '125.00',
+], '2026-04-03', '2026-04-05') === 40000,
+    'Period pricing uses configured weekday-specific weekend rates in cents'
+);
+$assert(rentalAdjustmentCents('discount', '12.50') === -1250, 'Discount is stored as negative cents');
+$assert(rentalAdjustmentCents('surcharge', '12.50') === 1250, 'Surcharge is stored as positive cents');
+$fixedTimeRequest = validateRentalRequestInput([
+    'fields' => [],
+    'start_date' => '2026-04-01',
+    'start_time' => '17:00',
+    'end_date' => '2026-04-01',
+    'end_time' => '18:00',
+    'logistics' => 'pick_up',
+], []);
+$assert($fixedTimeRequest['start_time'] === '08:00:00', 'Pickup time is fixed at 08:00');
 $rentalContent = file_get_contents(__DIR__ . '/../modules/rental_content.php');
 $assert(
     str_contains($rentalContent, 'rentalFee - (cleaningSelected ? cleaningFee : 0)')

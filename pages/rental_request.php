@@ -94,8 +94,9 @@ function rentalRequestHtml($value): string
                             <input class="form-control" id="end_date" name="end_date" type="date" required>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label" for="start_time">Starttid <span class="text-danger">*</span></label>
-                            <input class="form-control" id="start_time" name="start_time" type="time" required>
+                            <label class="form-label">Hentetid</label>
+                            <div class="form-control bg-light" aria-label="Fast hentetid">08:00</div>
+                            <input id="start_time" name="start_time" type="hidden" value="08:00">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label" for="end_time">Sluttid <span class="text-danger">*</span></label>
