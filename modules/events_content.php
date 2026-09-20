@@ -51,10 +51,34 @@ try {
 
 .event-image {
     height: 180px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    background-size: cover;
-    background-position: center;
     position: relative;
+    width: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.event-image-shell {
+    height: 180px;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.event-image-shell .event-image {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+}
+
+.event-image-shell > i {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 3rem;
+    opacity: .7;
 }
 
 .event-image-placeholder {
@@ -2607,6 +2631,24 @@ document.addEventListener('DOMContentLoaded', function() {
 // Prevent multiple simultaneous calls
 let loadEventsRunning = false;
 
+function safeEventImageUrl(value) {
+    if (!value) return '';
+    try {
+        const parsed = new URL(String(value));
+        return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : '';
+    } catch (error) {
+        return '';
+    }
+}
+
+function eventImageAttribute(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 async function loadEvents() {
     if (loadEventsRunning) {
         console.log('loadEvents already running, skipping...');
@@ -2677,8 +2719,12 @@ async function loadEvents() {
                     priceMetaItem = `<div class="event-meta-item"><i class="bi bi-tag"></i><span>Gratis</span></div>`;
                 }
                 
-                const imageHtml = event.event_image_url 
-                    ? `<div class="event-image" style="background-image: url('${event.event_image_url}')"></div>`
+                const eventImageUrl = safeEventImageUrl(event.event_image_url);
+                const imageHtml = eventImageUrl
+                    ? `<div class="event-image-shell">
+                           <i class="bi bi-calendar-event"></i>
+                           <img class="event-image" data-event-image src="${eventImageAttribute(eventImageUrl)}" alt="" loading="lazy">
+                       </div>`
                     : `<div class="event-image-placeholder"><i class="bi bi-calendar-event"></i></div>`;
                 
                 const memberBadge = event.is_member_exclusive == 1 
@@ -2807,6 +2853,9 @@ async function loadEvents() {
                     </div>
                 `;
             }).join('');
+            eventsList.querySelectorAll('img[data-event-image]').forEach((image) => {
+                image.addEventListener('error', () => image.remove(), { once: true });
+            });
         } else {
             eventsList.innerHTML = `
                 <div class="col-12">
@@ -3076,9 +3125,10 @@ async function loadCheckinEventSelector() {
                 const escapedTitle = event.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
                 const escapedDateStr = dateStr.replace(/'/g, "\\'");
                 
-                const hasImage = event.event_image_url && event.event_image_url.trim() !== '';
+                const eventImageUrl = safeEventImageUrl(event.event_image_url);
+                const hasImage = eventImageUrl !== '';
                 const imageStyle = hasImage 
-                    ? `background-image: url('${event.event_image_url}'); background-size: cover; background-position: center;`
+                    ? `background-image: url(&quot;${eventImageAttribute(eventImageUrl)}&quot;); background-size: cover; background-position: center;`
                     : 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);';
                 
                 const pendingBadge = event.pending_registrations > 0 

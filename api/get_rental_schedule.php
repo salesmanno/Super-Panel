@@ -44,10 +44,11 @@ try {
             COALESCE(rv.cleaning_fee, 0) AS cleaning_fee,
             COALESCE(
                 NULLIF(TRIM(CONCAT(COALESCE(tc.first_name,''), ' ', COALESCE(tc.last_name,''))), ''),
+                NULLIF(TRIM(rs.customer_name), ''),
                 'Ukjent kunde'
             )                AS display_customer_name,
-            tc.email         AS display_email,
-            tc.phone         AS display_phone,
+            COALESCE(NULLIF(TRIM(tc.email), ''), NULLIF(TRIM(rs.customer_email), '')) AS display_email,
+            COALESCE(NULLIF(TRIM(tc.phone), ''), NULLIF(TRIM(rs.customer_phone), '')) AS display_phone,
             tc.date_of_birth AS date_of_birth,
             DATEDIFF(rs.end_date, CURDATE()) AS days_remaining
         FROM rental_schedule rs

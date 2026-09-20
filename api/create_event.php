@@ -11,6 +11,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/ProductCatalogService.php';
 require_once __DIR__ . '/../includes/ShareLinkService.php';
 require_once __DIR__ . '/../includes/request_date_time.php';
+require_once __DIR__ . '/../includes/event_image_url.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -29,6 +30,7 @@ try {
         $data['registration_deadline'] ?? null,
         'Påmeldingsfrist'
     );
+    $data['event_image_url'] = normalizeEventImageUrl($data['event_image_url'] ?? null);
 
     $db = getDBConnection();
     

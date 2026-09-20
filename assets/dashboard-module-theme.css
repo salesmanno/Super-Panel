@@ -405,7 +405,6 @@
 }
 
 /* Keep legacy module-specific structures, but translate their visual signals. */
-.dashboard-module-theme .event-image,
 .dashboard-module-theme .event-image-placeholder,
 .dashboard-module-theme .fullscreen-checkin-header,
 .dashboard-module-theme .fullscreen-header,
@@ -525,28 +524,28 @@
 }
 
 /* Dashboard chrome uses the same control-centre signal as module panes. */
-body:has(.tab-pane.dashboard-module-theme.active) {
+body:has(.dashboard-workspace > .tab-pane.active) {
     background: var(--sm-paper);
     color: var(--sm-ink);
 }
-body:has(.tab-pane.dashboard-module-theme.active) .navbar-gradient {
+body:has(.dashboard-workspace > .tab-pane.active) .navbar-gradient {
     background: var(--sm-navy) !important;
     box-shadow: 0 2px 10px rgba(22,59,92,.16);
 }
-body:has(.tab-pane.dashboard-module-theme.active) .dashboard-header {
+body:has(.dashboard-workspace > .tab-pane.active) .dashboard-header {
     background: #fff;
     border-bottom: 1px solid var(--sm-line);
     box-shadow: 0 1px 0 rgba(22,59,92,.03);
 }
-body:has(.tab-pane.dashboard-module-theme.active) .module-tabs .nav-link:hover {
+body:has(.dashboard-workspace > .tab-pane.active) .module-tabs .nav-link:hover {
     color: var(--sm-teal);
     border-bottom-color: rgba(8,127,140,.3);
     background: var(--sm-teal-soft);
 }
-body:has(.tab-pane.dashboard-module-theme.active) .module-tabs .nav-link.active {
+body:has(.dashboard-workspace > .tab-pane.active) .module-tabs .nav-link.active {
     color: var(--sm-teal);
     background: linear-gradient(to bottom, rgba(8,127,140,.10), transparent);
     border-bottom-color: var(--sm-teal);
 }
-body:has(.tab-pane.dashboard-module-theme.active) .subdomain-url { color: var(--sm-teal); }
-body:has(.tab-pane.dashboard-module-theme.active) .news-banner { background: linear-gradient(135deg, var(--sm-navy), var(--sm-teal)); }
+body:has(.dashboard-workspace > .tab-pane.active) .subdomain-url { color: var(--sm-teal); }
+body:has(.dashboard-workspace > .tab-pane.active) .news-banner { background: linear-gradient(135deg, var(--sm-navy), var(--sm-teal)); }

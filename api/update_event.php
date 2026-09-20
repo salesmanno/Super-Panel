@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/ProductCatalogService.php';
 require_once __DIR__ . '/../includes/request_date_time.php';
+require_once __DIR__ . '/../includes/event_image_url.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -22,6 +23,7 @@ try {
 
     $data['start_date'] = normalizeRequestDate($data['start_date'], 'Startdato', false);
     $data['start_time'] = normalizeRequestTime($data['start_time'], 'Starttid', false);
+    $data['event_image_url'] = normalizeEventImageUrl($data['event_image_url'] ?? null);
     $data['end_date'] = normalizeRequestDate($data['end_date'] ?? null, 'Sluttdato');
     $data['end_time'] = normalizeRequestTime($data['end_time'] ?? null, 'Sluttid');
     $data['registration_deadline'] = normalizeRequestDate(

@@ -1,6 +1,13 @@
 <?php
 require_once __DIR__ . '/../includes/rental_schemas.php';
 require_once __DIR__ . '/../includes/rental_customer_fields.php';
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+if (empty($_SESSION['rental_lifecycle_csrf'])) {
+    $_SESSION['rental_lifecycle_csrf'] = bin2hex(random_bytes(32));
+}
+$rentalLifecycleCsrf = (string) $_SESSION['rental_lifecycle_csrf'];
 $schemas = getRentalSchemas();
 $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
 ?>
@@ -38,6 +45,11 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
 #rental-module .table thead th { color:var(--rental-muted); font-size:.7rem; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; }
 #rental-module .table tbody tr { transition:background .15s ease; }
 #rental-module .table tbody tr:hover { background:#f1f8f8; }
+#rental-module .rental-upcoming-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr)); gap:.75rem; }
+#rental-module .rental-upcoming-card { border:1px solid var(--rental-line); border-radius:10px; padding:.85rem; background:#fff; }
+#rental-module .rental-upcoming-card:hover { border-color:#9ec9cc; box-shadow:0 4px 12px rgba(22,59,92,.08); }
+#rental-module .rental-customer-links a { color:var(--rental-teal); text-decoration:none; }
+#rental-module .rental-customer-links a:hover { text-decoration:underline; }
 #rental-module .save-busy { pointer-events:none; opacity:.68; }
 @media(max-width:767.98px){#rental-module .btn-group{flex-wrap:wrap}#rental-module .table{min-width:760px}#rental-module .card-body{padding:1rem}.rental-mobile-scroll{overflow-x:auto}}
 </style>
@@ -228,6 +240,7 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
 const rentalSchemas = <?= json_encode($schemas) ?>;
 const rentalCustomerFieldDefinitions = <?= json_encode($customerFieldDefinitions, JSON_UNESCAPED_UNICODE) ?>;
 const rentalCustomerFieldOrder = Object.keys(rentalCustomerFieldDefinitions);
+const rentalLifecycleCsrf = <?= json_encode($rentalLifecycleCsrf) ?>;
 let allRentalObjects = [];
 let rentalFilter = '';
 let allApprovedRentals = [];
@@ -2150,16 +2163,45 @@ function renderRentalCalendar(container) {
 
     // Legend — only rentals visible in current 2-week window
     const viewWindowEnd = calAddDays(calViewStart, 13);
-    const legend = allApprovedRentals
+    const visibleRentals = allApprovedRentals
         .filter(r => {
             const rs = calParseDate(r.start_date), re = calParseDate(r.end_date);
             return rs && re && rs <= viewWindowEnd && re >= calViewStart;
-        })
-        .map((r, i) => {
+        });
+    const legend = visibleRentals
+        .map((r) => {
             const globalIdx = allApprovedRentals.indexOf(r);
             const c = CAL_COLORS[globalIdx % CAL_COLORS.length];
             return `<span class="badge me-1 mb-1" style="background:${c.bg};color:${c.tx};cursor:pointer;font-weight:400;" onclick="showRentalCalDetail(decodeURIComponent('${encodeURIComponent(String(r.id))}'))">${escHtml(r.object_name || 'Ukjent')}</span>`;
         }).join('');
+    const upcomingCards = visibleRentals.map(r => {
+        const id = encodeURIComponent(String(r.id));
+        const customerName = escHtml(r.display_customer_name || r.customer_name || 'Ukjent kunde');
+        const email = r.display_email
+            ? `<a href="mailto:${escAttr(r.display_email)}"><i class="bi bi-envelope me-1"></i>${escHtml(r.display_email)}</a>`
+            : '<span class="text-muted">Ingen e-post</span>';
+        const phone = r.display_phone
+            ? `<a href="tel:${escAttr(r.display_phone)}"><i class="bi bi-telephone me-1"></i>${escHtml(r.display_phone)}</a>`
+            : '<span class="text-muted">Ingen telefon</span>';
+        const total = Number(r.rental_fee || 0).toLocaleString('nb-NO', { maximumFractionDigits: 2 });
+        return `<article class="rental-upcoming-card">
+            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                <div>
+                    <div class="fw-semibold">${escHtml(r.object_name || 'Utleieobjekt')}</div>
+                    <div class="small text-muted">${fmtDate(r.start_date)} – ${fmtDate(r.end_date)}</div>
+                </div>
+                ${contractPaymentBadge(r.payment_status || 'unpaid')}
+            </div>
+            <div class="fw-semibold small mb-1"><i class="bi bi-person me-1"></i>${customerName}</div>
+            <div class="rental-customer-links small d-grid gap-1 mb-3">${email}${phone}</div>
+            <div class="d-flex justify-content-between align-items-center gap-2">
+                <span class="fw-semibold">${total} NOK</span>
+                <button class="btn btn-sm btn-outline-primary" type="button" onclick="showRentalCalDetail(decodeURIComponent('${id}'))">
+                    Detaljer og handlinger
+                </button>
+            </div>
+        </article>`;
+    }).join('');
 
     container.innerHTML = `
         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -2172,7 +2214,8 @@ function renderRentalCalendar(container) {
             </button>
         </div>
         ${weeksHtml}
-        <div class="mt-1">${legend}</div>`;
+        <div class="mt-1">${legend}</div>
+        <div class="rental-upcoming-list mt-3">${upcomingCards}</div>`;
 }
 
 function showRentalCalDetail(id) {
@@ -2203,6 +2246,40 @@ function showRentalCalDetail(id) {
     const cleaningBreakdown = cleaningSelected && cleaningFee > 0
         ? `<div class="text-muted">+ ${moneyNoDecimals(cleaningFee)} NOK renhold</div>`
         : '<div class="text-muted">Ingen renhold</div>';
+    const isPaid = (r.payment_status || 'unpaid') === 'paid';
+    const paymentDetails = isPaid
+        ? `<div class="small text-muted mt-1">${r.payment_method ? escHtml(r.payment_method) : 'Betalingsmåte ikke oppgitt'}${r.paid_at ? ' · ' + fmtDate(r.paid_at) : ''}</div>`
+        : '';
+    const actionPanel = `
+        <div class="rental-toolbar mt-4">
+            <div class="row g-2 align-items-end">
+                <div class="col-md">
+                    <label class="form-label small fw-semibold" for="rentalSchedulePaymentMethod">Betalingsmåte</label>
+                    <select class="form-select form-select-sm" id="rentalSchedulePaymentMethod" ${isPaid ? 'disabled' : ''}>
+                        <option value="">Velg betalingsmåte</option>
+                        <option value="vipps">Vipps</option>
+                        <option value="card">Kort</option>
+                        <option value="cash">Kontant</option>
+                        <option value="invoice">Faktura</option>
+                        <option value="bank_transfer">Bankoverføring</option>
+                        <option value="other">Annet</option>
+                    </select>
+                </div>
+                <div class="col-md-auto d-grid">
+                    <button class="btn btn-success btn-sm" type="button"
+                            onclick="registerRentalSchedulePayment('${escAttr(String(r.id))}')"
+                            ${isPaid ? 'disabled' : ''}>
+                        <i class="bi bi-check-circle me-1"></i>${isPaid ? 'Betaling registrert' : 'Registrer betaling'}
+                    </button>
+                </div>
+                <div class="col-md-auto d-grid">
+                    <button class="btn btn-outline-danger btn-sm" type="button"
+                            onclick="cancelRentalSchedule('${escAttr(String(r.id))}')">
+                        <i class="bi bi-x-circle me-1"></i>Avlys leie
+                    </button>
+                </div>
+            </div>
+        </div>`;
 
     document.getElementById('detailsModalTitle').textContent = r.object_name || 'Utleie';
     document.getElementById('detailsModalBody').innerHTML = `
@@ -2225,12 +2302,59 @@ function showRentalCalDetail(id) {
                 ${cleaningBreakdown}
                 <div class="fw-semibold mt-1">Totalt: ${moneyNoDecimals(rentalTotal)} NOK</div>
             </dd>
+            <dt class="col-sm-4">Betaling</dt>
+            <dd class="col-sm-8">${contractPaymentBadge(r.payment_status || 'unpaid')}${paymentDetails}</dd>
             <dt class="col-sm-4">Logistikk</dt>
             <dd class="col-sm-8">${logistics}</dd>
             ${r.notes ? `<dt class="col-sm-4">Notater</dt><dd class="col-sm-8">${escHtml(r.notes)}</dd>` : ''}
-        </dl>`;
+        </dl>
+        ${actionPanel}`;
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById('detailsModal')).show();
+}
+
+async function updateRentalScheduleLifecycle(id, action, paymentMethod = null) {
+    const toastId = toast.loading(action === 'cancel' ? 'Avlyser leie...' : 'Registrerer betaling...');
+    try {
+        const response = await fetch('/api/update_rental_schedule_lifecycle.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id,
+                action,
+                csrf_token: rentalLifecycleCsrf,
+                ...(paymentMethod ? { payment_method: paymentMethod } : {})
+            })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            toast.error(toastId, 'Kunne ikke oppdatere', data.message || 'Prøv igjen.');
+            return false;
+        }
+        toast.success(toastId, 'Oppdatert', data.message);
+        bootstrap.Modal.getInstance(document.getElementById('detailsModal'))?.hide();
+        await loadApprovedSchedule();
+        return true;
+    } catch (error) {
+        toast.error(toastId, 'Nettverksfeil', 'Kunne ikke kontakte serveren. Prøv igjen.');
+        return false;
+    }
+}
+
+async function registerRentalSchedulePayment(id) {
+    const method = document.getElementById('rentalSchedulePaymentMethod')?.value || '';
+    if (!method) {
+        toast.quickWarning('Velg betalingsmåte', 'Betalingsmåte må velges før betalingen registreres.');
+        return;
+    }
+    await updateRentalScheduleLifecycle(id, 'mark_paid', method);
+}
+
+async function cancelRentalSchedule(id) {
+    if (!window.confirm('Vil du avlyse denne leien? Handlingen fjerner den fra kommende leie.')) {
+        return;
+    }
+    await updateRentalScheduleLifecycle(id, 'cancel');
 }
 
 async function saveScheduleTime(id, field, value) {
@@ -2278,7 +2402,7 @@ function contractPaymentBadge(paymentStatus) {
 
 function fmtDate(dateStr) {
     if (!dateStr) return '–';
-    const [y, m, d] = dateStr.split('T')[0].split('-');
+    const [y, m, d] = String(dateStr).split(/[ T]/)[0].split('-');
     return `${d}.${m}.${y}`;
 }
 
