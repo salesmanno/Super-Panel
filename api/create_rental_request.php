@@ -79,25 +79,15 @@ try {
     $startDateTime = $validated['start_date'] . ' ' . $validated['start_time'];
     $endDateTime = $validated['end_date'] . ' ' . $validated['end_time'];
 
-    $blackoutConflict = $db->prepare(
-        "SELECT id FROM rental_blackouts
-         WHERE company_id = ? AND rental_object_id = ?
-           AND start_date <= ? AND end_date >= ?
-         LIMIT 1 FOR UPDATE"
-    );
-    $blackoutConflict->execute([
-        $object['company_id'], $objectId, $validated['end_date'], $validated['start_date']
-    ]);
-    if ($blackoutConflict->fetchColumn() !== false) {
-        throw new RentalRequestConflictException('Tidsrommet er blokkert');
-    }
-
-    // Approved/active requests and active contracts reserve the object.
+    // Approved/active rentals and unavailable periods reserve the object.
     $scheduleConflict = $db->prepare(
         "SELECT rs.id
          FROM rental_schedule rs
          WHERE rs.company_id = ? AND rs.rental_object_id = ?
-           AND rs.status IN ('approved', 'active')
+            AND (
+              rs.status = 'unavailable'
+              OR (rs.approved = 1 AND rs.status IN ('approved', 'active'))
+            )
            AND CONCAT(rs.start_date, ' ', rs.start_time) < ?
            AND CONCAT(rs.end_date, ' ', rs.end_time) > ?
          LIMIT 1
@@ -110,7 +100,7 @@ try {
         $startDateTime,
     ]);
     if ($scheduleConflict->fetchColumn() !== false) {
-        throw new RentalRequestConflictException('Tidsrommet er allerede reservert');
+        throw new RentalRequestConflictException('Tidsrommet er allerede reservert eller utilgjengelig');
     }
 
     $contractConflict = $db->prepare(

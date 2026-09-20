@@ -19,7 +19,7 @@ try {
 
     $approvedFilter = $_GET['approved'] ?? null;
 
-    $where  = ['rs.company_id = ?'];
+    $where  = ["rs.company_id = ?", "rs.status <> 'unavailable'"];
     $params = [$companyId];
 
     if ($approvedFilter !== null && in_array($approvedFilter, ['0', '1', '2'], true)) {

@@ -54,7 +54,7 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
 #rental-module .rental-calendar-grid { min-width:680px; }
 #rental-module .rental-calendar-day { min-height:62px; padding:.55rem .35rem!important; font-size:.82rem; }
 #rental-module .rental-calendar-bar { min-height:38px; line-height:17px!important; padding:3px 7px!important; }
-#rental-module .rental-blackout { background:#fff3cd; border:1px solid #e6c86e; color:#664d03; }
+#rental-module .rental-unavailable { background:#fff3cd; border:1px solid #e6c86e; color:#664d03; }
 #rental-module .save-busy { pointer-events:none; opacity:.68; }
 @media(max-width:767.98px){#rental-module .btn-group{flex-wrap:wrap}#rental-module .table{min-width:760px}#rental-module .card-body{padding:1rem}.rental-mobile-scroll{overflow-x:auto}}
 </style>
@@ -179,19 +179,19 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
                         <i class="bi bi-arrow-clockwise me-1"></i>Oppdater
                     </button>
                 </div>
-                <div id="rentalBlackoutManager" class="rental-toolbar mb-3">
+                <div id="rentalUnavailableManager" class="rental-toolbar mb-3">
                     <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
-                        <div><div class="rental-kicker">Intern planlegging</div><h6 class="mb-0">Sperreperiode uten kunde</h6></div>
-                        <button class="btn btn-sm btn-outline-secondary" type="button" onclick="loadRentalBlackouts()"><i class="bi bi-arrow-clockwise"></i><span class="visually-hidden">Oppdater sperringer</span></button>
+                        <div><div class="rental-kicker">Intern planlegging</div><h6 class="mb-0">Utilgjengelig periode</h6></div>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" onclick="loadRentalUnavailable()"><i class="bi bi-arrow-clockwise"></i><span class="visually-hidden">Oppdater utilgjengelige perioder</span></button>
                     </div>
-                    <form id="rentalBlackoutForm" class="row g-2 align-items-end" onsubmit="saveRentalBlackout(event)">
-                        <input type="hidden" id="rentalBlackoutId">
-                        <div class="col-12 col-lg-4"><label class="form-label small" for="rentalBlackoutObjects">Utleieobjekter</label><select id="rentalBlackoutObjects" class="form-select form-select-sm" multiple required size="3" aria-describedby="rentalBlackoutObjectHelp"></select><div id="rentalBlackoutObjectHelp" class="form-text">Velg ett eller flere objekter.</div></div>
-                        <div class="col-6 col-lg-2"><label class="form-label small" for="rentalBlackoutStart">Fra dato</label><input id="rentalBlackoutStart" class="form-control form-control-sm" type="date" required></div>
-                        <div class="col-6 col-lg-2"><label class="form-label small" for="rentalBlackoutEnd">Til dato</label><input id="rentalBlackoutEnd" class="form-control form-control-sm" type="date" required></div>
-                        <div class="col-12 col-lg-4 d-flex gap-2"><button class="btn btn-sm btn-primary" type="submit"><i class="bi bi-lock me-1"></i><span id="rentalBlackoutSubmitLabel">Sperr periode</span></button><button class="btn btn-sm btn-outline-secondary" type="button" onclick="resetRentalBlackoutForm()">Avbryt</button></div>
+                    <form id="rentalUnavailableForm" class="row g-2 align-items-end" onsubmit="saveRentalUnavailable(event)">
+                        <input type="hidden" id="rentalUnavailableId">
+                        <div class="col-12 col-lg-4"><label class="form-label small" for="rentalUnavailableObjects">Utleieobjekter</label><select id="rentalUnavailableObjects" class="form-select form-select-sm" multiple required size="3" aria-describedby="rentalUnavailableObjectHelp"></select><div id="rentalUnavailableObjectHelp" class="form-text">Velg ett eller flere objekter.</div></div>
+                        <div class="col-6 col-lg-2"><label class="form-label small" for="rentalUnavailableStart">Fra dato</label><input id="rentalUnavailableStart" class="form-control form-control-sm" type="date" required></div>
+                        <div class="col-6 col-lg-2"><label class="form-label small" for="rentalUnavailableEnd">Til dato</label><input id="rentalUnavailableEnd" class="form-control form-control-sm" type="date" required></div>
+                        <div class="col-12 col-lg-4 d-flex gap-2"><button class="btn btn-sm btn-primary" type="submit"><i class="bi bi-lock me-1"></i><span id="rentalUnavailableSubmitLabel">Marker utilgjengelig</span></button><button class="btn btn-sm btn-outline-secondary" type="button" onclick="resetRentalUnavailableForm()">Avbryt</button></div>
                     </form>
-                    <div id="rentalBlackoutList" class="mt-3"></div>
+                    <div id="rentalUnavailableList" class="mt-3"></div>
                 </div>
                 <div id="upcomingContractsContainer">
                     <div class="text-center text-muted py-4">
@@ -263,7 +263,7 @@ const rentalLifecycleCsrf = <?= json_encode($rentalLifecycleCsrf) ?>;
 let allRentalObjects = [];
 let rentalFilter = '';
 let allApprovedRentals = [];
-let allRentalBlackouts = [];
+let allRentalUnavailable = [];
 let calViewStart = null;
 const CAL_COLORS = [
     {bg:'#0d6efd',tx:'#fff'},{bg:'#198754',tx:'#fff'},{bg:'#dc3545',tx:'#fff'},
@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadContracts('all');
     loadRentalRequests();
     loadApprovedSchedule();
-    loadRentalBlackouts();
+    loadRentalUnavailable();
     loadRentalResults();
 });
 
@@ -310,7 +310,7 @@ async function loadRentalObjects() {
                 if (!Array.isArray(obj.images)) obj.images = [];
             });
             renderRentalObjects(allRentalObjects);
-            renderRentalBlackouts();
+            renderRentalUnavailable();
         } else {
             document.getElementById('rentalObjectsContainer').innerHTML = `
                 <div class="text-center text-muted py-4">
@@ -2139,98 +2139,98 @@ async function declineScheduleRequest(id) {
     }
 }
 
-function renderRentalBlackouts() {
-    const select = document.getElementById('rentalBlackoutObjects');
+function renderRentalUnavailable() {
+    const select = document.getElementById('rentalUnavailableObjects');
     if (select && select.options.length === 0) {
         select.innerHTML = allRentalObjects.map(obj => `<option value="${escAttr(obj.id)}">${escHtml(obj.object_name || 'Utleieobjekt')}</option>`).join('');
     }
-    const list = document.getElementById('rentalBlackoutList');
+    const list = document.getElementById('rentalUnavailableList');
     if (!list) return;
-    list.innerHTML = allRentalBlackouts.length ? allRentalBlackouts.map(item => {
+    list.innerHTML = allRentalUnavailable.length ? allRentalUnavailable.map(item => {
         const names = (item.objects || []).map(obj => obj.object_name || obj.name).filter(Boolean);
         const objectNames = names.length ? names.join(', ') : (item.object_name || 'Utleieobjekt');
-        return `<div class="rental-blackout rounded-2 p-2 mb-2 d-flex justify-content-between align-items-center gap-2">
+        return `<div class="rental-unavailable rounded-2 p-2 mb-2 d-flex justify-content-between align-items-center gap-2">
             <div><strong>${escHtml(objectNames)}</strong><div class="small">${escHtml(item.start_date || '')} – ${escHtml(item.end_date || '')}</div><div class="small">Utilgjengelig</div></div>
-            <div class="btn-group btn-group-sm"><button class="btn btn-outline-secondary" type="button" onclick="editRentalBlackout('${escAttr(item.id)}')">Rediger</button><button class="btn btn-outline-danger" type="button" onclick="deleteRentalBlackout('${escAttr(item.id)}')">Slett</button></div>
+            <div class="btn-group btn-group-sm"><button class="btn btn-outline-secondary" type="button" onclick="editRentalUnavailable('${escAttr(item.id)}')">Rediger</button><button class="btn btn-outline-danger" type="button" onclick="deleteRentalUnavailable('${escAttr(item.id)}')">Slett</button></div>
         </div>`;
-    }).join('') : '<div class="small text-muted">Ingen interne sperringer.</div>';
+    }).join('') : '<div class="small text-muted">Ingen utilgjengelige perioder.</div>';
 }
 
-async function loadRentalBlackouts() {
+async function loadRentalUnavailable() {
     try {
-        const response = await fetch('/api/rental_blackouts.php');
+        const response = await fetch('/api/rental_unavailable.php');
         const data = await response.json();
-        if (!response.ok || !data.success) throw new Error(data.message || 'Kunne ikke laste sperringer');
-        allRentalBlackouts = data.blackouts || [];
+        if (!response.ok || !data.success) throw new Error(data.message || 'Kunne ikke laste utilgjengelige perioder');
+        allRentalUnavailable = data.periods || [];
         if (Array.isArray(data.objects) && allRentalObjects.length === 0) allRentalObjects = data.objects;
-        renderRentalBlackouts();
+        renderRentalUnavailable();
         if (calViewStart) renderRentalCalendar(document.getElementById('upcomingContractsContainer'));
     } catch (error) {
-        const list = document.getElementById('rentalBlackoutList');
+        const list = document.getElementById('rentalUnavailableList');
         if (list) list.innerHTML = `<div class="small text-danger">${escHtml(error.message)}</div>`;
     }
 }
 
-function resetRentalBlackoutForm() {
-    const form = document.getElementById('rentalBlackoutForm');
+function resetRentalUnavailableForm() {
+    const form = document.getElementById('rentalUnavailableForm');
     form?.reset();
-    const id = document.getElementById('rentalBlackoutId');
+    const id = document.getElementById('rentalUnavailableId');
     if (id) id.value = '';
-    const label = document.getElementById('rentalBlackoutSubmitLabel');
-    if (label) label.textContent = 'Sperr periode';
+    const label = document.getElementById('rentalUnavailableSubmitLabel');
+    if (label) label.textContent = 'Marker utilgjengelig';
 }
 
-function editRentalBlackout(id) {
-    const item = allRentalBlackouts.find(entry => String(entry.id) === String(id));
+function editRentalUnavailable(id) {
+    const item = allRentalUnavailable.find(entry => String(entry.id) === String(id));
     if (!item) return;
-    document.getElementById('rentalBlackoutId').value = item.id;
-    document.getElementById('rentalBlackoutStart').value = item.start_date || '';
-    document.getElementById('rentalBlackoutEnd').value = item.end_date || '';
+    document.getElementById('rentalUnavailableId').value = item.id;
+    document.getElementById('rentalUnavailableStart').value = item.start_date || '';
+    document.getElementById('rentalUnavailableEnd').value = item.end_date || '';
     const selected = new Set([
         ...(item.object_ids || []),
         ...(item.objects || []).map(obj => obj.id),
         item.rental_object_id
     ].filter(Boolean).map(String));
-    document.querySelectorAll('#rentalBlackoutObjects option').forEach(option => option.selected = selected.has(String(option.value)));
-    document.getElementById('rentalBlackoutSubmitLabel').textContent = 'Lagre endring';
+    document.querySelectorAll('#rentalUnavailableObjects option').forEach(option => option.selected = selected.has(String(option.value)));
+    document.getElementById('rentalUnavailableSubmitLabel').textContent = 'Lagre endring';
 }
 
-async function saveRentalBlackout(event) {
+async function saveRentalUnavailable(event) {
     event.preventDefault();
-    const objectIds = Array.from(document.getElementById('rentalBlackoutObjects').selectedOptions).map(option => option.value);
-    const startDate = document.getElementById('rentalBlackoutStart').value;
-    const endDate = document.getElementById('rentalBlackoutEnd').value;
+    const objectIds = Array.from(document.getElementById('rentalUnavailableObjects').selectedOptions).map(option => option.value);
+    const startDate = document.getElementById('rentalUnavailableStart').value;
+    const endDate = document.getElementById('rentalUnavailableEnd').value;
     if (!objectIds.length || !startDate || !endDate || endDate < startDate) {
         toast.error(null, 'Ugyldig periode', 'Velg objekter og en gyldig fra-/til-dato.');
         return;
     }
-    const id = document.getElementById('rentalBlackoutId').value;
-    const response = await fetch('/api/rental_blackouts.php' + (id ? `?id=${encodeURIComponent(id)}` : ''), {
+    const id = document.getElementById('rentalUnavailableId').value;
+    const response = await fetch('/api/rental_unavailable.php' + (id ? `?id=${encodeURIComponent(id)}` : ''), {
         method: id ? 'PUT' : 'POST',
         headers: {'Content-Type': 'application/json', 'X-CSRF-Token': rentalLifecycleCsrf},
         body: JSON.stringify({id, rental_object_ids: objectIds, start_date: startDate, end_date: endDate})
     });
     const data = await response.json();
     if (!response.ok || !data.success) {
-        toast.error(null, 'Kunne ikke lagre sperring', data.message || 'Prøv igjen.');
+        toast.error(null, 'Kunne ikke lagre perioden', data.message || 'Prøv igjen.');
         return;
     }
-    resetRentalBlackoutForm();
-    await loadRentalBlackouts();
+    resetRentalUnavailableForm();
+    await loadRentalUnavailable();
 }
 
-async function deleteRentalBlackout(id) {
-    if (!confirm('Slett denne interne sperringen?')) return;
-    const response = await fetch(`/api/rental_blackouts.php?id=${encodeURIComponent(id)}`, {
+async function deleteRentalUnavailable(id) {
+    if (!confirm('Slett denne utilgjengelige perioden?')) return;
+    const response = await fetch(`/api/rental_unavailable.php?id=${encodeURIComponent(id)}`, {
         method:'DELETE',
         headers: {'X-CSRF-Token': rentalLifecycleCsrf}
     });
     const data = await response.json();
     if (!response.ok || !data.success) {
-        toast.error(null, 'Kunne ikke slette sperring', data.message || 'Prøv igjen.');
+        toast.error(null, 'Kunne ikke slette perioden', data.message || 'Prøv igjen.');
         return;
     }
-    await loadRentalBlackouts();
+    await loadRentalUnavailable();
 }
 
 // ─── KOMMENDE UTLEIE — KALENDER ──────────────────────────────────────────────
@@ -2265,7 +2265,7 @@ function calGetMaxDate() {
         const e = calParseDate(r.end_date);
         if (e && e > lastEnd) lastEnd = e;
     });
-    allRentalBlackouts.forEach(item => {
+    allRentalUnavailable.forEach(item => {
         const e = calParseDate(item.end_date);
         if (e && e > lastEnd) lastEnd = e;
     });
@@ -2363,7 +2363,7 @@ function renderRentalCalendar(container) {
         });
         const maxRow = withRows.length ? Math.max(...withRows.map(item => item.row)) : 0;
 
-        const blackoutRows = allRentalBlackouts.filter(item => {
+        const unavailableRows = allRentalUnavailable.filter(item => {
             const bs = calParseDate(item.start_date), be = calParseDate(item.end_date);
             return bs && be && bs <= wkEnd && be >= wkStart;
         }).map((item, index) => {
@@ -2375,8 +2375,8 @@ function renderRentalCalendar(container) {
             const row = maxRow + index + 1;
             return {item, startCol, endCol, row};
         });
-        const blackoutMaxRow = blackoutRows.length ? Math.max(...blackoutRows.map(x => x.row)) : 0;
-        const totalRows = Math.max(maxRow, blackoutMaxRow, 1);
+        const unavailableMaxRow = unavailableRows.length ? Math.max(...unavailableRows.map(x => x.row)) : 0;
+        const totalRows = Math.max(maxRow, unavailableMaxRow, 1);
         const rentalAreaHeight = `${totalRows * 42 + 8}px`;
 
         let bars = '';
@@ -2390,9 +2390,9 @@ function renderRentalCalendar(container) {
                  <strong>${escHtml(short)}</strong><span class="d-block small">Kode: ${escHtml(r.key_box_code || '–')}</span>
             </div>`;
         });
-        blackoutRows.forEach(({item, startCol, endCol, row}) => {
+        unavailableRows.forEach(({item, startCol, endCol, row}) => {
             const label = 'Utilgjengelig';
-            bars += `<div class="rental-calendar-bar rental-blackout" style="grid-column:${startCol}/${endCol};grid-row:${row};border-radius:4px;font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;margin:1px 2px;" title="${escAttr(label)}">${escHtml(label)}</div>`;
+            bars += `<div class="rental-calendar-bar rental-unavailable" style="grid-column:${startCol}/${endCol};grid-row:${row};border-radius:4px;font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;margin:1px 2px;" title="${escAttr(label)}">${escHtml(label)}</div>`;
         });
 
         const emptyMsg = active.length === 0

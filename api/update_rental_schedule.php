@@ -317,24 +317,15 @@ try {
         $row['rental_fee'] = $newRentalFee;
     }
 
-    $blackoutConflict = $db->prepare(
-        "SELECT id FROM rental_blackouts
-         WHERE company_id = ? AND rental_object_id = ?
-           AND start_date <= ? AND end_date >= ?
-         LIMIT 1 FOR UPDATE"
-    );
-    $blackoutConflict->execute([
-        $companyId, $row['rental_object_id'], $effectiveEndDate, $effectiveStartDate
-    ]);
-    if ($blackoutConflict->fetchColumn() !== false) {
-        throw new RentalRequestConflictException('Tidsrommet er blokkert');
-    }
     $datesChanged = array_key_exists('start_date', $data) || array_key_exists('end_date', $data);
     if ($datesChanged || $newStatus === 'approved') {
         $scheduleConflict = $db->prepare(
             "SELECT id FROM rental_schedule
              WHERE company_id = ? AND rental_object_id = ? AND id <> ?
-               AND approved = 1 AND status IN ('approved', 'active')
+               AND (
+                 status = 'unavailable'
+                 OR (approved = 1 AND status IN ('approved', 'active'))
+               )
                AND start_date <= ? AND end_date >= ?
              LIMIT 1 FOR UPDATE"
         );
@@ -347,7 +338,7 @@ try {
         ]);
         if ($scheduleConflict->fetchColumn() !== false) {
             throw new RentalRequestConflictException(
-                'Perioden overlapper en allerede godkjent utleie for dette objektet.'
+                'Perioden overlapper en godkjent utleie eller en utilgjengelig periode for dette objektet.'
             );
         }
     }

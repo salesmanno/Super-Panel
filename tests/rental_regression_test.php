@@ -90,6 +90,43 @@ $assert(
     && str_contains($rentalContent, 'Totalt:'),
     'Rental request UI includes pricing breakdown, adjustment, and editable key code'
 );
+$unavailableEndpoint = file_get_contents(__DIR__ . '/../api/rental_unavailable.php');
+$createRequestEndpoint = file_get_contents(__DIR__ . '/../api/create_rental_request.php');
+$updateScheduleEndpoint = file_get_contents(__DIR__ . '/../api/update_rental_schedule.php');
+$getScheduleEndpoint = file_get_contents(__DIR__ . '/../api/get_rental_schedule.php');
+$availabilityMigration = file_get_contents(
+    __DIR__ . '/../db_migrations/rental_schedule_pricing_availability.sql'
+);
+$assert(
+    str_contains($unavailableEndpoint, "status = 'unavailable'")
+    && str_contains($unavailableEndpoint, "0.00, 'unavailable'")
+    && str_contains($unavailableEndpoint, 'customer_id, customer_name, customer_email')
+    && str_contains($unavailableEndpoint, 'NULL, NULL, NULL, NULL'),
+    'Unavailable periods are stored as customerless, zero-value rental_schedule rows'
+);
+$assert(
+    str_contains($createRequestEndpoint, "rs.status = 'unavailable'")
+    && str_contains($updateScheduleEndpoint, "status = 'unavailable'"),
+    'Unavailable schedule rows block new requests and schedule approval or date changes'
+);
+$assert(
+    str_contains($getScheduleEndpoint, "rs.status <> 'unavailable'"),
+    'General rental schedule responses exclude internal unavailable rows'
+);
+$assert(
+    !str_contains($rentalContent, 'rental_blackouts')
+    && !str_contains($createRequestEndpoint, 'rental_blackouts')
+    && !str_contains($updateScheduleEndpoint, 'rental_blackouts')
+    && !file_exists(__DIR__ . '/../api/rental_blackouts.php'),
+    'Runtime code no longer depends on the blackout model'
+);
+$assert(
+    str_contains($availabilityMigration, "''unavailable''")
+    && str_contains($availabilityMigration, 'IF(collision.id IS NULL, rb.id, UUID())')
+    && str_contains($availabilityMigration, 'rb.created_at, rb.updated_at')
+    && str_contains($availabilityMigration, '@migrated_count = @blackout_count'),
+    'Migration preserves old periods and audit timestamps before safely removing the blackout table'
+);
 validateRentalSchedulePeriod('2026-09-25', '15:00:00', '2026-09-27', '11:00:00');
 $invalidRentalPeriodRejected = false;
 try {
