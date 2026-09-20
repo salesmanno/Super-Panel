@@ -1930,6 +1930,10 @@ async function loadRentalRequests() {
                 <td class="small">
                     <div class="fw-semibold">${escHtml(r.object_name || '–')}</div>
                     ${r.object_category ? `<span class="badge bg-light text-dark border">${escHtml(r.object_category)}</span>` : ''}
+                    <label class="form-label small mt-2 mb-1" for="key-box-code-${escAttr(r.id)}">Nøkkelbokskode</label>
+                    <input id="key-box-code-${escAttr(r.id)}" class="form-control form-control-sm rental-request-key-box-code"
+                           type="text" maxlength="6" value="${escAttr(r.key_box_code || '')}"
+                           placeholder="Objektets kode brukes hvis tom">
                 </td>
                 <td class="small">
                     <div>${escHtml(r.display_customer_name)}${ageStr}</div>
@@ -2048,6 +2052,7 @@ function getRentalRequestInlinePayload(id) {
         end_date: endDate,
         end_time: endTime,
         cleaning: row.querySelector('.rental-request-cleaning')?.checked ? 1 : 0,
+        key_box_code: (row.querySelector('.rental-request-key-box-code')?.value || '').trim(),
         rental_fee: rentalFee,
         price_adjustment_type: adjustment.type === 'none' ? '' : adjustment.type,
         price_adjustment_amount: adjustment.amount,
@@ -2062,7 +2067,7 @@ function updateRentalRequestInlineTotal(checkbox) {
 
 function setRentalRequestRowBusy(id, busy) {
     const row = document.querySelector(`[data-rental-request-id="${CSS.escape(String(id))}"]`);
-    row?.querySelectorAll('button, input').forEach(control => {
+    row?.querySelectorAll('button, input, select').forEach(control => {
         control.disabled = busy || (control.classList.contains('rental-request-cleaning') && Number(row.dataset.cleaningFee || 0) <= 0);
     });
 }

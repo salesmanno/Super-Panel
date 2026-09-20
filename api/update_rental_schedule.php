@@ -48,6 +48,7 @@ try {
         SELECT rs.id, rs.company_id, rs.rental_object_id, rs.approved, rs.status,
                rs.start_date, rs.end_date, rs.rental_fee, rs.customer_id,
                rs.pickup_time, rs.start_time, rs.end_time, rs.logistics, rs.notes,
+               rs.key_box_code,
                COALESCE(rs.cleaning, 0) AS cleaning,
                rs.price_adjustment_type, COALESCE(rs.price_adjustment_cents, 0) AS price_adjustment_cents,
                rs.price_adjustment_explanation,
@@ -197,7 +198,17 @@ try {
     if ($newApproved !== null) {
         $row['approved'] = $newApproved;
     }
-    if ($finalizingNow && $newStatus === 'approved') {
+    if (array_key_exists('key_box_code', $data)) {
+        $keyBoxCode = trim((string) $data['key_box_code']);
+        if (strlen($keyBoxCode) > 6) {
+            throw new InvalidArgumentException('Nøkkelbokskoden er for lang.');
+        }
+        $updateFields[] = 'key_box_code = ?';
+        $updateParams[] = $keyBoxCode !== '' ? $keyBoxCode : null;
+        $row['key_box_code'] = $keyBoxCode !== '' ? $keyBoxCode : null;
+    }
+    if ($finalizingNow && $newStatus === 'approved'
+        && trim((string) ($row['key_box_code'] ?? '')) === '') {
         $updateFields[] = 'key_box_code = ?';
         $updateParams[] = $row['access_code'] !== null && $row['access_code'] !== ''
             ? $row['access_code']
@@ -305,6 +316,27 @@ try {
     ]);
     if ($blackoutConflict->fetchColumn() !== false) {
         throw new RentalRequestConflictException('Tidsrommet er blokkert');
+    }
+    if ($newStatus === 'approved') {
+        $scheduleConflict = $db->prepare(
+            "SELECT id FROM rental_schedule
+             WHERE company_id = ? AND rental_object_id = ? AND id <> ?
+               AND approved = 1 AND status IN ('approved', 'active')
+               AND start_date <= ? AND end_date >= ?
+             LIMIT 1 FOR UPDATE"
+        );
+        $scheduleConflict->execute([
+            $companyId,
+            $row['rental_object_id'],
+            $data['id'],
+            $effectiveEndDate,
+            $effectiveStartDate,
+        ]);
+        if ($scheduleConflict->fetchColumn() !== false) {
+            throw new RentalRequestConflictException(
+                'Perioden overlapper en allerede godkjent utleie for dette objektet.'
+            );
+        }
     }
 
     if (empty($updateFields)) {

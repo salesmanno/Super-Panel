@@ -85,8 +85,10 @@ $assert(
     str_contains($rentalContent, 'rentalFee - (cleaningSelected ? cleaningFee : 0)')
     && str_contains($rentalContent, 'rental-request-cleaning-fee')
     && str_contains($rentalContent, 'Ingen renhold')
+    && str_contains($rentalContent, 'rental-request-key-box-code')
+    && str_contains($rentalContent, 'price_adjustment_type')
     && str_contains($rentalContent, 'Totalt:'),
-    'Rental request UI separates base rent, cleaning addition, and total'
+    'Rental request UI includes pricing breakdown, adjustment, and editable key code'
 );
 validateRentalSchedulePeriod('2026-09-25', '15:00:00', '2026-09-27', '11:00:00');
 $invalidRentalPeriodRejected = false;
