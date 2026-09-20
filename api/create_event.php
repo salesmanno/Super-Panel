@@ -31,6 +31,7 @@ try {
         'Påmeldingsfrist'
     );
     $data['event_image_url'] = normalizeEventImageUrl($data['event_image_url'] ?? null);
+    validateDateIsNotPast($data['start_date']);
 
     $db = getDBConnection();
     

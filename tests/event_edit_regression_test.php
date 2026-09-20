@@ -2,6 +2,8 @@
 
 $getEvents = file_get_contents(__DIR__ . '/../api/get_events.php');
 $eventsUi = file_get_contents(__DIR__ . '/../modules/events_content.php');
+$createEventApi = file_get_contents(__DIR__ . '/../api/create_event.php');
+$updateEventApi = file_get_contents(__DIR__ . '/../api/update_event.php');
 
 $failures = [];
 
@@ -36,6 +38,21 @@ $assertContains(
     "setFieldValue('edit-start-date', sqlDateToNorsk(event.start_date))",
     $eventsUi,
     'Eksisterende arrangementsdato må vises som norsk dato'
+);
+$assertContains(
+    "validateDateIsNotPast(\$data['start_date'])",
+    $createEventApi,
+    'API-et må blokkere oppretting med fortidsdato'
+);
+$assertNotContains(
+    'validateDateIsNotPast',
+    $updateEventApi,
+    'API-et må fortsatt tillate redigering av historiske arrangementer'
+);
+$assertContains(
+    'validateNewEventStartDate(this)',
+    $eventsUi,
+    'Opprettingsskjemaet må blokkere fortidsdato i nettleseren'
 );
 
 if ($failures) {

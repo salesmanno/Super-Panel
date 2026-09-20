@@ -2446,6 +2446,26 @@ function validateEventDateTimeInputs(form) {
     return valid;
 }
 
+function validateNewEventStartDate(form) {
+    const startDateInput = form?.querySelector('input[name="start_date"]');
+    const startDate = parseCalendarDate(startDateInput?.value || '');
+    if (!startDateInput || !startDate) return false;
+
+    const today = new Date();
+    const startDateNumber = startDate.year * 10000 + startDate.month * 100 + startDate.day;
+    const todayNumber = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+    if (startDateNumber < todayNumber) {
+        const message = 'Startdato kan ikke være i fortiden når du oppretter et nytt arrangement';
+        startDateInput.setCustomValidity(message);
+        startDateInput.reportValidity();
+        toast.quickWarning('Validering', message);
+        return false;
+    }
+
+    startDateInput.setCustomValidity('');
+    return true;
+}
+
 function installDateTimeValidation() {
     document.querySelectorAll(
         'input[name="registration_deadline"], input[name="start_date"], input[name="end_date"], ' +
@@ -2493,6 +2513,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (!validateEventDateTimeInputs(this)) {
                 toast.quickWarning('Validering', 'Kontroller datoer og klokkeslett. Bruk DD.MM.YYYY og HH:mm.');
+                return;
+            }
+
+            if (!validateNewEventStartDate(this)) {
                 return;
             }
             

@@ -85,3 +85,19 @@ function normalizeRequestTime($value, string $fieldName = 'Tid', bool $allowNull
 
     return sprintf('%02d:%02d:%02d', $hour, $minute, $second);
 }
+
+/**
+ * Reject a normalized SQL date when it is earlier than today.
+ *
+ * @throws InvalidArgumentException
+ */
+function validateDateIsNotPast(string $date, string $fieldName = 'Startdato', ?string $today = null): void
+{
+    $today = $today ?? (new DateTimeImmutable('today', new DateTimeZone('Europe/Oslo')))->format('Y-m-d');
+
+    if ($date < $today) {
+        throw new InvalidArgumentException(
+            $fieldName . ' kan ikke være i fortiden når du oppretter et nytt arrangement'
+        );
+    }
+}

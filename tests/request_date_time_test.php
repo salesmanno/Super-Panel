@@ -20,12 +20,32 @@ $assertThrows = static function (callable $callback, string $label) use (&$failu
     }
 };
 
+$assertDoesNotThrow = static function (callable $callback, string $label) use (&$failures): void {
+    try {
+        $callback();
+    } catch (Throwable $e) {
+        $failures[] = $label . ': unexpected ' . get_class($e) . ': ' . $e->getMessage();
+    }
+};
+
 $assertSame('2024-02-29', normalizeRequestDate('29.02.2024'), 'Norwegian leap date');
 $assertSame('2024-02-29', normalizeRequestDate('2024-02-29'), 'Canonical date');
 $assertSame(null, normalizeRequestDate(null), 'Optional null date');
 $assertSame('09:05:00', normalizeRequestTime('09:05'), 'Short time');
 $assertSame('23:59:58', normalizeRequestTime('23:59:58'), 'Full time');
 $assertSame(null, normalizeRequestTime(''), 'Optional empty time');
+$assertDoesNotThrow(
+    static fn() => validateDateIsNotPast('2026-09-14', 'Startdato', '2026-09-14'),
+    'Creating an event today is allowed'
+);
+$assertDoesNotThrow(
+    static fn() => validateDateIsNotPast('2026-10-07', 'Startdato', '2026-09-14'),
+    'Creating a future event is allowed'
+);
+$assertThrows(
+    static fn() => validateDateIsNotPast('2026-07-10', 'Startdato', '2026-09-14'),
+    'Creating a past event is rejected'
+);
 
 $assertThrows(
     static fn() => normalizeRequestDate('31.04.2024'),
