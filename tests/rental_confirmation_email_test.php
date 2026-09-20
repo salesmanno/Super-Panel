@@ -16,6 +16,9 @@ $variables = buildRentalConfirmationVariables([
     'start_date' => '2026-09-25',
     'end_date' => '2026-09-27',
     'rental_fee' => '4400.00',
+    'price_adjustment_type' => 'discount',
+    'price_adjustment_cents' => 50000,
+    'price_adjustment_explanation' => 'Tidlig bestilling',
     'pickup_time' => '15:00:00',
     'end_time' => '11:00:00',
     'cleaning' => 1,
@@ -54,6 +57,20 @@ rental_email_check($variables['rental_days'] === '3', 'rental days are inclusive
 rental_email_check($variables['status'] === 'Godkjent', 'approved status is ready for display');
 rental_email_check($variables['cleaning'] === 1, 'cleaning remains a boolean-like integer');
 rental_email_check($variables['cleaning_label'] === 'Ja', 'cleaning label remains available for legacy templates');
+rental_email_check($variables['base_price'] === '4 500,00', 'base price is shown before discount');
+rental_email_check($variables['price_adjustment'] === '-500,00', 'discount is shown with a negative sign');
+rental_email_check($variables['price_adjustment_type_label'] === 'Rabatt', 'discount type has a Norwegian label');
+rental_email_check($variables['price_adjustment_explanation'] === 'Tidlig bestilling', 'adjustment explanation is available');
+
+$surchargeVariables = buildRentalConfirmationVariables([
+    'rental_fee' => '4750.00',
+    'price_adjustment_type' => 'surcharge',
+    'price_adjustment_cents' => 25000,
+    'price_adjustment_explanation' => 'Ekstra utstyr',
+]);
+rental_email_check($surchargeVariables['base_price'] === '4 500,00', 'base price is shown before surcharge');
+rental_email_check($surchargeVariables['price_adjustment'] === '250,00', 'surcharge is shown with a positive sign');
+rental_email_check($surchargeVariables['price_adjustment_type_label'] === 'Tillegg', 'surcharge type has a Norwegian label');
 
 $withoutCleaning = buildRentalConfirmationVariables([
     'rental_fee' => '4000.00',
@@ -73,6 +90,8 @@ $completeTemplate = implode('|', [
     '{{account_number}}', '{{price}}', '{{total_price}}', '{{order_id}}',
     '{{company_phone}}', '{{company_address}}', '{{org_number}}',
     '{{header_bg_color}}', '{{status}}', '{{cleaning}}', '{{cleaning_fee}}',
+    '{{base_price}}', '{{price_adjustment}}', '{{price_adjustment_type_label}}',
+    '{{price_adjustment_explanation}}',
 ]);
 $completeRendered = renderRentalConfirmationTemplate($completeTemplate, $variables);
 rental_email_check(!str_contains($completeRendered, '{{'), 'all rental template placeholders are rendered');
@@ -81,10 +100,24 @@ foreach ([
     'Fjordglimt', '25.09.2026', '27.09.2026', '3', '08:00', '11:00',
     '1234.56.78901', '4 400,00', 'RENT-2026-001', '99 88 77 66',
     'Testveien 1, 0123 Oslo', '999 888 777', '#123456', 'Godkjent', '400,00',
+    '4 500,00', '-500,00', 'Rabatt', 'Tidlig bestilling',
 ] as $expectedValue) {
     rental_email_check(
         str_contains($completeRendered, $expectedValue),
         "complete rental template contains {$expectedValue}"
+    );
+}
+
+$newSuppliedTemplate = file_get_contents(
+    __DIR__ . '/../attached_assets/Pasted--E-postmal-for-bekreftelse-av-utleieperiode-Brukes-for-_1789934354091.txt'
+);
+rental_email_check($newSuppliedTemplate !== false, 'new rental adjustment template is readable');
+$newApprovedHtml = renderRentalConfirmationTemplate($newSuppliedTemplate, $variables);
+rental_email_check(!str_contains($newApprovedHtml, '{{'), 'new adjustment template is fully rendered');
+foreach (['Rabatt', 'Tidlig bestilling', '4 500,00', '-500,00', '4 400,00'] as $expectedValue) {
+    rental_email_check(
+        str_contains($newApprovedHtml, $expectedValue),
+        "new adjustment template contains {$expectedValue}"
     );
 }
 

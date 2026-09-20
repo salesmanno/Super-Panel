@@ -83,6 +83,23 @@ function buildRentalConfirmationVariables(array $rental): array {
     $totalAmount = rentalTotalPrice($totalRentalExpenses, $cleaning, $cleaningFee);
     $price = number_format($totalRentalExpenses, 2, ',', ' ');
     $totalPrice = number_format($totalAmount, 2, ',', ' ');
+    $adjustmentType = (string) ($rental['price_adjustment_type'] ?? '');
+    $adjustmentCents = max(0, (int) ($rental['price_adjustment_cents'] ?? 0));
+    $signedAdjustmentCents = match ($adjustmentType) {
+        'discount' => -$adjustmentCents,
+        'surcharge' => $adjustmentCents,
+        default => 0,
+    };
+    $basePriceCents = max(
+        0,
+        rentalMoneyToCents($totalRentalExpenses) - $signedAdjustmentCents
+    );
+    $hasPriceAdjustment = $signedAdjustmentCents !== 0;
+    $adjustmentLabel = match ($adjustmentType) {
+        'discount' => 'Rabatt',
+        'surcharge' => 'Tillegg',
+        default => '',
+    };
     $companyName = (string) ($rental['company_name'] ?? '');
     $objectName = (string) ($rental['object_name'] ?? '');
     $status = (string) ($rental['status'] ?? '') === 'rejected' ? 'Avslått' : 'Godkjent';
@@ -117,6 +134,14 @@ function buildRentalConfirmationVariables(array $rental): array {
         ),
         'price' => $price,
         'total_rental_expenses' => $price,
+        'base_price' => number_format($basePriceCents / 100, 2, ',', ' '),
+        'price_adjustment' => $hasPriceAdjustment
+            ? number_format($signedAdjustmentCents / 100, 2, ',', ' ')
+            : '',
+        'price_adjustment_type_label' => $adjustmentLabel,
+        'price_adjustment_explanation' => $hasPriceAdjustment
+            ? (string) ($rental['price_adjustment_explanation'] ?? '')
+            : '',
         'total_price' => $totalPrice,
         'rental_fee' => $totalPrice,
         'status' => $status,
