@@ -230,6 +230,9 @@ foreach ([
     "validateRentalSchedulePeriod",
     "rentalPeriodPriceCents",
     "price_adjustment_type",
+    "\$row['price_adjustment_type'] =",
+    "\$row['price_adjustment_cents'] = abs(\$adjustmentCents)",
+    "\$row['price_adjustment_explanation'] =",
     "key_box_code",
 ] as $fragment) {
     rental_email_check(str_contains($endpoint, $fragment), "endpoint contains {$fragment}");
@@ -237,6 +240,11 @@ foreach ([
 rental_email_check(
     strpos($endpoint, '$db->commit();') > strpos($endpoint, 'INSERT INTO email_queue'),
     'approval and queue insert commit together'
+);
+rental_email_check(
+    strpos($endpoint, "\$row['price_adjustment_type'] =")
+        < strpos($endpoint, 'buildRentalConfirmationVariables($row)'),
+    'same-request adjustment values are copied into the email data before rendering'
 );
 rental_email_check(!str_contains($endpoint, "template_key = 'rentalinvoice'"), 'legacy wrong template key is removed');
 rental_email_check(!str_contains($endpoint, "catch (\\Throwable \$emailErr)"), 'queue failures cannot be swallowed');

@@ -284,6 +284,13 @@ try {
         $updateParams[] = abs($adjustmentCents);
         $updateFields[] = 'price_adjustment_explanation = ?';
         $updateParams[] = $adjustmentExplanation !== '' ? $adjustmentExplanation : null;
+        $row['price_adjustment_type'] = $adjustmentType !== '' && $adjustmentCents !== 0
+            ? $adjustmentType
+            : null;
+        $row['price_adjustment_cents'] = abs($adjustmentCents);
+        $row['price_adjustment_explanation'] = $adjustmentExplanation !== ''
+            ? $adjustmentExplanation
+            : null;
     }
 
     $newCleaning = (int) ($row['cleaning'] ?? 0);
