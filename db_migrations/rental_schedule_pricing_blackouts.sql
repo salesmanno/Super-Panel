@@ -53,6 +53,7 @@ WHERE (approved = 0 OR approved IS NULL)
 UPDATE rental_schedule rs
 INNER JOIN rental_objects ro ON ro.id = rs.rental_object_id AND ro.company_id = rs.company_id
 LEFT JOIN rental_venues rv ON rv.object_id = ro.id
-SET rs.key_box_code = COALESCE(NULLIF(rv.access_code, ''), '0000')
+SET rs.key_box_code = NULLIF(rv.access_code, '')
 WHERE rs.approved = 1 AND rs.status = 'approved'
-  AND (rs.key_box_code IS NULL OR rs.key_box_code = '');
+  AND (rs.key_box_code IS NULL OR rs.key_box_code = '')
+  AND NULLIF(rv.access_code, '') IS NOT NULL;

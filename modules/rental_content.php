@@ -310,6 +310,7 @@ async function loadRentalObjects() {
                 if (!Array.isArray(obj.images)) obj.images = [];
             });
             renderRentalObjects(allRentalObjects);
+            renderRentalBlackouts();
         } else {
             document.getElementById('rentalObjectsContainer').innerHTML = `
                 <div class="text-center text-muted py-4">
@@ -1974,7 +1975,7 @@ async function loadRentalRequests() {
                     <div class="row g-1 mt-1">
                         <div class="col-5"><label class="visually-hidden" for="adjustment-type-${escAttr(r.id)}">Prisjusteringstype</label><select id="adjustment-type-${escAttr(r.id)}" class="form-select form-select-sm rental-request-adjustment-type" onchange="refreshRentalRequestPrice(this.closest('[data-rental-request-id]'))"><option value="none"${storedAdjustmentType === 'none' ? ' selected' : ''}>Ingen justering</option><option value="discount"${storedAdjustmentType === 'discount' ? ' selected' : ''}>Rabatt</option><option value="surcharge"${storedAdjustmentType === 'surcharge' ? ' selected' : ''}>Tillegg</option></select></div>
                         <div class="col-7"><label class="visually-hidden" for="adjustment-amount-${escAttr(r.id)}">Prisjustering beløp</label><input id="adjustment-amount-${escAttr(r.id)}" class="form-control form-control-sm rental-request-adjustment-amount" type="number" min="0" step="0.01" value="${storedAdjustmentAmount || ''}" placeholder="Beløp" oninput="refreshRentalRequestPrice(this.closest('[data-rental-request-id]'))"></div>
-                        <div class="col-12"><label class="visually-hidden" for="adjustment-explanation-${escAttr(r.id)}">Prisjustering forklaring</label><input id="adjustment-explanation-${escAttr(r.id)}" class="form-control form-control-sm rental-request-adjustment-explanation" type="text" maxlength="1000" value="${escAttr(r.price_adjustment_explanation || '')}" placeholder="Forklaring (valgfritt)" oninput="refreshRentalRequestPrice(this.closest('[data-rental-request-id]'))"></div>
+                        <div class="col-12"><label class="visually-hidden" for="adjustment-explanation-${escAttr(r.id)}">Prisjustering forklaring</label><input id="adjustment-explanation-${escAttr(r.id)}" class="form-control form-control-sm rental-request-adjustment-explanation" type="text" maxlength="1000" value="${escAttr(r.price_adjustment_explanation || '')}" placeholder="Forklaring til prisjustering" oninput="refreshRentalRequestPrice(this.closest('[data-rental-request-id]'))"></div>
                     </div>
                     <div class="small text-muted rental-request-adjustment-summary">Ingen prisjustering</div>
                     <div class="form-check form-switch mt-1">
@@ -2045,6 +2046,15 @@ function getRentalRequestInlinePayload(id) {
     }
 
     const adjustment = rentalAdjustmentFromRow(row);
+    if (adjustment.type !== 'none' && adjustment.amount <= 0) {
+        throw new Error('Prisjusteringen må ha et beløp større enn null');
+    }
+    if (adjustment.type !== 'none' && !adjustment.explanation) {
+        throw new Error('Prisjusteringen må ha en forklaring');
+    }
+    if (adjustment.type === 'none' && (adjustment.amount > 0 || adjustment.explanation)) {
+        throw new Error('Velg rabatt eller tillegg for prisjusteringen');
+    }
     const rentalFee = Number(row.dataset.rentalTotal || 0);
     return {
         start_date: startDate,
@@ -2176,7 +2186,11 @@ function editRentalBlackout(id) {
     document.getElementById('rentalBlackoutId').value = item.id;
     document.getElementById('rentalBlackoutStart').value = item.start_date || '';
     document.getElementById('rentalBlackoutEnd').value = item.end_date || '';
-    const selected = new Set((item.object_ids || (item.objects || []).map(obj => obj.id)).map(String));
+    const selected = new Set([
+        ...(item.object_ids || []),
+        ...(item.objects || []).map(obj => obj.id),
+        item.rental_object_id
+    ].filter(Boolean).map(String));
     document.querySelectorAll('#rentalBlackoutObjects option').forEach(option => option.selected = selected.has(String(option.value)));
     document.getElementById('rentalBlackoutSubmitLabel').textContent = 'Lagre endring';
 }
@@ -2193,7 +2207,7 @@ async function saveRentalBlackout(event) {
     const id = document.getElementById('rentalBlackoutId').value;
     const response = await fetch('/api/rental_blackouts.php' + (id ? `?id=${encodeURIComponent(id)}` : ''), {
         method: id ? 'PUT' : 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json', 'X-CSRF-Token': rentalLifecycleCsrf},
         body: JSON.stringify({id, rental_object_ids: objectIds, start_date: startDate, end_date: endDate})
     });
     const data = await response.json();
@@ -2207,7 +2221,10 @@ async function saveRentalBlackout(event) {
 
 async function deleteRentalBlackout(id) {
     if (!confirm('Slett denne interne sperringen?')) return;
-    const response = await fetch(`/api/rental_blackouts.php?id=${encodeURIComponent(id)}`, {method:'DELETE'});
+    const response = await fetch(`/api/rental_blackouts.php?id=${encodeURIComponent(id)}`, {
+        method:'DELETE',
+        headers: {'X-CSRF-Token': rentalLifecycleCsrf}
+    });
     const data = await response.json();
     if (!response.ok || !data.success) {
         toast.error(null, 'Kunne ikke slette sperring', data.message || 'Prøv igjen.');
@@ -2344,17 +2361,18 @@ function renderRentalCalendar(container) {
             placed.push({ endCol, row });
             return { r, startCol, endCol, row };
         });
+        const maxRow = withRows.length ? Math.max(...withRows.map(item => item.row)) : 0;
 
         const blackoutRows = allRentalBlackouts.filter(item => {
             const bs = calParseDate(item.start_date), be = calParseDate(item.end_date);
             return bs && be && bs <= wkEnd && be >= wkStart;
-        }).map(item => {
+        }).map((item, index) => {
             const bs = calParseDate(item.start_date), be = calParseDate(item.end_date);
             const clampS = bs < wkStart ? wkStart : bs;
             const clampE = be > wkEnd ? wkEnd : be;
             const startCol = Math.round((clampS - wkStart) / 86400000) + 1;
             const endCol = Math.round((clampE - wkStart) / 86400000) + 2;
-            const row = Math.max(1, maxRow + 1);
+            const row = maxRow + index + 1;
             return {item, startCol, endCol, row};
         });
         const blackoutMaxRow = blackoutRows.length ? Math.max(...blackoutRows.map(x => x.row)) : 0;

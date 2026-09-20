@@ -263,6 +263,18 @@ try {
     if (strlen($adjustmentExplanation) > 1000) {
         throw new InvalidArgumentException('Forklaringen på prisjusteringen er for lang.');
     }
+    if ($adjustmentType !== '') {
+        $normalizedAdjustmentAmount = str_replace(',', '.', trim((string) $adjustmentAmount));
+        if (!preg_match('/^\d+(?:\.\d{1,2})?$/', $normalizedAdjustmentAmount)
+            || rentalMoneyToCents($normalizedAdjustmentAmount) <= 0) {
+            throw new InvalidArgumentException('Prisjusteringen må ha et gyldig beløp større enn null.');
+        }
+        if ($adjustmentExplanation === '') {
+            throw new InvalidArgumentException('Prisjusteringen må ha en forklaring.');
+        }
+    } elseif (rentalMoneyToCents($adjustmentAmount) !== 0 || $adjustmentExplanation !== '') {
+        throw new InvalidArgumentException('Velg rabatt eller tillegg for prisjusteringen.');
+    }
     if (array_key_exists('price_adjustment_type', $data)
         || array_key_exists('price_adjustment_amount', $data)
         || array_key_exists('price_adjustment_explanation', $data)) {
@@ -317,7 +329,8 @@ try {
     if ($blackoutConflict->fetchColumn() !== false) {
         throw new RentalRequestConflictException('Tidsrommet er blokkert');
     }
-    if ($newStatus === 'approved') {
+    $datesChanged = array_key_exists('start_date', $data) || array_key_exists('end_date', $data);
+    if ($datesChanged || $newStatus === 'approved') {
         $scheduleConflict = $db->prepare(
             "SELECT id FROM rental_schedule
              WHERE company_id = ? AND rental_object_id = ? AND id <> ?

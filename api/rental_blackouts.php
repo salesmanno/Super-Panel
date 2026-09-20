@@ -17,6 +17,19 @@ $data = json_decode(file_get_contents('php://input'), true);
 if (!is_array($data)) {
     $data = $_POST;
 }
+if ($method !== 'GET') {
+    $sessionCsrf = (string) ($_SESSION['rental_lifecycle_csrf'] ?? '');
+    $requestCsrf = (string) (
+        $_SERVER['HTTP_X_CSRF_TOKEN']
+        ?? $data['csrf_token']
+        ?? ''
+    );
+    if ($sessionCsrf === '' || $requestCsrf === '' || !hash_equals($sessionCsrf, $requestCsrf)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Ugyldig sikkerhetstoken. Last siden på nytt.']);
+        exit;
+    }
+}
 
 function rentalBlackoutId(): string {
     return sprintf(
@@ -77,6 +90,9 @@ try {
     if (!is_array($objectIds)) $objectIds = [$objectIds];
     $objectIds = array_values(array_unique(array_filter(array_map('strval', $objectIds))));
     if ($objectIds === []) throw new InvalidArgumentException('Minst ett utleieobjekt må velges.');
+    if ($method === 'PUT' && count($objectIds) !== 1) {
+        throw new InvalidArgumentException('Velg ett utleieobjekt når en sperring redigeres.');
+    }
     $db->beginTransaction();
     $placeholders = implode(',', array_fill(0, count($objectIds), '?'));
     $check = $db->prepare(
@@ -86,15 +102,37 @@ try {
     $validIds = $check->fetchAll(PDO::FETCH_COLUMN);
     if (count($validIds) !== count($objectIds)) throw new InvalidArgumentException('Ugyldig utleieobjekt.');
 
+    $approvedConflict = $db->prepare(
+        "SELECT id FROM rental_schedule
+         WHERE company_id = ? AND rental_object_id = ?
+           AND approved = 1 AND status IN ('approved', 'active')
+           AND start_date <= ? AND end_date >= ?
+         LIMIT 1 FOR UPDATE"
+    );
+    foreach ($objectIds as $objectId) {
+        $approvedConflict->execute([$companyId, $objectId, $end, $start]);
+        if ($approvedConflict->fetchColumn() !== false) {
+            throw new InvalidArgumentException(
+                'Perioden overlapper en allerede godkjent utleie for ett av objektene.'
+            );
+        }
+    }
+
     if ($method === 'PUT') {
         $id = (string) ($data['id'] ?? '');
         if ($id === '') throw new InvalidArgumentException('ID mangler.');
+        $existing = $db->prepare(
+            'SELECT id FROM rental_blackouts WHERE id = ? AND company_id = ? FOR UPDATE'
+        );
+        $existing->execute([$id, $companyId]);
+        if ($existing->fetchColumn() === false) {
+            throw new InvalidArgumentException('Sperringen ble ikke funnet.');
+        }
         $stmt = $db->prepare(
             'UPDATE rental_blackouts SET rental_object_id = ?, start_date = ?, end_date = ?
              WHERE id = ? AND company_id = ?'
         );
         $stmt->execute([$objectIds[0], $start, $end, $id, $companyId]);
-        if ($stmt->rowCount() !== 1) throw new RuntimeException('Sperringen ble ikke funnet.');
     } else {
         $stmt = $db->prepare(
             'INSERT INTO rental_blackouts
