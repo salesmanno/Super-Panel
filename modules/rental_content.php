@@ -2150,7 +2150,7 @@ function renderRentalBlackouts() {
         const names = (item.objects || []).map(obj => obj.object_name || obj.name).filter(Boolean);
         const objectNames = names.length ? names.join(', ') : (item.object_name || 'Utleieobjekt');
         return `<div class="rental-blackout rounded-2 p-2 mb-2 d-flex justify-content-between align-items-center gap-2">
-            <div><strong>${escHtml(objectNames)}</strong><div class="small">${escHtml(item.start_date || '')} – ${escHtml(item.end_date || '')}</div><div class="small">Allerede akseptert utleie av ${escHtml(item.company_name || 'firmaet')}</div></div>
+            <div><strong>${escHtml(objectNames)}</strong><div class="small">${escHtml(item.start_date || '')} – ${escHtml(item.end_date || '')}</div><div class="small">Utilgjengelig</div></div>
             <div class="btn-group btn-group-sm"><button class="btn btn-outline-secondary" type="button" onclick="editRentalBlackout('${escAttr(item.id)}')">Rediger</button><button class="btn btn-outline-danger" type="button" onclick="deleteRentalBlackout('${escAttr(item.id)}')">Slett</button></div>
         </div>`;
     }).join('') : '<div class="small text-muted">Ingen interne sperringer.</div>';
@@ -2391,7 +2391,7 @@ function renderRentalCalendar(container) {
             </div>`;
         });
         blackoutRows.forEach(({item, startCol, endCol, row}) => {
-            const label = `Allerede akseptert utleie av ${item.company_name || 'firmaet'}`;
+            const label = 'Utilgjengelig';
             bars += `<div class="rental-calendar-bar rental-blackout" style="grid-column:${startCol}/${endCol};grid-row:${row};border-radius:4px;font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;margin:1px 2px;" title="${escAttr(label)}">${escHtml(label)}</div>`;
         });
 

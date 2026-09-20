@@ -52,10 +52,9 @@ try {
     $db = getDBConnection();
     if ($method === 'GET') {
         $stmt = $db->prepare(
-            'SELECT rb.*, ro.object_name, tc.name AS company_name
+            'SELECT rb.*, ro.object_name
              FROM rental_blackouts rb
              INNER JOIN rental_objects ro ON ro.id = rb.rental_object_id AND ro.company_id = rb.company_id
-             INNER JOIN tenant_companies tc ON tc.id = rb.company_id
              WHERE rb.company_id = ? ORDER BY rb.start_date, ro.object_name'
         );
         $stmt->execute([$companyId]);
