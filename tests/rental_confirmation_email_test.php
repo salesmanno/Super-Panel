@@ -126,8 +126,8 @@ $rendered = renderRentalConfirmationTemplate(
     $variables
 );
 rental_email_check(
-    $rendered === 'Kari Nordmann: Fjordglimt, 25.09.2026–27.09.2026, 4 400,00 NOK, Utleie AS ',
-    'template is fully rendered and unknown placeholders are removed'
+    $rendered === 'Kari Nordmann: Fjordglimt, 25.09.2026–27.09.2026, 4 400,00 NOK, Utleie AS {{unknown}}',
+    'known tags render while unknown tags remain visible'
 );
 
 $nestedTemplate = '{{#if (neq status "Avslått")}}GODKJENT {{#if cleaning}}MED RENHOLD{{/if}}{{else}}AVSLÅTT{{/if}}';
@@ -168,19 +168,13 @@ $suppliedTemplate = file_get_contents(
     __DIR__ . '/../attached_assets/Pasted--E-postmal-for-bekreftelse-av-utleieperiode-Brukes-for-_1789844944612.txt'
 );
 rental_email_check($suppliedTemplate !== false, 'supplied rental decision template is readable');
-$defaultTemplates = rentalDecisionDefaultTemplates();
+$storedSubject = 'Din leie er bekreftet';
+$storedBody = '<h1>Reservasjonen er bekreftet for {{customer_name}}</h1>{{ukjent_tag}}';
 rental_email_check(
-    $defaultTemplates['body'] === $suppliedTemplate,
-    'deployed default body is the supplied rental decision template'
-);
-$resolvedLegacyTemplates = resolveRentalDecisionTemplates(
-    'Din leie er bekreftet',
-    '<h1>Reservasjonen er bekreftet</h1>'
-);
-rental_email_check(
-    $resolvedLegacyTemplates['body'] === $suppliedTemplate
-    && str_contains($resolvedLegacyTemplates['subject'], '{{status}}'),
-    'legacy approval-only database templates use the deployed decision defaults'
+    renderRentalConfirmationTemplate($storedSubject, $variables) === $storedSubject
+        && renderRentalConfirmationTemplate($storedBody, $variables)
+            === '<h1>Reservasjonen er bekreftet for Kari Nordmann</h1>{{ukjent_tag}}',
+    'stored decision subject and body remain authoritative'
 );
 $approvedHtml = renderRentalConfirmationTemplate($suppliedTemplate, $variables);
 $rejectedHtml = renderRentalConfirmationTemplate($suppliedTemplate, array_merge($variables, [
@@ -196,18 +190,13 @@ rental_email_check(
     'rejected heading is rendered'
 );
 rental_email_check(!str_contains($rejectedHtml, 'Totalt å betale'), 'rejected email omits payment content');
-$legacyApprovedSubject = renderRentalConfirmationTemplate(
-    $resolvedLegacyTemplates['subject'],
-    $variables
-);
-$legacyRejectedSubject = renderRentalConfirmationTemplate(
-    $resolvedLegacyTemplates['subject'],
-    array_merge($variables, ['status' => 'Avslått'])
-);
 rental_email_check(
-    str_starts_with($legacyApprovedSubject, 'Godkjent:')
-    && str_starts_with($legacyRejectedSubject, 'Avslått:'),
-    'deployed fallback subject identifies both decisions'
+    renderRentalConfirmationTemplate($storedSubject, $variables) === $storedSubject
+        && renderRentalConfirmationTemplate(
+            $storedSubject,
+            array_merge($variables, ['status' => 'Avslått'])
+        ) === $storedSubject,
+    'decision status does not replace a stored subject without an explicit status tag'
 );
 
 $endpoint = file_get_contents(__DIR__ . '/../api/update_rental_schedule.php');
@@ -216,7 +205,6 @@ foreach ([
     "template_key = 'rental_confirmation'",
     "SELECT id, subject_template, body_template",
     "buildRentalConfirmationVariables",
-    "resolveRentalDecisionTemplates",
     "renderRentalConfirmationTemplate",
     "template_id, module_source, source_id",
     "FOR UPDATE",
@@ -240,6 +228,18 @@ foreach ([
 rental_email_check(
     strpos($endpoint, '$db->commit();') > strpos($endpoint, 'INSERT INTO email_queue'),
     'approval and queue insert commit together'
+);
+rental_email_check(
+    str_contains(
+        $endpoint,
+        "renderRentalConfirmationTemplate(\$tpl['subject_template'], \$vars)"
+    )
+        && str_contains(
+            $endpoint,
+            "renderRentalConfirmationTemplate(\$tpl['body_template'], \$vars)"
+        )
+        && !str_contains($endpoint, 'resolveRentalDecisionTemplates'),
+    'decision email renders the stored subject and body directly'
 );
 rental_email_check(
     strpos($endpoint, "\$row['price_adjustment_type'] =")

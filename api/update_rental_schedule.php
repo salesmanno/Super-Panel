@@ -413,13 +413,9 @@ try {
                 );
             }
 
-            $decisionTemplates = resolveRentalDecisionTemplates(
-                $tpl['subject_template'],
-                $tpl['body_template']
-            );
             $vars = buildRentalConfirmationVariables($row);
-            $subject = renderRentalConfirmationTemplate($decisionTemplates['subject'], $vars);
-            $body = renderRentalConfirmationTemplate($decisionTemplates['body'], $vars);
+            $subject = renderRentalConfirmationTemplate($tpl['subject_template'], $vars);
+            $body = renderRentalConfirmationTemplate($tpl['body_template'], $vars);
 
             $scheduledAtSql = $isConcurrencyTestRequest
                 ? 'DATE_ADD(NOW(), INTERVAL 1 DAY)'

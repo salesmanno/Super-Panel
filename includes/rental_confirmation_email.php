@@ -1,35 +1,9 @@
 <?php
 
 require_once __DIR__ . '/rental_schedule_editing.php';
+require_once __DIR__ . '/email_template_tags.php';
 
 class RentalConfirmationEmailException extends RuntimeException {}
-
-function rentalDecisionDefaultTemplates(): array {
-    $bodyPath = __DIR__
-        . '/../attached_assets/Pasted--E-postmal-for-bekreftelse-av-utleieperiode-Brukes-for-_1789844944612.txt';
-    $body = file_get_contents($bodyPath);
-    if ($body === false) {
-        throw new RentalConfirmationEmailException(
-            'Standardmalen for utleiebeslutning kunne ikke lastes.'
-        );
-    }
-    return [
-        'subject' => '{{status}}: {{rental_object}} – {{start_date}} til {{end_date}}',
-        'body' => $body,
-    ];
-}
-
-function resolveRentalDecisionTemplates(string $subject, string $body): array {
-    $defaults = rentalDecisionDefaultTemplates();
-    $supportsBothOutcomes = str_contains($body, '{{status}}')
-        && str_contains($body, '{{#if')
-        && str_contains($body, '"Avslått"');
-
-    return [
-        'subject' => str_contains($subject, '{{status}}') ? $subject : $defaults['subject'],
-        'body' => $supportsBothOutcomes ? $body : $defaults['body'],
-    ];
-}
 
 function formatRentalConfirmationDate(?string $date): string {
     if (!$date) {
@@ -276,12 +250,12 @@ function renderRentalConditionalBlocks(string $template, array $variables): stri
 function renderRentalConfirmationTemplate(string $template, array $variables): string {
     validateRentalConditionalBlocks($template, $variables);
     $template = renderRentalConditionalBlocks($template, $variables);
-    foreach ($variables as $key => $value) {
-        $displayValue = $key === 'cleaning'
-            ? (string) ($variables['cleaning_label'] ?? ((int) $value === 1 ? 'Ja' : 'Nei'))
-            : (string) $value;
-        $template = str_replace('{{' . $key . '}}', $displayValue, $template);
+    if (array_key_exists('cleaning', $variables)) {
+        $variables['cleaning'] = (string) (
+            $variables['cleaning_label']
+            ?? ((int) $variables['cleaning'] === 1 ? 'Ja' : 'Nei')
+        );
     }
 
-    return preg_replace('/\{\{[^}]+\}\}/', '', $template) ?? $template;
+    return replaceKnownEmailTemplateTags($template, $variables);
 }

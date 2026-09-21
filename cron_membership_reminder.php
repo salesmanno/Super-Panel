@@ -13,6 +13,7 @@
  */
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/email_template_tags.php';
 
 $startTime = date('Y-m-d H:i:s');
 echo "[{$startTime}] Membership reminder (purring) check started\n";
@@ -60,7 +61,7 @@ try {
 
         // Hent e-postmal membership_reminder (bedriftsspesifikk først, deretter global)
         $tplStmt = $db->prepare("
-            SELECT subject_template, body_template
+            SELECT id, subject_template, body_template
             FROM email_templates
             WHERE template_key = 'membership_reminder'
               AND (company_id = ? OR company_id IS NULL)
@@ -111,9 +112,9 @@ try {
         $insertStmt = $db->prepare("
             INSERT INTO email_queue
                 (id, company_id, recipient_email, from_email, subject, body,
-                 module_source, status, priority, scheduled_at, created_at, updated_at)
+                 template_id, module_source, status, priority, scheduled_at, created_at, updated_at)
             VALUES
-                (UUID(), ?, ?, ?, ?, ?, 'membership', 'queued', 5, NOW(), NOW(), NOW())
+                (UUID(), ?, ?, ?, ?, ?, ?, 'membership', 'queued', 5, NOW(), NOW(), NOW())
         ");
 
         $updateStmt = $db->prepare("
@@ -157,15 +158,22 @@ try {
                 '{{member_code}}'     => $m['member_code'] ?? '',
             ];
 
-            $subject = str_replace(array_keys($placeholders), array_values($placeholders), $template['subject_template']);
-            $body    = str_replace(array_keys($placeholders), array_values($placeholders), $template['body_template']);
+            $subject = replaceKnownEmailTemplatePlaceholders(
+                $template['subject_template'],
+                $placeholders
+            );
+            $body = replaceKnownEmailTemplatePlaceholders(
+                $template['body_template'],
+                $placeholders
+            );
 
             $insertStmt->execute([
                 $companyId,
                 $m['email'],
                 $fromEmail,
                 $subject,
-                $body
+                $body,
+                $template['id']
             ]);
 
             // Sett Automailer_Sent = 2 (purring sendt)

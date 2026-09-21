@@ -90,6 +90,24 @@ function getEmailsToSend($db, $companyId) {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+function emailQueueBodyForDelivery(
+    array $email,
+    string $companyName,
+    string $logoUrl,
+    string $headerBgColor
+): string {
+    $rawBody = (string) ($email['body'] ?? '');
+    if (!empty($email['template_id'])) {
+        return $rawBody;
+    }
+
+    $isFullHtml = stripos(ltrim($rawBody), '<!DOCTYPE') === 0
+        || stripos(ltrim($rawBody), '<html') === 0;
+    return $isFullHtml
+        ? $rawBody
+        : EmailTemplate::wrap($rawBody, $companyName, $logoUrl, $headerBgColor);
+}
+
 function processEmail($db, $email) {
     global $RETRY_DELAYS;
 
@@ -114,11 +132,12 @@ function processEmail($db, $email) {
         $logoUrl       = $companyInfo['logo_url'] ?? '';
         $headerBgColor = $companyInfo['header_bg_color'] ?? '#ffffff';
 
-        $rawBody  = $email['body'];
-        $isFullHtml = stripos(ltrim($rawBody), '<!DOCTYPE') === 0 || stripos(ltrim($rawBody), '<html') === 0;
-        $htmlBody = $isFullHtml
-            ? $rawBody
-            : EmailTemplate::wrap($rawBody, $companyName, $logoUrl, $headerBgColor);
+        $htmlBody = emailQueueBodyForDelivery(
+            $email,
+            $companyName,
+            $logoUrl,
+            $headerBgColor
+        );
 
         $smtp = new SMTPClient(
             $smtpConfig['smtp_address'] ?: $smtpConfig['smtp_host'],

@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/email_template_tags.php';
+
 /**
  * EmailService - Håndterer automatiske e-poster med templates
  * 
@@ -197,15 +199,7 @@ class EmailService {
         $company = $stmt->fetch(PDO::FETCH_ASSOC);
         $data['company_name'] = $company['name'] ?? 'Firmaet';
         
-        // Replace all {{key}} with values from $data
-        foreach ($data as $key => $value) {
-            $template = str_replace('{{' . $key . '}}', $value, $template);
-        }
-        
-        // Remove any remaining unreplaced placeholders
-        $template = preg_replace('/\{\{[^}]+\}\}/', '', $template);
-        
-        return $template;
+        return replaceKnownEmailTemplateTags($template, $data);
     }
     
     /**

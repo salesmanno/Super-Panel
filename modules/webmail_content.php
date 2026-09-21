@@ -190,7 +190,7 @@ try {
 
     <!-- SIDEBAR -->
     <div class="wm-sidebar">
-        <button class="btn btn-primary btn-sm wm-compose-btn" onclick="wmShow('compose')">
+        <button class="btn btn-primary btn-sm wm-compose-btn" onclick="wmStartManualCompose()">
             <i class="bi bi-pencil-square me-1"></i>Ny e-post
         </button>
         <ul class="wm-nav">
@@ -627,6 +627,7 @@ async function wmOpenEmail(uid) {
 }
 
 function wmReplyToIncoming(fromAddr, subject) {
+    wmClearTemplate();
     if (fromAddr) wmAddTag(fromAddr);
     document.getElementById('wm-subject').value = subject.startsWith('Re:') ? subject : 'Re: ' + subject;
     wmShow('compose', null);
@@ -671,6 +672,9 @@ let wmToList = [];
 let wmActiveTemplateId = null;
 let wmActiveTemplateName = null;
 let wmActiveTemplateBody = null;
+let wmActiveRenderedTemplateBody = null;
+let wmTemplateEditorDirty = false;
+let wmTemplateLoadSequence = 0;
 let wmTemplatesLoaded = false;
 let wmAutomailerLoaded = false;
 
@@ -725,9 +729,12 @@ function renderTags() {
 }
 
 function wmClearTemplate() {
+    wmTemplateLoadSequence++;
     wmActiveTemplateId   = null;
     wmActiveTemplateName = null;
     wmActiveTemplateBody = null;
+    wmActiveRenderedTemplateBody = null;
+    wmTemplateEditorDirty = false;
     document.getElementById('wm-tbar-empty').style.display = 'flex';
     document.getElementById('wm-tbar-active').style.display = 'none';
     document.getElementById('wm-template-picker').style.display = 'none';
@@ -738,6 +745,11 @@ function wmClearTemplate() {
     document.getElementById('wm-body').value = '';
 }
 
+function wmStartManualCompose() {
+    wmClearTemplate();
+    wmShow('compose', null);
+}
+
 async function wmSend() {
     const input = document.getElementById('wm-to-input').value.trim().replace(/,$/, '');
     if (input && input.includes('@')) {
@@ -745,15 +757,17 @@ async function wmSend() {
         document.getElementById('wm-to-input').value = '';
     }
 
-    const subject = document.getElementById('wm-subject').value.trim();
+    const subjectInput = document.getElementById('wm-subject').value;
+    const subject = wmActiveTemplateId ? subjectInput : subjectInput.trim();
     const alertEl = document.getElementById('wm-compose-alert');
 
     const editorEl = document.getElementById('wm-template-editor');
     const usingEditor = editorEl.style.display !== 'none';
     let body;
     if (usingEditor) {
-        body = editorEl.innerHTML
-            .replace(/<mark[^>]*>([\s\S]*?)<\/mark>/gi, '$1');
+        body = wmActiveTemplateId && !wmTemplateEditorDirty
+            ? wmActiveRenderedTemplateBody
+            : editorEl.innerHTML.replace(/<mark[^>]*>([\s\S]*?)<\/mark>/gi, '$1');
     } else {
         body = document.getElementById('wm-body').value.trim();
     }
@@ -777,7 +791,12 @@ async function wmSend() {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             credentials: 'same-origin',
-            body: JSON.stringify({to: wmToList, subject, body})
+            body: JSON.stringify({
+                to: wmToList,
+                subject,
+                body,
+                template_id: wmActiveTemplateId
+            })
         });
         const data = JSON.parse(await resp.text());
 
@@ -1138,6 +1157,7 @@ function wmCloseSentPreview() {
 
 function wmReplyFromPreview() {
     if (!wmPreviewReplyTo) return;
+    wmClearTemplate();
     wmAddTag(wmPreviewReplyTo);
     document.getElementById('wm-subject').value = wmPreviewReplySubject.startsWith('Re:')
         ? wmPreviewReplySubject
@@ -1493,9 +1513,12 @@ function wmUseTemplateFromPreview() {
 }
 
 async function wmUseTemplate(id, name, subject) {
+    const loadSequence = ++wmTemplateLoadSequence;
     wmActiveTemplateId   = id;
     wmActiveTemplateName = name;
     wmActiveTemplateBody = null;
+    wmActiveRenderedTemplateBody = null;
+    wmTemplateEditorDirty = false;
 
     document.getElementById('wm-tbar-name').textContent = name;
     document.getElementById('wm-tbar-empty').style.display = 'none';
@@ -1523,6 +1546,9 @@ async function wmUseTemplate(id, name, subject) {
     try {
         const resp = await fetch(`/api/get_email_templates.php?id=${encodeURIComponent(id)}&edit=1`, {credentials:'same-origin'});
         const data = JSON.parse(await resp.text());
+        if (loadSequence !== wmTemplateLoadSequence || wmActiveTemplateId !== id) {
+            return;
+        }
 
         if (!data.success) {
             editorEl.innerHTML = `<div class="alert alert-danger">${escapeH(data.error)}</div>`;
@@ -1531,22 +1557,31 @@ async function wmUseTemplate(id, name, subject) {
         }
 
         const companyData = data.company_data || {};
-        let body = data.body;
-
-        body = body.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+        const renderedBody = data.body.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
             const trimmed = key.trim();
             if (companyData[trimmed] !== undefined && companyData[trimmed] !== '') {
                 return escapeH(companyData[trimmed]);
             }
+            return match;
+        });
+        const displayBody = renderedBody.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+            const trimmed = key.trim();
             return `<mark>{{${trimmed}}}</mark>`;
         });
 
-        editorEl.innerHTML = body;
+        editorEl.innerHTML = displayBody;
         editorEl.contentEditable = 'true';
+        editorEl.oninput = () => {
+            wmTemplateEditorDirty = true;
+        };
         hintEl.style.display = 'block';
         wmActiveTemplateBody = data.body;
+        wmActiveRenderedTemplateBody = renderedBody;
 
     } catch(err) {
+        if (loadSequence !== wmTemplateLoadSequence || wmActiveTemplateId !== id) {
+            return;
+        }
         editorEl.innerHTML = `<div class="alert alert-danger">Feil: ${escapeH(err.message)}</div>`;
         editorEl.contentEditable = 'false';
     }

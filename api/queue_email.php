@@ -49,8 +49,29 @@ try {
     }
 
     $fromEmail = $emailConfig['email'];
-    $subject   = trim($data['subject']);
-    $body      = trim($data['body']);
+    $templateId = null;
+    if (!empty($data['template_id'])) {
+        $templateStmt = $db->prepare("
+            SELECT id
+            FROM email_templates
+            WHERE id = ? AND is_active = 1
+              AND (company_id = ? OR company_id IS NULL)
+            LIMIT 1
+        ");
+        $templateStmt->execute([$data['template_id'], $companyId]);
+        $templateId = $templateStmt->fetchColumn();
+        if (!$templateId) {
+            ob_end_clean();
+            echo json_encode(['success' => false, 'error' => 'E-postmalen er ikke tilgjengelig']);
+            exit;
+        }
+    }
+    $subject = $templateId
+        ? (string) $data['subject']
+        : trim((string) $data['subject']);
+    $body = $templateId
+        ? (string) $data['body']
+        : trim((string) $data['body']);
 
     $recipients = $data['to'] ?? [];
     if (is_string($recipients)) {
@@ -71,9 +92,10 @@ try {
 
     $insertStmt = $db->prepare("
         INSERT INTO email_queue
-            (id, company_id, recipient_email, from_email, subject, body, module_source, status, priority, scheduled_at, created_at, updated_at)
+            (id, company_id, recipient_email, from_email, subject, body,
+             template_id, module_source, status, priority, scheduled_at, created_at, updated_at)
         VALUES
-            (UUID(), ?, ?, ?, ?, ?, 'webmail', 'queued', 5, NOW(), NOW(), NOW())
+            (UUID(), ?, ?, ?, ?, ?, ?, 'webmail', 'queued', 5, NOW(), NOW(), NOW())
     ");
 
     $customerStmt = $db->prepare("
@@ -94,7 +116,14 @@ try {
             $body
         );
 
-        $insertStmt->execute([$companyId, $recipient, $fromEmail, $subject, $personalBody]);
+        $insertStmt->execute([
+            $companyId,
+            $recipient,
+            $fromEmail,
+            $subject,
+            $personalBody,
+            $templateId,
+        ]);
         $queued++;
     }
 
