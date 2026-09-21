@@ -1,2 +1,3 @@
 - [Dato- og tidsformat](date-time-format.md) — brukerflater bruker norsk dato og 24-timers klokke; databasen beholder kanonisk SQL-format.
+- [E-postmaler er autoritative](email-template-authority.md) — utsendelsesflyter skal ikke omskrive hardkodert maltekst til skjulte tags ved runtime.
 - [Tenant-nyheter og systemfeed](tenant-news-vs-system-feed.md) — hold firmanyheter adskilt fra den globale innloggingsfeedens systemmeldinger.

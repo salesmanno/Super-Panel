@@ -9,22 +9,10 @@ function rentalCheckinTemplateDefaults(): array
     if ($body === false) {
         throw new RentalConfirmationEmailException('Innsjekkmalen kunne ikke lastes.');
     }
-    // The supplied template contains example contact details. Keep the layout,
-    // but make those values dynamic for every tenant.
-    $body = rentalNormalizeCheckinTemplate($body);
     return [
         'subject' => 'Innsjekk for {{rental_object}} – {{start_date}}',
         'body' => $body,
     ];
-}
-
-function rentalNormalizeCheckinTemplate(string $body): string
-{
-    return str_replace(
-        ['<strong>Britt Inger Gusdal</strong>', '48145008', 'href="tel:"'],
-        ['<strong>{{contact_person}}</strong>', '{{contact_phone}}', 'href="tel:{{contact_phone}}"'],
-        $body
-    );
 }
 
 function queueRentalCheckinEmails(PDO $db, ?string $today = null): int
@@ -119,10 +107,7 @@ function queueRentalCheckinEmails(PDO $db, ?string $today = null): int
             }
             $vars = buildRentalConfirmationVariables($rental);
             $subject = renderRentalConfirmationTemplate($tpl['subject_template'], $vars);
-            $body = renderRentalConfirmationTemplate(
-                rentalNormalizeCheckinTemplate($tpl['body_template']),
-                $vars
-            );
+            $body = renderRentalConfirmationTemplate($tpl['body_template'], $vars);
             $key = 'rental-checkin:' . $rental['company_id'] . ':' . $rental['id'] . ':' . $today;
             $insert = $db->prepare(
                 "INSERT INTO email_queue

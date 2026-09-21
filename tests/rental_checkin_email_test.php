@@ -21,6 +21,14 @@ rental_checkin_check(
         && !str_contains($defaults['body'], '48145008'),
     'default check-in template has no hard-coded contact details'
 );
+$hardCodedContact = '<strong>Fast kontakt</strong><a href="tel:99887766">99887766</a>';
+rental_checkin_check(
+    renderRentalConfirmationTemplate($hardCodedContact, [
+        'contact_person' => 'Skal ikke brukes',
+        'contact_phone' => '11111111',
+    ]) === $hardCodedContact,
+    'hard-coded contact details remain unchanged without explicit tags'
+);
 
 $vars = buildRentalConfirmationVariables([
     'customer_name' => 'Ola Nordmann',
@@ -47,8 +55,18 @@ rental_checkin_check(
 $queueSource = file_get_contents(__DIR__ . '/../includes/rental_checkin_email.php');
 rental_checkin_check(
     str_contains($queueSource, 'ec.rental_confirm = 1')
-        && !str_contains($queueSource, 'automail_rental_confirm'),
+        && !str_contains($queueSource, 'automail_rental_confirm')
+        && !str_contains($queueSource, 'rentalNormalizeCheckinTemplate')
+        && !str_contains($queueSource, 'Britt Inger Gusdal')
+        && !str_contains($queueSource, '48145008'),
     'daily queue requires the dedicated rental_confirm setting'
+);
+rental_checkin_check(
+    str_contains(
+        $queueSource,
+        "renderRentalConfirmationTemplate(\$tpl['body_template'], \$vars)"
+    ),
+    'daily queue renders the stored body without hidden normalization'
 );
 
 $processorSource = file_get_contents(__DIR__ . '/../api/process_email_queue.php');
@@ -67,6 +85,18 @@ rental_checkin_check(
         && $addKeyCodeAt < $backfillKeyCodeAt,
     'migration creates key_box_code before backfilling approved rentals'
 );
+$templateMigration = file_get_contents(
+    __DIR__ . '/../db_migrations/rental_checkin_template_contact_tags.sql'
+);
+rental_checkin_check(
+    $templateMigration !== false
+        && str_contains($templateMigration, "template_key = 'rental_checkin'")
+        && str_contains($templateMigration, '{{contact_person}}')
+        && str_contains($templateMigration, '{{contact_phone}}')
+        && str_contains($templateMigration, '<strong>Britt Inger Gusdal</strong>')
+        && str_contains($templateMigration, '>48145008</a>'),
+    'legacy contact conversion is an explicit template migration'
+);
 
 $uiSource = file_get_contents(__DIR__ . '/../modules/rental_content.php');
 rental_checkin_check(
@@ -84,6 +114,11 @@ rental_checkin_check(
         && str_contains($webmailSource, "{col:'rental_confirm'")
         && str_contains($webmailSource, "rental_confirm:               'rental_checkin'"),
     'rental_confirm can be read, changed, and previewed from automailer settings'
+);
+rental_checkin_check(
+    str_contains($webmailSource, '<code>{{contact_person}}</code>')
+        && str_contains($webmailSource, '<code>{{contact_phone}}</code>'),
+    'template preview documents the explicit check-in contact tags'
 );
 
 echo "Rental check-in email tests passed\n";

@@ -1420,6 +1420,9 @@ async function wmSelectTemplate(id) {
         const tName    = t.name || data.name || '';
         const tSubject = t.subject_template || data.subject || '';
         const tHtml    = data.html || '';
+        const contactTagsHint = t.template_key === 'rental_checkin'
+            ? '<div class="text-muted small mt-1"><strong>Kontaktfelt:</strong> <code>{{contact_person}}</code> og <code>{{contact_phone}}</code> må stå eksplisitt i malen for å bli erstattet.</div>'
+            : '';
 
         window._wmPreviewData = { id, name: tName, subject: tSubject, html: tHtml };
 
@@ -1428,6 +1431,7 @@ async function wmSelectTemplate(id) {
                 <div>
                     <h6 class="mb-1">${escapeH(tName)}</h6>
                     <div class="text-muted small"><strong>Emne:</strong> ${escapeH(tSubject)}</div>
+                     ${contactTagsHint}
                 </div>
                 <button class="btn btn-sm btn-primary" onclick="wmUseTemplateFromPreview()">
                     <i class="bi bi-pencil-square me-1"></i>Bruk mal
