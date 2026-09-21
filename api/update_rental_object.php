@@ -77,10 +77,13 @@ try {
             }
             if ($field === 'access_code') {
                 $value = trim((string) $value);
+                if ($value === '0000') {
+                    throw new InvalidArgumentException('Tilgangskoden 0000 kan ikke brukes');
+                }
                 if ($value !== '' && !preg_match('/^[A-Za-z0-9]{1,6}$/', $value)) {
                     throw new InvalidArgumentException('Tilgangskoden kan bare inneholde 1–6 bokstaver eller tall');
                 }
-                $value = $value === '' ? '0000' : $value;
+                $value = $value === '' ? null : $value;
             }
             $typeFields[] = $field;
             if ($schema['fields'][$field]['type'] === 'checkbox') {

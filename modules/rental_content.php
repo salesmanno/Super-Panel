@@ -29,6 +29,8 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
 #rental-module .rental-toolbar { background:var(--rental-paper); border:1px solid var(--rental-line); border-radius:12px; padding:.7rem; }
 #rental-module .rental-object-card { border-color:#dfe5e8; border-radius:10px; box-shadow:none; background:#fff; }
 #rental-module .rental-object-card:hover { border-color:#cbd5da; }
+#rental-module .rental-object-card[role="button"] { cursor:pointer; }
+#rental-module .rental-object-card[role="button"]:focus-visible { outline:3px solid rgba(13,110,253,.35); outline-offset:2px; }
 #rental-module .rental-object-card.is-muted { opacity:.78; background:#fafafa; }
 #rental-module .rental-object-card.is-rented { border-left:3px solid #7da08a; }
 #rental-module .rental-object-image { height:150px; object-fit:cover; filter:saturate(.72); }
@@ -406,7 +408,10 @@ function renderObjectCard(obj) {
 
     return `
         <div class="col" id="rental-card-${escAttr(obj.id)}">
-            <div class="card h-100 rental-object-card${cardStateClass}">
+            <div class="card h-100 rental-object-card${cardStateClass}" role="button" tabindex="0"
+                 aria-label="Rediger ${escAttr(obj.object_name)}"
+                 onclick="editRentalObject(decodeURIComponent('${objectToken}'))"
+                 onkeydown="handleRentalObjectCardKeydown(event, decodeURIComponent('${objectToken}'))">
                 ${imageHtml}
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
@@ -417,8 +422,8 @@ function renderObjectCard(obj) {
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span class="badge rental-category">${escHtml(categoryLabel)}</span>
-                        <div class="form-check form-switch mb-0" title="${isAvailable ? 'Synlig for kunder' : 'Skjult for kunder'}">
-                            <input class="form-check-input" type="checkbox" role="switch" id="avail-${escAttr(obj.id)}" ${toggleChecked} onchange="toggleAvailability(decodeURIComponent('${objectToken}'), this.checked)">
+                        <div class="form-check form-switch mb-0" title="${isAvailable ? 'Synlig for kunder' : 'Skjult for kunder'}" onclick="event.stopPropagation()">
+                            <input class="form-check-input" type="checkbox" role="switch" id="avail-${escAttr(obj.id)}" ${toggleChecked} onclick="event.stopPropagation()" onchange="toggleAvailability(decodeURIComponent('${objectToken}'), this.checked)">
                             <label class="form-check-label small" for="avail-${obj.id}">${isAvailable ? 'Synlig' : 'Skjult'}</label>
                         </div>
                     </div>
@@ -432,16 +437,13 @@ function renderObjectCard(obj) {
                             ${weekendPrice}
                         </div>
                         <div class="btn-group btn-group-sm rental-object-actions">
-                            <button class="btn" onclick="toggleContractForm(decodeURIComponent('${objectToken}'))" title="Kontrakter" id="contract-btn-${escAttr(obj.id)}">
+                            <button class="btn" onclick="event.stopPropagation(); toggleContractForm(decodeURIComponent('${objectToken}'))" title="Kontrakter" id="contract-btn-${escAttr(obj.id)}">
                                 <i class="bi bi-file-earmark-text me-1"></i>Opprett kontrakt
                             </button>
-                            <button class="btn" onclick="viewDetails(decodeURIComponent('${objectToken}'))" title="Detaljer">
+                            <button class="btn" onclick="event.stopPropagation(); viewDetails(decodeURIComponent('${objectToken}'))" title="Detaljer">
                                 <i class="bi bi-eye"></i>
                             </button>
-                            <button class="btn" onclick="editRentalObject(decodeURIComponent('${objectToken}'))" title="Rediger">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button class="btn rental-delete" onclick="deleteRentalObject(decodeURIComponent('${objectToken}'))" title="Slett">
+                            <button class="btn rental-delete" onclick="event.stopPropagation(); deleteRentalObject(decodeURIComponent('${objectToken}'))" title="Slett">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
@@ -521,6 +523,14 @@ function renderObjectCard(obj) {
             </div>
         </div>
     `;
+}
+
+function handleRentalObjectCardKeydown(event, objectId) {
+    if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) {
+        return;
+    }
+    event.preventDefault();
+    editRentalObject(objectId);
 }
 
 function buildCreateForm(category = '', existingData = {}) {
@@ -911,7 +921,7 @@ async function saveRentalObject() {
     if (data.category === 'venue') {
         const accessCodeInput = form.querySelector('[name="type_data[access_code]"]');
         if (accessCodeInput) {
-            typeData.access_code = accessCodeInput.value.trim() || '0000';
+            typeData.access_code = accessCodeInput.value.trim() || null;
         }
     }
     
@@ -1931,10 +1941,6 @@ async function loadRentalRequests() {
                 <td class="small">
                     <div class="fw-semibold">${escHtml(r.object_name || '–')}</div>
                     ${r.object_category ? `<span class="badge bg-light text-dark border">${escHtml(r.object_category)}</span>` : ''}
-                    <label class="form-label small mt-2 mb-1" for="key-box-code-${escAttr(r.id)}">Nøkkelbokskode</label>
-                    <input id="key-box-code-${escAttr(r.id)}" class="form-control form-control-sm rental-request-key-box-code"
-                           type="text" maxlength="6" value="${escAttr(r.key_box_code || '')}"
-                           placeholder="Objektets kode brukes hvis tom">
                 </td>
                 <td class="small">
                     <div>${escHtml(r.display_customer_name)}${ageStr}</div>
@@ -2062,7 +2068,6 @@ function getRentalRequestInlinePayload(id) {
         end_date: endDate,
         end_time: endTime,
         cleaning: row.querySelector('.rental-request-cleaning')?.checked ? 1 : 0,
-        key_box_code: (row.querySelector('.rental-request-key-box-code')?.value || '').trim(),
         rental_fee: rentalFee,
         price_adjustment_type: adjustment.type === 'none' ? '' : adjustment.type,
         price_adjustment_amount: adjustment.amount,

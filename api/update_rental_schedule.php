@@ -48,14 +48,13 @@ try {
         SELECT rs.id, rs.company_id, rs.rental_object_id, rs.approved, rs.status,
                rs.start_date, rs.end_date, rs.rental_fee, rs.customer_id,
                rs.pickup_time, rs.start_time, rs.end_time, rs.logistics, rs.notes,
-               rs.key_box_code,
                COALESCE(rs.cleaning, 0) AS cleaning,
                rs.price_adjustment_type, COALESCE(rs.price_adjustment_cents, 0) AS price_adjustment_cents,
                rs.price_adjustment_explanation,
                rs.customer_name AS request_customer_name,
                rs.customer_email AS request_customer_email,
                ro.object_name, ro.rental_text, ro.rental_price, ro.weekend_price,
-               ro.saturday_price, ro.sunday_price, rv.access_code,
+               ro.saturday_price, ro.sunday_price,
                COALESCE(rv.cleaning_fee, 0) AS cleaning_fee,
                tc.email AS profile_customer_email,
                tc.first_name AS profile_first_name,
@@ -198,24 +197,6 @@ try {
     if ($newApproved !== null) {
         $row['approved'] = $newApproved;
     }
-    if (array_key_exists('key_box_code', $data)) {
-        $keyBoxCode = trim((string) $data['key_box_code']);
-        if (strlen($keyBoxCode) > 6) {
-            throw new InvalidArgumentException('Nøkkelbokskoden er for lang.');
-        }
-        $updateFields[] = 'key_box_code = ?';
-        $updateParams[] = $keyBoxCode !== '' ? $keyBoxCode : null;
-        $row['key_box_code'] = $keyBoxCode !== '' ? $keyBoxCode : null;
-    }
-    if ($finalizingNow && $newStatus === 'approved'
-        && trim((string) ($row['key_box_code'] ?? '')) === '') {
-        $updateFields[] = 'key_box_code = ?';
-        $updateParams[] = $row['access_code'] !== null && $row['access_code'] !== ''
-            ? $row['access_code']
-            : null;
-        $row['key_box_code'] = $updateParams[array_key_last($updateParams)];
-    }
-
     $effectiveStartDate = $data['start_date'] ?? $row['start_date'];
     $effectivePickupTime = '08:00:00';
     $effectiveEndDate = $data['end_date'] ?? $row['end_date'];

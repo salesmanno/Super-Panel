@@ -85,10 +85,10 @@ $assert(
     str_contains($rentalContent, 'rentalFee - (cleaningSelected ? cleaningFee : 0)')
     && str_contains($rentalContent, 'rental-request-cleaning-fee')
     && str_contains($rentalContent, 'Ingen renhold')
-    && str_contains($rentalContent, 'rental-request-key-box-code')
+    && !str_contains($rentalContent, 'rental-request-key-box-code')
     && str_contains($rentalContent, 'price_adjustment_type')
     && str_contains($rentalContent, 'Totalt:'),
-    'Rental request UI includes pricing breakdown, adjustment, and editable key code'
+    'Rental request UI includes pricing and adjustment without an editable key code'
 );
 $unavailableEndpoint = file_get_contents(__DIR__ . '/../api/rental_unavailable.php');
 $createRequestEndpoint = file_get_contents(__DIR__ . '/../api/create_rental_request.php');

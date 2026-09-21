@@ -15,12 +15,29 @@ function rentalCheckinTemplateDefaults(): array
     ];
 }
 
-function queueRentalCheckinEmails(PDO $db, ?string $today = null): int
+function requireValidRentalVenueAccessCode(?string $accessCode): string
+{
+    $accessCode = trim((string) $accessCode);
+    if ($accessCode === '' || $accessCode === '0000'
+        || !preg_match('/^[A-Za-z0-9]{1,6}$/', $accessCode)) {
+        throw new RentalConfirmationEmailException(
+            'Utleieobjektet mangler en gyldig tilgangskode.'
+        );
+    }
+
+    return $accessCode;
+}
+
+function queueRentalCheckinEmails(
+    PDO $db,
+    ?string $today = null,
+    ?string $companyId = null
+): int
 {
     $today = $today ?: date('Y-m-d');
+    $companyScope = $companyId === null ? '' : ' AND rs.company_id = ?';
     $find = $db->prepare("
         SELECT rs.*, ro.object_name, ro.rental_text,
-               COALESCE(rv.access_code, '0000') AS access_code,
                COALESCE(rv.cleaning_fee, 0) AS cleaning_fee,
                tc.email AS profile_customer_email, tc.first_name, tc.last_name,
                company.name AS company_name, company.contact_phone,
@@ -39,9 +56,14 @@ function queueRentalCheckinEmails(PDO $db, ?string $today = null): int
             AND ec.is_active = 1 AND ec.rental_confirm = 1
         WHERE rs.approved = 1 AND rs.status = 'approved'
           AND rs.start_date = ? AND rs.checkin_email_queued_at IS NULL
+          {$companyScope}
         ORDER BY rs.company_id, rs.id
     ");
-    $find->execute([$today]);
+    $findParams = [$today];
+    if ($companyId !== null) {
+        $findParams[] = $companyId;
+    }
+    $find->execute($findParams);
     $rentals = $find->fetchAll(PDO::FETCH_ASSOC);
     $queued = 0;
 
@@ -49,16 +71,31 @@ function queueRentalCheckinEmails(PDO $db, ?string $today = null): int
         $db->beginTransaction();
         try {
             $lock = $db->prepare(
-                "SELECT id FROM rental_schedule
-                 WHERE id = ? AND approved = 1 AND status = 'approved'
+                "SELECT rental_object_id FROM rental_schedule
+                 WHERE id = ? AND company_id = ?
+                   AND approved = 1 AND status = 'approved'
                    AND start_date = ? AND checkin_email_queued_at IS NULL
                  FOR UPDATE"
             );
-            $lock->execute([$rental['id'], $today]);
-            if (!$lock->fetchColumn()) {
+            $lock->execute([$rental['id'], $rental['company_id'], $today]);
+            $rentalObjectId = $lock->fetchColumn();
+            if (!$rentalObjectId) {
                 $db->rollBack();
                 continue;
             }
+            $codeStmt = $db->prepare(
+                "SELECT rv.access_code
+                 FROM rental_venues rv
+                 INNER JOIN rental_objects ro
+                   ON ro.id = rv.object_id AND ro.company_id = ?
+                 WHERE rv.object_id = ?
+                 LIMIT 1"
+            );
+            $codeStmt->execute([$rental['company_id'], $rentalObjectId]);
+            $currentAccessCode = $codeStmt->fetchColumn();
+            $rental['key_box_code'] = requireValidRentalVenueAccessCode(
+                $currentAccessCode === false ? null : (string) $currentAccessCode
+            );
             $cfgStmt = $db->prepare(
                 "SELECT email, display_name FROM email_configs
                  WHERE company_id = ? AND is_active = 1 AND rental_confirm = 1 LIMIT 1"
@@ -120,9 +157,14 @@ function queueRentalCheckinEmails(PDO $db, ?string $today = null): int
                 $tpl['id'], $rental['id'], $key,
             ]);
             $db->prepare(
-                "UPDATE rental_schedule SET checkin_email_queued_at = NOW()
+                "UPDATE rental_schedule
+                 SET key_box_code = ?, checkin_email_queued_at = NOW()
                  WHERE id = ? AND company_id = ?"
-            )->execute([$rental['id'], $rental['company_id']]);
+            )->execute([
+                $rental['key_box_code'],
+                $rental['id'],
+                $rental['company_id'],
+            ]);
             $db->commit();
             $queued++;
         } catch (Throwable $e) {

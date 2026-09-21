@@ -51,6 +51,25 @@ rental_checkin_check(
     $rendered === 'Utleie AS|Testlokale|123456|Utleieansvarlig|12345678|Testveien 1',
     'check-in variables render the access code and contact/address values'
 );
+rental_checkin_check(
+    requireValidRentalVenueAccessCode(' AB12 ') === 'AB12',
+    'configured venue access code is trimmed and accepted'
+);
+rental_checkin_check(
+    requireValidRentalVenueAccessCode('0') === '0',
+    'single-character numeric access code is not treated as missing'
+);
+foreach ([null, '', '0000', 'TOO-LONG'] as $invalidCode) {
+    try {
+        requireValidRentalVenueAccessCode($invalidCode);
+        rental_checkin_check(false, 'invalid access code must stop check-in queueing');
+    } catch (RentalConfirmationEmailException $error) {
+        rental_checkin_check(
+            str_contains($error->getMessage(), 'gyldig tilgangskode'),
+            'invalid access code reports a retryable configuration error'
+        );
+    }
+}
 
 $queueSource = file_get_contents(__DIR__ . '/../includes/rental_checkin_email.php');
 rental_checkin_check(
@@ -65,8 +84,15 @@ rental_checkin_check(
     str_contains(
         $queueSource,
         "renderRentalConfirmationTemplate(\$tpl['body_template'], \$vars)"
-    ),
-    'daily queue renders the stored body without hidden normalization'
+    )
+        && str_contains($queueSource, 'SELECT rental_object_id FROM rental_schedule')
+        && str_contains($queueSource, 'SELECT rv.access_code')
+        && str_contains($queueSource, 'SET key_box_code = ?, checkin_email_queued_at = NOW()')
+        && strpos($queueSource, 'SELECT rental_object_id FROM rental_schedule')
+            < strpos($queueSource, 'SELECT rv.access_code')
+        && strpos($queueSource, 'SET key_box_code = ?, checkin_email_queued_at = NOW()')
+            > strpos($queueSource, 'INSERT INTO email_queue'),
+    'daily queue locks first, fetches the current venue code, renders it, and snapshots atomically'
 );
 
 $processorSource = file_get_contents(__DIR__ . '/../api/process_email_queue.php');
@@ -78,12 +104,13 @@ rental_checkin_check(
 
 $migration = file_get_contents(__DIR__ . '/../db_migrations/rental_checkin_email.sql');
 $addKeyCodeAt = strpos($migration, 'ADD COLUMN key_box_code');
-$backfillKeyCodeAt = strpos($migration, 'UPDATE rental_schedule rs');
 rental_checkin_check(
     $addKeyCodeAt !== false
-        && $backfillKeyCodeAt !== false
-        && $addKeyCodeAt < $backfillKeyCodeAt,
-    'migration creates key_box_code before backfilling approved rentals'
+        && !str_contains($migration, 'UPDATE rental_schedule rs')
+        && str_contains($migration, 'WHERE checkin_email_queued_at IS NULL')
+        && str_contains($migration, "UPDATE rental_venues SET access_code = NULL WHERE access_code = '0000'")
+        && str_contains($migration, 'ADD UNIQUE KEY uq_email_queue_idempotency'),
+    'migration removes early snapshots, old fallback codes, and preserves unique idempotency'
 );
 $templateMigration = file_get_contents(
     __DIR__ . '/../db_migrations/rental_checkin_template_contact_tags.sql'
@@ -100,9 +127,14 @@ rental_checkin_check(
 
 $uiSource = file_get_contents(__DIR__ . '/../modules/rental_content.php');
 rental_checkin_check(
-    str_contains($uiSource, "typeData.access_code = accessCodeInput.value.trim() || '0000'")
-        && !str_contains($uiSource, 'data.type_data.access_code = accessCodeInput.value.trim()'),
-    'venue access code is serialized through initialized type data'
+    str_contains($uiSource, 'typeData.access_code = accessCodeInput.value.trim() || null')
+        && !str_contains($uiSource, "accessCodeInput.value.trim() || '0000'")
+        && !str_contains($uiSource, 'rental-request-key-box-code')
+        && str_contains($uiSource, 'handleRentalObjectCardKeydown(event')
+        && str_contains($uiSource, 'event.stopPropagation(); viewDetails')
+        && str_contains($uiSource, 'role="button" tabindex="0"')
+        && substr_count($uiSource, 'onclick="editRentalObject(decodeURIComponent') === 1,
+    'venue code has no fallback, request approval has no code field, and cards have accessible edit entry'
 );
 
 $automailerReadSource = file_get_contents(__DIR__ . '/../api/get_automailer_settings.php');

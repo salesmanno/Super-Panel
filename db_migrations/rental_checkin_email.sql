@@ -30,9 +30,12 @@ PREPARE rental_stmt FROM @sql; EXECUTE rental_stmt; DEALLOCATE PREPARE rental_st
 SET @sql = IF(
   EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@db_name AND table_name='rental_venues' AND column_name='access_code'),
   'SELECT 1',
-  'ALTER TABLE rental_venues ADD COLUMN access_code CHAR(6) NOT NULL DEFAULT ''0000'''
+  'ALTER TABLE rental_venues ADD COLUMN access_code CHAR(6) DEFAULT NULL'
 );
 PREPARE rental_stmt FROM @sql; EXECUTE rental_stmt; DEALLOCATE PREPARE rental_stmt;
+
+ALTER TABLE rental_venues MODIFY access_code CHAR(6) NULL DEFAULT NULL;
+UPDATE rental_venues SET access_code = NULL WHERE access_code = '0000';
 
 SET @sql = IF(
   EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@db_name AND table_name='rental_schedule' AND column_name='key_box_code'),
@@ -41,22 +44,17 @@ SET @sql = IF(
 );
 PREPARE rental_stmt FROM @sql; EXECUTE rental_stmt; DEALLOCATE PREPARE rental_stmt;
 
-UPDATE rental_schedule rs
-INNER JOIN rental_objects ro
-  ON ro.id = rs.rental_object_id AND ro.company_id = rs.company_id
-LEFT JOIN rental_venues rv ON rv.object_id = ro.id
-SET rs.key_box_code = NULLIF(rv.access_code, '')
-WHERE rs.approved = 1
-  AND rs.status = 'approved'
-  AND (rs.key_box_code IS NULL OR rs.key_box_code = '')
-  AND NULLIF(rv.access_code, '') IS NOT NULL;
-
 SET @sql = IF(
   EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@db_name AND table_name='rental_schedule' AND column_name='checkin_email_queued_at'),
   'SELECT 1',
   'ALTER TABLE rental_schedule ADD COLUMN checkin_email_queued_at DATETIME DEFAULT NULL'
 );
 PREPARE rental_stmt FROM @sql; EXECUTE rental_stmt; DEALLOCATE PREPARE rental_stmt;
+
+UPDATE rental_schedule
+SET key_box_code = NULL
+WHERE checkin_email_queued_at IS NULL
+  AND key_box_code IS NOT NULL;
 
 SET @sql = IF(
   EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@db_name AND table_name='rental_schedule' AND column_name='checkin_email_sent_at'),

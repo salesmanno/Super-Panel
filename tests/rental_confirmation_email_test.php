@@ -221,10 +221,14 @@ foreach ([
     "\$row['price_adjustment_type'] =",
     "\$row['price_adjustment_cents'] = abs(\$adjustmentCents)",
     "\$row['price_adjustment_explanation'] =",
-    "key_box_code",
 ] as $fragment) {
     rental_email_check(str_contains($endpoint, $fragment), "endpoint contains {$fragment}");
 }
+rental_email_check(
+    !str_contains($endpoint, 'key_box_code')
+        && !str_contains($endpoint, 'rv.access_code'),
+    'approval endpoint neither accepts nor snapshots the venue access code'
+);
 rental_email_check(
     strpos($endpoint, '$db->commit();') > strpos($endpoint, 'INSERT INTO email_queue'),
     'approval and queue insert commit together'

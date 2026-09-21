@@ -14,6 +14,7 @@ if (getenv('RUN_RENTAL_MYSQL_INTEGRATION') !== '1'
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/rental_checkin_email.php';
 
 function concurrencyTestUuid(): string {
     $hex = bin2hex(random_bytes(16));
@@ -225,6 +226,90 @@ function concurrencyTestRunPair(
     return [$resultA, $resultB];
 }
 
+function concurrencyTestRunCheckinCronPair(
+    string $root,
+    string $today,
+    string $companyId,
+    string $tempDir
+): array {
+    $releasePath = $tempDir . '/checkin-release';
+    @unlink($releasePath);
+    $workers = [];
+    for ($index = 0; $index < 2; $index++) {
+        $readyPath = $tempDir . '/checkin-ready-' . $index;
+        @unlink($readyPath);
+        $pipes = [];
+        $process = proc_open(
+            [
+                PHP_BINARY,
+                $root . '/tests/rental_checkin_queue_worker.php',
+                $today,
+                $companyId,
+                $readyPath,
+                $releasePath,
+            ],
+            [
+                0 => ['pipe', 'r'],
+                1 => ['pipe', 'w'],
+                2 => ['pipe', 'w'],
+            ],
+            $pipes,
+            $root,
+            array_merge(getenv(), [
+                'RUN_RENTAL_MYSQL_INTEGRATION' => '1',
+                'RUN_RENTAL_CONCURRENCY_TEST' => '1',
+            ])
+        );
+        concurrencyTestAssert(is_resource($process), 'Could not start check-in cron worker');
+        fclose($pipes[0]);
+        $workers[] = [$process, $pipes[1], $pipes[2], $readyPath];
+    }
+
+    $readyDeadline = microtime(true) + 10;
+    do {
+        $allReady = true;
+        foreach ($workers as $worker) {
+            if (!is_file($worker[3])) {
+                $allReady = false;
+                break;
+            }
+        }
+        if (!$allReady) {
+            usleep(10000);
+        }
+    } while (!$allReady && microtime(true) < $readyDeadline);
+    concurrencyTestAssert($allReady, 'Check-in cron workers did not reach the start barrier');
+    concurrencyTestAssert(
+        file_put_contents($releasePath, 'go', LOCK_EX) !== false,
+        'Could not release check-in cron workers'
+    );
+
+    foreach ($workers as $worker) {
+        concurrencyTestAssert(
+            trim((string) file_get_contents($worker[3])) !== '',
+            'Check-in cron worker readiness signal was empty'
+        );
+    }
+
+    $queuedCounts = [];
+    foreach ($workers as [$process, $stdout, $stderr]) {
+        $output = stream_get_contents($stdout);
+        $error = stream_get_contents($stderr);
+        fclose($stdout);
+        fclose($stderr);
+        $status = proc_close($process);
+        concurrencyTestAssert(
+            $status === 0,
+            'Check-in cron worker failed: ' . trim($error)
+        );
+        $result = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
+        $queuedCounts[] = (int) ($result['queued'] ?? -1);
+    }
+
+    sort($queuedCounts);
+    return $queuedCounts;
+}
+
 function concurrencyTestInsertSchedule(
     PDO $db,
     string $id,
@@ -269,6 +354,29 @@ function concurrencyTestQueueRows(PDO $db, string $companyId, string $scheduleId
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+function concurrencyTestCheckinQueueRows(PDO $db, string $companyId, string $scheduleId): array {
+    $stmt = $db->prepare(
+        "SELECT subject, body, status, idempotency_key FROM email_queue
+         WHERE company_id = ? AND module_source = 'rental_checkin' AND source_id = ?
+         ORDER BY created_at"
+    );
+    $stmt->execute([$companyId, $scheduleId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function concurrencyTestReadCheckin(PDO $db, string $scheduleId): array {
+    $stmt = $db->prepare(
+        'SELECT key_box_code, checkin_email_queued_at
+         FROM rental_schedule WHERE id = ?'
+    );
+    $stmt->execute([$scheduleId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) {
+        throw new RuntimeException('Check-in test schedule disappeared');
+    }
+    return $row;
+}
+
 $root = dirname(__DIR__);
 $tempDir = sys_get_temp_dir() . '/rental-concurrency-' . bin2hex(random_bytes(8));
 $sessionPath = $tempDir . '/sessions';
@@ -307,12 +415,13 @@ try {
          VALUES (?, ?, 'Concurrency Venue', 'venue', 1000.00, ?)"
     )->execute([$objectId, $companyId, concurrencyTestUuid()]);
     $db->prepare(
-        'INSERT INTO rental_venues (object_id, cleaning_fee) VALUES (?, 750.00)'
+        "INSERT INTO rental_venues (object_id, cleaning_fee, access_code)
+         VALUES (?, 750.00, 'OLD111')"
     )->execute([$objectId]);
     $db->prepare(
         "INSERT INTO email_configs
-            (id, company_id, email, display_name, is_active, automail_rental_confirm)
-         VALUES (?, ?, 'sender@example.invalid', 'Concurrency Test', 1, 1)"
+            (id, company_id, email, display_name, is_active, automail_rental_confirm, rental_confirm)
+         VALUES (?, ?, 'sender@example.invalid', 'Concurrency Test', 1, 1, 1)"
     )->execute([concurrencyTestUuid(), $companyId]);
     $db->prepare(
         "INSERT INTO email_templates
@@ -321,6 +430,13 @@ try {
             (?, ?, 'rental_confirmation', 'Concurrency Test',
              'CONF {{status}} {{date_from}} {{pickup_time}} {{total_price}}',
               'BODY {{date_to}} {{end_time}} {{status}} {{cleaning}} {{cleaning_label}} {{cleaning_fee}} {{#if (neq status \"Avslått\")}}PAYMENT{{/if}}', 1)"
+    )->execute([concurrencyTestUuid(), $companyId]);
+    $db->prepare(
+        "INSERT INTO email_templates
+            (id, company_id, template_key, name, subject_template, body_template, is_active)
+         VALUES
+            (?, ?, 'rental_checkin', 'innsjekk utleie',
+             'CHECKIN {{key_box_code}}', 'CODE={{key_box_code}}', 1)"
     )->execute([concurrencyTestUuid(), $companyId]);
 
     concurrencyTestCreateSession($sessionPath, $sessionA, $companyId);
@@ -375,7 +491,7 @@ try {
         (int) $stored['approved'] === 1
         && $stored['status'] === 'approved'
         && $stored['start_date'] === '2035-03-10'
-        && substr($stored['pickup_time'], 0, 5) === '15:30'
+        && substr($stored['pickup_time'], 0, 5) === '08:00'
         && $stored['end_date'] === '2035-03-12'
         && substr($stored['end_time'], 0, 5) === '11:15'
         && (int) $stored['cleaning'] === 1
@@ -385,7 +501,7 @@ try {
     $queue = concurrencyTestQueueRows($db, $companyId, $scheduleId);
     concurrencyTestAssert(count($queue) === 1, 'Duplicate approval must queue exactly one confirmation');
     concurrencyTestAssert(
-        str_contains($queue[0]['subject'], 'Godkjent 10.03.2035 15:30 1 750,00')
+        str_contains($queue[0]['subject'], 'Godkjent 10.03.2035 08:00 1 750,00')
         && str_contains($queue[0]['body'], '12.03.2035 11:15 Godkjent Ja Ja 750,00 PAYMENT'),
         'Queued confirmation must render the winning edited values'
     );
@@ -446,7 +562,7 @@ try {
         (int) $storedMixed['approved'] === 1
         && $storedMixed['status'] === 'rejected'
         && $storedMixed['start_date'] === '2035-05-10'
-        && substr($storedMixed['pickup_time'], 0, 5) === '16:00'
+        && substr($storedMixed['pickup_time'], 0, 5) === '08:00'
         && $storedMixed['end_date'] === '2035-05-11'
         && substr($storedMixed['end_time'], 0, 5) === '12:00'
         && (int) $storedMixed['cleaning'] === 0
@@ -459,10 +575,91 @@ try {
     );
     $rejectionQueue = concurrencyTestQueueRows($db, $companyId, $mixedId);
     concurrencyTestAssert(
-        str_contains($rejectionQueue[0]['subject'], 'Avslått 10.05.2035 16:00 1 000,00')
+        str_contains($rejectionQueue[0]['subject'], 'Avslått 10.05.2035 08:00 1 000,00')
         && str_contains($rejectionQueue[0]['body'], '11.05.2035 12:00 Avslått Nei Nei 750,00')
         && !str_contains($rejectionQueue[0]['body'], 'PAYMENT'),
         'Rejected email must render the rejected branch without payment content'
+    );
+
+    // The check-in queue must fetch the current venue code after approval,
+    // overwrite an old snapshot, and remain idempotent on a second cron run.
+    $checkinId = concurrencyTestUuid();
+    concurrencyTestInsertSchedule($db, $checkinId, $companyId, $objectId);
+    $db->prepare(
+        "UPDATE rental_schedule
+         SET approved = 1, status = 'approved', start_date = '2035-06-01',
+             end_date = '2035-06-02', key_box_code = 'OLD111',
+             checkin_email_queued_at = NULL
+         WHERE id = ?"
+    )->execute([$checkinId]);
+    $db->prepare(
+        "UPDATE rental_venues SET access_code = 'NEW222' WHERE object_id = ?"
+    )->execute([$objectId]);
+    concurrencyTestAssert(
+        concurrencyTestRunCheckinCronPair(
+            $root,
+            '2035-06-01',
+            $companyId,
+            $tempDir
+        ) === [0, 1],
+        'Parallel check-in cron workers must queue exactly one email'
+    );
+    $storedCheckin = concurrencyTestReadCheckin($db, $checkinId);
+    $checkinQueue = concurrencyTestCheckinQueueRows($db, $companyId, $checkinId);
+    concurrencyTestAssert(
+        $storedCheckin['key_box_code'] === 'NEW222'
+        && $storedCheckin['checkin_email_queued_at'] !== null
+        && count($checkinQueue) === 1
+        && $checkinQueue[0]['subject'] === 'CHECKIN NEW222'
+        && $checkinQueue[0]['body'] === 'CODE=NEW222'
+        && !str_contains($checkinQueue[0]['body'], 'OLD111'),
+        'Fresh venue code must be the shared schedule snapshot and rendered email value'
+    );
+    concurrencyTestAssert(
+        queueRentalCheckinEmails($db, '2035-06-01', $companyId) === 0
+        && count(concurrencyTestCheckinQueueRows($db, $companyId, $checkinId)) === 1,
+        'A second cron run must not create a duplicate check-in email'
+    );
+
+    // A missing code must roll back without a queue marker and become retryable.
+    $retryId = concurrencyTestUuid();
+    concurrencyTestInsertSchedule($db, $retryId, $companyId, $objectId);
+    $db->prepare(
+        "UPDATE rental_schedule
+         SET approved = 1, status = 'approved', start_date = '2035-06-03',
+             end_date = '2035-06-04', key_box_code = 'STALE1',
+             checkin_email_queued_at = NULL
+         WHERE id = ?"
+    )->execute([$retryId]);
+    $db->prepare(
+        'UPDATE rental_venues SET access_code = NULL WHERE object_id = ?'
+    )->execute([$objectId]);
+    concurrencyTestAssert(
+        queueRentalCheckinEmails($db, '2035-06-03', $companyId) === 0,
+        'Missing venue code must abort check-in queueing'
+    );
+    $failedCheckin = concurrencyTestReadCheckin($db, $retryId);
+    concurrencyTestAssert(
+        $failedCheckin['key_box_code'] === 'STALE1'
+        && $failedCheckin['checkin_email_queued_at'] === null
+        && count(concurrencyTestCheckinQueueRows($db, $companyId, $retryId)) === 0,
+        'Failed check-in transaction must roll back snapshot, queue row, and marker'
+    );
+    $db->prepare(
+        "UPDATE rental_venues SET access_code = 'FIX333' WHERE object_id = ?"
+    )->execute([$objectId]);
+    concurrencyTestAssert(
+        queueRentalCheckinEmails($db, '2035-06-03', $companyId) === 1,
+        'Check-in cron must retry successfully after the venue code is fixed'
+    );
+    $retriedCheckin = concurrencyTestReadCheckin($db, $retryId);
+    $retryQueue = concurrencyTestCheckinQueueRows($db, $companyId, $retryId);
+    concurrencyTestAssert(
+        $retriedCheckin['key_box_code'] === 'FIX333'
+        && $retriedCheckin['checkin_email_queued_at'] !== null
+        && count($retryQueue) === 1
+        && $retryQueue[0]['body'] === 'CODE=FIX333',
+        'Successful retry must snapshot and render the corrected venue code'
     );
     $testPassed = true;
 } finally {
