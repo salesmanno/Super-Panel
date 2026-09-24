@@ -31,6 +31,9 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
 #rental-module .rental-object-card:hover { border-color:#cbd5da; }
 #rental-module .rental-object-card[role="button"] { cursor:pointer; }
 #rental-module .rental-object-card[role="button"]:focus-visible { outline:3px solid rgba(13,110,253,.35); outline-offset:2px; }
+#rental-module .rental-object-card.is-expanded { border-color:var(--rental-teal); box-shadow:0 4px 16px rgba(8,127,140,.13); }
+#rental-module .rental-object-expanded { border-top:1px solid var(--rental-line); background:var(--rental-paper); cursor:default; }
+#rental-module .rental-object-expanded .form-control { background:#fff; }
 #rental-module .rental-object-card.is-muted { opacity:.78; background:#fafafa; }
 #rental-module .rental-object-card.is-rented { border-left:3px solid #7da08a; }
 #rental-module .rental-object-image { height:150px; object-fit:cover; filter:saturate(.72); }
@@ -409,15 +412,16 @@ function renderObjectCard(obj) {
     return `
         <div class="col" id="rental-card-${escAttr(obj.id)}">
             <div class="card h-100 rental-object-card${cardStateClass}" role="button" tabindex="0"
-                 aria-label="Rediger ${escAttr(obj.object_name)}"
-                 onclick="editRentalObject(decodeURIComponent('${objectToken}'))"
+                 aria-label="Utvid ${escAttr(obj.object_name)}" aria-expanded="false"
+                 aria-controls="rental-expanded-${escAttr(obj.id)}"
+                 onclick="handleRentalObjectCardClick(event, decodeURIComponent('${objectToken}'))"
                  onkeydown="handleRentalObjectCardKeydown(event, decodeURIComponent('${objectToken}'))">
                 ${imageHtml}
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div>
                             <h6 class="card-title mb-0 d-inline">${escHtml(obj.object_name)}</h6>
-                            ${hiddenLabel}
+                            <span class="rental-card-status">${hiddenLabel}</span>
                         </div>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -448,7 +452,9 @@ function renderObjectCard(obj) {
                             </button>
                         </div>
                     </div>
+                    <div class="small text-muted mt-2 rental-expand-hint"><i class="bi bi-chevron-down me-1"></i>Trykk på kortet for å utvide</div>
                 </div>
+                <div id="rental-expanded-${escAttr(obj.id)}" class="rental-object-expanded p-3" hidden onclick="event.stopPropagation()"></div>
             </div>
             <div id="contract-panel-${obj.id}" class="card mt-2 border-success" style="display: none;">
                 <div class="card-header bg-success bg-opacity-10 d-flex justify-content-between align-items-center py-2">
@@ -525,12 +531,124 @@ function renderObjectCard(obj) {
     `;
 }
 
+function handleRentalObjectCardClick(event, objectId) {
+    if (event.target.closest('button, input, label, select, textarea, a, .form-switch, .rental-object-expanded')) return;
+    toggleRentalObjectCard(objectId);
+}
+
+function toggleRentalObjectCard(objectId) {
+    const wrapper = document.getElementById(`rental-card-${objectId}`);
+    const card = wrapper?.querySelector('.rental-object-card');
+    const panel = document.getElementById(`rental-expanded-${objectId}`);
+    const obj = allRentalObjects.find(o => String(o.id) === String(objectId));
+    if (!card || !panel || !obj) return;
+
+    const opening = panel.hidden;
+    panel.hidden = !opening;
+    card.classList.toggle('is-expanded', opening);
+    card.setAttribute('aria-expanded', String(opening));
+    card.setAttribute('aria-label', `${opening ? 'Lukk' : 'Utvid'} ${obj.object_name}`);
+    card.querySelector('.rental-expand-hint').innerHTML = opening
+        ? '<i class="bi bi-chevron-up me-1"></i>Trykk på kortet for å lukke'
+        : '<i class="bi bi-chevron-down me-1"></i>Trykk på kortet for å utvide';
+    if (!opening) {
+        panel.replaceChildren();
+        return;
+    }
+
+    if (obj.category === 'venue') {
+        panel.innerHTML = `
+            <form onsubmit="saveRentalCardAccessCode(event, decodeURIComponent('${encodeURIComponent(String(objectId))}'))">
+                <label class="form-label fw-semibold mb-1" for="rental-code-${escAttr(objectId)}">Tilgangskode</label>
+                <p class="small text-muted mb-2">Kode til utleielokalet, 1–6 bokstaver eller tall.</p>
+                <input type="text" class="form-control form-control-sm" id="rental-code-${escAttr(objectId)}"
+                       autocomplete="off" maxlength="6" pattern="[A-Za-z0-9]{1,6}" disabled>
+                <div class="small mt-2" role="status" aria-live="polite" data-code-status>Laster kode…</div>
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <button type="submit" class="btn btn-sm btn-primary" disabled>Lagre kode</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="editRentalObject(decodeURIComponent('${encodeURIComponent(String(objectId))}'))">Rediger hele objektet</button>
+                </div>
+            </form>`;
+        loadRentalCardAccessCode(objectId, panel);
+    } else {
+        panel.innerHTML = `<p class="small text-muted mb-2">Rediger informasjonen om objektet i skjemaet.</p>
+            <button type="button" class="btn btn-sm btn-primary" onclick="editRentalObject(decodeURIComponent('${encodeURIComponent(String(objectId))}'))">Rediger objekt</button>`;
+    }
+}
+
+async function loadRentalCardAccessCode(objectId, panel) {
+    const input = panel.querySelector('input');
+    const status = panel.querySelector('[data-code-status]');
+    const saveButton = panel.querySelector('button[type="submit"]');
+    try {
+        const response = await fetch(`/api/get_rental_objects.php?id=${encodeURIComponent(objectId)}`);
+        const data = await response.json();
+        if (!response.ok || !data.success || data.object?.category !== 'venue') {
+            throw new Error(data.message || 'Kunne ikke hente tilgangskoden');
+        }
+        if (!panel.isConnected || panel.hidden || panel.querySelector('input') !== input) return;
+        input.value = data.object.type_data?.access_code || '';
+        input.disabled = false;
+        saveButton.disabled = false;
+        status.textContent = 'La feltet stå tomt for å fjerne koden.';
+        const obj = allRentalObjects.find(o => String(o.id) === String(objectId));
+        if (obj) obj.type_data = {...obj.type_data, ...data.object.type_data};
+    } catch (error) {
+        if (!panel.isConnected || panel.hidden || panel.querySelector('input') !== input) return;
+        status.textContent = error.message || 'Kunne ikke hente tilgangskoden';
+        status.classList.add('text-danger');
+    }
+}
+
+async function saveRentalCardAccessCode(event, objectId) {
+    event.preventDefault();
+    event.stopPropagation();
+    const form = event.currentTarget;
+    const input = form.querySelector('input');
+    const saveButton = form.querySelector('button[type="submit"]');
+    const status = form.querySelector('[data-code-status]');
+    if (saveButton.disabled || !input.reportValidity()) return;
+    const code = input.value.trim();
+    if (code === '0000' || (code !== '' && !/^[A-Za-z0-9]{1,6}$/.test(code))) {
+        status.textContent = 'Bruk 1–6 bokstaver eller tall. Koden 0000 kan ikke brukes.';
+        status.classList.add('text-danger');
+        return;
+    }
+    saveButton.disabled = true;
+    input.disabled = true;
+    status.classList.remove('text-danger');
+    status.textContent = 'Lagrer…';
+    try {
+        const response = await fetch('/api/update_rental_object.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id: objectId, category: 'venue', type_data: {access_code: code}})
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || 'Kunne ikke lagre koden');
+        if (!form.isConnected) return;
+        status.textContent = 'Koden er lagret.';
+        const obj = allRentalObjects.find(o => String(o.id) === String(objectId));
+        if (obj) obj.type_data = {...obj.type_data, access_code: code || null};
+        input.value = code;
+    } catch (error) {
+        if (!form.isConnected) return;
+        status.textContent = error.message || 'Kunne ikke lagre koden';
+        status.classList.add('text-danger');
+    } finally {
+        if (form.isConnected) {
+            input.disabled = false;
+            saveButton.disabled = false;
+        }
+    }
+}
+
 function handleRentalObjectCardKeydown(event, objectId) {
     if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) {
         return;
     }
     event.preventDefault();
-    editRentalObject(objectId);
+    toggleRentalObjectCard(objectId);
 }
 
 function buildCreateForm(category = '', existingData = {}) {
@@ -1289,10 +1407,19 @@ async function toggleAvailability(objectId, isAvailable) {
         
         if (result.success) {
             obj.is_available = isAvailable ? 1 : 0;
-            const filtered = rentalFilter 
-                ? allRentalObjects.filter(o => o.category === rentalFilter)
-                : allRentalObjects;
-            renderRentalObjects(filtered);
+            obj.display_status = isAvailable ? 'available'
+                : (obj.display_status === 'rented' ? 'rented' : 'inactive');
+            const card = document.getElementById(`rental-card-${objectId}`)?.querySelector('.rental-object-card');
+            if (card) {
+                card.classList.toggle('is-muted', !isAvailable);
+                card.classList.toggle('is-rented', !isAvailable && obj.display_status === 'rented');
+                card.querySelector('.rental-card-status').innerHTML = isAvailable ? ''
+                    : obj.display_status === 'rented'
+                        ? '<span class="badge text-bg-light border text-secondary ms-2"><i class="bi bi-lock me-1"></i>Utleid</span>'
+                        : '<span class="badge text-bg-light border text-secondary ms-2"><i class="bi bi-eye-slash me-1"></i>Inaktiv</span>';
+                const switchLabel = card.querySelector('.form-switch .form-check-label');
+                if (switchLabel) switchLabel.textContent = isAvailable ? 'Synlig' : 'Skjult';
+            }
             toast.quickSuccess(isAvailable ? 'Synlig' : 'Skjult', `${obj.object_name} er nå ${isAvailable ? 'synlig for kunder' : 'skjult fra kunder'}`);
         } else {
             const toggle = document.getElementById(`avail-${objectId}`);

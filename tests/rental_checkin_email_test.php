@@ -133,8 +133,9 @@ rental_checkin_check(
         && str_contains($uiSource, 'handleRentalObjectCardKeydown(event')
         && str_contains($uiSource, 'event.stopPropagation(); viewDetails')
         && str_contains($uiSource, 'role="button" tabindex="0"')
-        && substr_count($uiSource, 'onclick="editRentalObject(decodeURIComponent') === 1,
-    'venue code has no fallback, request approval has no code field, and cards have accessible edit entry'
+        && str_contains($uiSource, 'onclick="handleRentalObjectCardClick(event,')
+        && str_contains($uiSource, 'aria-expanded="false"'),
+    'venue code has no fallback, request approval has no code field, and cards have accessible expansion'
 );
 
 $automailerReadSource = file_get_contents(__DIR__ . '/../api/get_automailer_settings.php');
