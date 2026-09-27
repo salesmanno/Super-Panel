@@ -83,11 +83,49 @@ try {
         exit;
     }
 
-    $validRecipients = array_filter($recipients, fn($r) => filter_var($r, FILTER_VALIDATE_EMAIL));
+    $validRecipients = array_values(array_unique(array_map(
+        static fn(string $email): string => trim($email),
+        array_filter(
+            $recipients,
+            fn($r) => is_string($r) && filter_var(trim($r), FILTER_VALIDATE_EMAIL)
+        )
+    )));
     if (empty($validRecipients)) {
         ob_end_clean();
         echo json_encode(['success' => false, 'error' => 'Ingen gyldige e-postadresser']);
         exit;
+    }
+
+    $memberRecipients = $data['member_recipients'] ?? [];
+    if (!is_array($memberRecipients)) {
+        http_response_code(400);
+        ob_end_clean();
+        echo json_encode(['success' => false, 'error' => 'Medlemsmottakerne er ugyldige']);
+        exit;
+    }
+    foreach ($memberRecipients as $memberRecipient) {
+        if (!is_string($memberRecipient) || !filter_var(trim($memberRecipient), FILTER_VALIDATE_EMAIL)) {
+            http_response_code(400);
+            ob_end_clean();
+            echo json_encode(['success' => false, 'error' => 'Medlemsmottakerne er ugyldige']);
+            exit;
+        }
+    }
+    $memberRecipients = array_values(array_unique(array_map(
+        static fn(string $email): string => strtolower(trim($email)),
+        $memberRecipients
+    )));
+    $toEmailSet = array_fill_keys(array_map(
+        static fn(string $email): string => strtolower(trim($email)),
+        $validRecipients
+    ), true);
+    foreach ($memberRecipients as $memberRecipient) {
+        if (!isset($toEmailSet[$memberRecipient])) {
+            http_response_code(400);
+            ob_end_clean();
+            echo json_encode(['success' => false, 'error' => 'Medlemsmottakerne må også være valgt som mottakere']);
+            exit;
+        }
     }
 
     $insertStmt = $db->prepare("
@@ -106,6 +144,46 @@ try {
     ");
 
     $queued = 0;
+    $db->beginTransaction();
+
+    if ($memberRecipients) {
+        $memberPlaceholders = implode(',', array_fill(0, count($memberRecipients), '?'));
+        $activeMembersStmt = $db->prepare("
+            SELECT mm.id, LOWER(TRIM(tc.email)) AS email
+            FROM membership_members mm
+            INNER JOIN tenant_customers tc
+              ON tc.id = mm.customer_id
+             AND tc.company_id = mm.company_id
+            WHERE mm.company_id = ?
+              AND mm.status = 'active'
+              AND (mm.cancellation_active IS NULL OR mm.cancellation_active = 0)
+              AND (mm.expiration_date IS NULL OR mm.expiration_date >= CURDATE())
+              AND tc.email IS NOT NULL
+              AND tc.email != ''
+              AND LOWER(TRIM(tc.email)) IN ($memberPlaceholders)
+            FOR UPDATE
+        ");
+        $activeMembersStmt->execute(array_merge([$companyId], $memberRecipients));
+        $eligibleMemberEmails = array_fill_keys(
+            array_column($activeMembersStmt->fetchAll(PDO::FETCH_ASSOC), 'email'),
+            true
+        );
+        $noLongerEligible = array_values(array_filter(
+            $memberRecipients,
+            static fn(string $email): bool => !isset($eligibleMemberEmails[$email])
+        ));
+        if ($noLongerEligible) {
+            $db->rollBack();
+            http_response_code(409);
+            ob_end_clean();
+            echo json_encode([
+                'success' => false,
+                'error' => 'Minst ett valgt medlem er utløpt, kansellert eller ikke lenger aktivt. Oppdater medlemslisten før du sender.'
+            ]);
+            exit;
+        }
+    }
+
     foreach ($validRecipients as $recipient) {
         $customerStmt->execute([$recipient, $companyId]);
         $customer = $customerStmt->fetch(PDO::FETCH_ASSOC);
@@ -127,6 +205,7 @@ try {
         $queued++;
     }
 
+    $db->commit();
     ob_end_clean();
     echo json_encode([
         'success' => true,
@@ -135,6 +214,9 @@ try {
     ]);
 
 } catch (\Throwable $e) {
+    if (isset($db) && $db->inTransaction()) {
+        $db->rollBack();
+    }
     ob_end_clean();
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }

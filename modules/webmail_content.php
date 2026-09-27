@@ -874,6 +874,7 @@ document.addEventListener('click', function(e) {
 
 /* ===== MOTTAKERPICKER ===== */
 let wmAllRecipients = [];
+let wmRecipientLoadSequence = 0;
 
 function openRecipientPicker() {
     document.getElementById('wm-recipient-search').value = '';
@@ -882,6 +883,7 @@ function openRecipientPicker() {
 }
 
 async function wmLoadRecipients(source, navEl) {
+    const loadSequence = ++wmRecipientLoadSequence;
     wmCurrentRecipientSource = source;
     document.querySelectorAll('#wmRecipientTabs .nav-link').forEach(a => a.classList.remove('active'));
     if (navEl) navEl.classList.add('active');
@@ -898,6 +900,7 @@ async function wmLoadRecipients(source, navEl) {
     try {
         const resp = await fetch(`/api/get_recipients.php?source=${source}`, {credentials:'same-origin'});
         const data = JSON.parse(await resp.text());
+        if (loadSequence !== wmRecipientLoadSequence) return;
         if (data.success) {
             wmAllRecipients = data.recipients;
             wmRenderRecipients(data.recipients);
@@ -905,6 +908,7 @@ async function wmLoadRecipients(source, navEl) {
             listEl.innerHTML = `<div class="text-danger small p-2">${escapeH(data.error)}</div>`;
         }
     } catch(err) {
+        if (loadSequence !== wmRecipientLoadSequence) return;
         listEl.innerHTML = `<div class="text-danger small p-2">${escapeH(err.message)}</div>`;
     }
 }
@@ -913,6 +917,7 @@ function wmRenderRecipients(list) {
     const listEl = document.getElementById('wm-recipient-list');
     if (!list.length) {
         listEl.innerHTML = '<div class="text-muted small p-2">Ingen mottakere funnet</div>';
+        updateSelectedCount();
         return;
     }
     listEl.innerHTML = list.map(r => `
@@ -945,6 +950,12 @@ function wmSelectAllRecipients(checked) {
 
 function updateSelectedCount() {
     const count = document.querySelectorAll('.wm-rec-chk:checked').length;
+    const allCheckboxes = document.querySelectorAll('.wm-rec-chk');
+    const selectAll = document.getElementById('wm-select-all');
+    if (selectAll) {
+        selectAll.checked = allCheckboxes.length > 0 && count === allCheckboxes.length;
+        selectAll.indeterminate = count > 0 && count < allCheckboxes.length;
+    }
     document.getElementById('wm-selected-count').textContent = count + ' valgt';
 }
 
