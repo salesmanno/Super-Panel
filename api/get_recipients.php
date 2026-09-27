@@ -35,10 +35,13 @@ try {
                 tc.last_name,
                 tc.email
             FROM membership_members mm
-            JOIN tenant_customers tc ON mm.customer_id = tc.id
+            JOIN tenant_customers tc
+              ON tc.id = mm.customer_id
+             AND tc.company_id = mm.company_id
             WHERE mm.company_id = ?
               AND mm.status = 'active'
               AND (mm.cancellation_active IS NULL OR mm.cancellation_active = 0)
+              AND (mm.expiration_date IS NULL OR mm.expiration_date >= CURDATE())
               AND tc.email IS NOT NULL
               AND tc.email != ''
             ORDER BY tc.last_name, tc.first_name

@@ -470,7 +470,7 @@ try {
                 <div class="px-3 pb-1">
                     <div class="form-check form-check-sm">
                         <input class="form-check-input" type="checkbox" id="wm-select-all" onchange="wmSelectAllRecipients(this.checked)">
-                        <label class="form-check-label small" for="wm-select-all">Velg alle synlige</label>
+                        <label class="form-check-label small" for="wm-select-all">Velg alle kunder</label>
                     </div>
                 </div>
                 <div id="wm-recipient-list" style="max-height:380px;overflow-y:auto;padding:0 12px 12px;"></div>
@@ -668,6 +668,8 @@ async function wmRunDbMigration() {
 
 /* ===== COMPOSE ===== */
 let wmToList = [];
+let wmMemberRecipients = new Set();
+let wmCurrentRecipientSource = 'customers';
 
 let wmActiveTemplateId = null;
 let wmActiveTemplateName = null;
@@ -715,6 +717,7 @@ function wmAddTag(email) {
 
 function wmRemoveTag(email) {
     wmToList = wmToList.filter(e => e !== email);
+    wmMemberRecipients.delete(email);
     renderTags();
 }
 
@@ -793,6 +796,7 @@ async function wmSend() {
             credentials: 'same-origin',
             body: JSON.stringify({
                 to: wmToList,
+                member_recipients: [...wmMemberRecipients].filter(email => wmToList.includes(email)),
                 subject,
                 body,
                 template_id: wmActiveTemplateId
@@ -804,6 +808,7 @@ async function wmSend() {
             alertEl.innerHTML = `<div class="alert alert-success"><i class="bi bi-check-circle me-2"></i>${data.message}</div>`;
             document.getElementById('wm-subject').value = '';
             wmToList = [];
+            wmMemberRecipients.clear();
             renderTags();
             wmClearTemplate();
         } else {
@@ -877,8 +882,15 @@ function openRecipientPicker() {
 }
 
 async function wmLoadRecipients(source, navEl) {
+    wmCurrentRecipientSource = source;
     document.querySelectorAll('#wmRecipientTabs .nav-link').forEach(a => a.classList.remove('active'));
     if (navEl) navEl.classList.add('active');
+    const selectAllLabel = document.querySelector('label[for="wm-select-all"]');
+    if (selectAllLabel) {
+        selectAllLabel.textContent = source === 'members'
+            ? 'Velg alle aktive medlemmer'
+            : 'Velg alle kunder';
+    }
 
     const listEl = document.getElementById('wm-recipient-list');
     listEl.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm"></div></div>';
@@ -926,7 +938,7 @@ function wmFilterRecipients(query) {
 
 function wmSelectAllRecipients(checked) {
     document.querySelectorAll('.wm-rec-chk').forEach(cb => {
-        if (cb.closest('.wm-recipient-row').style.display !== 'none') cb.checked = checked;
+        cb.checked = checked;
     });
     updateSelectedCount();
 }
@@ -942,6 +954,7 @@ document.addEventListener('change', function(e) {
 
 function wmAddSelectedRecipients() {
     document.querySelectorAll('.wm-rec-chk:checked').forEach(cb => {
+        if (wmCurrentRecipientSource === 'members') wmMemberRecipients.add(cb.value);
         wmAddTag(cb.value);
     });
     bootstrap.Modal.getInstance(document.getElementById('wmRecipientModal')).hide();
