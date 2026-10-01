@@ -5,7 +5,7 @@
  */
 const ANNOUNCEMENT_TYPES = ['event', 'info', 'news', 'promotion', 'urgent'];
 const ANNOUNCEMENT_PRIORITY_MIN = 1;
-const ANNOUNCEMENT_PRIORITY_MAX = 9007199254740991;
+const ANNOUNCEMENT_PRIORITY_MAX = 9;
 const ANNOUNCEMENT_PRIORITY_DEFAULT = 5;
 const ANNOUNCEMENT_LEGACY_PRIORITIES = ['urgent' => 1, 'high' => 3, 'normal' => 5, 'low' => 8];
 const ANNOUNCEMENT_CONTENT_MAX = 100000;
@@ -19,12 +19,12 @@ function announcement_type($value): string {
 }
 /** Normalize values read during the legacy text-to-number transition. */
 function announcement_priority($value): int {
-    if (is_int($value) && $value >= ANNOUNCEMENT_PRIORITY_MIN && $value <= ANNOUNCEMENT_PRIORITY_MAX) return $value;
+    if (is_int($value) && $value >= ANNOUNCEMENT_PRIORITY_MIN) return min($value, ANNOUNCEMENT_PRIORITY_MAX);
     if (is_string($value)) {
         $numeric = filter_var(trim($value), FILTER_VALIDATE_INT, [
-            'options' => ['min_range' => ANNOUNCEMENT_PRIORITY_MIN, 'max_range' => ANNOUNCEMENT_PRIORITY_MAX]
+            'options' => ['min_range' => ANNOUNCEMENT_PRIORITY_MIN]
         ]);
-        if ($numeric !== false) return $numeric;
+        if ($numeric !== false) return min($numeric, ANNOUNCEMENT_PRIORITY_MAX);
     }
     return ANNOUNCEMENT_LEGACY_PRIORITIES[(string)$value] ?? ANNOUNCEMENT_PRIORITY_DEFAULT;
 }
@@ -36,9 +36,8 @@ function announcement_priority_for_write($value): ?int {
 /**
  * Plan one tenant-scoped priority assignment without mutating its input.
  *
- * All occupants in a contiguous conflict chain move down one slot. Gaps stop
- * the cascade, duplicate ranks retain their relative tie order, and an
- * unchanged assignment never reorders anything.
+ * Every other row at or below the chosen rank moves down one slot, capped at 9.
+ * Gaps do not stop the shift; an unchanged assignment never reorders anything.
  *
  * @return array<string, int>|null Priority updates keyed by announcement ID.
  */
@@ -46,7 +45,7 @@ function announcement_priority_assignment_plan(array $items, string $targetId, i
     if ($priority < ANNOUNCEMENT_PRIORITY_MIN || $priority > ANNOUNCEMENT_PRIORITY_MAX) return null;
 
     $targetPriority = null;
-    $occupied = [];
+    $others = [];
     foreach ($items as $item) {
         if (!is_array($item) || !isset($item['id'])) continue;
         $id = (string)$item['id'];
@@ -55,18 +54,18 @@ function announcement_priority_assignment_plan(array $items, string $targetId, i
             continue;
         }
         $current = announcement_priority($item['priority'] ?? null);
-        $occupied[$current][] = $id;
+        $others[$id] = $current;
     }
     if ($targetPriority === null && !$allowNew) return null;
     if ($targetPriority === $priority) return [];
 
     $updates = [$targetId => $priority];
-    $slot = $priority;
-    while (!empty($occupied[$slot])) {
-        if ($slot >= ANNOUNCEMENT_PRIORITY_MAX) return null;
-        sort($occupied[$slot], SORT_STRING);
-        foreach ($occupied[$slot] as $id) $updates[$id] = $slot + 1;
-        $slot++;
+    ksort($others, SORT_STRING);
+    foreach ($others as $id => $current) {
+        if ($current >= $priority) {
+            $next = min($current + 1, ANNOUNCEMENT_PRIORITY_MAX);
+            if ($next !== $current) $updates[$id] = $next;
+        }
     }
     return $updates;
 }
@@ -103,7 +102,7 @@ function announcement_apply_priority_assignment(
         if (!$allowNew && !array_filter($items, static fn($item) => (string)$item['id'] === $targetId)) {
             throw new OutOfBoundsException('Nyhet ikke funnet');
         }
-        throw new InvalidArgumentException('Prioriteten er for høy til å forskyve den eksisterende kjeden');
+        throw new InvalidArgumentException('Prioritet må være et heltall mellom 1 og 9');
     }
 
     $currentById = [];
@@ -308,7 +307,7 @@ function announcement_validate_payload($data): array {
         }
     }
     $priority = array_key_exists('priority', $data) ? announcement_priority_for_write($data['priority']) : ANNOUNCEMENT_PRIORITY_DEFAULT;
-    if ($priority === null) $errors[] = 'Prioritet må være et positivt heltall';
+    if ($priority === null) $errors[] = 'Prioritet må være et heltall mellom 1 og 9';
     if ($errors) return ['ok'=>false, 'message'=>implode('. ', $errors)];
     return ['ok'=>true, 'data'=>['title'=>$title,'content'=>$content,'image_url'=>$image,'is_published'=>(bool)($data['is_published'] ?? false),'is_pinned'=>(bool)($data['is_pinned'] ?? false),'announcement_type'=>announcement_type($data['announcement_type'] ?? null),'priority'=>$priority,'publish_at'=>$publish,'expire_at'=>$expire,'product'=>$product]];
 }

@@ -5,10 +5,10 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     const legacy = { urgent: 1, high: 3, normal: 5, low: 8 };
     const priorityValue = value => {
-        if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 1) return value;
+        if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 1) return Math.min(value, 9);
         if (typeof value === 'string' && /^[1-9]\d*$/.test(value)) {
             const number = Number(value);
-            if (Number.isSafeInteger(number)) return number;
+            if (Number.isSafeInteger(number)) return Math.min(number, 9);
         }
         return legacy[String(value)] || 5;
     };
@@ -32,7 +32,7 @@
         return (rows || []).slice().sort(compare);
     }
     rank.priorityValue = priorityValue;
-    rank.isValidPriority = value => Number.isSafeInteger(value) && value >= 1;
+    rank.isValidPriority = value => Number.isSafeInteger(value) && value >= 1 && value <= 9;
     rank.planPriorityAssignment = (rows, targetId, desiredPriority, { force = false } = {}) => {
         const source = (rows || []).map(item => ({ ...item }));
         if (!rank.isValidPriority(desiredPriority)) {
@@ -45,21 +45,13 @@
         const currentPriority = priorityValue(target.priority);
         if (!force && currentPriority === desiredPriority) return { items: source, updates: {} };
 
-        const occupied = new Map();
-        for (const item of source) {
-            if (String(item.id ?? '') === targetKey) continue;
-            const priority = priorityValue(item.priority);
-            if (!occupied.has(priority)) occupied.set(priority, []);
-            occupied.get(priority).push(String(item.id ?? ''));
-        }
-
         const updates = { [targetKey]: desiredPriority };
-        let slot = desiredPriority;
-        while (occupied.has(slot) && occupied.get(slot).length > 0) {
-            if (!Number.isSafeInteger(slot + 1)) return { items: source, updates: {} };
-            const ids = occupied.get(slot).slice().sort();
-            for (const id of ids) updates[id] = slot + 1;
-            slot += 1;
+        for (const item of source.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)))) {
+            const id = String(item.id ?? '');
+            if (id === targetKey) continue;
+            const current = priorityValue(item.priority);
+            const next = Math.min(current + 1, 9);
+            if (current >= desiredPriority && next !== current) updates[id] = next;
         }
 
         const planned = source.map(item => (

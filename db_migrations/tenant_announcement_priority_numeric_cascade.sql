@@ -1,55 +1,29 @@
 -- Run after tenant_announcement_priority_numeric.sql.
--- Keep the lexicographically smallest ID at priority 1. Move the contiguous
--- occupied chain beginning at 2 down one slot before placing the other legacy
--- priority-1 rows at 2; gaps and unrelated rows remain untouched.
+-- For each tenant with duplicate priority-1 rows, keep the smallest ID at 1,
+-- move the remaining former top rows to 2, and shift every existing rank >= 2
+-- once per former duplicate (capped at 9). This is deterministic and replay-safe:
+-- after this migration no tenant has duplicate priority-1 rows.
 
 DROP TEMPORARY TABLE IF EXISTS `tmp_tenant_announcement_priority_one`;
-DROP TEMPORARY TABLE IF EXISTS `tmp_tenant_announcement_priority_occupied`;
-DROP TEMPORARY TABLE IF EXISTS `tmp_tenant_announcement_priority_chain_slots`;
-DROP TEMPORARY TABLE IF EXISTS `tmp_tenant_announcement_priority_chain_rows`;
 CREATE TEMPORARY TABLE `tmp_tenant_announcement_priority_one` AS
 SELECT
     `company_id`,
-    MIN(`id`) AS `keeper_id`
+    MIN(`id`) AS `keeper_id`,
+    COUNT(*) - 1 AS `duplicate_count`
 FROM `tenant_announcements`
 WHERE `priority` = 1
 GROUP BY `company_id`
 HAVING COUNT(*) > 1;
 
-CREATE TEMPORARY TABLE `tmp_tenant_announcement_priority_occupied` AS
-SELECT DISTINCT announcement.`company_id`, announcement.`priority`
-FROM `tenant_announcements` AS announcement
+UPDATE `tenant_announcements` AS announcement
 JOIN `tmp_tenant_announcement_priority_one` AS duplicate_groups
     ON duplicate_groups.`company_id` = announcement.`company_id`
+SET announcement.`priority` = LEAST(
+        9,
+        announcement.`priority` + duplicate_groups.`duplicate_count`
+    ),
+    announcement.`updated_at` = NOW()
 WHERE announcement.`priority` >= 2;
-
-CREATE TEMPORARY TABLE `tmp_tenant_announcement_priority_chain_slots` AS
-WITH RECURSIVE `occupied_chain` (`company_id`, `priority`) AS (
-    SELECT `company_id`, 2
-    FROM `tmp_tenant_announcement_priority_one`
-    UNION ALL
-    SELECT chain.`company_id`, chain.`priority` + 1
-    FROM `occupied_chain` AS chain
-    JOIN `tmp_tenant_announcement_priority_occupied` AS occupied
-        ON occupied.`company_id` = chain.`company_id`
-       AND occupied.`priority` = chain.`priority`
-)
-SELECT `company_id`, `priority`
-FROM `occupied_chain`;
-
-CREATE TEMPORARY TABLE `tmp_tenant_announcement_priority_chain_rows` AS
-SELECT announcement.`company_id`, announcement.`id`, announcement.`priority`
-FROM `tmp_tenant_announcement_priority_chain_slots` AS chain
-JOIN `tenant_announcements` AS announcement
-    ON announcement.`company_id` = chain.`company_id`
-   AND announcement.`priority` = chain.`priority`;
-
-UPDATE `tenant_announcements` AS announcement
-JOIN `tmp_tenant_announcement_priority_chain_rows` AS chain
-    ON chain.`company_id` = announcement.`company_id`
-   AND chain.`id` = announcement.`id`
-SET announcement.`priority` = chain.`priority` + 1,
-    announcement.`updated_at` = NOW();
 
 UPDATE `tenant_announcements` AS loser
 JOIN `tmp_tenant_announcement_priority_one` AS duplicate_groups
@@ -59,9 +33,6 @@ SET loser.`priority` = 2,
 WHERE loser.`priority` = 1
   AND loser.`id` <> duplicate_groups.`keeper_id`;
 
-DROP TEMPORARY TABLE `tmp_tenant_announcement_priority_chain_rows`;
-DROP TEMPORARY TABLE `tmp_tenant_announcement_priority_chain_slots`;
-DROP TEMPORARY TABLE `tmp_tenant_announcement_priority_occupied`;
 DROP TEMPORARY TABLE `tmp_tenant_announcement_priority_one`;
 
 SET @priority_guard_column_exists = (

@@ -25,7 +25,7 @@ try {
     $priority = announcement_priority_for_write($data['priority'] ?? null);
     if ($priority === null) {
         http_response_code(422);
-        echo json_encode(['success' => false, 'message' => 'Prioritet må være et positivt heltall'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'message' => 'Prioritet må være et heltall mellom 1 og 9'], JSON_UNESCAPED_UNICODE);
         exit;
     }
 

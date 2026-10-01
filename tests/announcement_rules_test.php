@@ -20,10 +20,10 @@ check_rule(array_column($active, 'id') === ['a','b','c','z'], 'pin, priority, da
 check_rule(announcement_type('unknown') === 'info', 'safe type default');
 check_rule(announcement_priority('urgent') === 1 && announcement_priority('high') === 3 && announcement_priority('normal') === 5 && announcement_priority('low') === 8, 'legacy priority mapping');
 check_rule(announcement_priority('unknown') === 5, 'safe priority default');
-check_rule(announcement_priority('1') === 1 && announcement_priority('10') === 10, 'numeric strings normalize on legacy reads');
-foreach ([1, 5, 10, 11, 12, 500] as $priority) check_rule(announcement_priority_for_write($priority) === $priority, 'positive integer priority accepted');
-foreach ([0, -1, 5.5, '5', '5.0', 9007199254740992, null, false] as $priority) check_rule(announcement_priority_for_write($priority) === null, 'invalid numeric priority rejected');
-check_rule(announcement_priority(11) === 11 && announcement_priority('12') === 12, 'priorities above ten survive reads');
+check_rule(announcement_priority('1') === 1 && announcement_priority('10') === 9, 'legacy ten reads at lowest rank, never default five');
+foreach (range(1, 9) as $priority) check_rule(announcement_priority_for_write($priority) === $priority, 'one to nine accepted');
+foreach ([0, -1, 10, 11, 500, 5.5, '5', '5.0', 9007199254740992, null, false] as $priority) check_rule(announcement_priority_for_write($priority) === null, 'invalid numeric priority rejected');
+check_rule(announcement_priority(11) === 9 && announcement_priority('12') === 9, 'old larger ranks cap at nine');
 $priorityRows = [
     ['id' => 'target', 'priority' => 8],
     ['id' => 'a', 'priority' => 1],
@@ -33,7 +33,7 @@ $priorityRows = [
     ['id' => 'other-tenant', 'priority' => 1],
 ];
 $cascade = announcement_priority_assignment_plan(array_slice($priorityRows, 0, 5), 'target', 1);
-check_rule($cascade === ['target' => 1, 'a' => 2, 'b' => 3, 'c' => 4], 'assignment cascades through only contiguous tenant conflicts');
+check_rule($cascade === ['target' => 1, 'a' => 2, 'b' => 3, 'c' => 4, 'gap' => 6], 'assignment shifts across gaps');
 check_rule(announcement_priority_assignment_plan($priorityRows, 'target', 8) === [], 'unchanged priority does not reorder');
 $legacyTopDuplicates = announcement_priority_assignment_plan([
     ['id' => 'target', 'priority' => 7],
@@ -48,9 +48,24 @@ check_rule(
         [['id' => 'target', 'priority' => 2], ['id' => 'last', 'priority' => ANNOUNCEMENT_PRIORITY_MAX]],
         'target',
         ANNOUNCEMENT_PRIORITY_MAX
-    ) === null,
-    'priority cascade rejects unsafe integer overflow'
+    ) === ['target' => 9],
+    'assigning nine allows an existing nine without overflow'
 );
+$thresholdRows = [
+    ['id'=>'target','priority'=>9], ['id'=>'one','priority'=>1],
+    ['id'=>'two','priority'=>2], ['id'=>'three','priority'=>3],
+    ['id'=>'four','priority'=>4], ['id'=>'six','priority'=>6],
+    ['id'=>'eight','priority'=>8], ['id'=>'nine','priority'=>9],
+];
+check_rule(announcement_priority_assignment_plan($thresholdRows, 'target', 4) === [
+    'target'=>4, 'eight'=>9, 'four'=>5, 'six'=>7,
+], 'nine to four preserves better ranks and caps worst ranks');
+check_rule(announcement_priority_assignment_plan([['id'=>'target','priority'=>9],['id'=>'gap','priority'=>6]], 'target', 4)
+    === ['target'=>4,'gap'=>7], 'free target rank still shifts later ranks');
+check_rule(announcement_priority_assignment_plan([['id'=>'a','priority'=>3]], 'new', 1, true)
+    === ['new'=>1,'a'=>4], 'new top shifts others even without an old top');
+check_rule(announcement_priority_assignment_plan([['id'=>'target','priority'=>1],['id'=>'a','priority'=>4]], 'target', 1)
+    === [], 'saving existing top does not move others');
 check_rule(announcement_excerpt("Long\ntext with a very long final word", 10) === "Long\ntext…", 'word-boundary excerpt');
 check_rule(announcement_excerpt("<script>alert(1)</script>") === "", 'unsafe markup is removed from excerpts');
 $oneLineBreak = "a\nb";
@@ -61,7 +76,7 @@ check_rule(announcement_content_to_html($oneLineBreak) === 'a<br />b' && announc
 $fixture = json_decode(file_get_contents(__DIR__ . '/fixtures/announcement_ranking.json'), true);
 announcement_sort($fixture['items']);
 check_rule(array_column($fixture['items'], 'id') === $fixture['expected'], 'cross-runtime ranking fixture');
-$valid = announcement_validate_payload(['title'=>'  Tittel ','content'=>"a\r\nb",'priority'=>10,'is_published'=>true,'is_pinned'=>0,'image_url'=>'https://example.test/a.jpg','publish_at'=>'2025-01-01T10:00','expire_at'=>'2025-01-02 10:00:00','product'=>['output_product_id'=>'p','discount_percent'=>10,'max_quantity'=>2,'expiry_date'=>'2025-02-01']]);
+$valid = announcement_validate_payload(['title'=>'  Tittel ','content'=>"a\r\nb",'priority'=>9,'is_published'=>true,'is_pinned'=>0,'image_url'=>'https://example.test/a.jpg','publish_at'=>'2025-01-01T10:00','expire_at'=>'2025-01-02 10:00:00','product'=>['output_product_id'=>'p','discount_percent'=>10,'max_quantity'=>2,'expiry_date'=>'2025-02-01']]);
 check_rule($valid['ok'] && $valid['data']['content'] === "a\nb", 'valid payload normalization');
 $rich = announcement_sanitize_content('<h3>Overskrift</h3><p>Første avsnitt</p><p><br></p><p><strong>Viktig</strong> <em>tekst</em> <a href="https://example.test/info" style="color:red">lenke</a></p><ul><li>Punkt</li></ul>');
 check_rule(str_contains($rich, '<h3>Overskrift</h3>') && str_contains($rich, '<strong>Viktig</strong>') && str_contains($rich, '<a href="https://example.test/info"'), 'allowed rich formatting survives sanitization');
@@ -77,7 +92,7 @@ check_rule(announcement_content_to_plain_text($legacy) === $legacy, 'plain text 
 check_rule(announcement_content_to_plain_text($rich) === "Overskrift\nFørste avsnitt\n\nViktig tekst lenke\nPunkt\n", 'rich content round trip exposes readable text');
 foreach ([['title'=>'','content'=>'x'],['title'=>str_repeat('x',256),'content'=>'x'],['title'=>'x','content'=>'x','image_url'=>'javascript:alert(1)'],['title'=>'x','content'=>'x','is_published'=>'1'],['title'=>'x','content'=>'x','publish_at'=>'bad'],['title'=>'x','content'=>'x','publish_at'=>'2025-01-02','expire_at'=>'2025-01-01'],['title'=>'x','content'=>'x','product'=>['output_product_id'=>'p','discount_percent'=>101]]] as $invalid) check_rule(!announcement_validate_payload($invalid)['ok'], 'invalid payload rejected');
 foreach ([0, -1, 5.5, '5', '5.0', 9007199254740992] as $priority) check_rule(!announcement_validate_payload(['title'=>'x','content'=>'x','priority'=>$priority])['ok'], 'invalid payload priority rejected');
-check_rule(announcement_validate_payload(['title'=>'x','content'=>'x','priority'=>12])['ok'], 'payload accepts priority above ten');
+check_rule(!announcement_validate_payload(['title'=>'x','content'=>'x','priority'=>10])['ok'], 'payload rejects priority above nine');
 foreach (['2025-02-30 10:00:00','tomorrow','2025-01-01T10:00:00Z','2025-01-01T10:00:61'] as $badDate) check_rule(!announcement_validate_payload(['title'=>'x','content'=>'x','publish_at'=>$badDate])['ok'], 'strict date rejected');
 check_rule(!announcement_validate_payload(['title'=>'x','content'=>'x','image_url'=>'https://example.test/'.str_repeat('a',250)])['ok'], 'long image URL rejected');
 $priorityEndpoint = file_get_contents(__DIR__ . '/../api/update_announcement_priority.php');
@@ -126,22 +141,19 @@ check_rule(
     'editor optimistic state uses only server-returned content projections'
 );
 $priorityMigration = file_get_contents(__DIR__ . '/../db_migrations/tenant_announcement_priority_numeric.sql');
-foreach (["WHEN 'urgent' THEN 1", "WHEN 'high' THEN 3", "WHEN 'normal' THEN 5", "WHEN 'low' THEN 8", 'BIGINT UNSIGNED NOT NULL DEFAULT 5', 'BETWEEN 1 AND 9007199254740991'] as $migrationRule) {
+foreach (["WHEN 'urgent' THEN 1", "WHEN 'high' THEN 3", "WHEN 'normal' THEN 5", "WHEN 'low' THEN 8", 'TINYINT UNSIGNED NOT NULL DEFAULT 5', 'BETWEEN 1 AND 9'] as $migrationRule) {
     check_rule(str_contains($priorityMigration, $migrationRule), 'priority migration contains canonical mapping and type');
 }
 $cascadeMigration = file_get_contents(__DIR__ . '/../db_migrations/tenant_announcement_priority_numeric_cascade.sql');
 check_rule(
     str_contains($cascadeMigration, 'MIN(`id`) AS `keeper_id`')
-    && str_contains($cascadeMigration, 'WITH RECURSIVE')
-    && str_contains($cascadeMigration, 'SELECT DISTINCT announcement.`company_id`, announcement.`priority`')
-    && str_contains($cascadeMigration, 'tmp_tenant_announcement_priority_chain_rows')
-    && str_contains($cascadeMigration, 'SET loser.`priority` = 2')
+    && str_contains($cascadeMigration, 'LEAST(')
     && str_contains($cascadeMigration, 'GENERATED ALWAYS AS')
     && str_contains($cascadeMigration, 'ADD UNIQUE KEY `uq_tenant_announcements_priority_one`'),
     'cascade migration reconciles duplicate top ranks and adds a database uniqueness guard'
 );
 check_rule(
-    str_contains($editorModule, 'type="number" min="1"')
+    str_contains($editorModule, 'type="number" min="1" max="9"')
     && str_contains($editorModule, 'input.valueAsNumber')
     && str_contains($editorModule, 'AnnouncementRanking.isValidPriority(priority)')
     && !str_contains($editorModule, "priorityValue(val('announcement-priority'))")
