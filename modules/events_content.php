@@ -930,6 +930,7 @@ try {
                                 <div class="mb-3" id="registration_deadline_container" style="display: none;">
                                     <label class="form-label">Frist for min. deltakere *</label>
                                     <input type="text" class="form-control" name="registration_deadline" id="registration_deadline"
+                                           aria-label="Fristdato"
                                            inputmode="numeric" pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
                                            placeholder="DD.MM.YYYY" maxlength="10" autocomplete="off">
                                     <small class="text-muted">Må være før startdato</small>
@@ -939,12 +940,14 @@ try {
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Startdato *</label>
                                         <input type="text" class="form-control" name="start_date" required
+                                               aria-label="Startdato"
                                                inputmode="numeric" pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
                                                placeholder="DD.MM.YYYY" maxlength="10" autocomplete="off">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Starttid *</label>
                                         <input type="time" class="form-control" name="start_time" required step="60"
+                                               aria-label="Starttid"
                                                pattern="[0-9]{2}:[0-9]{2}" inputmode="numeric" placeholder="HH:mm" lang="nb-NO">
                                     </div>
                                 </div>
@@ -953,12 +956,14 @@ try {
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Sluttdato</label>
                                         <input type="text" class="form-control" name="end_date"
+                                               aria-label="Sluttdato"
                                                inputmode="numeric" pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
                                                placeholder="DD.MM.YYYY" maxlength="10" autocomplete="off">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Sluttid</label>
                                         <input type="time" class="form-control" name="end_time" step="60"
+                                               aria-label="Sluttid"
                                                pattern="[0-9]{2}:[0-9]{2}" inputmode="numeric" placeholder="HH:mm" lang="nb-NO">
                                     </div>
                                 </div>
@@ -1919,6 +1924,7 @@ try {
                                 <div class="mb-3" id="edit-registration-deadline-container" style="display: none;">
                                     <label class="form-label">Frist for min. deltakere *</label>
                                     <input type="text" class="form-control" name="registration_deadline" id="edit-registration-deadline"
+                                           aria-label="Fristdato"
                                            inputmode="numeric" pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
                                            placeholder="DD.MM.YYYY" maxlength="10" autocomplete="off">
                                     <small class="form-text text-muted">Må være før startdato</small>
@@ -1928,12 +1934,14 @@ try {
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Startdato *</label>
                                         <input type="text" class="form-control" name="start_date" id="edit-start-date" required
+                                               aria-label="Startdato"
                                                inputmode="numeric" pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
                                                placeholder="DD.MM.YYYY" maxlength="10" autocomplete="off">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Starttid *</label>
                                         <input type="time" class="form-control" name="start_time" id="edit-start-time" required step="60"
+                                               aria-label="Starttid"
                                                pattern="[0-9]{2}:[0-9]{2}" inputmode="numeric" placeholder="HH:mm" lang="nb-NO">
                                     </div>
                                 </div>
@@ -1942,12 +1950,14 @@ try {
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Sluttdato</label>
                                         <input type="text" class="form-control" name="end_date" id="edit-end-date"
+                                               aria-label="Sluttdato"
                                                inputmode="numeric" pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
                                                placeholder="DD.MM.YYYY" maxlength="10" autocomplete="off">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Sluttid</label>
                                         <input type="time" class="form-control" name="end_time" id="edit-end-time" step="60"
+                                               aria-label="Sluttid"
                                                pattern="[0-9]{2}:[0-9]{2}" inputmode="numeric" placeholder="HH:mm" lang="nb-NO">
                                     </div>
                                 </div>
@@ -2312,6 +2322,7 @@ try {
     </div>
 </div>
 
+<script src="/assets/event_form_helpers.js"></script>
 <script>
 const norskMnd = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des'];
 const norskMndLang = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
@@ -2411,11 +2422,15 @@ function formatNorskTid(timeStr) {
 function validateDateTimeInput(element, label) {
     if (!element) return true;
     const value = element.value;
-    const isRequired = element.required;
+    const isRequired = element.required || element.dataset.eventTimeRequired === 'true';
     let message = '';
 
     if (!value) {
-        if (isRequired) message = `${label} må fylles ut`;
+        if (element.dataset.eventTimePartial === 'true') {
+            message = `Velg både timer og minutter for ${label.toLowerCase()}`;
+        } else if (isRequired) {
+            message = `${label} må fylles ut`;
+        }
     } else if (element.name === 'start_time' || element.name === 'end_time') {
         const [hours, minutes] = time24HourPattern.test(value) ? value.split(':').map(Number) : [NaN, NaN];
         if (!time24HourPattern.test(value) || hours > 23 || minutes > 59) {
@@ -2467,6 +2482,7 @@ function validateNewEventStartDate(form) {
 }
 
 function installDateTimeValidation() {
+    EventFormHelpers.attachDateTimeControls(document);
     document.querySelectorAll(
         'input[name="registration_deadline"], input[name="start_date"], input[name="end_date"], ' +
         'input[name="start_time"], input[name="end_time"], #add-income-form input[name="date"], #add-expense-form input[name="date"]'
@@ -2634,16 +2650,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 const result = await response.json();
 
-                if (result.success) {
-                    toast.quickSuccess('Arrangement', 'Arrangement opprettet!');
-                    createEventForm.reset();
-                    // Switch to "Dine arrangement" tab first
-                    document.querySelector('[href="#events-my"]').click();
-                    // Then load events once
-                    setTimeout(() => loadEvents(), 100);
-                } else {
-                    toast.quickError('Feil', result.message || 'Kunne ikke opprette arrangement');
-                }
+                EventFormHelpers.handleCreateResult(result, {
+                    onSuccess: () => {
+                        toast.quickSuccess('Arrangement', 'Arrangement opprettet!');
+                        showWizardSuccess();
+                    },
+                    onFailure: message => toast.quickError('Feil', message)
+                });
             } catch (error) {
                 console.error('Error creating event:', error);
                 toast.quickError('Feil', 'Feil ved opprettelse av arrangement');
@@ -4367,6 +4380,7 @@ async function editEvent(eventId) {
         setFieldValue('edit-start-time', formatNorskTid(event.start_time));
         setFieldValue('edit-end-date', sqlDateToNorsk(event.end_date));
         setFieldValue('edit-end-time', formatNorskTid(event.end_time));
+        EventFormHelpers.syncDateTimeControls(document.getElementById('edit-event-form'));
         setFieldValue('edit-age-limit', event.age_limit);
         setFieldValue('edit-venue-name', event.venue_name);
         setFieldValue('edit-event-address', event.event_address);
@@ -6314,6 +6328,7 @@ const wizardTotalSteps = 7;
 let wizardMap = null;
 let wizardMapMarker = null;
 let geocodeTimeout = null;
+let wizardGeocodeRevision = 0;
 
 function initWizardMap() {
     const mapContainer = document.getElementById('wizard-map');
@@ -6348,12 +6363,14 @@ async function geocodeWizardAddress() {
     const fullAddress = [address, postal, city, 'Norway'].filter(x => x.trim()).join(', ');
     
     if (fullAddress.length < 5) return;
+    const requestRevision = ++wizardGeocodeRevision;
     
     try {
         const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(fullAddress)}&format=json&limit=1&countrycodes=no`;
         
         const response = await fetch(url);
         const data = await response.json();
+        if (requestRevision !== wizardGeocodeRevision) return;
         
         if (data.length > 0 && wizardMap) {
             const lat = parseFloat(data[0].lat);
@@ -6706,11 +6723,7 @@ function updateWizardSummary() {
     document.getElementById('summary-type').textContent = typeLabels[regType] || regType;
     
     // Date
-    const startDate = form.querySelector('input[name="start_date"]')?.value;
-    const startTime = form.querySelector('input[name="start_time"]')?.value;
-    if (startDate) {
-        document.getElementById('summary-date').textContent = formatNorskDato(startDate, startTime, { weekday: true, longMonth: true, includeTime: !!startTime });
-    }
+    EventFormHelpers.updateSummaryDate(form, document.getElementById('summary-date'), formatNorskDato);
     
     // Location
     const venueName = form.querySelector('input[name="venue_name"]')?.value;
@@ -6821,93 +6834,67 @@ async function loadWizardMembershipPlans() {
 }
 
 function resetWizard() {
-    if (!confirm('Er du sikker på at du vil nullstille skjemaet?')) return;
-    
-    const form = document.getElementById('create-event-form');
-    form.reset();
-    
-    // Reset to step 1
-    wizardCurrentStep = 1;
-    
-    // Hide all steps except first
-    document.querySelectorAll('.wizard-content').forEach((el, index) => {
-        el.style.display = index === 0 ? 'block' : 'none';
-    });
-    
-    // Reset step indicators
-    document.querySelectorAll('.wizard-step').forEach((el, index) => {
-        el.classList.remove('active', 'completed');
-        if (index === 0) el.classList.add('active');
-    });
-    
-    // Reset navigation buttons
-    document.getElementById('wizard-prev').style.display = 'none';
-    document.getElementById('wizard-next').style.display = 'block';
-    document.getElementById('wizard-submit').style.display = 'none';
-    
-    // Show form, hide success
-    document.getElementById('create-event-form').style.display = 'block';
-    document.getElementById('wizard-success').style.display = 'none';
-    document.querySelector('.wizard-progress').style.display = 'block';
-    document.querySelector('.wizard-navigation').style.display = 'flex';
-    
-    // Reload dynamic content
-    loadWizardPaymentMethods();
-    loadWizardMembershipPlans();
+    if (!confirm('Er du sikker på at du vil nullstille skjemaet?')) return false;
+    return resetEventWizardForm();
 }
 
 function resetWizardAndGoToList() {
-    resetWizard();
+    if (!resetWizard()) return;
     document.querySelector('[href="#events-my"]')?.click();
 }
 
-function showWizardSuccess() {
-    // Reset the form completely
+function resetEventWizardForm() {
     const form = document.getElementById('create-event-form');
-    form.reset();
-    
-    // Reset wizard state
-    wizardCurrentStep = 1;
-    
-    // Reset all step contents to initial state
-    document.querySelectorAll('.wizard-content').forEach((el, index) => {
-        el.style.display = index === 0 ? 'block' : 'none';
+    const state = {currentStep: wizardCurrentStep};
+    const didReset = EventFormHelpers.resetWizard(document, form, state, () => {
+        const minAttendeesInput = document.getElementById('min_attendees');
+        const deadlineContainer = document.getElementById('registration_deadline_container');
+        const deadlineInput = document.getElementById('registration_deadline');
+        const needsDeadline = Number(minAttendeesInput?.value || 0) > 0;
+        if (deadlineContainer) deadlineContainer.style.display = needsDeadline ? 'block' : 'none';
+        if (deadlineInput) {
+            deadlineInput.required = needsDeadline;
+            if (!needsDeadline) deadlineInput.value = '';
+        }
+
+        const venueNameField = document.getElementById('venue-name-field');
+        const hasVenueNameCheckbox = document.getElementById('has_venue_name');
+        if (venueNameField) venueNameField.style.display = 'none';
+        if (hasVenueNameCheckbox) hasVenueNameCheckbox.checked = false;
+
+        if (geocodeTimeout) {
+            clearTimeout(geocodeTimeout);
+            geocodeTimeout = null;
+        }
+        wizardGeocodeRevision++;
+        if (wizardMap && wizardMapMarker) {
+            wizardMap.removeLayer(wizardMapMarker);
+            wizardMapMarker = null;
+        }
+        if (wizardMap) {
+            wizardMap.setView([59.9139, 10.7522], 5);
+            wizardMap.invalidateSize();
+        }
+
+        updateWizardBasedOnType();
+        updateMembershipAddonsVisibility();
+        updateWizardSummary();
+        loadWizardPaymentMethods();
+        loadWizardMembershipPlans();
     });
-    
-    // Reset step indicators
-    document.querySelectorAll('.wizard-step').forEach((el, index) => {
-        el.classList.remove('active', 'completed');
-        if (index === 0) el.classList.add('active');
-    });
-    
-    // Reset navigation buttons
-    document.getElementById('wizard-prev').style.display = 'none';
-    document.getElementById('wizard-next').style.display = 'block';
-    document.getElementById('wizard-submit').style.display = 'none';
-    
-    // Hide binding payment container
-    const bindingContainer = document.getElementById('binding-payment-container');
-    if (bindingContainer) bindingContainer.style.display = 'none';
-    
-    // Hide venue name field
-    const venueNameField = document.getElementById('venue-name-field');
-    if (venueNameField) venueNameField.style.display = 'none';
-    const hasVenueNameCheckbox = document.getElementById('has_venue_name');
-    if (hasVenueNameCheckbox) hasVenueNameCheckbox.checked = false;
-    
-    // Reload dynamic content for next use
-    loadWizardPaymentMethods();
-    loadWizardMembershipPlans();
-    
-    // Navigate to "Dine arrangementer" tab
+    wizardCurrentStep = state.currentStep;
+    return didReset;
+}
+
+function showWizardSuccess() {
+    if (!resetEventWizardForm()) return;
+
+    // Return to the event list after success; reopening the wizard starts clean.
     const myEventsTab = document.querySelector('[href="#events-my"]');
     if (myEventsTab) {
         myEventsTab.click();
-        // Reload events list after tab switch completes
         setTimeout(() => {
-            if (typeof loadEvents === 'function') {
-                loadEvents();
-            }
+            if (typeof loadEvents === 'function') loadEvents();
         }, 100);
     }
 }

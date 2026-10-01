@@ -22,10 +22,10 @@ function rentalPeriodPriceCents(array $object, string $startDate, string $endDat
     if ($end < $start) {
         throw new InvalidArgumentException('Sluttdato kan ikke være før startdato.');
     }
-    $base = max(0, rentalAmountToCents($object['rental_price'] ?? 0));
-    $weekend = max(0, rentalAmountToCents($object['weekend_price'] ?? 0));
-    $saturday = max(0, rentalAmountToCents($object['saturday_price'] ?? 0));
-    $sunday = max(0, rentalAmountToCents($object['sunday_price'] ?? 0));
+    $base = rentalConfiguredRateCents($object, 'rental_price', 'Dagsprisen', true);
+    $weekend = rentalConfiguredRateCents($object, 'weekend_price', 'Helgeprisen');
+    $saturday = rentalConfiguredRateCents($object, 'saturday_price', 'Lørdagsprisen');
+    $sunday = rentalConfiguredRateCents($object, 'sunday_price', 'Søndagsprisen');
     $total = 0;
     for ($date = $start; $date <= $end; $date = $date->modify('+1 day')) {
         $day = (int) $date->format('N');
@@ -34,6 +34,28 @@ function rentalPeriodPriceCents(array $object, string $startDate, string $endDat
                 : (($day >= 6 && $weekend > 0) ? $weekend : $base));
     }
     return $total;
+}
+
+function rentalConfiguredRateCents(array $object, string $field, string $label, bool $required = false): int {
+    if (!array_key_exists($field, $object)
+        || $object[$field] === null
+        || (is_string($object[$field]) && trim($object[$field]) === '')) {
+        if ($required) {
+            throw new InvalidArgumentException(
+                $label . ' mangler. Oppdater prisene på utleieobjektet.'
+            );
+        }
+        return 0;
+    }
+
+    $value = str_replace(',', '.', trim((string) $object[$field]));
+    if (!preg_match('/^\d+(?:\.\d{1,2})?$/', $value)) {
+        throw new InvalidArgumentException(
+            $label . ' er ugyldig. Oppdater prisene på utleieobjektet.'
+        );
+    }
+
+    return rentalAmountToCents($value);
 }
 
 function rentalAdjustmentCents($type, $amount): int {

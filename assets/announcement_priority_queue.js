@@ -43,8 +43,8 @@
     }
 
     function change(id, priority, confirmedPriority) {
-        if (!Number.isInteger(priority) || priority < 1 || priority > 10) {
-            throw new RangeError('Prioritet må være et heltall mellom 1 og 10');
+        if (!Number.isSafeInteger(priority) || priority < 1) {
+            throw new RangeError('Prioritet må være et positivt heltall');
         }
         let state = states.get(String(id));
         if (!state) {

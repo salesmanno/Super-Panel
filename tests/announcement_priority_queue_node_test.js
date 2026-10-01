@@ -1,7 +1,43 @@
 const assert = require('assert');
 const createQueue = require('../assets/announcement_priority_queue.js');
+const rankAnnouncements = require('../assets/announcement_ranking.js');
 
 async function run() {
+    assert.strictEqual(rankAnnouncements.priorityValue(11), 11, 'ranking keeps positive priorities above ten');
+    assert.strictEqual(rankAnnouncements.isValidPriority(Number('1e2')), true, 'a numeric editor value like 1e2 validates as 100');
+    assert.strictEqual(rankAnnouncements.isValidPriority(Number.NaN), false, 'invalid numeric editor values are rejected without a display fallback');
+    assert.strictEqual(rankAnnouncements.isValidPriority(9007199254740992), false, 'unsafe editor integers are rejected');
+    const priorityRows = [
+        { id: 'target', title: 'Ny sak', priority: 8 },
+        { id: 'a', title: 'Første', priority: 1 },
+        { id: 'b', title: 'Andre', priority: 2 },
+        { id: 'c', title: 'Tredje', priority: 3 },
+        { id: 'gap', title: 'Etter gap', priority: 5 },
+    ];
+    const preview = rankAnnouncements.planPriorityAssignment(priorityRows, 'target', 1, { force: true });
+    assert.deepStrictEqual(preview.updates, { target: 1, a: 2, b: 3, c: 4 }, 'preview cascades through a contiguous conflict chain');
+    assert.strictEqual(priorityRows[1].priority, 1, 'preview does not mutate saved rows');
+    assert.deepStrictEqual(
+        rankAnnouncements.planPriorityAssignment(priorityRows, 'target', 8).updates,
+        {},
+        'unchanged priority does not reorder'
+    );
+    const duplicateTop = rankAnnouncements.planPriorityAssignment([
+        { id: 'target', priority: 9 },
+        { id: 'b', priority: 1 },
+        { id: 'a', priority: 1 },
+        { id: 'c', priority: 2 },
+    ], 'target', 1, { force: true });
+    assert.deepStrictEqual(duplicateTop.updates, { target: 1, a: 2, b: 2, c: 3 }, 'legacy duplicate top ranks preview deterministically');
+    assert.deepStrictEqual(
+        rankAnnouncements([
+            { id: 'normal', priority: 1, is_pinned: false },
+            { id: 'pinned', priority: 12, is_pinned: true },
+        ]).map(item => item.id),
+        ['pinned', 'normal'],
+        'pinned items retain their existing precedence above priority'
+    );
+
     const pending = [];
     const optimistic = [];
     const states = [];
@@ -54,7 +90,13 @@ async function run() {
     await staleLoad;
     assert.strictEqual(queue.sync('stale-load', 5, loadRevision), 3, 'response started during save cannot restore stale server value');
 
-    assert.throws(() => queue.change('story', 11, 7), RangeError);
+    const highPriority = queue.change('story', 11, 7);
+    const highPriorityRequest = pending.find(item => item.id === 'story');
+    assert.strictEqual(highPriorityRequest.priority, 11, 'queue accepts a positive priority above ten');
+    highPriorityRequest.resolve();
+    await highPriority;
+    assert.strictEqual(queue.getState('story').confirmed, 11);
+    assert.throws(() => queue.change('story', 0, 11), RangeError);
     console.log('Announcement priority queue passed');
 }
 

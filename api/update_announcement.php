@@ -13,7 +13,7 @@ if (!isset($_SESSION['tenant_admin_id'], $_SESSION['company_id'])) {
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
-    
+
     if (!is_array($data) || !isset($data['id']) || !is_scalar($data['id']) || trim((string)$data['id']) === '') {
         http_response_code(422);
         echo json_encode(['success' => false, 'message' => 'Nyhet-ID mangler']);
@@ -27,17 +27,27 @@ try {
     $companyId = $_SESSION['company_id'];
     
     $tableName = 'tenant_announcements';
+
+    $db->beginTransaction();
+    announcement_lock_company_priorities($db, (string)$companyId);
     
-    // Verify ownership
-    $stmt = $db->prepare("SELECT id FROM {$tableName} WHERE id = ? AND company_id = ?");
+    // Verify ownership while holding the tenant lock.
+    $stmt = $db->prepare("SELECT id FROM {$tableName} WHERE id = ? AND company_id = ? FOR UPDATE");
     $stmt->execute([$data['id'], $companyId]);
     
     if (!$stmt->fetch()) {
+        $db->rollBack();
+        http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Nyhet ikke funnet']);
         exit;
     }
     
-    $db->beginTransaction();
+    announcement_apply_priority_assignment(
+        $db,
+        (string)$companyId,
+        (string)$data['id'],
+        $clean['priority']
+    );
     
     $sql = "UPDATE {$tableName} SET
                 title = ?,
@@ -91,6 +101,7 @@ try {
     }
     
     $db->commit();
+    $priorities = announcement_priority_map($db, (string)$companyId);
 
     $storedContentStmt = $db->prepare(
         'SELECT content FROM tenant_announcements WHERE id = ? AND company_id = ?'
@@ -102,6 +113,7 @@ try {
         'success' => true,
         'message' => 'Nyhet oppdatert',
         'announcement_id' => $data['id'],
+        'priorities' => (object)$priorities,
         'content' => $storedContent,
         'content_html' => announcement_content_to_html($storedContent),
         'content_text' => announcement_content_to_plain_text($storedContent),
@@ -115,6 +127,6 @@ try {
     http_response_code($e instanceof InvalidArgumentException ? 422 : 500);
     echo json_encode([
         'success' => false,
-        'message' => 'Kunne ikke oppdatere nyhet'
+        'message' => $e instanceof InvalidArgumentException ? $e->getMessage() : 'Kunne ikke oppdatere nyhet'
     ], JSON_UNESCAPED_UNICODE);
 }

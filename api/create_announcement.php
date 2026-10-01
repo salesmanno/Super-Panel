@@ -27,10 +27,18 @@ try {
     $tableName = 'tenant_announcements';
     
     $db->beginTransaction();
+    announcement_lock_company_priorities($db, (string)$companyId);
     
     // Generate UUID for MySQL
     $stmt = $db->query("SELECT UUID() as id");
     $announcementId = $stmt->fetch(PDO::FETCH_ASSOC)['id'];
+    announcement_apply_priority_assignment(
+        $db,
+        (string)$companyId,
+        (string)$announcementId,
+        $data['priority'],
+        true
+    );
     
     $sql = "INSERT INTO {$tableName} (
                 id,
@@ -94,6 +102,7 @@ try {
     }
     
     $db->commit();
+    $priorities = announcement_priority_map($db, (string)$companyId);
 
     $storedContentStmt = $db->prepare(
         'SELECT content FROM tenant_announcements WHERE id = ? AND company_id = ?'
@@ -105,6 +114,7 @@ try {
         'success' => true,
         'message' => 'Nyhet opprettet',
         'announcement_id' => $announcementId,
+        'priorities' => (object)$priorities,
         'content' => $storedContent,
         'content_html' => announcement_content_to_html($storedContent),
         'content_text' => announcement_content_to_plain_text($storedContent),
@@ -118,6 +128,6 @@ try {
     http_response_code($e instanceof InvalidArgumentException ? 422 : 500);
     echo json_encode([
         'success' => false,
-        'message' => 'Kunne ikke opprette nyhet'
+        'message' => $e instanceof InvalidArgumentException ? $e->getMessage() : 'Kunne ikke opprette nyhet'
     ], JSON_UNESCAPED_UNICODE);
 }

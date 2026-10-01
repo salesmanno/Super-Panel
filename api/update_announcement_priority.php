@@ -25,25 +25,29 @@ try {
     $priority = announcement_priority_for_write($data['priority'] ?? null);
     if ($priority === null) {
         http_response_code(422);
-        echo json_encode(['success' => false, 'message' => 'Prioritet må være et heltall mellom 1 og 10'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'message' => 'Prioritet må være et positivt heltall'], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
     $db = getDBConnection();
-    $stmt = $db->prepare('UPDATE tenant_announcements SET priority = ?, updated_at = NOW() WHERE id = ? AND company_id = ?');
-    $stmt->execute([$priority, $id, $_SESSION['company_id']]);
-    if ($stmt->rowCount() === 0) {
-        $check = $db->prepare('SELECT id FROM tenant_announcements WHERE id = ? AND company_id = ?');
-        $check->execute([$id, $_SESSION['company_id']]);
-        if (!$check->fetchColumn()) {
-            http_response_code(404);
-            echo json_encode(['success' => false, 'message' => 'Nyhet ikke funnet'], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
-    }
-    echo json_encode(['success' => true, 'priority' => $priority, 'message' => 'Prioritet lagret'], JSON_UNESCAPED_UNICODE);
+    $companyId = (string)$_SESSION['company_id'];
+    $db->beginTransaction();
+    announcement_apply_priority_assignment($db, $companyId, $id, $priority);
+    $db->commit();
+    echo json_encode([
+        'success' => true,
+        'priority' => $priority,
+        'priorities' => (object)announcement_priority_map($db, $companyId),
+        'message' => 'Prioritet lagret'
+    ], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
     error_log('Update announcement priority error: ' . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Kunne ikke lagre prioritet'], JSON_UNESCAPED_UNICODE);
+    if ($e instanceof OutOfBoundsException) http_response_code(404);
+    elseif ($e instanceof InvalidArgumentException) http_response_code(422);
+    else http_response_code(500);
+    $message = $e instanceof InvalidArgumentException || $e instanceof OutOfBoundsException
+        ? $e->getMessage()
+        : 'Kunne ikke lagre prioritet';
+    echo json_encode(['success' => false, 'message' => $message], JSON_UNESCAPED_UNICODE);
 }

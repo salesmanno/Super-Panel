@@ -69,6 +69,34 @@ $assert(
 ], '2026-04-03', '2026-04-05') === 40000,
     'Period pricing uses configured weekday-specific weekend rates in cents'
 );
+$assert(
+    rentalPeriodPriceCents(['rental_price' => '0.00'], '2026-04-06', '2026-04-06') === 0,
+    'A deliberately configured zero daily rate remains valid'
+);
+$missingRentalRateRejected = false;
+try {
+    rentalPeriodPriceCents(['weekend_price' => '150.00'], '2026-04-06', '2026-04-06');
+} catch (InvalidArgumentException $e) {
+    $missingRentalRateRejected = str_contains($e->getMessage(), 'Dagsprisen mangler');
+}
+$assert($missingRentalRateRejected, 'Missing daily rate fails explicitly rather than becoming zero');
+$invalidRentalRateRejected = false;
+try {
+    rentalPeriodPriceCents(['rental_price' => '100.999'], '2026-04-06', '2026-04-06');
+} catch (InvalidArgumentException $e) {
+    $invalidRentalRateRejected = str_contains($e->getMessage(), 'Dagsprisen er ugyldig');
+}
+$assert($invalidRentalRateRejected, 'Malformed daily rate fails explicitly');
+$invalidOptionalRateRejected = false;
+try {
+    rentalPeriodPriceCents([
+        'rental_price' => '100.00',
+        'saturday_price' => 'not a price',
+    ], '2026-04-06', '2026-04-06');
+} catch (InvalidArgumentException $e) {
+    $invalidOptionalRateRejected = str_contains($e->getMessage(), 'Lørdagsprisen er ugyldig');
+}
+$assert($invalidOptionalRateRejected, 'Malformed optional rates fail explicitly instead of falling back silently');
 $assert(rentalAdjustmentCents('discount', '12.50') === -1250, 'Discount is stored as negative cents');
 $assert(rentalAdjustmentCents('surcharge', '12.50') === 1250, 'Surcharge is stored as positive cents');
 $fixedTimeRequest = validateRentalRequestInput([
@@ -90,12 +118,23 @@ $assert(
     && str_contains($rentalContent, 'Totalt:'),
     'Rental request UI includes pricing and adjustment without an editable key code'
 );
+$assert(
+    str_contains($rentalContent, 'data-price-error')
+    && str_contains($rentalContent, "price_adjustment_type: adjustment.type === 'none' ? '' : adjustment.type")
+    && str_contains($rentalContent, "body: JSON.stringify({ id, approved: 1, status: 'rejected' })"),
+    'Request pricing errors stay visible, no adjustment clears its fields, and rejection does not require pricing'
+);
 $unavailableEndpoint = file_get_contents(__DIR__ . '/../api/rental_unavailable.php');
 $createRequestEndpoint = file_get_contents(__DIR__ . '/../api/create_rental_request.php');
 $updateScheduleEndpoint = file_get_contents(__DIR__ . '/../api/update_rental_schedule.php');
 $getScheduleEndpoint = file_get_contents(__DIR__ . '/../api/get_rental_schedule.php');
 $availabilityMigration = file_get_contents(
     __DIR__ . '/../db_migrations/rental_schedule_pricing_availability.sql'
+);
+$assert(
+    str_contains($updateScheduleEndpoint, "'rental_fee'   => (float) (\$row['rental_fee'] ?? 0)")
+    && str_contains($updateScheduleEndpoint, "'pricing'      => \$pricingBreakdown"),
+    'Schedule updates return the server-authoritative total and price breakdown'
 );
 $assert(
     str_contains($unavailableEndpoint, "status = 'unavailable'")

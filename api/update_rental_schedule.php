@@ -294,6 +294,7 @@ try {
         || array_key_exists('price_adjustment_type', $data)
         || array_key_exists('price_adjustment_amount', $data)
         || array_key_exists('price_adjustment_explanation', $data);
+    $pricingBreakdown = null;
     if ($pricingChanged) {
         $baseCents = rentalPeriodPriceCents($row, $effectiveStartDate, $effectiveEndDate);
         $cleaningCents = $newCleaning === 1
@@ -303,6 +304,13 @@ try {
         $updateFields[] = 'rental_fee = ?';
         $updateParams[] = number_format($newRentalFee, 2, '.', '');
         $row['rental_fee'] = $newRentalFee;
+        $pricingBreakdown = [
+            'base_rental_fee' => $baseCents / 100,
+            'cleaning_fee' => $cleaningCents / 100,
+            'price_adjustment_type' => $adjustmentCents === 0 ? null : $adjustmentType,
+            'price_adjustment_amount' => abs($adjustmentCents) / 100,
+            'total' => $newRentalFee,
+        ];
     }
 
     $datesChanged = array_key_exists('start_date', $data) || array_key_exists('end_date', $data);
@@ -431,6 +439,8 @@ try {
         'status'       => $newStatus,
         'approved'     => $newApproved === null ? (int) ($row['approved'] ?? 0) : $newApproved,
         'email_queued' => $emailQueued,
+        'rental_fee'   => (float) ($row['rental_fee'] ?? 0),
+        'pricing'      => $pricingBreakdown,
     ]);
 
 } catch (RentalRequestConflictException $e) {

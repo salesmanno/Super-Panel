@@ -5,7 +5,7 @@
  */
 const ANNOUNCEMENT_TYPES = ['event', 'info', 'news', 'promotion', 'urgent'];
 const ANNOUNCEMENT_PRIORITY_MIN = 1;
-const ANNOUNCEMENT_PRIORITY_MAX = 10;
+const ANNOUNCEMENT_PRIORITY_MAX = 9007199254740991;
 const ANNOUNCEMENT_PRIORITY_DEFAULT = 5;
 const ANNOUNCEMENT_LEGACY_PRIORITIES = ['urgent' => 1, 'high' => 3, 'normal' => 5, 'low' => 8];
 const ANNOUNCEMENT_CONTENT_MAX = 100000;
@@ -20,12 +20,132 @@ function announcement_type($value): string {
 /** Normalize values read during the legacy text-to-number transition. */
 function announcement_priority($value): int {
     if (is_int($value) && $value >= ANNOUNCEMENT_PRIORITY_MIN && $value <= ANNOUNCEMENT_PRIORITY_MAX) return $value;
-    if (is_string($value) && preg_match('/^(?:[1-9]|10)$/', trim($value))) return (int)$value;
+    if (is_string($value)) {
+        $numeric = filter_var(trim($value), FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => ANNOUNCEMENT_PRIORITY_MIN, 'max_range' => ANNOUNCEMENT_PRIORITY_MAX]
+        ]);
+        if ($numeric !== false) return $numeric;
+    }
     return ANNOUNCEMENT_LEGACY_PRIORITIES[(string)$value] ?? ANNOUNCEMENT_PRIORITY_DEFAULT;
 }
 function announcement_priority_for_write($value): ?int {
     if (is_int($value) && $value >= ANNOUNCEMENT_PRIORITY_MIN && $value <= ANNOUNCEMENT_PRIORITY_MAX) return $value;
     return null;
+}
+
+/**
+ * Plan one tenant-scoped priority assignment without mutating its input.
+ *
+ * All occupants in a contiguous conflict chain move down one slot. Gaps stop
+ * the cascade, duplicate ranks retain their relative tie order, and an
+ * unchanged assignment never reorders anything.
+ *
+ * @return array<string, int>|null Priority updates keyed by announcement ID.
+ */
+function announcement_priority_assignment_plan(array $items, string $targetId, int $priority, bool $allowNew = false): ?array {
+    if ($priority < ANNOUNCEMENT_PRIORITY_MIN || $priority > ANNOUNCEMENT_PRIORITY_MAX) return null;
+
+    $targetPriority = null;
+    $occupied = [];
+    foreach ($items as $item) {
+        if (!is_array($item) || !isset($item['id'])) continue;
+        $id = (string)$item['id'];
+        if ($id === $targetId) {
+            $targetPriority = announcement_priority($item['priority'] ?? null);
+            continue;
+        }
+        $current = announcement_priority($item['priority'] ?? null);
+        $occupied[$current][] = $id;
+    }
+    if ($targetPriority === null && !$allowNew) return null;
+    if ($targetPriority === $priority) return [];
+
+    $updates = [$targetId => $priority];
+    $slot = $priority;
+    while (!empty($occupied[$slot])) {
+        if ($slot >= ANNOUNCEMENT_PRIORITY_MAX) return null;
+        sort($occupied[$slot], SORT_STRING);
+        foreach ($occupied[$slot] as $id) $updates[$id] = $slot + 1;
+        $slot++;
+    }
+    return $updates;
+}
+
+/** Lock one tenant and serialize every News priority write for that tenant. */
+function announcement_lock_company_priorities(PDO $db, string $companyId): void {
+    $stmt = $db->prepare('SELECT id FROM tenant_companies WHERE id = ? FOR UPDATE');
+    $stmt->execute([$companyId]);
+    if (!$stmt->fetchColumn()) throw new RuntimeException('Firmaet ble ikke funnet');
+}
+
+/**
+ * Apply a planned priority cascade inside the caller's transaction.
+ * The generated unique key in the schema migration is the final database
+ * guard against concurrent or out-of-band duplicate priority-1 writes.
+ */
+function announcement_apply_priority_assignment(
+    PDO $db,
+    string $companyId,
+    string $targetId,
+    int $priority,
+    bool $allowNew = false
+): array {
+    if (!$db->inTransaction()) throw new LogicException('Prioritetsendringer må lagres i en transaksjon');
+
+    announcement_lock_company_priorities($db, $companyId);
+    $stmt = $db->prepare(
+        'SELECT id, priority FROM tenant_announcements WHERE company_id = ? ORDER BY CAST(priority AS UNSIGNED), id FOR UPDATE'
+    );
+    $stmt->execute([$companyId]);
+    $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $plan = announcement_priority_assignment_plan($items, $targetId, $priority, $allowNew);
+    if ($plan === null) {
+        if (!$allowNew && !array_filter($items, static fn($item) => (string)$item['id'] === $targetId)) {
+            throw new OutOfBoundsException('Nyhet ikke funnet');
+        }
+        throw new InvalidArgumentException('Prioriteten er for høy til å forskyve den eksisterende kjeden');
+    }
+
+    $currentById = [];
+    foreach ($items as $item) $currentById[(string)$item['id']] = announcement_priority($item['priority'] ?? null);
+    if (!$allowNew && isset($currentById[$targetId]) && $currentById[$targetId] === $priority) return [];
+
+    $changes = [];
+    foreach ($plan as $id => $newPriority) {
+        if ($id === $targetId && !isset($currentById[$id])) continue;
+        if (($currentById[$id] ?? null) !== $newPriority) {
+            $changes[] = ['id' => $id, 'old' => $currentById[$id], 'new' => $newPriority];
+        }
+    }
+    usort($changes, static function ($a, $b) {
+        $byPriority = $b['old'] <=> $a['old'];
+        return $byPriority !== 0 ? $byPriority : strcmp((string)$b['id'], (string)$a['id']);
+    });
+
+    $update = $db->prepare(
+        'UPDATE tenant_announcements SET priority = ?, updated_at = NOW() WHERE id = ? AND company_id = ?'
+    );
+    $targetChange = null;
+    foreach ($changes as $change) {
+        if ($change['id'] === $targetId) {
+            $targetChange = $change;
+            continue;
+        }
+        $update->execute([$change['new'], $change['id'], $companyId]);
+    }
+    if ($targetChange !== null) $update->execute([$targetChange['new'], $targetId, $companyId]);
+    return $plan;
+}
+
+/** Return the authoritative priorities for every status in one company. */
+function announcement_priority_map(PDO $db, string $companyId): array {
+    $stmt = $db->prepare('SELECT id, priority FROM tenant_announcements WHERE company_id = ?');
+    $stmt->execute([$companyId]);
+    $priorities = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $priorities[(string)$row['id']] = announcement_priority($row['priority'] ?? null);
+    }
+    return $priorities;
 }
 function announcement_parse_datetime($value, string $field, array &$errors): ?string {
     if ($value === null || $value === '') return null;
@@ -188,7 +308,7 @@ function announcement_validate_payload($data): array {
         }
     }
     $priority = array_key_exists('priority', $data) ? announcement_priority_for_write($data['priority']) : ANNOUNCEMENT_PRIORITY_DEFAULT;
-    if ($priority === null) $errors[] = 'Prioritet må være et heltall mellom 1 og 10';
+    if ($priority === null) $errors[] = 'Prioritet må være et positivt heltall';
     if ($errors) return ['ok'=>false, 'message'=>implode('. ', $errors)];
     return ['ok'=>true, 'data'=>['title'=>$title,'content'=>$content,'image_url'=>$image,'is_published'=>(bool)($data['is_published'] ?? false),'is_pinned'=>(bool)($data['is_pinned'] ?? false),'announcement_type'=>announcement_type($data['announcement_type'] ?? null),'priority'=>$priority,'publish_at'=>$publish,'expire_at'=>$expire,'product'=>$product]];
 }

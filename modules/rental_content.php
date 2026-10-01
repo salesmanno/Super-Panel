@@ -260,6 +260,7 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
     </div>
 </div>
 
+<script src="/assets/rental_request_pricing.js"></script>
 <script>
 const rentalSchemas = <?= json_encode($schemas) ?>;
 const rentalCustomerFieldDefinitions = <?= json_encode($customerFieldDefinitions, JSON_UNESCAPED_UNICODE) ?>;
@@ -1941,59 +1942,89 @@ function rentalRequestFieldsHtml(fields, compact = false) {
         : `<section class="rental-request-fields border rounded-3 p-3 mt-3 bg-light-subtle"><h6 class="small text-uppercase text-muted mb-2">Innsendte kundeopplysninger</h6><div class="row row-cols-1 row-cols-md-2 g-2">${items.map(field => `<div class="col"><div class="d-flex flex-column"><span class="text-muted small">${escHtml(field.label || field.field || 'Opplysning')}</span><span class="fw-medium">${escHtml(field.value)}</span></div></div>`).join('')}</div></section>`;
 }
 
-function rentalPeriodBasePrice(object, startDate, endDate) {
-    if (!object || !startDate || !endDate) return 0;
-    const start = new Date(`${startDate}T00:00:00`);
-    const end = new Date(`${endDate}T00:00:00`);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 0;
-    const daily = Number(object.rental_price || 0);
-    const weekend = Number(object.weekend_price || 0);
-    const saturday = Number(object.saturday_price || 0);
-    const sunday = Number(object.sunday_price || 0);
-    let total = 0;
-    for (const day = new Date(start); day <= end; day.setDate(day.getDate() + 1)) {
-        const weekday = day.getDay();
-        total += weekday === 6 && saturday > 0 ? saturday
-            : weekday === 0 && sunday > 0 ? sunday
-            : (weekday === 0 || weekday === 6) && weekend > 0 ? weekend
-            : daily;
-    }
-    return Math.round(total * 100) / 100;
-}
-
 function rentalAdjustmentFromRow(row) {
     const type = row.querySelector('.rental-request-adjustment-type')?.value || 'none';
-    const amount = Math.max(0, Number(row.querySelector('.rental-request-adjustment-amount')?.value || 0));
-    const explanation = (row.querySelector('.rental-request-adjustment-explanation')?.value || '').trim();
-    return { type, amount: Math.round(amount * 100) / 100, explanation };
+    const amount = row.querySelector('.rental-request-adjustment-amount')?.value || '';
+    const explanation = row.querySelector('.rental-request-adjustment-explanation')?.value || '';
+    return RentalRequestPricing.normalizeAdjustment(type, amount, explanation);
 }
 
 function refreshRentalRequestPrice(row) {
-    const object = allRentalObjects.find(item => String(item.id) === String(row.dataset.objectId)) || {
-        rental_price: row.dataset.dailyPrice,
-        weekend_price: row.dataset.weekendPrice,
-        saturday_price: row.dataset.saturdayPrice,
-        sunday_price: row.dataset.sundayPrice
-    };
-    const base = rentalPeriodBasePrice(
-        object,
-        row.querySelector('.rental-request-start-date')?.value,
-        row.querySelector('.rental-request-end-date')?.value
-    );
-    const cleaning = row.querySelector('.rental-request-cleaning')?.checked ? Number(row.dataset.cleaningFee || 0) : 0;
-    const adjustment = rentalAdjustmentFromRow(row);
-    const adjustmentValue = adjustment.type === 'discount' ? -adjustment.amount : adjustment.type === 'surcharge' ? adjustment.amount : 0;
-    const total = Math.max(0, Math.round((base + cleaning + adjustmentValue) * 100) / 100);
-    row.dataset.baseRentalFee = base;
-    row.dataset.rentalTotal = total;
     const baseEl = row.querySelector('.rental-request-base-fee');
     const totalEl = row.querySelector('.rental-request-total');
-    if (baseEl) baseEl.textContent = `${base.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK`;
-    if (totalEl) totalEl.textContent = `Totalt: ${total.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK`;
+    const cleaningEl = row.querySelector('.rental-request-cleaning-fee');
     const adjustmentEl = row.querySelector('.rental-request-adjustment-summary');
-    if (adjustmentEl) adjustmentEl.textContent = adjustment.amount > 0 && adjustment.type !== 'none'
-        ? `${adjustment.type === 'discount' ? '−' : '+'} ${adjustment.amount.toLocaleString('nb-NO', {maximumFractionDigits:2})} NOK${adjustment.explanation ? ` · ${adjustment.explanation}` : ''}`
-        : 'Ingen prisjustering';
+    const errorEl = row.querySelector('.rental-request-price-error');
+    const approveButton = row.querySelector('.rental-request-approve');
+    try {
+        const adjustment = rentalAdjustmentFromRow(row);
+        const quote = RentalRequestPricing.calculateRentalQuote({
+            rates: {
+                rental_price: row.dataset.dailyPrice,
+                weekend_price: row.dataset.weekendPrice,
+                saturday_price: row.dataset.saturdayPrice,
+                sunday_price: row.dataset.sundayPrice,
+            },
+            startDate: row.querySelector('.rental-request-start-date')?.value,
+            endDate: row.querySelector('.rental-request-end-date')?.value,
+            cleaningFee: row.dataset.cleaningFee,
+            cleaning: row.querySelector('.rental-request-cleaning')?.checked,
+            adjustment: {
+                type: adjustment.type,
+                amount: adjustment.amountCents / 100,
+                explanation: adjustment.explanation,
+            },
+        });
+        const formatCents = cents => (cents / 100).toLocaleString('nb-NO', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+        });
+        row.dataset.baseRentalFee = String(quote.baseCents / 100);
+        row.dataset.rentalTotal = String(quote.totalCents / 100);
+        row.dataset.priceError = '';
+        if (baseEl) baseEl.textContent = `${formatCents(quote.baseCents)} NOK`;
+        if (cleaningEl) cleaningEl.textContent = quote.cleaningCents > 0
+            ? `+ ${formatCents(quote.cleaningCents)} NOK renhold`
+            : 'Ingen renhold';
+        if (totalEl) totalEl.textContent = `Totalt: ${formatCents(quote.totalCents)} NOK`;
+        if (adjustmentEl) adjustmentEl.textContent = adjustment.amountCents > 0
+            ? `${adjustment.type === 'discount' ? '−' : '+'} ${formatCents(adjustment.amountCents)} NOK · ${adjustment.explanation}`
+            : 'Ingen prisjustering';
+        if (errorEl) {
+            errorEl.textContent = '';
+            errorEl.hidden = true;
+        }
+        if (approveButton) approveButton.disabled = row.dataset.busy === 'true';
+        return quote;
+    } catch (error) {
+        const message = error.message || 'Kunne ikke beregne leieprisen.';
+        row.dataset.rentalTotal = '';
+        row.dataset.priceError = message;
+        if (baseEl) baseEl.textContent = '–';
+        if (cleaningEl) cleaningEl.textContent = '';
+        if (totalEl) totalEl.textContent = 'Kunne ikke beregne pris';
+        if (adjustmentEl) adjustmentEl.textContent = 'Ingen prisjustering';
+        if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.hidden = false;
+        }
+        if (approveButton) approveButton.disabled = true;
+        return null;
+    }
+}
+
+function handleRentalRequestAdjustmentChange(row) {
+    const type = row.querySelector('.rental-request-adjustment-type')?.value || 'none';
+    const amountInput = row.querySelector('.rental-request-adjustment-amount');
+    const explanationInput = row.querySelector('.rental-request-adjustment-explanation');
+    const disabled = type === 'none';
+    if (disabled) {
+        if (amountInput) amountInput.value = '';
+        if (explanationInput) explanationInput.value = '';
+    }
+    if (amountInput) amountInput.disabled = disabled || row.dataset.busy === 'true';
+    if (explanationInput) explanationInput.disabled = disabled || row.dataset.busy === 'true';
+    refreshRentalRequestPrice(row);
 }
 
 async function loadRentalRequests() {
@@ -2046,8 +2077,10 @@ async function loadRentalRequests() {
             const rentalFee = parseFloat(r.rental_fee || 0);
             const cleaningFee = parseFloat(r.cleaning_fee || 0);
             const cleaningSelected = Number(r.cleaning || 0) === 1;
-            const storedAdjustmentType = r.price_adjustment_type || 'none';
-            const storedAdjustmentAmount = Math.max(0, Number(r.price_adjustment_cents || 0) / 100);
+            const storedAdjustmentType = ['discount', 'surcharge'].includes(r.price_adjustment_type)
+                ? r.price_adjustment_type : 'none';
+            const storedAdjustmentAmount = storedAdjustmentType === 'none'
+                ? 0 : Math.max(0, Number(r.price_adjustment_cents || 0) / 100);
             const storedAdjustmentValue = storedAdjustmentType === 'discount'
                 ? -storedAdjustmentAmount
                 : storedAdjustmentType === 'surcharge' ? storedAdjustmentAmount : 0;
@@ -2059,12 +2092,12 @@ async function loadRentalRequests() {
 
             return `<tr data-rental-request-id="${escHtml(r.id)}"
                         data-object-id="${escHtml(r.rental_object_id || '')}"
-                        data-daily-price="${escAttr(r.object_daily_price || 0)}"
-                        data-weekend-price="${escAttr(r.object_weekend_price || 0)}"
-                        data-saturday-price="${escAttr(r.object_saturday_price || 0)}"
-                        data-sunday-price="${escAttr(r.object_sunday_price || 0)}"
+                        data-daily-price="${escAttr(r.object_daily_price ?? '')}"
+                        data-weekend-price="${escAttr(r.object_weekend_price ?? '')}"
+                        data-saturday-price="${escAttr(r.object_saturday_price ?? '')}"
+                        data-sunday-price="${escAttr(r.object_sunday_price ?? '')}"
                         data-base-rental-fee="${baseRentalFee}"
-                        data-cleaning-fee="${cleaningFee}">
+                        data-cleaning-fee="${escAttr(r.cleaning_fee ?? '')}">
                 <td class="small">
                     <div class="fw-semibold">${escHtml(r.object_name || '–')}</div>
                     ${r.object_category ? `<span class="badge bg-light text-dark border">${escHtml(r.object_category)}</span>` : ''}
@@ -2106,11 +2139,12 @@ async function loadRentalRequests() {
                         Totalt: ${rentalFee.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK
                     </div>
                     <div class="row g-1 mt-1">
-                        <div class="col-5"><label class="visually-hidden" for="adjustment-type-${escAttr(r.id)}">Prisjusteringstype</label><select id="adjustment-type-${escAttr(r.id)}" class="form-select form-select-sm rental-request-adjustment-type" onchange="refreshRentalRequestPrice(this.closest('[data-rental-request-id]'))"><option value="none"${storedAdjustmentType === 'none' ? ' selected' : ''}>Ingen justering</option><option value="discount"${storedAdjustmentType === 'discount' ? ' selected' : ''}>Rabatt</option><option value="surcharge"${storedAdjustmentType === 'surcharge' ? ' selected' : ''}>Tillegg</option></select></div>
+                        <div class="col-5"><label class="visually-hidden" for="adjustment-type-${escAttr(r.id)}">Prisjusteringstype</label><select id="adjustment-type-${escAttr(r.id)}" class="form-select form-select-sm rental-request-adjustment-type" onchange="handleRentalRequestAdjustmentChange(this.closest('[data-rental-request-id]'))"><option value="none"${storedAdjustmentType === 'none' ? ' selected' : ''}>Ingen justering</option><option value="discount"${storedAdjustmentType === 'discount' ? ' selected' : ''}>Rabatt</option><option value="surcharge"${storedAdjustmentType === 'surcharge' ? ' selected' : ''}>Tillegg</option></select></div>
                         <div class="col-7"><label class="visually-hidden" for="adjustment-amount-${escAttr(r.id)}">Prisjustering beløp</label><input id="adjustment-amount-${escAttr(r.id)}" class="form-control form-control-sm rental-request-adjustment-amount" type="number" min="0" step="0.01" value="${storedAdjustmentAmount || ''}" placeholder="Beløp" oninput="refreshRentalRequestPrice(this.closest('[data-rental-request-id]'))"></div>
-                        <div class="col-12"><label class="visually-hidden" for="adjustment-explanation-${escAttr(r.id)}">Prisjustering forklaring</label><input id="adjustment-explanation-${escAttr(r.id)}" class="form-control form-control-sm rental-request-adjustment-explanation" type="text" maxlength="1000" value="${escAttr(r.price_adjustment_explanation || '')}" placeholder="Forklaring til prisjustering" oninput="refreshRentalRequestPrice(this.closest('[data-rental-request-id]'))"></div>
+                        <div class="col-12"><label class="visually-hidden" for="adjustment-explanation-${escAttr(r.id)}">Prisjustering forklaring</label><input id="adjustment-explanation-${escAttr(r.id)}" class="form-control form-control-sm rental-request-adjustment-explanation" type="text" maxlength="1000" value="${escAttr(storedAdjustmentType === 'none' ? '' : (r.price_adjustment_explanation || ''))}" placeholder="Forklaring til prisjustering" oninput="refreshRentalRequestPrice(this.closest('[data-rental-request-id]'))"></div>
                     </div>
                     <div class="small text-muted rental-request-adjustment-summary">Ingen prisjustering</div>
+                    <div class="small text-danger rental-request-price-error" data-price-error hidden></div>
                     <div class="form-check form-switch mt-1">
                         <input class="form-check-input rental-request-cleaning" type="checkbox"
                                ${cleaningSelected ? 'checked' : ''}
@@ -2125,7 +2159,7 @@ async function loadRentalRequests() {
                 <td class="small text-nowrap text-muted">${createdAt}</td>
                 <td class="small">${notesCell || '<span class="text-muted">–</span>'}</td>
                 <td class="text-nowrap">
-                    <button class="btn btn-success btn-sm me-1" onclick="approveScheduleRequest('${escHtml(r.id)}')">
+                    <button class="btn btn-success btn-sm me-1 rental-request-approve" onclick="approveScheduleRequest('${escHtml(r.id)}')">
                         <i class="bi bi-check-lg me-1"></i>Godkjenn
                     </button>
                     <button class="btn btn-outline-danger btn-sm" onclick="declineScheduleRequest('${escHtml(r.id)}')">
@@ -2157,7 +2191,7 @@ async function loadRentalRequests() {
             row.querySelectorAll('.rental-request-start-date, .rental-request-end-date').forEach(input => {
                 input.addEventListener('change', () => refreshRentalRequestPrice(row));
             });
-            refreshRentalRequestPrice(row);
+            handleRentalRequestAdjustmentChange(row);
         });
     } catch (e) {
         container.innerHTML = `<div class="alert alert-danger">Feil ved lasting av forespørsler</div>`;
@@ -2179,16 +2213,11 @@ function getRentalRequestInlinePayload(id) {
     }
 
     const adjustment = rentalAdjustmentFromRow(row);
-    if (adjustment.type !== 'none' && adjustment.amount <= 0) {
-        throw new Error('Prisjusteringen må ha et beløp større enn null');
+    const quote = refreshRentalRequestPrice(row);
+    if (!quote) {
+        throw new Error(row.dataset.priceError || 'Kunne ikke beregne leieprisen.');
     }
-    if (adjustment.type !== 'none' && !adjustment.explanation) {
-        throw new Error('Prisjusteringen må ha en forklaring');
-    }
-    if (adjustment.type === 'none' && (adjustment.amount > 0 || adjustment.explanation)) {
-        throw new Error('Velg rabatt eller tillegg for prisjusteringen');
-    }
-    const rentalFee = Number(row.dataset.rentalTotal || 0);
+    const rentalFee = quote.totalCents / 100;
     return {
         start_date: startDate,
         pickup_time: '08:00',
@@ -2197,7 +2226,7 @@ function getRentalRequestInlinePayload(id) {
         cleaning: row.querySelector('.rental-request-cleaning')?.checked ? 1 : 0,
         rental_fee: rentalFee,
         price_adjustment_type: adjustment.type === 'none' ? '' : adjustment.type,
-        price_adjustment_amount: adjustment.amount,
+        price_adjustment_amount: adjustment.amountCents / 100,
         price_adjustment_explanation: adjustment.explanation
     };
 }
@@ -2209,8 +2238,17 @@ function updateRentalRequestInlineTotal(checkbox) {
 
 function setRentalRequestRowBusy(id, busy) {
     const row = document.querySelector(`[data-rental-request-id="${CSS.escape(String(id))}"]`);
+    if (row) row.dataset.busy = busy ? 'true' : 'false';
     row?.querySelectorAll('button, input, select').forEach(control => {
-        control.disabled = busy || (control.classList.contains('rental-request-cleaning') && Number(row.dataset.cleaningFee || 0) <= 0);
+        const isAdjustmentControl = control.classList.contains('rental-request-adjustment-amount')
+            || control.classList.contains('rental-request-adjustment-explanation');
+        const adjustmentIsNone = row.querySelector('.rental-request-adjustment-type')?.value === 'none';
+        const approvalBlocked = control.classList.contains('rental-request-approve')
+            && Boolean(row.dataset.priceError);
+        control.disabled = busy
+            || approvalBlocked
+            || (isAdjustmentControl && adjustmentIsNone)
+            || (control.classList.contains('rental-request-cleaning') && Number(row.dataset.cleaningFee || 0) <= 0);
     });
 }
 
@@ -2226,9 +2264,13 @@ async function approveScheduleRequest(id) {
         });
         const data = await resp.json();
         if (data.success) {
+            const approvedFee = Number(data.rental_fee);
+            const feeLabel = Number.isFinite(approvedFee)
+                ? `${approvedFee.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK`
+                : 'ikke tilgjengelig';
             const msg = data.email_queued
-                ? 'Forespørselen er godkjent — bekreftelse lagt i e-postkø'
-                : 'Forespørselen er godkjent';
+                ? `Forespørselen er godkjent — bekreftelse lagt i e-postkø. Serverberegnet leiebeløp: ${feeLabel}.`
+                : `Forespørselen er godkjent. Serverberegnet leiebeløp: ${feeLabel}.`;
             toast.success(toastId, 'Godkjent', msg);
             loadRentalRequests();
             loadApprovedSchedule();
@@ -2247,12 +2289,11 @@ async function declineScheduleRequest(id) {
     if (!confirm('Er du sikker på at du vil avslå denne forespørselen?')) return;
     const toastId = toast.loading('Avslår forespørsel...');
     try {
-        const inlineData = getRentalRequestInlinePayload(id);
         setRentalRequestRowBusy(id, true);
         const resp = await fetch('/api/update_rental_schedule.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, ...inlineData, approved: 1, status: 'rejected' })
+            body: JSON.stringify({ id, approved: 1, status: 'rejected' })
         });
         const data = await resp.json();
         if (data.success) {
