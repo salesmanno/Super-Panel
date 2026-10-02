@@ -28,6 +28,11 @@ window.bootstrap={Modal:class {static getInstance(){return {hide(){}}} show(){} 
 window.fetch=async(url,options)=>{
     if(String(url).includes('create_event.php')){
         fixtureSaves.push(JSON.parse(options.body));
+        if(fixtureMode.startsWith('deferred-')){
+            const succeed=fixtureMode==='deferred-success';
+            await new Promise(resolve=>{window.fixtureRelease=resolve});
+            return {ok:succeed,json:async()=>({success:succeed,message:'Testfeil'})};
+        }
         if(fixtureMode==='network')throw new Error('Simulated network failure');
         return {ok:fixtureMode!=='failure',json:async()=>({success:fixtureMode==='success',message:'Testfeil'})};
     }
@@ -139,6 +144,43 @@ const checks = `
         const last=fixtureSaves[fixtureSaves.length-1];
         check(last.title==='Andre arrangement'&&last.start_time==='18:35','Second save uses its own values');
         check(last.end_date===null&&last.end_time===null&&last.event_image_url===null&&last.venue_name==='','Second payload contains no previous optional data');
+        const openCreation=()=>document.dispatchEvent(new CustomEvent('subtab-changed',{
+            detail:{module:'events',subtab:'events-create'}
+        }));
+        fill('Utkast som skal bort','17062028','1010');
+        wizardCurrentStep=7;updateWizardSummary();
+        openCreation();clean();
+        check(fixtureConfigReads===configReads,'New creation retains company configuration');
+
+        fill('En enkelt lagring','18062028','1145');
+        wizardCurrentStep=7;fixtureMode='deferred-success';
+        const savesBefore=fixtureSaves.length;
+        await submit();
+        check(eventCreationBusy&&form.getAttribute('aria-busy')==='true','Pending save marks form busy');
+        check(document.getElementById('wizard-submit').disabled&&field('title').disabled,'Pending save disables controls');
+        for(let i=0;i<4;i++)form.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}));
+        document.getElementById('wizard-submit').click();
+        check(fixtureSaves.length===savesBefore+1,'Repeated save attempts issue exactly one request');
+        check(resetWizard()===false&&fixtureConfirms===0,'Manual discard blocked without a dialog while saving');
+        openCreation();
+        check(field('title').value==='En enkelt lagring'&&eventCreationBusy,'Reopening while saving cannot replace the pending draft');
+        fixtureRelease();await settle();clean();
+        check(!eventCreationBusy&&!field('title').disabled,'Success releases controls');
+        check(form.getAttribute('aria-busy')==='false','Success clears busy state');
+        for(let i=0;i<3;i++)form.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}));
+        check(fixtureSaves.length===savesBefore+1,'Clicks after success cannot resubmit the cleared event');
+
+        fill('Kan forsøkes igjen','19062028','1210');
+        wizardCurrentStep=7;fixtureMode='deferred-failure';
+        await submit();
+        form.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}));
+        check(fixtureSaves.length===savesBefore+2,'Repeated attempts during a failing request are also blocked');
+        fixtureRelease();await settle();
+        check(!eventCreationBusy&&!field('title').disabled,'Failure releases controls for retry');
+        check(field('title').value==='Kan forsøkes igjen'&&field('start_time').value==='12:10'&&wizardCurrentStep===7,'Failure keeps draft and wizard step');
+        fixtureMode='success';await submit();clean();
+        check(fixtureSaves.length===savesBefore+3,'One retry after failure is allowed');
+
         input(field('title'),'Manuell forkasting');
         check(resetWizard()&&fixtureConfirms===1,'Manual discard keeps its confirmation');
         const edit=document.getElementById('edit-event-form');

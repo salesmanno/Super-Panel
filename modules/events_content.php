@@ -2526,6 +2526,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (createEventForm) {
         createEventForm.addEventListener('submit', async function(e) {
             e.preventDefault();
+            if (eventCreationBusy) return;
 
             if (!validateEventDateTimeInputs(this)) {
                 toast.quickWarning('Validering', 'Kontroller datoer og klokkeslett. Bruk DD.MM.YYYY og HH:mm.');
@@ -2639,6 +2640,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 field_age: formData.get('field_age') ? 1 : 0
             };
 
+            setEventCreationBusy(true);
             try {
                 const response = await fetch('/api/create_event.php', {
                     method: 'POST',
@@ -2650,6 +2652,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 const result = await response.json();
 
+                // Unlock before the successful reset restores default controls.
+                setEventCreationBusy(false);
                 EventFormHelpers.handleCreateResult(result, {
                     onSuccess: () => {
                         toast.quickSuccess('Arrangement', 'Arrangement opprettet!');
@@ -2660,6 +2664,8 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (error) {
                 console.error('Error creating event:', error);
                 toast.quickError('Feil', 'Feil ved opprettelse av arrangement');
+            } finally {
+                setEventCreationBusy(false);
             }
         });
     }
@@ -6329,6 +6335,33 @@ let wizardMap = null;
 let wizardMapMarker = null;
 let geocodeTimeout = null;
 let wizardGeocodeRevision = 0;
+let eventCreationBusy = false;
+let eventCreationDisabledControls = [];
+
+function setEventCreationBusy(busy) {
+    if (eventCreationBusy === busy) return;
+    eventCreationBusy = busy;
+    const form = document.getElementById('create-event-form');
+    if (!form) return;
+    form.setAttribute('aria-busy', String(busy));
+    const submit = document.getElementById('wizard-submit');
+    if (busy) {
+        eventCreationDisabledControls = Array.from(form.querySelectorAll('input, select, textarea, button'))
+            .map(control => ({control, disabled: control.disabled}));
+        eventCreationDisabledControls.forEach(({control}) => { control.disabled = true; });
+        if (submit) {
+            submit.dataset.idleLabel = submit.innerHTML;
+            submit.textContent = 'Lagrer…';
+        }
+    } else {
+        eventCreationDisabledControls.forEach(({control, disabled}) => { control.disabled = disabled; });
+        eventCreationDisabledControls = [];
+        if (submit && submit.dataset.idleLabel !== undefined) {
+            submit.innerHTML = submit.dataset.idleLabel;
+            delete submit.dataset.idleLabel;
+        }
+    }
+}
 
 function initWizardMap() {
     const mapContainer = document.getElementById('wizard-map');
@@ -6395,9 +6428,9 @@ let wizardInitialized = false;
 function initEventWizard() {
     // Prevent multiple initializations (which adds duplicate event listeners)
     if (wizardInitialized) {
-        // Just reload dynamic content when re-entering the tab
-        loadWizardPaymentMethods();
-        loadWizardMembershipPlans();
+        // Starting a new creation always opens a clean draft, without a dialog.
+        // Never replace the draft belonging to a request that is still saving.
+        if (!eventCreationBusy) resetEventWizardForm();
         return;
     }
     wizardInitialized = true;
@@ -6460,6 +6493,7 @@ function initEventWizard() {
     });
     
     // Load payment methods and membership plans
+    resetEventWizardForm();
     loadWizardPaymentMethods();
     loadWizardMembershipPlans();
 }
@@ -6492,6 +6526,7 @@ function getNextValidStep(currentStep, direction) {
 }
 
 function wizardGoToStep(step) {
+    if (eventCreationBusy) return;
     if (step < 1 || step > wizardTotalSteps) return;
     
     // Block navigation to steps that should be skipped based on registration_type
@@ -6834,6 +6869,7 @@ async function loadWizardMembershipPlans() {
 }
 
 function resetWizard() {
+    if (eventCreationBusy) return false;
     if (!confirm('Er du sikker på at du vil nullstille skjemaet?')) return false;
     return resetEventWizardForm();
 }
@@ -6844,6 +6880,7 @@ function resetWizardAndGoToList() {
 }
 
 function resetEventWizardForm() {
+    if (eventCreationBusy) return false;
     const form = document.getElementById('create-event-form');
     const state = {currentStep: wizardCurrentStep};
     const didReset = EventFormHelpers.resetWizard(document, form, state, () => {
