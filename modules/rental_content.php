@@ -1965,8 +1965,8 @@ function refreshRentalRequestPrice(row) {
                 saturday_price: row.dataset.saturdayPrice,
                 sunday_price: row.dataset.sundayPrice,
             },
-            startDate: row.querySelector('.rental-request-start-date')?.value,
-            endDate: row.querySelector('.rental-request-end-date')?.value,
+            startDate: row.querySelector('[data-rental-request-field="start-date"]')?.value,
+            endDate: row.querySelector('[data-rental-request-field="end-date"]')?.value,
             cleaningFee: row.dataset.cleaningFee,
             cleaning: row.querySelector('.rental-request-cleaning')?.checked,
             adjustment: {
@@ -2110,6 +2110,7 @@ async function loadRentalRequests() {
                 <td class="small">
                     <div class="d-flex flex-column gap-1" style="min-width:8.5rem">
                         <input type="date" class="form-control form-control-sm rental-request-start-date"
+                               data-rental-request-field="start-date"
                                value="${escHtml(r.start_date || '')}" aria-label="Startdato">
                         <span class="badge text-bg-light border py-2">Henting kl. 08:00</span>
                     </div>
@@ -2117,8 +2118,10 @@ async function loadRentalRequests() {
                 <td class="small">
                     <div class="d-flex flex-column gap-1" style="min-width:8.5rem">
                         <input type="date" class="form-control form-control-sm rental-request-end-date"
+                               data-rental-request-field="end-date"
                                value="${escHtml(r.end_date || '')}" aria-label="Sluttdato">
                         <input type="time" class="form-control form-control-sm rental-request-end-time"
+                               data-rental-request-field="end-time"
                                value="${escHtml(endTime)}" aria-label="Sluttid">
                     </div>
                 </td>
@@ -2188,7 +2191,7 @@ async function loadRentalRequests() {
             </table>
         </div>`;
         container.querySelectorAll('[data-rental-request-id]').forEach(row => {
-            row.querySelectorAll('.rental-request-start-date, .rental-request-end-date').forEach(input => {
+            row.querySelectorAll('[data-rental-request-field="start-date"], [data-rental-request-field="end-date"]').forEach(input => {
                 input.addEventListener('change', () => refreshRentalRequestPrice(row));
             });
             handleRentalRequestAdjustmentChange(row);
@@ -2202,9 +2205,9 @@ function getRentalRequestInlinePayload(id) {
     const row = document.querySelector(`[data-rental-request-id="${CSS.escape(String(id))}"]`);
     if (!row) throw new Error('Forespørselsraden ble ikke funnet');
 
-    const startDate = row.querySelector('.rental-request-start-date')?.value || '';
-    const endDate = row.querySelector('.rental-request-end-date')?.value || '';
-    const endTime = row.querySelector('.rental-request-end-time')?.value || '';
+    const startDate = row.querySelector('[data-rental-request-field="start-date"]')?.value || '';
+    const endDate = row.querySelector('[data-rental-request-field="end-date"]')?.value || '';
+    const endTime = row.querySelector('[data-rental-request-field="end-time"]')?.value || '';
     if (!startDate || !endDate || !endTime) {
         throw new Error('Fra-, til- og sluttid må fylles ut');
     }

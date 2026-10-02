@@ -94,8 +94,8 @@ const row = {
     if (selector === '.rental-request-adjustment-type') return controls.type;
     if (selector === '.rental-request-adjustment-amount') return controls.amount;
     if (selector === '.rental-request-adjustment-explanation') return controls.explanation;
-    if (selector === '.rental-request-start-date') return controls.startDate;
-    if (selector === '.rental-request-end-date') return controls.endDate;
+    if (selector === '[data-rental-request-field="start-date"]') return controls.startDate;
+    if (selector === '[data-rental-request-field="end-date"]') return controls.endDate;
     if (selector === '.rental-request-cleaning') return controls.cleaning;
     if (selector === '.rental-request-base-fee') return controls.base;
     if (selector === '.rental-request-cleaning-fee') return controls.cleaningSummary;
