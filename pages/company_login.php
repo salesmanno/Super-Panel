@@ -64,372 +64,27 @@ if (isset($_GET['message'])) {
     <link rel="icon" type="image/png" href="/attached_assets/salesman-removebg-preview_1761762992662.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        :root {
-            --primary-start: #667eea;
-            --primary-end: #764ba2;
-            --shadow-light: rgba(102, 126, 234, 0.15);
-            --shadow-medium: rgba(102, 126, 234, 0.25);
-            --shadow-strong: rgba(102, 126, 234, 0.35);
-        }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            padding: 20px;
-            transition: background 0.3s ease;
-        }
-        
-        body.db-error {
-            background: #6b7280;
-        }
-        
-        .login-container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-            max-width: 1100px;
-            width: 100%;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0;
-        }
-        
-        @media (max-width: 992px) {
-            .login-container {
-                grid-template-columns: 1fr;
-            }
-            .news-section {
-                display: block;
-                max-height: 300px;
-                padding: 30px 25px;
-            }
-            .login-section {
-                padding: 40px 25px;
-            }
-        }
-        
-        @media (max-width: 576px) {
-            .login-header h1 {
-                font-size: 24px;
-            }
-            .login-header img {
-                height: 120px;
-            }
-            .login-section {
-                padding: 30px 20px;
-            }
-            .news-section {
-                padding: 20px 20px;
-            }
-        }
-        
-        .login-section {
-            padding: 60px 50px;
-            position: relative;
-            z-index: 1;
-        }
-        
-        .login-header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-        
-        .login-header img {
-            height: 160px;
-            width: auto;
-            margin-bottom: -10px;
-            position: relative;
-            z-index: 1;
-        }
-        
-        .login-header h1 {
-            font-size: 28px;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--primary-start), var(--primary-end));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 8px;
-            letter-spacing: -0.5px;
-        }
-        
-        .login-header p {
-            color: #6b7280;
-            font-size: 15px;
-            font-weight: 400;
-        }
-        
-        .form-floating {
-            margin-bottom: 20px;
-        }
-        
-        .form-floating > .form-control {
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 1rem 1.25rem;
-            font-size: 15px;
-            transition: all 0.2s ease;
-            height: 58px;
-        }
-        
-        .form-floating > .form-control:focus {
-            border-color: var(--primary-start);
-            box-shadow: 0 0 0 4px var(--shadow-light);
-            outline: none;
-        }
-        
-        .form-floating > label {
-            padding: 1rem 1.25rem;
-            color: #9ca3af;
-            font-weight: 500;
-        }
-        
-        .form-floating > .form-control:focus ~ label,
-        .form-floating > .form-control:not(:placeholder-shown) ~ label {
-            color: var(--primary-start);
-            transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
-        }
-        
-        .btn-login {
-            background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%);
-            border: none;
-            padding: 16px 24px;
-            font-weight: 600;
-            font-size: 16px;
-            border-radius: 12px;
-            transition: all 0.3s ease;
-            letter-spacing: 0.3px;
-            box-shadow: 0 4px 12px var(--shadow-medium);
-            position: relative;
-            z-index: 10;
-            cursor: pointer;
-        }
-        
-        .btn-login:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px var(--shadow-strong);
-            background: linear-gradient(135deg, #7690ff 0%, #8556bb 100%);
-        }
-        
-        .btn-login:active {
-            transform: translateY(0);
-        }
-        
-        .btn-login:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .alert {
-            border-radius: 12px;
-            border: none;
-            font-size: 14px;
-            font-weight: 500;
-            padding: 14px 18px;
-            margin-bottom: 24px;
-        }
-        
-        .alert-danger {
-            background: #fef2f2;
-            color: #dc2626;
-        }
-        
-        .alert-success {
-            background: #f0fdf4;
-            color: #16a34a;
-        }
-        
-        .forgot-password-link {
-            text-align: center;
-            margin-top: 16px;
-            font-size: 14px;
-            color: var(--primary-start);
-            background: none;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            padding: 0;
-            width: 100%;
-        }
-        
-        .forgot-password-link:hover,
-        .forgot-password-link:focus {
-            color: var(--primary-end);
-            text-decoration: underline;
-            outline: none;
-        }
-        
-        .news-section {
-            background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%);
-            padding: 60px 50px;
-            color: white;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            z-index: 0;
-        }
-        
-        .news-header {
-            margin-bottom: 32px;
-        }
-        
-        .news-header h2 {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 8px;
-            letter-spacing: -0.3px;
-        }
-        
-        .news-header p {
-            opacity: 0.9;
-            font-size: 14px;
-        }
-        
-        .news-content {
-            flex: 1;
-            overflow-y: auto;
-            padding-right: 10px;
-        }
-        
-        .news-content::-webkit-scrollbar {
-            width: 6px;
-        }
-        
-        .news-content::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
-        }
-        
-        .news-content::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 3px;
-        }
-        
-        .news-content::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.5);
-        }
-        
-        .news-item {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 16px;
-            transition: all 0.2s ease;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-        }
-        
-        .news-item:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: translateX(4px);
-        }
-        
-        .news-item-title {
-            font-weight: 600;
-            font-size: 16px;
-            margin-bottom: 8px;
-            letter-spacing: -0.2px;
-        }
-        
-        .news-item-content {
-            font-size: 14px;
-            line-height: 1.6;
-            opacity: 0.95;
-            margin-bottom: 12px;
-        }
-        
-        .news-item-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 12px;
-            opacity: 0.8;
-            font-weight: 500;
-        }
-        
-        .news-loading {
-            text-align: center;
-            padding: 40px 20px;
-            opacity: 0.9;
-        }
-        
-        .spinner-border {
-            width: 2rem;
-            height: 2rem;
-            border-width: 3px;
-        }
-        
-        .news-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 11px;
-            font-weight: 600;
-            background: rgba(255, 255, 255, 0.2);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .news-badge.critical {
-            background: rgba(239, 68, 68, 0.9);
-        }
-        
-        .news-badge.high {
-            background: rgba(251, 191, 36, 0.9);
-        }
-        
-        .news-badge.medium {
-            background: rgba(59, 130, 246, 0.9);
-        }
-        
-        .news-badge.low {
-            background: rgba(16, 185, 129, 0.8);
-        }
-        
-        .news-type-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 11px;
-            font-weight: 600;
-            background: rgba(255, 255, 255, 0.25);
-            text-transform: capitalize;
-        }
-    </style>
+    <link rel="stylesheet" href="/pages/company_login.css">
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-section">
+    <main class="login-container">
+        <section class="login-section" aria-labelledby="login-title">
             <div class="login-header">
-                <img src="/attached_assets/salesman-removebg-preview_1761762992662.png" alt="Salesman.no Logo">
-                <h1>SuperUser Portal</h1>
+                <img src="/attached_assets/salesman-removebg-preview_1761762992662.png" alt="Salesman.no">
+                <p class="portal-kicker">BEDRIFTSPORTAL</p>
+                <h1 id="login-title">SuperUser Portal</h1>
                 <p>Bedriftsportal - Logg inn</p>
             </div>
             
             <?php if ($error_message): ?>
-                <div class="alert alert-danger d-flex align-items-center" role="alert">
+                <div class="alert alert-danger d-flex align-items-center" role="alert" aria-live="assertive">
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>
                     <div><?= htmlspecialchars($error_message, ENT_QUOTES, 'UTF-8') ?></div>
                 </div>
             <?php endif; ?>
             
             <?php if ($success_message): ?>
-                <div class="alert alert-success d-flex align-items-center" role="alert">
+                <div class="alert alert-success d-flex align-items-center" role="status">
                     <i class="bi bi-check-circle-fill me-2"></i>
                     <div><?= htmlspecialchars($success_message, ENT_QUOTES, 'UTF-8') ?></div>
                 </div>
@@ -468,15 +123,16 @@ if (isset($_GET['message'])) {
                     Innloggingsproblemer?
                 </button>
             </form>
-        </div>
+        </section>
         
-        <div class="news-section">
+        <aside class="news-section" aria-labelledby="news-title">
             <div class="news-header">
-                <h2><i class="bi bi-newspaper me-2"></i>Siste nyheter</h2>
+                <p class="news-kicker">FRA SALESMAN.NO</p>
+                <h2 id="news-title"><i class="bi bi-newspaper me-2" aria-hidden="true"></i>Siste nyheter</h2>
                 <p>Hold deg oppdatert med de nyeste endringene</p>
             </div>
             
-            <div class="news-content" id="news-content">
+            <div class="news-content" id="news-content" aria-live="polite">
                 <div class="news-loading">
                     <div class="spinner-border text-light mb-3" role="status">
                         <span class="visually-hidden">Laster nyheter...</span>
@@ -484,8 +140,8 @@ if (isset($_GET['message'])) {
                     <p>Laster siste nyheter...</p>
                 </div>
             </div>
-        </div>
-    </div>
+        </aside>
+    </main>
     
     <script>
         let eventSource = null;
