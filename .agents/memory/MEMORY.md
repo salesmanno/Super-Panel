@@ -3,3 +3,4 @@
 - [Tenant-nyheter og systemfeed](tenant-news-vs-system-feed.md) — hold firmanyheter adskilt fra den globale innloggingsfeedens systemmeldinger.
 - [News-prioritetstak](news-priority-cap.md) — brukerens valg er delt laveste rangering på 9, ikke ubegrenset voksende prioriteter.
 - [Nullstilling av nettleserskjema](browser-form-reset.md) — skjulte tidsfelt kan endre standardverdien ved verdioppdatering; verifiser nullstilling i en ekte nettleser.
+- [Skjematester med felles sidekode](shared-form-enhancement-tests.md) — test egne datokontroller sammen med dashbordets felles forbedring, ikke bare modulen isolert.

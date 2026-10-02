@@ -4380,7 +4380,6 @@ async function editEvent(eventId) {
         setFieldValue('edit-start-time', formatNorskTid(event.start_time));
         setFieldValue('edit-end-date', sqlDateToNorsk(event.end_date));
         setFieldValue('edit-end-time', formatNorskTid(event.end_time));
-        EventFormHelpers.syncDateTimeControls(document.getElementById('edit-event-form'));
         setFieldValue('edit-age-limit', event.age_limit);
         setFieldValue('edit-venue-name', event.venue_name);
         setFieldValue('edit-event-address', event.event_address);
@@ -4388,6 +4387,7 @@ async function editEvent(eventId) {
         setFieldValue('edit-event-postal', event.event_postal);
         setFieldValue('edit-min-attendees', event.min_attendees);
         setFieldValue('edit-registration-deadline', sqlDateToNorsk(event.registration_deadline));
+        EventFormHelpers.syncDateTimeControls(document.getElementById('edit-event-form'));
         setFieldValue('edit-max-attendees', event.max_attendees);
         setFieldValue('edit-ticket-price', event.ticket_price || 0);
         setFieldValue('edit-default-payment-method', event.default_payment_method);
@@ -6879,8 +6879,9 @@ function resetEventWizardForm() {
         updateWizardBasedOnType();
         updateMembershipAddonsVisibility();
         updateWizardSummary();
-        loadWizardPaymentMethods();
-        loadWizardMembershipPlans();
+        // Native reset restores the loaded plans/methods and their defaults.
+        // Refetching here could overwrite the next event or erase configuration
+        // when the network fails after the previous event was saved successfully.
     });
     wizardCurrentStep = state.currentStep;
     return didReset;
