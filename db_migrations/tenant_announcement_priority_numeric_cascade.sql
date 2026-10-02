@@ -1,4 +1,11 @@
 -- Run after tenant_announcement_priority_numeric.sql.
+-- MANUAL OPERATION ONLY: the same production approval, verified target/version,
+-- backup, preflight checks and paused-writer requirements apply to both files.
+-- Recheck live duplicate priority-1 rows and legacy ranks before the approved run;
+-- older observations are not a substitute for that preflight check.
+-- The database uniqueness guarantee becomes active only after this file runs.
+-- After both files, verify the 1–9 range, at most one priority 1 per company,
+-- unchanged announcement counts/content and the generated unique guard.
 -- For each tenant with duplicate priority-1 rows, keep the smallest ID at 1,
 -- move the remaining former top rows to 2, and shift every existing rank >= 2
 -- once per former duplicate (capped at 9). This is deterministic and replay-safe:

@@ -1,5 +1,13 @@
 -- Convert legacy News priority labels to the supported 1–9 numeric range.
 -- This file is intentionally safe to re-run after the cascade migration.
+-- MANUAL OPERATION ONLY: do not run against the external production database
+-- without a new, explicit approval for that target. No startup auto-migration.
+-- Before execution: confirm the database/environment, inspect current priorities
+-- and column/constraint definitions, verify MySQL compatibility (8.0.16+ for
+-- enforced CHECK constraints and DROP CHECK), and take a restorable backup.
+-- Pause News writers during BOTH files: MySQL DDL is not transactionally atomic.
+-- Run this file first, then tenant_announcement_priority_numeric_cascade.sql.
+-- Do not run the superseded unrestricted/integer-expansion migration.
 UPDATE `tenant_announcements`
 SET `priority` = CASE LOWER(TRIM(COALESCE(`priority`, '')))
     WHEN 'urgent' THEN 1
