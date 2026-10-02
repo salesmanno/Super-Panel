@@ -129,7 +129,6 @@ if (isset($_GET['message'])) {
             <div class="news-header">
                 <p class="news-kicker">FRA SALESMAN.NO</p>
                 <h2 id="news-title"><i class="bi bi-newspaper me-2" aria-hidden="true"></i>Siste nyheter</h2>
-                <p>Hold deg oppdatert med de nyeste endringene</p>
             </div>
             
             <div class="news-content" id="news-content" aria-live="polite">
@@ -273,8 +272,6 @@ if (isset($_GET['message'])) {
                 let newsHtml = '';
                 
                 data.news.forEach(item => {
-                    const severityBadge = `<span class="news-badge ${item.severity}">${item.priority_text}</span>`;
-                    
                     const newsTypeIcon = getNewsTypeIcon(item.news_type);
                     const newsTypeLabel = getNewsTypeLabel(item.news_type);
                     
@@ -294,7 +291,6 @@ if (isset($_GET['message'])) {
                                     </span>
                                     <span class="ms-2"><i class="bi bi-calendar3 me-1"></i>${item.formatted_date}</span>
                                 </div>
-                                ${severityBadge}
                             </div>
                         </div>
                     `;
