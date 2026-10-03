@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id'], $_SESSION['company_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/request_date_time.php';
+require_once __DIR__ . '/../includes/rental_unavailable_rules.php';
 
 $companyId = (string) $_SESSION['company_id'];
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
@@ -53,16 +54,18 @@ try {
     $db = getDBConnection();
 
     if ($method === 'GET') {
+        $today = rentalUnavailableToday();
         $stmt = $db->prepare(
-            "SELECT rs.id, rs.rental_object_id, rs.start_date, rs.end_date, ro.object_name
+            "SELECT rs.id, rs.rental_object_id, rs.start_date, rs.end_date, rs.notes, ro.object_name
              FROM rental_schedule rs
              INNER JOIN rental_objects ro
                ON ro.id = rs.rental_object_id AND ro.company_id = rs.company_id
              WHERE rs.company_id = ? AND rs.status = 'unavailable'
+               AND rs.end_date >= ?
              ORDER BY rs.start_date, ro.object_name"
         );
-        $stmt->execute([$companyId]);
-        echo json_encode(['success' => true, 'periods' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        $stmt->execute([$companyId, $today]);
+        echo json_encode(['success' => true, 'periods' => $stmt->fetchAll(PDO::FETCH_ASSOC), 'today' => $today]);
         exit;
     }
 
@@ -92,6 +95,8 @@ try {
     }
 
     [$start, $end] = rentalUnavailableDates($data);
+    $hasNotes = array_key_exists('notes', $data);
+    $notes = normalizeRentalUnavailableNotes($data['notes'] ?? null);
     $objectIds = $data['rental_object_ids']
         ?? $data['object_ids']
         ?? $data['rental_object_id']
@@ -130,13 +135,18 @@ try {
             throw new InvalidArgumentException('ID mangler.');
         }
         $existing = $db->prepare(
-            "SELECT id FROM rental_schedule
+            "SELECT id, notes FROM rental_schedule
              WHERE id = ? AND company_id = ? AND status = 'unavailable'
              FOR UPDATE"
         );
         $existing->execute([$editingId, $companyId]);
-        if ($existing->fetchColumn() === false) {
+        $existingPeriod = $existing->fetch(PDO::FETCH_ASSOC);
+        if ($existingPeriod === false) {
             throw new InvalidArgumentException('Perioden ble ikke funnet.');
+        }
+        // Older clients which only edit dates must not silently erase the label.
+        if (!$hasNotes) {
+            $notes = $existingPeriod['notes'];
         }
     }
 
@@ -163,10 +173,10 @@ try {
         $stmt = $db->prepare(
             "UPDATE rental_schedule
              SET rental_object_id = ?, start_date = ?, start_time = '00:00:00',
-                 end_date = ?, end_time = '23:59:59', updated_at = CURRENT_TIMESTAMP
+                 end_date = ?, end_time = '23:59:59', notes = ?, updated_at = CURRENT_TIMESTAMP
              WHERE id = ? AND company_id = ? AND status = 'unavailable'"
         );
-        $stmt->execute([$objectIds[0], $start, $end, $editingId, $companyId]);
+        $stmt->execute([$objectIds[0], $start, $end, $notes, $editingId, $companyId]);
     } else {
         $stmt = $db->prepare(
             "INSERT INTO rental_schedule
@@ -174,7 +184,7 @@ try {
               customer_phone, start_date, start_time, end_date, end_time, rental_fee,
               status, notes, created_by, approved, pickup_time)
              VALUES (?, ?, ?, NULL, NULL, NULL, NULL, ?, '00:00:00', ?, '23:59:59',
-                     0.00, 'unavailable', NULL, ?, 0, '08:00:00')"
+                     0.00, 'unavailable', ?, ?, 0, '08:00:00')"
         );
         foreach ($objectIds as $objectId) {
             $createdBy = (string) $_SESSION['tenant_admin_id'];
@@ -182,7 +192,7 @@ try {
                 $createdBy = $validObjects[$objectId];
             }
             $stmt->execute([
-                rentalUnavailableId(), $companyId, $objectId, $start, $end, $createdBy
+                rentalUnavailableId(), $companyId, $objectId, $start, $end, $notes, $createdBy
             ]);
         }
     }

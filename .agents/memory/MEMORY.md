@@ -4,3 +4,4 @@
 - [News-prioritetstak](news-priority-cap.md) — brukerens valg er delt laveste rangering på 9, ikke ubegrenset voksende prioriteter.
 - [Nullstilling av nettleserskjema](browser-form-reset.md) — skjulte tidsfelt kan endre standardverdien ved verdioppdatering; verifiser nullstilling i en ekte nettleser.
 - [Skjematester med felles sidekode](shared-form-enhancement-tests.md) — test egne datokontroller sammen med dashbordets felles forbedring, ikke bare modulen isolert.
+- [Historikk for avstenginger](rental-closure-history.md) — automatisk opprydding gjelder aktive oversikter, ikke permanent sletting av tidligere avstenginger.
