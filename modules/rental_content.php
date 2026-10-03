@@ -50,9 +50,14 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
 #rental-module .table thead th { color:var(--rental-muted); font-size:.7rem; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; }
 #rental-module .table tbody tr { transition:background .15s ease; }
 #rental-module .table tbody tr:hover { background:#f1f8f8; }
-#rental-module .rental-upcoming-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr)); gap:.75rem; }
-#rental-module .rental-upcoming-card { border:1px solid var(--rental-line); border-radius:12px; padding:1rem; background:#fff; min-height:210px; }
-#rental-module .rental-upcoming-card:hover { border-color:#9ec9cc; box-shadow:0 4px 12px rgba(22,59,92,.08); }
+#rental-module .rental-upcoming-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(290px,100%),1fr)); gap:.55rem; }
+#rental-module .rental-upcoming-card { border:1px solid var(--rental-line); border-radius:10px; padding:.7rem .8rem; background:#fff; }
+#rental-module .rental-upcoming-card:hover { border-color:#9ec9cc; box-shadow:0 3px 10px rgba(22,59,92,.07); }
+#rental-module .rental-upcoming-card .rental-period { color:var(--rental-muted); font-size:.82rem; font-variant-numeric:tabular-nums; }
+#rental-module .rental-upcoming-card .min-w-0 { min-width:0; }
+#rental-module .rental-upcoming-card .rental-customer-links { display:flex; flex-wrap:wrap; gap:.25rem .9rem; }
+#rental-module .rental-upcoming-card .rental-customer-links a { overflow-wrap:anywhere; }
+#rental-module .rental-upcoming-card .rental-payment-short { font-size:.72rem; }
 #rental-module .rental-customer-links a { color:var(--rental-teal); text-decoration:none; }
 #rental-module .rental-customer-links a:hover { text-decoration:underline; }
 #rental-module .rental-checkin-sent { color:#198754; }
@@ -189,6 +194,7 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
                         <i class="bi bi-arrow-clockwise me-1"></i>Oppdater
                     </button>
                 </div>
+                <div id="upcomingContractsContainer" class="rental-upcoming-list mb-3" aria-live="polite"></div>
                 <div id="rentalCalendarHost" aria-live="polite">
                     <div class="text-center text-muted py-3">Laster kalender...</div>
                 </div>
@@ -225,7 +231,6 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
                         <div id="rentalUnavailableList" class="mt-2" hidden></div>
                     </div>
                 </div>
-                <div id="upcomingContractsContainer" class="rental-upcoming-list" aria-live="polite"></div>
             </div>
         </div>
     </div>
@@ -2360,7 +2365,7 @@ function renderRentalUnavailable() {
         const note = String(item.notes || '').trim();
         const description = note || 'Utilgjengelig';
         return `<div class="rental-unavailable rounded-2 p-2 mb-2 d-flex justify-content-between align-items-center gap-2">
-            <div class="min-w-0"><strong>${escHtml(objectName)}</strong><div class="small">${fmtDate(item.start_date)} – ${fmtDate(item.end_date)}</div><div class="small rental-unavailable-note" title="${escAttr(description)}">${escHtml(description.length > 100 ? description.slice(0, 97) + '…' : description)}</div></div>
+            <div class="min-w-0"><strong>${escHtml(objectName)}</strong><div class="small">${formatRentalDisplayDate(item.start_date)} – ${formatRentalDisplayDate(item.end_date)}</div><div class="small rental-unavailable-note" title="${escAttr(description)}">${escHtml(description.length > 100 ? description.slice(0, 97) + '…' : description)}</div></div>
             <div class="btn-group btn-group-sm"><button class="btn btn-outline-secondary" type="button" onclick="editRentalUnavailable('${escAttr(item.id)}')">Rediger</button><button class="btn btn-outline-danger" type="button" onclick="deleteRentalUnavailable('${escAttr(item.id)}')">Slett</button></div>
         </div>`;
     }).join('') : '<div class="small text-muted">Ingen aktive avstenginger.</div>';
@@ -2708,7 +2713,7 @@ function renderRentalCalendar() {
             const code = validAssignedRentalCode(r.key_box_code);
             bars += `<div class="rental-calendar-bar" style="grid-column:${startCol}/${endCol};grid-row:${row};background:${c.bg};color:${c.tx};border-radius:4px;font-size:0.72rem;cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin:1px 2px;"
                          onclick="showRentalCalDetail('${escHtml(r.id)}')"
-                         title="${escHtml(label)} — ${fmtDate(r.start_date)} → ${fmtDate(r.end_date)}">
+                         title="${escHtml(label)} — ${formatRentalDisplayDate(r.start_date)} → ${formatRentalDisplayDate(r.end_date)}">
                   <strong>${escHtml(short)}</strong>${code ? `<span class="d-block small">Kode: ${escHtml(code)}</span>` : ''}
             </div>`;
         });
@@ -2751,34 +2756,27 @@ function renderRentalCalendar() {
     const upcomingCards = visibleRentals.map(r => {
         const id = encodeURIComponent(String(r.id));
         const customerName = escHtml(r.display_customer_name || r.customer_name || 'Ukjent kunde');
-        const checkinSent = Boolean(r.checkin_email_sent_at);
         const email = r.display_email
-            ? `<a href="mailto:${escAttr(r.display_email)}"><i class="bi bi-envelope me-1${checkinSent ? ' rental-checkin-sent' : ''}"${checkinSent ? ' title="Innsjekkinstruksjoner sendt"' : ''}></i>${escHtml(r.display_email)}</a>`
-            : '<span class="text-muted">Ingen e-post</span>';
+            ? `<a href="mailto:${escAttr(r.display_email)}"><i class="bi bi-envelope me-1"></i>${escHtml(r.display_email)}</a>`
+            : '';
         const phone = r.display_phone
             ? `<a href="tel:${escAttr(r.display_phone)}"><i class="bi bi-telephone me-1"></i>${escHtml(r.display_phone)}</a>`
-            : '<span class="text-muted">Ingen telefon</span>';
-        const total = Number(r.rental_fee || 0).toLocaleString('nb-NO', { maximumFractionDigits: 2 });
-        const code = validAssignedRentalCode(r.key_box_code);
+            : '';
+        const paymentStatus = r.payment_status || 'unpaid';
+        const paymentText = paymentStatus === 'paid' ? 'Betalt' : paymentStatus === 'partial' ? 'Delvis betalt' : 'Ubetalt';
+        const paymentClass = paymentStatus === 'paid' ? 'text-bg-success' : paymentStatus === 'partial' ? 'text-bg-info' : 'text-bg-warning';
         return `<article class="rental-upcoming-card">
-            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-                <div>
-                    <div class="fw-semibold">${escHtml(r.object_name || 'Utleieobjekt')}</div>
-                    <div class="small text-muted">${fmtDate(r.start_date)} – ${fmtDate(r.end_date)}</div>
+            <div class="d-flex justify-content-between align-items-start gap-2">
+                <div class="min-w-0">
+                    <div class="fw-semibold text-truncate">${customerName}</div>
+                    <div class="small text-muted text-truncate">${escHtml(r.object_name || 'Utleieobjekt')}</div>
+                    <div class="rental-period">${formatRentalDisplayDate(r.start_date)} – ${formatRentalDisplayDate(r.end_date)}</div>
                 </div>
-                ${contractPaymentBadge(r.payment_status || 'unpaid')}
+                <span class="badge ${paymentClass} rental-payment-short">${paymentText}</span>
             </div>
-            <div class="fw-semibold small mb-1"><i class="bi bi-person me-1"></i>${customerName}</div>
-            <div class="rental-customer-links small d-grid gap-1 mb-3">${email}${phone}</div>
-            <div class="d-flex flex-wrap gap-2 small mb-3">
-                ${code ? `<span class="text-muted"><i class="bi bi-key me-1"></i>Tilgangskode: <strong>${escHtml(code)}</strong></span>` : ''}
-                ${checkinSent ? `<span class="rental-checkin-sent"><i class="bi bi-envelope-check me-1"></i>Sendt ${fmtDate(r.checkin_email_sent_at)}</span>` : ''}
-            </div>
-            <div class="d-flex justify-content-between align-items-center gap-2">
-                <span class="fw-semibold">${total} NOK</span>
-                <button class="btn btn-sm btn-outline-primary" type="button" onclick="showRentalCalDetail(decodeURIComponent('${id}'))">
-                    Detaljer og handlinger
-                </button>
+            ${email || phone ? `<div class="rental-customer-links small mt-2">${phone}${email}</div>` : ''}
+            <div class="d-flex justify-content-end mt-2">
+                <button class="btn btn-sm btn-outline-primary" type="button" onclick="showRentalCalDetail(decodeURIComponent('${id}'))">Detaljer</button>
             </div>
         </article>`;
     }).join('');
@@ -2839,10 +2837,10 @@ function showRentalCalDetail(id) {
         : '<div class="text-muted">Ingen prisjustering</div>';
     const isPaid = (r.payment_status || 'unpaid') === 'paid';
     const paymentDetails = isPaid
-        ? `<div class="small text-muted mt-1">${r.payment_method ? escHtml(r.payment_method) : 'Betalingsmåte ikke oppgitt'}${r.paid_at ? ' · ' + fmtDate(r.paid_at) : ''}</div>`
+        ? `<div class="small text-muted mt-1">${r.payment_method ? escHtml(r.payment_method) : 'Betalingsmåte ikke oppgitt'}${r.paid_at ? ' · ' + formatRentalDisplayDate(r.paid_at) : ''}</div>`
         : '';
     const paidLabel = isPaid
-        ? `Betalt${r.paid_at ? ' (' + fmtDate(r.paid_at) + ')' : ''}`
+        ? `Betalt${r.paid_at ? ' (' + formatRentalDisplayDate(r.paid_at) + ')' : ''}`
         : 'Registrer betaling';
     const actionPanel = `
         <div class="rental-toolbar mt-4">
@@ -2883,11 +2881,11 @@ function showRentalCalDetail(id) {
             ${r.request_fields?.length ? `<div class="col-12">${rentalRequestFieldsHtml(r.request_fields)}</div>` : ''}
             ${ageRow}
             ${r.display_email ? `<dt class="col-sm-4">E-post</dt><dd class="col-sm-8"><a href="mailto:${escAttr(r.display_email)}">${escHtml(r.display_email)}</a></dd>` : ''}
-            ${r.display_phone ? `<dt class="col-sm-4">Telefon</dt><dd class="col-sm-8">${escHtml(r.display_phone)}</dd>` : ''}
+            ${r.display_phone ? `<dt class="col-sm-4">Telefon</dt><dd class="col-sm-8"><a href="tel:${escAttr(r.display_phone)}">${escHtml(r.display_phone)}</a></dd>` : ''}
             <dt class="col-sm-4">Fra</dt>
-            <dd class="col-sm-8">${fmtDate(r.start_date)}${r.pickup_time ? ' kl. ' + r.pickup_time.substring(0,5) : ''}</dd>
+            <dd class="col-sm-8">${formatRentalDisplayDate(r.start_date)}${r.pickup_time ? ' kl. ' + r.pickup_time.substring(0,5) : ''}</dd>
             <dt class="col-sm-4">Til</dt>
-            <dd class="col-sm-8">${fmtDate(r.end_date)}${r.end_time ? ' kl. ' + r.end_time.substring(0,5) : ''}</dd>
+            <dd class="col-sm-8">${formatRentalDisplayDate(r.end_date)}${r.end_time ? ' kl. ' + r.end_time.substring(0,5) : ''}</dd>
             <dt class="col-sm-4">Varighet</dt>
             <dd class="col-sm-8">${duration}</dd>
             <dt class="col-sm-4">Leiebeløp</dt>
@@ -2902,7 +2900,7 @@ function showRentalCalDetail(id) {
              ${assignedCode ? `<dt class="col-sm-4">Tilgangskode</dt><dd class="col-sm-8"><span class="font-monospace">${escHtml(assignedCode)}</span></dd>` : ''}
              <dt class="col-sm-4">Innsjekk-e-post</dt>
              <dd class="col-sm-8">${r.checkin_email_sent_at
-                 ? `<span class="rental-checkin-sent"><i class="bi bi-envelope-check me-1"></i>Sendt ${fmtDate(r.checkin_email_sent_at)}</span>`
+                 ? `<span class="rental-checkin-sent"><i class="bi bi-envelope-check me-1"></i>Sendt ${formatRentalDisplayDate(r.checkin_email_sent_at)}</span>`
                  : '<span class="text-muted"><i class="bi bi-envelope me-1"></i>Ikke sendt</span>'}</dd>
             <dt class="col-sm-4">Logistikk</dt>
             <dd class="col-sm-8">${logistics}</dd>
@@ -3009,6 +3007,13 @@ function fmtDate(dateStr) {
     if (!dateStr) return '–';
     const [y, m, d] = String(dateStr).split(/[ T]/)[0].split('-');
     return `${d}.${m}.${y}`;
+}
+
+function formatRentalDisplayDate(dateStr) {
+    if (!dateStr) return '–';
+    const match = String(dateStr).trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[T ])/);
+    if (!match) return '–';
+    return `${match[3]}.${match[2]}.${match[1]}`;
 }
 
 function escHtml(str) {

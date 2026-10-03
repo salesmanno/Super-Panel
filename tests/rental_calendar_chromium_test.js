@@ -19,6 +19,15 @@ const htmlTo = content.indexOf('<div id="rental-results"', htmlFrom);
 assert(from > 0 && to > from && htmlFrom > 0 && htmlTo > htmlFrom);
 const colors = content.slice(content.indexOf('const CAL_COLORS ='), content.indexOf("document.addEventListener('DOMContentLoaded'"));
 const styles = content.match(/<style>[\s\S]*?<\/style>/)[0];
+const formatterFrom = content.indexOf('function formatRentalDisplayDate(');
+const formatterTo = content.indexOf('\nfunction ', formatterFrom + 1);
+assert(formatterFrom > 0 && formatterTo > formatterFrom, 'Use the real rental date formatter');
+const formatter = content.slice(formatterFrom, formatterTo);
+const dashboard = fs.readFileSync(path.join(__dirname, '../pages/company_dashboard.php'), 'utf8');
+const bootstrapUrl = dashboard.match(/href="(https:\/\/[^"]+bootstrap[^"]+\.min\.css)"/)?.[1];
+assert(bootstrapUrl, 'Use the same Bootstrap stylesheet as the real dashboard');
+const css = spawnSync('curl', ['-fsSL', '--max-time', '20', bootstrapUrl], {encoding:'utf8', timeout:25000, maxBuffer:2*1024*1024});
+assert.equal(css.status, 0, 'Dashboard Bootstrap CSS could not be loaded: ' + css.stderr);
 const stubs = `
 const rentalLifecycleCsrf='fixture-csrf';
 let allRentalObjects=[{id:'a',object_name:'Sal A'},{id:'b',object_name:'Sal B'}];
@@ -30,15 +39,31 @@ window.addEventListener('error',e=>fixtureErrors.push(e.message));
 window.addEventListener('unhandledrejection',e=>fixtureErrors.push(String(e.reason)));
 const escHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const escAttr=escHtml,calcAge=()=>null,contractPaymentBadge=()=>'<span>Ubetalt</span>';
-const fmtDate=value=>String(value??'').slice(0,10).split('-').reverse().join('.');
 const toast={error:(...args)=>fixtureToasts.push(args)};
-const bootstrap={Modal:{getOrCreateInstance:()=>({show:()=>{}})}};
+window.fixtureModalShows=0;window.fixtureContacts=[];
+const bootstrap={Modal:{getOrCreateInstance:()=>({show:()=>{fixtureModalShows++}})}};
+document.addEventListener('click',event=>{
+ const link=event.target.closest('a[href^="tel:"],a[href^="mailto:"]');
+ if(link){fixtureContacts.push(link.getAttribute('href'));event.preventDefault()}
+});
 window.confirm=()=>true;
 const fixturePeriods=[
  {id:'today',rental_object_id:'a',object_name:'Sal A',start_date:'2028-04-03',end_date:'2028-04-03',notes:'<img src=x onerror="window.injected=1"> Service'},
  {id:'ongoing',rental_object_id:'b',object_name:'Sal B',start_date:'2028-04-02',end_date:'2028-04-04',notes:'Vedlikehold '+ 'n'.repeat(180)},
  {id:'legacy',rental_object_id:'a',object_name:'Sal A',start_date:'2028-04-04',end_date:'2028-04-04',notes:null},
  {id:'expired',rental_object_id:'a',object_name:'Sal A',start_date:'2028-04-02',end_date:'2028-04-02',notes:'Historisk'}];
+const fixtureRentals=[
+ {id:'rental-a',object_name:'Sal A',display_customer_name:'Testkunde A',start_date:'2028-04-03',end_date:'2028-04-05',
+  display_email:'kunde@example.invalid',display_phone:'+47 12345678',payment_status:'paid',rental_fee:1250,
+  key_box_code:'0123',checkin_email_sent_at:'2028-04-03 09:00:00',logistics:'delivery',delivery_address:'Testadresse',
+  notes:'Detaljnotat',cleaning:1,cleaning_fee:250,pickup_time:'08:00:00',end_time:'18:00:00'},
+ {id:'rental-b',object_name:'Langt objektnavn som ikke skal presse visningen ut av skjermen',
+  display_customer_name:'Testkunde med et langt navn som skal beholde en kompakt visning',
+  start_date:'2028-04-04',end_date:'2028-04-04',rental_fee:200},
+ {id:'rental-c',object_name:'Sal C',display_customer_name:'Testkunde C',start_date:'2028-04-06',end_date:'2028-04-08',
+  display_phone:'87654321',payment_status:'partial',rental_fee:600}
+];
+allApprovedRentals=fixtureRentals;
 window.fetch=async (url,options={})=>{
  if(!options.method){
   if(url==='/api/rental_unavailable.php')return {ok:true,json:async()=>({success:true,today:'2028-04-03',periods:fixturePeriods})};
@@ -72,7 +97,7 @@ const checks = `
   check(list.hidden&&field('ListToggle').getAttribute('aria-expanded')==='false','List starts collapsed');
   check(field('Count').textContent==='3'&&!list.textContent.includes('Historisk'),'Ended blocks hidden, today and ongoing retained');
   check(document.getElementById('rentalCalendarHost').compareDocumentPosition(manager)&4,'Planning after calendar');
-  check(manager.compareDocumentPosition(document.getElementById('upcomingContractsContainer'))&4,'Planning before rental cards');
+   check(document.getElementById('upcomingContractsContainer').compareDocumentPosition(document.getElementById('rentalCalendarHost'))&4,'Tenant cards before calendar');
   check(proxy('Start').dataset.norwegianDateTimeProxy==='1','Actual shared date enhancer active');
   check(proxy('End').disabled&&!proxy('End').required,'Single-day end proxy cannot block validation');
   check(!list.querySelector('img')&&!document.getElementById('rentalCalendarHost').querySelector('img')&&!window.injected,'Notes escaped in list and calendar');
@@ -80,6 +105,40 @@ const checks = `
   check(list.textContent.includes('Utilgjengelig'),'Legacy blank-note fallback retained');
   check(list.querySelector('[title^="Vedlikehold"]')?.textContent.endsWith('…'),'Long notes truncated with full tooltip');
   toggleRentalUnavailableList();
+  check(list.textContent.includes('03.04.2028 – 03.04.2028')&&list.textContent.includes('02.04.2028 – 04.04.2028')
+    &&!list.textContent.includes('2028.04.03'),'Expanded unavailable cards use DD.MM.YYYY for days and periods');
+  const cards=Array.from(document.querySelectorAll('.rental-upcoming-card'));
+  check(cards.length===3,'Upcoming tenant cards rendered');
+  const first=cards[0],emptyContact=cards[1],phoneOnly=cards[2];
+  check(first.textContent.includes('Testkunde A')&&first.textContent.includes('Sal A')
+    &&first.querySelector('.rental-period').textContent==='03.04.2028 – 05.04.2028','Full period and identity remain visible');
+  check(!first.textContent.includes('NOK')&&!first.textContent.includes('Tilgangskode')
+    &&!first.textContent.includes('Sendt')&&!first.textContent.includes('Detaljnotat'),'Secondary details are not repeated in compact card');
+  check(first.textContent.includes('Betalt')&&phoneOnly.textContent.includes('Delvis betalt'),'Short payment states preserved');
+  check(!emptyContact.querySelector('a')&&!emptyContact.querySelector('.rental-customer-links')
+    &&!emptyContact.textContent.includes('Ingen telefon')&&!emptyContact.textContent.includes('Ingen e-post'),'No empty contact actions or large placeholders');
+  check(phoneOnly.querySelectorAll('a').length===1&&phoneOnly.querySelector('a').getAttribute('href')==='tel:87654321','Partial contact information stays usable');
+  const modalShows=fixtureModalShows;
+  first.querySelector('a[href^="tel:"]').click();first.querySelector('a[href^="mailto:"]').click();
+  check(fixtureContacts.includes('tel:+47 12345678')&&fixtureContacts.includes('mailto:kunde@example.invalid')
+    &&fixtureModalShows===modalShows,'Contact links act directly without opening details');
+  check(Array.from(first.querySelectorAll('a,button')).every(el=>el.tabIndex>=0),'Contact and details controls keyboard-focusable');
+  const open=first.querySelector('button');
+  check(open.type==='button'&&open.textContent.trim()==='Detaljer','Explicit native details button');
+  open.click();
+  const detailBody=document.getElementById('detailsModalBody');
+  check(fixtureModalShows===modalShows+1&&detailBody.textContent.includes('Testkunde A')
+    &&detailBody.textContent.includes('Detaljnotat')&&detailBody.textContent.includes('0123')
+    &&detailBody.textContent.includes('Innsjekk-e-post')&&detailBody.textContent.includes('Logistikk')
+    &&detailBody.textContent.includes('Registrer betaling')===false,'Correct rental details, including secondary information and payment state');
+  check(detailBody.textContent.includes('03.04.2028')&&detailBody.textContent.includes('05.04.2028'),'Modal dates stay Norwegian under global formatter collision');
+  check(detailBody.querySelector('a[href="tel:+47 12345678"]')
+    &&detailBody.querySelector('a[href="mailto:kunde@example.invalid"]'),'Modal contacts are clickable too');
+  check(detailBody.querySelector('select')&&Array.from(detailBody.querySelectorAll('button')).some(el=>el.textContent.includes('Avlys leie')),'Existing admin actions retained');
+  cards[2].querySelector('button').click();
+  check(detailBody.textContent.includes('Testkunde C')&&!detailBody.textContent.includes('Testkunde A'),'Details selects the requested rental');
+  check(cards.every(card=>card.getBoundingClientRect().height<210),'Compact cards no longer enforce the old 210px height');
+  check(document.documentElement.scrollWidth<=width+1,'No page-level horizontal overflow');
   field('Objects').options[0].selected=true;field('Notes').value='Utkast';
   change('Start','05.04.2028');
   calNavigate(1);calNavigate(-1);await loadRentalUnavailable();await loadApprovedSchedule();await settle();
@@ -145,10 +204,10 @@ const checks = `
    const card=document.querySelector('.rental-upcoming-card');
    const detail=document.getElementById('detailsModalBody');
    check(bar.textContent.includes('Kode:')===Boolean(expected),'Calendar suppresses complete invalid-code field');
-   check(card.textContent.includes('Tilgangskode:')===Boolean(expected),'Cards suppress complete invalid-code field');
+    check(!card.textContent.includes('Tilgangskode:'),'Access code stays in details, not compact card');
    check(detail.textContent.includes('Tilgangskode')===Boolean(expected),'Details suppress complete invalid-code field');
    check(![bar,card,detail].some(el=>el.textContent.includes('SECRET')),'No fallback to general venue code');
-   if(expected)check([bar,card,detail].every(el=>el.textContent.includes(expected)),'Valid leading-zero/alphanumeric codes retained');
+    if(expected)check([bar,detail].every(el=>el.textContent.includes(expected)),'Valid leading-zero/alphanumeric codes retained in calendar and details');
   }
   check(fixtureErrors.length===0,'No browser errors: '+fixtureErrors.join('; '));
   return {passed:true,width};
@@ -159,7 +218,7 @@ let browser, socket;
 async function main() {
     const file = path.join(directory, 'fixture.html');
     const markup = content.slice(htmlFrom, htmlTo).replace('style="display: none;"', '');
-    fs.writeFileSync(file, `<!doctype html><html lang="nb"><head><meta name="viewport" content="width=device-width,initial-scale=1">${styles}</head><body><div id="rental-module">${markup}</div><div id="detailsModal"><div id="detailsModalTitle"></div><div id="detailsModalBody"></div></div><script>${stubs}</script><script>${content.slice(from, to)}</script>${enhancement}</body></html>`);
+    fs.writeFileSync(file, `<!doctype html><html lang="nb"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css.stdout}</style>${styles}<style>#detailsModal{display:none}</style></head><body><div id="rental-module">${markup}</div><div id="detailsModal"><div id="detailsModalTitle"></div><div id="detailsModalBody"></div></div><script>${stubs}</script><script>${formatter}\n${content.slice(from, to)}</script><script>window.fmtDate=value=>String(value??'').slice(0,10).replaceAll('-','.');</script>${enhancement}</body></html>`);
     browser = spawn(process.env.CHROMIUM_PATH || '/repl/tools/bin/chromium', [
         '--headless', '--no-sandbox', '--disable-dev-shm-usage', '--remote-debugging-port=0',
         '--user-data-dir=' + path.join(directory, 'profile'), 'about:blank',
@@ -191,15 +250,32 @@ async function main() {
     });
     const {targetId} = await send('Target.createTarget', {url: 'about:blank'});
     const {sessionId} = await send('Target.attachToTarget', {targetId, flatten: true});
+    await send('Target.activateTarget', {targetId});
+    await send('Emulation.setFocusEmulationEnabled', {enabled:true}, sessionId);
     // Check Norwegian behavior even when the browser is on another continent.
     await send('Emulation.setTimezoneOverride', {timezoneId: 'America/Los_Angeles'}, sessionId);
     for (const width of [390, 768, 1280]) {
         await send('Emulation.setDeviceMetricsOverride', {width, height: 844, deviceScaleFactor: 1, mobile: width === 390}, sessionId);
         await send('Page.navigate', {url: 'file://' + file + '?width=' + width}, sessionId);
         await new Promise(resolve => setTimeout(resolve, 200));
+        await send('Runtime.evaluate', {expression: 'loadRentalUnavailable().then(()=>loadApprovedSchedule())', awaitPromise: true}, sessionId);
+        if (process.env.RENTAL_CALENDAR_SCREENSHOT_DIR) {
+            await send('Runtime.evaluate', {expression: "fixturePeriods[0].notes='Service';fixturePeriods[1].notes='Vedlikehold';renderRentalUnavailable();renderRentalCalendar();"}, sessionId);
+            const image = await send('Page.captureScreenshot', {format:'png',captureBeyondViewport:false}, sessionId);
+            fs.mkdirSync(process.env.RENTAL_CALENDAR_SCREENSHOT_DIR, {recursive:true});
+            fs.writeFileSync(path.join(process.env.RENTAL_CALENDAR_SCREENSHOT_DIR, 'rental-'+width+'.png'), Buffer.from(image.data, 'base64'));
+            await send('Runtime.evaluate', {expression: `fixturePeriods[0].notes='<img src=x onerror="window.injected=1"> Service';fixturePeriods[1].notes="Vedlikehold "+ "n".repeat(180);renderRentalUnavailable();`}, sessionId);
+        }
         const result = await send('Runtime.evaluate', {expression: checks, awaitPromise: true, returnByValue: true}, sessionId);
         assert.equal(result.result?.value?.passed, true, JSON.stringify(result));
         assert.equal(result.result.value.width, width);
+        await send('Runtime.evaluate', {expression: 'allApprovedRentals=fixtureRentals;renderRentalCalendar();document.querySelector(".rental-upcoming-card button").focus();', returnByValue:true}, sessionId);
+        const before = await send('Runtime.evaluate', {expression:'fixtureModalShows',returnByValue:true}, sessionId);
+        await send('Input.dispatchKeyEvent', {type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,nativeVirtualKeyCode:13,text:'\r',unmodifiedText:'\r'}, sessionId);
+        await send('Input.dispatchKeyEvent', {type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13}, sessionId);
+        const keyboard = await send('Runtime.evaluate', {expression:'({shows:fixtureModalShows,correct:document.getElementById("detailsModalBody").textContent.includes("Testkunde A")})',returnByValue:true}, sessionId);
+        assert.equal(keyboard.result.value.shows, before.result.value+1, 'Enter opens details');
+        assert.equal(keyboard.result.value.correct, true, 'Keyboard opens correct rental');
         console.log('Actual rental planning/calendar with shared date enhancer passed at ' + width + 'px');
     }
 }

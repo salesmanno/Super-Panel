@@ -20,3 +20,15 @@ Mål emulert mobilbredde før tester som kaller nettleserens `reportValidity`.
 **Why:** Native validering kan fokusere og zoome mobilvisningen; i Chromium endret dette `innerWidth` under testen selv om riktig bredde var satt ved start.
 
 **How to apply:** Bruk startbredden for å bekrefte testens emulering. Kontroller separat eventuell zoom som en brukeropplevelse, ikke som feil i emuleringsoppsettet.
+
+Datoformat skal testes med den virkelige formattereren, ikke en testdobbel som allerede produserer riktig norsk format. Ta med samspill med andre modulers globale hjelpere.
+
+**Why:** En fixture som hardkoder norsk datoformat kan bestå selv om brukerflaten får feil format fra en annen formatterer. Portalens moduler har delte globale navn, så isolert modulrendering alene beviser ikke at datoformatet er stabilt.
+
+**How to apply:** Last den virkelige datoformattereren i fixture og kontroller ferdig renderte perioder. Test at modulspesifikk visning forblir riktig selv om en annen modul erstatter en generell global formatterer.
+
+Native tastaturaktivering i en headless nettleser må testes i en aktiv og fokusert side med ekte nettleserinndata, ikke bare syntetiske DOM-hendelser.
+
+**Why:** En korrekt native knapp reagerte på musetrykk, men en tastaturtest ga falsk feil da headless-siden ikke hadde riktig fokus/inndata. DOM-fokus alene var ikke tilstrekkelig.
+
+**How to apply:** Skill mellom oppsettsfeil i testnettleseren og feil i brukerflaten. Aktiver siden før native tastetrykk, og kontroller faktisk handling og riktig valgt oppføring etterpå.
