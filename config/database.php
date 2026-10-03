@@ -25,7 +25,8 @@ function getDBConnection() {
         
         for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
             try {
-                $conn = new PDO($mysqlDsn, DB_USER, DB_PASS, $options);
+                require_once __DIR__ . '/../includes/AuditedPDO.php';
+                $conn = new AuditedPDO($mysqlDsn, DB_USER, DB_PASS, $options);
                 error_log("Connected to MySQL" . ($attempt > 1 ? " (attempt $attempt)" : ""));
                 return $conn;
             } catch (PDOException $e) {

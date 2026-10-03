@@ -11,6 +11,8 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/session_manager.php';
+require_once __DIR__ . '/../includes/tenant_audit.php';
+$auditVisible = false;
 
 $adminName = $_SESSION['admin_name'] ?? 'Bruker';
 $companyName = $_SESSION['company_name'] ?? 'Firma';
@@ -22,6 +24,9 @@ $companySubdomain = $_SESSION['subdomain'] ?? null;
 $companyIsActive = false;
 try {
     $db = getDBConnection();
+    if ($db && isset($_SESSION['company_id'])) {
+        $auditVisible = tenantAuditCanRead($db, (string) $_SESSION['company_id']);
+    }
     if ($db && isset($_SESSION['subdomain'])) {
         // Prøv først tenant_companies.logo_url, subdomain og is_active
         $stmt = $db->prepare("SELECT logo_url, subdomain, is_active FROM tenant_companies WHERE subdomain = ?");
@@ -414,6 +419,12 @@ try {
                     <i class="bi bi-person-circle me-1"></i>
                     <span class="d-none d-sm-inline"><?= htmlspecialchars($adminName) ?></span>
                 </span>
+                <?php if ($auditVisible): ?>
+                <a href="company_audit.php" class="btn btn-nav btn-sm" title="Se bedriftens endringshistorikk">
+                    <i class="bi bi-list-check me-1"></i>
+                    <span class="d-none d-sm-inline">Aktivitetslogg</span>
+                </a>
+                <?php endif; ?>
                 <a href="admin_sessions.php" class="btn btn-nav btn-sm">
                     <i class="bi bi-clock-history me-1"></i>
                     <span class="d-none d-sm-inline">Sessions</span>

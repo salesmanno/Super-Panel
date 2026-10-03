@@ -5,3 +5,5 @@
 - [Nullstilling av nettleserskjema](browser-form-reset.md) — skjulte tidsfelt kan endre standardverdien ved verdioppdatering; verifiser nullstilling i en ekte nettleser.
 - [Skjematester med felles sidekode](shared-form-enhancement-tests.md) — test egne datokontroller sammen med dashbordets felles forbedring, ikke bare modulen isolert.
 - [Historikk for avstenginger](rental-closure-history.md) — automatisk opprydding gjelder aktive oversikter, ikke permanent sletting av tidligere avstenginger.
+- [Audit og e-postproveniens](audit-provenance.md) — bruk registrert initiativ og faktisk renderet malversjon; ikke rekonstruer fortiden fra dagens data.
+- [Isolerte transporttester](isolated-transport-tests.md) — ikke fork SMTP-/HTTP-fixtures fra en prosess med levende PDO-forbindelse.

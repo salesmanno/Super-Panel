@@ -21,7 +21,7 @@ $company_id = $_SESSION['company_id'];
 try {
     $data = json_decode(file_get_contents('php://input'), true);
     
-    $target_admin_id = intval($data['admin_id'] ?? 0);
+    $target_admin_id = trim((string) ($data['admin_id'] ?? ''));
     $modules = $data['modules'] ?? []; // Array of module_ids that should be active
     
     if (!$target_admin_id) {

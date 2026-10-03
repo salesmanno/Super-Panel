@@ -163,23 +163,24 @@ try {
         $newPaymentStatus = ($state === 'CAPTURED') ? 'paid' : 'pending';
         
         $updateStmt = $db->prepare("
-            UPDATE events_checkin ec
-            INNER JOIN events_eventdata e ON ec.event_id = e.id AND e.company_id = ?
-            SET ec.payment_reference = COALESCE(ec.payment_reference, ?),
-                ec.payment_authorization = COALESCE(ec.payment_authorization, ?),
-                ec.payment_state = ?,
-                ec.payment_checked_at = NOW(),
-                ec.payment_status = ?,
-                ec.updated_at = NOW()
-            WHERE ec.id = ?
+            UPDATE events_checkin
+            SET payment_reference = COALESCE(payment_reference, ?),
+                payment_authorization = COALESCE(payment_authorization, ?),
+                payment_state = ?,
+                payment_checked_at = NOW(),
+                payment_status = ?,
+                updated_at = NOW()
+            WHERE id = ? AND EXISTS (
+                SELECT 1 FROM events_eventdata e WHERE e.id = events_checkin.event_id AND e.company_id = ?
+            )
         ");
         $updateStmt->execute([
-            $company_id, 
             $orderId,
             $authCode,
             $normalizedState,
             $newPaymentStatus,
-            $checkin_id
+            $checkin_id,
+            $company_id
         ]);
         
         $customerName = trim($checkin['first_name'] . ' ' . $checkin['last_name']);

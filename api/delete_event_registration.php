@@ -41,9 +41,10 @@ try {
     try {
         // Delete related events_checkin records (if any) - with company_id filter for security
         $deleteCheckin = $db->prepare("
-            DELETE ec FROM events_checkin ec
-            INNER JOIN events_eventdata e ON ec.event_id = e.id
-            WHERE e.company_id = ? AND (ec.registration_id = ? OR (ec.customer_id = ? AND ec.event_id = ?))
+            DELETE FROM events_checkin
+            WHERE EXISTS (
+                SELECT 1 FROM events_eventdata e WHERE e.id = events_checkin.event_id AND e.company_id = ?
+            ) AND (registration_id = ? OR (customer_id = ? AND event_id = ?))
         ");
         $deleteCheckin->execute([
             $companyId,
@@ -76,7 +77,7 @@ try {
         ]);
         
     } catch (Exception $e) {
-        $db->rollBack();
+        if ($db->inTransaction()) $db->rollBack();
         throw $e;
     }
     

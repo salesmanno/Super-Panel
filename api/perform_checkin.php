@@ -14,6 +14,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
+require_once __DIR__ . '/../includes/tenant_audit.php';
 
 /**
  * Get human-readable payment method name
@@ -48,26 +49,9 @@ try {
     $skipPayment = isset($data['skip_payment']) && $data['skip_payment'] === true;
     $preservePaymentMethod = isset($data['preserve_payment_method']) && $data['preserve_payment_method'] === true;
     
-    // Get admin info for audit log
-    // Note: tenant_admins doesn't have first_name/last_name - they're in tenant_staff via tenant_staff_id
-    $adminStmt = $db->prepare("
-        SELECT ta.email, ts.first_name, ts.last_name 
-        FROM tenant_admins ta
-        LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
-        WHERE ta.id = ? AND ta.company_id = ?
-    ");
-    $adminStmt->execute([$adminId, $companyId]);
-    $admin = $adminStmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$admin) {
-        echo json_encode(['success' => false, 'message' => 'Admin ikke funnet']);
-        exit;
-    }
-    
-    $adminName = trim(($admin['first_name'] ?? '') . ' ' . ($admin['last_name'] ?? ''));
-    if (empty($adminName)) {
-        $adminName = $admin['email'] ?? 'Admin';
-    }
+    $auditActor = tenantAuditActor($db, (string) $companyId);
+    $adminName = $auditActor['name'];
+    $db->beginTransaction();
     
     // Get checkin record with customer and event info
     // Use membership_plan_id FK instead of ticket_type column
@@ -94,16 +78,23 @@ try {
         JOIN events_eventdata ee ON c.event_id = ee.id
         LEFT JOIN membership_plans mp ON c.membership_plan_id = mp.id
         WHERE c.id = ? AND ee.company_id = ?
+        FOR UPDATE
     ");
     $stmt->execute([$checkinId, $companyId]);
     $checkin = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$checkin) {
+        $db->rollBack();
+        tenantAuditRecord($db, $companyId, 'events', 'EVENT_CHECKIN', 'events_checkin',
+            (string) $checkinId, 'Innsjekking ikke tilgjengelig', [], [], 'denied', [], $auditActor);
         echo json_encode(['success' => false, 'message' => 'Innsjekking ikke funnet']);
         exit;
     }
     
     if ($checkin['checked_in'] == 1 && !$isNoShow) {
+        $db->rollBack();
+        tenantAuditRecord($db, $companyId, 'events', 'EVENT_CHECKIN', 'events_checkin',
+            (string) $checkinId, (string) $checkin['event_title'], [], [], 'noop', [], $auditActor);
         echo json_encode(['success' => false, 'message' => 'Allerede sjekket inn']);
         exit;
     }
@@ -114,8 +105,6 @@ try {
     }
     
     $ticketPrice = floatval($checkin['ticket_price']);
-    
-    $db->beginTransaction();
     
     try {
         if ($isNoShow) {
@@ -210,51 +199,12 @@ try {
             }
         }
         
-        // Insert audit log
-        $auditId = bin2hex(random_bytes(16));
-        $auditStmt = $db->prepare("
-            INSERT INTO audit_logs (
-                id, company_id, user_id, user_type, user_email,
-                action, resource_type, resource_id, resource_name,
-                old_values, new_values, ip_address, user_agent,
-                severity, performed_at, module, session_id
-            ) VALUES (
-                ?, ?, ?, 'tenant_admin', ?,
-                ?, 'events_checkin', ?, ?,
-                ?, ?, ?, ?,
-                'info', NOW(), 'events', ?
-            )
-        ");
-        
-        $oldValues = json_encode([
-            'checked_in' => $checkin['checked_in'],
-            'payment_status' => $checkin['payment_status']
-        ]);
-        
-        $newValues = json_encode([
-            'checked_in' => 1,
-            'payment_status' => $isNoShow ? 'no_show' : ($skipPayment ? 'pending' : 'paid'),
-            'payment_method' => $isNoShow ? null : $paymentMethod,
-            'ticket_price' => $ticketPrice,
-            'admin_name' => $adminName,
-            'customer_name' => $customerName,
-            'action_message' => $auditMessage
-        ]);
-        
-        $auditStmt->execute([
-            $auditId,
-            $companyId,
-            $adminId,
-            $admin['email'],
-            $auditAction,
-            $checkinId,
-            $checkin['event_title'] . ' - ' . $customerName,
-            $oldValues,
-            $newValues,
-            $_SERVER['REMOTE_ADDR'] ?? null,
-            $_SERVER['HTTP_USER_AGENT'] ?? null,
-            session_id()
-        ]);
+        $auditAfter = $checkin;
+        $auditAfter['checked_in'] = 1;
+        $auditAfter['payment_status'] = $isNoShow ? 'no_show' : $newPaymentStatus;
+        $auditAfter['payment_method'] = $isNoShow ? $checkin['payment_method'] : $newPaymentMethod;
+        tenantAuditChange($db, $companyId, 'events', $auditAction, 'events_checkin',
+            (string) $checkinId, (string) $checkin['event_title'], $checkin, $auditAfter, [], $auditActor);
         
         $db->commit();
         
@@ -270,11 +220,15 @@ try {
         ]);
         
     } catch (Exception $e) {
-        $db->rollBack();
+        if ($db->inTransaction()) $db->rollBack();
         throw $e;
     }
     
 } catch (Exception $e) {
+    if (isset($db, $auditActor, $companyId)) {
+        tenantAuditFailure($db, $companyId, 'events', 'EVENT_CHECKIN', 'events_checkin',
+            (string) ($checkinId ?? ''), 'Innsjekking', 'failed', $auditActor);
+    }
     error_log("Error performing check-in: " . $e->getMessage());
     echo json_encode([
         'success' => false,

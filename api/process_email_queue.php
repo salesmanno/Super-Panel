@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/SMTPClient.php';
 require_once __DIR__ . '/../includes/EmailTemplate.php';
+require_once __DIR__ . '/../includes/tenant_audit.php';
 
 define('MAX_EMAILS_PER_HOUR_PER_COMPANY', 100);
 
@@ -110,6 +111,7 @@ function emailQueueBodyForDelivery(
 
 function processEmail($db, $email) {
     global $RETRY_DELAYS;
+    $smtpAccepted = false;
 
     $claim = $db->prepare("
         UPDATE email_queue
@@ -152,6 +154,8 @@ function processEmail($db, $email) {
         $result = $smtp->send($fromEmail, $fromName, $email['recipient_email'], $email['subject'], $htmlBody);
 
         if ($result['success']) {
+            // External side effect is irreversible; later database/log errors must NEVER enqueue a resend.
+            $smtpAccepted = true;
             $messageId = $result['message_id'] ?? 'ukjent';
             $smtpResponse = preg_replace('/\s+/', ' ', (string) ($result['smtp_response'] ?? '250 akseptert'));
             $acceptanceDetails = "SMTP akseptert | Message-ID: {$messageId} | Svar: {$smtpResponse}";
@@ -216,6 +220,20 @@ function processEmail($db, $email) {
                 }
             }
 
+            try {
+                $links = emailQueueAuditLinks($db, $email);
+                $actor = tenantAuditSystemActor($db, (string) $email['company_id'], 'email_queue');
+                $db->beginTransaction();
+                tenantAuditRecord($db, (string) $email['company_id'], 'email', 'email.smtp_accepted', 'email_queue',
+                    (string) $email['id'], 'SMTP akseptert – ikke bekreftet mottakerlevering',
+                    ['status' => 'sending'], ['status' => 'sent', 'sent_at' => date('Y-m-d H:i:s')],
+                    'smtp_accepted', $links, $actor);
+                $db->commit();
+            } catch (Throwable $auditError) {
+                if ($db->inTransaction()) $db->rollBack();
+                error_log('CRITICAL: SMTP accepted but audit unavailable; queue_ref=' . $email['id']);
+            }
+
             echo "✓ SMTP akseptert: {$email['id']} til {$email['recipient_email']}"
                 . " | Message-ID: {$messageId} | Svar: {$smtpResponse}\n";
 
@@ -224,6 +242,12 @@ function processEmail($db, $email) {
         }
 
     } catch (\Throwable $e) {
+        if ($smtpAccepted) {
+            if ($db->inTransaction()) $db->rollBack();
+            error_log('CRITICAL: SMTP accepted; post-send persistence failed; no automatic resend; queue_ref=' . $email['id']);
+            echo "SMTP akseptert; etterfølgende lagring feilet. Ingen automatisk ny sending: {$email['id']}\n";
+            return;
+        }
         $attempts    = ($email['attempts'] ?? 0) + 1;
         $maxAttempts = $email['max_attempts'] ?? 3;
         $errorMsg    = $e->getMessage();
@@ -262,7 +286,35 @@ function processEmail($db, $email) {
         }
 
         error_log("E-post sendefeil (ID: {$email['id']}): " . $errorMsg);
+        try {
+            $actor = tenantAuditSystemActor($db, (string) $email['company_id'], 'email_queue');
+            tenantAuditRecord($db, (string) $email['company_id'], 'email', 'email.smtp_failed', 'email_queue',
+                (string) $email['id'], 'SMTP-forsøket feilet', [],
+                ['status' => $isPermanentSmtpError || $attempts >= $maxAttempts ? 'failed' : 'queued', 'attempts' => $attempts],
+                'failed', emailQueueAuditLinks($db, $email), $actor);
+        } catch (Throwable $auditError) {
+            error_log('CRITICAL: SMTP failure audit unavailable; queue_ref=' . $email['id']);
+        }
     }
+}
+
+function emailQueueAuditLinks(PDO $db, array $email): array {
+    $links = array_filter([
+        'queue_id' => $email['id'], 'template_id' => $email['template_id'] ?? null,
+        'source_id' => $email['source_id'] ?? null, 'source_module' => $email['module_source'] ?? null,
+    ]);
+    $query = $db->prepare("SELECT id,new_values FROM audit_logs WHERE company_id = ?
+        AND resource_type = 'email_queue' AND resource_id = ? AND action IN ('email.queued','email.insert')
+        ORDER BY performed_at ASC,id ASC LIMIT 1");
+    $query->execute([$email['company_id'], $email['id']]);
+    if ($row = $query->fetch(PDO::FETCH_ASSOC)) {
+        $values = json_decode($row['new_values'], true);
+        $links['initiator_audit_id'] = $row['id'];
+        foreach (['correlation_id','template_body_sha256','template_subject_sha256'] as $key) {
+            if (!empty($values['_audit']['links'][$key])) $links[$key] = $values['_audit']['links'][$key];
+        }
+    }
+    return $links;
 }
 
 function updateEmailStatus($db, $emailId, $status) {

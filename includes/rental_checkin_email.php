@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/tenant_audit.php';
 
 require_once __DIR__ . '/rental_confirmation_email.php';
 
@@ -34,6 +35,9 @@ function queueRentalCheckinEmails(
     ?string $companyId = null
 ): int
 {
+    if ($db instanceof AuditedPDO && !$db->isAutomaticAuditSuppressed()) {
+        return $db->withExplicitAudit(static fn() => queueRentalCheckinEmails($db, $today, $companyId));
+    }
     $today = $today ?: date('Y-m-d');
     $companyScope = $companyId === null ? '' : ' AND rs.company_id = ?';
     $find = $db->prepare("
@@ -70,6 +74,8 @@ function queueRentalCheckinEmails(
     foreach ($rentals as $rental) {
         $db->beginTransaction();
         try {
+            $auditActor = tenantAuditSystemActor($db, (string) $rental['company_id'], 'rental_checkin');
+            $auditCorrelation = tenantAuditId();
             $lock = $db->prepare(
                 "SELECT rental_object_id FROM rental_schedule
                  WHERE id = ? AND company_id = ?
@@ -141,6 +147,10 @@ function queueRentalCheckinEmails(
                         'E-postmalen «innsjekk utleie» kunne ikke opprettes.'
                     );
                 }
+                tenantAuditRecord($db, (string) $rental['company_id'], 'email', 'email.template.bootstrap',
+                    'email_templates', (string) $tpl['id'], 'innsjekk utleie', [],
+                    $tpl + ['name' => 'innsjekk utleie','template_key' => 'rental_checkin','is_active' => 1],
+                    'success', ['correlation_id' => $auditCorrelation], $auditActor);
             }
             $vars = buildRentalConfirmationVariables($rental);
             $subject = renderRentalConfirmationTemplate($tpl['subject_template'], $vars);
@@ -156,6 +166,20 @@ function queueRentalCheckinEmails(
                 $rental['company_id'], $recipient, $cfg['email'], $subject, $body,
                 $tpl['id'], $rental['id'], $key,
             ]);
+            $queueIdQuery = $db->prepare('SELECT id FROM email_queue WHERE company_id = ? AND idempotency_key = ? LIMIT 1');
+            $queueIdQuery->execute([$rental['company_id'], $key]);
+            $auditQueueId = (string) $queueIdQuery->fetchColumn();
+            if ($auditQueueId === '') throw new TenantAuditException('Innsjekk-køens identitet kunne ikke bekreftes.');
+            tenantAuditRecord($db, (string) $rental['company_id'], 'email', 'email.queued', 'email_queue',
+                $auditQueueId, 'Automatisk innsjekk utleie', [],
+                ['id' => $auditQueueId, 'template_id' => $tpl['id'], 'status' => 'queued',
+                    'module_source' => 'rental_checkin', 'source_id' => $rental['id']],
+                'success', [
+                    'queue_id' => $auditQueueId, 'template_id' => $tpl['id'], 'source_id' => $rental['id'],
+                    'source_module' => 'rental_checkin', 'correlation_id' => $auditCorrelation,
+                    'template_body_sha256' => hash('sha256', (string) $tpl['body_template']),
+                    'template_subject_sha256' => hash('sha256', (string) $tpl['subject_template']),
+                ], $auditActor);
             $db->prepare(
                 "UPDATE rental_schedule
                  SET key_box_code = ?, checkin_email_queued_at = NOW()

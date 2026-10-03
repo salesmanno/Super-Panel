@@ -28,7 +28,7 @@ mkdir -p "$TEMP_ROOT/data" "$TEMP_ROOT/sessions"
     --innodb-buffer-pool-size=64M >"$TEMP_ROOT/mysql.stdout" 2>&1 &
 SERVER_PID=$!
 ready=0
-for _ in $(seq 1 100); do
+for _ in $(seq 1 600); do
     if [[ -S "$TEMP_ROOT/mysql.sock" ]] && php -r '
         try { new PDO("mysql:unix_socket=".$argv[1], "root", ""); exit(0); }
         catch (Throwable $e) { exit(1); }
@@ -45,6 +45,12 @@ if [[ "$ready" != 1 ]]; then
 fi
 if [[ "${1:-}" == "--email" ]]; then
     php "$ROOT/tests/rental_confirmation_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
+elif [[ "${1:-}" == "--audit" ]]; then
+    php "$ROOT/tests/tenant_audit_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
+elif [[ "${1:-}" == "--audit-all" ]]; then
+    php "$ROOT/tests/tenant_audit_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
+    php "$ROOT/tests/rental_confirmation_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
+    php "$ROOT/tests/event_payment_audit_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ -z "${1:-}" ]]; then
     php "$ROOT/tests/rental_unavailable_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
 else

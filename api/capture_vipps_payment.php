@@ -56,7 +56,7 @@ function getVippsAccessToken($config, $baseUrl) {
     return null;
 }
 
-function captureVippsPayment($orderId, $amount, $accessToken, $subscriptionKey, $msn, $baseUrl) {
+function captureVippsPayment($orderId, $amount, $accessToken, $subscriptionKey, $msn, $baseUrl, $idempotencyKey = null) {
     $captureUrl = $baseUrl . '/epayment/v1/payments/' . urlencode($orderId) . '/capture';
     
     $headers = [
@@ -64,7 +64,7 @@ function captureVippsPayment($orderId, $amount, $accessToken, $subscriptionKey, 
         'Authorization: Bearer ' . $accessToken,
         'Ocp-Apim-Subscription-Key: ' . $subscriptionKey,
         'Merchant-Serial-Number: ' . $msn,
-        'Idempotency-Key: ' . uniqid('cap_', true),
+        'Idempotency-Key: ' . ($idempotencyKey ?? 'cap_' . substr(hash('sha256', $orderId . '|' . (string) $amount), 0, 32)),
         'Vipps-System-Name: SalesmanSuperportal',
         'Vipps-System-Version: 1.0.0'
     ];
@@ -97,6 +97,7 @@ function captureVippsPayment($orderId, $amount, $accessToken, $subscriptionKey, 
     ];
 }
 
+$captureAccepted = false;
 try {
     $db = getDBConnection();
     
@@ -119,12 +120,16 @@ try {
         exit;
     }
     
+    $db->beginTransaction();
     $stmt = $db->prepare("
         SELECT 
             ec.id,
+            ec.event_id,
             ec.registration_id,
             ec.payment_reference,
             ec.payment_state,
+            ec.payment_status,
+            ec.payment_method,
             ec.ticket_price,
             c.first_name,
             c.last_name
@@ -132,6 +137,7 @@ try {
         INNER JOIN events_eventdata e ON ec.event_id = e.id AND e.company_id = ?
         INNER JOIN tenant_customers c ON ec.customer_id = c.id
         WHERE ec.id = ? AND ec.payment_method = 'vipps'
+        FOR UPDATE
     ");
     $stmt->execute([$company_id, $checkin_id]);
     $checkin = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -170,26 +176,50 @@ try {
         exit;
     }
     
+    // Validate the actual actor and audit INSERT before the irreversible external charge.
+    $captureActor = tenantAuditActor($db, (string) $company_id);
+    $captureIntent = tenantAuditRecord($db, (string) $company_id, 'events', 'events.payment.capture_requested',
+        'events_checkin', (string) $checkin['id'], 'Vipps arrangement', [], $checkin,
+        'success', [], $captureActor);
+    $updateStmt = $db->prepare("
+        UPDATE events_checkin
+        SET payment_state = 'captured', payment_status = 'paid',
+            payment_checked_at = NOW(), updated_at = NOW()
+        WHERE id = ? AND EXISTS (
+            SELECT 1 FROM events_eventdata e WHERE e.id = events_checkin.event_id AND e.company_id = ?
+        )
+    ");
     $captureResult = captureVippsPayment(
         $orderId, 
         $amount, 
         $accessToken, 
         $vippsConfig['subscription_key'],
         $vippsConfig['merchant_serial_number'],
-        $baseUrl
+        $baseUrl,
+        'cap_' . substr(hash('sha256', $company_id . '|' . $checkin['id'] . '|' . $orderId), 0, 32)
     );
     
     if ($captureResult['success']) {
-        $updateStmt = $db->prepare("
-            UPDATE events_checkin ec
-            INNER JOIN events_eventdata e ON ec.event_id = e.id AND e.company_id = ?
-            SET ec.payment_state = 'captured',
-                ec.payment_status = 'paid',
-                ec.payment_checked_at = NOW(),
-                ec.updated_at = NOW()
-            WHERE ec.id = ?
-        ");
-        $updateStmt->execute([$company_id, $checkin_id]);
+        $captureAccepted = true;
+        // Once charged, an audit outage must not roll payment state back to pending.
+        $persist = static fn() => $updateStmt->execute([$checkin_id, $company_id]);
+        if ($db instanceof AuditedPDO) $db->withExplicitAudit($persist);
+        else $persist();
+        if ($updateStmt->rowCount() !== 1) throw new RuntimeException('Lokal betalingsstatus kunne ikke bekreftes.');
+        $db->commit(); // The verified request intent and captured state persist together.
+        $auditConfirmed = false;
+        try {
+            $db->beginTransaction();
+            tenantAuditChange($db, (string) $company_id, 'events', 'events.payment.captured',
+                'events_checkin', (string) $checkin['id'], 'Vipps arrangement', $checkin,
+                array_replace($checkin, ['payment_state' => 'captured','payment_status' => 'paid']),
+                ['initiator_audit_id' => $captureIntent], $captureActor);
+            $db->commit();
+            $auditConfirmed = true;
+        } catch (Throwable $auditError) {
+            if ($db->inTransaction()) $db->rollBack();
+            error_log('CRITICAL: Vipps capture persisted but final audit unavailable; checkin_ref=' . $checkin['id']);
+        }
         
         $customerName = trim($checkin['first_name'] . ' ' . $checkin['last_name']);
         
@@ -197,9 +227,13 @@ try {
             'success' => true,
             'message' => "Betaling fanget for {$customerName}",
             'amount' => $amount,
-            'customer_name' => $customerName
+            'customer_name' => $customerName,
+            'audit_confirmed' => $auditConfirmed
         ]);
     } else {
+        $db->rollBack();
+        tenantAuditFailure($db, (string) $company_id, 'events', 'events.payment.capture',
+            'events_checkin', (string) $checkin['id'], 'Vipps arrangement', 'failed', $captureActor);
         $errorMsg = 'Kunne ikke fange betalingen';
         if ($captureResult['response']) {
             $responseData = json_decode($captureResult['response'], true);
@@ -219,6 +253,10 @@ try {
     }
     
 } catch (Exception $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Serverfeil: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'external_capture_accepted' => $captureAccepted,
+        'message' => $captureAccepted
+            ? 'Vipps har akseptert belastningen, men lokal lagring er uavklart. Kontroller betalingen før et nytt forsøk.'
+            : 'Serverfeil ved behandling av betalingen.']);
 }

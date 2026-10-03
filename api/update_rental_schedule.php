@@ -13,6 +13,7 @@ require_once __DIR__ . '/../includes/request_date_time.php';
 require_once __DIR__ . '/../includes/rental_confirmation_email.php';
 require_once __DIR__ . '/../includes/rental_schedule_editing.php';
 require_once __DIR__ . '/../includes/rental_request.php';
+require_once __DIR__ . '/../includes/tenant_audit.php';
 
 $companyId = $_SESSION['company_id'];
 $data = json_decode(file_get_contents('php://input'), true);
@@ -26,6 +27,10 @@ if (empty($data['id'])) {
 try {
     $db = getDBConnection();
     $db->beginTransaction();
+    $auditActor = tenantAuditActor($db, $companyId);
+    $auditCorrelation = tenantAuditId();
+    $auditAction = ($data['status'] ?? '') === 'approved' ? 'rental.approve'
+        : (($data['status'] ?? '') === 'rejected' ? 'rental.reject' : 'rental.request.update');
 
     $concurrencyTestToken = getenv('RENTAL_CONCURRENCY_TEST_TOKEN') ?: '';
     $isConcurrencyTestRequest = getenv('RUN_RENTAL_CONCURRENCY_TEST') === '1'
@@ -89,10 +94,13 @@ try {
 
     if (!$row) {
         $db->rollBack();
+        tenantAuditRecord($db, $companyId, 'rental', $auditAction, 'rental_schedule', (string) $data['id'],
+            'Forespørsel ikke tilgjengelig', [], [], 'denied', ['correlation_id' => $auditCorrelation], $auditActor);
         http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Forespørsel ikke funnet']);
         exit;
     }
+    $auditBefore = $row;
 
     if ($concurrencyTestRole === 'holder') {
         $holderPath = getenv('RENTAL_CONCURRENCY_HOLDER_PATH') ?: '';
@@ -116,6 +124,9 @@ try {
         http_response_code(409);
         $alreadyApproved = (string) ($row['status'] ?? '') === 'approved'
             && ($data['status'] ?? null) === 'approved';
+        tenantAuditRecord($db, $companyId, 'rental', $auditAction, 'rental_schedule', (string) $row['id'],
+            (string) ($row['object_name'] ?? 'Utleieforespørsel'), [], [],
+            $alreadyApproved ? 'noop' : 'denied', ['correlation_id' => $auditCorrelation], $auditActor);
         echo json_encode([
             'success' => false,
             'already_approved' => $alreadyApproved,
@@ -341,6 +352,8 @@ try {
 
     if (empty($updateFields)) {
         $db->rollBack();
+        tenantAuditRecord($db, $companyId, 'rental', $auditAction, 'rental_schedule', (string) $row['id'],
+            (string) ($row['object_name'] ?? 'Utleieforespørsel'), [], [], 'noop', [], $auditActor);
         echo json_encode([
             'success' => true,
             'message' => 'Ingen endringer',
@@ -348,6 +361,26 @@ try {
             'approved' => (int) ($row['approved'] ?? 0),
             'email_queued' => false
         ]);
+        exit;
+    }
+
+    $actualChange = false;
+    foreach ($updateFields as $field) {
+        $key = trim(explode('=', $field, 2)[0]);
+        $oldValue = $auditBefore[$key] ?? null;
+        $newValue = $row[$key] ?? null;
+        $equal = ($oldValue === null || $newValue === null)
+            ? $oldValue === $newValue
+            : (is_numeric($oldValue) && is_numeric($newValue)
+                ? (float) $oldValue === (float) $newValue : (string) $oldValue === (string) $newValue);
+        if (!$equal) $actualChange = true;
+    }
+    if (!$actualChange) {
+        $db->rollBack();
+        tenantAuditRecord($db, $companyId, 'rental', $auditAction, 'rental_schedule', (string) $row['id'],
+            (string) ($row['object_name'] ?? 'Utleieforespørsel'), [], [], 'noop', [], $auditActor);
+        echo json_encode(['success' => true, 'message' => 'Ingen endringer', 'status' => $newStatus,
+            'approved' => (int) ($row['approved'] ?? 0), 'email_queued' => false, 'rental_fee' => (float) $row['rental_fee']]);
         exit;
     }
 
@@ -366,6 +399,8 @@ try {
 
     // Auto-email on either final rental decision.
     $emailQueued = false;
+    $emailQueueId = null;
+    $emailTemplateId = null;
     if ($finalizingNow) {
         $cfgStmt = $db->prepare("
             SELECT email, display_name, automail_rental_confirm
@@ -409,15 +444,25 @@ try {
             $scheduledAtSql = $isConcurrencyTestRequest
                 ? 'DATE_ADD(NOW(), INTERVAL 1 DAY)'
                 : 'NOW()';
+            $emailQueueId = (string) $db->query('SELECT UUID()')->fetchColumn();
+            $emailTemplateId = (string) $tpl['id'];
+            $templateAuditLinks = ['queue_id' => $emailQueueId, 'template_id' => $emailTemplateId,
+                'source_id' => (string) $row['id'], 'correlation_id' => $auditCorrelation,
+                'template_body_sha256' => hash('sha256', (string) $tpl['body_template']),
+                'template_subject_sha256' => hash('sha256', (string) $tpl['subject_template'])];
+            $decisionAuditId = tenantAuditChange($db, $companyId, 'rental', $auditAction, 'rental_schedule',
+                (string) $row['id'], (string) ($row['object_name'] ?? 'Utleieforespørsel'), $auditBefore, $row,
+                $templateAuditLinks, $auditActor);
             $db->prepare("
                 INSERT INTO email_queue
                     (id, company_id, recipient_email, from_email, subject, body,
                      template_id, module_source, source_id, status, priority,
                      scheduled_at, created_at, updated_at)
                 VALUES
-                    (UUID(), ?, ?, ?, ?, ?, ?, 'rental', ?, 'queued', 5,
+                     (?, ?, ?, ?, ?, ?, ?, 'rental', ?, 'queued', 5,
                      {$scheduledAtSql}, NOW(), NOW())
             ")->execute([
+                $emailQueueId,
                 $companyId,
                 $row['customer_email'],
                 $cfg['email'],
@@ -428,7 +473,18 @@ try {
             ]);
 
             $emailQueued = true;
+            tenantAuditRecord($db, $companyId, 'email', 'email.queued', 'email_queue',
+                $emailQueueId, 'Utleiebekreftelse', [],
+                ['id' => $emailQueueId, 'template_id' => $emailTemplateId, 'module_source' => 'rental',
+                    'source_id' => (string) $row['id'], 'status' => 'queued'],
+                'success', $templateAuditLinks + ['initiator_audit_id' => $decisionAuditId], $auditActor);
         }
+    }
+
+    if (!isset($decisionAuditId)) {
+        tenantAuditChange($db, $companyId, 'rental', $auditAction, 'rental_schedule', (string) $row['id'],
+            (string) ($row['object_name'] ?? 'Utleieforespørsel'), $auditBefore, $row,
+            ['source_id' => (string) $row['id'], 'correlation_id' => $auditCorrelation], $auditActor);
     }
 
     $db->commit();
@@ -445,20 +501,28 @@ try {
 
 } catch (RentalRequestConflictException $e) {
     if (isset($db) && $db->inTransaction()) $db->rollBack();
+    if (isset($db, $auditActor)) tenantAuditFailure($db, $companyId, 'rental', $auditAction, 'rental_schedule',
+        (string) $data['id'], 'Utleieforespørsel', 'denied', $auditActor);
     http_response_code(409);
     echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 } catch (InvalidArgumentException $e) {
     if (isset($db) && $db->inTransaction()) $db->rollBack();
+    if (isset($db, $auditActor)) tenantAuditFailure($db, $companyId, 'rental', $auditAction, 'rental_schedule',
+        (string) $data['id'], 'Utleieforespørsel', 'denied', $auditActor);
     error_log('update_rental_schedule validation error: ' . $e->getMessage());
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 } catch (RentalConfirmationEmailException $e) {
     if (isset($db) && $db->inTransaction()) $db->rollBack();
+    if (isset($db, $auditActor)) tenantAuditFailure($db, $companyId, 'rental', $auditAction, 'rental_schedule',
+        (string) $data['id'], 'Utleieforespørsel', 'failed', $auditActor);
     error_log('rental automail validation error: ' . $e->getMessage());
     http_response_code(422);
     echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 } catch (\Throwable $e) {
     if (isset($db) && $db->inTransaction()) $db->rollBack();
+    if (isset($db, $auditActor)) tenantAuditFailure($db, $companyId, 'rental', $auditAction, 'rental_schedule',
+        (string) $data['id'], 'Utleieforespørsel', 'failed', $auditActor);
     error_log('update_rental_schedule error: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Feil ved oppdatering. Prøv igjen.']);

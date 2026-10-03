@@ -69,7 +69,11 @@ class EmailService {
                 'subject' => $subject,
                 'body' => $body,
                 'priority' => $params['priority'] ?? 5,
-                'scheduled_at' => $params['scheduled_at'] ?? date('Y-m-d H:i:s')
+                'scheduled_at' => $params['scheduled_at'] ?? date('Y-m-d H:i:s'),
+                'audit_links' => [
+                    'template_body_sha256' => hash('sha256', (string) $template['body_template']),
+                    'template_subject_sha256' => hash('sha256', (string) $template['subject_template']),
+                ]
             ]);
             
             return [
@@ -376,7 +380,7 @@ class EmailService {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, NOW(), NOW())
         ");
         
-        $stmt->execute([
+        $arguments = [
             $queueId,
             $this->companyId,
             $params['recipient_email'],
@@ -388,7 +392,12 @@ class EmailService {
             $params['source_id'],
             $params['priority'],
             $params['scheduled_at']
-        ]);
+        ];
+        if ($this->db instanceof AuditedPDO) {
+            $this->db->withAuditLinks($params['audit_links'] ?? [], static fn() => $stmt->execute($arguments));
+        } else {
+            $stmt->execute($arguments);
+        }
         
         return $queueId;
     }
