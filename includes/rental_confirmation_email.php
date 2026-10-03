@@ -259,3 +259,29 @@ function renderRentalConfirmationTemplate(string $template, array $variables): s
 
     return replaceKnownEmailTemplateTags($template, $variables);
 }
+
+function renderRentalConfirmationBody(string $template, array $variables): string {
+    // Inspect the authoritative template, never customer data or an inactive-only output.
+    if (preg_match('/<\s+\/?\s*table\b[^>]*\b(?:role|width|cellpadding|cellspacing)\s*=/i', $template)
+        || preg_match('/&(?:amp;)*lt;\s*\/?\s*table\b[^<>]*\b(?:role|width|cellpadding|cellspacing)\s*=/i', $template)) {
+        throw new RentalConfirmationEmailException(
+            'E-postmalen inneholder tabellkode som vil vises som tekst. '
+            . 'Kontroller tabelltaggene i utleiebekreftelsen før du prøver igjen. '
+            . 'En HTML-tabell skal begynne med <table uten mellomrom etter <.'
+        );
+    }
+    validateRentalConditionalBlocks($template, $variables);
+    $template = renderRentalConditionalBlocks($template, $variables);
+    if (array_key_exists('cleaning', $variables)) {
+        $variables['cleaning'] = $variables['cleaning_label']
+            ?? ((int) $variables['cleaning'] === 1 ? 'Ja' : 'Nei');
+    }
+    // Tags are text/attribute values. Stored template HTML itself is left untouched.
+    $safeVariables = array_map(
+        static fn($value): string => htmlspecialchars(
+            (string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'
+        ),
+        $variables
+    );
+    return replaceKnownEmailTemplateTags($template, $safeVariables);
+}

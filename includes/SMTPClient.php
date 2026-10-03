@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/smtp_message.php';
 class SMTPClient {
     private $socket;
     private $host;
@@ -74,19 +75,9 @@ class SMTPClient {
             $this->sendCommand("DATA", 354);
             
             $msgId = '<' . uniqid('', true) . '@salesman.no>';
-            $headers = "From: =?UTF-8?B?" . base64_encode($fromName) . "?= <$from>\r\n";
-            $headers .= "To: $to\r\n";
-            $headers .= "Subject: =?UTF-8?B?" . base64_encode($subject) . "?=\r\n";
-            $headers .= "Message-ID: $msgId\r\n";
-            $headers .= "MIME-Version: 1.0\r\n";
-            $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-            $headers .= "Date: " . date('r') . "\r\n";
-            $headers .= "X-Mailer: Salesman.no Mailer\r\n";
-            $headers .= "\r\n";
-
-            $safeBody = preg_replace('/^\./m', '..', $body) ?? $body;
-            $message = $headers . $safeBody . "\r\n.";
-            $acceptanceResponse = $this->sendCommand($message, 250);
+            $message = buildSmtpHtmlMessage($from, $fromName, $to, $subject, $body, $msgId);
+            // Base64 cannot start a line with '.', so no body dot-stuffing is needed.
+            $acceptanceResponse = $this->sendCommand($message . '.', 250);
             
             $this->sendCommand("QUIT", 221);
             

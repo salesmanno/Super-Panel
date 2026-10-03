@@ -404,7 +404,7 @@ try {
 
             $vars = buildRentalConfirmationVariables($row);
             $subject = renderRentalConfirmationTemplate($tpl['subject_template'], $vars);
-            $body = renderRentalConfirmationTemplate($tpl['body_template'], $vars);
+            $body = renderRentalConfirmationBody($tpl['body_template'], $vars);
 
             $scheduledAtSql = $isConcurrencyTestRequest
                 ? 'DATE_ADD(NOW(), INTERVAL 1 DAY)'

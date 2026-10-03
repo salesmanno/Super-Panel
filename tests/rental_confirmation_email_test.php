@@ -240,7 +240,7 @@ rental_email_check(
     )
         && str_contains(
             $endpoint,
-            "renderRentalConfirmationTemplate(\$tpl['body_template'], \$vars)"
+            "renderRentalConfirmationBody(\$tpl['body_template'], \$vars)"
         )
         && !str_contains($endpoint, 'resolveRentalDecisionTemplates'),
     'decision email renders the stored subject and body directly'

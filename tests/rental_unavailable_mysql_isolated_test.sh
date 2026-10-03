@@ -43,4 +43,11 @@ if [[ "$ready" != 1 ]]; then
     cat "$TEMP_ROOT/mysql.log" >&2
     exit 1
 fi
-php "$ROOT/tests/rental_unavailable_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
+if [[ "${1:-}" == "--email" ]]; then
+    php "$ROOT/tests/rental_confirmation_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
+elif [[ -z "${1:-}" ]]; then
+    php "$ROOT/tests/rental_unavailable_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
+else
+    echo "Unknown isolated test option" >&2
+    exit 2
+fi
