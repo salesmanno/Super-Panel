@@ -7,3 +7,4 @@
 - [Historikk for avstenginger](rental-closure-history.md) — automatisk opprydding gjelder aktive oversikter, ikke permanent sletting av tidligere avstenginger.
 - [Audit og e-postproveniens](audit-provenance.md) — bruk registrert initiativ og faktisk renderet malversjon; ikke rekonstruer fortiden fra dagens data.
 - [Isolerte transporttester](isolated-transport-tests.md) — ikke fork SMTP-/HTTP-fixtures fra en prosess med levende PDO-forbindelse.
+- [Felles skjemafelt](shared-form-fields.md) — brukeren vil samle feltdefinisjoner og dele redigering i grunnopplysninger og skjemafelt.
