@@ -46,6 +46,27 @@ i den felles tabellen hoppes over, slik at senere feltredigering ikke overskrive
 Gamle definisjonstabeller beholdes; de brukes kun til lesing i overgangsperioden.
 Ingen overføring skjer automatisk ved oppstart eller sidevisning.
 
+## Opprettelse uten samlet overføring
+
+Feltene kan opprettes og lagres under «Skjemafelt» i den respektive modulen,
+ett arrangement eller utleieobjekt om gangen. Dette lagrer til felles tabell
+og markerer oppsettet som konfigurert, uten å overføre andre ressurser.
+
+Ved direkte redigering i `dynamic_form_fields` må alle rader ha riktig
+`company_id`, `entity_type` og `entity_id`. Bruk `event` for arrangement og
+`rental_object` for utleieobjekt. Kontroller at `options` og `validation_rules`
+inneholder gyldig JSON og støttede verdier.
+
+For en ressurs som fortsatt har gamle feltdefinisjoner, må det også finnes
+en intern rad med samme tilknytning og `field_name = '__configured'`,
+`field_label = 'Skjema konfigurert'`, `field_type = 'hidden'`,
+`is_visible = 0`, `is_required = 0`, `sort_order = 10000`,
+`default_value = NULL`, `options = '[]'` og `validation_rules = '[]'`.
+Raden trenger sin egen unike ID som øvrige rader.
+Uten denne markeringen brukes det gamle aktive feltoppsettet fortsatt i
+overgangsperioden, selv om det er lagt til rader i felles tabell.
+Markeringen opprettes automatisk ved lagring gjennom modulens feltredigering.
+
 ## Verifisering
 
 ```sh
