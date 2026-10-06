@@ -12,6 +12,7 @@ require_once __DIR__ . '/../includes/ProductCatalogService.php';
 require_once __DIR__ . '/../includes/request_date_time.php';
 require_once __DIR__ . '/../includes/event_image_url.php';
 require_once __DIR__ . '/../includes/entity_form_fields.php';
+require_once __DIR__ . '/../includes/event_settings.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -51,52 +52,19 @@ try {
     
     try {
         // Verify event exists and belongs to this company
-        $stmt = $db->prepare("SELECT id FROM events_eventdata WHERE id = ? AND company_id = ?");
+        $stmt = $db->prepare("SELECT * FROM events_eventdata WHERE id = ? AND company_id = ? FOR UPDATE");
         $stmt->execute([$data['event_id'], $_SESSION['company_id']]);
-        if (!$stmt->fetch()) {
+        $existingEvent = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$existingEvent) {
             throw new Exception('Arrangement ikke funnet');
         }
         
-        // Validate registration_type and payment_timing
-        // If payment_timing_methods is not provided, fetch existing data to avoid breaking edits
-        $registrationType = $data['registration_type'] ?? null;
-        $paymentTiming = null;
-        
-        if (isset($data['payment_timing_methods']) && is_array($data['payment_timing_methods'])) {
-            // New flow: calculate from provided data
-            $hasEconomyPayment = false;
-            foreach ($data['payment_timing_methods'] as $method) {
-                if ($method !== 'on_arrival') {
-                    $hasEconomyPayment = true;
-                    break;
-                }
-            }
-            
-            $paymentTiming = $hasEconomyPayment ? 'both' : 'on_arrival';
-            
-            // Validate binding type requires payment method
-            if ($registrationType === 'binding' && !$hasEconomyPayment) {
-                throw new Exception('Bindende arrangement krever at minst én betalingsmetode fra economy er valgt');
-            }
-        } else {
-            // Legacy flow: fetch existing values from database
-            $stmt = $db->prepare("SELECT registration_type, payment_timing FROM events_eventdata WHERE id = ? AND company_id = ?");
-            $stmt->execute([$data['event_id'], $_SESSION['company_id']]);
-            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if ($existing) {
-                $registrationType = $registrationType ?? $existing['registration_type'] ?? 'signup';
-                $paymentTiming = $existing['payment_timing'] ?? 'on_arrival';
-            } else {
-                $registrationType = $registrationType ?? 'signup';
-                $paymentTiming = 'on_arrival';
-            }
-        }
+        $settings = eventSettings($db, (string)$_SESSION['company_id'], $data, $existingEvent);
+        $registrationType = $settings['registration_type'];
         
         // ENFORCE: "Ingen påmelding" must be free (no pricing, no participant limits)
         if ($registrationType === 'none') {
             $data['ticket_price'] = 0;
-            $data['ticket_price'] = null;
             $data['max_attendees'] = null;
             $data['min_attendees'] = null;
             $data['registration_deadline'] = null;
@@ -106,16 +74,11 @@ try {
             $stmt->execute([$data['event_id']]);
         }
         
-        // Prepare payment methods array for update
-        // Payment methods are controlled by Economy module configuration
-        $paymentMethodsJson = null;
-        if (isset($data['allowed_payment_methods']) && is_array($data['allowed_payment_methods']) && count($data['allowed_payment_methods']) > 0) {
-            $paymentMethodsArray = $data['allowed_payment_methods'];
-            $paymentMethodsJson = json_encode($paymentMethodsArray);
-        }
-        
-        // Update the event in events_eventdata
-        $memberverification = (isset($data['memberverification']) && $data['memberverification']) ? 1 : 0;
+        $paymentTiming = $settings['payment_timing'];
+        $paymentMethodsJson = $settings['payment_methods_json'];
+        $memberverification = $settings['memberverification'];
+        $data['is_member_exclusive'] = $settings['is_member_exclusive'];
+        $data['default_payment_method'] = $settings['default_payment_method'];
         
         $stmt = $db->prepare("
             UPDATE events_eventdata SET

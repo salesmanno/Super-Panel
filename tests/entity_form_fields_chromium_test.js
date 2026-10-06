@@ -149,6 +149,15 @@ const checks = `(async()=>{
  const emptyRental=mount(document.getElementById('rental-empty'),{entityType:'rental_object',entityId:'rental-empty'});
  await emptyRental.refresh();
  check(emptyRental.getFields().length===0&&document.querySelector('#rental-empty [data-fields-list]').textContent.includes('Ingen ekstra felt'),'empty rental setup renders intentionally');
+ const emailQuick=document.querySelector('#rental-empty [data-common-field="email"]');
+ check(emailQuick&&!emailQuick.checked,'Rental offers an unchecked standard contact field without manual configuration');
+ emailQuick.click();
+ check(emptyRental.getFields()[0].field_name==='email'&&emptyRental.getFields()[0].field_type==='email','Quick selection uses the canonical shared email field');
+ check(document.querySelector('#rental-empty details')&&!document.querySelector('#rental-empty details').open,'Advanced rental settings start collapsed');
+ document.querySelector('#rental-empty [data-save]').click();await pause();
+ check(window.fixtureSaveResults.at(-1).fields[0].field_name==='email','Quick selection saves through the same entity-scoped field endpoint');
+ document.querySelector('#rental-empty [data-common-field="email"]').click();
+ check(!emptyRental.getFields()[0].is_visible&&!document.querySelector('#rental-empty [data-fields-list] .entity-field-row'),'Unchecking a standard rental field hides it while retaining its definition');
  const noneEvent=mount(document.getElementById('event-none'),{entityType:'event',entityId:'event-none'});
  await noneEvent.refresh();
  check(noneEvent.getFields().length===0&&!document.querySelector('#event-none [data-add]').disabled===false,'no-registration event starts empty');

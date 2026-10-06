@@ -9,3 +9,4 @@
 - [Isolerte transporttester](isolated-transport-tests.md) — ikke fork SMTP-/HTTP-fixtures fra en prosess med levende PDO-forbindelse.
 - [Felles skjemafelt](shared-form-fields.md) — brukeren vil samle feltdefinisjoner og dele redigering i grunnopplysninger og skjemafelt.
 - [Utleiefelter og varsler](rental-fields-and-notifications.md) — markedspris er ikke nødvendig ved lokaleopprettelse; varsler skal beskrive konkrete hendelser.
+- [Arrangementsbetaling og medlemskrav](event-registration-policy.md) — bindende arrangementer skal ikke tillate kontantbetaling; medlemsvalg må bestå ved grunnopplysningsredigering.

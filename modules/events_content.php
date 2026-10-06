@@ -2342,6 +2342,7 @@ try {
 
 <script src="/assets/event_form_helpers.js"></script>
 <script src="/assets/entity-form-fields.js"></script>
+<script src="/assets/event-settings.js"></script>
 <script>
 const norskMnd = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des'];
 const norskMndLang = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
@@ -2559,7 +2560,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const formData = new FormData(this);
             
             // Get registration_type directly from radio buttons (more reliable than FormData)
-            const selectedRegType = document.querySelector('input[name="registration_type"]:checked');
+            const selectedRegType = this.querySelector('input[name="registration_type"]:checked');
             const registrationType = selectedRegType ? selectedRegType.value : 'signup';
             if (!eventCreateFieldsEditor?.isReady()) {
                 toast.quickWarning('Skjemafelt', 'Vent til standardfeltene er lastet, eller prøv å laste dem på nytt.');
@@ -2618,10 +2619,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             // Collect allowed payment methods from Economy configuration
-            const allowedPaymentMethods = [];
-            document.querySelectorAll('#payment-methods-container input[type="checkbox"]:checked').forEach(checkbox => {
-                allowedPaymentMethods.push(checkbox.dataset.methodType);
-            });
+            let allowedPaymentMethods;
+            try { allowedPaymentMethods = EventSettings.paymentMethods(this,'#payment-methods-container input[type="checkbox"]',registrationType); }
+            catch(error) { toast.quickWarning('Betaling',error.message); return; }
             
             // Build payment timing methods array: always has 'arrival', plus economy methods if any selected
             const paymentTimingMethods = ['arrival'];
@@ -2633,7 +2633,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Get selected default payment method
             const defaultPaymentMethodSelect = document.getElementById('default-payment-method');
-            const defaultPaymentMethod = defaultPaymentMethodSelect ? defaultPaymentMethodSelect.value : (allowedPaymentMethods[0] || 'cash');
+            const defaultPaymentMethod = allowedPaymentMethods.includes(defaultPaymentMethodSelect?.value)
+                ? defaultPaymentMethodSelect.value : allowedPaymentMethods[0] || null;
             
             const data = {
                 title: formData.get('title'),
@@ -2652,8 +2653,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 age_limit: formData.get('age_limit') || null,
                 ticket_price: registrationType === 'none' ? 0 : (formData.get('ticket_price') || 0),
                 event_image_url: formData.get('event_image_url') || null,
-                is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
-                memberverification: formData.get('memberverification') ? 1 : 0,
+                ...EventSettings.membership(this),
                 registration_type: registrationType,
                 payment_timing_methods: paymentTimingMethods,
                 membership_pricing: membershipPricing,
@@ -4551,7 +4551,8 @@ async function editEvent(eventId) {
         
         // Set registration type radio button
         const registrationType = event.registration_type || 'signup';
-        const registrationRadio = document.querySelector(`input[name="registration_type"][value="${registrationType}"]`);
+        document.getElementById('edit-event-form').dataset.registrationType = registrationType;
+        const registrationRadio = document.querySelector(`#edit-event-form input[name="registration_type"][value="${registrationType}"]`);
         if (registrationRadio) {
             registrationRadio.checked = true;
         }
@@ -4711,10 +4712,10 @@ async function saveEventChanges() {
     }
     
     // Collect allowed payment methods from Economy configuration
-    const allowedPaymentMethods = [];
-    document.querySelectorAll('#edit-payment-methods-container input[type="checkbox"]:checked').forEach(checkbox => {
-        allowedPaymentMethods.push(checkbox.dataset.methodType);
-    });
+    const registrationType = EventSettings.registrationType(form);
+    let allowedPaymentMethods;
+    try { allowedPaymentMethods = EventSettings.paymentMethods(form,'#edit-payment-methods-container input[type="checkbox"]',registrationType); }
+    catch(error) { toast.quickWarning('Betaling',error.message); return; }
     
     // Build payment timing methods array: always has 'arrival', plus economy methods if any selected
     const paymentTimingMethods = ['arrival'];
@@ -4726,13 +4727,14 @@ async function saveEventChanges() {
     
     // Get selected default payment method from dropdown
     const editDefaultPaymentMethodSelect = document.getElementById('edit-default-payment-method');
-    const defaultPaymentMethod = editDefaultPaymentMethodSelect ? editDefaultPaymentMethodSelect.value : (allowedPaymentMethods[0] || 'cash');
+    const defaultPaymentMethod = allowedPaymentMethods.includes(editDefaultPaymentMethodSelect?.value)
+        ? editDefaultPaymentMethodSelect.value : allowedPaymentMethods[0] || null;
     
     const data = {
         event_id: formData.get('event_id'),
         title: formData.get('title'),
         description: formData.get('description'),
-        registration_type: formData.get('registration_type') || 'signup',
+        registration_type: registrationType,
         start_date: startDate,
         start_time: formData.get('start_time'),
         end_date: formData.get('end_date') || null,
@@ -4748,8 +4750,7 @@ async function saveEventChanges() {
         ticket_price: formData.get('ticket_price') || 0,
         event_image_url: formData.get('event_image_url') || null,
         default_payment_method: defaultPaymentMethod,
-        is_member_exclusive: formData.get('is_member_exclusive') ? 1 : 0,
-        memberverification: formData.get('memberverification') ? 1 : 0,
+        ...EventSettings.membership(form),
         allowed_payment_methods: allowedPaymentMethods,
         payment_timing_methods: paymentTimingMethods,
         csrf_token: eventCsrfToken
@@ -5033,6 +5034,9 @@ async function loadPaymentMethodsForCreate() {
     try {
         const response = await fetch('/api/get_payment_methods.php');
         const result = await response.json();
+        if (EventSettings.registrationType(document.getElementById('create-event-form')) === 'binding' && result.payment_methods) {
+            result.payment_methods = result.payment_methods.filter(method => method.method_type !== 'cash');
+        }
         
         if (result.success && result.payment_methods && result.payment_methods.length > 0) {
             paymentMethodsData = result.payment_methods;
@@ -5151,6 +5155,9 @@ async function loadPaymentMethodsForEdit(selectedMethods = [], defaultMethod = n
     try {
         const response = await fetch('/api/get_payment_methods.php');
         const result = await response.json();
+        if (EventSettings.registrationType(document.getElementById('edit-event-form')) === 'binding' && result.payment_methods) {
+            result.payment_methods = result.payment_methods.filter(method => method.method_type !== 'cash');
+        }
         
         if (result.success && result.payment_methods && result.payment_methods.length > 0) {
             const iconMap = { 'cash': 'cash-stack', 'vipps': 'phone', 'stripe': 'credit-card', 'paypal': 'paypal' };
@@ -5217,12 +5224,13 @@ async function loadPaymentMethodsForEdit(selectedMethods = [], defaultMethod = n
 }
 
 // Handle registration type changes - show/hide sections for "Ingen påmelding"
-const registrationTypeRadios = document.querySelectorAll('input[name="registration_type"]');
+const registrationTypeRadios = document.querySelectorAll('#create-event-form input[name="registration_type"]');
 const registrationFieldsSection = document.getElementById('registration-fields-section');
 
 if (registrationTypeRadios.length > 0) {
     function handleRegistrationTypeChange() {
-        const selectedType = document.querySelector('input[name="registration_type"]:checked').value;
+        const selectedType = document.querySelector('#create-event-form input[name="registration_type"]:checked').value;
+        EventSettings.syncPayments(document.getElementById('create-event-form'));
         const isNone = selectedType === 'none';
         
         // Show/hide påmeldingsfelt section
@@ -6612,7 +6620,7 @@ function initEventWizard() {
 }
 
 function getNextValidStep(currentStep, direction) {
-    const regType = document.querySelector('input[name="registration_type"]:checked')?.value;
+    const regType = document.querySelector('#create-event-form input[name="registration_type"]:checked')?.value;
     let nextStep = currentStep + direction;
     
     // For "Uten påmelding" (none) - skip steps 4 (pricing), 5 (medlemstillegg) and 6 (payment)
@@ -6643,7 +6651,7 @@ function wizardGoToStep(step) {
     if (step < 1 || step > wizardTotalSteps) return;
     
     // Block navigation to steps that should be skipped based on registration_type
-    const regType = document.querySelector('input[name="registration_type"]:checked')?.value;
+    const regType = document.querySelector('#create-event-form input[name="registration_type"]:checked')?.value;
     if (regType === 'none' && (step === 4 || step === 5 || step === 6)) {
         return; // Block steps 4, 5, 6 for "Uten påmelding"
     }
@@ -6784,7 +6792,7 @@ function validateContactFields() {
 }
 
 function updateWizardBasedOnType() {
-    const regType = document.querySelector('input[name="registration_type"]:checked')?.value;
+    const regType = document.querySelector('#create-event-form input[name="registration_type"]:checked')?.value;
     
     // Show/hide members-only option based on registration type
     const membersOnlyContainer = document.getElementById('members-only-container');
@@ -6846,7 +6854,7 @@ async function loadBindingPaymentMethods() {
 }
 
 function updateMembershipAddonsVisibility() {
-    const regType = document.querySelector('input[name="registration_type"]:checked')?.value;
+    const regType = document.querySelector('#create-event-form input[name="registration_type"]:checked')?.value;
     const membersOnlyContainer = document.getElementById('members-only-container');
     
     if (membersOnlyContainer) {
@@ -6908,6 +6916,10 @@ async function loadWizardPaymentMethods() {
     try {
         const response = await fetch('/api/get_payment_methods.php');
         const result = await response.json();
+        result.data = result.data || result.payment_methods;
+        if (EventSettings.registrationType(document.getElementById('create-event-form')) === 'binding' && result.data) {
+            result.data = result.data.filter(method => method.method_type !== 'cash');
+        }
         
         if (result.success && result.data) {
             const container = document.getElementById('payment-methods-container');

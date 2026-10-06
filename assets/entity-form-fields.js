@@ -2,6 +2,7 @@
     'use strict';
 
     const TYPES = ['text', 'email', 'tel', 'number', 'date', 'textarea', 'select', 'checkbox'];
+    const TYPE_LABELS = {text:'Tekst',email:'E-post',tel:'Telefon',number:'Tall',date:'Dato',textarea:'Lang tekst',select:'Nedtrekksvalg',checkbox:'Avkrysning'};
     const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[char]));
@@ -69,6 +70,10 @@
                 </div>
             </div>
             <div data-fields-notice class="alert alert-info py-2 small mb-3" hidden></div>
+            <fieldset data-common-fields class="mb-3" hidden><legend class="fs-6">Velg vanlige felt</legend>
+                <p class="small text-muted">Kryss av feltene kunden skal fylle ut. Egne felt og detaljer kan tilpasses nedenfor.</p>
+                <div data-common-list class="d-flex flex-wrap gap-3"></div>
+            </fieldset>
             <div data-fields-list aria-live="polite"><div class="entity-fields-loading"><span class="entity-skeleton"></span><span class="entity-skeleton"></span></div></div>
             <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
                 <button type="button" class="btn btn-sm btn-outline-primary" data-add disabled>Legg til felt</button>
@@ -79,17 +84,41 @@
 
         const render = () => {
             const list = host.querySelector('[data-fields-list]');
+            if (options.entityType==='event') fields.forEach(field=>{
+                if (['first_name','last_name'].includes(field.field_name)) {field.is_visible=true;field.is_required=true;}
+            });
+            const common = host.querySelector('[data-common-list]');
+            common.replaceChildren();
+            const definitions = new Map((presets[0]?.fields || []).map(field => [field.field_name,field]));
+            host.querySelector('[data-common-fields]').hidden = !definitions.size || registrationType === 'none';
+            for (const [name,definition] of definitions) {
+                const field=fields.find(item=>item.field_name===name);
+                const label=document.createElement('label');label.className='form-check';
+                const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.className='form-check-input';
+                checkbox.dataset.commonField=name;checkbox.checked=!!field?.is_visible;
+                checkbox.disabled=!!field?.is_visible && options.entityType==='event' && ['first_name','last_name'].includes(name);
+                const text=document.createElement('span');text.textContent=definition.field_label;
+                checkbox.addEventListener('change',()=>{
+                    let selected=fields.find(item=>item.field_name===name);
+                    if (!selected) {selected=normalize(definition,fields.length);fields.push(selected);}
+                    selected.is_visible=checkbox.checked;
+                    if (!checkbox.checked) selected.is_required=false;
+                    dirty=true;render();
+                });
+                label.append(checkbox,text);common.append(label);
+            }
             if (!fields.length) {
                 list.innerHTML = '<div class="entity-fields-empty">Ingen ekstra felt. Du kan legge til felter eller velge et forhåndsoppsett.</div>';
                 return;
             }
             list.replaceChildren();
             fields.forEach((field, index) => {
+                if (options.entityType==='rental_object' && definitions.has(field.field_name) && !field.is_visible) return;
                 const row = document.createElement('article');
                 row.className = 'entity-field-row';
                 const lockedIdentity = options.entityType === 'event' && ['first_name', 'last_name'].includes(field.field_name);
                 if (lockedIdentity) { field.is_visible = true; field.is_required = true; }
-                const typeOptions = TYPES.map(type => `<option value="${type}" ${field.field_type === type ? 'selected' : ''}>${type}</option>`).join('');
+                const typeOptions = TYPES.map(type => `<option value="${type}" ${field.field_type === type ? 'selected' : ''}>${TYPE_LABELS[type]}</option>`).join('');
                 const unknownType = TYPES.includes(field.field_type) ? '' : `<option value="${esc(field.field_type)}" selected>Eksisterende (${esc(field.field_type)})</option>`;
                 const rules = field.validation_rules || {};
                 const maxLength = rules.max_length ?? rules.maxLength ?? '';
@@ -103,7 +132,7 @@
                     <label class="entity-field-toggle"><input type="checkbox" data-prop="is_required" ${field.is_required ? 'checked' : ''} ${lockedIdentity ? 'disabled checked' : ''}> Påkrevd</label>
                     <button type="button" class="btn btn-sm btn-outline-danger entity-field-remove" data-remove ${lockedIdentity ? 'disabled' : ''}>Fjern</button>
                 </div>
-                <div class="entity-field-advanced">
+                <details class="mt-2"><summary class="small">Avanserte innstillinger</summary><div class="entity-field-advanced">
                     <label>Standardverdi<input class="form-control form-control-sm" data-prop="default_value" value="${esc(field.default_value)}"></label>
                     <label class="entity-options">Valg (ett per linje)<textarea class="form-control form-control-sm" data-options rows="2">${esc(field.options.join('\n'))}</textarea></label>
                     <label>Min<input class="form-control form-control-sm" data-rule="min" value="${esc(rules.min ?? '')}" inputmode="decimal"></label>
@@ -111,7 +140,7 @@
                     <label>Min. lengde<input class="form-control form-control-sm" data-rule="min_length" value="${esc(minLength)}" inputmode="numeric"></label>
                     <label>Maks. lengde<input class="form-control form-control-sm" data-rule="max_length" value="${esc(maxLength)}" inputmode="numeric"></label>
                     <label>Mønster<input class="form-control form-control-sm" data-rule="pattern" maxlength="256" value="${esc(rules.pattern ?? '')}" placeholder="f.eks. [A-Z]+"></label>
-                </div>`;
+                </div></details>`;
                 row.querySelectorAll('[data-prop]').forEach(control => {
                     control.addEventListener('input', () => {
                         const key = control.dataset.prop;
@@ -143,7 +172,9 @@
                     render();
                 });
                 row.querySelectorAll('[data-move]').forEach(button => button.addEventListener('click', () => {
-                    const target = index + Number(button.dataset.move);
+                    let target = index + Number(button.dataset.move);
+                    while(options.entityType==='rental_object' && target>=0 && target<fields.length &&
+                        definitions.has(fields[target].field_name) && !fields[target].is_visible) target+=Number(button.dataset.move);
                     if (target < 0 || target >= fields.length) return;
                     [fields[index], fields[target]] = [fields[target], fields[index]];
                     fields.forEach((item, order) => item.sort_order = order);
@@ -158,7 +189,7 @@
             const key = host.querySelector('[data-preset]').value;
             const preset = presets.find(item => String(item.key) === key);
             if (!preset) return;
-            if (dirty && !window.confirm('Dette erstatter feltene du har tilpasset. Vil du fortsette?')) return;
+            if (fields.length && !window.confirm('Dette erstatter dagens feltoppsett. Innsendte svar beholdes. Vil du fortsette?')) return;
             fields = (preset.fields || []).map(normalize);
             fields.forEach((field, index) => field.sort_order = index);
             dirty = true;

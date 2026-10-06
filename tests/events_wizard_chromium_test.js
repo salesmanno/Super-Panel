@@ -14,11 +14,12 @@ const fragment = fs.readFileSync(path.join(__dirname, '../modules/events_content
     .replace(/<\?[\s\S]*?\?>/g, '')
     .replace(/<link[^>]*>/g, '')
     .replace(/<script[^>]*src=[^>]*><\/script>/g, '');
-const helper = fs.readFileSync(path.join(__dirname, '../assets/event_form_helpers.js'), 'utf8');
+const helper = fs.readFileSync(path.join(__dirname, '../assets/event_form_helpers.js'), 'utf8') +
+    '\n' + fs.readFileSync(path.join(__dirname, '../assets/event-settings.js'), 'utf8');
 const entityFields = fs.readFileSync(path.join(__dirname, '../assets/entity-form-fields.js'), 'utf8');
 const dashboardDateControls = fs.readFileSync(path.join(__dirname, '../includes/norwegian_datetime_inputs.php'), 'utf8');
 const stubs = `
-window.fixtureErrors=[];window.fixtureSaves=[];window.fixtureMode='success';window.fixtureConfirms=0;
+window.fixtureErrors=[];window.fixtureSaves=[];window.fixtureEdits=[];window.fixtureMode='success';window.fixtureConfirms=0;
 window.fixtureConfigReads=0;
 window.addEventListener('error',e=>fixtureErrors.push(e.message));
 window.addEventListener('unhandledrejection',e=>fixtureErrors.push(String(e.reason)));
@@ -27,6 +28,9 @@ window.alert=message=>fixtureErrors.push(message);
 window.toast=new Proxy({}, {get:()=>()=>{}});
 window.bootstrap={Modal:class {static getInstance(){return {hide(){}}} show(){} hide(){}},Tab:class{show(){}}};
 window.fetch=async(url,options)=>{
+    if(String(url).includes('update_event.php')){
+        fixtureEdits.push(JSON.parse(options.body));return {ok:true,json:async()=>({success:true})};
+    }
     if(String(url).includes('/api/get_entity_form_fields.php')) return {ok:true,json:async()=>({success:true,csrf_token:'csrf-fixture',registration_type:'signup',presets:[],fields:[
         {field_name:'first_name',field_label:'Fornavn',field_type:'text',is_visible:1,is_required:1,sort_order:0},
         {field_name:'last_name',field_label:'Etternavn',field_type:'text',is_visible:1,is_required:1,sort_order:1},
@@ -43,8 +47,8 @@ window.fetch=async(url,options)=>{
         return {ok:fixtureMode!=='failure',json:async()=>({success:fixtureMode==='success',message:'Testfeil'})};
     }
     let result={success:true,events:[],registrations:[],checkins:[],data:[],plans:[]};
-    if(String(url).includes('get_payment_methods.php')){fixtureConfigReads++;result.data=[
-        {method_type:'cash',method_name:'Kontant'},{method_type:'vipps',method_name:'Vipps'}]}
+    if(String(url).includes('get_payment_methods.php')){fixtureConfigReads++;result.payment_methods=[
+        {method_type:'cash',method_name:'Kontant'},{method_type:'vipps',method_name:'Vipps'}];delete result.data;}
     if(String(url).includes('get_membership_plans.php')){fixtureConfigReads++;result.plans=[{id:'fixture-plan',name:'Testplan'}]}
     return {ok:true,json:async()=>result};
 };
@@ -196,6 +200,39 @@ const checks = `
         EventFormHelpers.syncDateTimeControls(edit);
         check(edit.querySelector('[name="start_date"]').parentNode.querySelector('.event-native-date-picker').value==='2028-06-17','Edit date picker synced after programmatic population');
         check(edit.querySelector('.event-time-hours').value==='07','Edit hour synced');
+        edit.querySelector('[name="event_id"]').value='fixture-event';
+        edit.querySelector('[name="title"]').value='Endret arrangement';
+        edit.querySelector('[name="registration_type"][value="binding"]').checked=true;
+        edit.dataset.registrationType='binding';
+        edit.querySelector('[name="memberverification"]').checked=true;
+        edit.querySelector('[name="is_member_exclusive"]').checked=true;
+        eventCsrfToken='csrf-fixture';
+        await loadPaymentMethodsForEdit(['vipps'],'vipps');
+        check(!edit.querySelector('[data-method-type="cash"]'),'Binding edit never offers cash');
+        await saveEventChanges();
+        check(fixtureEdits.length===1,'Actual edit save handler posts successfully');
+        check(fixtureEdits[0].registration_type==='binding','Disabled binding radio does not revert to signup');
+        check(fixtureEdits[0].memberverification===1&&fixtureEdits[0].is_member_exclusive===1,'Actual edit payload keeps both checked membership flags');
+        check(fixtureEdits[0].allowed_payment_methods.join()==='vipps','Binding edit sends only digital payment');
+        edit.querySelector('[name="memberverification"]').checked=false;
+        edit.querySelector('[name="is_member_exclusive"]').checked=false;
+        await saveEventChanges();
+        check(fixtureEdits.at(-1).memberverification===0&&fixtureEdits.at(-1).is_member_exclusive===0,'Actual edit sends explicit unchecked values');
+        check(form.querySelector('[name="registration_type"]:checked').value==='signup','Editing binding does not change the create form');
+        fill('Bindende medlemsarrangement','19062028','1210');
+        form.querySelector('[name="registration_type"][value="binding"]').checked=true;
+        form.querySelector('[name="registration_type"][value="binding"]').dispatchEvent(new Event('change',{bubbles:true}));
+        await settle();
+        await loadBindingPaymentMethods();await loadWizardPaymentMethods();
+        form.querySelector('[name="binding_payment_method"][value="vipps"]').checked=true;
+        field('memberverification').checked=true;field('is_member_exclusive').checked=true;
+        const bindingMethods=EventSettings.paymentMethods(form,'#payment-methods-container input[type="checkbox"]','binding');
+        check(!bindingMethods.includes('cash'),'Binding create filters cash before submission');
+        await submit();
+        const bindingSave=fixtureSaves.at(-1);
+        check(bindingSave.registration_type==='binding'&&bindingSave.memberverification===1&&bindingSave.is_member_exclusive===1,
+            'Actual binding create saves both membership flags');
+        check(bindingSave.allowed_payment_methods.join()==='vipps','Actual binding creation uses digital payment only');
         check(edit.querySelector('.event-time-minutes').value==='05','Edit minute synced');
         check(fixtureErrors.length===0,'No unexpected browser errors: '+fixtureErrors.join('; '));
         return {passed:true,width:innerWidth};

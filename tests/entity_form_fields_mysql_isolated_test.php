@@ -115,6 +115,21 @@ $blocked=false;try{entityFormSave($db,'a','rental_object','other',[$custom]);}ca
 formsAssert($blocked && $setup->query("SELECT field_label FROM dynamic_form_fields WHERE entity_id='other' AND field_name='choice'")->fetchColumn()===$before,'Audit failure rolls fields back');
 $setup->exec('DROP TRIGGER fail_form_audit');
 // Run real HTTP endpoints against disposable DB, with actual sessions and CSRF.
+$setup->exec("ALTER TABLE tenant_companies ADD subdomain VARCHAR(100)");
+$setup->exec("ALTER TABLE events_eventdata ADD description TEXT,ADD start_date DATE,ADD start_time TIME,
+ ADD end_date DATE,ADD end_time TIME,ADD venue_name TEXT,ADD event_address TEXT,ADD event_city TEXT,ADD event_postal TEXT,
+ ADD max_attendees INT,ADD min_attendees INT,ADD registration_deadline DATE,ADD age_limit INT,
+ ADD is_member_exclusive INT DEFAULT 0,ADD memberverification INT DEFAULT 0,ADD ticket_price DECIMAL(12,2),
+ ADD event_image_url TEXT,ADD is_active INT DEFAULT 1,ADD created_by CHAR(36),ADD created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+ ADD updated_at DATETIME,ADD default_payment_method VARCHAR(50),ADD payment_timing VARCHAR(50),
+ ADD payment_methods_json TEXT,ADD share_code VARCHAR(20),ADD output_product_id CHAR(36),ADD cost_price DECIMAL(12,2)");
+$setup->exec("CREATE TABLE economy_payment_gateways(company_id CHAR(36),gateway_name VARCHAR(50),is_active INT)");
+$setup->exec("INSERT INTO economy_payment_gateways VALUES('a','vipps',1),('b','stripe',1),('a','inactive',0)");
+$setup->exec("CREATE TABLE event_membership_plans(event_id CHAR(36),membership_plan_id CHAR(36),ticket_price DECIMAL(12,2),public_display INT)");
+$setup->exec("CREATE TABLE membership_plans(id CHAR(36),name VARCHAR(255))");
+$setup->exec("CREATE TABLE output_products(id CHAR(36) PRIMARY KEY,company_id CHAR(36),module_id CHAR(36),
+ product_type VARCHAR(50),product_id CHAR(36),is_visible INT,is_public INT,is_marketplace_featured INT,
+ marketplace_priority INT,discount_percent DECIMAL(12,2),created_by CHAR(36))");
 $serverDir=$temp.'/forms-http';mkdir($serverDir);
 $bootstrap='require_once '.var_export($root.'/includes/AuditedPDO.php',true).';function getDBConnection(){return new AuditedPDO('.var_export($dsn,true).',"root","",[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]);}';
 foreach(['get_entity_form_fields.php','save_entity_form_fields.php'] as $file) {
@@ -122,6 +137,14 @@ foreach(['get_entity_form_fields.php','save_entity_form_fields.php'] as $file) {
     $source=str_replace('session_start();','session_save_path('.var_export($temp.'/sessions',true).');session_start();$_SESSION["company_id"]="a";$_SESSION["tenant_admin_id"]="admin";',$source);
     $source=str_replace("require_once __DIR__.'/../config/database.php';",$bootstrap,$source);
     $source=str_replace("__DIR__.'/../includes/entity_form_fields.php'",var_export($root.'/includes/entity_form_fields.php',true),$source);
+    file_put_contents($serverDir.'/'.$file,$source);
+}
+foreach(['create_event.php','update_event.php','get_event.php'] as $file) {
+    $source=file_get_contents($root.'/api/'.$file);
+    $source=str_replace('session_start();','session_save_path('.var_export($temp.'/sessions',true).');session_start();$_SESSION["company_id"]="a";$_SESSION["tenant_admin_id"]="admin";',$source);
+    $source=str_replace("require_once __DIR__ . '/../config/database.php';",$bootstrap,$source);
+    $source=preg_replace_callback("~__DIR__ \\. '/\\.\\./includes/([^']+)'~",
+        static fn($m)=>var_export($root.'/includes/'.$m[1],true),$source);
     file_put_contents($serverDir.'/'.$file,$source);
 }
 $socket=stream_socket_server('tcp://127.0.0.1:0');$port=(int)substr(strrchr(stream_socket_get_name($socket,false),':'),1);fclose($socket);
@@ -143,5 +166,38 @@ try {
     $post['csrf_token']=$get['csrf_token'];
     formsAssert(formsHttp('save_entity_form_fields.php',$post)['success']===true,'Actual save endpoint accepts valid CSRF');
     formsAssert(formsHttp('get_entity_form_fields.php?entity_type=event&entity_id=foreign')['success']===false,'Actual HTTP foreign read denied');
+    $eventInput=['title'=>'Betalt medlemsarrangement','start_date'=>'2070-06-01','start_time'=>'13:00',
+        'registration_type'=>'binding','allowed_payment_methods'=>['vipps'],'default_payment_method'=>'vipps',
+        'ticket_price'=>100,'memberverification'=>1,'is_member_exclusive'=>1,'csrf_token'=>$get['csrf_token'],
+        'form_fields'=>entityFormDefaults('event')];
+    $before=(int)$setup->query('SELECT COUNT(*) FROM events_eventdata')->fetchColumn();
+    $bad=$eventInput;$bad['allowed_payment_methods']=['cash','vipps'];
+    formsAssert(formsHttp('create_event.php',$bad)['success']===false,'Binding create rejects cash even when company permits cash');
+    $bad['allowed_payment_methods']=['stripe'];$bad['default_payment_method']='stripe';
+    formsAssert(formsHttp('create_event.php',$bad)['success']===false,'Foreign payment gateway rejected');
+    $bad['allowed_payment_methods']=['inactive'];$bad['default_payment_method']='inactive';
+    formsAssert(formsHttp('create_event.php',$bad)['success']===false,'Inactive payment gateway rejected');
+    formsAssert((int)$setup->query('SELECT COUNT(*) FROM events_eventdata')->fetchColumn()===$before,'Invalid payment settings roll back creation');
+    $created=formsHttp('create_event.php',$eventInput);
+    formsAssert($created['success'],'Actual binding event creation: '.json_encode($created));
+    $id=$created['event_id'];
+    $read=formsHttp('get_event.php?id='.$id)['event'];
+    formsAssert((int)$read['memberverification']===1&&(int)$read['is_member_exclusive']===1
+        &&$read['registration_type']==='binding'&&json_decode($read['payment_methods_json'],true)===['vipps'],
+        'Create/read round trip preserves both membership flags and digital payment');
+    $edit=$eventInput;unset($edit['form_fields'],$edit['registration_type'],$edit['allowed_payment_methods'],
+        $edit['default_payment_method'],$edit['memberverification'],$edit['is_member_exclusive']);
+    $edit['event_id']=$id;$edit['title']='Endret tittel';
+    formsAssert(formsHttp('update_event.php',$edit)['success'],'Basic edit with omitted settings succeeds');
+    $read=formsHttp('get_event.php?id='.$id)['event'];
+    formsAssert((int)$read['memberverification']===1&&(int)$read['is_member_exclusive']===1
+        &&$read['registration_type']==='binding'&&json_decode($read['payment_methods_json'],true)===['vipps'],
+        'Omitted or unavailable membership controls and disabled registration radios do not erase stored settings');
+    $bad=$edit;$bad['allowed_payment_methods']=['cash'];$bad['default_payment_method']='cash';
+    formsAssert(formsHttp('update_event.php',$bad)['success']===false,'Binding edit rejects cash');
+    $edit['memberverification']=0;$edit['is_member_exclusive']=0;
+    formsAssert(formsHttp('update_event.php',$edit)['success'],'Explicit unchecked membership flags saved');
+    $read=formsHttp('get_event.php?id='.$id)['event'];
+    formsAssert((int)$read['memberverification']===0&&(int)$read['is_member_exclusive']===0,'Both flags can be explicitly cleared');
 }finally{proc_terminate($worker);proc_close($worker);}
 echo "Isolated shared form storage, migration, audit, rendering, validation and HTTP tests passed\n";

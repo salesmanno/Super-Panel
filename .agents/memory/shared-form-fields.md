@@ -15,6 +15,12 @@ Arrangementer og utleie skal ha «Grunnopplysninger» og «Skjemafelt» som to e
 
 **How to apply:** Hold de to redigeringene tydelig atskilt inne i eksisterende moduler og unngå at lagring av én del utilsiktet endrer den andre. Ikke lag en separat skjemamodul eller administrasjonsside; felles lagring må være avgrenset til bedrift og konkret objekt eller arrangement.
 
+Oppsett av skjemafelt skal være enkelt, særlig for utleie.
+
+**Why:** Brukeren sa at «dynamic_form_fields var veldig tungvindt å sette opp» og ønsket noe enklere, spesielt på rental.
+
+**How to apply:** Gjør vanlige kontaktfelt enkle å velge uten manuell teknisk konfigurering. Avanserte innstillinger må fortsatt være tilgjengelige, men skal ikke dominere vanlig oppsett.
+
 Ved samling av feltdefinisjoner må operative oppsett skilles fra eldre, ubrukte oppsett i en felles tabell. Avvik og ugyldige innstillinger skal avklares før overføring, ikke automatisk overskrives eller repareres ved sidevisning.
 
 **Why:** Det fantes allerede felles feltdefinisjoner som ikke var brukt av modulene, med andre feltvalg, rekkefølge og valideringsregler enn de aktive dedikerte oppsettene.

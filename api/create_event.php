@@ -13,6 +13,7 @@ require_once __DIR__ . '/../includes/ShareLinkService.php';
 require_once __DIR__ . '/../includes/request_date_time.php';
 require_once __DIR__ . '/../includes/event_image_url.php';
 require_once __DIR__ . '/../includes/entity_form_fields.php';
+require_once __DIR__ . '/../includes/event_settings.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -66,9 +67,8 @@ try {
         $shareLinkService = new ShareLinkService($db, $_SESSION['company_id']);
         $shareCode = $shareLinkService->generateCode();
         
-        // Validate registration_type and payment_timing
-        $registrationType = $data['registration_type'] ?? 'signup';
-        $paymentTiming = 'on_arrival'; // Default to on_arrival only (MySQL enum value)
+        $settings = eventSettings($db, (string)$_SESSION['company_id'], $data);
+        $registrationType = $settings['registration_type'];
         
         // ENFORCE: "Ingen påmelding" must be free (no pricing, no participant limits)
         if ($registrationType === 'none') {
@@ -79,69 +79,11 @@ try {
             // Skip registration fields and membership pricing for 'none' type
         }
         
-        // Calculate payment_timing based on selected options
-        $hasEconomyPayment = false;
-        if (isset($data['payment_timing_methods']) && is_array($data['payment_timing_methods'])) {
-            foreach ($data['payment_timing_methods'] as $method) {
-                if ($method !== 'on_arrival') {
-                    $hasEconomyPayment = true;
-                    break;
-                }
-            }
-        }
-        
-        if ($hasEconomyPayment) {
-            $paymentTiming = 'both'; // Both on_arrival and economy payment methods
-        }
-        
-        // Validate binding type requires payment method
-        if ($registrationType === 'binding' && !$hasEconomyPayment) {
-            throw new Exception('Bindende arrangement krever at minst én betalingsmetode fra economy er valgt');
-        }
-        
-        // 3a. Prepare payment methods array BEFORE INSERT
-        // Payment methods are controlled entirely by Economy module configuration
-        $paymentMethodsArray = [];
-        
-        if (isset($data['allowed_payment_methods']) && is_array($data['allowed_payment_methods']) && count($data['allowed_payment_methods']) > 0) {
-            // Use provided payment methods from frontend (already validated against Economy config)
-            $paymentMethodsArray = $data['allowed_payment_methods'];
-        } elseif (isset($data['default_payment_method']) && !empty($data['default_payment_method'])) {
-            // Legacy: Use single default_payment_method if provided
-            $paymentMethodsArray = [$data['default_payment_method']];
-        } else {
-            // Fetch available methods from Economy configuration (no hardcoded fallback)
-            $companyStmt = $db->prepare("SELECT cash_payment FROM tenant_companies WHERE id = ?");
-            $companyStmt->execute([$_SESSION['company_id']]);
-            $companyData = $companyStmt->fetch(PDO::FETCH_ASSOC);
-            $cashEnabled = $companyData ? (bool)($companyData['cash_payment'] ?? false) : false;
-            
-            if ($cashEnabled) {
-                $paymentMethodsArray[] = 'cash';
-            }
-            
-            // Add configured and active gateways from Economy
-            $gwStmt = $db->prepare("
-                SELECT gateway_name FROM economy_payment_gateways 
-                WHERE company_id = ? AND is_active = 1
-            ");
-            $gwStmt->execute([$_SESSION['company_id']]);
-            while ($gw = $gwStmt->fetch(PDO::FETCH_ASSOC)) {
-                $paymentMethodsArray[] = strtolower($gw['gateway_name']);
-            }
-        }
-        
-        // No forced inclusion of any specific method - all controlled by Economy config
-        
-        // Convert payment methods array to JSON
-        $paymentMethodsJson = json_encode($paymentMethodsArray);
-        
-        $memberverification = (isset($data['memberverification']) && $data['memberverification']) ? 1 : 0;
-        
-        // default_payment_method is first in the allowed methods array, or use explicitly provided value
-        $defaultPaymentMethod = isset($data['default_payment_method']) && !empty($data['default_payment_method']) 
-            ? $data['default_payment_method'] 
-            : (!empty($paymentMethodsArray) ? $paymentMethodsArray[0] : null);
+        $paymentMethodsJson = $settings['payment_methods_json'];
+        $paymentTiming = $settings['payment_timing'];
+        $defaultPaymentMethod = $settings['default_payment_method'];
+        $memberverification = $settings['memberverification'];
+        $data['is_member_exclusive'] = $settings['is_member_exclusive'];
         
         // INSERT order matches actual table schema (cost_price removed per user request):
         // id, company_id, title, description, start_date, start_time, end_date, end_time,

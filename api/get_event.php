@@ -1,7 +1,7 @@
 <?php
 session_start();
 session_write_close();
-require_once '../config/database.php';
+require_once __DIR__ . '/../config/database.php';
 
 header('Content-Type: application/json');
 
@@ -43,6 +43,7 @@ try {
             registration_deadline,
             payment_timing,
             payment_methods_json,
+            default_payment_method,
             event_image_url,
             cost_price,
             created_at
