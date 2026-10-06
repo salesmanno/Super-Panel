@@ -8,3 +8,4 @@
 - [Audit og e-postproveniens](audit-provenance.md) — bruk registrert initiativ og faktisk renderet malversjon; ikke rekonstruer fortiden fra dagens data.
 - [Isolerte transporttester](isolated-transport-tests.md) — ikke fork SMTP-/HTTP-fixtures fra en prosess med levende PDO-forbindelse.
 - [Felles skjemafelt](shared-form-fields.md) — brukeren vil samle feltdefinisjoner og dele redigering i grunnopplysninger og skjemafelt.
+- [Utleiefelter og varsler](rental-fields-and-notifications.md) — markedspris er ikke nødvendig ved lokaleopprettelse; varsler skal beskrive konkrete hendelser.
