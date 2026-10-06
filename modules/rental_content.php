@@ -302,6 +302,7 @@ $schemas = getRentalSchemas();
 
 <script src="/assets/rental_request_pricing.js"></script>
 <script src="/assets/entity-form-fields.js"></script>
+<script src="/assets/rental_request_workflow.js"></script>
 <script>
 const rentalSchemas = <?= json_encode($schemas) ?>;
 const rentalLifecycleCsrf = <?= json_encode($rentalLifecycleCsrf) ?>;
@@ -309,6 +310,9 @@ let rentalCreateFieldsEditor = null;
 let rentalEditFieldsEditor = null;
 let rentalFormCsrfToken = '';
 let rentalCreateSaving = false;
+let rentalPendingRequests = new Map();
+let rentalDecisionEmailEnabled = false;
+let rentalRequestsLoadSequence = 0;
 let allRentalObjects = [];
 let rentalFilter = '';
 let allApprovedRentals = [];
@@ -735,6 +739,12 @@ function buildIntegratedForm(category = '', existingData = {}) {
 function buildFormFields(containerId, category = '', existingData = {}) {
     const container = document.getElementById(containerId);
     const formId = containerId === 'createFormFieldsContainer' ? 'createRentalForm' : 'rentalForm';
+    const form = document.getElementById(formId);
+    const cached = existingData._categoryDrafts?.[category];
+    if (cached) existingData = {...existingData, type_data: {...existingData.type_data, ...cached.type_data}};
+    form._rentalCategoryDrafts = existingData._categoryDrafts || {};
+    form._rentalMarketPrice = existingData.market_price ?? '';
+    container.dataset.category = category;
     const rebuildFn = containerId === 'createFormFieldsContainer' ? 'buildCreateForm' : 'buildIntegratedForm';
     const selectId = containerId === 'createFormFieldsContainer' ? 'createCategorySelect' : 'categorySelect';
     const checkboxId = containerId === 'createFormFieldsContainer' ? 'createIsAvailable' : 'isAvailable';
@@ -772,11 +782,11 @@ function buildFormFields(containerId, category = '', existingData = {}) {
                         <label class="form-label mb-1">Depositum (NOK)</label>
                         <input type="number" class="form-control form-control-sm" name="deposit_amount" step="0.01" value="${escAttr(existingData.deposit_amount || 0)}">
                     </div>
-                    <div class="col-md-4 mb-2">
+                    ${category !== 'venue' ? `<div class="col-md-4 mb-2">
                         <label class="form-label mb-1">Markedspris (NOK)</label>
                         <input type="number" class="form-control form-control-sm" name="market_price" step="0.01" value="${escAttr(existingData.market_price || '')}">
                         <small class="text-muted">Veiledende/innkjøpspris</small>
-                    </div>
+                    </div>` : ''}
                 </div>
                 <div class="mt-1 mb-2">
                     <div class="form-check form-switch">
@@ -985,7 +995,7 @@ function getFormData(formId) {
         saturday_price: formData.get('saturday_price') || 0,
         sunday_price: formData.get('sunday_price') || 0,
         deposit_amount: formData.get('deposit_amount') || 0,
-        market_price: formData.get('market_price') || '',
+        market_price: formData.has('market_price') ? formData.get('market_price') : form._rentalMarketPrice ?? '',
         description: formData.get('description') || '',
         rental_text: formData.get('rental_text') || '',
         is_available: formData.get('is_available') === 'on',
@@ -1004,6 +1014,9 @@ function getFormData(formId) {
             }
         }
     }
+    const container = form.querySelector('[id$="FormFieldsContainer"], #formFieldsContainer');
+    const activeCategory = container?.dataset.category || '';
+    data._categoryDrafts = {...form._rentalCategoryDrafts, [activeCategory]: {type_data: {...data.type_data}}};
     
     return data;
 }
@@ -1033,7 +1046,7 @@ async function saveRentalObject() {
         saturday_price: parseFloat(formData.get('saturday_price')) || 0,
         sunday_price: parseFloat(formData.get('sunday_price')) || 0,
         deposit_amount: parseFloat(formData.get('deposit_amount')) || 0,
-        market_price: parseFloat(formData.get('market_price')) || null,
+        ...(formData.get('category') !== 'venue' && formData.has('market_price') ? {market_price: formData.get('market_price') === '' ? null : Number(formData.get('market_price'))} : {}),
         description: formData.get('description') || null,
         rental_text: formData.get('rental_text') || null,
         is_available: formData.get('is_available') === 'on',
@@ -1217,7 +1230,7 @@ function showCreateSummary() {
         saturday_price: parseFloat(formData.get('saturday_price')) || 0,
         sunday_price: parseFloat(formData.get('sunday_price')) || 0,
         deposit_amount: parseFloat(formData.get('deposit_amount')) || 0,
-        market_price: parseFloat(formData.get('market_price')) || null,
+        ...(category !== 'venue' && formData.has('market_price') ? {market_price: formData.get('market_price') === '' ? null : Number(formData.get('market_price'))} : {}),
         description: formData.get('description') || null,
         rental_text: formData.get('rental_text') || null,
         is_available: form.querySelector('[name="is_available"]')?.checked ?? true,
@@ -2095,10 +2108,20 @@ function handleRentalRequestAdjustmentChange(row) {
 async function loadRentalRequests() {
     const container = document.getElementById('rentalRequestsContainer');
     if (!container) return;
+    if (container.querySelector('[data-busy="true"]') || RentalRequestWorkflow.hasDrafts()
+        || document.getElementById('rental-decision-dialog')?.open) {
+        toast.error(null, 'Ulagrede endringer', 'Lagre endringene før du oppdaterer forespørselslisten.');
+        return false;
+    }
 
+    const sequence = ++rentalRequestsLoadSequence;
     try {
         const resp = await fetch('/api/get_rental_schedule.php?approved=0');
         const data = await resp.json();
+        // A user may start editing while a refresh request is in flight.
+        if (sequence !== rentalRequestsLoadSequence || RentalRequestWorkflow.hasDrafts()
+            || container.querySelector('[data-busy="true"]')
+            || document.getElementById('rental-decision-dialog')?.open) return false;
 
         if (!resp.ok || !data.success) {
             container.innerHTML = `<div class="alert alert-danger">
@@ -2108,12 +2131,15 @@ async function loadRentalRequests() {
         }
 
         if (!data.requests || data.requests.length === 0) {
+            rentalPendingRequests.clear();
             container.innerHTML = `<div class="text-center text-muted py-5">
                 <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                 Ingen ventende forespørsler
             </div>`;
-            return;
+            return true;
         }
+        rentalPendingRequests = new Map(data.requests.map(r => [String(r.id), r]));
+        rentalDecisionEmailEnabled = data.decision_email_enabled === true;
 
         const rows = data.requests.map(r => {
             const logisticsLabel = r.logistics === 'delivery'
@@ -2227,6 +2253,8 @@ async function loadRentalRequests() {
                 <td class="small text-nowrap text-muted">${createdAt}</td>
                 <td class="small">${notesCell || '<span class="text-muted">–</span>'}</td>
                 <td class="text-nowrap">
+                    <button class="btn btn-outline-primary btn-sm rental-request-save" onclick="RentalRequestWorkflow.save('${escHtml(r.id)}')">Lagre endringer</button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="RentalRequestWorkflow.discard('${escHtml(r.id)}')">Forkast endringer</button>
                     <button class="btn btn-success btn-sm me-1 rental-request-approve" onclick="approveScheduleRequest('${escHtml(r.id)}')">
                         <i class="bi bi-check-lg me-1"></i>Godkjenn
                     </button>
@@ -2260,10 +2288,54 @@ async function loadRentalRequests() {
                 input.addEventListener('change', () => refreshRentalRequestPrice(row));
             });
             handleRentalRequestAdjustmentChange(row);
+            RentalRequestWorkflow.capture(row);
         });
+        return true;
     } catch (e) {
-        container.innerHTML = `<div class="alert alert-danger">Feil ved lasting av forespørsler</div>`;
+        if (sequence === rentalRequestsLoadSequence && !RentalRequestWorkflow.hasDrafts()
+            && !container.querySelector('[data-busy="true"]')
+            && !document.getElementById('rental-decision-dialog')?.open) {
+            container.innerHTML = `<div class="alert alert-danger">Feil ved lasting av forespørsler</div>`;
+        }
+        return false;
     }
+}
+
+function rentalRequestContext(id) {
+    return {request: rentalPendingRequests.get(String(id)), emailEnabled: rentalDecisionEmailEnabled,
+        csrfToken: rentalLifecycleCsrf};
+}
+
+function rentalRequestAcceptSaved(id, result) {
+    const request = rentalPendingRequests.get(String(id));
+    if (request) Object.assign(request, result.request);
+}
+
+async function openRentalRequestNotification(id) {
+    if (RentalRequestWorkflow.hasDrafts()) {
+        toast.error(null, 'Ulagrede endringer', 'Lagre endringene før du åpner en annen forespørsel.');
+        return false;
+    }
+    const tab = document.querySelector('[data-bs-target="#content-rental"]');
+    if (!tab) throw new Error('Du har ikke tilgang til utleiemodulen');
+    bootstrap.Tab.getOrCreateInstance(tab).show();
+    if (typeof showSubTabContent === 'function') showSubTabContent('rental','rental-requests');
+    document.querySelectorAll('#subtabs-rental .nav-link').forEach(link => link.classList.toggle('active',link.getAttribute('href') === '#rental-requests'));
+    if (!await loadRentalRequests()) return false;
+    const row = document.querySelector(`[data-rental-request-id="${CSS.escape(String(id))}"]`);
+    if (!row) {
+        const response = await fetch('/api/get_rental_schedule.php?request_id='+encodeURIComponent(id));
+        const result = await response.json();
+        if (!response.ok || !result.success || result.requests?.length !== 1) {
+            throw new Error('Forespørselen er ikke lenger tilgjengelig.');
+        }
+        RentalRequestWorkflow.inspect(result.requests[0]);
+        return true;
+    }
+    row.scrollIntoView({block:'center'});
+    const button = row.querySelector('.rental-request-approve');
+    button?.focus();
+    return true;
 }
 
 function getRentalRequestInlinePayload(id) {
@@ -2321,63 +2393,11 @@ function setRentalRequestRowBusy(id, busy) {
 }
 
 async function approveScheduleRequest(id) {
-    const toastId = toast.loading('Godkjenner forespørsel...');
-    try {
-        const inlineData = getRentalRequestInlinePayload(id);
-        setRentalRequestRowBusy(id, true);
-        const resp = await fetch('/api/update_rental_schedule.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, ...inlineData, approved: 1, status: 'approved' })
-        });
-        const data = await resp.json();
-        if (data.success) {
-            const approvedFee = Number(data.rental_fee);
-            const feeLabel = Number.isFinite(approvedFee)
-                ? `${approvedFee.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK`
-                : 'ikke tilgjengelig';
-            const msg = data.email_queued
-                ? `Forespørselen er godkjent — bekreftelse lagt i e-postkø. Serverberegnet leiebeløp: ${feeLabel}.`
-                : `Forespørselen er godkjent. Serverberegnet leiebeløp: ${feeLabel}.`;
-            toast.success(toastId, 'Godkjent', msg);
-            loadRentalRequests();
-            loadApprovedSchedule();
-        } else {
-            const title = data.already_approved ? 'Allerede godkjent' : 'Feil';
-            toast.error(toastId, title, data.message || 'Kunne ikke godkjenne forespørsel');
-            setRentalRequestRowBusy(id, false);
-        }
-    } catch (e) {
-        setRentalRequestRowBusy(id, false);
-        toast.error(toastId, 'Feil', e.message || 'Nettverksfeil. Prøv igjen.');
-    }
+    return RentalRequestWorkflow.review(id, 'approved');
 }
 
 async function declineScheduleRequest(id) {
-    if (!confirm('Er du sikker på at du vil avslå denne forespørselen?')) return;
-    const toastId = toast.loading('Avslår forespørsel...');
-    try {
-        setRentalRequestRowBusy(id, true);
-        const resp = await fetch('/api/update_rental_schedule.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, approved: 1, status: 'rejected' })
-        });
-        const data = await resp.json();
-        if (data.success) {
-            const msg = data.email_queued
-                ? 'Forespørselen er avslått — beskjed lagt i e-postkø'
-                : 'Forespørselen er avslått';
-            toast.success(toastId, 'Avslått', msg);
-            loadRentalRequests();
-        } else {
-            toast.error(toastId, 'Feil', data.message || 'Kunne ikke avslå forespørsel');
-            setRentalRequestRowBusy(id, false);
-        }
-    } catch (e) {
-        setRentalRequestRowBusy(id, false);
-        toast.error(toastId, 'Feil', e.message || 'Nettverksfeil. Prøv igjen.');
-    }
+    return RentalRequestWorkflow.review(id, 'rejected');
 }
 
 function renderRentalUnavailable() {

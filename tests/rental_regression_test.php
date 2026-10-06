@@ -121,7 +121,7 @@ $assert(
 $assert(
     str_contains($rentalContent, 'data-price-error')
     && str_contains($rentalContent, "price_adjustment_type: adjustment.type === 'none' ? '' : adjustment.type")
-    && str_contains($rentalContent, "body: JSON.stringify({ id, approved: 1, status: 'rejected' })"),
+    && str_contains($rentalContent, "RentalRequestWorkflow.review(id, 'rejected')"),
     'Request pricing errors stay visible, no adjustment clears its fields, and rejection does not require pricing'
 );
 $unavailableEndpoint = file_get_contents(__DIR__ . '/../api/rental_unavailable.php');

@@ -14,9 +14,19 @@ require_once __DIR__ . '/../includes/rental_confirmation_email.php';
 require_once __DIR__ . '/../includes/rental_schedule_editing.php';
 require_once __DIR__ . '/../includes/rental_request.php';
 require_once __DIR__ . '/../includes/tenant_audit.php';
+require_once __DIR__ . '/../includes/tenant_notifications.php';
 
 $companyId = $_SESSION['company_id'];
 $data = json_decode(file_get_contents('php://input'), true);
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    http_response_code(405); echo json_encode(['success'=>false,'message'=>'Metoden støttes ikke']); exit;
+}
+try {
+    if (!is_array($data)) throw new TenantAuditException('Ugyldig forespørsel');
+    rentalRequireDecisionCsrf($data);
+} catch (TenantAuditException $e) {
+    http_response_code(403); echo json_encode(['success'=>false,'message'=>$e->getMessage()]); exit;
+}
 
 if (empty($data['id'])) {
     http_response_code(400);
@@ -26,6 +36,7 @@ if (empty($data['id'])) {
 
 try {
     $db = getDBConnection();
+    rentalRequireAccess($db, (string)$companyId);
     $db->beginTransaction();
     $auditActor = tenantAuditActor($db, $companyId);
     $auditCorrelation = tenantAuditId();
@@ -101,6 +112,22 @@ try {
         exit;
     }
     $auditBefore = $row;
+    if (isset($data['expected_version']) && (!is_string($data['expected_version'])
+        || !hash_equals(rentalDecisionVersion($row), $data['expected_version']))) {
+        $db->rollBack();
+        http_response_code(409);
+        echo json_encode(['success'=>false,'stale_request'=>true,
+            'message'=>'Forespørselen er endret. Last inn oppdaterte opplysninger før du fortsetter.']); exit;
+    }
+    if (in_array($data['status'] ?? '', ['approved','rejected'], true) || (string)($data['approved']??'') === '1') {
+        if (empty($data['expected_version'])) {
+            throw new RentalRequestConflictException('Last inn forespørselen før du bekrefter beslutningen.');
+        }
+        foreach (['start_date','end_date','end_time','cleaning','rental_fee',
+            'price_adjustment_type','price_adjustment_amount','price_adjustment_explanation'] as $field) {
+            if (array_key_exists($field,$data)) throw new InvalidArgumentException('Lagre endringene separat før godkjenning eller avslag.');
+        }
+    }
 
     if ($concurrencyTestRole === 'holder') {
         $holderPath = getenv('RENTAL_CONCURRENCY_HOLDER_PATH') ?: '';
@@ -487,6 +514,10 @@ try {
             ['source_id' => (string) $row['id'], 'correlation_id' => $auditCorrelation], $auditActor);
     }
 
+    $saved = $db->prepare('SELECT * FROM rental_schedule WHERE id = ? AND company_id = ?');
+    $saved->execute([$data['id'], $companyId]);
+    $savedRow = $saved->fetch(PDO::FETCH_ASSOC);
+    $savedRow['decision_version'] = rentalDecisionVersion($savedRow);
     $db->commit();
 
     echo json_encode([
@@ -497,8 +528,13 @@ try {
         'email_queued' => $emailQueued,
         'rental_fee'   => (float) ($row['rental_fee'] ?? 0),
         'pricing'      => $pricingBreakdown,
+        'request'     => $savedRow,
     ]);
 
+} catch (TenantAuditException $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
+    http_response_code(403);
+    echo json_encode(['success'=>false,'message'=>'Du har ikke tilgang til utleiemodulen']);
 } catch (RentalRequestConflictException $e) {
     if (isset($db) && $db->inTransaction()) $db->rollBack();
     if (isset($db, $auditActor)) tenantAuditFailure($db, $companyId, 'rental', $auditAction, 'rental_schedule',

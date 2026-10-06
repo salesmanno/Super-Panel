@@ -133,6 +133,7 @@ try {
                       'is_available', 'is_active', 'market_price', 'rental_text'];
     
     foreach ($allowedFields as $field) {
+        if ($field === 'market_price' && $category === 'venue') continue;
         if (array_key_exists($field, $data)) {
             $updateFields[] = "$field = ?";
             $updateParams[] = $field === 'rental_text'
@@ -188,10 +189,7 @@ try {
         $stmt->execute($updateParams);
     }
     
-    if ($categoryChanged && $oldCategory && getRentalSchema($oldCategory)) {
-        $oldTypeTable = getRentalSchema($oldCategory)['table'];
-        $db->prepare("DELETE FROM $oldTypeTable WHERE object_id = ?")->execute([$data['id']]);
-    }
+    // Keep former category data so switching category does not erase history.
 
     if (array_key_exists('form_fields', $data)) {
         if (!is_array($data['form_fields'])) throw new InvalidArgumentException('Ugyldig feltoppsett');

@@ -1,5 +1,16 @@
 <?php
 
+function rentalDecisionVersion(array $row): string {
+    $values = [];
+    foreach (['id','company_id','rental_object_id','status','start_date','end_date',
+        'end_time','price_adjustment_type','price_adjustment_explanation'] as $key) {
+        $values[$key] = (string)($row[$key] ?? '');
+    }
+    foreach (['approved','cleaning','price_adjustment_cents'] as $key) $values[$key]=(int)($row[$key]??0);
+    $values['rental_fee']=number_format((float)($row['rental_fee']??0),2,'.','');
+    return hash('sha256',json_encode($values,JSON_THROW_ON_ERROR));
+}
+
 function rentalAmountToCents($amount): int {
     $value = trim(str_replace(',', '.', (string) $amount));
     if ($value === '' || !preg_match('/^-?\d+(?:\.\d{1,2})?$/', $value)) {

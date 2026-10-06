@@ -9,6 +9,7 @@ if (!str_starts_with($temp, sys_get_temp_dir() . '/rental-unavailable-mysql.')
     throw new RuntimeException('Run the isolated MySQL harness with --email.');
 }
 require_once __DIR__ . '/smtp_capture_fixture.php';
+require_once $root . '/includes/rental_schedule_editing.php';
 define('EMAIL_QUEUE_PROCESSOR_NO_AUTO_RUN', true);
 require_once $root . '/api/process_email_queue.php';
 function checkRentalMail(bool $ok, string $message): void {
@@ -34,6 +35,8 @@ foreach ([
         address_street VARCHAR(255), address_zip VARCHAR(20), address_city VARCHAR(255), org_number VARCHAR(30),is_active INT DEFAULT 1)",
     "CREATE TABLE tenant_staff (id VARCHAR(36),company_id VARCHAR(36),first_name VARCHAR(255),last_name VARCHAR(255))",
     "CREATE TABLE tenant_admins (id VARCHAR(36),company_id VARCHAR(36),tenant_staff_id VARCHAR(36),username VARCHAR(255),role VARCHAR(50),is_active INT)",
+    "CREATE TABLE system_modules (id VARCHAR(36),module_key VARCHAR(50),is_active INT)",
+    "CREATE TABLE tenant_admin_modules (tenant_admin_id VARCHAR(36),module_id VARCHAR(36))",
     "CREATE TABLE audit_logs (id CHAR(36) PRIMARY KEY,company_id VARCHAR(36),user_id VARCHAR(36),user_type VARCHAR(20),
         user_email VARCHAR(255),action VARCHAR(50),resource_type VARCHAR(100),resource_id VARCHAR(36),resource_name VARCHAR(255),
         old_values TEXT,new_values TEXT,severity VARCHAR(20),performed_at DATETIME,module VARCHAR(50)) ENGINE=InnoDB",
@@ -66,6 +69,8 @@ foreach (['a', 'b'] as $company) {
 }
 $db->exec("INSERT INTO tenant_staff VALUES ('person-staff-a','a','Ansatt','Test')");
 $db->exec("INSERT INTO tenant_admins VALUES ('fixture-staff-a','a','person-staff-a','staff-a','staff',1)");
+$db->exec("INSERT INTO system_modules VALUES ('rental','rental',1)");
+$db->exec("INSERT INTO tenant_admin_modules VALUES ('fixture-admin-a','rental'),('fixture-admin-b','rental'),('fixture-staff-a','rental')");
 foreach (['one', 'two', 'rejected', 'other', 'invalid'] as $index => $id) {
     $company = $id === 'other' ? 'b' : 'a';
     $day = 1 + $index * 3;
@@ -88,13 +93,13 @@ ini_set('session.save_path', $temp . '/sessions');
 foreach (['a', 'b'] as $company) {
     session_id('mail-fixture-' . $company);
     session_start();
-    $_SESSION = ['company_id' => $company, 'tenant_admin_id' => 'fixture-admin-' . $company];
+    $_SESSION = ['company_id' => $company, 'tenant_admin_id' => 'fixture-admin-' . $company, 'rental_lifecycle_csrf'=>'fixture-csrf'];
     session_write_close();
 }
 session_id('mail-fixture-staff-a');
 session_start();
 $_SESSION = ['company_id' => 'a','tenant_admin_id' => 'fixture-staff-a',
-    'admin_name' => 'Forged main admin','admin_role' => 'admin'];
+    'admin_name' => 'Forged main admin','admin_role' => 'admin','rental_lifecycle_csrf'=>'fixture-csrf'];
 session_write_close();
 $listener = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
 $address = stream_socket_get_name($listener, false);
@@ -112,10 +117,13 @@ try {
         usleep(20000);
     }
     checkRentalMail($ready, 'Fixture API server readiness');
-    $request = function(string $id, string $company, string $status, string $sessionKey = '') use ($address): array {
+    $request = function(string $id, string $company, string $status, string $sessionKey = '') use ($address,$db): array {
+        $q=$db->prepare('SELECT * FROM rental_schedule WHERE id=?'); $q->execute([$id]);
+        $version=rentalDecisionVersion($q->fetch(PDO::FETCH_ASSOC));
         $curl = curl_init('http://' . $address . '/api/update_rental_schedule.php');
         curl_setopt_array($curl, [
-            CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode(['id' => $id, 'status' => $status]),
+            CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode(['id' => $id, 'status' => $status,
+                'csrf_token'=>'fixture-csrf','expected_version'=>$version]),
             CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Cookie: PHPSESSID=mail-fixture-' . ($sessionKey ?: $company)],
             CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10,
         ]);

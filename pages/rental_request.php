@@ -122,8 +122,11 @@ function rentalRequestHtml($value): string
 </main>
 <?php if ($object): ?>
 <script>
+let rentalSubmissionId = crypto.randomUUID();
+let rentalSubmissionBusy = false;
 document.getElementById('rentalRequestForm').addEventListener('submit', async function (event) {
     event.preventDefault();
+    if (rentalSubmissionBusy) return;
     const form = event.currentTarget;
     const message = document.getElementById('requestMessage');
     const fields = {};
@@ -132,6 +135,7 @@ document.getElementById('rentalRequestForm').addEventListener('submit', async fu
         fields[field] = input.type === 'checkbox' ? (input.checked ? '1' : '0') : input.value;
     });
     const payload = {
+        submission_id: rentalSubmissionId,
         csrf_token: form.elements.csrf_token.value,
         object_id: form.elements.object_id.value,
         fields,
@@ -144,6 +148,9 @@ document.getElementById('rentalRequestForm').addEventListener('submit', async fu
         _website: form.elements._website.value
     };
     message.className = 'alert d-none';
+    rentalSubmissionBusy = true;
+    const submit = form.querySelector('[type="submit"]');
+    submit.disabled = true;
     try {
         const response = await fetch(form.action, {
             method: 'POST',
@@ -154,10 +161,13 @@ document.getElementById('rentalRequestForm').addEventListener('submit', async fu
         const result = await response.json();
         message.textContent = result.message || (result.success ? 'Forespørselen er sendt' : 'Noe gikk galt.');
         message.className = 'alert ' + (result.success ? 'alert-success' : 'alert-danger');
-        if (result.success) form.reset();
+        if (result.success) { form.reset(); rentalSubmissionId = crypto.randomUUID(); }
     } catch (error) {
         message.textContent = 'Kunne ikke sende forespørselen. Prøv igjen.';
         message.className = 'alert alert-danger';
+    } finally {
+        rentalSubmissionBusy = false;
+        submit.disabled = false;
     }
 });
 </script>

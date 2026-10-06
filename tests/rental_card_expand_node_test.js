@@ -93,6 +93,7 @@ const context = {
   },
   toast: {quickSuccess() {}, quickError() {}},
   rentalFilter: '',
+  ensureRentalFormToken: async () => 'fixture-csrf',
 };
 vm.createContext(context);
 vm.runInContext(source.slice(begin, end), context);

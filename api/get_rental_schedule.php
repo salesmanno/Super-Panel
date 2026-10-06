@@ -11,16 +11,27 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/rental_request_fields.php';
+require_once __DIR__ . '/../includes/tenant_notifications.php';
+require_once __DIR__ . '/../includes/rental_schedule_editing.php';
 
 $companyId = $_SESSION['company_id'];
 
 try {
     $db = getDBConnection();
+    rentalRequireAccess($db, (string)$companyId);
 
     $approvedFilter = $_GET['approved'] ?? null;
 
     $where  = ["rs.company_id = ?", "rs.status <> 'unavailable'"];
     $params = [$companyId];
+    if (isset($_GET['request_id'])) {
+        if (!is_string($_GET['request_id']) || $_GET['request_id'] === '' || strlen($_GET['request_id'])>36) {
+            http_response_code(400);
+            echo json_encode(['success'=>false,'message'=>'Ugyldig forespørselsreferanse']); exit;
+        }
+        $where[] = 'rs.id = ?';
+        $params[] = $_GET['request_id'];
+    }
 
     if ($approvedFilter !== null && in_array($approvedFilter, ['0', '1', '2'], true)) {
         if ($approvedFilter === '0') {
@@ -46,12 +57,12 @@ try {
             ro.sunday_price AS object_sunday_price,
             COALESCE(rv.cleaning_fee, 0) AS cleaning_fee,
             COALESCE(
-                NULLIF(TRIM(CONCAT(COALESCE(tc.first_name,''), ' ', COALESCE(tc.last_name,''))), ''),
                 NULLIF(TRIM(rs.customer_name), ''),
+                NULLIF(TRIM(CONCAT(COALESCE(tc.first_name,''), ' ', COALESCE(tc.last_name,''))), ''),
                 'Ukjent kunde'
             )                AS display_customer_name,
-            COALESCE(NULLIF(TRIM(tc.email), ''), NULLIF(TRIM(rs.customer_email), '')) AS display_email,
-            COALESCE(NULLIF(TRIM(tc.phone), ''), NULLIF(TRIM(rs.customer_phone), '')) AS display_phone,
+            COALESCE(NULLIF(TRIM(rs.customer_email), ''), NULLIF(TRIM(tc.email), '')) AS display_email,
+            COALESCE(NULLIF(TRIM(rs.customer_phone), ''), NULLIF(TRIM(tc.phone), '')) AS display_phone,
             tc.date_of_birth AS date_of_birth,
             DATEDIFF(rs.end_date, CURDATE()) AS days_remaining
         FROM rental_schedule rs
@@ -66,6 +77,7 @@ try {
     $stmt->execute($params);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     foreach ($rows as &$row) {
+        $row['decision_version'] = rentalDecisionVersion($row);
         $row['request_fields'] = getRentalRequestFieldValues(
             $db,
             (string) $companyId,
@@ -75,8 +87,13 @@ try {
     }
     unset($row);
 
-    echo json_encode(['success' => true, 'requests' => $rows]);
+    $cfg = $db->prepare('SELECT automail_rental_confirm FROM email_configs WHERE company_id = ? AND is_active = 1 LIMIT 1');
+    $cfg->execute([$companyId]);
+    echo json_encode(['success' => true, 'requests' => $rows, 'decision_email_enabled'=>(int)$cfg->fetchColumn()===1]);
 
+} catch (TenantAuditException $e) {
+    http_response_code(403);
+    echo json_encode(['success'=>false,'message'=>'Du har ikke tilgang til utleiemodulen']);
 } catch (\Throwable $e) {
     error_log('get_rental_schedule error: ' . $e->getMessage());
     http_response_code(500);

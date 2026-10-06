@@ -7,6 +7,7 @@ require_once __DIR__ . '/../includes/rental_customer_fields.php';
 require_once __DIR__ . '/../includes/rental_request.php';
 require_once __DIR__ . '/../includes/rental_request_fields.php';
 require_once __DIR__ . '/../includes/rental_schedule_editing.php';
+require_once __DIR__ . '/../includes/tenant_notifications.php';
 
 function rentalRequestUuid(): string
 {
@@ -74,6 +75,20 @@ try {
         throw new RuntimeException('Utleieobjektet mangler ansvarlig tenant-administrator');
     }
 
+    $submission = $data['submission_id'] ?? hash('sha256', json_encode($data, JSON_THROW_ON_ERROR));
+    if (!is_string($submission) || strlen($submission)>128) {
+        throw new InvalidArgumentException('Ugyldig innsending');
+    }
+    $key = hash('sha256', $requestToken . "\0" . $objectId . "\0" . $submission);
+    $requestId = substr($key,0,8).'-'.substr($key,8,4).'-'.substr($key,12,4).'-'.substr($key,16,4).'-'.substr($key,20,12);
+    $retry = $db->prepare('SELECT id, status FROM rental_schedule WHERE id = ? AND company_id = ? AND rental_object_id = ?');
+    $retry->execute([$requestId, $object['company_id'], $objectId]);
+    if ($existingRequest = $retry->fetch(PDO::FETCH_ASSOC)) {
+        $db->commit();
+        echo json_encode(['success'=>true,'message'=>'Forespørselen er allerede sendt',
+            'request_id'=>$existingRequest['id'],'status'=>$existingRequest['status']]);
+        exit;
+    }
     $settings = getRentalCustomerFieldSettings($db, $object['company_id'], $objectId);
     $validated = validateRentalRequestInput($data, $settings);
     $startDateTime = $validated['start_date'] . ' ' . $validated['start_time'];
@@ -193,7 +208,6 @@ try {
     $rentalFee = rentalPeriodPriceCents(
         $object, $validated['start_date'], $validated['end_date']
     ) / 100;
-    $requestId = rentalRequestUuid();
 
     $insert = $db->prepare(
         'INSERT INTO rental_schedule
@@ -228,6 +242,7 @@ try {
         $fields
     );
 
+    tenantNotifyRentalRequest($db, (string)$object['company_id'], $requestId);
     $db->commit();
     echo json_encode([
         'success' => true,
