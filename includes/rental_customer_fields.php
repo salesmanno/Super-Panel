@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/entity_form_fields.php';
 
 /**
  * Customer data that may be requested for a rental object.
@@ -126,47 +127,19 @@ function normalizeRentalCustomerFieldSettings($input): array
 
 function getRentalCustomerFieldSettings(PDO $db, $companyId, $objectId): array
 {
-    if (!rentalCustomerFieldsTableExists($db)) {
-        return defaultRentalCustomerFieldSettings();
-    }
-    $stmt = $db->prepare(
-        'SELECT field_key AS field, selected, required, display_order AS `order`
-         FROM rental_customer_field_settings
-         WHERE company_id = ? AND rental_object_id = ?
-         ORDER BY display_order ASC, field_key ASC'
-    );
-    $stmt->execute([$companyId, $objectId]);
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    return $rows ? normalizeRentalCustomerFieldSettings($rows) : defaultRentalCustomerFieldSettings();
+    $loaded = entityFormLoad($db, (string)$companyId, 'rental_object', (string)$objectId);
+    return array_map(static fn($f) => $f + ['field'=>$f['field_name'],'label'=>$f['field_label'],
+        'selected'=>$f['is_visible'],'required'=>$f['is_required'],'order'=>$f['sort_order']], $loaded['fields']);
 }
 
 function saveRentalCustomerFieldSettings(PDO $db, $companyId, $objectId, $input): array
 {
     $settings = normalizeRentalCustomerFieldSettings($input);
-    if (!rentalCustomerFieldsTableExists($db)) {
-        throw new RuntimeException(
-            'Kundeoppsett kan ikke lagres før migrasjonen rental_customer_field_settings er kjørt'
-        );
-    }
-    $db->prepare(
-        'DELETE FROM rental_customer_field_settings
-         WHERE company_id = ? AND rental_object_id = ?'
-    )->execute([$companyId, $objectId]);
-    $stmt = $db->prepare(
-        'INSERT INTO rental_customer_field_settings
-         (id, company_id, rental_object_id, field_key, selected, required, display_order)
-         VALUES (UUID(), ?, ?, ?, ?, ?, ?)'
-    );
-    foreach ($settings as $setting) {
-        $stmt->execute([
-            $companyId,
-            $objectId,
-            $setting['field'],
-            $setting['selected'],
-            $setting['required'],
-            $setting['order'],
-        ]);
-    }
+    $defaults = array_column(entityFormDefaults('rental_object'), null, 'field_name');
+    $fields = array_map(static fn($s) => array_replace($defaults[$s['field']], [
+        'is_visible'=>$s['selected'],'is_required'=>$s['required'],'sort_order'=>$s['order']
+    ]), $settings);
+    entityFormSave($db, (string)$companyId, 'rental_object', (string)$objectId, $fields);
     return $settings;
 }
 

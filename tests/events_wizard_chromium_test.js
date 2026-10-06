@@ -15,6 +15,7 @@ const fragment = fs.readFileSync(path.join(__dirname, '../modules/events_content
     .replace(/<link[^>]*>/g, '')
     .replace(/<script[^>]*src=[^>]*><\/script>/g, '');
 const helper = fs.readFileSync(path.join(__dirname, '../assets/event_form_helpers.js'), 'utf8');
+const entityFields = fs.readFileSync(path.join(__dirname, '../assets/entity-form-fields.js'), 'utf8');
 const dashboardDateControls = fs.readFileSync(path.join(__dirname, '../includes/norwegian_datetime_inputs.php'), 'utf8');
 const stubs = `
 window.fixtureErrors=[];window.fixtureSaves=[];window.fixtureMode='success';window.fixtureConfirms=0;
@@ -26,6 +27,11 @@ window.alert=message=>fixtureErrors.push(message);
 window.toast=new Proxy({}, {get:()=>()=>{}});
 window.bootstrap={Modal:class {static getInstance(){return {hide(){}}} show(){} hide(){}},Tab:class{show(){}}};
 window.fetch=async(url,options)=>{
+    if(String(url).includes('/api/get_entity_form_fields.php')) return {ok:true,json:async()=>({success:true,csrf_token:'csrf-fixture',registration_type:'signup',presets:[],fields:[
+        {field_name:'first_name',field_label:'Fornavn',field_type:'text',is_visible:1,is_required:1,sort_order:0},
+        {field_name:'last_name',field_label:'Etternavn',field_type:'text',is_visible:1,is_required:1,sort_order:1},
+        {field_name:'email',field_label:'E-post',field_type:'email',is_visible:1,is_required:1,sort_order:2}
+    ]})};
     if(String(url).includes('create_event.php')){
         fixtureSaves.push(JSON.parse(options.body));
         if(fixtureMode.startsWith('deferred-')){
@@ -151,6 +157,7 @@ const checks = `
         wizardCurrentStep=7;updateWizardSummary();
         openCreation();clean();
         check(fixtureConfigReads===configReads,'New creation retains company configuration');
+        await settle();
 
         fill('En enkelt lagring','18062028','1145');
         wizardCurrentStep=7;fixtureMode='deferred-success';
@@ -199,7 +206,7 @@ let browser;
 let socket;
 async function main() {
     const file=path.join(directory,'fixture.html');
-    fs.writeFileSync(file, `<!doctype html><html lang="nb"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><script>${stubs}</script><script>${helper}</script>${fragment}${dashboardDateControls}</body></html>`);
+    fs.writeFileSync(file, `<!doctype html><html lang="nb"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><script>${stubs}</script><script>${helper}</script><script>${entityFields}</script>${fragment}${dashboardDateControls}</body></html>`);
     browser=spawn(process.env.CHROMIUM_PATH||'/repl/tools/bin/chromium',[
         '--headless','--no-sandbox','--disable-dev-shm-usage','--remote-debugging-port=0',
         '--user-data-dir='+path.join(directory,'profile'),'about:blank'
@@ -242,8 +249,10 @@ main().catch(error=>{console.error(error);process.exitCode=1}).finally(async()=>
     if(socket)socket.close();
     if(browser){
         const stopped=new Promise(resolve=>browser.once('exit',resolve));
-        browser.kill();
+        browser.kill('SIGKILL');
         await stopped;
     }
-    fs.rmSync(directory,{recursive:true,force:true,maxRetries:5,retryDelay:100});
+    await new Promise(resolve=>setTimeout(resolve,300));
+    try { fs.rmSync(directory,{recursive:true,force:true,maxRetries:10,retryDelay:250}); }
+    catch(error) { if(error.code!=='ENOTEMPTY'&&error.code!=='EBUSY') throw error; }
 });

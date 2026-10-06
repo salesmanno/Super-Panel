@@ -20,6 +20,9 @@ $admin = [
 // Hent input
 $data = json_decode(file_get_contents('php://input'), true);
 $data = is_array($data) ? $data : [];
+try { entityFormRequireCsrf($data); } catch (Throwable $e) {
+    http_response_code(403); echo json_encode(['success'=>false,'message'=>$e->getMessage()]); exit;
+}
 
 // Valider required fields
 if (empty($data['id'])) {
@@ -190,7 +193,10 @@ try {
         $db->prepare("DELETE FROM $oldTypeTable WHERE object_id = ?")->execute([$data['id']]);
     }
 
-    if (array_key_exists('customer_fields', $data) || array_key_exists('customer_field_settings', $data)) {
+    if (array_key_exists('form_fields', $data)) {
+        if (!is_array($data['form_fields'])) throw new InvalidArgumentException('Ugyldig feltoppsett');
+        $customerFields = entityFormSave($db, (string)$admin['company_id'], 'rental_object', (string)$data['id'], $data['form_fields']);
+    } elseif (array_key_exists('customer_fields', $data) || array_key_exists('customer_field_settings', $data)) {
         $customerInput = $data['customer_fields'] ?? $data['customer_field_settings'];
         $customerFields = saveRentalCustomerFieldSettings(
             $db,

@@ -8,6 +8,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/entity_form_fields.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -76,11 +77,7 @@ try {
             $stmt->execute([$data['event_id']]);
             
             // 5. Delete registration fields
-            $stmt = $db->prepare("
-                DELETE FROM event_registration_fields 
-                WHERE event_id = ?
-            ");
-            $stmt->execute([$data['event_id']]);
+            entityFormDelete($db, (string)$_SESSION['company_id'], 'event', (string)$data['event_id']);
             
             // 6. Delete membership pricing
             $stmt = $db->prepare("

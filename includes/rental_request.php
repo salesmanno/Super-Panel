@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/request_date_time.php';
 require_once __DIR__ . '/rental_customer_fields.php';
+require_once __DIR__ . '/entity_form_input.php';
 
 class RentalRequestConflictException extends RuntimeException
 {
@@ -73,29 +74,17 @@ function rentalRequestFieldInputType(string $field): string
 
 function renderRentalRequestField(array $setting): string
 {
-    if (empty($setting['selected'])) {
-        return '';
-    }
-    $field = (string) ($setting['field'] ?? '');
-    if (!array_key_exists($field, getRentalCustomerFieldDefinitions())) {
-        throw new InvalidArgumentException('Ugyldig kundeopplysningsfelt');
-    }
-    $escape = static fn($value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
-    $label = $escape($setting['label'] ?? getRentalCustomerFieldDefinitions()[$field]);
-    $fieldAttr = $escape($field);
-    $type = $escape(rentalRequestFieldInputType($field));
-    $required = !empty($setting['required']);
-    $requiredMark = $required ? '<span class="text-danger">*</span>' : '';
-    $requiredAttr = $required ? ' required' : '';
-    $ageAttrs = $field === 'age' ? ' min="0" max="130" step="1"' : '';
+    return renderEntityFormField(rentalSettingToEntityField($setting));
+}
 
-    return '<div class="mb-3">'
-        . '<label class="form-label" for="field-' . $fieldAttr . '">'
-        . $label . ' ' . $requiredMark . '</label>'
-        . '<input class="form-control" id="field-' . $fieldAttr . '"'
-        . ' name="fields[' . $fieldAttr . ']" type="' . $type . '"'
-        . $ageAttrs . $requiredAttr . '>'
-        . '</div>';
+function rentalSettingToEntityField(array $setting): array {
+    return $setting + [
+        'field_name'=>$setting['field'],'field_label'=>$setting['label']??$setting['field'],
+        'field_type'=>rentalRequestFieldInputType($setting['field']),
+        'is_visible'=>$setting['selected']??0,'is_required'=>$setting['required']??0,
+        'default_value'=>null,'options'=>[],
+        'validation_rules'=>$setting['field']==='age'?['min'=>0,'max'=>130]:[],
+    ];
 }
 
 function rentalRequestCustomerDisplay(array $submitted, ?array $existing = null): array
@@ -128,42 +117,7 @@ function validateRentalRequestInput(array $data, array $settings): array
         throw new InvalidArgumentException('Kundeopplysninger er ugyldige');
     }
 
-    $definitions = getRentalCustomerFieldDefinitions();
-    $selected = [];
-    foreach ($settings as $setting) {
-        if (!empty($setting['selected'])) {
-            $selected[$setting['field']] = $setting;
-        }
-    }
-
-    foreach (array_keys($submittedFields) as $field) {
-        if (!array_key_exists($field, $definitions) || !isset($selected[$field])) {
-            throw new InvalidArgumentException('Ugyldig eller ikke valgt kundeopplysning');
-        }
-    }
-
-    $fields = [];
-    foreach ($selected as $field => $setting) {
-        $value = $submittedFields[$field] ?? '';
-        if (!is_scalar($value)) {
-            throw new InvalidArgumentException('Kundeopplysning er ugyldig');
-        }
-        $value = trim((string) $value);
-        if (!empty($setting['required']) && $value === '') {
-            throw new InvalidArgumentException('Alle påkrevde kundeopplysninger må fylles ut');
-        }
-        if ($value !== '' && $field === 'email' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
-            throw new InvalidArgumentException('E-postadressen er ugyldig');
-        }
-        if ($value !== '' && $field === 'age'
-            && (!ctype_digit($value) || (int) $value < 0 || (int) $value > 130)) {
-            throw new InvalidArgumentException('Alder er ugyldig');
-        }
-        if (strlen($value) > 255) {
-            throw new InvalidArgumentException('Kundeopplysningen er for lang');
-        }
-        $fields[$field] = $value;
-    }
+    $fields = validateEntityFormValues(array_map('rentalSettingToEntityField',$settings), $submittedFields);
 
     $startDate = normalizeRequestDate($data['start_date'] ?? null, 'Startdato', false);
     $endDate = normalizeRequestDate($data['end_date'] ?? null, 'Sluttdato', false);

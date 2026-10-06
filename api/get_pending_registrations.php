@@ -9,6 +9,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/entity_form_fields.php';
 
 try {
     $db = getDBConnection();
@@ -70,21 +71,11 @@ try {
     
     // Get registration fields for each event (max 4)
     $eventFields = [];
-    $fieldsStmt = $db->prepare("
-        SELECT event_id, field_name, field_label, is_required, is_visible, display_order
-        FROM event_registration_fields
-        WHERE is_visible = 1
-        ORDER BY event_id, display_order ASC
-    ");
-    $fieldsStmt->execute();
-    foreach ($fieldsStmt->fetchAll(PDO::FETCH_ASSOC) as $field) {
-        $eventId = $field['event_id'];
-        if (!isset($eventFields[$eventId])) {
-            $eventFields[$eventId] = [];
-        }
-        if (count($eventFields[$eventId]) < 4) {
-            $eventFields[$eventId][] = $field;
-        }
+    foreach (array_unique(array_column($registrations,'event_id')) as $eventId) {
+        $eventFields[$eventId] = array_slice(array_values(array_filter(
+            entityFormLoad($db, (string)$companyId, 'event', (string)$eventId)['fields'],
+            static fn($f) => $f['is_visible']
+        )), 0, 4);
     }
     
     // Process each registration - include actual customer entry data

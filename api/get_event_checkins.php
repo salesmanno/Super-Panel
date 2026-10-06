@@ -9,6 +9,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__.'/../includes/event_form_submission.php';
 
 try {
     $eventId = $_GET['event_id'] ?? null;
@@ -79,6 +80,13 @@ try {
     $notCheckedIn = [];
     
     foreach ($allCheckins as $checkin) {
+        $submitted=eventGuestFormSnapshot($checkin['notes']??null);
+        $checkin['submitted_fields']=$submitted['form_fields']??[];
+        if(empty($checkin['customer_id']) && $submitted) {
+            $checkin['first_name']=$submitted['guest']['first_name']??$checkin['first_name'];
+            $checkin['last_name']=$submitted['guest']['last_name']??$checkin['last_name'];
+            $checkin['customer_email']=$submitted['guest']['email']??$checkin['customer_email'];
+        }
         // Build full name for display
         $checkin['customer_name'] = trim(($checkin['first_name'] ?? '') . ' ' . ($checkin['last_name'] ?? ''));
         if (empty($checkin['customer_name'])) {

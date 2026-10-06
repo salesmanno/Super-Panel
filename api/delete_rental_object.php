@@ -9,6 +9,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/entity_form_fields.php';
 
 $admin = [
     'tenant_admin_id' => $_SESSION['tenant_admin_id'],
@@ -60,9 +61,13 @@ try {
         exit;
     }
     
+    // Shared definitions have no cross-table FK; remove them atomically with the object.
+    $db->beginTransaction();
+    entityFormDelete($db, (string)$admin['company_id'], 'rental_object', (string)$object_id);
     // Delete object (CASCADE will delete from type-specific table and rental_schedule)
     $deleteStmt = $db->prepare("DELETE FROM rental_objects WHERE id = ? AND company_id = ?");
     $deleteStmt->execute([$object_id, $admin['company_id']]);
+    $db->commit();
     
     echo json_encode([
         'success' => true,
@@ -70,6 +75,7 @@ try {
     ]);
     
 } catch (\Throwable $e) {
+    if(isset($db) && $db->inTransaction())$db->rollBack();
     error_log('delete_rental_object error: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([

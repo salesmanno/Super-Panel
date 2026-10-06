@@ -13,6 +13,7 @@ try {
 }
 ?>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="/assets/entity-form-fields.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 .event-card {
@@ -719,6 +720,8 @@ try {
 .wizard-step.completed .step-label {
     color: #10b981;
 }
+#edit-tab-7, #edit-panel-7 { display: none !important; }
+#registration-fields-section > :not(#create-event-fields-editor) { display: none !important; }
 
 .wizard-option-card {
     cursor: pointer;
@@ -1174,6 +1177,7 @@ try {
                                 
                                 <!-- Registration Fields -->
                                 <div id="registration-fields-section">
+                                    <div id="create-event-fields-editor"></div>
                                     <h6 class="mb-3"><i class="bi bi-ui-checks me-2"></i>Påmeldingsfelt</h6>
                                     
                                     <div class="alert alert-info mb-3">
@@ -1387,18 +1391,19 @@ try {
                             <form id="quick-guest-form">
                                 <div class="row g-2">
                                     <div class="col-6">
-                                        <label class="form-label small mb-1">Fornavn *</label>
+                                        <label class="form-label small mb-1" for="guest-fornavn">Fornavn *</label>
                                         <input type="text" class="form-control form-control-sm" id="guest-fornavn" required>
                                     </div>
                                     <div class="col-6">
-                                        <label class="form-label small mb-1">Etternavn *</label>
+                                        <label class="form-label small mb-1" for="guest-etternavn">Etternavn *</label>
                                         <input type="text" class="form-control form-control-sm" id="guest-etternavn" required>
                                     </div>
                                 </div>
                                 <div class="mb-2 mt-2">
-                                    <label class="form-label small mb-1">E-post</label>
+                                    <label class="form-label small mb-1" for="guest-email">E-post</label>
                                     <input type="email" class="form-control form-control-sm" id="guest-email">
                                 </div>
+                                <div id="dynamic-registration-fields" class="dynamic-registration-fields" aria-live="polite"></div>
                                 <div class="mb-2">
                                     <label class="form-label small mb-1">Antall personer</label>
                                     <input type="number" class="form-control form-control-sm" id="guest-number-of-people" min="1" max="10" value="1" required>
@@ -1793,6 +1798,19 @@ try {
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="eventFieldsModal" tabindex="-1" aria-labelledby="eventFieldsModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div><div class="small text-uppercase text-muted">Dette arrangementet</div><h5 class="modal-title" id="eventFieldsModalTitle">Skjemafelt</h5></div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Lukk"></button>
+            </div>
+            <div class="modal-body"><div id="event-fields-editor"></div></div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Lukk</button></div>
         </div>
     </div>
 </div>
@@ -2323,6 +2341,7 @@ try {
 </div>
 
 <script src="/assets/event_form_helpers.js"></script>
+<script src="/assets/entity-form-fields.js"></script>
 <script>
 const norskMnd = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des'];
 const norskMndLang = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
@@ -2542,16 +2561,26 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get registration_type directly from radio buttons (more reliable than FormData)
             const selectedRegType = document.querySelector('input[name="registration_type"]:checked');
             const registrationType = selectedRegType ? selectedRegType.value : 'signup';
+            if (!eventCreateFieldsEditor?.isReady()) {
+                toast.quickWarning('Skjemafelt', 'Vent til standardfeltene er lastet, eller prøv å laste dem på nytt.');
+                return;
+            }
             
-            // Only validate contact fields for events WITH registration (not for 'none' type)
+            const createFields = registrationType === 'none' ? [] : (eventCreateFieldsEditor?.getFields() || []);
             if (registrationType !== 'none') {
-                const emailChecked = document.getElementById('field_email').checked;
-                const phoneChecked = document.getElementById('field_phone').checked;
-                
-                if (!emailChecked && !phoneChecked) {
-                    toast.quickWarning('Validering', 'Du må velge minst ett kontaktfelt (E-post eller Telefonnummer) for å verifisere medlemskap');
+                const visibleNames = new Set(createFields.filter(field => field.is_visible).map(field => field.field_name));
+                const requiredNames = new Set(createFields.filter(field => field.is_visible && field.is_required).map(field => field.field_name));
+                if (!visibleNames.has('first_name') || !visibleNames.has('last_name') ||
+                    !requiredNames.has('first_name') || !requiredNames.has('last_name') ||
+                    !['email', 'phone'].some(name => visibleNames.has(name))) {
+                    toast.quickWarning('Skjemafelt', 'Fornavn, etternavn og minst ett kontaktfelt må være synlige.');
                     return;
                 }
+            }
+            const csrfToken = eventCreateFieldsEditor?.getCsrfToken() || window.entityFormCsrfToken || '';
+            if (!csrfToken) {
+                toast.quickError('Skjemafelt', 'Sikkerhetstoken mangler. Last skjemafelt på nytt før du oppretter.');
+                return;
             }
             
             // Validate registration deadline
@@ -2630,14 +2659,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 membership_pricing: membershipPricing,
                 allowed_payment_methods: allowedPaymentMethods,
                 default_payment_method: defaultPaymentMethod,
-                // Registration fields
-                field_email: formData.get('field_email') ? 1 : 0,
-                field_phone: formData.get('field_phone') ? 1 : 0,
-                field_street: formData.get('field_street') ? 1 : 0,
-                field_zip: formData.get('field_zip') ? 1 : 0,
-                field_city: formData.get('field_city') ? 1 : 0,
-                field_postal: formData.get('field_postal') ? 1 : 0,
-                field_age: formData.get('field_age') ? 1 : 0
+                form_fields: createFields,
+                csrf_token: csrfToken
             };
 
             setEventCreationBusy(true);
@@ -2834,8 +2857,11 @@ async function loadEvents() {
                                     <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); viewEvent('${event.id}')" title="Vis detaljer">
                                         <i class="bi bi-eye"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-warning" data-event='${JSON.stringify(event).replace(/'/g, "&apos;")}' onclick="event.stopPropagation(); editEvent('${event.id}')" title="Rediger">
-                                        <i class="bi bi-pencil"></i>
+                                    <button class="btn btn-sm btn-outline-warning" data-event='${JSON.stringify(event).replace(/'/g, "&apos;")}' onclick="event.stopPropagation(); editEvent('${event.id}')" title="Grunnopplysninger" aria-label="Grunnopplysninger">
+                                        <i class="bi bi-pencil"></i><span class="visually-hidden">Grunnopplysninger</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-info" onclick="event.stopPropagation(); openEventFormFields('${event.id}')" title="Skjemafelt">
+                                        <i class="bi bi-ui-checks"></i><span class="visually-hidden">Skjemafelt</span>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteEvent('${event.id}')" title="Slett">
                                         <i class="bi bi-trash"></i>
@@ -3264,6 +3290,7 @@ function openEventDetail(eventId, eventTitle, eventDate) {
     // Load checkins and event details
     loadCheckins(eventId);
     loadEventDetailsForCheckin(eventId);
+    loadEventRegistrationFields(eventId);
 }
 
 function goBackToEventList() {
@@ -3402,16 +3429,24 @@ document.getElementById('quick-guest-form')?.addEventListener('submit', async fu
         toast.quickWarning('Validering', 'Antall personer må være mellom 1 og 10');
         return;
     }
+
+    const firstName = document.getElementById('guest-fornavn').value.trim();
+    const lastName = document.getElementById('guest-etternavn').value.trim();
+    if (!firstName || !lastName) {
+        toast.quickWarning('Validering', 'Fornavn og etternavn er påkrevd.');
+        return;
+    }
     
     const formData = {
         event_id: selectedEventId,
-        attendee_first_name: document.getElementById('guest-fornavn').value.trim(),
-        attendee_last_name: document.getElementById('guest-etternavn').value.trim(),
+        attendee_first_name: firstName,
+        attendee_last_name: lastName,
         attendee_email: document.getElementById('guest-email').value.trim() || null,
         membership_plan_id: document.getElementById('guest-membership-plan').value || null,
         payment_method: document.getElementById('guest-payment-method').value,
         payment_status: document.getElementById('guest-payment-status').value,
-        number_of_people: numberOfPeople
+        number_of_people: numberOfPeople,
+        optional_fields: collectDynamicRegistrationValues()
     };
     
     try {
@@ -3467,50 +3502,144 @@ document.getElementById('quick-guest-form')?.addEventListener('submit', async fu
 
 // Load and display dynamic registration fields
 async function loadEventRegistrationFields(eventId) {
+    const builtIns = {
+        first_name: {control: document.getElementById('guest-fornavn'), label: 'Fornavn', required: true},
+        last_name: {control: document.getElementById('guest-etternavn'), label: 'Etternavn', required: true},
+        email: {control: document.getElementById('guest-email'), label: 'E-post', required: false}
+    };
+    Object.values(builtIns).forEach(item => {
+        if (!item.control) return;
+        const previousDefault = item.control.dataset.registrationDefault;
+        if (previousDefault !== undefined) {
+            if (item.control.value === previousDefault) item.control.value = '';
+            item.control.defaultValue = '';
+            delete item.control.dataset.registrationDefault;
+        }
+        item.control.required = item.required;
+        const label = item.control.parentElement?.querySelector('label');
+        if (label) label.textContent = item.label + (item.required ? ' *' : '');
+    });
     try {
-        const response = await fetch(`/api/get_event_fields.php?event_id=${eventId}`);
+        const response = await fetch(`/api/get_event_fields.php?event_id=${encodeURIComponent(eventId)}`);
         const result = await response.json();
         
         const container = document.getElementById('dynamic-registration-fields');
-        container.innerHTML = '';
-        
-        if (result.success && result.fields && result.fields.length > 0) {
-            const row = document.createElement('div');
-            row.className = 'row';
-            
-            result.fields.forEach(field => {
-                const colDiv = document.createElement('div');
-                colDiv.className = 'col-md-6 mb-3';
-                
-                const label = document.createElement('label');
-                label.className = 'form-label';
-                label.textContent = field.field_label + (field.is_required ? ' *' : '');
-                
-                let input;
-                if (field.field_type === 'textarea') {
-                    input = document.createElement('textarea');
-                    input.rows = 2;
-                } else {
-                    input = document.createElement('input');
-                    input.type = field.field_type || 'text';
+        if (!container || String(selectedEventId) !== String(eventId)) return;
+        container.replaceChildren();
+        if (!response.ok || !result?.success || !Array.isArray(result.fields)) return;
+
+        const definitions = result.fields.filter(field => {
+            const visibility = field.is_visible;
+            const visible = visibility === undefined || ![false, 0, '0', 'false'].includes(visibility);
+            return visible;
+        });
+        if (!definitions.length) return;
+
+        const row = document.createElement('div');
+        row.className = 'row g-2';
+        definitions.forEach((field, index) => {
+            const fieldName = String(field.field_name || '').trim();
+            if (!fieldName) return;
+            const canonicalName = fieldName.toLowerCase();
+            const required = field.is_required === true || field.is_required === 1 || field.is_required === '1' || field.is_required === 'true';
+            if (builtIns[canonicalName]) {
+                const builtIn = builtIns[canonicalName];
+                const control = builtIn.control;
+                if (control) {
+                    control.required = builtIn.required || required;
+                    if (field.default_value !== undefined && field.default_value !== null && control.value.trim() === '') {
+                        control.value = String(field.default_value);
+                        control.defaultValue = String(field.default_value);
+                        control.dataset.registrationDefault = String(field.default_value);
+                    }
+                    const label = control.parentElement?.querySelector('label');
+                    if (label) label.textContent = `${String(field.field_label || builtIn.label)}${control.required ? ' *' : ''}`;
                 }
-                
-                input.className = 'form-control';
-                input.name = 'field_' + field.field_name;
-                if (field.is_required) {
-                    input.required = true;
+                return;
+            }
+            const fieldType = ['text', 'email', 'tel', 'number', 'date', 'textarea', 'select', 'checkbox'].includes(field.field_type)
+                ? field.field_type : 'text';
+            const safeId = `guest-dynamic-${fieldName.replace(/[^a-zA-Z0-9_-]/g, '-')}-${index}`;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'col-12 col-md-6 mb-2';
+            const label = document.createElement('label');
+            label.className = fieldType === 'checkbox' ? 'form-check-label small' : 'form-label small mb-1';
+            label.htmlFor = safeId;
+            label.textContent = `${String(field.field_label || fieldName)}${required ? ' *' : ''}`;
+
+            let control;
+            if (fieldType === 'textarea') {
+                control = document.createElement('textarea');
+                control.rows = 2;
+            } else if (fieldType === 'select') {
+                control = document.createElement('select');
+                control.appendChild(new Option('Velg…', ''));
+                let options = Array.isArray(field.options) ? field.options : [];
+                if (!options.length && typeof field.options === 'string') {
+                    try { options = JSON.parse(field.options); } catch (_) { options = []; }
                 }
-                
-                colDiv.appendChild(label);
-                colDiv.appendChild(input);
-                row.appendChild(colDiv);
-            });
-            
-            container.appendChild(row);
-        }
+                options.forEach(option => {
+                    const value = String(option && typeof option === 'object' ? (option.value ?? option.label ?? '') : option ?? '');
+                    const optionLabel = String(option && typeof option === 'object' ? (option.label ?? value) : value);
+                    control.appendChild(new Option(optionLabel, value));
+                });
+            } else {
+                control = document.createElement('input');
+                control.type = fieldType;
+            }
+
+            control.id = safeId;
+            control.name = `dynamic_registration_fields[${fieldName}]`;
+            control.dataset.dynamicFieldName = fieldName;
+            control.className = fieldType === 'checkbox' ? 'form-check-input me-2' : 'form-control form-control-sm';
+            control.required = required;
+            const defaultValue = field.default_value ?? '';
+            if (fieldType === 'checkbox') {
+                const checked = defaultValue === true || defaultValue === 1 || ['1', 'true', 'yes', 'on'].includes(String(defaultValue).toLowerCase());
+                control.defaultChecked = checked;
+                control.checked = checked;
+                const checkWrap = document.createElement('div');
+                checkWrap.className = 'form-check';
+                checkWrap.append(control, label);
+                wrapper.appendChild(checkWrap);
+            } else {
+                control.value = String(defaultValue);
+                control.defaultValue = String(defaultValue);
+                if (fieldType === 'select') {
+                    Array.from(control.options).forEach(option => option.defaultSelected = option.value === String(defaultValue));
+                }
+                wrapper.append(label, control);
+            }
+
+            let rules = field.validation_rules;
+            if (typeof rules === 'string') {
+                try { rules = JSON.parse(rules); } catch (_) { rules = {}; }
+            }
+            rules = rules && typeof rules === 'object' ? rules : {};
+            const maxLength = rules.max_length ?? rules.maxLength;
+            const minLength = rules.min_length ?? rules.minLength;
+            if (rules.min !== undefined && ['number', 'date'].includes(fieldType)) control.min = String(rules.min);
+            if (rules.max !== undefined && ['number', 'date'].includes(fieldType)) control.max = String(rules.max);
+            const lengthCapable = ['text', 'email', 'tel', 'textarea'].includes(fieldType);
+            if (lengthCapable && Number.isFinite(Number(maxLength)) && Number(maxLength) > 0) control.maxLength = Number(maxLength);
+            if (lengthCapable && Number.isFinite(Number(minLength)) && Number(minLength) > 0) control.minLength = Number(minLength);
+            if (['text', 'email', 'tel'].includes(fieldType) && typeof rules.pattern === 'string' && rules.pattern.length <= 256) {
+                try { new RegExp(rules.pattern); control.pattern = rules.pattern; } catch (_) { /* Ignore invalid legacy patterns safely. */ }
+            }
+            row.appendChild(wrapper);
+        });
+        container.appendChild(row);
     } catch (error) {
         console.error('Error loading event fields:', error);
     }
+}
+
+function collectDynamicRegistrationValues() {
+    const values = Object.create(null);
+    document.querySelectorAll('#dynamic-registration-fields [data-dynamic-field-name]').forEach(control => {
+        values[control.dataset.dynamicFieldName] = control.type === 'checkbox' ? (control.checked ? 1 : 0) : control.value;
+    });
+    return values;
 }
 
 // Attendee scanner functionality
@@ -3627,6 +3756,25 @@ document.getElementById('checkin-form')?.addEventListener('submit', async functi
 });
 
 // Load check-ins for selected event
+function eventFormEscapeText(value) {
+    return String(value ?? '').replace(/[&<>"']/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[character]));
+}
+
+function eventSubmittedFieldDetails(fields) {
+    const extra = Array.isArray(fields) ? fields.filter(field =>
+        !['first_name', 'last_name', 'email'].includes(field.field_name)) : [];
+    if (!extra.length) return '';
+    const entries = extra.map(field => {
+        let value = field.value ?? '';
+        if (field.field_type === 'checkbox') value = String(value) === '1' ? 'Ja' : 'Nei';
+        if (field.field_type === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(String(value))) value = String(value).split('-').reverse().join('.');
+        return `<dt>${eventFormEscapeText(field.field_label)}</dt><dd>${eventFormEscapeText(value)}</dd>`;
+    }).join('');
+    return `<details class="small mt-1"><summary>Skjemasvar</summary><dl class="mb-0">${entries}</dl></details>`;
+}
+
 async function loadCheckins(eventId) {
     try {
         const response = await fetch(`/api/get_event_checkins.php?event_id=${eventId}`);
@@ -3688,8 +3836,9 @@ async function loadCheckins(eventId) {
                     return `
                         <tr class="${isNoShow ? 'table-secondary' : ''}">
                             <td>
-                                <div class="attendee-name">${customerName}</div>
-                                ${customerEmail ? `<div class="attendee-email">${customerEmail}</div>` : ''}
+                                <div class="attendee-name">${eventFormEscapeText(customerName)}</div>
+                                ${customerEmail ? `<div class="attendee-email">${eventFormEscapeText(customerEmail)}</div>` : ''}
+                                ${eventSubmittedFieldDetails(checkin.submitted_fields)}
                             </td>
                             <td>${typeBadge}</td>
                             <td><span class="price-display">${isNoShow ? '<s class="text-muted">' + checkin.ticket_price + ' kr</s>' : checkin.ticket_price + ' kr'}</span></td>
@@ -3745,7 +3894,7 @@ async function loadCheckins(eventId) {
                     const groupCheckbox = isPaid ? '' : `
                         <input type="checkbox" class="form-check-input group-select-checkbox me-2" 
                                data-checkin-id="${checkin.id}" data-price="${checkin.ticket_price}"
-                               data-name="${customerName.replace(/"/g, '&quot;')}"
+                               data-name="${eventFormEscapeText(customerName)}"
                                onchange="toggleGroupSelection('${checkin.id}', ${isPaid})"
                                ${selectedForGroup.has(checkin.id) ? 'checked' : ''}>`;
                     
@@ -3755,8 +3904,9 @@ async function loadCheckins(eventId) {
                                 <div class="d-flex align-items-center">
                                     ${groupCheckbox}
                                     <div>
-                                        <div class="attendee-name">${customerName}</div>
-                                        ${customerEmail ? `<div class="attendee-email">${customerEmail}</div>` : ''}
+                                        <div class="attendee-name">${eventFormEscapeText(customerName)}</div>
+                                        ${customerEmail ? `<div class="attendee-email">${eventFormEscapeText(customerEmail)}</div>` : ''}
+                                        ${eventSubmittedFieldDetails(checkin.submitted_fields)}
                                     </div>
                                 </div>
                             </td>
@@ -4425,44 +4575,14 @@ async function editEvent(eventId) {
             editDeadlineContainer.style.display = 'none';
         }
         
-        // Fetch and set registration fields - safe parsing
+        // Load the module-scoped form-field token for the basic-information update.
         try {
-            const fieldsResponse = await fetch(`/api/get_event_registration_fields.php?event_id=${eventId}`);
-            
-            if (fieldsResponse.ok) {
-                const fieldsResult = await fieldsResponse.json();
-                
-                // Reset all optional field checkboxes
-                const setCheckboxFalse = (id) => {
-                    const el = document.getElementById(id);
-                    if (el) el.checked = false;
-                };
-                setCheckboxFalse('edit-field-email');
-                setCheckboxFalse('edit-field-phone');
-                setCheckboxFalse('edit-field-street');
-                setCheckboxFalse('edit-field-zip');
-                setCheckboxFalse('edit-field-city');
-                setCheckboxFalse('edit-field-postal');
-                setCheckboxFalse('edit-field-age');
-                
-                if (fieldsResult.success && fieldsResult.fields && fieldsResult.fields.length > 0) {
-                    fieldsResult.fields.forEach(field => {
-                        const checkbox = document.getElementById(`edit-field-${field.field_name}`);
-                        if (checkbox) {
-                            checkbox.checked = true;
-                        }
-                    });
-                    console.log('Loaded registration fields:', fieldsResult.fields);
-                } else {
-                    console.log('No registration fields returned for this event');
-                }
-                
-            } else {
-                console.warn(`HTTP ${fieldsResponse.status}: Kunne ikke hente registreringsfelt - fortsetter likevel`);
-            }
+            const fieldData = await EntityFormFields.load('event', eventId);
+            eventCsrfToken = fieldData.csrf_token || window.entityFormCsrfToken || '';
         } catch (fieldError) {
-            console.warn('Error loading registration fields:', fieldError);
-            // Continue - registration fields are optional for modal to open
+            console.error('Could not load event security token:', fieldError);
+            toast.quickError('Arrangement', 'Kunne ikke hente sikkerhetstoken. Prøv igjen.');
+            return;
         }
         
         // Load payment methods with current selection - safe loading
@@ -4567,12 +4687,8 @@ async function saveEventChanges() {
     }
     const formData = new FormData(form);
     
-    // Validate that at least one contact field is selected
-    const emailChecked = document.getElementById('edit-field-email').checked;
-    const phoneChecked = document.getElementById('edit-field-phone').checked;
-    
-    if (!emailChecked && !phoneChecked) {
-        toast.quickWarning('Validering', 'Du må velge minst ett kontaktfelt (E-post eller Telefonnummer) for å verifisere medlemskap');
+    if (!eventCsrfToken) {
+        toast.quickError('Sikkerhet', 'Last arrangementet på nytt før du lagrer.');
         return;
     }
     
@@ -4636,21 +4752,15 @@ async function saveEventChanges() {
         memberverification: formData.get('memberverification') ? 1 : 0,
         allowed_payment_methods: allowedPaymentMethods,
         payment_timing_methods: paymentTimingMethods,
-        // Registration fields
-        field_phone: formData.get('field_phone') ? 1 : 0,
-        field_email: formData.get('field_email') ? 1 : 0,
-        field_street: formData.get('field_street') ? 1 : 0,
-        field_zip: formData.get('field_zip') ? 1 : 0,
-        field_city: formData.get('field_city') ? 1 : 0,
-        field_postal: formData.get('field_postal') ? 1 : 0,
-        field_age: formData.get('field_age') ? 1 : 0
+        csrf_token: eventCsrfToken
     };
 
     try {
         const response = await fetch('/api/update_event.php', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': eventCsrfToken
             },
             body: JSON.stringify(data)
         });
@@ -6336,6 +6446,9 @@ let wizardMapMarker = null;
 let geocodeTimeout = null;
 let wizardGeocodeRevision = 0;
 let eventCreationBusy = false;
+let eventCreateFieldsEditor = null;
+let eventEditFieldsEditor = null;
+let eventCsrfToken = '';
 let eventCreationDisabledControls = [];
 
 function setEventCreationBusy(busy) {
@@ -6916,6 +7029,10 @@ function resetEventWizardForm() {
         updateWizardBasedOnType();
         updateMembershipAddonsVisibility();
         updateWizardSummary();
+        if (eventCreateFieldsEditor) {
+            eventCreateFieldsEditor.reset();
+            eventCreateFieldsEditor.setRegistrationType('signup').catch(error => console.warn('Could not reset form-field defaults:', error));
+        }
         // Native reset restores the loaded plans/methods and their defaults.
         // Refetching here could overwrite the next event or erase configuration
         // when the network fails after the previous event was saved successfully.
@@ -6937,8 +7054,42 @@ function showWizardSuccess() {
     }
 }
 
+async function initEventFormFieldsEditor() {
+    const host = document.getElementById('create-event-fields-editor');
+    if (!host || !window.EntityFormFields) return;
+    const initialRegistrationType = document.querySelector('#create-event-form input[name="registration_type"]:checked')?.value || 'signup';
+    eventCreateFieldsEditor = EntityFormFields.mount(host, {entityType: 'event', entityId: null, createMode: true, registrationType: initialRegistrationType});
+    document.querySelectorAll('#create-event-form input[name="registration_type"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            eventCreateFieldsEditor?.setRegistrationType(radio.value).catch(error => console.warn('Could not load event field defaults:', error));
+        });
+    });
+    try {
+        await eventCreateFieldsEditor.refresh();
+    } catch (error) {
+        console.error('Could not load event form field defaults:', error);
+    }
+}
+
+async function openEventFormFields(eventId) {
+    const host = document.getElementById('event-fields-editor');
+    const event = (typeof allEvents !== 'undefined' ? allEvents : []).find(item => String(item.id) === String(eventId));
+    const title = document.getElementById('eventFieldsModalTitle');
+    if (title && event) title.textContent = `Skjemafelt · ${event.title || 'Arrangement'}`;
+    if (!host) return;
+    if (eventEditFieldsEditor) eventEditFieldsEditor = null;
+    eventEditFieldsEditor = EntityFormFields.mount(host, {entityType: 'event', entityId: eventId, registrationType: event?.registration_type || ''});
+    try {
+        await eventEditFieldsEditor.refresh();
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('eventFieldsModal')).show();
+    } catch (error) {
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('eventFieldsModal')).show();
+    }
+}
+
 // Initialize wizard on DOM ready
 document.addEventListener('DOMContentLoaded', initEventWizard);
+document.addEventListener('DOMContentLoaded', initEventFormFieldsEditor);
 
 // Handle subtab change to load data when entering events tabs
 document.addEventListener('subtab-changed', function(event) {

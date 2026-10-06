@@ -14,3 +14,9 @@ Arrangementer og utleie skal ha «Grunnopplysninger» og «Skjemafelt» som to e
 **Why:** Brukeren opplevde dagens redigering som «wonky» og valgte uttrykkelig denne todelingen.
 
 **How to apply:** Hold de to redigeringene tydelig atskilt inne i eksisterende moduler og unngå at lagring av én del utilsiktet endrer den andre. Ikke lag en separat skjemamodul eller administrasjonsside; felles lagring må være avgrenset til bedrift og konkret objekt eller arrangement.
+
+Ved samling av feltdefinisjoner må operative oppsett skilles fra eldre, ubrukte oppsett i en felles tabell. Avvik og ugyldige innstillinger skal avklares før overføring, ikke automatisk overskrives eller repareres ved sidevisning.
+
+**Why:** Det fantes allerede felles feltdefinisjoner som ikke var brukt av modulene, med andre feltvalg, rekkefølge og valideringsregler enn de aktive dedikerte oppsettene.
+
+**How to apply:** Lag en skrivefri kontrollrapport og innhent godkjenning før tilkoblet database endres. Behold innsendte svar og gamle definisjoner, og ikke la en gjentatt overføring overskrive senere feltredigering.

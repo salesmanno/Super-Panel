@@ -9,6 +9,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/entity_form_fields.php';
 
 try {
     $eventId = $_GET['event_id'] ?? null;
@@ -32,28 +33,16 @@ try {
         exit;
     }
     
-    // Get registration fields for this event
-    $stmt = $db->prepare("
-        SELECT 
-            field_name,
-            field_label,
-            field_type,
-            is_required,
-            is_visible,
-            display_order
-        FROM event_registration_fields
-        WHERE event_id = ?
-        ORDER BY display_order ASC
-    ");
-    $stmt->execute([$eventId]);
-    $fields = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    tenantAuditActor($db, (string)$_SESSION['company_id']);
+    $fields = entityFormLoad($db, (string)$_SESSION['company_id'], 'event', (string)$eventId)['fields'];
+    $fields = array_map(static fn($f) => $f + ['display_order'=>$f['sort_order']], $fields);
     
     echo json_encode([
         'success' => true,
         'fields' => $fields
     ]);
     
-} catch (Exception $e) {
+} catch (Throwable $e) {
     error_log("Error fetching event fields: " . $e->getMessage());
     echo json_encode([
         'success' => false,

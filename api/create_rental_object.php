@@ -20,6 +20,9 @@ $admin = [
 // Hent input
 $data = json_decode(file_get_contents('php://input'), true);
 $data = is_array($data) ? $data : [];
+try { entityFormRequireCsrf($data); } catch (Throwable $e) {
+    http_response_code(403); echo json_encode(['success'=>false,'message'=>$e->getMessage()]); exit;
+}
 
 // Valider required base fields
 if (empty($data['object_name']) || empty($data['category'])) {
@@ -158,7 +161,9 @@ try {
     $typeStmt->execute($typeParams);
 
     $customerFieldInput = $data['customer_fields'] ?? $data['customer_field_settings'] ?? null;
-    $customerFields = saveRentalCustomerFieldSettings(
+    $customerFields = isset($data['form_fields'])
+        ? entityFormSave($db, (string)$admin['company_id'], 'rental_object', $object_id, $data['form_fields'])
+        : saveRentalCustomerFieldSettings(
         $db,
         $admin['company_id'],
         $object_id,

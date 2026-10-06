@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/database.php';
+require_once __DIR__.'/../includes/event_form_submission.php';
 
 header('Content-Type: application/json');
 
@@ -17,6 +18,9 @@ if (!$input || !isset($input['event_id']) || !isset($input['attendee_first_name'
 }
 
 try {
+    foreach(['attendee_first_name','attendee_last_name','attendee_email'] as $key) {
+        if(isset($input[$key]) && !is_string($input[$key]))throw new InvalidArgumentException('Ugyldige gjesteopplysninger');
+    }
     $db = getDBConnection();
     $company_id = $_SESSION['company_id'];
     $admin_id = $_SESSION['tenant_admin_id'];
@@ -46,6 +50,9 @@ try {
         echo json_encode(['success' => false, 'message' => 'Arrangement ikke funnet']);
         exit;
     }
+    if($first_name==='' || $last_name==='' || mb_strlen($first_name)>255 || mb_strlen($last_name)>255)throw new InvalidArgumentException('Fornavn og etternavn må fylles ut');
+    if($email && !filter_var($email,FILTER_VALIDATE_EMAIL))throw new InvalidArgumentException('E-postadressen er ugyldig');
+    $guestNotes=eventGuestFormNotes($db,(string)$company_id,(string)$event_id,$input,$first_name,$last_name,$email);
     
     // Check for duplicate registration by email (if email provided and only one person)
     if ($email && $number_of_people === 1) {
@@ -117,8 +124,8 @@ try {
         $stmt = $db->prepare("
             INSERT INTO events_checkin 
             (id, event_id, ticket_price, payment_status, payment_method, 
-             checked_in, checked_in_by, barcode, membership_plan_id, created_at, updated_at) 
-            VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, NOW(), NOW())
+             checked_in, checked_in_by, barcode, membership_plan_id, notes, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, NOW(), NOW())
         ");
         $stmt->execute([
             $checkin_id,
@@ -128,7 +135,8 @@ try {
             $payment_method,
             $admin_id,
             $barcode,
-            $membership_plan_id
+            $membership_plan_id,
+            $guestNotes
         ]);
         
         $createdIds[] = $checkin_id;

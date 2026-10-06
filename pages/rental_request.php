@@ -129,7 +129,7 @@ document.getElementById('rentalRequestForm').addEventListener('submit', async fu
     const fields = {};
     form.querySelectorAll('[name^="fields["]').forEach((input) => {
         const field = input.name.slice(7, -1);
-        fields[field] = input.value;
+        fields[field] = input.type === 'checkbox' ? (input.checked ? '1' : '0') : input.value;
     });
     const payload = {
         csrf_token: form.elements.csrf_token.value,

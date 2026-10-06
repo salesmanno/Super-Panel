@@ -10,6 +10,7 @@ function tenantAuditResourceSpec(string $table): ?array {
         'announcements' => 'news', 'company_announcements' => 'news', 'tenant_announcements' => 'news',
         'announcement_products' => 'news',
         'email_configs' => 'email', 'email_templates' => 'email', 'email_queue' => 'email',
+        'dynamic_form_fields' => 'forms',
         'unified_ledger' => 'economy', 'event_registration_fields' => 'events', 'event_registrations' => 'events',
         'event_membership_plans' => 'events', 'event_membership_pricing' => 'events',
     ];
@@ -19,12 +20,13 @@ function tenantAuditResourceSpec(string $table): ?array {
         if (str_starts_with($table, $prefix)) $module = $candidate;
     }
     if ($module === null || !preg_match('/^[a-z_]+$/D', $table)) return null;
-    $fields = $table === 'tenant_customers' ? ['id','status','is_active','customer_number'] : (tenantAuditFields()[$table] ?? [
+    $fields = $table === 'dynamic_form_fields' ? ['id','entity_type','entity_id','field_name','field_label','field_type','is_required','is_visible','sort_order']
+        : ($table === 'tenant_customers' ? ['id','status','is_active','customer_number'] : (tenantAuditFields()[$table] ?? [
         'id','name','title','object_id','rental_object_id','event_id','member_id','membership_plan_id',
         'tenant_admin_id','tenant_staff_id','module_id','is_active','is_published','is_pinned','priority',
         'status','price','amount','quantity','payment_status','payment_method','start_date','end_date',
         'start_time','end_time','capacity','duration_months','field_name','field_type','is_required','sort_order',
-    ]);
+    ]));
     $fields = array_values(array_unique(array_merge($fields, [
         'id','object_id','is_pinned','published','priority','news_priority','publish_at','expires_at',
         'price','price_per_day','price_per_week','price_per_month','capacity','bedrooms','area','is_blocked',

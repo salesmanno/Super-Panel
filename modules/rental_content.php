@@ -1,6 +1,5 @@
 <?php
 require_once __DIR__ . '/../includes/rental_schemas.php';
-require_once __DIR__ . '/../includes/rental_customer_fields.php';
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -9,7 +8,6 @@ if (empty($_SESSION['rental_lifecycle_csrf'])) {
 }
 $rentalLifecycleCsrf = (string) $_SESSION['rental_lifecycle_csrf'];
 $schemas = getRentalSchemas();
-$customerFieldDefinitions = getRentalCustomerFieldDefinitions();
 ?>
 
 <style>
@@ -73,6 +71,7 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
 #rental-module .save-busy { pointer-events:none; opacity:.68; }
 @media(max-width:767.98px){#rental-module .btn-group{flex-wrap:wrap}#rental-module .table{min-width:760px}#rental-module .card-body{padding:1rem}.rental-mobile-scroll{overflow-x:auto}#rental-module .rental-calendar-grid{min-width:560px}#rental-module .rental-calendar-day{min-height:52px;padding:.4rem .15rem!important}}
 </style>
+<link rel="stylesheet" href="/assets/entity-form-fields.css">
 
 <div class="module-content" id="rental-module">
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
@@ -110,6 +109,7 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
                     <h5 class="card-title mb-3">Opprett nytt utleieobjekt</h5>
                     <form id="createRentalForm">
                         <div id="createFormFieldsContainer"></div>
+                        <div id="create-rental-fields-editor" class="mt-3"></div>
                         <div class="mt-3">
                             <button type="button" class="btn btn-primary" onclick="showCreateSummary()">
                                 <i class="bi bi-eye me-1"></i>Forhåndsvis og opprett
@@ -271,6 +271,19 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
     </div>
 </div>
 
+<div class="modal fade" id="rentalFieldsModal" tabindex="-1" aria-labelledby="rentalFieldsModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div><div class="small text-uppercase text-muted">Dette utleieobjektet</div><h5 class="modal-title" id="rentalFieldsModalTitle">Skjemafelt</h5></div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Lukk"></button>
+            </div>
+            <div class="modal-body"><div id="rental-fields-editor"></div></div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Lukk</button></div>
+        </div>
+    </div>
+</div>
+
 <!-- Detaljvisning Modal -->
 <div class="modal fade" id="detailsModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -288,11 +301,14 @@ $customerFieldDefinitions = getRentalCustomerFieldDefinitions();
 </div>
 
 <script src="/assets/rental_request_pricing.js"></script>
+<script src="/assets/entity-form-fields.js"></script>
 <script>
 const rentalSchemas = <?= json_encode($schemas) ?>;
-const rentalCustomerFieldDefinitions = <?= json_encode($customerFieldDefinitions, JSON_UNESCAPED_UNICODE) ?>;
-const rentalCustomerFieldOrder = Object.keys(rentalCustomerFieldDefinitions);
 const rentalLifecycleCsrf = <?= json_encode($rentalLifecycleCsrf) ?>;
+let rentalCreateFieldsEditor = null;
+let rentalEditFieldsEditor = null;
+let rentalFormCsrfToken = '';
+let rentalCreateSaving = false;
 let allRentalObjects = [];
 let rentalFilter = '';
 let allApprovedRentals = [];
@@ -311,6 +327,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setRentalUnavailableMode('day');
     loadRentalObjects();
     buildCreateForm();
+    initializeRentalCreateFields();
     loadContracts('all');
     loadRentalRequests();
     loadApprovedSchedule();
@@ -319,11 +336,32 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function openRentalCreate() {
+    if (rentalCreateSaving) return;
     document.querySelectorAll('.subtab-content').forEach(el => el.style.display = 'none');
     const target = document.getElementById('rental-create');
     if (target) target.style.display = 'block';
     buildCreateForm();
+    if (rentalCreateFieldsEditor) {
+        rentalCreateFieldsEditor.reset();
+        rentalCreateFieldsEditor.refresh().catch(error => console.error('Could not reload rental field defaults:', error));
+    }
+    pendingCreateData = null;
     document.getElementById('createFormSection')?.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+async function ensureRentalFormToken(objectId) {
+    const result = await EntityFormFields.load('rental_object', objectId || null);
+    rentalFormCsrfToken = result.csrf_token || window.entityFormCsrfToken || rentalFormCsrfToken;
+    if (!rentalFormCsrfToken) throw new Error('Sikkerhetstoken mangler');
+    return rentalFormCsrfToken;
+}
+
+async function initializeRentalCreateFields() {
+    const host = document.getElementById('create-rental-fields-editor');
+    if (!host) return;
+    rentalCreateFieldsEditor = EntityFormFields.mount(host, {entityType: 'rental_object', entityId: null, createMode: true});
+    try { await rentalCreateFieldsEditor.refresh(); }
+    catch (error) { console.error('Could not load rental field defaults:', error); }
 }
 
 async function loadRentalObjects() {
@@ -598,13 +636,15 @@ function toggleRentalObjectCard(objectId) {
                 <div class="small mt-2" role="status" aria-live="polite" data-code-status>Laster kode…</div>
                 <div class="d-flex flex-wrap gap-2 mt-3">
                     <button type="submit" class="btn btn-sm btn-primary" disabled>Lagre kode</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="editRentalObject(decodeURIComponent('${encodeURIComponent(String(objectId))}'))">Rediger hele objektet</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="editRentalObject(decodeURIComponent('${encodeURIComponent(String(objectId))}'))">Grunnopplysninger</button>
+                    <button type="button" class="btn btn-sm btn-outline-info" onclick="openRentalFormFields(decodeURIComponent('${encodeURIComponent(String(objectId))}'))">Skjemafelt</button>
                 </div>
             </form>`;
         loadRentalCardAccessCode(objectId, panel);
     } else {
-        panel.innerHTML = `<p class="small text-muted mb-2">Rediger informasjonen om objektet i skjemaet.</p>
-            <button type="button" class="btn btn-sm btn-primary" onclick="editRentalObject(decodeURIComponent('${encodeURIComponent(String(objectId))}'))">Rediger objekt</button>`;
+        panel.innerHTML = `<p class="small text-muted mb-2">Administrer opplysninger og kundeinformasjon for dette objektet.</p>
+            <div class="d-flex flex-wrap gap-2"><button type="button" class="btn btn-sm btn-primary" onclick="editRentalObject(decodeURIComponent('${encodeURIComponent(String(objectId))}'))">Grunnopplysninger</button>
+            <button type="button" class="btn btn-sm btn-outline-info" onclick="openRentalFormFields(decodeURIComponent('${encodeURIComponent(String(objectId))}'))">Skjemafelt</button></div>`;
     }
 }
 
@@ -651,10 +691,11 @@ async function saveRentalCardAccessCode(event, objectId) {
     status.classList.remove('text-danger');
     status.textContent = 'Lagrer…';
     try {
+        const csrfToken = await ensureRentalFormToken(objectId);
         const response = await fetch('/api/update_rental_object.php', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({id: objectId, category: 'venue', type_data: {access_code: code}})
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken},
+            body: JSON.stringify({id: objectId, category: 'venue', type_data: {access_code: code}, csrf_token: csrfToken})
         });
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.message || 'Kunne ikke lagre koden');
@@ -823,32 +864,6 @@ function buildFormFields(containerId, category = '', existingData = {}) {
         </div>
     `;
 
-    const savedCustomerFields = Array.isArray(existingData.customer_fields) ? existingData.customer_fields : [];
-    const customerMap = {};
-    savedCustomerFields.forEach((field, index) => {
-        const key = field.key || field.field;
-        if (key) customerMap[key] = field;
-    });
-    const customerRenderOrder = rentalCustomerFieldOrder.slice().sort((a, b) => {
-        const aOrder = Number(customerMap[a]?.sort_order ?? customerMap[a]?.order ?? rentalCustomerFieldOrder.indexOf(a));
-        const bOrder = Number(customerMap[b]?.sort_order ?? customerMap[b]?.order ?? rentalCustomerFieldOrder.indexOf(b));
-        return aOrder - bOrder;
-    });
-    html += `<div class="card mb-3"><div class="card-body"><div class="d-flex justify-content-between align-items-start mb-2"><div><h6 class="mb-1"><i class="bi bi-person-vcard me-2"></i>Kundeopplysninger</h6><p class="text-muted small mb-0">Velg hva kunden må oppgi ved forespørsel. Påkrevde felt blir automatisk valgt.</p></div><span class="badge text-bg-light border">Personvern</span></div><div class="row g-2">`;
-    customerRenderOrder.forEach((key, index) => {
-        const saved = customerMap[key] || {};
-        const selected = saved.selected === undefined ? true : !!Number(saved.selected);
-        const required = !!Number(saved.required);
-        const label = rentalCustomerFieldDefinitions[key];
-        html += `<div class="col-12 col-md-6"><div class="customer-field-row d-flex align-items-center gap-2">
-            <input class="form-check-input customer-selected mt-0" type="checkbox" name="customer_selected[${key}]" value="1" id="${containerId}_customer_${key}" ${selected ? 'checked' : ''} onchange="toggleCustomerRequired(this,'${containerId}_required_${key}')">
-            <label class="flex-grow-1 small fw-semibold mb-0" for="${containerId}_customer_${key}">${escHtml(label)}</label>
-            <label class="small text-muted d-flex align-items-center gap-1 mb-0"><input class="form-check-input customer-required" type="checkbox" name="customer_required[${key}]" value="1" id="${containerId}_required_${key}" ${required ? 'checked' : ''} ${selected ? '' : 'disabled'}> Påkrevd</label>
-            <input type="hidden" name="customer_order[${key}]" value="${index}">
-        </div></div>`;
-    });
-    html += `</div></div></div>`;
-
     if (category && rentalSchemas[category]) {
         const schema = rentalSchemas[category];
         html += `<h6 class="text-muted mb-2"><i class="bi bi-list-check me-1"></i>${escHtml(schema.label)} - spesifikke detaljer</h6>`;
@@ -977,7 +992,6 @@ function getFormData(formId) {
         images: collectImagesFromForm(form, formId === 'createRentalForm' ? 'createFormFieldsContainer' : 'formFieldsContainer'),
         type_data: {}
     };
-    data.customer_fields = collectCustomerFields(form);
     
     for (let [key, value] of formData.entries()) {
         if (key.startsWith('type_data[')) {
@@ -992,28 +1006,6 @@ function getFormData(formId) {
     }
     
     return data;
-}
-
-function toggleCustomerRequired(selected, requiredId) {
-    const required = document.getElementById(requiredId);
-    if (!required) return;
-    required.disabled = !selected.checked;
-    if (!selected.checked) required.checked = false;
-}
-
-function collectCustomerFields(form) {
-    return rentalCustomerFieldOrder.map((key, order) => {
-        const selected = form.querySelector(`[name="customer_selected[${key}]"]`);
-        const required = form.querySelector(`[name="customer_required[${key}]"]`);
-        return {
-            key,
-            label: rentalCustomerFieldDefinitions[key],
-            input_type: key === 'age' ? 'number' : (key === 'email' ? 'email' : 'text'),
-            selected: selected?.checked ? 1 : 0,
-            required: selected?.checked && required?.checked ? 1 : 0,
-            sort_order: Number(form.querySelector(`[name="customer_order[${key}]"]`)?.value ?? order)
-        };
-    });
 }
 
 function getCurrentFormData() {
@@ -1045,8 +1037,7 @@ async function saveRentalObject() {
         description: formData.get('description') || null,
         rental_text: formData.get('rental_text') || null,
         is_available: formData.get('is_available') === 'on',
-        images: collectImagesFromForm(form, 'formFieldsContainer'),
-        customer_fields: collectCustomerFields(form)
+        images: collectImagesFromForm(form, 'formFieldsContainer')
     };
     
     if (isEdit) {
@@ -1083,10 +1074,13 @@ async function saveRentalObject() {
     if (saveButton) { saveButton.disabled = true; saveButton.classList.add('save-busy'); }
     
     try {
+        const csrfToken = await ensureRentalFormToken(isEdit ? id : null);
+        data.csrf_token = csrfToken;
+        if (!isEdit) data.form_fields = rentalCreateFieldsEditor?.getFields() || [];
         const endpoint = isEdit ? '/api/update_rental_object.php' : '/api/create_rental_object.php';
         const response = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
             body: JSON.stringify(data)
         });
         
@@ -1198,6 +1192,10 @@ let pendingCreateData = null;
 
 function showCreateSummary() {
     const form = document.getElementById('createRentalForm');
+    if (!rentalCreateFieldsEditor?.isReady()) {
+        toast.quickWarning('Skjemafelt', 'Vent til standardfeltene er lastet, eller prøv å laste dem på nytt.');
+        return;
+    }
     if (!form.checkValidity()) {
         form.reportValidity();
         return;
@@ -1224,8 +1222,13 @@ function showCreateSummary() {
         rental_text: formData.get('rental_text') || null,
         is_available: form.querySelector('[name="is_available"]')?.checked ?? true,
         images: collectImagesFromForm(form, 'createFormFieldsContainer'),
-        customer_fields: collectCustomerFields(form)
+        form_fields: rentalCreateFieldsEditor?.getFields() || [],
+        csrf_token: rentalCreateFieldsEditor?.getCsrfToken() || rentalFormCsrfToken
     };
+    if (!data.csrf_token) {
+        toast.quickError('Sikkerhet', 'Skjemafelt kunne ikke lastes. Prøv igjen før du oppretter.');
+        return;
+    }
     
     const typeData = {};
     const schema = rentalSchemas[category];
@@ -1370,12 +1373,16 @@ function backToCreateForm() {
 }
 
 async function confirmSaveNewRentalObject() {
+    if (rentalCreateSaving) return;
     if (!pendingCreateData) {
         toast.quickError('Feil', 'Ingen data å lagre');
         return;
     }
     
     const data = {...pendingCreateData};
+    rentalCreateSaving = true;
+    const confirmButton = document.querySelector('#createSummarySection .btn-success');
+    if (confirmButton) { confirmButton.disabled = true; confirmButton.classList.add('save-busy'); }
     data.is_available = data.is_available ? 1 : 0;
     
     if (data.type_data) {
@@ -1395,7 +1402,7 @@ async function confirmSaveNewRentalObject() {
     try {
         const response = await fetch('/api/create_rental_object.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': data.csrf_token },
             body: JSON.stringify(data)
         });
         
@@ -1412,13 +1419,18 @@ async function confirmSaveNewRentalObject() {
             backToCreateForm();
             document.getElementById('createRentalForm').reset();
             buildCreateForm();
+            rentalCreateFieldsEditor?.reset();
+            rentalCreateFieldsEditor?.refresh().catch(error => console.warn('Could not reload rental defaults:', error));
             loadRentalObjects();
         } else {
             toast.error(toastId, 'Feil', result.message || 'Kunne ikke opprette objekt');
         }
     } catch (error) {
         console.error('Error creating rental object:', error);
-        toast.error(toastId, 'Feil', 'Kunne ikke opprette objekt');
+        toast.error(toastId, 'Feil', error.message || 'Kunne ikke opprette objekt');
+    } finally {
+        rentalCreateSaving = false;
+        if (confirmButton) { confirmButton.disabled = false; confirmButton.classList.remove('save-busy'); }
     }
 }
 
@@ -1427,10 +1439,11 @@ async function toggleAvailability(objectId, isAvailable) {
     if (!obj) return;
     
     try {
+        const csrfToken = await ensureRentalFormToken(objectId);
         const response = await fetch('/api/update_rental_object.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: objectId, is_available: isAvailable ? 1 : 0 })
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+            body: JSON.stringify({ id: objectId, is_available: isAvailable ? 1 : 0, csrf_token: csrfToken })
         });
         
         const text = await response.text();
@@ -1467,19 +1480,40 @@ async function toggleAvailability(objectId, isAvailable) {
 }
 
 async function editRentalObject(objectId) {
-    const obj = allRentalObjects.find(o => o.id === objectId);
+    const obj = allRentalObjects.find(o => String(o.id) === String(objectId));
     if (!obj) {
         toast.quickError('Feil', 'Objektet ble ikke funnet');
         return;
     }
     
-    document.getElementById('rentalModalTitle').textContent = 'Rediger utleieobjekt';
+    try {
+        await ensureRentalFormToken(objectId);
+    } catch (error) {
+        toast.quickError('Sikkerhet', error.message || 'Kunne ikke hente sikkerhetstoken');
+        return;
+    }
+    document.getElementById('rentalModalTitle').textContent = 'Grunnopplysninger';
     document.getElementById('rental_id').value = obj.id;
     
     buildIntegratedForm(obj.category, obj);
     
     const modal = new bootstrap.Modal(document.getElementById('rentalModal'));
     modal.show();
+}
+
+async function openRentalFormFields(objectId) {
+    const obj = allRentalObjects.find(item => String(item.id) === String(objectId));
+    const title = document.getElementById('rentalFieldsModalTitle');
+    if (title) title.textContent = `Skjemafelt · ${obj?.object_name || 'Utleieobjekt'}`;
+    const host = document.getElementById('rental-fields-editor');
+    if (!host) return;
+    rentalEditFieldsEditor = EntityFormFields.mount(host, {entityType: 'rental_object', entityId: objectId});
+    try {
+        await rentalEditFieldsEditor.refresh();
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('rentalFieldsModal')).show();
+    } catch (error) {
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('rentalFieldsModal')).show();
+    }
 }
 
 async function deleteRentalObject(objectId) {
