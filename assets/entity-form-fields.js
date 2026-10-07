@@ -42,7 +42,13 @@
     }
 
     function mount(host, options) {
+        const instance = {};
+        host.entityFieldsInstance = instance;
+        const current = () => host.entityFieldsInstance === instance;
         let fields = [];
+        let savedFields = [];
+        let selectedName = null;
+        let serverRevision = '';
         let presets = [];
         let busy = false;
         let dirty = false;
@@ -52,6 +58,7 @@
         let csrfToken = '';
         let registrationType = options.registrationType || '';
         const setStatus = (message, isError) => {
+            if (!current()) return;
             const status = host.querySelector('[data-fields-status]');
             if (status) {
                 status.textContent = message;
@@ -71,17 +78,42 @@
             </div>
             <div data-fields-notice class="alert alert-info py-2 small mb-3" hidden></div>
             <fieldset data-common-fields class="mb-3" hidden><legend class="fs-6">Velg vanlige felt</legend>
-                <p class="small text-muted">Kryss av feltene kunden skal fylle ut. Egne felt og detaljer kan tilpasses nedenfor.</p>
+                 <p class="small text-muted">Kryss av feltene kunden skal fylle ut. Trykk på feltnavnet for å redigere ett felt.</p>
                 <div data-common-list class="d-flex flex-wrap gap-3"></div>
             </fieldset>
             <div data-fields-list aria-live="polite"><div class="entity-fields-loading"><span class="entity-skeleton"></span><span class="entity-skeleton"></span></div></div>
             <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
                 <button type="button" class="btn btn-sm btn-outline-primary" data-add disabled>Legg til felt</button>
-                 ${options.createMode ? '' : '<button type="button" class="btn btn-sm btn-primary ms-auto" data-save disabled>Lagre skjemafelt</button>'}
+                  <button type="button" class="btn btn-sm btn-primary ms-auto" data-save disabled>${options.createMode ? 'Behold feltendringer' : 'Lagre skjemafelt'}</button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" data-close-field hidden>Lukk feltredigering</button>
                 <span class="small ms-auto" data-fields-status role="status" aria-live="polite"></span>
             </div>
         </section>`;
 
+        const confirmClose = () => {
+            if (busy || loading) return false;
+            if (dirty && !window.confirm('Du har ulagrede feltendringer. Vil du forkaste dem?')) return false;
+            if (dirty) fields = copy(savedFields);
+            dirty = false;
+            selectedName = null;
+            render();
+            return true;
+        };
+        const openField = name => {
+            if (busy || loading || selectedName === name) return;
+            if (selectedName && dirty && !confirmClose()) return;
+            if (!fields.some(field => field.field_name === name)) {
+                const definition = presets[0]?.fields.find(field => field.field_name === name);
+                if (!definition) return;
+                // Opening a hidden/absent field is not a visibility toggle.
+                fields.push(normalize({...definition,is_visible:false,is_required:false}, fields.length));
+                dirty = true;
+            }
+            selectedName = name;
+            render();
+            host.querySelector('[data-prop="field_label"]')?.focus();
+        };
+        host.querySelector('[data-close-field]').addEventListener('click', confirmClose);
         const render = () => {
             const list = host.querySelector('[data-fields-list]');
             if (options.entityType==='event') fields.forEach(field=>{
@@ -93,12 +125,17 @@
             host.querySelector('[data-common-fields]').hidden = !definitions.size || registrationType === 'none';
             for (const [name,definition] of definitions) {
                 const field=fields.find(item=>item.field_name===name);
-                const label=document.createElement('label');label.className='form-check';
+                const label=document.createElement('div');label.className='form-check d-flex gap-2 align-items-center';
                 const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.className='form-check-input';
                 checkbox.dataset.commonField=name;checkbox.checked=!!field?.is_visible;
                 checkbox.disabled=!!field?.is_visible && options.entityType==='event' && ['first_name','last_name'].includes(name);
-                const text=document.createElement('span');text.textContent=definition.field_label;
+                checkbox.setAttribute('aria-label', `Bruk ${definition.field_label}`);
+                const text=document.createElement('button');text.type='button';
+                text.className='btn btn-link p-0 text-start';text.textContent=field?.field_label || definition.field_label;
+                text.dataset.editField=name;text.setAttribute('aria-expanded',String(selectedName===name));
+                text.addEventListener('click',()=>openField(name));
                 checkbox.addEventListener('change',()=>{
+                    if (busy) return;
                     let selected=fields.find(item=>item.field_name===name);
                     if (!selected) {selected=normalize(definition,fields.length);fields.push(selected);}
                     selected.is_visible=checkbox.checked;
@@ -107,13 +144,23 @@
                 });
                 label.append(checkbox,text);common.append(label);
             }
+            for(const field of fields) {
+                if(definitions.has(field.field_name)) continue;
+                const button=document.createElement('button');button.type='button';
+                button.className='btn btn-sm btn-outline-secondary';button.textContent=field.field_label || field.field_name;
+                button.dataset.editField=field.field_name;
+                button.setAttribute('aria-expanded',String(selectedName===field.field_name));
+                button.addEventListener('click',()=>openField(field.field_name));common.append(button);
+            }
+            host.querySelector('[data-common-fields]').hidden = registrationType === 'none';
+            host.querySelector('[data-close-field]').hidden = !selectedName;
             if (!fields.length) {
                 list.innerHTML = '<div class="entity-fields-empty">Ingen ekstra felt. Du kan legge til felter eller velge et forhåndsoppsett.</div>';
                 return;
             }
             list.replaceChildren();
             fields.forEach((field, index) => {
-                if (options.entityType==='rental_object' && definitions.has(field.field_name) && !field.is_visible) return;
+                if (field.field_name !== selectedName) return;
                 const row = document.createElement('article');
                 row.className = 'entity-field-row';
                 const lockedIdentity = options.entityType === 'event' && ['first_name', 'last_name'].includes(field.field_name);
@@ -143,21 +190,25 @@
                 </div></details>`;
                 row.querySelectorAll('[data-prop]').forEach(control => {
                     control.addEventListener('input', () => {
+                        if (busy) return;
                         const key = control.dataset.prop;
                         field[key] = control.type === 'checkbox' ? control.checked : control.value;
                         dirty = true;
                     });
                     control.addEventListener('change', () => {
+                        if (busy) return;
                         const key = control.dataset.prop;
                         field[key] = control.type === 'checkbox' ? control.checked : control.value;
                         dirty = true;
                     });
                 });
                 row.querySelector('[data-options]').addEventListener('input', event => {
+                    if (busy) return;
                     field.options = event.currentTarget.value.split('\n').map(item => item.trim()).filter(Boolean);
                     dirty = true;
                 });
                 row.querySelectorAll('[data-rule]').forEach(control => control.addEventListener('input', () => {
+                    if (busy) return;
                     const key = control.dataset.rule;
                     const aliases = key === 'min_length' ? ['minLength'] : key === 'max_length' ? ['maxLength'] : [];
                     aliases.forEach(alias => delete field.validation_rules[alias]);
@@ -167,6 +218,7 @@
                 }));
                 row.querySelector('[data-remove]').addEventListener('click', () => {
                     fields.splice(index, 1);
+                    selectedName=null;
                     fields.forEach((item, order) => item.sort_order = order);
                     dirty = true;
                     render();
@@ -186,11 +238,13 @@
         };
 
         const applyPreset = () => {
+            if (busy || loading) return;
             const key = host.querySelector('[data-preset]').value;
             const preset = presets.find(item => String(item.key) === key);
             if (!preset) return;
             if (fields.length && !window.confirm('Dette erstatter dagens feltoppsett. Innsendte svar beholdes. Vil du fortsette?')) return;
             fields = (preset.fields || []).map(normalize);
+            selectedName = null;
             fields.forEach((field, index) => field.sort_order = index);
             dirty = true;
             render();
@@ -198,13 +252,17 @@
         };
         host.querySelector('[data-apply-preset]').addEventListener('click', applyPreset);
         host.querySelector('[data-add]').addEventListener('click', () => {
+            if (busy || loading) return;
+            if (selectedName && dirty && !confirmClose()) return;
             fields.push(normalize({field_name: `custom_${Date.now()}_${fields.length}`, field_label: 'Nytt felt', field_type: 'text', is_visible: true}, fields.length));
+            selectedName=fields[fields.length-1].field_name;
             dirty = true;
             render();
         });
         const presetSelect = host.querySelector('[data-preset]');
 
         async function refresh() {
+            if (!current() || busy || (dirty && !confirmClose())) return false;
             const revision = ++refreshRevision;
             loading = true;
             ready = false;
@@ -216,8 +274,10 @@
             host.querySelector('[data-fields-list]').innerHTML = '<div class="entity-fields-loading"><span class="entity-skeleton"></span><span class="entity-skeleton"></span></div>';
             try {
                 const result = await load(options.entityType, options.entityId);
-                if (revision !== refreshRevision) return result;
+                if (revision !== refreshRevision || !current()) return result;
                 csrfToken = result.csrf_token || window.entityFormCsrfToken || '';
+                serverRevision = result.revision || '';
+                selectedName = null;
                 if (!options.createMode && result.registration_type) registrationType = result.registration_type;
                 fields = (result.fields || []).map(normalize).sort((a, b) => a.sort_order - b.sort_order);
                 if (options.entityType === 'event' && registrationType === 'none') fields = [];
@@ -231,12 +291,13 @@
                 host.querySelector('[data-apply-preset]').disabled = disabled;
                 presetSelect.disabled = disabled || !presets.length;
                 dirty = false;
+                savedFields = copy(fields);
                 render();
                 ready = true;
-                if (saveButton) saveButton.disabled = false;
+                if (saveButton) saveButton.disabled = options.entityType === 'event' && registrationType === 'none';
                 return result;
             } catch (error) {
-                if (revision !== refreshRevision) throw error;
+                if (revision !== refreshRevision || !current()) throw error;
                 ready = false;
                 host.querySelector('[data-fields-list]').innerHTML = `<div class="entity-fields-error" role="alert">${esc(error.message)} <button class="btn btn-sm btn-link" type="button" data-retry>Prøv igjen</button></div>`;
                 host.querySelector('[data-retry]').addEventListener('click', refresh);
@@ -247,7 +308,7 @@
         }
 
         async function save() {
-            if (busy) return false;
+            if (!current() || busy) return false;
             if (!ready || loading) {
                 setStatus('Vent til skjemafeltene er lastet før du lagrer.', true);
                 return false;
@@ -265,7 +326,16 @@
                     return false;
                 }
             }
+            if (options.createMode) {
+                savedFields=copy(fields);dirty=false;selectedName=null;render();
+                setStatus('Feltendringer beholdt. De lagres når du oppretter arrangementet eller objektet.',false);
+                return true;
+            }
             busy = true;
+            host.setAttribute('aria-busy','true');
+            host.querySelectorAll('input,select,textarea,button').forEach(control=>{
+                control.dataset.disabledBeforeSave=String(control.disabled);control.disabled=true;
+            });
             const button = host.querySelector('[data-save]');
             if (button) { button.disabled = true; button.classList.add('save-busy'); }
             setStatus('Lagrer skjemafelt…', false);
@@ -274,11 +344,15 @@
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({entity_type: options.entityType, entity_id: options.entityId, fields, csrf_token: csrfToken || window.entityFormCsrfToken})
+                    body: JSON.stringify({entity_type: options.entityType, entity_id: options.entityId, fields:copy(fields), expected_revision:serverRevision, csrf_token: csrfToken || window.entityFormCsrfToken})
                 });
                 const result = await response.json();
+                if (!current()) return false;
                 if (!response.ok || !result.success) throw new Error(result.message || 'Kunne ikke lagre skjemafelt');
                 fields = (result.fields || fields).map(normalize);
+                serverRevision = result.revision || serverRevision;
+                savedFields = copy(fields);
+                selectedName = null;
                 dirty = false;
                 render();
                 setStatus('Skjemafelt lagret.', false);
@@ -288,7 +362,13 @@
                 return false;
             } finally {
                 busy = false;
-                if (button) { button.disabled = false; button.classList.remove('save-busy'); }
+                if (current()) {
+                    host.removeAttribute('aria-busy');
+                    host.querySelectorAll('[data-disabled-before-save]').forEach(control=>{
+                        control.disabled=control.dataset.disabledBeforeSave==='true';delete control.dataset.disabledBeforeSave;
+                    });
+                    if (button) { button.disabled = false; button.classList.remove('save-busy'); }
+                }
             }
         }
 
@@ -296,10 +376,13 @@
         return {
             refresh,
             save,
+            confirmClose,
+            isBusy: () => busy,
             getFields: () => copy(fields),
             getCsrfToken: () => csrfToken || window.entityFormCsrfToken || '',
             isReady: () => ready && !loading && !!(csrfToken || window.entityFormCsrfToken),
             setRegistrationType: async type => {
+                if (busy) return;
                 const previousType = registrationType;
                 registrationType = type;
                 const disabled = options.entityType === 'event' && type === 'none';
@@ -319,9 +402,12 @@
                 }
             },
             reset: () => {
+                if (busy) return;
                 refreshRevision++;
                 loading = false;
                 fields = [];
+                savedFields = [];
+                selectedName = null;
                 dirty = false;
                 ready = false;
                 registrationType = '';

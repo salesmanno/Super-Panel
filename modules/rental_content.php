@@ -328,6 +328,9 @@ const CAL_COLORS = [
 ];
 
 document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('rentalFieldsModal')?.addEventListener('hide.bs.modal', event=>{
+        if(rentalEditFieldsEditor && !rentalEditFieldsEditor.confirmClose()) event.preventDefault();
+    });
     setRentalUnavailableMode('day');
     loadRentalObjects();
     buildCreateForm();
@@ -1515,6 +1518,7 @@ async function editRentalObject(objectId) {
 }
 
 async function openRentalFormFields(objectId) {
+    if (rentalEditFieldsEditor && !rentalEditFieldsEditor.confirmClose()) return;
     const obj = allRentalObjects.find(item => String(item.id) === String(objectId));
     const title = document.getElementById('rentalFieldsModalTitle');
     if (title) title.textContent = `Skjemafelt · ${obj?.object_name || 'Utleieobjekt'}`;
@@ -1529,19 +1533,23 @@ async function openRentalFormFields(objectId) {
     }
 }
 
+const rentalDeletingObjects = new Set();
 async function deleteRentalObject(objectId) {
-    const obj = allRentalObjects.find(o => o.id === objectId);
-    if (!confirm(`Er du sikker på at du vil slette "${obj?.object_name}"?`)) {
+    if (rentalDeletingObjects.has(objectId)) return;
+    const obj = allRentalObjects.find(o => String(o.id) === String(objectId));
+    if (!confirm(`Slette "${obj?.object_name || 'utleieobjektet'}" permanent? Feltoppsettet fjernes. Objekter med forespørsler, kontrakter eller historikk kan ikke slettes; sett dem inaktive i stedet.`)) {
         return;
     }
     
     const toastId = toast.loading('Sletter objekt...');
+    rentalDeletingObjects.add(objectId);
     
     try {
+        const csrfToken = await ensureRentalFormToken(objectId);
         const response = await fetch('/api/delete_rental_object.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: objectId })
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token':csrfToken },
+            body: JSON.stringify({ id: objectId, csrf_token:csrfToken })
         });
         
         const text = await response.text();
@@ -1556,7 +1564,9 @@ async function deleteRentalObject(objectId) {
         }
     } catch (error) {
         console.error('Error deleting rental object:', error);
-        toast.error(toastId, 'Feil', 'Kunne ikke slette objekt');
+        toast.error(toastId, 'Feil', error.message || 'Kunne ikke slette objekt');
+    } finally {
+        rentalDeletingObjects.delete(objectId);
     }
 }
 

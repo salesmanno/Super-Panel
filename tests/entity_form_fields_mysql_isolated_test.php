@@ -118,7 +118,7 @@ $setup->exec('DROP TRIGGER fail_form_audit');
 $setup->exec("ALTER TABLE tenant_companies ADD subdomain VARCHAR(100)");
 $setup->exec("ALTER TABLE events_eventdata ADD description TEXT,ADD start_date DATE,ADD start_time TIME,
  ADD end_date DATE,ADD end_time TIME,ADD venue_name TEXT,ADD event_address TEXT,ADD event_city TEXT,ADD event_postal TEXT,
- ADD max_attendees INT,ADD min_attendees INT,ADD registration_deadline DATE,ADD age_limit INT,
+ ADD max_attendees INT,ADD min_attendees INT,ADD registration_deadline DATETIME,ADD age_limit INT,
  ADD is_member_exclusive INT DEFAULT 0,ADD memberverification INT DEFAULT 0,ADD ticket_price DECIMAL(12,2),
  ADD event_image_url TEXT,ADD is_active INT DEFAULT 1,ADD created_by CHAR(36),ADD created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
  ADD updated_at DATETIME,ADD default_payment_method VARCHAR(50),ADD payment_timing VARCHAR(50),
@@ -130,6 +130,32 @@ $setup->exec("CREATE TABLE membership_plans(id CHAR(36),name VARCHAR(255))");
 $setup->exec("CREATE TABLE output_products(id CHAR(36) PRIMARY KEY,company_id CHAR(36),module_id CHAR(36),
  product_type VARCHAR(50),product_id CHAR(36),is_visible INT,is_public INT,is_marketplace_featured INT,
  marketplace_priority INT,discount_percent DECIMAL(12,2),created_by CHAR(36))");
+$setup->exec("ALTER TABLE events_eventdata ADD FOREIGN KEY(output_product_id) REFERENCES output_products(id) ON DELETE CASCADE");
+$setup->exec("ALTER TABLE rental_objects ADD category VARCHAR(50),ADD output_product_id CHAR(36),ADD is_available INT DEFAULT 1,
+ ADD FOREIGN KEY(output_product_id) REFERENCES output_products(id) ON DELETE CASCADE");
+require_once $root.'/includes/rental_schemas.php';
+foreach(getRentalSchemas() as $schema) {
+    $columns=['object_id CHAR(36) PRIMARY KEY'];
+    foreach($schema['fields'] as $name=>$definition) {
+        $sqlType=match($definition['type']) {
+            'number'=>'DECIMAL(12,2)','checkbox'=>'INT','date'=>'DATE',default=>'TEXT'
+        };
+        $columns[]="`$name` $sqlType";
+    }
+    $columns[]='FOREIGN KEY(object_id) REFERENCES rental_objects(id) ON DELETE CASCADE';
+    $setup->exec('CREATE TABLE `'.$schema['table'].'`('.implode(',',$columns).')');
+}
+foreach(['event_registrations','events_checkin','events_results','events_expenses'] as $table) {
+    $setup->exec("CREATE TABLE `$table`(id CHAR(36) PRIMARY KEY,company_id CHAR(36),event_id CHAR(36),
+      FOREIGN KEY(event_id) REFERENCES events_eventdata(id) ON DELETE CASCADE)");
+}
+foreach(['rental_schedule','rental_contracts'] as $table) {
+    $setup->exec("CREATE TABLE `$table`(id CHAR(36) PRIMARY KEY,company_id CHAR(36),rental_object_id CHAR(36),status VARCHAR(30),
+      FOREIGN KEY(rental_object_id) REFERENCES rental_objects(id) ON DELETE CASCADE)");
+}
+$setup->exec("CREATE TABLE unified_ledger(id CHAR(36) PRIMARY KEY,company_id CHAR(36),module_source VARCHAR(30),source_id CHAR(36),metadata JSON)");
+$setup->exec("INSERT INTO system_modules VALUES('membership-module','membership',1)");
+$setup->exec("INSERT INTO tenant_admin_modules VALUES('admin','membership-module')");
 $serverDir=$temp.'/forms-http';mkdir($serverDir);
 $bootstrap='require_once '.var_export($root.'/includes/AuditedPDO.php',true).';function getDBConnection(){return new AuditedPDO('.var_export($dsn,true).',"root","",[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]);}';
 foreach(['get_entity_form_fields.php','save_entity_form_fields.php'] as $file) {
@@ -139,11 +165,12 @@ foreach(['get_entity_form_fields.php','save_entity_form_fields.php'] as $file) {
     $source=str_replace("__DIR__.'/../includes/entity_form_fields.php'",var_export($root.'/includes/entity_form_fields.php',true),$source);
     file_put_contents($serverDir.'/'.$file,$source);
 }
-foreach(['create_event.php','update_event.php','get_event.php'] as $file) {
+foreach(['create_event.php','update_event.php','get_event.php','delete_event.php','delete_rental_object.php'] as $file) {
     $source=file_get_contents($root.'/api/'.$file);
     $source=str_replace('session_start();','session_save_path('.var_export($temp.'/sessions',true).');session_start();$_SESSION["company_id"]="a";$_SESSION["tenant_admin_id"]="admin";',$source);
     $source=str_replace("require_once __DIR__ . '/../config/database.php';",$bootstrap,$source);
-    $source=preg_replace_callback("~__DIR__ \\. '/\\.\\./includes/([^']+)'~",
+    $source=str_replace("require_once __DIR__.'/../config/database.php';",$bootstrap,$source);
+    $source=preg_replace_callback("~__DIR__\\s*\\.\\s*'/\\.\\./includes/([^']+)'~",
         static fn($m)=>var_export($root.'/includes/'.$m[1],true),$source);
     file_put_contents($serverDir.'/'.$file,$source);
 }
@@ -164,7 +191,9 @@ try {
     $post=['entity_type'=>'rental_object','entity_id'=>'other','fields'=>[]];
     formsAssert(formsHttp('save_entity_form_fields.php',$post)['success']===false,'Missing CSRF rejected');
     $post['csrf_token']=$get['csrf_token'];
+    $post['expected_revision']=$get['revision'];
     formsAssert(formsHttp('save_entity_form_fields.php',$post)['success']===true,'Actual save endpoint accepts valid CSRF');
+    formsAssert(formsHttp('save_entity_form_fields.php',$post)['success']===false,'Stale complete snapshots cannot overwrite newer fields');
     formsAssert(formsHttp('get_entity_form_fields.php?entity_type=event&entity_id=foreign')['success']===false,'Actual HTTP foreign read denied');
     $eventInput=['title'=>'Betalt medlemsarrangement','start_date'=>'2070-06-01','start_time'=>'13:00',
         'registration_type'=>'binding','allowed_payment_methods'=>['vipps'],'default_payment_method'=>'vipps',
@@ -178,6 +207,14 @@ try {
     $bad['allowed_payment_methods']=['inactive'];$bad['default_payment_method']='inactive';
     formsAssert(formsHttp('create_event.php',$bad)['success']===false,'Inactive payment gateway rejected');
     formsAssert((int)$setup->query('SELECT COUNT(*) FROM events_eventdata')->fetchColumn()===$before,'Invalid payment settings roll back creation');
+    $setup->exec("DELETE FROM tenant_admin_modules WHERE module_id='membership-module'");
+    formsAssert(formsHttp('create_event.php',$eventInput)['success']===false,'Membership activation rejected without module');
+    $ordinary=$eventInput;unset($ordinary['memberverification'],$ordinary['is_member_exclusive']);
+    $ordinaryCreated=formsHttp('create_event.php',$ordinary);
+    formsAssert($ordinaryCreated['success'],'Creation without Membership works');
+    $ordinaryRead=formsHttp('get_event.php?id='.$ordinaryCreated['event_id'])['event'];
+    formsAssert((int)$ordinaryRead['memberverification']===0 && (int)$ordinaryRead['is_member_exclusive']===0,'No module defaults membership off');
+    $setup->exec("INSERT INTO tenant_admin_modules VALUES('admin','membership-module')");
     $created=formsHttp('create_event.php',$eventInput);
     formsAssert($created['success'],'Actual binding event creation: '.json_encode($created));
     $id=$created['event_id'];
@@ -188,16 +225,29 @@ try {
     $edit=$eventInput;unset($edit['form_fields'],$edit['registration_type'],$edit['allowed_payment_methods'],
         $edit['default_payment_method'],$edit['memberverification'],$edit['is_member_exclusive']);
     $edit['event_id']=$id;$edit['title']='Endret tittel';
+    $setup->exec("UPDATE events_eventdata SET min_attendees=2,registration_deadline='2070-05-31 18:45:12' WHERE id='$id'");
+    $setup->exec("INSERT INTO membership_plans VALUES('member-plan','Medlemskap')");
+    $setup->exec("INSERT INTO event_membership_plans VALUES('$id','member-plan',50,1)");
+    $edit['min_attendees']=2;$edit['registration_deadline']='31.05.2070';
+    $setup->exec("DELETE FROM tenant_admin_modules WHERE module_id='membership-module'");
     formsAssert(formsHttp('update_event.php',$edit)['success'],'Basic edit with omitted settings succeeds');
     $read=formsHttp('get_event.php?id='.$id)['event'];
     formsAssert((int)$read['memberverification']===1&&(int)$read['is_member_exclusive']===1
         &&$read['registration_type']==='binding'&&json_decode($read['payment_methods_json'],true)===['vipps'],
         'Omitted or unavailable membership controls and disabled registration radios do not erase stored settings');
+    formsAssert($read['registration_deadline']==='2070-05-31 18:45:12','Real DATETIME time survives unchanged date-only edit without Membership');
+    formsAssert((float)$setup->query("SELECT ticket_price FROM event_membership_plans WHERE event_id='$id'")->fetchColumn()===50.0,'Hidden member pricing preserved without Membership');
+    $forged=$edit;$forged['memberverification']=0;
+    formsAssert(formsHttp('update_event.php',$forged)['success']===false,'Cannot deactivate protected membership when access was removed');
+    $forged=$edit;$forged['membership_pricing']=[['plan_id'=>'fake','price'=>0]];
+    formsAssert(formsHttp('update_event.php',$forged)['success']===false,'Cannot submit member prices without module');
+    $setup->exec("INSERT INTO tenant_admin_modules VALUES('admin','membership-module')");
     $bad=$edit;$bad['allowed_payment_methods']=['cash'];$bad['default_payment_method']='cash';
     formsAssert(formsHttp('update_event.php',$bad)['success']===false,'Binding edit rejects cash');
     $edit['memberverification']=0;$edit['is_member_exclusive']=0;
     formsAssert(formsHttp('update_event.php',$edit)['success'],'Explicit unchecked membership flags saved');
     $read=formsHttp('get_event.php?id='.$id)['event'];
     formsAssert((int)$read['memberverification']===0&&(int)$read['is_member_exclusive']===0,'Both flags can be explicitly cleared');
+    require_once $root.'/tests/entity_deletion_fixture_checks.php';
 }finally{proc_terminate($worker);proc_close($worker);}
 echo "Isolated shared form storage, migration, audit, rendering, validation and HTTP tests passed\n";

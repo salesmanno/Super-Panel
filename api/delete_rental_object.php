@@ -1,85 +1,19 @@
 <?php
 session_start();
 header('Content-Type: application/json');
-
-if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
-    exit;
-}
-
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/entity_form_fields.php';
-
-$admin = [
-    'tenant_admin_id' => $_SESSION['tenant_admin_id'],
-    'company_id' => $_SESSION['company_id']
-];
-
-// Hent object ID
-$data = json_decode(file_get_contents('php://input'), true);
-$object_id = $data['id'] ?? null;
-
-if (!$object_id) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Objekt-ID mangler']);
-    exit;
-}
-
+require_once __DIR__.'/../config/database.php';
+require_once __DIR__.'/../includes/entity_deletion.php';
 try {
-    $db = getDBConnection();
-    
-    // Verify object exists and belongs to company
-    $stmt = $db->prepare("
-        SELECT id, object_name FROM rental_objects 
-        WHERE id = ? AND company_id = ?
-    ");
-    $stmt->execute([$object_id, $admin['company_id']]);
-    $object = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$object) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'message' => 'Objekt ikke funnet']);
-        exit;
+    $data=json_decode(file_get_contents('php://input'),true,512,JSON_THROW_ON_ERROR);
+    if(!is_array($data) || !is_string($data['id']??null) || $data['id']==='') {
+        throw new InvalidArgumentException('Objekt-ID mangler');
     }
-    
-    // Check if object has active bookings
-    $checkStmt = $db->prepare("
-        SELECT COUNT(*) as count FROM rental_schedule 
-        WHERE rental_object_id = ? 
-        AND status NOT IN ('completed', 'cancelled')
-    ");
-    $checkStmt->execute([$object_id]);
-    $result = $checkStmt->fetch(PDO::FETCH_ASSOC);
-    
-    if ($result['count'] > 0) {
-        http_response_code(400);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Kan ikke slette objekt med aktive bookinger. Avbryt eller fullfør bookingene først.'
-        ]);
-        exit;
-    }
-    
-    // Shared definitions have no cross-table FK; remove them atomically with the object.
-    $db->beginTransaction();
-    entityFormDelete($db, (string)$admin['company_id'], 'rental_object', (string)$object_id);
-    // Delete object (CASCADE will delete from type-specific table and rental_schedule)
-    $deleteStmt = $db->prepare("DELETE FROM rental_objects WHERE id = ? AND company_id = ?");
-    $deleteStmt->execute([$object_id, $admin['company_id']]);
-    $db->commit();
-    
-    echo json_encode([
-        'success' => true,
-        'message' => "'{$object['object_name']}' er slettet"
-    ]);
-    
-} catch (\Throwable $e) {
-    if(isset($db) && $db->inTransaction())$db->rollBack();
-    error_log('delete_rental_object error: ' . $e->getMessage());
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Feil ved sletting av utleieobjekt'
-    ]);
+    entityFormRequireCsrf($data);
+    deleteRentalObjectSafely(getDBConnection(),(string)($_SESSION['company_id']??''),$data['id']);
+    echo json_encode(['success'=>true,'message'=>'Tomt utleieobjekt slettet permanent.']);
+} catch(Throwable $e) {
+    http_response_code($e instanceof TenantAuditException?403:($e instanceof OutOfBoundsException?404:($e instanceof DomainException?409:400)));
+    error_log('delete_rental_object: '.get_class($e));
+    echo json_encode(['success'=>false,'message'=>$e instanceof PDOException
+        ? 'Kunne ikke slette objektet. Ingen endringer ble lagret.' : $e->getMessage()]);
 }

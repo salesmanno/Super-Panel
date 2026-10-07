@@ -77,7 +77,7 @@ window.fetch=async(url,options={})=>{
    ];
    if(type==='event' && id==='event-none') registration_type='none';
    if(type==='rental_object' && id==='rental-a') fields=[{field_name:'city',field_label:'By',field_type:'text',is_visible:1}];
-   return {ok:true,json:async()=>({success:true,fields,registration_type,csrf_token:'csrf-fixture',presets:[{key:'brief',label:'Kort',fields:[
+   return {ok:true,json:async()=>({success:true,fields,revision:'a'.repeat(64),registration_type,csrf_token:'csrf-fixture',presets:[{key:'brief',label:'Kort',fields:[
      {field_name:'first_name',field_label:'Fornavn',field_type:'text',is_required:1,is_visible:1,sort_order:0},
      {field_name:'last_name',field_label:'Etternavn',field_type:'text',is_required:1,is_visible:1,sort_order:1},
      {field_name:'email',field_label:'E-post',field_type:'email',is_required:1,is_visible:1,sort_order:2}
@@ -109,6 +109,9 @@ const checks = `(async()=>{
  check(eventCreate.isReady(),'event create waits until defaults/token arrive');
  check(eventCreate.getFields().length===3,'event defaults loaded');
  const preset=document.querySelector('#event-create [data-preset]');
+ check(!document.querySelector('#event-create .entity-field-row'),'only overview is shown initially');
+ document.querySelector('#event-create [data-edit-field="first_name"]').click();
+ check(document.querySelectorAll('#event-create .entity-field-row').length===1,'locked name still opens one field');
  document.querySelector('#event-create [data-fields-list] input[data-prop="field_label"]').value='Tilpasset navn';
  document.querySelector('#event-create [data-fields-list] input[data-prop="field_label"]').dispatchEvent(new Event('input',{bubbles:true}));
  preset.value='brief'; window.confirmAnswer=false;
@@ -122,6 +125,8 @@ const checks = `(async()=>{
  check(eventCreate.getFields().length===3,'switching back restores defaults');
  document.querySelector('#event-create [data-add]').click();
  check(eventCreate.getFields().length===4,'custom field can be added');
+ await eventCreate.save();
+ check(!document.querySelector('#event-create .entity-field-row')&&fixtureSaveResults.length===0,'create-mode field save closes locally without server persistence');
  eventCreate.reset();
  check(!eventCreate.isReady(),'reset invalidates prior token/default state');
  await eventCreate.setRegistrationType('signup');
@@ -129,17 +134,23 @@ const checks = `(async()=>{
 
  const eventEdit=mount(document.getElementById('event-edit'),{entityType:'event',entityId:'event-a'});
  await eventEdit.refresh();
- const eventLabel=document.querySelectorAll('#event-edit [data-fields-list] input[data-prop="field_label"]')[2];
+ document.querySelector('#event-edit [data-edit-field="phone"]').click();
+ const eventLabel=document.querySelector('#event-edit [data-fields-list] input[data-prop="field_label"]');
  eventLabel.value='Ny telefon';eventLabel.dispatchEvent(new Event('input',{bubbles:true}));
  document.querySelector('#event-edit [data-save]').click();
+ check([...document.querySelectorAll('#event-edit input,#event-edit select,#event-edit textarea,#event-edit button')].every(control=>control.disabled),'all field controls are disabled while saving');
  document.querySelector('#event-edit [data-save]').click();
  await pause();
  check(window.fixtureSaveResults.filter(x=>x.entity_id==='event-a').length===1,'concurrent save clicks are suppressed');
  check(eventEdit.getFields()[2].field_label==='Ny telefon','failed save retains the draft');
+ check(document.querySelectorAll('#event-edit .entity-field-row').length===1,'failed save leaves the same row open');
  check(document.querySelector('#event-edit [data-fields-status]').textContent==='Prøvefeil','save failure reported in editor: '+document.querySelector('#event-edit [data-fields-status]').textContent+' payloads='+JSON.stringify(window.fixtureSaveResults));
  document.querySelector('#event-edit [data-save]').click();await pause();
  check(window.fixtureSaveResults.filter(x=>x.entity_id==='event-a').length===2,'save can be retried');
  check(window.fixtureSaveResults.at(-1).entity_type==='event'&&window.fixtureSaveResults.at(-1).csrf_token==='csrf-fixture','save is scoped to this event and carries csrf');
+ check(!document.querySelector('#event-edit .entity-field-row'),'successful event save closes the selected row');
+ check(window.fixtureSaveResults.at(-1).fields.length===3,'saving a single visible row retains all sibling definitions');
+ check(window.fixtureSaveResults.at(-1).expected_revision==='a'.repeat(64),'full snapshots carry a server precondition');
 
  const rentalEdit=mount(document.getElementById('rental-edit'),{entityType:'rental_object',entityId:'rental-a'});
  await rentalEdit.refresh();
@@ -153,9 +164,12 @@ const checks = `(async()=>{
  check(emailQuick&&!emailQuick.checked,'Rental offers an unchecked standard contact field without manual configuration');
  emailQuick.click();
  check(emptyRental.getFields()[0].field_name==='email'&&emptyRental.getFields()[0].field_type==='email','Quick selection uses the canonical shared email field');
+ check(!document.querySelector('#rental-empty .entity-field-row'),'visibility toggle does not open the editor');
+ document.querySelector('#rental-empty [data-edit-field="email"]').click();
  check(document.querySelector('#rental-empty details')&&!document.querySelector('#rental-empty details').open,'Advanced rental settings start collapsed');
  document.querySelector('#rental-empty [data-save]').click();await pause();
  check(window.fixtureSaveResults.at(-1).fields[0].field_name==='email','Quick selection saves through the same entity-scoped field endpoint');
+ check(!document.querySelector('#rental-empty .entity-field-row'),'successful rental save closes the selected row');
  document.querySelector('#rental-empty [data-common-field="email"]').click();
  check(!emptyRental.getFields()[0].is_visible&&!document.querySelector('#rental-empty [data-fields-list] .entity-field-row'),'Unchecking a standard rental field hides it while retaining its definition');
  const noneEvent=mount(document.getElementById('event-none'),{entityType:'event',entityId:'event-none'});

@@ -1,5 +1,6 @@
 // Exercises the actual Events markup and submit/reset functions without loading
-// PHP, signing in, or contacting any app API or external database.
+// signing in or contacting any app API or external database. PHP only renders
+// the module with an absent DB connection and explicit fixture capabilities.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -10,10 +11,15 @@ if (typeof WebSocket === 'undefined') {
     process.exit(child.status ?? 1);
 }
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'events-wizard-'));
-const fragment = fs.readFileSync(path.join(__dirname, '../modules/events_content.php'), 'utf8')
-    .replace(/<\?[\s\S]*?\?>/g, '')
+function renderFragment(membership) {
+    const rendered=spawnSync('php',['-r', '$_SESSION=["company_id"=>"fixture"]; $hasMembershipAccess=$argv[2]==="1"; include $argv[1];',
+        path.join(__dirname,'../modules/events_content.php'), membership?'1':'0'],{encoding:'utf8'});
+    assert.equal(rendered.status,0,rendered.stderr);
+    return rendered.stdout
     .replace(/<link[^>]*>/g, '')
     .replace(/<script[^>]*src=[^>]*><\/script>/g, '');
+}
+const fragment = renderFragment(true);
 const helper = fs.readFileSync(path.join(__dirname, '../assets/event_form_helpers.js'), 'utf8') +
     '\n' + fs.readFileSync(path.join(__dirname, '../assets/event-settings.js'), 'utf8');
 const entityFields = fs.readFileSync(path.join(__dirname, '../assets/entity-form-fields.js'), 'utf8');
@@ -21,6 +27,10 @@ const dashboardDateControls = fs.readFileSync(path.join(__dirname, '../includes/
 const stubs = `
 window.fixtureErrors=[];window.fixtureSaves=[];window.fixtureEdits=[];window.fixtureMode='success';window.fixtureConfirms=0;
 window.fixtureConfigReads=0;
+window.fixtureReads=[];
+window.fixtureEvent={id:'fixture-prefill',title:'Datoimport',registration_type:'binding',start_date:'2028-06-15',
+    start_time:'19:00:00',min_attendees:2,registration_deadline:'2028-06-14 18:45:12',
+    ticket_price:100,memberverification:1,is_member_exclusive:1,default_payment_method:'vipps',payment_methods_json:'["vipps"]'};
 window.addEventListener('error',e=>fixtureErrors.push(e.message));
 window.addEventListener('unhandledrejection',e=>fixtureErrors.push(String(e.reason)));
 window.confirm=()=>{fixtureConfirms++;return true};
@@ -28,6 +38,8 @@ window.alert=message=>fixtureErrors.push(message);
 window.toast=new Proxy({}, {get:()=>()=>{}});
 window.bootstrap={Modal:class {static getInstance(){return {hide(){}}} show(){} hide(){}},Tab:class{show(){}}};
 window.fetch=async(url,options)=>{
+    fixtureReads.push(String(url));
+    if(String(url).includes('/get_event.php?'))return {ok:true,json:async()=>({success:true,event:fixtureEvent})};
     if(String(url).includes('update_event.php')){
         fixtureEdits.push(JSON.parse(options.body));return {ok:true,json:async()=>({success:true})};
     }
@@ -235,6 +247,15 @@ const checks = `
         check(bindingSave.allowed_payment_methods.join()==='vipps','Actual binding creation uses digital payment only');
         check(edit.querySelector('.event-time-minutes').value==='05','Edit minute synced');
         check(fixtureErrors.length===0,'No unexpected browser errors: '+fixtureErrors.join('; '));
+        const deadlineControl=edit.querySelector('[name="registration_deadline"]');
+        const cached=document.createElement('button');
+        cached.setAttribute('onclick',"editEvent('fixture-prefill')");
+        cached.dataset.event=JSON.stringify(fixtureEvent);document.body.append(cached);
+        await editEvent('fixture-prefill');
+        check(deadlineControl.value==='14.06.2028'&&deadlineControl.checkValidity(),'Cached DATETIME deadline is immediately valid');
+        cached.remove();
+        await editEvent('fixture-prefill');
+        check(deadlineControl.value==='14.06.2028'&&deadlineControl.checkValidity(),'API DATETIME deadline is immediately valid');
         return {passed:true,width:innerWidth};
     }catch(error){return {passed:false,error:error.stack||String(error),errors:fixtureErrors}}
 })()
@@ -280,6 +301,34 @@ async function main() {
         assert.equal(result.result?.value?.passed,true,JSON.stringify(result));
         assert.equal(result.result.value.width,width,'Real emulated viewport width');
         console.log('Actual Events wizard passed at '+width+'px');
+    }
+    const noMemberFile=path.join(directory,'no-membership.html');
+    fs.writeFileSync(noMemberFile,`<!doctype html><html lang="nb"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><script>${stubs}</script><script>${helper}</script><script>${entityFields}</script>${renderFragment(false)}${dashboardDateControls}</body></html>`);
+    for(const width of [390,1280]) {
+        await send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width===390},sessionId);
+        await send('Page.navigate',{url:'file://'+noMemberFile},sessionId);
+        await new Promise(resolve=>setTimeout(resolve,350));
+        const result=await send('Runtime.evaluate',{awaitPromise:true,returnByValue:true,expression:`(async()=>{
+            const check=(value,message)=>{if(!value)throw new Error(message)};
+            check(!eventHasMembershipAccess(),'real PHP capability absent');
+            for(const selector of ['#wizard-step-5','#membership-pricing-container','#edit-membership-pricing-container',
+                '#create-event-form [name="memberverification"]','#edit-event-form [name="memberverification"]',
+                '#create-event-form [name="is_member_exclusive"]','#edit-event-form [name="is_member_exclusive"]']) {
+                check(!document.querySelector(selector),'Membership UI must be absent: '+selector);
+            }
+            check(getNextValidStep(4,1)===6 && getNextValidStep(6,-1)===4,'wizard skips Membership both directions');
+            wizardGoToStep(5);check(wizardCurrentStep!==5,'direct step navigation blocked');
+            await loadWizardMembershipPlans();await loadMembershipPlansForCreate();
+            check(!fixtureReads.some(url=>url.includes('membership')),'no unnecessary Membership fetch');
+            const form=document.getElementById('create-event-form');
+            check(Object.keys(EventSettings.membership(form)).length===0,'missing controls omit membership flags');
+            check(Object.keys(EventSettings.membership(document.getElementById('edit-event-form'))).length===0,'editing omits membership flags too');
+            check(fixtureErrors.length===0,'no JavaScript errors: '+fixtureErrors.join(';'));
+            check(sqlDateToNorsk('2028-06-14 18:45:12')==='14.06.2028','SQL DATETIME uses Norwegian date, no timezone conversion');
+            return true;
+        })()`},sessionId);
+        assert.equal(result.result?.value,true,JSON.stringify(result));
+        console.log('Real PHP Membership gating passed at '+width+'px');
     }
 }
 main().catch(error=>{console.error(error);process.exitCode=1}).finally(async()=>{

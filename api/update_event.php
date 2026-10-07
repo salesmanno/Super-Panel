@@ -60,6 +60,13 @@ try {
         }
         
         $settings = eventSettings($db, (string)$_SESSION['company_id'], $data, $existingEvent);
+        // A date-only edit must not erase the time component of an unchanged deadline.
+        $oldDeadline = $existingEvent['registration_deadline'] ?? null;
+        if ($data['registration_deadline'] !== null && is_string($oldDeadline) &&
+            preg_match('/^(\d{4}-\d{2}-\d{2}) \d{2}:\d{2}:\d{2}$/', $oldDeadline, $deadlineParts) &&
+            $data['registration_deadline'] === $deadlineParts[1]) {
+            $data['registration_deadline'] = $oldDeadline;
+        }
         $registrationType = $settings['registration_type'];
         
         // ENFORCE: "Ingen påmelding" must be free (no pricing, no participant limits)
@@ -69,9 +76,7 @@ try {
             $data['min_attendees'] = null;
             $data['registration_deadline'] = null;
             
-            // Delete all membership pricing for this event
-            $stmt = $db->prepare("DELETE FROM event_membership_plans WHERE event_id = ?");
-            $stmt->execute([$data['event_id']]);
+            // Hidden membership settings/prices must survive ordinary basic edits.
         }
         
         $paymentTiming = $settings['payment_timing'];

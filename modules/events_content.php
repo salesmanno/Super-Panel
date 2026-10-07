@@ -818,10 +818,12 @@ try {
                             <div class="step-circle">4</div>
                             <div class="step-label">Priser</div>
                         </div>
+                        <?php if (!empty($hasMembershipAccess)): ?>
                         <div class="wizard-step" data-step="5">
                             <div class="step-circle">5</div>
                             <div class="step-label">Medlemskap</div>
                         </div>
+                        <?php endif; ?>
                         <div class="wizard-step" data-step="6">
                             <div class="step-circle">6</div>
                             <div class="step-label">Betaling</div>
@@ -833,7 +835,7 @@ try {
                     </div>
                 </div>
 
-                <form id="create-event-form">
+                <form id="create-event-form" data-membership-access="<?= !empty($hasMembershipAccess) ? '1' : '0' ?>">
                     <!-- Step 1: Registration Type -->
                     <div class="wizard-content" id="wizard-step-1">
                         <div class="text-center mb-4">
@@ -1038,7 +1040,7 @@ try {
                     <div class="wizard-content" id="wizard-step-4" style="display: none;">
                         <div class="text-center mb-4">
                             <h4 class="mb-2">Hva koster billettene?</h4>
-                            <p class="text-muted">Sett ordinærpris og eventuell medlemspris</p>
+                            <p class="text-muted">Sett ordinær billettpris</p>
                         </div>
                         
                         <div class="row justify-content-center">
@@ -1059,6 +1061,7 @@ try {
                                 
                                 <hr class="my-4">
                                 
+                                <?php if (!empty($hasMembershipAccess)): ?>
                                 <h6 class="mb-3"><i class="bi bi-people-fill me-2"></i>Medlemspriser</h6>
                                 <div id="membership-pricing-container">
                                     <div class="text-center py-3">
@@ -1066,11 +1069,13 @@ try {
                                         <small class="text-muted">Laster medlemsplaner...</small>
                                     </div>
                                 </div>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
 
                     <!-- Step 5: Membership Add-ons -->
+                    <?php if (!empty($hasMembershipAccess)): ?>
                     <div class="wizard-content" id="wizard-step-5" style="display: none;">
                         <div class="text-center mb-4">
                             <h4 class="mb-2">Medlemstillegg</h4>
@@ -1110,6 +1115,7 @@ try {
                     </div>
 
                     <!-- Step 6: Payment Methods -->
+                    <?php endif; ?>
                     <div class="wizard-content" id="wizard-step-6" style="display: none;">
                         <div class="text-center mb-4">
                             <h4 class="mb-2">Betalingsmetoder</h4>
@@ -2385,6 +2391,8 @@ function parseCalendarDate(value) {
 }
 
 function sqlDateToNorsk(value) {
+    const displayDate = EventFormHelpers.toNorskDate(value);
+    if (displayDate) return displayDate;
     const parts = parseCalendarDate(value);
     return parts ? `${String(parts.day).padStart(2, '0')}.${String(parts.month).padStart(2, '0')}.${parts.year}` : (value || '');
 }
@@ -3023,17 +3031,22 @@ function deleteEvent(eventId) {
     });
 }
 
-function performDeleteEvent(eventId, deleteMode) {
+let eventDeleteBusy = false;
+async function performDeleteEvent(eventId, deleteMode) {
+    if (eventDeleteBusy) return;
+    if (deleteMode === 'hard' && !confirm('Slette permanent? Dette fjerner arrangementet og feltoppsettet. Bare arrangementer uten påmeldinger eller historikk kan slettes. Handlingen refunderer ingen betalinger.')) return;
+    eventDeleteBusy = true;
     const deleteTypeLabel = deleteMode === 'soft' ? 'gjort usynlig' : 'slettet permanent';
-    
-    fetch('/api/delete_event.php', {
+    try {
+    const tokenResult = await EntityFormFields.load('event',eventId);
+    await fetch('/api/delete_event.php', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json', 'X-CSRF-Token':tokenResult.csrf_token
         },
         body: JSON.stringify({ 
             event_id: eventId,
-            delete_mode: deleteMode
+            delete_mode: deleteMode, csrf_token:tokenResult.csrf_token
         })
     })
     .then(res => res.json())
@@ -3052,6 +3065,9 @@ function performDeleteEvent(eventId, deleteMode) {
         console.error('Error deleting event:', error);
         toast.quickError('Feil', 'Feil ved sletting');
     });
+    } catch(error) {
+        toast.quickError('Feil', error.message || 'Kunne ikke slette');
+    } finally { eventDeleteBusy=false; }
 }
 
 // ========== ADDRESS FIELD FORMATTING ==========
@@ -4982,6 +4998,7 @@ async function deleteTransaction(transactionId) {
 // Load membership plans for create form
 let membershipPlansData = [];
 async function loadMembershipPlansForCreate() {
+    if (!eventHasMembershipAccess()) return;
     const container = document.getElementById('membership-pricing-container');
     if (!container) return;
     
@@ -6619,6 +6636,10 @@ function initEventWizard() {
     loadWizardMembershipPlans();
 }
 
+function eventHasMembershipAccess() {
+    return document.getElementById('create-event-form')?.dataset.membershipAccess === '1';
+}
+
 function getNextValidStep(currentStep, direction) {
     const regType = document.querySelector('#create-event-form input[name="registration_type"]:checked')?.value;
     let nextStep = currentStep + direction;
@@ -6638,6 +6659,7 @@ function getNextValidStep(currentStep, direction) {
             nextStep = direction > 0 ? 7 : 4;
         }
     }
+    if (nextStep === 5 && !eventHasMembershipAccess()) nextStep += direction;
     
     // Clamp to valid range
     if (nextStep < 1) nextStep = 1;
@@ -6649,6 +6671,7 @@ function getNextValidStep(currentStep, direction) {
 function wizardGoToStep(step) {
     if (eventCreationBusy) return;
     if (step < 1 || step > wizardTotalSteps) return;
+    if (step === 5 && !eventHasMembershipAccess()) return;
     
     // Block navigation to steps that should be skipped based on registration_type
     const regType = document.querySelector('#create-event-form input[name="registration_type"]:checked')?.value;
@@ -6948,6 +6971,7 @@ async function loadWizardPaymentMethods() {
 }
 
 async function loadWizardMembershipPlans() {
+    if (!eventHasMembershipAccess() || !document.getElementById('membership-pricing-container')) return;
     try {
         const response = await fetch('/api/get_membership_plans.php');
         const result = await response.json();
@@ -7084,6 +7108,7 @@ async function initEventFormFieldsEditor() {
 }
 
 async function openEventFormFields(eventId) {
+    if (eventEditFieldsEditor && !eventEditFieldsEditor.confirmClose()) return;
     const host = document.getElementById('event-fields-editor');
     const event = (typeof allEvents !== 'undefined' ? allEvents : []).find(item => String(item.id) === String(eventId));
     const title = document.getElementById('eventFieldsModalTitle');
@@ -7101,7 +7126,12 @@ async function openEventFormFields(eventId) {
 
 // Initialize wizard on DOM ready
 document.addEventListener('DOMContentLoaded', initEventWizard);
-document.addEventListener('DOMContentLoaded', initEventFormFieldsEditor);
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('eventFieldsModal')?.addEventListener('hide.bs.modal', event=>{
+        if(eventEditFieldsEditor && !eventEditFieldsEditor.confirmClose()) event.preventDefault();
+    });
+    initEventFormFieldsEditor();
+});
 
 // Handle subtab change to load data when entering events tabs
 document.addEventListener('subtab-changed', function(event) {

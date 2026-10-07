@@ -1,4 +1,26 @@
 <?php
+require_once __DIR__.'/tenant_audit.php';
+
+function eventSettingsHasMembershipAccess(PDO $db, string $company): bool {
+    $actor = tenantAuditActor($db, $company);
+    $q = $db->prepare("SELECT sm.id FROM system_modules sm
+        JOIN tenant_admin_modules tam ON tam.module_id=sm.id
+        WHERE tam.tenant_admin_id=? AND sm.module_key='membership' AND sm.is_active=1");
+    $q->execute([$actor['id']]);
+    return (bool)$q->fetchColumn();
+}
+
+function eventSettingsRequireMembership(PDO $db, string $company, array $input, array $existing = []): void {
+    if (eventSettingsHasMembershipAccess($db, $company)) return;
+    foreach (['memberverification','is_member_exclusive'] as $key) {
+        if (array_key_exists($key,$input) && eventSettingsFlag($input,$key) !== eventSettingsFlag([],$key,$existing)) {
+            throw new TenantAuditException('Du trenger Membership-modulen for å endre medlemsinnstillinger.');
+        }
+    }
+    if (!empty($input['membership_pricing'])) {
+        throw new TenantAuditException('Du trenger Membership-modulen for å endre medlemspriser.');
+    }
+}
 /** Shared create/edit policy. UI hints never authorize payment methods. */
 function eventSettingsFlag(array $input, string $key, array $existing = []): int {
     $value = array_key_exists($key,$input) ? $input[$key] : ($existing[$key]??0);
@@ -9,6 +31,7 @@ function eventSettingsFlag(array $input, string $key, array $existing = []): int
 }
 
 function eventSettings(PDO $db, string $company, array $input, array $existing = []): array {
+    eventSettingsRequireMembership($db, $company, $input, $existing);
     $type = $input['registration_type'] ?? $existing['registration_type'] ?? 'signup';
     if (!in_array($type,['signup','none','binding'],true)) throw new InvalidArgumentException('Ugyldig påmeldingstype');
     $q=$db->prepare('SELECT cash_payment FROM tenant_companies WHERE id=?');$q->execute([$company]);

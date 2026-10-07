@@ -200,12 +200,21 @@ function entityFormEventSelection(array $data): array {
     return $fields;
 }
 
-function entityFormSave(PDO $db,string $company,string $type,string $id,array $input): array {
+function entityFormRevision(array $loaded): string {
+    return hash('sha256', json_encode($loaded, JSON_THROW_ON_ERROR));
+}
+
+class EntityFormConflictException extends RuntimeException {}
+
+function entityFormSave(PDO $db,string $company,string $type,string $id,array $input,?string $expectedRevision=null): array {
     $own=!$db->inTransaction();
     if($own)$db->beginTransaction();
     try {
         $context=entityFormContext($db,$company,$type,$id,true);
         $actor=entityFormRequireModuleAccess($db,$company,$type);
+        if ($expectedRevision !== null && !hash_equals(entityFormRevision(entityFormLoad($db,$company,$type,$id)), $expectedRevision)) {
+            throw new EntityFormConflictException('Skjemafeltene er endret siden du åpnet dem. Utkastet er beholdt; åpne oppsettet på nytt før du lagrer.');
+        }
         $fields=entityFormNormalize($type,$input);
         require_once __DIR__.'/entity_form_input.php';
         foreach($fields as $field)if($field['default_value']!==null && $field['default_value']!=='') {
