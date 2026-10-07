@@ -8,3 +8,9 @@ Brukerrettede datofelt skal godta og vise `DD.MM.YYYY`, og klokkeslett skal bruk
 **Why:** Direkte bruk av databaseformat i skjemaene ga brukerfeil, tvetydig parsing og risiko for dagsforskyvning. Samtidig må SQL-datoer forbli sorterbare og kompatible med eksisterende spørringer.
 
 **How to apply:** Ved nye eller endrede brukerflyter skal norsk format brukes ved UI-grensen, mens API-et normaliserer strengt før lagring. Ikke bruk permissiv `strtotime` eller implicit JavaScript-parsing av brukerens kalenderdato. Sammenlign kalenderdeler eksplisitt og la API-et være autoritativt rundt midnatt.
+
+Alle tidsvelgere skal bruke ett felt, ikke separate HH- og MM-valg. Fire tall som `1900` skal vises som `19:00`, med et diskret kolon inne i feltet som brukeren ikke trenger å skrive.
+
+**Why:** Brukeren synes separate time- og minuttvalg er tungvinte og ba om enklere tidsinntasting.
+
+**How to apply:** Bruk samme løsning ved opprettelse og redigering, med numerisk mobiltastatur og fortsatt streng 24-timersvalidering.
