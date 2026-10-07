@@ -41,6 +41,10 @@ try {
     }
     
     $db = getDBConnection();
+    require_once __DIR__.'/../includes/active_payment_methods.php';
+    $db->beginTransaction();
+    activePaymentMethodsLock($db,(string)$_SESSION['company_id']);
+    $paymentMethod=($transactionType==='income' || !empty($input['payment_method'])) ? requireActivePaymentMethod($db,(string)$_SESSION['company_id'],$input['payment_method']??null) : null;
     
     // Verify event exists and belongs to user's company
     $stmt = $db->prepare("SELECT id, title FROM events_eventdata WHERE id = ? AND company_id = ? AND is_active = 1");
@@ -80,7 +84,7 @@ try {
         'quantity' => 1,
         'selling_price' => $ledgerAmount,
         'cost_price' => null,
-        'payment_method' => 'manual',
+        'payment_method' => $paymentMethod,
         'payment_status' => 'completed',
         'status' => 'active',
         'transaction_date' => $date . ' 00:00:00',
@@ -88,12 +92,14 @@ try {
     ]);
     
     if ($result['success']) {
+        $db->commit();
         echo json_encode([
             'success' => true,
             'message' => 'Transaksjon lagt til',
             'ledger_id' => $result['ledger_id']
         ]);
     } else {
+        $db->rollBack();
         echo json_encode([
             'success' => false,
             'message' => 'Kunne ikke lagre transaksjon: ' . $result['message']
@@ -101,6 +107,7 @@ try {
     }
     
 } catch (Exception $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
     error_log("Error adding event transaction: " . $e->getMessage());
     echo json_encode([
         'success' => false,

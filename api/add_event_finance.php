@@ -22,7 +22,7 @@ $event_id = $data['event_id'] ?? null;
 $type = $data['type'] ?? null; // 'income' or 'expense'
 $item_name = $data['item_name'] ?? null;
 $amount = $data['amount'] ?? null;
-$payment_method = $data['payment_method'] ?? 'cash';
+$payment_method = $data['payment_method'] ?? null;
 
 if (
     !$event_id
@@ -60,6 +60,10 @@ try {
         exit;
     }
     
+    require_once __DIR__.'/../includes/active_payment_methods.php';
+    $db->beginTransaction();
+    activePaymentMethodsLock($db,(string)$company_id);
+    if ($type==='income' || $payment_method!==null) $payment_method=requireActivePaymentMethod($db,(string)$company_id,$payment_method);
     // Initialize UnifiedLedgerService
     $ledgerService = new UnifiedLedgerService($db, $company_id);
     
@@ -92,12 +96,14 @@ try {
     ]);
     
     if ($result['success']) {
+        $db->commit();
         echo json_encode([
             'success' => true,
             'message' => $type === 'expense' ? 'Utgift lagt til' : 'Inntekt lagt til',
             'ledger_id' => $result['ledger_id']
         ]);
     } else {
+        $db->rollBack();
         http_response_code(500);
         echo json_encode([
             'success' => false,
@@ -106,6 +112,7 @@ try {
     }
     
 } catch (Exception $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
     error_log("Add event finance error: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([

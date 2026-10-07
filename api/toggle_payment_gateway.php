@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/active_payment_methods.php';
+require_once __DIR__ . '/../includes/tenant_audit.php';
 
 header('Content-Type: application/json');
 
@@ -30,6 +32,16 @@ if ((!$gatewayId && !$gatewayName) || $isActive === null) {
 
 try {
     $db = getDBConnection();
+    $actor=tenantAuditActor($db,(string)$company_id);
+    $access=$db->prepare("SELECT 1 FROM tenant_admin_modules tam JOIN system_modules sm ON sm.id=tam.module_id WHERE tam.tenant_admin_id=? AND sm.module_key='economy' AND sm.is_active=1");
+    $access->execute([$actor['id']]);
+    if (!$access->fetchColumn()) {
+        http_response_code(403);
+        echo json_encode(['success'=>false,'message'=>'Du trenger Økonomi-modulen for å aktivere betalingsmetoder.']);
+        exit;
+    }
+    $db->beginTransaction();
+    activePaymentMethodsLock($db,(string)$company_id);
     
     if ($gatewayName === 'cash') {
         if (!$isActive) {
@@ -42,6 +54,7 @@ try {
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if (($result['active_count'] ?? 0) == 0) {
+                $db->rollBack();
                 echo json_encode([
                     'success' => false,
                     'message' => 'Kan ikke deaktivere kontant uten andre aktive betalingsløsninger'
@@ -52,6 +65,7 @@ try {
         
         $stmt = $db->prepare("UPDATE tenant_companies SET cash_payment = ? WHERE id = ?");
         $stmt->execute([$isActive ? 1 : 0, $company_id]);
+        $db->commit();
         
         echo json_encode([
             'success' => true,
@@ -84,6 +98,7 @@ try {
     $config = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$config) {
+        $db->rollBack();
         echo json_encode(['success' => false, 'message' => 'Betalingsløsning ikke funnet']);
         exit;
     }
@@ -119,6 +134,7 @@ try {
         }
         
         if (!empty($missingFields)) {
+            $db->rollBack();
             echo json_encode([
                 'success' => false,
                 'message' => 'Kan ikke aktivere - mangler konfigurasjon: ' . implode(', ', $missingFields)
@@ -133,6 +149,7 @@ try {
         WHERE id = ?
     ");
     $stmt->execute([$isActive ? 1 : 0, $config['id']]);
+    $db->commit();
     
     $displayName = $config['config_name'] ?: ucfirst($gatewayType);
     echo json_encode([
@@ -142,6 +159,7 @@ try {
     ]);
     
 } catch (Exception $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
     error_log("Toggle payment gateway error: " . $e->getMessage());
     echo json_encode(['success' => false, 'message' => 'Serverfeil: ' . $e->getMessage()]);
 }

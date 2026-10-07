@@ -31,7 +31,7 @@ try {
     $attendee_name = trim($first_name . ' ' . $last_name);
     $email = isset($input['attendee_email']) ? trim($input['attendee_email']) : null;
     $membership_plan_id = isset($input['membership_plan_id']) ? $input['membership_plan_id'] : null;
-    $payment_method = isset($input['payment_method']) ? $input['payment_method'] : 'cash';
+    $payment_method = $input['payment_method'] ?? null;
     $payment_status = isset($input['payment_status']) ? $input['payment_status'] : 'paid';
     $number_of_people = isset($input['number_of_people']) ? (int)$input['number_of_people'] : 1;
     
@@ -100,10 +100,10 @@ try {
         }
     }
     
-    // Use default payment method
-    if (!$payment_method) {
-        $payment_method = $event['default_payment_method'] ?? 'cash';
-    }
+    require_once __DIR__.'/../includes/active_payment_methods.php';
+    $db->beginTransaction();
+    activePaymentMethodsLock($db,(string)$company_id);
+    $payment_method=requireActiveEventPayment($db,(string)$company_id,(string)$event_id,$payment_method,(float)$ticket_price);
     
     // Generate barcode
     require_once '../includes/BarcodeService.php';
@@ -145,7 +145,7 @@ try {
         // Note: Walk-in guests may not have customer_id, store name/email in metadata
         if ($payment_status === 'paid' && $ticket_price > 0) {
             $attendee_name = trim($first_name . ' ' . $last_name);
-            $ledgerService->logTransaction([
+            $ledgerResult=$ledgerService->logTransaction([
                 'order_id' => $checkin_id,
                 'module_source' => 'events',
                 'item_type' => 'event',
@@ -168,9 +168,11 @@ try {
                     'customer_email' => $email
                 ]
             ]);
+            if (!$ledgerResult['success']) throw new RuntimeException('Kunne ikke lagre gjestebetalingen.');
         }
     }
     
+    $db->commit();
     echo json_encode([
         'success' => true,
         'message' => $number_of_people > 1 ? "{$number_of_people} gjester registrert" : 'Gjest registrert',
@@ -178,6 +180,7 @@ try {
     ]);
     
 } catch (Exception $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
     error_log("Error registering guest: " . $e->getMessage());
     echo json_encode([
         'success' => false,

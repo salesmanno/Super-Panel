@@ -14,6 +14,7 @@ try {
 ?>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="/assets/entity-form-fields.css">
+<script src="/assets/active-payment-methods.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 .event-card {
@@ -3108,18 +3109,19 @@ let availablePaymentMethods = [];
 let selectedForGroup = new Set();
 
 // Load available payment methods from economy configuration
-async function loadPaymentMethods() {
+async function loadPaymentMethods(eventId = '') {
+    availablePaymentMethods=[];
     try {
-        const response = await fetch('/api/get_payment_methods.php');
+        const response = await fetch('/api/get_payment_methods.php'+(eventId ? '?event_id='+encodeURIComponent(eventId) : ''));
         const result = await response.json();
         if (result.success && result.payment_methods && result.payment_methods.length > 0) {
             availablePaymentMethods = result.payment_methods;
         } else {
-            availablePaymentMethods = [{ method_type: 'cash', method_name: 'Kontant', config: { icon: 'cash-stack' } }];
+            availablePaymentMethods = [];
         }
     } catch (error) {
         console.error('Error loading payment methods:', error);
-        availablePaymentMethods = [{ method_type: 'cash', method_name: 'Kontant', config: { icon: 'cash-stack' } }];
+        availablePaymentMethods = [];
     }
 }
 
@@ -3133,7 +3135,8 @@ function getPaymentButtonsHtml(checkinId, customerName, ticketPrice, isPaid) {
     }
     
     const escapedName = customerName.replace(/'/g, "\\'");
-    const defaultMethod = availablePaymentMethods.length > 0 ? availablePaymentMethods[0].method_type : 'cash';
+    if (availablePaymentMethods.length === 0 && Number(ticketPrice) > 0) return '<span class="text-warning small">Ingen tilgjengelige betalingsmetoder. Last betalingslisten på nytt.</span>';
+    const defaultMethod = availablePaymentMethods.length > 0 ? availablePaymentMethods[0].method_type : '';
     
     let buttons = `<button class="btn btn-sm btn-success me-1" onclick="performCheckinWithMethod('${checkinId}', '${defaultMethod}')" title="Sjekk inn">
         <i class="bi bi-check-circle me-1"></i>Sjekk inn
@@ -3288,7 +3291,7 @@ async function loadEventCheckInCount(eventId) {
 let currentEventTitle = '';
 let currentEventDate = '';
 
-function openEventDetail(eventId, eventTitle, eventDate) {
+async function openEventDetail(eventId, eventTitle, eventDate) {
     selectedEventId = eventId;
     currentEventTitle = eventTitle;
     currentEventDate = eventDate || '';
@@ -3304,6 +3307,7 @@ function openEventDetail(eventId, eventTitle, eventDate) {
     }, 100);
     
     // Load checkins and event details
+    await loadPaymentMethods(eventId);
     loadCheckins(eventId);
     loadEventDetailsForCheckin(eventId);
     loadEventRegistrationFields(eventId);
@@ -3328,13 +3332,14 @@ async function loadEventDetailsForCheckin(eventId) {
             document.getElementById('guest-price').value = result.event.ticket_price || 0;
             const paymentMethodSelect = document.getElementById('guest-payment-method');
             paymentMethodSelect.innerHTML = '';
-            const paymentMethods = result.event.payment_methods_json ? JSON.parse(result.event.payment_methods_json) : ['cash'];
-            const methodNames = { 'cash': 'Kontant', 'card': 'Kort', 'vipps': 'Vipps', 'invoice': 'Faktura', 'bank_transfer': 'Bankoverføring' };
-            paymentMethods.forEach(method => {
+            paymentMethodSelect.required=Number(result.event.ticket_price || 0)>0;
+            const methods=await ActivePaymentMethods.load(eventId);
+            paymentMethodSelect.append(new Option(methods.length ? '— Velg betalingsmetode —' : 'Ingen aktivert betalingsmetode',''));
+            methods.forEach(method => {
                 const option = document.createElement('option');
-                option.value = method;
-                option.textContent = methodNames[method] || method;
-                if (method === result.event.default_payment_method) option.selected = true;
+                option.value = method.method_type;
+                option.textContent = ActivePaymentMethods.label(method);
+                if (method.method_type === ActivePaymentMethods.normalize(result.event.default_payment_method || '')) option.selected = true;
                 paymentMethodSelect.appendChild(option);
             });
             loadMembershipPlansForGuest(eventId);
@@ -3735,7 +3740,7 @@ document.getElementById('checkin-form')?.addEventListener('submit', async functi
         registration_id: formData.get('registration_id') || null,
         membership_plan_id: formData.get('membership_plan_id') || null,
         ticket_type: formData.get('ticket_type'),
-        payment_method: isPaying ? formData.get('payment_method') : 'free',
+        payment_method: isPaying ? formData.get('payment_method') : null,
         is_paying: isPaying,
         notes: formData.get('notes')
     };
@@ -3954,7 +3959,7 @@ async function loadCheckins(eventId) {
 
 // Perform check-in with payment
 async function performCheckin(checkinId, skipPayment = false) {
-    const paymentMethod = document.getElementById('guest-payment-method')?.value || 'cash';
+    const paymentMethod = document.getElementById('guest-payment-method')?.value || null;
     
     try {
         const response = await fetch('/api/perform_checkin.php', {
@@ -4429,6 +4434,8 @@ async function addEventIncome(eventId) {
     }
     
     try {
+        const paymentMethod=await ActivePaymentMethods.choose();
+        if (!paymentMethod) return;
         const response = await fetch('/api/add_event_finance.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -4437,7 +4444,7 @@ async function addEventIncome(eventId) {
                 type: 'income',
                 item_name: description,
                 amount: amount,
-                payment_method: 'cash'
+                payment_method: paymentMethod
             })
         });
         
@@ -4469,6 +4476,8 @@ async function addEventExpense(eventId) {
     }
     
     try {
+        const paymentMethod=await ActivePaymentMethods.choose();
+        if (!paymentMethod) return;
         const response = await fetch('/api/add_event_finance.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -4477,7 +4486,7 @@ async function addEventExpense(eventId) {
                 type: 'expense',
                 item_name: description,
                 amount: amount,
-                payment_method: 'cash'
+                payment_method: paymentMethod
             })
         });
         
@@ -4848,6 +4857,8 @@ async function saveIncome() {
     }
     
     try {
+        data.payment_method=await ActivePaymentMethods.choose();
+        if (!data.payment_method) return;
         const response = await fetch('/api/add_event_income.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -5042,80 +5053,9 @@ async function loadMembershipPlansForCreate() {
     }
 }
 
-// Load payment methods for create form
-let paymentMethodsData = [];
+// Shared activated-method editor for create and edit.
 async function loadPaymentMethodsForCreate() {
-    const container = document.getElementById('payment-methods-container');
-    if (!container) return;
-    
-    try {
-        const response = await fetch('/api/get_payment_methods.php');
-        const result = await response.json();
-        if (EventSettings.registrationType(document.getElementById('create-event-form')) === 'binding' && result.payment_methods) {
-            result.payment_methods = result.payment_methods.filter(method => method.method_type !== 'cash');
-        }
-        
-        if (result.success && result.payment_methods && result.payment_methods.length > 0) {
-            paymentMethodsData = result.payment_methods;
-            const iconMap = { 'cash': 'cash-stack', 'vipps': 'phone', 'stripe': 'credit-card', 'paypal': 'paypal' };
-            container.innerHTML = `
-                <div class="alert alert-info small mb-3">
-                    <i class="bi bi-info-circle me-2"></i>
-                    Velg betalingsmetoder som er tilgjengelige for dette arrangementet. Konfigurasjon gjøres i <strong>Økonomi → Betalingsløsninger</strong>.
-                </div>
-                <div class="row">` + result.payment_methods.map(method => {
-                    const icon = iconMap[method.method_type] || 'wallet2';
-                    const demoLabel = method.is_demo ? ' <small class="text-warning">(Demo)</small>' : '';
-                    return `
-                <div class="col-md-4 mb-2">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" 
-                               name="payment_method_${method.method_type}" 
-                               id="pm_${method.method_type}"
-                               data-method-type="${method.method_type}"
-                               checked>
-                        <label class="form-check-label" for="pm_${method.method_type}">
-                            <i class="bi bi-${icon} me-1"></i>
-                            ${method.method_name}${demoLabel}
-                        </label>
-                    </div>
-                </div>
-                `;
-            }).join('') + '</div>';
-            
-            // Add event listeners to update payment timing status and default dropdown
-            const checkboxes = container.querySelectorAll('input[type="checkbox"]');
-            checkboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', () => {
-                    updatePaymentTimingStatus();
-                    updateDefaultPaymentMethodDropdown();
-                });
-            });
-            
-            // Initial update
-            updatePaymentTimingStatus();
-            updateDefaultPaymentMethodDropdown();
-        } else if (!result.success && result.error_type === 'connection_error') {
-            container.innerHTML = `<div class="alert alert-warning small mb-0">
-                <i class="bi bi-wifi-off me-2"></i>Kunne ikke hente betalingsmetoder (tilkoblingsfeil). 
-                <button type="button" class="btn btn-sm btn-outline-warning ms-2" onclick="loadPaymentMethodsForCreate()">
-                    <i class="bi bi-arrow-clockwise me-1"></i>Prøv igjen
-                </button>
-            </div>`;
-        } else if (result.success && (!result.payment_methods || result.payment_methods.length === 0)) {
-            container.innerHTML = '<p class="text-warning small mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Ingen betalingsmetoder konfigurert i Økonomi → Betalingsløsninger</p>';
-        } else {
-            container.innerHTML = '<p class="text-warning small mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Ingen betalingsmetoder konfigurert i Økonomi → Betalingsløsninger</p>';
-        }
-    } catch (error) {
-        console.error('Error loading payment methods:', error);
-        container.innerHTML = `<div class="alert alert-danger small mb-0">
-            <i class="bi bi-exclamation-triangle me-2"></i>Feil ved lasting av betalingsmetoder. 
-            <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="loadPaymentMethodsForCreate()">
-                <i class="bi bi-arrow-clockwise me-1"></i>Prøv igjen
-            </button>
-        </div>`;
-    }
+    return ActivePaymentMethods.eventOptions('payment-methods-container','default-payment-method');
 }
 
 // Update default payment method dropdown based on selected checkboxes
@@ -5166,78 +5106,7 @@ function updatePaymentTimingStatus() {
 
 // Load payment methods for edit form
 async function loadPaymentMethodsForEdit(selectedMethods = [], defaultMethod = null) {
-    const container = document.getElementById('edit-payment-methods-container');
-    if (!container) return;
-    
-    try {
-        const response = await fetch('/api/get_payment_methods.php');
-        const result = await response.json();
-        if (EventSettings.registrationType(document.getElementById('edit-event-form')) === 'binding' && result.payment_methods) {
-            result.payment_methods = result.payment_methods.filter(method => method.method_type !== 'cash');
-        }
-        
-        if (result.success && result.payment_methods && result.payment_methods.length > 0) {
-            const iconMap = { 'cash': 'cash-stack', 'vipps': 'phone', 'stripe': 'credit-card', 'paypal': 'paypal' };
-            
-            container.innerHTML = `
-                <div class="alert alert-info small mb-3">
-                    <i class="bi bi-info-circle me-2"></i>
-                    Velg betalingsmetoder som er tilgjengelige for dette arrangementet. Konfigurasjon gjøres i <strong>Økonomi → Betalingsløsninger</strong>.
-                </div>
-                <div class="row">` + result.payment_methods.map(method => {
-                const isChecked = selectedMethods.includes(method.method_type);
-                const icon = iconMap[method.method_type] || 'wallet2';
-                const demoLabel = method.is_demo ? ' <small class="text-warning">(Demo)</small>' : '';
-                return `
-                <div class="col-md-4 mb-2">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" 
-                               name="edit_payment_method_${method.method_type}" 
-                               id="edit_pm_${method.method_type}"
-                               data-method-type="${method.method_type}"
-                               ${isChecked ? 'checked' : ''}>
-                        <label class="form-check-label" for="edit_pm_${method.method_type}">
-                            <i class="bi bi-${icon} me-1"></i>
-                            ${method.method_name}${demoLabel}
-                        </label>
-                    </div>
-                </div>
-            `;
-            }).join('') + '</div>';
-            
-            // Add event listeners to update dropdown when checkboxes change
-            const checkboxes = container.querySelectorAll('input[type="checkbox"]');
-            checkboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', () => {
-                    updateDefaultPaymentMethodDropdown('edit-payment-methods-container', 'edit-default-payment-method');
-                });
-            });
-            
-            // Update dropdown and set default value
-            updateDefaultPaymentMethodDropdown('edit-payment-methods-container', 'edit-default-payment-method');
-            if (defaultMethod) {
-                const dropdown = document.getElementById('edit-default-payment-method');
-                if (dropdown) dropdown.value = defaultMethod;
-            }
-        } else if (!result.success && result.error_type === 'connection_error') {
-            container.innerHTML = `<div class="alert alert-warning small mb-0">
-                <i class="bi bi-wifi-off me-2"></i>Kunne ikke hente betalingsmetoder (tilkoblingsfeil). 
-                <button type="button" class="btn btn-sm btn-outline-warning ms-2" onclick="loadPaymentMethodsForEdit(${JSON.stringify(selectedMethods)}, '${defaultMethod || ''}')">
-                    <i class="bi bi-arrow-clockwise me-1"></i>Prøv igjen
-                </button>
-            </div>`;
-        } else {
-            container.innerHTML = '<p class="text-warning small mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Ingen betalingsmetoder konfigurert i Økonomi → Betalingsløsninger</p>';
-        }
-    } catch (error) {
-        console.error('Error loading payment methods for edit:', error);
-        container.innerHTML = `<div class="alert alert-danger small mb-0">
-            <i class="bi bi-exclamation-triangle me-2"></i>Feil ved lasting av betalingsmetoder. 
-            <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="loadPaymentMethodsForEdit(${JSON.stringify(selectedMethods)}, '${defaultMethod || ''}')">
-                <i class="bi bi-arrow-clockwise me-1"></i>Prøv igjen
-            </button>
-        </div>`;
-    }
+    return ActivePaymentMethods.eventOptions('edit-payment-methods-container','edit-default-payment-method',selectedMethods,defaultMethod);
 }
 
 // Handle registration type changes - show/hide sections for "Ingen påmelding"
@@ -6842,6 +6711,8 @@ function updateWizardBasedOnType() {
 }
 
 async function loadBindingPaymentMethods() {
+    const bindingContainer=document.getElementById('binding-payment-methods');
+    bindingContainer.textContent='Laster aktiverte betalingsmetoder…';
     try {
         const response = await fetch('/api/get_payment_methods.php');
         const result = await response.json();
@@ -6859,7 +6730,7 @@ async function loadBindingPaymentMethods() {
             
             container.innerHTML = nonCashMethods.map(pm => {
                 const icon = (pm.config && pm.config.icon) ? pm.config.icon : 'wallet2';
-                const name = pm.method_name || pm.method_type;
+                const name = ActivePaymentMethods.text(ActivePaymentMethods.label(pm));
                 return `
                 <div class="form-check mb-2">
                     <input class="form-check-input binding-payment-radio" type="radio" name="binding_payment_method" value="${pm.method_type}" id="binding_pm_${pm.method_type}">
@@ -6873,6 +6744,7 @@ async function loadBindingPaymentMethods() {
         }
     } catch (error) {
         console.error('Error loading binding payment methods:', error);
+        bindingContainer.textContent='Kunne ikke laste aktiverte betalingsmetoder. Velg arrangementstype på nytt for å prøve igjen.';
     }
 }
 
@@ -6936,38 +6808,7 @@ function updateWizardSummary() {
 }
 
 async function loadWizardPaymentMethods() {
-    try {
-        const response = await fetch('/api/get_payment_methods.php');
-        const result = await response.json();
-        result.data = result.data || result.payment_methods;
-        if (EventSettings.registrationType(document.getElementById('create-event-form')) === 'binding' && result.data) {
-            result.data = result.data.filter(method => method.method_type !== 'cash');
-        }
-        
-        if (result.success && result.data) {
-            const container = document.getElementById('payment-methods-container');
-            const defaultSelect = document.getElementById('default-payment-method');
-            
-            if (result.data.length === 0) {
-                container.innerHTML = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>Ingen betalingsmetoder konfigurert. Gå til Økonomi-modulen for å sette opp betalingsløsninger.</div>';
-                return;
-            }
-            
-            container.innerHTML = result.data.map(pm => `
-                <div class="form-check form-check-inline mb-2">
-                    <input class="form-check-input payment-method-checkbox" type="checkbox" name="payment_methods[]" value="${pm.method_type}" id="pm_${pm.method_type}" checked>
-                    <label class="form-check-label" for="pm_${pm.method_type}">
-                        <i class="bi bi-${(pm.config && pm.config.icon) ? pm.config.icon : 'wallet2'} me-1"></i>${pm.method_name || pm.method_type}
-                    </label>
-                </div>
-            `).join('');
-            
-            defaultSelect.innerHTML = '<option value="">Velg standardmetode...</option>' + 
-                result.data.map(pm => `<option value="${pm.method_type}">${pm.method_name || pm.method_type}</option>`).join('');
-        }
-    } catch (error) {
-        console.error('Error loading payment methods:', error);
-    }
+    return loadPaymentMethodsForCreate();
 }
 
 async function loadWizardMembershipPlans() {

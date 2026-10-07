@@ -20,12 +20,17 @@ function renderFragment(membership) {
     .replace(/<script[^>]*src=[^>]*><\/script>/g, '');
 }
 const fragment = renderFragment(true);
+// Minimal legacy controls activate the real submission listener. This form is
+// not in the current Events markup; the backend still supports its caller.
+const legacyCheckinControls='<form id="checkin-form"><input id="isPayingCheckbox" type="checkbox"><input name="attendee_first_name" value="Fixture"><input name="attendee_last_name" value="Pending"><select name="payment_method"><option value="cash">Kontant</option></select></form>';
 const helper = fs.readFileSync(path.join(__dirname, '../assets/event_form_helpers.js'), 'utf8') +
-    '\n' + fs.readFileSync(path.join(__dirname, '../assets/event-settings.js'), 'utf8');
+    '\n' + fs.readFileSync(path.join(__dirname, '../assets/event-settings.js'), 'utf8') +
+    '\n' + fs.readFileSync(path.join(__dirname, '../assets/active-payment-methods.js'), 'utf8');
 const entityFields = fs.readFileSync(path.join(__dirname, '../assets/entity-form-fields.js'), 'utf8');
 const dashboardDateControls = fs.readFileSync(path.join(__dirname, '../includes/norwegian_datetime_inputs.php'), 'utf8');
 const stubs = `
 window.fixtureErrors=[];window.fixtureSaves=[];window.fixtureEdits=[];window.fixtureMode='success';window.fixtureConfirms=0;
+window.fixturePayments=null;window.fixturePaymentFailure=false;window.fixtureMembers=[];window.fixtureRenewals=[];window.fixtureCheckins=[];
 window.fixtureConfigReads=0;
 window.fixtureReads=[];
 window.fixtureEvent={id:'fixture-prefill',title:'Datoimport',registration_type:'binding',start_date:'2028-06-15',
@@ -58,8 +63,20 @@ window.fetch=async(url,options)=>{
         if(fixtureMode==='network')throw new Error('Simulated network failure');
         return {ok:fixtureMode!=='failure',json:async()=>({success:fixtureMode==='success',message:'Testfeil'})};
     }
+    if(String(url).includes('renew_membership.php')) {
+        fixtureRenewals.push(JSON.parse(options.body));return {ok:true,json:async()=>({success:false,message:'Fixture'})};
+    }
+    if(String(url).includes('checkin_event.php')) {
+        fixtureCheckins.push(JSON.parse(options.body));return {ok:true,json:async()=>({success:false,message:'Fixture'})};
+    }
+    if(String(url).includes('create_member.php')) {
+        fixtureMembers.push(JSON.parse(options.body));
+        return {ok:true,json:async()=>({success:false,message:'Fixture keeps form open'})};
+    }
     let result={success:true,events:[],registrations:[],checkins:[],data:[],plans:[]};
-    if(String(url).includes('get_payment_methods.php')){fixtureConfigReads++;result.payment_methods=[
+    if(String(url).includes('get_payment_methods.php')){
+        if(fixturePaymentFailure)throw new Error('Fixture payment network error');
+        fixtureConfigReads++;result.payment_methods=fixturePayments || [
         {method_type:'cash',method_name:'Kontant'},{method_type:'vipps',method_name:'Vipps'}];delete result.data;}
     if(String(url).includes('get_membership_plans.php')){fixtureConfigReads++;result.plans=[{id:'fixture-plan',name:'Testplan'}]}
     return {ok:true,json:async()=>result};
@@ -264,7 +281,7 @@ let browser;
 let socket;
 async function main() {
     const file=path.join(directory,'fixture.html');
-    fs.writeFileSync(file, `<!doctype html><html lang="nb"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><script>${stubs}</script><script>${helper}</script><script>${entityFields}</script>${fragment}${dashboardDateControls}</body></html>`);
+    fs.writeFileSync(file, `<!doctype html><html lang="nb"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><script>${stubs}</script><script>${helper}</script><script>${entityFields}</script>${legacyCheckinControls}${fragment}${dashboardDateControls}</body></html>`);
     browser=spawn(process.env.CHROMIUM_PATH||'/repl/tools/bin/chromium',[
         '--headless','--no-sandbox','--disable-dev-shm-usage','--remote-debugging-port=0',
         '--user-data-dir='+path.join(directory,'profile'),'about:blank'
@@ -301,6 +318,74 @@ async function main() {
         assert.equal(result.result?.value?.passed,true,JSON.stringify(result));
         assert.equal(result.result.value.width,width,'Real emulated viewport width');
         console.log('Actual Events wizard passed at '+width+'px');
+    }
+    const editing=await send('Runtime.evaluate',{awaitPromise:true,returnByValue:true,expression:`(async()=>{
+        fixturePayments=[];
+        await loadPaymentMethodsForEdit(['Vipps'],'Vipps');
+        const old=document.querySelector('#edit-payment-methods-container [data-method-type="vipps"]');
+        if(!old?.checked || !old.disabled)throw new Error('Historical inactive method must remain visible and unavailable');
+        const select=document.getElementById('edit-default-payment-method');
+        if(select.value!=='vipps' || !select.selectedOptions[0].disabled)throw new Error('Keep historical default');
+        fixturePaymentFailure=true;await loadPaymentMethodsForCreate();
+        if(document.getElementById('payment-methods-container').dataset.paymentState!=='error')throw new Error('Explicit load failure');
+        let blocked=false;try{EventSettings.paymentMethods(document.getElementById('create-event-form'),'[data-method-type]','signup')}catch(e){blocked=true}
+        if(!blocked || document.querySelector('#payment-methods-container [data-method-type="cash"]'))throw new Error('No fallback on failure');
+        selectedEventId='priced';
+        const checkinForm=document.getElementById('checkin-form');
+        document.getElementById('isPayingCheckbox').checked=false;
+        checkinForm.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        await new Promise(resolve=>setTimeout(resolve,40));
+        if(fixtureCheckins.length!==1 || fixtureCheckins[0].is_paying!==false || fixtureCheckins[0].payment_method!==null)throw new Error('Unpaid priced-ticket check-in submits no fictitious method');
+        return true;
+    })()`},sessionId);
+    assert.equal(editing.result?.value,true,JSON.stringify(editing));
+    console.log('Inactive Event editing and payment load-error browser checks passed');
+    const memberRendered=spawnSync('php',['-r','include $argv[1];',path.join(__dirname,'../modules/membership_content.php')],{encoding:'utf8'});
+    assert.equal(memberRendered.status,0,memberRendered.stderr);
+    const memberFragment=memberRendered.stdout.replace(/<script[^>]*src=[^>]*>[^<]*<[/]script>/g,'');
+    const memberFile=path.join(directory,'membership.html');
+    fs.writeFileSync(memberFile,`<!doctype html><html><body><script>${stubs}</script><script>${helper}</script>${memberFragment}</body></html>`);
+    const memberChecks=`(async()=>{
+        const select=document.getElementById('member-payment-method'),status=document.getElementById('member-payment-status');
+        fixturePayments=[{method_type:'vipps',method_name:'<img src=x>',is_demo:true,is_configured:false}];
+        await loadMemberPaymentMethods();
+        if(select.options.length!==2 || select.options[1].value!=='vipps' || !select.options[1].textContent.includes('Testmodus') || select.querySelector('img'))throw new Error('Active choices, metadata and safe labels');
+        if(select.value!=='')throw new Error('No automatic Vipps');
+        fixturePayments=[];await loadMemberPaymentMethods();
+        if(select.options.length!==1 || !document.getElementById('payment-status-hint').textContent.includes('Ingen'))throw new Error('Empty list without static choices');
+        window.membershipPlans=[{id:'priced',price:100},{id:'free',price:0}];
+        const form=document.getElementById('create-member-form');
+        form.elements.first_name.value='Fixture';form.elements.last_name.value='Test';form.elements.membership_plan_id.value='priced';status.value='paid';
+        await submitMember();if(fixtureMembers.length)throw new Error('Paid member needs active method');
+        status.value='unpaid';await submitMember();
+        if(fixtureMembers.length!==1 || fixtureMembers[0].paymentMethod!==null || fixtureMembers[0].payment_status!=='unpaid')throw new Error('Unpaid is status only');
+        form.elements.membership_plan_id.value='free';status.value='paid';await submitMember();
+        if(fixtureMembers.length!==2 || fixtureMembers[1].paymentMethod!==null)throw new Error('Free requires no fictitious payment');
+        fixturePaymentFailure=true;await loadMemberPaymentMethods();
+        if(select.dataset.paymentState!=='error' || select.options.length!==1 || !select.disabled)throw new Error('No fallback when loading fails');
+        fixturePaymentFailure=false;fixturePayments=[{method_type:'cash',method_name:'Kontant'}];await loadMemberPaymentMethods();
+        select.value='cash';onPaymentMethodChange(select);form.elements.membership_plan_id.value='priced';await submitMember();
+        if(fixtureMembers.length!==3 || fixtureMembers[2].paymentMethod!=='cash' || fixtureMembers[2].payment_status!=='paid')throw new Error('Explicit activated method submitted');
+        allMembers=[{member_id:'paid-renew',plan_price:100},{member_id:'free-renew',plan_price:0}];
+        const renewalAlerts=[];window.alert=message=>renewalAlerts.push(message);
+        window.prompt=message=>message.startsWith('Fornyingsdato')?'2026-10-08':'1';
+        await renewMembership('paid-renew');
+        if(fixtureRenewals.length!==1 || fixtureRenewals[0].payment_method!=='cash')throw new Error('Paid renewal sends chosen active method');
+        fixturePayments=[];await renewMembership('paid-renew');
+        if(fixtureRenewals.length!==1)throw new Error('No active method prevents paid renewal');
+        if(!renewalAlerts.some(message=>message.includes('Ingen betalingsmetoder er aktivert')))throw new Error('Renewal must explain missing activation');
+        await renewMembership('free-renew');
+        if(fixtureRenewals.length!==2 || fixtureRenewals[1].payment_method!==null)throw new Error('Free renewal does not require a method');
+        if(fixtureErrors.length)throw new Error(fixtureErrors.join(','));
+        return true;
+    })()`;
+    for(const width of [390,1280]) {
+        await send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width===390},sessionId);
+        await send('Page.navigate',{url:'file://'+memberFile},sessionId);
+        await new Promise(resolve=>setTimeout(resolve,300));
+        const checked=await send('Runtime.evaluate',{expression:memberChecks,awaitPromise:true,returnByValue:true},sessionId);
+        assert.equal(checked.result?.value,true,JSON.stringify(checked));
+        console.log('Actual Membership activated-method browser checks passed at '+width+'px');
     }
     const noMemberFile=path.join(directory,'no-membership.html');
     fs.writeFileSync(noMemberFile,`<!doctype html><html lang="nb"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><script>${stubs}</script><script>${helper}</script><script>${entityFields}</script>${renderFragment(false)}${dashboardDateControls}</body></html>`);

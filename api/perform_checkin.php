@@ -15,6 +15,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
 require_once __DIR__ . '/../includes/tenant_audit.php';
+require_once __DIR__ . '/../includes/active_payment_methods.php';
 
 /**
  * Get human-readable payment method name
@@ -45,13 +46,14 @@ try {
     $companyId = $_SESSION['company_id'];
     $adminId = $_SESSION['tenant_admin_id'];
     $isNoShow = isset($data['no_show']) && $data['no_show'] === true;
-    $paymentMethod = $data['payment_method'] ?? 'cash';
+    $paymentMethod = $data['payment_method'] ?? null;
     $skipPayment = isset($data['skip_payment']) && $data['skip_payment'] === true;
     $preservePaymentMethod = isset($data['preserve_payment_method']) && $data['preserve_payment_method'] === true;
     
     $auditActor = tenantAuditActor($db, (string) $companyId);
     $adminName = $auditActor['name'];
     $db->beginTransaction();
+    activePaymentMethodsLock($db,(string)$companyId);
     
     // Get checkin record with customer and event info
     // Use membership_plan_id FK instead of ticket_type column
@@ -134,7 +136,8 @@ try {
                 $newPaymentMethod = $checkin['payment_method'];
             } else {
                 $newPaymentStatus = $skipPayment ? 'pending' : 'paid';
-                $newPaymentMethod = $paymentMethod;
+                $newPaymentMethod = $skipPayment ? $checkin['payment_method'] :
+                    requireActiveEventPayment($db,(string)$companyId,(string)$checkin['event_id'],$paymentMethod,(float)$ticketPrice);
             }
             
             $updateStmt = $db->prepare("
@@ -160,7 +163,7 @@ try {
                 // Derive ticket_type from membership_plan_name or default to 'Ordinær'
                 $ticketType = $checkin['membership_plan_name'] ?? 'Ordinær';
                 
-                $ledgerService->logTransaction([
+                $ledgerResult=$ledgerService->logTransaction([
                     'order_id' => $orderId,
                     'module_source' => 'events',
                     'item_type' => 'event',
@@ -188,6 +191,7 @@ try {
             
             // Audit log for check-in
             $auditAction = "EVENT_CHECKIN";
+            if (isset($ledgerResult) && !$ledgerResult['success']) throw new RuntimeException('Kunne ikke lagre innsjekkingsbetalingen.');
             $paymentMethodName = getPaymentMethodName($newPaymentMethod);
             
             if ($newPaymentStatus === 'paid' && $ticketPrice > 0) {

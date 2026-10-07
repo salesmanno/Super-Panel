@@ -4,6 +4,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
+require_once __DIR__ . '/../includes/active_payment_methods.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -33,6 +34,9 @@ try {
     }
     
     $db = getDBConnection();
+    $db->beginTransaction();
+    activePaymentMethodsLock($db,(string)$company_id);
+    $paymentMethod = requireActivePaymentMethod($db,(string)$company_id,$data['payment_method']??null);
     
     $memberInfo = null;
     $customerEmail = $data['customer_email'] ?? null;
@@ -56,6 +60,7 @@ try {
         ");
         $stmt->execute([$memberId, $company_id]);
         $memberInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$memberInfo) throw new InvalidArgumentException('Medlem ikke funnet i ditt firma.');
         
         if ($memberInfo) {
             $customerEmail = $memberInfo['email'];
@@ -65,7 +70,6 @@ try {
     }
     
     $amount = floatval($data['amount']);
-    $paymentMethod = $data['payment_method'] ?? 'vipps';
     $transactionDate = $data['transaction_date'] ?? date('Y-m-d H:i:s');
     $transactionReference = $data['transaction_reference'] ?? null;
     $itemType = $data['item_type'] ?? 'membership_payment';
@@ -87,7 +91,7 @@ try {
     }
     
     $ledgerService = new UnifiedLedgerService($db, $company_id);
-    $ledgerService->logTransaction([
+    $result = $ledgerService->logTransaction([
         'order_id' => $orderId,
         'module_source' => 'membership',
         'item_type' => $itemType,
@@ -109,6 +113,8 @@ try {
             'customer_email' => $customerEmail
         ]
     ]);
+    if (!$result['success']) throw new RuntimeException('Kunne ikke registrere betalingen.');
+    $db->commit();
     
     echo json_encode([
         'success' => true,
@@ -119,6 +125,8 @@ try {
     ]);
     
 } catch (Exception $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
+    http_response_code($e instanceof InvalidArgumentException ? 400 : 500);
     error_log("Error logging membership payment: " . $e->getMessage());
     echo json_encode([
         'success' => false,

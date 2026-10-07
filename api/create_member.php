@@ -2,13 +2,14 @@
 session_start();
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['tenant_admin_id'])) {
+if (!isset($_SESSION['tenant_admin_id'],$_SESSION['company_id'])) {
     echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
     exit;
 }
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
+require_once __DIR__ . '/../includes/active_payment_methods.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -20,6 +21,18 @@ try {
 
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
+    $db->beginTransaction();
+    activePaymentMethodsLock($db,(string)$companyId);
+    $planStmt = $db->prepare('SELECT price FROM membership_plans WHERE id=? AND company_id=? FOR UPDATE');
+    $planStmt->execute([$data['membership_plan_id']??null,$companyId]);
+    $price = $planStmt->fetchColumn();
+    if ($price === false) throw new InvalidArgumentException('Velg en medlemskapsplan fra ditt firma.');
+    $paymentStatus = $data['payment_status'] ?? 'unpaid';
+    if (!in_array($paymentStatus,['paid','unpaid'],true)) throw new InvalidArgumentException('Ugyldig betalingsstatus.');
+    $paymentMethod = null;
+    if (!empty($data['paymentMethod']) || ($paymentStatus === 'paid' && (float)$price > 0)) {
+        $paymentMethod = requireActivePaymentMethod($db,(string)$companyId,$data['paymentMethod']??null);
+    }
     
     // Check if customer with this phone already exists (if phone provided)
     if (!empty($data['phone'])) {
@@ -86,7 +99,7 @@ try {
             $data['address_street'] ?? null,
             $data['address_city'] ?? null,
             $data['address_zip'] ?? null,
-            $data['dateofbirth'] ?? null,
+            ($data['dateofbirth'] ?? '') ?: null,
             $data['notes'] ?? null
         ]);
     }
@@ -133,12 +146,6 @@ try {
     $shareCode = strtoupper(substr(bin2hex(random_bytes(8)), 0, 12));
     $memberId = bin2hex(random_bytes(18));
     
-    // payment_status: store 'paid' and 'unpaid' explicitly; anything else → NULL
-    $rawStatus = $data['payment_status'] ?? null;
-    $paymentStatus = in_array($rawStatus, ['paid', 'unpaid'], true) ? $rawStatus : null;
-    
-    // paymentMethod
-    $paymentMethod = !empty($data['paymentMethod']) ? $data['paymentMethod'] : null;
     
     // Create membership record
     $stmt = $db->prepare("
@@ -164,7 +171,7 @@ try {
     // Log to unified_ledger when payment is confirmed as paid
     if ($paymentStatus === 'paid' && $planPrice > 0) {
         $ledger = new UnifiedLedgerService($db, $companyId);
-        $ledger->logTransaction([
+        $result = $ledger->logTransaction([
             'order_id'         => 'MEM-' . $memberCode,
             'module_source'    => 'membership',
             'item_type'        => 'membership',
@@ -178,7 +185,9 @@ try {
             'transaction_type' => 'income',
             'category'         => 'Medlemskap',
         ]);
+        if (!$result['success']) throw new RuntimeException('Kunne ikke lagre medlemsbetalingen.');
     }
+    $db->commit();
     
     echo json_encode([
         'success' => true,
@@ -188,6 +197,8 @@ try {
     ]);
     
 } catch (Exception $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
+    http_response_code($e instanceof InvalidArgumentException ? 400 : 500);
     error_log("Error creating member: " . $e->getMessage());
     echo json_encode([
         'success' => false,

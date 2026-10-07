@@ -125,6 +125,9 @@ $setup->exec("ALTER TABLE events_eventdata ADD description TEXT,ADD start_date D
  ADD payment_methods_json TEXT,ADD share_code VARCHAR(20),ADD output_product_id CHAR(36),ADD cost_price DECIMAL(12,2)");
 $setup->exec("CREATE TABLE economy_payment_gateways(company_id CHAR(36),gateway_name VARCHAR(50),is_active INT)");
 $setup->exec("INSERT INTO economy_payment_gateways VALUES('a','vipps',1),('b','stripe',1),('a','inactive',0)");
+$setup->exec("CREATE TABLE economy_configuration_data(id CHAR(36),company_id CHAR(36),gateway_type VARCHAR(50),config_name VARCHAR(100),is_active INT,test_mode INT,client_id TEXT,client_secret_encrypted TEXT,merchant_serial_number TEXT,subscription_key TEXT,public_key TEXT,private_key_encrypted TEXT)");
+$setup->exec("CREATE TABLE economy_bank_accounts(company_id CHAR(36),is_active INT,account_number TEXT)");
+$setup->exec("INSERT INTO economy_configuration_data(id,company_id,gateway_type,config_name,is_active,test_mode) VALUES('active','a','vipps','Vipps',1,0),('other','b','stripe','Kort',1,0)");
 $setup->exec("CREATE TABLE event_membership_plans(event_id CHAR(36),membership_plan_id CHAR(36),ticket_price DECIMAL(12,2),public_display INT)");
 $setup->exec("CREATE TABLE membership_plans(id CHAR(36),name VARCHAR(255))");
 $setup->exec("CREATE TABLE output_products(id CHAR(36) PRIMARY KEY,company_id CHAR(36),module_id CHAR(36),

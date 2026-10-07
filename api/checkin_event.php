@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/EmailService.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
+require_once __DIR__ . '/../includes/active_payment_methods.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -74,7 +75,7 @@ try {
     }
     
     // Use default payment method
-    $paymentMethod = $data['payment_method'] ?? $event['default_payment_method'] ?? 'cash';
+    $paymentMethod = $data['payment_method'] ?? null;
     
     // Determine ticket price based on membership plan
     $ticketPrice = $event['ticket_price'];
@@ -99,6 +100,16 @@ try {
         }
     }
     
+    $db->beginTransaction();
+    activePaymentMethodsLock($db,(string)$_SESSION['company_id']);
+    $noPayment=($data['is_paying']??null)===false || in_array($paymentMethod,[null,'','free','on_arrival'],true);
+    if (($data['is_paying']??null)!==false && (!$noPayment || ($data['is_paying']??false)===true || ($data['paid']??false)===true)) {
+        $paymentMethod=requireActiveEventPayment($db,(string)$_SESSION['company_id'],(string)$data['event_id'],$paymentMethod,(float)$ticketPrice);
+    } else {
+        // A check-in is not proof of receiving payment. Keep a genuine pending
+        // path without inventing an activated method or a revenue entry.
+        $paymentMethod=null;
+    }
     // Create check-in record
     $checkinId = bin2hex(random_bytes(16));
     
@@ -146,11 +157,8 @@ try {
     // - on_arrival: Always pending (payment not received yet)
     // - cash: Paid only if explicitly confirmed
     // - other methods: Pending until confirmed
-    if ($paymentMethod === 'on_arrival') {
-        $paymentStatus = 'pending';  // Never mark as paid - money not received
-    } else {
-        $paymentStatus = ($paymentMethod === 'cash' && isset($data['paid']) && $data['paid']) ? 'paid' : 'pending';
-    }
+    $paymentStatus=(float)$ticketPrice<=0 ? 'paid' :
+        (($paymentMethod==='cash' && ($data['paid']??false)===true) ? 'paid' : 'pending');
     
     $stmt->execute([
         $checkinId,
@@ -166,14 +174,11 @@ try {
     ]);
     
     // Log to unified_ledger when payment is completed
-    if ($paymentStatus === 'paid') {
+    if ($paymentStatus === 'paid' && (float)$ticketPrice>0) {
         $ledgerService = new UnifiedLedgerService($db, $_SESSION['company_id']);
         
-        // Get event cost_price for profit tracking
-        $costStmt = $db->prepare("SELECT cost_price FROM events_eventdata WHERE id = ?");
-        $costStmt->execute([$data['event_id']]);
-        $costResult = $costStmt->fetch(PDO::FETCH_ASSOC);
-        $costPrice = ($costResult && $costResult['cost_price']) ? $costResult['cost_price'] : null;
+        // Event cost_price was removed; expenses are separate ledger entries.
+        $costPrice = null;
         
         // Generate order ID for this event checkin
         $orderId = 'EVT-' . date('Ymd') . '-' . strtoupper(substr($checkinId, 0, 6));
@@ -202,10 +207,8 @@ try {
                 'customer_email' => $data['attendee_email'] ?? null
             ]
         ]);
-        
-        if (!$ledgerResult['success']) {
-            error_log("Failed to log transaction: " . $ledgerResult['message']);
-        }
+        if (!$ledgerResult['success']) throw new RuntimeException('Kunne ikke lagre innsjekkingsbetalingen.');
+
     }
     
     // Send confirmation email if attendee email is provided
@@ -233,6 +236,7 @@ try {
         }
     }
     
+    $db->commit();
     echo json_encode([
         'success' => true,
         'message' => 'Check-in registrert',
@@ -243,6 +247,7 @@ try {
     ]);
     
 } catch (Exception $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
     error_log("Error checking in: " . $e->getMessage());
     echo json_encode([
         'success' => false,

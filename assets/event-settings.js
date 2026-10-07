@@ -28,6 +28,9 @@ window.EventSettings = {
         return values;
     },
     paymentMethods(form, selector, type) {
+        if (type==='none') return [];
+        const container=form.querySelector('#payment-methods-container, #edit-payment-methods-container');
+        if (container && ['loading','error'].includes(container.dataset.paymentState)) throw new Error('Betalingsmetodene er ikke lastet. Prøv igjen før du lagrer.');
         let methods=[...form.querySelectorAll(selector+':checked')].map(el=>el.dataset.methodType || el.value);
         if(type==='binding') {
             methods=methods.filter(method=>!['cash','arrival','on_arrival'].includes(method));

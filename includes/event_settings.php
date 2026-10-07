@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__.'/tenant_audit.php';
+require_once __DIR__.'/active_payment_methods.php';
 
 function eventSettingsHasMembershipAccess(PDO $db, string $company): bool {
     $actor = tenantAuditActor($db, $company);
@@ -34,12 +35,8 @@ function eventSettings(PDO $db, string $company, array $input, array $existing =
     eventSettingsRequireMembership($db, $company, $input, $existing);
     $type = $input['registration_type'] ?? $existing['registration_type'] ?? 'signup';
     if (!in_array($type,['signup','none','binding'],true)) throw new InvalidArgumentException('Ugyldig påmeldingstype');
-    $q=$db->prepare('SELECT cash_payment FROM tenant_companies WHERE id=?');$q->execute([$company]);
-    $available=(int)$q->fetchColumn()===1 ? ['cash'] : [];
-    $q=$db->prepare('SELECT gateway_name FROM economy_payment_gateways WHERE company_id=? AND is_active=1');
-    $q->execute([$company]);
-    foreach($q->fetchAll(PDO::FETCH_COLUMN) as $name) $available[]=strtolower(trim($name));
-    $available=array_values(array_unique($available));
+    activePaymentMethodsLock($db,$company);
+    $available=array_column(activePaymentMethods($db,$company),'method_type');
     if (array_key_exists('allowed_payment_methods',$input)) {
         $methods=$input['allowed_payment_methods'];
     } elseif (!$existing && !empty($input['default_payment_method'])) {
@@ -51,8 +48,13 @@ function eventSettings(PDO $db, string $company, array $input, array $existing =
         if ($type==='binding') $methods=array_values(array_diff($methods,['cash']));
     }
     if (!is_array($methods) || !array_is_list($methods)) throw new InvalidArgumentException('Ugyldige betalingsmetoder');
+    $oldMethods=json_decode($existing['payment_methods_json']??'[]',true)??[];
+    $normalizedOld=array_map('historicalPaymentMethodName',$oldMethods);
+    $methods=array_values(array_unique(array_map('historicalPaymentMethodName',$methods)));
+    $sameMethods=$existing && $type===($existing['registration_type']??'signup') && !array_diff($methods,$normalizedOld) && !array_diff($normalizedOld,$methods);
+    // Basic edits must not silently drop an old, now unavailable configuration.
     foreach($methods as $method) {
-        if (!is_string($method) || !in_array($method,$available,true)) {
+        if (!is_string($method) || (!in_array($method,$available,true) && !($sameMethods && in_array($method,$normalizedOld,true)))) {
             throw new InvalidArgumentException('Velg aktive betalingsmetoder fra Økonomi.');
         }
     }
@@ -61,13 +63,16 @@ function eventSettings(PDO $db, string $company, array $input, array $existing =
     if ($type==='binding' && (!$methods || in_array('cash',$methods,true))) {
         throw new InvalidArgumentException('Bindende arrangement krever elektronisk betaling. Kontantbetaling er ikke tillatt.');
     }
-    $default=$input['default_payment_method']??$existing['default_payment_method']??null;
+    $default=historicalPaymentMethodName($input['default_payment_method']??$existing['default_payment_method']??null);
     if (!$methods) $default=null;
     elseif (!$default) $default=$methods[0];
     elseif (!in_array($default,$methods,true)) throw new InvalidArgumentException('Standardbetalingen må være en av de valgte betalingsmetodene.');
+    if ($default && !in_array($default,$available,true) && (!$sameMethods || $default!==historicalPaymentMethodName($existing['default_payment_method']??null))) {
+        throw new InvalidArgumentException('Ny standardbetaling må være aktivert i Økonomi.');
+    }
     return [
-        'registration_type'=>$type, 'payment_methods_json'=>json_encode($methods,JSON_THROW_ON_ERROR),
-        'default_payment_method'=>$default,
+        'registration_type'=>$type, 'payment_methods_json'=>$sameMethods && $type!=='none' ? $existing['payment_methods_json'] : json_encode($methods,JSON_THROW_ON_ERROR),
+        'default_payment_method'=>$sameMethods && $default===historicalPaymentMethodName($existing['default_payment_method']??null) ? ($existing['default_payment_method']??null) : $default,
         'payment_timing'=>array_diff($methods,['cash']) ? 'both' : 'on_arrival',
         'memberverification'=>eventSettingsFlag($input,'memberverification',$existing),
         'is_member_exclusive'=>eventSettingsFlag($input,'is_member_exclusive',$existing),

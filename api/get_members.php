@@ -82,6 +82,7 @@ try {
             c.date_of_birth as dateofbirth,
             c.notes,
             p.name as membership_type,
+            p.price as plan_price,
             p.share_code
         FROM membership_members mm
         LEFT JOIN tenant_customers c ON mm.customer_id = c.id

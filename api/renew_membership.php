@@ -21,6 +21,8 @@ try {
 
     $db = getDBConnection();
     $db->beginTransaction();
+    require_once __DIR__.'/../includes/active_payment_methods.php';
+    activePaymentMethodsLock($db,(string)$_SESSION['company_id']);
     
     // Get member details (MYSQL ONLY)
     $stmt = $db->prepare("
@@ -34,7 +36,7 @@ try {
             p.name as plan_name
         FROM membership_members mm
         LEFT JOIN tenant_customers c ON mm.customer_id = c.id
-        LEFT JOIN membership_plans p ON mm.membership_plan_id = p.id
+        LEFT JOIN membership_plans p ON mm.membership_plan_id = p.id AND p.company_id=mm.company_id
         WHERE mm.id = ? AND mm.company_id = ?
     ");
     $stmt->execute([$data['member_id'], $_SESSION['company_id']]);
@@ -63,6 +65,9 @@ try {
     
     $newExpiryDate = date('Y-m-d', strtotime($renewalDate . " +{$durationMonths} months"));
     
+    if (!isset($member['price']) || !is_numeric($member['price'])) throw new InvalidArgumentException('Finner ikke medlemskapets pris.');
+    $price=(float)$member['price'];
+    $paymentMethod=$price>0 ? requireActivePaymentMethod($db,(string)$_SESSION['company_id'],$data['payment_method']??null) : null;
     // Update member expiry date and status (MYSQL ONLY)
     $stmt = $db->prepare("
         UPDATE membership_members 
@@ -74,8 +79,11 @@ try {
     $stmt->execute([$newExpiryDate, $renewalDate, $data['member_id'], $_SESSION['company_id']]);
     
     // Log renewal transaction to unified_ledger (uses customer_id FK, name/email in metadata)
+    if ($price>0) {
+    $paymentUpdate=$db->prepare("UPDATE membership_members SET payment_status='paid',paymentMethod=? WHERE id=? AND company_id=?");
+    $paymentUpdate->execute([$paymentMethod,$data['member_id'],$_SESSION['company_id']]);
     $ledgerService = new UnifiedLedgerService($db, $_SESSION['company_id']);
-    $ledgerService->logTransaction([
+    $ledgerResult=$ledgerService->logTransaction([
         'order_id' => 'MEM-RENEW-' . date('Ymd') . '-' . substr($data['member_id'], 0, 6),
         'module_source' => 'membership',
         'item_type' => 'membership_renewal',
@@ -85,7 +93,7 @@ try {
         'selling_price' => $member['price'] ?? 0,
         'cost_price' => null,
         'customer_id' => $member['customer_id'] ?? null,
-        'payment_method' => 'renewal',
+        'payment_method' => $paymentMethod,
         'payment_status' => 'completed',
         'status' => 'active',
         'transaction_date' => $renewalDate,
@@ -99,6 +107,8 @@ try {
         ]
     ]);
     
+    if (!$ledgerResult['success']) throw new RuntimeException('Kunne ikke registrere fornyelsesbetalingen.');
+    }
     $db->commit();
     
     echo json_encode([

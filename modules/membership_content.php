@@ -1,3 +1,4 @@
+<script src="/assets/active-payment-methods.js"></script>
 <style>
 .editable-member-cell, .editable-plan-cell {
     cursor: pointer;
@@ -489,7 +490,13 @@
                             <h6 class="mb-0"><i class="bi bi-calendar-check me-2"></i>Medlemskapsdetaljer</h6>
                         </div>
                         <div class="card-body">
-                            <input type="hidden" name="payment_status" id="member-payment-status" value="paid">
+                            <div class="mb-3">
+                                <label class="form-label" for="member-payment-status">Betalingsstatus</label>
+                                <select class="form-select" name="payment_status" id="member-payment-status">
+                                    <option value="unpaid">Ikke betalt</option>
+                                    <option value="paid">Betalt</option>
+                                </select>
+                            </div>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Startdato</label>
@@ -500,11 +507,9 @@
                                     <label class="form-label">Betalingsmetode</label>
                                     <select class="form-select" name="paymentMethod" id="member-payment-method" onchange="onPaymentMethodChange(this)">
                                         <option value="">— Velg —</option>
-                                        <option value="Vipps">Vipps</option>
-                                        <option value="Kontant">Kontant</option>
-                                        <option value="Ikke betalt">Ikke betalt</option>
                                     </select>
-                                    <small class="text-muted" id="payment-status-hint"></small>
+                                    <small class="text-muted" id="payment-status-hint" role="status"></small>
+                                    <button type="button" class="btn btn-sm btn-link" onclick="loadMemberPaymentMethods()">Last betalingsmetoder på nytt</button>
                                 </div>
                             </div>
                             <div class="row">
@@ -944,6 +949,15 @@ async function deleteMembershipPlan(planId) {
 async function submitMember() {
     const form = document.getElementById('create-member-form');
     const formData = new FormData(form);
+    const methodSelect = document.getElementById('member-payment-method');
+    const selectedPlan = window.membershipPlans?.find(plan=>plan.id===formData.get('membership_plan_id'));
+    const price = Number(selectedPlan?.price);
+    if ((formData.get('payment_status') === 'paid' && (price > 0 || !Number.isFinite(price))) || formData.get('paymentMethod')) {
+        if (methodSelect.dataset.paymentState !== 'ready' || !methodSelect.value || methodSelect.selectedOptions[0]?.disabled) {
+            toast.quickWarning('Betaling', 'Velg en aktivert betalingsmetode. Last listen på nytt dersom den mangler.');
+            return;
+        }
+    }
     
     const memberData = {
         first_name: formData.get('first_name'),
@@ -958,7 +972,7 @@ async function submitMember() {
         notes: formData.get('notes'),
         join_date: formData.get('join_date') || null,
         payment_status: formData.get('payment_status') || null,
-        paymentMethod: (formData.get('paymentMethod') === 'Ikke betalt' || !formData.get('paymentMethod')) ? null : formData.get('paymentMethod')
+        paymentMethod: formData.get('paymentMethod') || null
     };
     
     if (!memberData.first_name || !memberData.last_name) {
@@ -1133,20 +1147,39 @@ function onPaymentMethodChange(select) {
     const statusInput = document.getElementById('member-payment-status');
     const hintEl = document.getElementById('payment-status-hint');
     const val = select.value;
-    if (val === 'Ikke betalt') {
-        statusInput.value = 'unpaid';
-        if (hintEl) hintEl.textContent = 'Medlemskapet settes som inaktivt';
-        select.classList.add('text-warning');
-    } else if (val) {
+    if (val) {
         statusInput.value = 'paid';
         if (hintEl) hintEl.textContent = 'Medlemskapet settes som aktivt';
         select.classList.remove('text-warning');
     } else {
-        statusInput.value = '';
-        if (hintEl) hintEl.textContent = '';
+        if (hintEl) hintEl.textContent = 'Velg betalingsmetode ved registrering av en betaling.';
         select.classList.remove('text-warning');
     }
 }
+
+async function loadMemberPaymentMethods() {
+    const select=document.getElementById('member-payment-method');
+    const hint=document.getElementById('payment-status-hint');
+    const revision=String(Number(select.dataset.loadRevision || 0)+1);
+    select.dataset.loadRevision=revision;
+    const previous=select.value;
+    select.dataset.paymentState='loading';select.disabled=true;
+    select.replaceChildren(new Option('Laster…',''));hint.textContent='Laster aktiverte betalingsmetoder…';
+    try {
+        const methods=await ActivePaymentMethods.load();
+        if (select.dataset.loadRevision!==revision) return;
+        select.replaceChildren(new Option('— Velg —',''));
+        for (const method of methods) select.append(new Option(ActivePaymentMethods.label(method),method.method_type));
+        if (methods.some(m=>m.method_type===previous)) select.value=previous;
+        select.disabled=false;select.dataset.paymentState='ready';
+        hint.textContent=methods.length ? 'Bare betalingsmetoder aktivert i Økonomi kan velges.' : 'Ingen betalingsmetoder er aktivert. Medlemskap kan fortsatt registreres som ikke betalt eller gratis.';
+    } catch (error) {
+        if (select.dataset.loadRevision!==revision) return;
+        select.replaceChildren(new Option('Kunne ikke laste betalingsmetoder',''));
+        select.dataset.paymentState='error';hint.textContent=error.message;
+    }
+}
+document.getElementById('createMemberModal').addEventListener('show.bs.modal',loadMemberPaymentMethods);
 
 async function deleteMember(memberId, memberName) {
     if (!confirm(`Er du sikker på at du vil slette medlemmet "${memberName}"?\n\nDette kan ikke angres.`)) {
@@ -1631,12 +1664,17 @@ async function renewMembership(memberId) {
     if (!startDate) return;
     
     try {
+        const price=Number(member.plan_price);
+        if (member.plan_price===null || !Number.isFinite(price)) throw new Error('Medlemskapets pris kunne ikke hentes. Last medlemslisten på nytt.');
+        const paymentMethod=price>0 ? await ActivePaymentMethods.choose() : null;
+        if (price>0 && !paymentMethod) return;
         const response = await fetch('/api/renew_membership.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 member_id: memberId,
-                renewal_date: startDate
+                renewal_date: startDate,
+                payment_method: paymentMethod
             })
         });
         
@@ -1649,7 +1687,7 @@ async function renewMembership(memberId) {
         }
     } catch (error) {
         console.error('Renewal error:', error);
-        alert('❌ Feil ved fornyelse av medlemskap');
+        alert('Feil ved fornyelse av medlemskap: '+error.message);
     }
 }
 

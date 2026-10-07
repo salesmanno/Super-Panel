@@ -18,7 +18,7 @@ $data = json_decode(file_get_contents('php://input'), true);
 
 $eventId = $data['event_id'] ?? null;
 $checkinIds = $data['checkin_ids'] ?? [];
-$paymentMethod = $data['payment_method'] ?? 'cash';
+$paymentMethod = $data['payment_method'] ?? null;
 
 if (empty($eventId) || empty($checkinIds) || count($checkinIds) < 2) {
     echo json_encode(['success' => false, 'message' => 'Mangler event_id eller må velge minst 2 gjester']);
@@ -39,6 +39,8 @@ try {
     }
     
     $db->beginTransaction();
+    require_once __DIR__.'/../includes/active_payment_methods.php';
+    activePaymentMethodsLock($db,(string)$companyId);
     
     // Verify all checkins belong to this event (multi-tenant safety)
     $placeholders = implode(',', array_fill(0, count($checkinIds), '?'));
@@ -73,6 +75,7 @@ try {
         }
     }
     
+    $paymentMethod=requireActiveEventPayment($db,(string)$companyId,(string)$eventId,$paymentMethod,(float)$totalAmount);
     // Generate UUID for group
     $groupId = bin2hex(random_bytes(18));
     
@@ -98,8 +101,8 @@ try {
             SET checked_in = 1, 
                 check_in_time = NOW(),
                 checked_in_by = ?,
-                payment_status = 'paid',
                 payment_method = CASE WHEN payment_status = 'paid' THEN payment_method ELSE ? END,
+                payment_status = 'paid',
                 group_id = ?,
                 is_primary_payer = ?
             WHERE id = ?

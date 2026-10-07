@@ -3,6 +3,7 @@ session_start();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/request_date_time.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
+require_once __DIR__ . '/../includes/active_payment_methods.php';
 
 header('Content-Type: application/json');
 
@@ -48,6 +49,9 @@ try {
         exit;
     }
     
+    $db->beginTransaction();
+    activePaymentMethodsLock($db,(string)$company_id);
+    $paymentMethod=requireActivePaymentMethod($db,(string)$company_id,$data['payment_method']??null);
     $ledger = new UnifiedLedgerService($db, $company_id);
     $result = $ledger->logTransaction([
         'order_id' => 'EVENT-INCOME-' . strtoupper(bin2hex(random_bytes(6))),
@@ -58,7 +62,7 @@ try {
         'quantity' => 1,
         'selling_price' => abs((float) $amount),
         'cost_price' => null,
-        'payment_method' => 'manual',
+        'payment_method' => $paymentMethod,
         'payment_status' => 'completed',
         'status' => 'active',
         'transaction_type' => 'income',
@@ -75,6 +79,7 @@ try {
     if (!$result['success']) {
         throw new RuntimeException('Hovedbokføringen mislyktes');
     }
+    $db->commit();
     
     echo json_encode([
         'success' => true,
@@ -82,6 +87,7 @@ try {
     ]);
     
 } catch (Exception $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
     error_log("Error adding event income: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
