@@ -21,6 +21,12 @@ Oppsett av skjemafelt skal være enkelt, særlig for utleie.
 
 **How to apply:** Gjør vanlige kontaktfelt enkle å velge uten manuell teknisk konfigurering. Avanserte innstillinger må fortsatt være tilgjengelige, men skal ikke dominere vanlig oppsett.
 
+Vis kontaktfeltoversikten uten alle feltredigeringene åpne. Et trykk på et konkret felt skal åpne akkurat den feltlinjen med dagens redigeringsutseende. Vellykket lagring lukker feltredigeringen. Dette gjelder både arrangementer og utleie.
+
+**Why:** Brukeren liker det nye kontaktfeltoppsettet, men vil ikke ha alle dynamiske feltlinjer åpne hele tiden.
+
+**How to apply:** Behold feltoversikten og gjør åpning av ett felt tydelig forskjellig fra å velge om feltet skal være med i skjemaet.
+
 Ved samling av feltdefinisjoner må operative oppsett skilles fra eldre, ubrukte oppsett i en felles tabell. Avvik og ugyldige innstillinger skal avklares før overføring, ikke automatisk overskrives eller repareres ved sidevisning.
 
 **Why:** Det fantes allerede felles feltdefinisjoner som ikke var brukt av modulene, med andre feltvalg, rekkefølge og valideringsregler enn de aktive dedikerte oppsettene.
