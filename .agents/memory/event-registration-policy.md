@@ -13,3 +13,9 @@ Bindende arrangementer skal bare kunne bruke elektroniske betalingsmetoder, aldr
 **Why:** Brukeren meldte at disse valgene ikke ble lagret riktig. Ikke alle administratorer har medlemsinnstillingene tilgjengelige i redigeringsskjemaet.
 
 **How to apply:** Ikke tolk et manglende eller utilgjengelig felt som et uttrykkelig ønske om å slå av en innstilling.
+
+Medlemsfunksjoner skal ikke vises ved arrangementsopprettelse eller redigering når brukeren ikke har Membership-modulen.
+
+**Why:** Brukeren ba om denne avgrensningen til brukerens modulrettigheter.
+
+**How to apply:** Bruk samme avgrensning i begge flyter, inkludert medlemspriser, medlemstillegg og tilhørende navigasjon. Bevar eksisterende medlemsinnstillinger når utilgjengelige felt ikke sendes inn.
