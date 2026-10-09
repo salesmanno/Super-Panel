@@ -85,14 +85,12 @@ rental_checkin_check(
         $queueSource,
         "renderRentalConfirmationTemplate(\$tpl['body_template'], \$vars)"
     )
-        && str_contains($queueSource, 'SELECT rental_object_id FROM rental_schedule')
-        && str_contains($queueSource, 'SELECT rv.access_code')
-        && str_contains($queueSource, 'SET key_box_code = ?, checkin_email_queued_at = NOW()')
-        && strpos($queueSource, 'SELECT rental_object_id FROM rental_schedule')
-            < strpos($queueSource, 'SELECT rv.access_code')
-        && strpos($queueSource, 'SET key_box_code = ?, checkin_email_queued_at = NOW()')
+        && str_contains($queueSource, 'SELECT rental_object_id, key_box_code FROM rental_schedule')
+        && !str_contains($queueSource, 'SELECT rv.access_code')
+        && !str_contains($queueSource, 'SET key_box_code')
+        && strpos($queueSource, 'SET checkin_email_queued_at = NOW()')
             > strpos($queueSource, 'INSERT INTO email_queue'),
-    'daily queue locks first, fetches the current venue code, renders it, and snapshots atomically'
+    'daily queue locks and renders only the assigned reservation code, without copying the venue code'
 );
 
 $processorSource = file_get_contents(__DIR__ . '/../api/process_email_queue.php');

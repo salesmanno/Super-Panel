@@ -2,6 +2,7 @@
 session_start();
 session_write_close();
 header('Content-Type: application/json');
+header('Cache-Control: no-store');
 
 if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
     http_response_code(401);
@@ -13,6 +14,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/rental_request_fields.php';
 require_once __DIR__ . '/../includes/tenant_notifications.php';
 require_once __DIR__ . '/../includes/rental_schedule_editing.php';
+require_once __DIR__ . '/../includes/rental_reservation_codes.php';
 
 $companyId = $_SESSION['company_id'];
 
@@ -64,6 +66,10 @@ try {
             COALESCE(NULLIF(TRIM(rs.customer_email), ''), NULLIF(TRIM(tc.email), '')) AS display_email,
             COALESCE(NULLIF(TRIM(rs.customer_phone), ''), NULLIF(TRIM(tc.phone), '')) AS display_phone,
             tc.date_of_birth AS date_of_birth,
+            (SELECT eq.status FROM email_queue eq
+             WHERE eq.company_id = rs.company_id AND eq.source_id = rs.id
+               AND eq.module_source = 'rental_checkin'
+             ORDER BY eq.created_at DESC, eq.id DESC LIMIT 1) AS checkin_queue_status,
             DATEDIFF(rs.end_date, CURDATE()) AS days_remaining
         FROM rental_schedule rs
         LEFT JOIN rental_objects ro
@@ -76,7 +82,13 @@ try {
     ");
     $stmt->execute($params);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $today = rentalCodeToday();
+    $nextCodes = rentalNextCodeReservations($db, (string)$companyId, $today);
     foreach ($rows as &$row) {
+        $row['can_prepare_code'] = $row['object_category'] === 'venue'
+            && ($nextCodes[$row['rental_object_id']] ?? null) === (string)$row['id'];
+        $row['checkin_code_missing'] = !rentalValidAssignedCode($row['key_box_code'] ?? null)
+            && empty($row['checkin_email_queued_at']) && empty($row['checkin_email_sent_at']);
         $row['decision_version'] = rentalDecisionVersion($row);
         $row['request_fields'] = getRentalRequestFieldValues(
             $db,
@@ -89,7 +101,7 @@ try {
 
     $cfg = $db->prepare('SELECT automail_rental_confirm FROM email_configs WHERE company_id = ? AND is_active = 1 LIMIT 1');
     $cfg->execute([$companyId]);
-    echo json_encode(['success' => true, 'requests' => $rows, 'decision_email_enabled'=>(int)$cfg->fetchColumn()===1]);
+    echo json_encode(['success' => true, 'today'=>$today, 'requests' => $rows, 'decision_email_enabled'=>(int)$cfg->fetchColumn()===1]);
 
 } catch (TenantAuditException $e) {
     http_response_code(403);

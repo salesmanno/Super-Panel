@@ -35,6 +35,7 @@ let allApprovedRentals=[],allRentalUnavailable=[],calViewStart=null;
 let rentalUnavailableToday=null,rentalUnavailableListExpanded=false,rentalUnavailableSaving=false;
 window.fixtureErrors=[];window.fixtureWrites=[];window.fixtureToasts=[];
 window.fixtureFail=false;window.fixtureReject=false;window.fixtureHold=null;
+window.fixtureCodeFailure=false;window.fixtureCodeCalls=[];
 window.addEventListener('error',e=>fixtureErrors.push(e.message));
 window.addEventListener('unhandledrejection',e=>fixtureErrors.push(String(e.reason)));
 const escHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -65,6 +66,15 @@ const fixtureRentals=[
 ];
 allApprovedRentals=fixtureRentals;
 window.fetch=async (url,options={})=>{
+ if(url==='/api/rental_reservation_code.php'){
+  const payload=JSON.parse(options.body);fixtureCodeCalls.push(payload);
+  const rental=allApprovedRentals.find(r=>r.id===payload.id);
+  if(fixtureCodeFailure)return {ok:false,json:async()=>({success:false,message:'Utleien er endret'})};
+  if(payload.action==='prepare')return {ok:true,json:async()=>({success:true,token:'fixture-token',
+   code:rental.key_box_code||'0037',assigned:!!rental.key_box_code,matches:!!rental.fixtureMatches})};
+  rental.key_box_code='0037';rental.fixtureMatches=payload.physical_changed;
+  return {ok:true,json:async()=>({success:true,message:'Koden er lagret.'})};
+ }
  if(!options.method){
   if(url==='/api/rental_unavailable.php')return {ok:true,json:async()=>({success:true,today:'2028-04-03',periods:fixturePeriods})};
   if(url==='/api/get_rental_schedule.php?approved=1')return {ok:true,json:async()=>({success:true,requests:allApprovedRentals})};
@@ -112,8 +122,8 @@ const checks = `
   const first=cards[0],emptyContact=cards[1],phoneOnly=cards[2];
   check(first.textContent.includes('Testkunde A')&&first.textContent.includes('Sal A')
     &&first.querySelector('.rental-period').textContent==='03.04.2028 – 05.04.2028','Full period and identity remain visible');
-  check(!first.textContent.includes('NOK')&&!first.textContent.includes('Tilgangskode')
-    &&!first.textContent.includes('Sendt')&&!first.textContent.includes('Detaljnotat'),'Secondary details are not repeated in compact card');
+   check(first.textContent.includes('NOK')&&first.textContent.includes('Kode tildelt')
+     &&first.textContent.includes('Sendt')&&!first.textContent.includes('Detaljnotat'),'Monthly card shows price, code status and check-in status');
   check(first.textContent.includes('Betalt')&&phoneOnly.textContent.includes('Delvis betalt'),'Short payment states preserved');
   check(!emptyContact.querySelector('a')&&!emptyContact.querySelector('.rental-customer-links')
     &&!emptyContact.textContent.includes('Ingen telefon')&&!emptyContact.textContent.includes('Ingen e-post'),'No empty contact actions or large placeholders');
@@ -137,7 +147,10 @@ const checks = `
   check(detailBody.querySelector('select')&&Array.from(detailBody.querySelectorAll('button')).some(el=>el.textContent.includes('Avlys leie')),'Existing admin actions retained');
   cards[2].querySelector('button').click();
   check(detailBody.textContent.includes('Testkunde C')&&!detailBody.textContent.includes('Testkunde A'),'Details selects the requested rental');
-  check(cards.every(card=>card.getBoundingClientRect().height<210),'Compact cards no longer enforce the old 210px height');
+   check(document.getElementById('rentalUpcomingMonth').value==='2028-04','Monthly overview starts in current month');
+   rentalChangeMonth(1);
+   check(document.querySelectorAll('.rental-upcoming-card').length===0,'Empty next month shown independently of calendar');
+   rentalChangeMonth(-1);
   check(document.documentElement.scrollWidth<=width+1,'No page-level horizontal overflow');
   field('Objects').options[0].selected=true;field('Notes').value='Utkast';
   change('Start','05.04.2028');
@@ -209,7 +222,40 @@ const checks = `
    check(![bar,card,detail].some(el=>el.textContent.includes('SECRET')),'No fallback to general venue code');
     if(expected)check([bar,detail].every(el=>el.textContent.includes(expected)),'Valid leading-zero/alphanumeric codes retained in calendar and details');
   }
-  check(fixtureErrors.length===0,'No browser errors: '+fixtureErrors.join('; '));
+   // Actual code-panel asset, with API transport stubbed (server tested in MySQL suite).
+   allApprovedRentals=[{id:'next',object_name:'Sal A',start_date:'2028-04-04',end_date:'2028-04-05',
+    can_prepare_code:true,key_box_code:null,rental_fee:100},
+    {id:'later',object_name:'Sal A',start_date:'2028-05-04',end_date:'2028-05-05',can_prepare_code:false}];
+   showRentalCalDetail('later');await settle();
+   check(fixtureCodeCalls.length===0,'Later rental never asks code questions');
+   showRentalCalDetail('next');await settle();
+   let codeHost=document.getElementById('rentalReservationCodeHost');
+   check(codeHost.textContent.includes('0037')&&codeHost.querySelector('[data-save]'),'Next reservation shows proposal');
+   codeHost.querySelector('[data-dismiss]').click();
+   check(fixtureCodeCalls.every(call=>call.action==='prepare')&&!allApprovedRentals[0].key_box_code,'Dismiss causes no write');
+   showRentalCalDetail('next');await settle();
+   codeHost=document.getElementById('rentalReservationCodeHost');
+   codeHost.querySelector('[data-save]').click();await settle();await settle();
+   check(fixtureCodeCalls.at(-1).action==='save'&&!fixtureCodeCalls.at(-1).physical_changed
+    &&allApprovedRentals[0].key_box_code==='0037','Assign saves only reservation unless checkbox confirmed');
+   showRentalCalDetail('next');await settle();
+   codeHost=document.getElementById('rentalReservationCodeHost');
+   check(codeHost.querySelector('[data-save]').disabled,'Physical confirmation required for already assigned code');
+   const physical=codeHost.querySelector('[data-physical]');physical.checked=true;physical.dispatchEvent(new Event('change'));
+   codeHost.querySelector('[data-save]').click();await settle();await settle();
+   check(fixtureCodeCalls.at(-1).physical_changed===true,'Physical change explicitly sent');
+   showRentalCalDetail('next');await settle();
+   check(!document.getElementById('rentalReservationCodeHost').querySelector('button'),'Matching codes suppress all questions');
+   allApprovedRentals[0].fixtureMatches=false;fixtureCodeFailure=true;
+   showRentalCalDetail('next');await settle();
+   check(document.getElementById('rentalReservationCodeHost').textContent.includes('Utleien er endret'),'Stale/error response explained without code actions');
+   fixtureCodeFailure=false;
+   const priorCodeCalls=fixtureCodeCalls.length;
+   allApprovedRentals[0].start_date=getRentalOsloToday();
+   showRentalCalDetail('next');await settle();
+   check(fixtureCodeCalls.length===priorCodeCalls,'Today blocks prompt even with stale eligibility flag');
+   allApprovedRentals=fixtureRentals;
+   check(fixtureErrors.length===0,'No browser errors: '+fixtureErrors.join('; '));
   return {passed:true,width};
  }catch(error){return {passed:false,error:error.stack||String(error),errors:fixtureErrors}}
 })()
@@ -218,7 +264,7 @@ let browser, socket;
 async function main() {
     const file = path.join(directory, 'fixture.html');
     const markup = content.slice(htmlFrom, htmlTo).replace('style="display: none;"', '');
-    fs.writeFileSync(file, `<!doctype html><html lang="nb"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css.stdout}</style>${styles}<style>#detailsModal{display:none}</style></head><body><div id="rental-module">${markup}</div><div id="detailsModal"><div id="detailsModalTitle"></div><div id="detailsModalBody"></div></div><script>${stubs}</script><script>${formatter}\n${content.slice(from, to)}</script><script>window.fmtDate=value=>String(value??'').slice(0,10).replaceAll('-','.');</script>${enhancement}</body></html>`);
+    fs.writeFileSync(file, `<!doctype html><html lang="nb"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css.stdout}</style>${styles}<style>#detailsModal{display:none}</style></head><body><div id="rental-module">${markup}</div><div id="detailsModal"><div id="detailsModalTitle"></div><div id="detailsModalBody"></div></div><script>${stubs}</script><script>${fs.readFileSync(path.join(__dirname,'../assets/rental_reservation_codes.js'),'utf8')}</script><script>${formatter}\n${content.slice(from, to)}</script><script>window.fmtDate=value=>String(value??'').slice(0,10).replaceAll('-','.');</script>${enhancement}</body></html>`);
     browser = spawn(process.env.CHROMIUM_PATH || '/repl/tools/bin/chromium', [
         '--headless', '--no-sandbox', '--disable-dev-shm-usage', '--remote-debugging-port=0',
         '--user-data-dir=' + path.join(directory, 'profile'), 'about:blank',

@@ -194,6 +194,12 @@ $schemas = getRentalSchemas();
                         <i class="bi bi-arrow-clockwise me-1"></i>Oppdater
                     </button>
                 </div>
+                <div class="rental-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
+                    <label for="rentalUpcomingMonth" class="small fw-semibold">Månedsoversikt</label>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="rentalChangeMonth(-1)" aria-label="Forrige måned">‹</button>
+                    <select id="rentalUpcomingMonth" class="form-select form-select-sm w-auto" onchange="renderRentalCalendar()" aria-label="Velg måned"></select>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="rentalChangeMonth(1)" aria-label="Neste måned">›</button>
+                </div>
                 <div id="upcomingContractsContainer" class="rental-upcoming-list mb-3" aria-live="polite"></div>
                 <div id="rentalCalendarHost" aria-live="polite">
                     <div class="text-center text-muted py-3">Laster kalender...</div>
@@ -303,6 +309,7 @@ $schemas = getRentalSchemas();
 <script src="/assets/rental_request_pricing.js"></script>
 <script src="/assets/entity-form-fields.js"></script>
 <script src="/assets/rental_request_workflow.js"></script>
+<script src="/assets/rental_reservation_codes.js"></script>
 <script>
 const rentalSchemas = <?= json_encode($schemas) ?>;
 const rentalLifecycleCsrf = <?= json_encode($rentalLifecycleCsrf) ?>;
@@ -2671,6 +2678,7 @@ async function loadApprovedSchedule() {
         }
 
         allApprovedRentals = data.requests || [];
+        if (data.today) rentalUnavailableToday = data.today;
 
         if (!calViewStart) calViewStart = calMondayOf(calParseDate(rentalUnavailableToday || getRentalOsloToday()));
         renderRentalCalendar();
@@ -2689,6 +2697,42 @@ function validAssignedRentalCode(value) {
     if (value === null || value === undefined) return '';
     const code = String(value).trim();
     return /^[A-Za-z0-9]{1,6}$/.test(code) && code !== '0' && code !== '0000' ? code : '';
+}
+
+function rentalChangeMonth(direction) {
+    const select = document.getElementById('rentalUpcomingMonth');
+    if (!select) return;
+    select.selectedIndex = Math.max(0, Math.min(select.options.length - 1, select.selectedIndex + direction));
+    renderRentalCalendar();
+}
+
+function rentalMonthlyRows(todayStr) {
+    const select = document.getElementById('rentalUpcomingMonth');
+    const previous = select?.value || todayStr.slice(0, 7);
+    const first = calParseDate(todayStr), max = calGetMaxDate();
+    const months = [];
+    for (let d = new Date(first.getFullYear(), first.getMonth(), 1); d <= max; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+        const key = calDateStr(d).slice(0, 7);
+        months.push(`<option value="${key}">${d.toLocaleDateString('nb-NO', {month:'long', year:'numeric'})}</option>`);
+    }
+    if (select) {
+        select.innerHTML = months.join('');
+        select.value = previous;
+        if (!select.value) select.selectedIndex = 0;
+    }
+    const month = select?.value || todayStr.slice(0, 7);
+    return allApprovedRentals.filter(r => r.end_date >= todayStr
+        && r.start_date.slice(0, 7) <= month && r.end_date.slice(0, 7) >= month);
+}
+
+function rentalCheckinStatus(r) {
+    if (r.checkin_email_sent_at) return 'Sendt ' + formatRentalDisplayDate(r.checkin_email_sent_at);
+    if (r.checkin_queue_status === 'failed') return 'Utsending feilet';
+    if (r.checkin_queue_status === 'processing') return 'Sender e-post';
+    if (r.checkin_queue_status === 'sent') return 'Sendt';
+    if (r.checkin_email_queued_at) return 'I e-postkø';
+    if (r.checkin_code_missing) return 'Mangler tildelt kode – innsjekk-e-post kan ikke sendes';
+    return 'Ikke sendt';
 }
 
 function renderRentalCalendar() {
@@ -2817,7 +2861,7 @@ function renderRentalCalendar() {
             const c = CAL_COLORS[globalIdx % CAL_COLORS.length];
             return `<span class="badge me-1 mb-1" style="background:${c.bg};color:${c.tx};cursor:pointer;font-weight:400;" onclick="showRentalCalDetail(decodeURIComponent('${encodeURIComponent(String(r.id))}'))">${escHtml(r.object_name || 'Ukjent')}</span>`;
         }).join('');
-    const upcomingCards = visibleRentals.map(r => {
+    const upcomingCards = rentalMonthlyRows(todayStr).map(r => {
         const id = encodeURIComponent(String(r.id));
         const customerName = escHtml(r.display_customer_name || r.customer_name || 'Ukjent kunde');
         const email = r.display_email
@@ -2835,10 +2879,16 @@ function renderRentalCalendar() {
                     <div class="fw-semibold text-truncate">${customerName}</div>
                     <div class="small text-muted text-truncate">${escHtml(r.object_name || 'Utleieobjekt')}</div>
                     <div class="rental-period">${formatRentalDisplayDate(r.start_date)} – ${formatRentalDisplayDate(r.end_date)}</div>
+                    <div class="small text-muted">${escHtml((r.pickup_time || r.start_time || '08:00').slice(0,5))} – ${escHtml((r.end_time || '').slice(0,5))}</div>
                 </div>
                 <span class="badge ${paymentClass} rental-payment-short">${paymentText}</span>
             </div>
             ${email || phone ? `<div class="rental-customer-links small mt-2">${phone}${email}</div>` : ''}
+            <div class="small mt-2">
+                <div class="fw-semibold">${Number(r.rental_fee || 0).toLocaleString('nb-NO', {maximumFractionDigits:2})} NOK</div>
+                <div>${validAssignedRentalCode(r.key_box_code) ? 'Kode tildelt' : 'Kode ikke tildelt'}${r.can_prepare_code ? ' · Neste utleie for objektet' : ''}</div>
+                <div class="${r.checkin_code_missing ? 'text-warning-emphasis' : 'text-muted'}">Innsjekk-e-post: ${escHtml(rentalCheckinStatus(r))}</div>
+            </div>
             <div class="d-flex justify-content-end mt-2">
                 <button class="btn btn-sm btn-outline-primary" type="button" onclick="showRentalCalDetail(decodeURIComponent('${id}'))">Detaljer</button>
             </div>
@@ -2860,7 +2910,7 @@ function renderRentalCalendar() {
     cardsContainer.innerHTML = upcomingCards || '<div class="col-12 text-center text-muted py-4">Ingen kommende leieforhold i denne perioden.</div>';
 }
 
-function showRentalCalDetail(id) {
+function showRentalCalDetail(id, promptCode = true) {
     const r = allApprovedRentals.find(x => String(x.id) === String(id));
     if (!r) return;
 
@@ -2963,16 +3013,18 @@ function showRentalCalDetail(id) {
             <dd class="col-sm-8">${contractPaymentBadge(r.payment_status || 'unpaid')}${paymentDetails}</dd>
              ${assignedCode ? `<dt class="col-sm-4">Tilgangskode</dt><dd class="col-sm-8"><span class="font-monospace">${escHtml(assignedCode)}</span></dd>` : ''}
              <dt class="col-sm-4">Innsjekk-e-post</dt>
-             <dd class="col-sm-8">${r.checkin_email_sent_at
-                 ? `<span class="rental-checkin-sent"><i class="bi bi-envelope-check me-1"></i>Sendt ${formatRentalDisplayDate(r.checkin_email_sent_at)}</span>`
-                 : '<span class="text-muted"><i class="bi bi-envelope me-1"></i>Ikke sendt</span>'}</dd>
+             <dd class="col-sm-8">${escHtml(rentalCheckinStatus(r))}</dd>
             <dt class="col-sm-4">Logistikk</dt>
             <dd class="col-sm-8">${logistics}</dd>
             ${r.notes ? `<dt class="col-sm-4">Notater</dt><dd class="col-sm-8">${escHtml(r.notes)}</dd>` : ''}
         </dl>
+        <div id="rentalReservationCodeHost" aria-live="polite"></div>
         ${actionPanel}`;
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById('detailsModal')).show();
+    if (promptCode && r.can_prepare_code && r.start_date > getRentalOsloToday()) {
+        RentalReservationCodes.open(document.getElementById('rentalReservationCodeHost'), String(r.id));
+    }
 }
 
 async function updateRentalScheduleLifecycle(id, action, paymentMethod = null) {

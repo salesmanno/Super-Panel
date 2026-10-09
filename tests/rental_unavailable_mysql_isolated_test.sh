@@ -43,7 +43,9 @@ if [[ "$ready" != 1 ]]; then
     cat "$TEMP_ROOT/mysql.log" >&2
     exit 1
 fi
-if [[ "${1:-}" == "--workflow" ]]; then
+if [[ "${1:-}" == "--codes" ]]; then
+    php "$ROOT/tests/rental_reservation_codes_mysql_test.php" "$ROOT" "$TEMP_ROOT"
+elif [[ "${1:-}" == "--workflow" ]]; then
     php "$ROOT/tests/rental_workflow_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--forms" ]]; then
     php "$ROOT/tests/entity_form_fields_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"

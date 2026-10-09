@@ -2,6 +2,7 @@
 require_once __DIR__ . '/tenant_audit.php';
 
 require_once __DIR__ . '/rental_confirmation_email.php';
+require_once __DIR__ . '/rental_reservation_codes.php';
 
 function rentalCheckinTemplateDefaults(): array
 {
@@ -38,7 +39,7 @@ function queueRentalCheckinEmails(
     if ($db instanceof AuditedPDO && !$db->isAutomaticAuditSuppressed()) {
         return $db->withExplicitAudit(static fn() => queueRentalCheckinEmails($db, $today, $companyId));
     }
-    $today = $today ?: date('Y-m-d');
+    $today = $today ?: rentalCodeToday();
     $companyScope = $companyId === null ? '' : ' AND rs.company_id = ?';
     $find = $db->prepare("
         SELECT rs.*, ro.object_name, ro.rental_text,
@@ -77,31 +78,24 @@ function queueRentalCheckinEmails(
             $auditActor = tenantAuditSystemActor($db, (string) $rental['company_id'], 'rental_checkin');
             $auditCorrelation = tenantAuditId();
             $lock = $db->prepare(
-                "SELECT rental_object_id FROM rental_schedule
+                "SELECT rental_object_id, key_box_code FROM rental_schedule
                  WHERE id = ? AND company_id = ?
                    AND approved = 1 AND status = 'approved'
                    AND start_date = ? AND checkin_email_queued_at IS NULL
                  FOR UPDATE"
             );
             $lock->execute([$rental['id'], $rental['company_id'], $today]);
-            $rentalObjectId = $lock->fetchColumn();
-            if (!$rentalObjectId) {
+            $locked = $lock->fetch(PDO::FETCH_ASSOC);
+            if (!$locked) {
                 $db->rollBack();
                 continue;
             }
-            $codeStmt = $db->prepare(
-                "SELECT rv.access_code
-                 FROM rental_venues rv
-                 INNER JOIN rental_objects ro
-                   ON ro.id = rv.object_id AND ro.company_id = ?
-                 WHERE rv.object_id = ?
-                 LIMIT 1"
-            );
-            $codeStmt->execute([$rental['company_id'], $rentalObjectId]);
-            $currentAccessCode = $codeStmt->fetchColumn();
-            $rental['key_box_code'] = requireValidRentalVenueAccessCode(
-                $currentAccessCode === false ? null : (string) $currentAccessCode
-            );
+            if (!rentalValidAssignedCode($locked['key_box_code'])) {
+                // Retryable, visible in Rental; no queue marker or repeated log flood.
+                $db->rollBack();
+                continue;
+            }
+            $rental['key_box_code'] = trim($locked['key_box_code']);
             $cfgStmt = $db->prepare(
                 "SELECT email, display_name FROM email_configs
                  WHERE company_id = ? AND is_active = 1 AND rental_confirm = 1 LIMIT 1"
@@ -182,10 +176,9 @@ function queueRentalCheckinEmails(
                 ], $auditActor);
             $db->prepare(
                 "UPDATE rental_schedule
-                 SET key_box_code = ?, checkin_email_queued_at = NOW()
+                 SET checkin_email_queued_at = NOW()
                  WHERE id = ? AND company_id = ?"
             )->execute([
-                $rental['key_box_code'],
                 $rental['id'],
                 $rental['company_id'],
             ]);
@@ -194,7 +187,7 @@ function queueRentalCheckinEmails(
         } catch (Throwable $e) {
             if ($db->inTransaction()) $db->rollBack();
             if ((int) $e->getCode() !== 23000) {
-                error_log('Rental innsjekk-kø feil: ' . $e->getMessage());
+                error_log('Rental innsjekk-kø feilet; exception=' . get_class($e));
             }
         }
     }
