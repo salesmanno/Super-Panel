@@ -14,3 +14,9 @@ Delvis innlogging må aldri sette det vanlige tenant_admin_id-signalet. Bedrifts
 **Why:** Eldre API-er godtar tenant_admin_id alene. Bare å nullstille company_id eller skjule dashbordet beskytter derfor ikke valget, og en forespørsel som allerede kjører kan ellers skrive med forrige bedriftskontekst.
 
 **How to apply:** Nye innloggings-, sesjons- og databaseinnganger må bevare disse kontrollene. Test samtidighet med forskjellige HTTP-prosesser og ulike nettlesersesjoner, ikke bare sekvensielle forespørsler.
+
+Modultilgang må testes mot faktiske handlingsendepunkter, ikke bare kunstige ruter med modulnavn.
+
+**Why:** Sluttkontrollen fant at navnebasert rutekontroll overså handlekurv og kasse fordi endepunktene ikke inneholdt ordet «sales». En test av en kunstig, tydelig navngitt modulrute fanget ikke dette.
+
+**How to apply:** Ved nye eller endrede modulrettigheter, kartlegg API-kallene fra modulen og test direkte HTTP-kall uten både brukertildeling og bedriftslisens. Skill delte leseruter fra handlinger som tilhører én modul.

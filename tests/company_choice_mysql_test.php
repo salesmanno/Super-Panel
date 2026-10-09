@@ -9,7 +9,7 @@ $db->exec('CREATE DATABASE choice');$db->exec('USE choice');
 $schema=[
 "tenant_companies(id CHAR(36) PRIMARY KEY,name TEXT,subdomain TEXT,logo_url TEXT,is_active INT)",
 "tenant_staff(id CHAR(36) PRIMARY KEY,company_id CHAR(36),first_name TEXT,last_name TEXT,email TEXT,is_active INT)",
-"tenant_admins(id CHAR(36) PRIMARY KEY,company_id CHAR(36) NOT NULL,tenant_staff_id CHAR(36),username VARCHAR(100),password_hash TEXT,role TEXT,is_active INT,last_login DATETIME,last_logout DATETIME)",
+"tenant_admins(id CHAR(36) PRIMARY KEY,company_id CHAR(36) NOT NULL,tenant_staff_id CHAR(36),username VARCHAR(100),password_hash TEXT,role TEXT,is_active INT,last_login DATETIME)",
 "tenant_admin_sessions(id INT AUTO_INCREMENT PRIMARY KEY,tenant_admin_id CHAR(36),session_id VARCHAR(255),is_active INT,ip_address TEXT,user_agent TEXT,login_at DATETIME,last_activity DATETIME,logout_at DATETIME)",
 "system_modules(id CHAR(36),module_key TEXT,name TEXT,description TEXT,icon TEXT,is_active INT,created_at DATETIME)",
 "tenant_admin_modules(tenant_admin_id CHAR(36),module_id CHAR(36))",
@@ -28,9 +28,14 @@ foreach(['app','app/auth','app/api','app/includes','app/config','app/pages'] as 
 // Copy includes: symlinking functions.php would resolve its config in the real project.
 foreach(glob($root.'/includes/*.php') as $f)copy($f,$temp.'/app/includes/'.basename($f));
 foreach(['auth/company_auth.php','auth/logout.php','api/company_choice.php','api/refresh_session.php','pages/login_transition.php'] as $f)copy($root.'/'.$f,$temp.'/app/'.$f);
+foreach(['add_to_cart','checkout_cart','process_service_sale','get_cart','get_purchase_history','get_invoices','get_renewal_stats'] as $endpoint) {
+    copy($root.'/api/'.$endpoint.'.php',$temp.'/app/api/'.$endpoint.'.php');
+}
 file_put_contents($temp.'/app/config/database.php','<?php require_once __DIR__."/../includes/AuditedPDO.php"; function getDBType(){return "mysql";} function getDBConnection(){static $db;return $db??=new AuditedPDO('.var_export($dsn,true).',"root","",[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);}');
 $probe='<?php session_start(); require __DIR__."/../includes/functions.php";$db=getDBConnection();if(empty($_SESSION["tenant_admin_id"])){http_response_code(401);exit;}header("Content-Type: application/json");echo json_encode(["company"=>$_SESSION["company_id"],"role"=>$_SESSION["admin_role"],"name"=>$_SESSION["admin_name"],"context"=>$_SESSION["company_context"],"modules"=>array_column(getTenantAdminModules($_SESSION["tenant_admin_id"]),"module_key")]);';
 file_put_contents($temp.'/app/api/probe.php',$probe);file_put_contents($temp.'/app/api/get_rental_test.php',$probe);
+file_put_contents($temp.'/app/api/get_reservations_test.php',$probe);
+file_put_contents($temp.'/app/api/get_cart_probe.php',$probe);
 $sock=stream_socket_server('tcp://127.0.0.1:0');$address=stream_socket_get_name($sock,false);fclose($sock);
 $server=proc_open([PHP_BINARY,'-d','session.save_path='.$temp.'/sessions','-S',$address,'-t',$temp.'/app'],[0=>['file','/dev/null','r'],1=>['file',$temp.'/http.log','a'],2=>['file',$temp.'/http.log','a']],$pipes);
 $cookies=[];
@@ -70,10 +75,33 @@ try{
     check($state['company']==='b'&&$state['role']==='owner'&&$state['name']==='free','Full identity follows selected company without old staff');
     check($state['modules']===['events'],'User rights intersect selected company modules');
     check($request('/api/get_rental_test.php')[0]===403,'Disabled company module rejected server side');
+    foreach(['add_to_cart','checkout_cart','process_service_sale','get_cart','get_purchase_history','get_invoices','get_renewal_stats'] as $endpoint) {
+        check($request('/api/'.$endpoint.'.php','one',['output_product_id'=>'fixture','quantity'=>1],true,$state['context'])[0]===403,
+            'Real endpoint rejects unlicensed access: '.$endpoint);
+    }
+    $db->exec("INSERT INTO system_modules VALUES('sale','sales','Sales',NULL,NULL,1,NOW())");
+    $db->exec("INSERT INTO tenant_company_modules VALUES('b','sale',1)");
+    check($request('/api/get_cart_probe.php')[0]===403,'Company license alone does not grant sales');
+    $db->exec("INSERT INTO tenant_admin_modules VALUES('free','sale')");
+    check($request('/api/get_cart_probe.php')[0]===200,'Assigned user with company sales license is allowed');
+    $db->exec("UPDATE tenant_company_modules SET is_active=0 WHERE company_id='b' AND module_id='sale'");
+    check($request('/api/get_cart_probe.php')[0]===403,'Revoked sales license overrides user assignment');
+    check($request('/api/get_reservations_test.php')[0]===403,'Unassigned reservation module denied');
+    $db->exec("INSERT INTO system_modules VALUES('v','reservation','Reservations',NULL,NULL,1,NOW())");
+    $db->exec("INSERT INTO tenant_admin_modules VALUES('free','v')");
+    $db->exec("INSERT INTO tenant_company_modules VALUES('b','v',1)");
+    check($request('/api/get_reservations_test.php')[0]===200,'Singular reservation module key grants licensed access');
+    $db->exec("UPDATE tenant_company_modules SET is_active=0 WHERE company_id='b' AND module_id='v'");
+    check($request('/api/get_reservations_test.php')[0]===403,'Revoked reservation license denied immediately');
+    check($request('/api/refresh_session.php')[1]['success']===true,'Unlinked account can refresh session');
+    $refreshed=$request('/api/probe.php')[1];
+    check($refreshed['company']==='b' && $refreshed['name']==='free' && $refreshed['context']===$state['context'],'Refresh preserves chosen company and context');
     check($request('/api/probe.php','one',[],true,'old-context')[0]===409,'Old tab writes rejected');
     check($request('/api/probe.php','one',[],true,$state['context'])[0]===200,'Current context can write');
     check($request('/api/probe.php','one',[],true)[0]===409,'Missing context cannot write');
     $request('/auth/logout.php');
+    check((int)$db->query("SELECT COUNT(*) FROM tenant_admin_sessions WHERE tenant_admin_id='free' AND is_active=1")->fetchColumn()===0,
+        'Logout deactivates registry without optional admin last_logout column');
     check($login()[2]==='/pages/login_transition.php'&&$choose('a')[0]===200,'New login requires fresh choice');
     check($request('/api/probe.php','one',[],true,$state['context'])[0]===409,'Prior company context remains invalid after relogin');
     $request('/auth/logout.php');

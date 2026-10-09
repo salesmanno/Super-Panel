@@ -12,7 +12,6 @@ try {
             $db->beginTransaction();
             $db->prepare('UPDATE tenant_admin_sessions SET is_active=0,logout_at=NOW() WHERE tenant_admin_id=? AND session_id=?')
                 ->execute([$id,session_id()]);
-            $db->prepare('UPDATE tenant_admins SET last_logout=NOW() WHERE id=?')->execute([$id]);
             $db->commit();
         };
         if ($db instanceof AuditedPDO) $db->withExplicitAudit($end); else $end();

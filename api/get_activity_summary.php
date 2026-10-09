@@ -164,7 +164,7 @@ try {
         require_once __DIR__.'/../includes/company_login.php';
         $allowed=companyLoginModuleKeys($db,(string)$admin_id);
         $keys=['Økonomi'=>'economy','Medlemskap'=>'membership','Arrangementer'=>'events',
-            'Arrangementer (innsjekk)'=>'events','Reservasjoner'=>'reservations','Salg'=>'sales'];
+            'Arrangementer (innsjekk)'=>'events','Reservasjoner'=>'reservation','Salg'=>'sales'];
         $activities=array_values(array_filter($activities,static fn($item)=>in_array($keys[$item['module']]??'', $allowed,true)));
     }
     echo json_encode([

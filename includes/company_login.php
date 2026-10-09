@@ -130,20 +130,39 @@ function companyLoginRequireRouteModule(PDO $db, string $path): void {
     if (str_contains($name,'public') || in_array($name,[
         'create_rental_request','register_event','register_member','get_payment_methods',
         'get_active_payment_methods'],true)) return;
+    // Several module actions do not contain their module name. Shared reads may
+    // belong to multiple modules; mutations below still require their owner.
+    $shared=[
+        'get_transactions'=>['sales','economy'],
+        'get_single_product'=>['sales'],
+        'get_all_products'=>['sales'],
+        'get_week_availability'=>['sales','reservation'],
+        'find_first_available'=>['sales','reservation'],
+        'check_reservation_availability'=>['sales','reservation'],
+        'get_membership_plans'=>['membership','events','economy'],
+        'get_membership_renewals'=>['membership','economy'],
+        'update_renewal_status'=>['membership','economy'],
+        'update_member_fields'=>['membership','economy'],
+    ];
+    $required=$shared[$name]??null;
+    if (str_starts_with($path,'/api/services/')) $required=['reservation'];
     $patterns=[
         'rental'=>'/(?:^|_)(?:rental)(?:_|$)/',
-        'events'=>'/(?:^|_)(?:event|events|registration|registrations|checkin)(?:_|$)/',
-        'membership'=>'/(?:^|_)(?:membership|member|members)(?:_|$)/',
-        'economy'=>'/(?:^|_)(?:economy|bank|ledger|transaction|transactions|payment_gateway)(?:_|$)/',
-        'sales'=>'/(?:^|_)(?:sales)(?:_|$)/',
-        'reservations'=>'/(?:^|_)(?:reservation|reservations)(?:_|$)/',
+        'events'=>'/(?:^|_)(?:event|events|registration|registrations|checkin|guest|attendee)(?:_|$)/',
+        'membership'=>'/(?:^|_)(?:membership|member|members|renewal)(?:_|$)/',
+        'economy'=>'/(?:^|_)(?:economy|bank|ledger|transaction|transactions|invoice|invoices|pending_payment|pending_payments|payment_gateway|payment_gateways|gateway_fees|vipps|cash_payment)(?:_|$)/',
+        'sales'=>'/(?:^|_)(?:sales|sale|cart|purchase|inventory)(?:_|$)/',
+        'reservation'=>'/(?:^|_)(?:reservation|reservations)(?:_|$)/',
         'webmail'=>'/(?:^|_)(?:webmail)(?:_|$)/',
     ];
-    foreach ($patterns as $module=>$pattern) if (preg_match($pattern,$name)) {
-        if (!in_array($module,companyLoginModuleKeys($db,(string)$_SESSION['tenant_admin_id']),true)) {
-            throw new DomainException('Modulen er ikke tilgjengelig for deg i valgt bedrift.',403);
+    if ($required===null) {
+        foreach ($patterns as $module=>$pattern) if (preg_match($pattern,$name)) {
+            $required=[$module];
+            break;
         }
-        break;
+    }
+    if ($required!==null && !array_intersect($required,companyLoginModuleKeys($db,(string)$_SESSION['tenant_admin_id']))) {
+        throw new DomainException('Modulen er ikke tilgjengelig for deg i valgt bedrift.',403);
     }
 }
 
