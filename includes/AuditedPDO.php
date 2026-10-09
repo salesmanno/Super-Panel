@@ -67,6 +67,8 @@ final class AuditedPDO extends PDO {
     public function __construct(string $dsn, ?string $username = null, ?string $password = null, ?array $options = null) {
         parent::__construct($dsn, $username, $password, $options);
         $this->setAttribute(PDO::ATTR_STATEMENT_CLASS, [AuditedPDOStatement::class, [$this]]);
+        require_once __DIR__ . '/company_login.php';
+        companyLoginGuardConnection($this);
     }
 
     public function exec(string $statement): int|false {

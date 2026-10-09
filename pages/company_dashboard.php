@@ -1101,7 +1101,9 @@ try {
         const preloadCache = (function() {
             const stored = sessionStorage.getItem('dashboardPreload');
             const timestamp = sessionStorage.getItem('dashboardPreloadTime');
-            if (stored && timestamp) {
+            const context = sessionStorage.getItem('dashboardPreloadContext');
+            sessionStorage.removeItem('dashboardPreloadContext');
+            if (stored && timestamp && context === <?= json_encode($_SESSION['company_context'] ?? null) ?>) {
                 const age = Date.now() - parseInt(timestamp);
                 if (age < 60000) {
                     sessionStorage.removeItem('dashboardPreload');

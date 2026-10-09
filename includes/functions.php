@@ -14,7 +14,7 @@ function getTenantAdminByUsername($username) {
                tc.name as company_name, tc.subdomain, tc.is_active as company_active,
                ts.first_name, ts.last_name, ts.email as staff_email, ts.phone, ts.job_title
         FROM tenant_admins ta
-        INNER JOIN tenant_companies tc ON ta.company_id = tc.id
+        LEFT JOIN tenant_companies tc ON ta.company_id = tc.id
         LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
         WHERE ta.username = ? AND ta.is_active = $activeValue
     ");
@@ -50,16 +50,8 @@ function getTenantAdminModules($adminId) {
     if (!$db) {
         return [];
     }
-    $activeValue = 1;
-    $stmt = $db->prepare("
-        SELECT sm.id, sm.name, sm.module_key, sm.description, sm.icon, sm.is_active, sm.created_at
-        FROM system_modules sm
-        INNER JOIN tenant_admin_modules tam ON sm.id = tam.module_id
-        WHERE tam.tenant_admin_id = ? AND sm.is_active = $activeValue
-        ORDER BY sm.name
-    ");
-    $stmt->execute([$adminId]);
-    return $stmt->fetchAll();
+    require_once __DIR__.'/company_login.php';
+    return companyLoginModules($db,(string)$adminId);
 }
 
 function getCompanyModules($companyId) {

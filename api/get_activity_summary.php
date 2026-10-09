@@ -160,6 +160,13 @@ try {
     // 7. New individual sales (process_service_sale creates these in unified_ledger)
     // Already counted in #1 "New transactions (unified_ledger)"
     
+    if (!empty($_SESSION['company_auth_version'])) {
+        require_once __DIR__.'/../includes/company_login.php';
+        $allowed=companyLoginModuleKeys($db,(string)$admin_id);
+        $keys=['Økonomi'=>'economy','Medlemskap'=>'membership','Arrangementer'=>'events',
+            'Arrangementer (innsjekk)'=>'events','Reservasjoner'=>'reservations','Salg'=>'sales'];
+        $activities=array_values(array_filter($activities,static fn($item)=>in_array($keys[$item['module']]??'', $allowed,true)));
+    }
     echo json_encode([
         'success' => true,
         'baseline_time' => $baselineTime,

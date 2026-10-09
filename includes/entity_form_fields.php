@@ -27,6 +27,10 @@ function entityFormCanonicalName(string $type, string $name): string {
 function entityFormRequireModuleAccess(PDO $db,string $company,string $type): array {
     $actor=tenantAuditActor($db,$company);
     $module=match($type){'event'=>'events','rental_object'=>'rental',default=>throw new InvalidArgumentException('Ugyldig skjematype')};
+    if (!empty($_SESSION['company_auth_version'])) {
+        require_once __DIR__.'/company_login.php';
+        if (!in_array($module,companyLoginModuleKeys($db,$actor['id']),true)) throw new TenantAuditException('Modulen er ikke tilgjengelig i valgt bedrift');
+    }
     $q=$db->prepare('SELECT sm.id FROM system_modules sm JOIN tenant_admin_modules tam ON tam.module_id=sm.id WHERE tam.tenant_admin_id=? AND sm.module_key=? AND sm.is_active=1');
     $q->execute([$actor['id'],$module]);
     if(!$q->fetchColumn())throw new TenantAuditException('Du har ikke tilgang til denne modulen');

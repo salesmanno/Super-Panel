@@ -4,6 +4,10 @@ require_once __DIR__.'/active_payment_methods.php';
 
 function eventSettingsHasMembershipAccess(PDO $db, string $company): bool {
     $actor = tenantAuditActor($db, $company);
+    if (!empty($_SESSION['company_auth_version'])) {
+        require_once __DIR__.'/company_login.php';
+        return in_array('membership',companyLoginModuleKeys($db,$actor['id']),true);
+    }
     $q = $db->prepare("SELECT sm.id FROM system_modules sm
         JOIN tenant_admin_modules tam ON tam.module_id=sm.id
         WHERE tam.tenant_admin_id=? AND sm.module_key='membership' AND sm.is_active=1");

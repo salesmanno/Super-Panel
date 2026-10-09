@@ -8,6 +8,9 @@ $success_message = '';
 
 if (isset($_GET['error'])) {
     switch ($_GET['error']) {
+        case 'company_choice_setup_required':
+            $error_message = 'Bedriftsvalg må klargjøres i databasen av administrator før du kan logge inn.';
+            break;
         case 'invalid_credentials':
             $error_message = 'Ugyldig brukernavn eller passord.';
             break;
@@ -143,6 +146,9 @@ if (isset($_GET['message'])) {
     </main>
     
     <script>
+        <?php if (($_GET['message'] ?? '') === 'logged_out'): ?>
+        try { sessionStorage.clear(); localStorage.removeItem('portalCompanyContext'); } catch (_) {}
+        <?php endif; ?>
         let eventSource = null;
         let reconnectTimeout = null;
         let dbCheckInterval = null;

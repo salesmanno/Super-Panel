@@ -4,6 +4,10 @@ require_once __DIR__ . '/tenant_audit.php';
 /** Notifications retain the existing company-wide acknowledgement semantics. */
 function tenantNotificationModules(PDO $db, string $company): array {
     $actor = tenantAuditActor($db, $company);
+    if (!empty($_SESSION['company_auth_version'])) {
+        require_once __DIR__.'/company_login.php';
+        return companyLoginModuleKeys($db,$actor['id']);
+    }
     $q = $db->prepare('SELECT sm.module_key FROM system_modules sm
         JOIN tenant_admin_modules tam ON tam.module_id = sm.id
         WHERE tam.tenant_admin_id = ? AND sm.is_active = 1');

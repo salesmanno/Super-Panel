@@ -43,7 +43,9 @@ if [[ "$ready" != 1 ]]; then
     cat "$TEMP_ROOT/mysql.log" >&2
     exit 1
 fi
-if [[ "${1:-}" == "--codes" ]]; then
+if [[ "${1:-}" == "--company-login" ]]; then
+    php "$ROOT/tests/company_choice_mysql_test.php" "$ROOT" "$TEMP_ROOT"
+elif [[ "${1:-}" == "--codes" ]]; then
     php "$ROOT/tests/rental_reservation_codes_mysql_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--workflow" ]]; then
     php "$ROOT/tests/rental_workflow_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
