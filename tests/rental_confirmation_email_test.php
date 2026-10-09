@@ -51,7 +51,7 @@ rental_email_check(
 );
 rental_email_check($variables['rental_start'] === $variables['date_from'], 'legacy start alias is populated');
 rental_email_check($variables['rental_fee'] === $variables['total_price'], 'legacy fee alias is populated');
-rental_email_check($variables['pickup_time'] === '08:00', 'pickup time is fixed at 08:00');
+rental_email_check($variables['pickup_time'] === '15:00', 'pickup time preserves the reservation time');
 rental_email_check($variables['end_time'] === '11:00', 'end time is rendered without seconds');
 rental_email_check($variables['rental_days'] === '3', 'rental days are inclusive');
 rental_email_check($variables['status'] === 'Godkjent', 'approved status is ready for display');
@@ -97,7 +97,7 @@ $completeRendered = renderRentalConfirmationTemplate($completeTemplate, $variabl
 rental_email_check(!str_contains($completeRendered, '{{'), 'all rental template placeholders are rendered');
 foreach ([
     'https://example.test/logo.png', 'Kari', 'Nordmann', 'Utleie AS',
-    'Fjordglimt', '25.09.2026', '27.09.2026', '3', '08:00', '11:00',
+    'Fjordglimt', '25.09.2026', '27.09.2026', '3', '15:00', '11:00',
     '1234.56.78901', '4 400,00', 'RENT-2026-001', '99 88 77 66',
     'Testveien 1, 0123 Oslo', '999 888 777', '#123456', 'Godkjent', '400,00',
     '4 500,00', '-500,00', 'Rabatt', 'Tidlig bestilling',
@@ -225,9 +225,10 @@ foreach ([
     rental_email_check(str_contains($endpoint, $fragment), "endpoint contains {$fragment}");
 }
 rental_email_check(
-    !str_contains($endpoint, 'key_box_code')
-        && !str_contains($endpoint, 'rv.access_code'),
-    'approval endpoint neither accepts nor snapshots the venue access code'
+    str_contains($endpoint, 'rentalGenerateReservationCode')
+        && !str_contains($endpoint, "\$data['key_box_code']")
+        && !str_contains($endpoint, "\$row['key_box_code'] = \$row['venue_code']"),
+    'approval generates assigned codes server-side, never accepts or copies venue code'
 );
 rental_email_check(
     strpos($endpoint, '$db->commit();') > strpos($endpoint, 'INSERT INTO email_queue'),

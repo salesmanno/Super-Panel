@@ -3,7 +3,7 @@
 function rentalDecisionVersion(array $row): string {
     $values = [];
     foreach (['id','company_id','rental_object_id','status','start_date','end_date',
-        'end_time','price_adjustment_type','price_adjustment_explanation'] as $key) {
+        'pickup_time','return_time','end_time','price_adjustment_type','price_adjustment_explanation'] as $key) {
         $values[$key] = (string)($row[$key] ?? '');
     }
     foreach (['approved','cleaning','price_adjustment_cents'] as $key) $values[$key]=(int)($row[$key]??0);

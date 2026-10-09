@@ -85,6 +85,7 @@ try {
     $today = rentalCodeToday();
     $nextCodes = rentalNextCodeReservations($db, (string)$companyId, $today);
     foreach ($rows as &$row) {
+        $row['access_code'] = $row['key_box_code'] ?? null;
         $row['can_prepare_code'] = $row['object_category'] === 'venue'
             && ($nextCodes[$row['rental_object_id']] ?? null) === (string)$row['id'];
         $row['checkin_code_missing'] = !rentalValidAssignedCode($row['key_box_code'] ?? null)

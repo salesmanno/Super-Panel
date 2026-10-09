@@ -68,6 +68,7 @@ allApprovedRentals=fixtureRentals;
 window.fetch=async (url,options={})=>{
  if(url==='/api/rental_reservation_code.php'){
   const payload=JSON.parse(options.body);fixtureCodeCalls.push(payload);
+  if(payload.action==='ensure_upcoming')return {ok:true,json:async()=>({success:true,assigned_count:0,unresolved_ids:[]})};
   const rental=allApprovedRentals.find(r=>r.id===payload.id);
   if(fixtureCodeFailure)return {ok:false,json:async()=>({success:false,message:'Utleien er endret'})};
   if(payload.action==='prepare')return {ok:true,json:async()=>({success:true,token:'fixture-token',
@@ -104,6 +105,9 @@ const checks = `
  try{
   await loadRentalUnavailable();await loadApprovedSchedule();await settle();
   const manager=field('Manager'),form=field('Form'),list=field('List');
+  check(field('Content').hidden && field('PlanningToggle').getAttribute('aria-expanded')==='false','Entire planning starts collapsed');
+  field('PlanningToggle').click();
+  check(!field('Content').hidden && field('PlanningToggle').getAttribute('aria-expanded')==='true','Planning header expands controls');
   check(list.hidden&&field('ListToggle').getAttribute('aria-expanded')==='false','List starts collapsed');
   check(field('Count').textContent==='3'&&!list.textContent.includes('Historisk'),'Ended blocks hidden, today and ongoing retained');
   check(document.getElementById('rentalCalendarHost').compareDocumentPosition(manager)&4,'Planning after calendar');
@@ -122,7 +126,7 @@ const checks = `
   const first=cards[0],emptyContact=cards[1],phoneOnly=cards[2];
   check(first.textContent.includes('Testkunde A')&&first.textContent.includes('Sal A')
     &&first.querySelector('.rental-period').textContent==='03.04.2028 – 05.04.2028','Full period and identity remain visible');
-   check(first.textContent.includes('NOK')&&first.textContent.includes('Kode tildelt')
+   check(first.textContent.includes('NOK')&&first.textContent.includes('Tilgangskode:')
      &&first.textContent.includes('Sendt')&&!first.textContent.includes('Detaljnotat'),'Monthly card shows price, code status and check-in status');
   check(first.textContent.includes('Betalt')&&phoneOnly.textContent.includes('Delvis betalt'),'Short payment states preserved');
   check(!emptyContact.querySelector('a')&&!emptyContact.querySelector('.rental-customer-links')
@@ -133,8 +137,8 @@ const checks = `
   check(fixtureContacts.includes('tel:+47 12345678')&&fixtureContacts.includes('mailto:kunde@example.invalid')
     &&fixtureModalShows===modalShows,'Contact links act directly without opening details');
   check(Array.from(first.querySelectorAll('a,button')).every(el=>el.tabIndex>=0),'Contact and details controls keyboard-focusable');
-  const open=first.querySelector('button');
-  check(open.type==='button'&&open.textContent.trim()==='Detaljer','Explicit native details button');
+  const open=first;
+  check(open.getAttribute('role')==='button'&&open.tabIndex===0&&!open.querySelector('button'),'Entire card is focusable; details button removed');
   open.click();
   const detailBody=document.getElementById('detailsModalBody');
   check(fixtureModalShows===modalShows+1&&detailBody.textContent.includes('Testkunde A')
@@ -145,7 +149,7 @@ const checks = `
   check(detailBody.querySelector('a[href="tel:+47 12345678"]')
     &&detailBody.querySelector('a[href="mailto:kunde@example.invalid"]'),'Modal contacts are clickable too');
   check(detailBody.querySelector('select')&&Array.from(detailBody.querySelectorAll('button')).some(el=>el.textContent.includes('Avlys leie')),'Existing admin actions retained');
-  cards[2].querySelector('button').click();
+  cards[2].click();
   check(detailBody.textContent.includes('Testkunde C')&&!detailBody.textContent.includes('Testkunde A'),'Details selects the requested rental');
    check(document.getElementById('rentalUpcomingMonth').value==='2028-04','Monthly overview starts in current month');
    rentalChangeMonth(1);
@@ -217,33 +221,34 @@ const checks = `
    const card=document.querySelector('.rental-upcoming-card');
    const detail=document.getElementById('detailsModalBody');
    check(bar.textContent.includes('Kode:')===Boolean(expected),'Calendar suppresses complete invalid-code field');
-    check(!card.textContent.includes('Tilgangskode:'),'Access code stays in details, not compact card');
+    check(card.textContent.includes('Tilgangskode:')===Boolean(expected),'Card displays valid assigned access code');
    check(detail.textContent.includes('Tilgangskode')===Boolean(expected),'Details suppress complete invalid-code field');
    check(![bar,card,detail].some(el=>el.textContent.includes('SECRET')),'No fallback to general venue code');
-    if(expected)check([bar,detail].every(el=>el.textContent.includes(expected)),'Valid leading-zero/alphanumeric codes retained in calendar and details');
+    if(expected)check([bar,card,detail].every(el=>el.textContent.includes(expected)),'Valid leading-zero/alphanumeric codes retained in calendar, cards and details');
   }
    // Actual code-panel asset, with API transport stubbed (server tested in MySQL suite).
    allApprovedRentals=[{id:'next',object_name:'Sal A',start_date:'2028-04-04',end_date:'2028-04-05',
-    can_prepare_code:true,key_box_code:null,rental_fee:100},
+    can_prepare_code:true,key_box_code:'0037',rental_fee:100},
     {id:'later',object_name:'Sal A',start_date:'2028-05-04',end_date:'2028-05-05',can_prepare_code:false}];
    showRentalCalDetail('later');await settle();
-   check(fixtureCodeCalls.length===0,'Later rental never asks code questions');
+   const priorDetailsCalls=fixtureCodeCalls.length;
+   check(fixtureCodeCalls.every(call=>call.action==='ensure_upcoming'),'Later rental never asks code questions');
    showRentalCalDetail('next');await settle();
    let codeHost=document.getElementById('rentalReservationCodeHost');
-   check(codeHost.textContent.includes('0037')&&codeHost.querySelector('[data-save]'),'Next reservation shows proposal');
+   check(codeHost.textContent.includes('0037')&&codeHost.querySelector('[data-save]').disabled,'Next reservation shows assigned code requiring confirmation');
    codeHost.querySelector('[data-dismiss]').click();
-   check(fixtureCodeCalls.every(call=>call.action==='prepare')&&!allApprovedRentals[0].key_box_code,'Dismiss causes no write');
+   check(fixtureCodeCalls.slice(priorDetailsCalls).every(call=>call.action==='prepare')&&allApprovedRentals[0].key_box_code==='0037','Dismiss causes no write or code generation');
    showRentalCalDetail('next');await settle();
    codeHost=document.getElementById('rentalReservationCodeHost');
    codeHost.querySelector('[data-save]').click();await settle();await settle();
-   check(fixtureCodeCalls.at(-1).action==='save'&&!fixtureCodeCalls.at(-1).physical_changed
-    &&allApprovedRentals[0].key_box_code==='0037','Assign saves only reservation unless checkbox confirmed');
+   check(fixtureCodeCalls.at(-1).action==='prepare'
+    &&allApprovedRentals[0].key_box_code==='0037','Unchecked confirmation cannot write');
    showRentalCalDetail('next');await settle();
    codeHost=document.getElementById('rentalReservationCodeHost');
    check(codeHost.querySelector('[data-save]').disabled,'Physical confirmation required for already assigned code');
    const physical=codeHost.querySelector('[data-physical]');physical.checked=true;physical.dispatchEvent(new Event('change'));
    codeHost.querySelector('[data-save]').click();await settle();await settle();
-   check(fixtureCodeCalls.at(-1).physical_changed===true,'Physical change explicitly sent');
+   check(fixtureCodeCalls.some(call=>call.action==='save'&&call.physical_changed===true),'Physical change explicitly sent');
    showRentalCalDetail('next');await settle();
    check(!document.getElementById('rentalReservationCodeHost').querySelector('button'),'Matching codes suppress all questions');
    allApprovedRentals[0].fixtureMatches=false;fixtureCodeFailure=true;
@@ -315,7 +320,7 @@ async function main() {
         const result = await send('Runtime.evaluate', {expression: checks, awaitPromise: true, returnByValue: true}, sessionId);
         assert.equal(result.result?.value?.passed, true, JSON.stringify(result));
         assert.equal(result.result.value.width, width);
-        await send('Runtime.evaluate', {expression: 'allApprovedRentals=fixtureRentals;renderRentalCalendar();document.querySelector(".rental-upcoming-card button").focus();', returnByValue:true}, sessionId);
+        await send('Runtime.evaluate', {expression: 'allApprovedRentals=fixtureRentals;renderRentalCalendar();document.querySelector(".rental-upcoming-card").focus();', returnByValue:true}, sessionId);
         const before = await send('Runtime.evaluate', {expression:'fixtureModalShows',returnByValue:true}, sessionId);
         await send('Input.dispatchKeyEvent', {type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,nativeVirtualKeyCode:13,text:'\r',unmodifiedText:'\r'}, sessionId);
         await send('Input.dispatchKeyEvent', {type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13}, sessionId);

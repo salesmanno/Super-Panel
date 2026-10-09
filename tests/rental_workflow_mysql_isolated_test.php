@@ -33,6 +33,8 @@ $schema=[
     "economy_bank_accounts(company_id CHAR(36),account_number TEXT,is_active INT,bank_name TEXT)",
 ];
 foreach($schema as $ddl)$db->exec('CREATE TABLE '.$ddl.' ENGINE=InnoDB');
+$db->exec('ALTER TABLE rental_schedule ADD return_time TIME, ADD key_box_code VARCHAR(6), ADD checkin_email_queued_at DATETIME, ADD checkin_email_sent_at DATETIME');
+$db->exec('ALTER TABLE rental_venues ADD access_code VARCHAR(6)');
 $db->exec("INSERT INTO tenant_companies(id,name,is_active) VALUES('a','Bedrift A',1),('b','Bedrift B',1)");
 $db->exec("INSERT INTO tenant_staff VALUES('pa','a','Ansatt','A'),('pb','b','Ansatt','B')");
 $db->exec("INSERT INTO tenant_admins VALUES('aa','a','pa','ansatt-a','staff',1),('ab','b','pb','ansatt-b','staff',1),('none','a','pa','uten-modul','staff',1)");
@@ -40,7 +42,7 @@ $db->exec("INSERT INTO system_modules VALUES('rental','rental',1),('events','eve
 $db->exec("INSERT INTO tenant_admin_modules VALUES('aa','rental'),('ab','rental')");
 $db->exec("INSERT INTO rental_objects(id,company_id,object_name,category,rental_price,created_by,market_price)
     VALUES('oa','a','Sal <img src=x>','venue',100,'aa',9000),('ob','b','Sal B','venue',100,'ab',NULL)");
-$db->exec("INSERT INTO rental_venues VALUES('oa',20,50),('ob',20,25)");
+$db->exec("INSERT INTO rental_venues(object_id,cleaning_fee,capacity_seated,access_code) VALUES('oa',20,50,'1234'),('ob',20,25,'9876')");
 $db->exec("INSERT INTO email_configs VALUES('a','sender@example.invalid','Bedrift A',1,1),('b','sender@example.invalid','Bedrift B',0,1)");
 $db->exec("INSERT INTO email_templates VALUES('ta','a','rental_confirmation','Beslutning {{status}}','Hei {{customer_name}}: {{status}}',1)");
 mkdir($temp.'/app/api',0700,true);mkdir($temp.'/app/config',0700,true);
@@ -105,6 +107,7 @@ try {
     $polls=$call('check_refresh_flag','a')[1];
     workflowAssert(count($polls['polls'])===2&&!isset($polls['polls'][0]['metadata']['access_code'])&&!isset($polls['polls'][1]['metadata']['access_code']),'Multiple events and metadata allowlist');
     workflowAssert($call('set_polling_complete','a',$ack)[0]===200&&$call('set_polling_complete','a',$ack)[0]===200,'Acknowledgement idempotent');
+    $db->prepare("UPDATE rental_schedule SET pickup_time='15:30:00', return_time='18:45:00', end_time='12:00:00' WHERE id=?")->execute([$id]);
     $list=$call('get_rental_schedule','a')[1];
     workflowAssert($list['success']&&$list['decision_email_enabled']&&count($list['requests'])===1,'Decision context and queue policy');
     $version=$list['requests'][0]['decision_version'];
@@ -121,6 +124,13 @@ try {
     $decision['expected_version']=$saved['request']['decision_version'];
     [$http,$approved]=$call('update_rental_schedule','a',$decision);
     workflowAssert($http===200&&$approved['success']&&$approved['email_queued'],'Actual decision queues one email');
+    $stored=$db->query("SELECT pickup_time,return_time,end_time,key_box_code FROM rental_schedule WHERE id=".$db->quote($id))->fetch(PDO::FETCH_ASSOC);
+    workflowAssert($stored['pickup_time']==='15:30:00' && $stored['return_time']==='18:45:00'
+        && $stored['end_time']==='18:45:00','Approval retains pickup and explicit return, not legacy noon');
+    workflowAssert(preg_match('/^\d{4}$/D',$stored['key_box_code']) && $stored['key_box_code']!=='1234',
+        'Approval assigns numeric code of venue length without copying venue code');
+    workflowAssert($db->query("SELECT access_code FROM rental_venues WHERE object_id='oa'")->fetchColumn()==='1234',
+        'Approval never changes physical venue code');
     workflowAssert($call('update_rental_schedule','a',$decision)[0]===409&&(int)$db->query('SELECT COUNT(*) FROM email_queue')->fetchColumn()===1,'Repeated decision never duplicates email');
     $history=$call('get_rental_schedule','a',null,'request_id='.$id)[1]['requests'];
     workflowAssert(count($history)===1&&$history[0]['status']==='approved','Notification link can retrieve processed request');

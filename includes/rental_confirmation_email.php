@@ -121,8 +121,8 @@ function buildRentalConfirmationVariables(array $rental): array {
         'status' => $status,
         'order_id' => (string) ($rental['id'] ?? ''),
         'payment_method' => (string) ($rental['payment_method'] ?? ''),
-        'pickup_time' => '08:00',
-        'end_time' => formatRentalConfirmationTime($rental['end_time'] ?? null),
+        'pickup_time' => formatRentalConfirmationTime($rental['pickup_time'] ?? $rental['start_time'] ?? '08:00'),
+        'end_time' => formatRentalConfirmationTime($rental['return_time'] ?? $rental['end_time'] ?? null),
         'pickup_address' => (string) (
             $rental['delivery_address']
             ?? $rental['pickup_address']

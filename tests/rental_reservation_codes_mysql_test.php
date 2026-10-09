@@ -91,18 +91,35 @@ try {
     codeCheck($prepare('first','none')[0]===403,'Missing Rental permission denied');
     codeCheck($call(['id'=>'first','action'=>'prepare'],'a','wrong')[0]===403,'CSRF denied');
     codeCheck($prepare('current')[0]===409 && $prepare('second')[0]===409,'Today and later reservation denied');
-    codeCheck($prepare('missing')[0]===400,'Missing venue code does not invent a length');
+    codeCheck($prepare('missing')[0]===409,'Detail never invents a missing code or length');
+    codeCheck($prepare('first')[0]===409,'Missing code cannot be generated from detail');
+    $db->exec("UPDATE rental_schedule SET key_box_code='??' WHERE id='second'");
+    [$http,$ensured]=$call(['action'=>'ensure_upcoming']);
+    codeCheck($http===200 && $ensured['assigned_count']===2 && $ensured['unresolved_ids']===['missing'],
+        'Overview assigns missing and repairs invalid future codes; reports unknown lengths');
+    $firstCode=$db->query("SELECT key_box_code FROM rental_schedule WHERE id='first'")->fetchColumn();
+    $secondCode=$db->query("SELECT key_box_code FROM rental_schedule WHERE id='second'")->fetchColumn();
+    codeCheck(preg_match('/^\d{4}$/D',$firstCode) && preg_match('/^\d{4}$/D',$secondCode),
+        'All future reservations get numeric codes with venue reference length');
+    codeCheck($db->query("SELECT key_box_code FROM rental_schedule WHERE id='current'")->fetchColumn()===null,
+        'Automatic assignment ignores today and older');
+    codeCheck($db->query("SELECT key_box_code FROM rental_schedule WHERE id='other'")->fetchColumn()===null,
+        'Automatic assignment cannot affect another tenant');
+    codeCheck($call(['action'=>'ensure_upcoming'])[1]['assigned_count']===0,'Overview assignment is idempotent');
+    codeCheck($call(['action'=>'ensure_upcoming'],'none')[0]===403
+        && $call(['action'=>'ensure_upcoming'],'a','wrong')[0]===403,'Automatic assignment requires access and CSRF');
     [$http,$p]=$prepare('first');
     codeCheck($http===200 && preg_match('/^\d{4}$/D',$p['code']) && $p['code']!=='0123','Numeric proposal preserves reference length');
-    codeCheck($db->query("SELECT key_box_code FROM rental_schedule WHERE id='first'")->fetchColumn()===null,'Opening/cancelling never writes');
+    codeCheck($db->query("SELECT key_box_code FROM rental_schedule WHERE id='first'")->fetchColumn()===$firstCode,'Opening never changes assigned code');
     [$http,$competitor]=$prepare('first','a2');
     $save=['id'=>'first','action'=>'save','token'=>$p['token'],'physical_changed'=>false];
-    codeCheck($call($save)[0]===200,'Assign only succeeds');
-    codeCheck($db->query("SELECT access_code FROM rental_venues WHERE object_id='v'")->fetchColumn()==='0123','Assign only leaves venue unchanged');
-    codeCheck($call($save)[0]===409,'Replayed proposal denied');
+    codeCheck($call($save)[0]===409,'Save without physical confirmation denied');
+    codeCheck($db->query("SELECT access_code FROM rental_venues WHERE object_id='v'")->fetchColumn()==='0123','Unconfirmed action leaves venue unchanged');
+    $save['physical_changed']=true;
+    codeCheck($call($save)[0]===200 && $call($save)[0]===409,'Explicit physical confirmation works and replay denied');
     codeCheck($call(['id'=>'first','action'=>'save','token'=>$competitor['token'],'physical_changed'=>true],'a2')[0]===409,'Second administrator cannot overwrite');
     [$http,$assigned]=$prepare('first');
-    codeCheck($assigned['assigned'] && !$assigned['matches'] && $assigned['code']===$p['code'],'Reopen preserves code and asks physical confirmation');
+    codeCheck($assigned['assigned'] && $assigned['matches'] && $assigned['code']===$p['code'],'Reopen preserves assigned code; confirmed venue matches');
     codeCheck($call(['id'=>'first','action'=>'save','token'=>$assigned['token'],'physical_changed'=>true])[0]===200,'Physical confirmation succeeds');
     codeCheck($prepare('first')[1]['matches']===true,'No question once codes match');
     [$http,$stale]=$prepare('first');

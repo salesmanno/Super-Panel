@@ -87,11 +87,13 @@ window.RentalRequestWorkflow = (() => {
         dialog.append(title);
         const details = document.createElement('dl');
         const date = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '') ? value.split('-').reverse().join('.') : value || '–';
+        const pickupTime = request.pickup_time || request.start_time || '';
+        const returnTime = request.return_time || request.end_time || '';
         for (const [label,value] of [
             ['Kunde',request.customer_name || request.display_customer_name || 'Navn ikke oppgitt'],
             ['Objekt',request.object_name],
-            ['Fra',date(request.start_date)+' kl. 08:00'],
-            ['Til',date(request.end_date)+' kl. '+String(request.end_time || '').slice(0,5)],
+            ['Fra',date(request.start_date)+(pickupTime ? ' kl. '+String(pickupTime).slice(0,5) : '')],
+            ['Til',date(request.end_date)+(returnTime ? ' kl. '+String(returnTime).slice(0,5) : '')],
             ['Lagret leiebeløp',Number(request.rental_fee).toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})+' NOK'],
             ['Beslutning',status === 'approved' ? 'Godkjent' : 'Avslått'],
         ]) {
@@ -158,13 +160,15 @@ window.RentalRequestWorkflow = (() => {
         title.id='rental-decision-title';dialog.setAttribute('aria-labelledby',title.id);
         dialog.append(title);
         const date=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')?value.split('-').reverse().join('.'):value||'–';
+        const pickupTime=request.pickup_time||request.start_time||'';
+        const returnTime=request.return_time||request.end_time||'';
         const statuses={pending:'Venter på behandling',approved:'Godkjent',rejected:'Avslått',cancelled:'Kansellert',completed:'Fullført'};
         const details=document.createElement('dl');
         for(const [label,value] of [
             ['Kunde',request.customer_name||request.display_customer_name||'Navn ikke oppgitt'],
             ['Objekt',request.object_name],
-            ['Fra',date(request.start_date)+' kl. 08:00'],
-            ['Til',date(request.end_date)+' kl. '+String(request.end_time||'').slice(0,5)],
+            ['Fra',date(request.start_date)+(pickupTime?' kl. '+String(pickupTime).slice(0,5):'')],
+            ['Til',date(request.end_date)+(returnTime?' kl. '+String(returnTime).slice(0,5):'')],
             ['Lagret leiebeløp',Number(request.rental_fee).toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})+' NOK'],
             ['Status',statuses[request.status]||request.status||'Ukjent'],
         ]) {

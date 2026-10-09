@@ -213,8 +213,8 @@ try {
         'INSERT INTO rental_schedule
          (id, company_id, rental_object_id, customer_id, customer_name,
           customer_email, customer_phone, start_date, start_time, end_date,
-           end_time, logistics, rental_fee, pickup_time, status, approved, notes, created_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'pending\', 0, ?, ?)'
+           end_time, return_time, logistics, rental_fee, pickup_time, status, approved, notes, created_by)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'pending\', 0, ?, ?)'
     );
     $insert->execute([
         $requestId,
@@ -228,9 +228,10 @@ try {
         $validated['start_time'],
         $validated['end_date'],
         $validated['end_time'],
+        $validated['end_time'],
         $validated['logistics'],
         $rentalFee,
-        '08:00:00',
+        $validated['start_time'],
         $validated['notes'] ?: null,
         $object['created_by'],
     ]);

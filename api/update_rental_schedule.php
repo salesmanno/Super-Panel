@@ -15,6 +15,7 @@ require_once __DIR__ . '/../includes/rental_schedule_editing.php';
 require_once __DIR__ . '/../includes/rental_request.php';
 require_once __DIR__ . '/../includes/tenant_audit.php';
 require_once __DIR__ . '/../includes/tenant_notifications.php';
+require_once __DIR__ . '/../includes/rental_reservation_codes.php';
 
 $companyId = $_SESSION['company_id'];
 $data = json_decode(file_get_contents('php://input'), true);
@@ -63,13 +64,14 @@ try {
     $stmt = $db->prepare("
         SELECT rs.id, rs.company_id, rs.rental_object_id, rs.approved, rs.status,
                rs.start_date, rs.end_date, rs.rental_fee, rs.customer_id,
-               rs.pickup_time, rs.start_time, rs.end_time, rs.logistics, rs.notes,
+               rs.pickup_time, rs.return_time, rs.start_time, rs.end_time, rs.key_box_code, rs.logistics, rs.notes,
                COALESCE(rs.cleaning, 0) AS cleaning,
                rs.price_adjustment_type, COALESCE(rs.price_adjustment_cents, 0) AS price_adjustment_cents,
                rs.price_adjustment_explanation,
                rs.customer_name AS request_customer_name,
                rs.customer_email AS request_customer_email,
-               ro.object_name, ro.rental_text, ro.rental_price, ro.weekend_price,
+               ro.object_name, ro.category AS object_category, rv.access_code AS venue_code,
+               ro.rental_text, ro.rental_price, ro.weekend_price,
                ro.saturday_price, ro.sunday_price,
                COALESCE(rv.cleaning_fee, 0) AS cleaning_fee,
                tc.email AS profile_customer_email,
@@ -123,7 +125,7 @@ try {
         if (empty($data['expected_version'])) {
             throw new RentalRequestConflictException('Last inn forespørselen før du bekrefter beslutningen.');
         }
-        foreach (['start_date','end_date','end_time','cleaning','rental_fee',
+        foreach (['start_date','end_date','pickup_time','return_time','end_time','cleaning','rental_fee',
             'price_adjustment_type','price_adjustment_amount','price_adjustment_explanation'] as $field) {
             if (array_key_exists($field,$data)) throw new InvalidArgumentException('Lagre endringene separat før godkjenning eller avslag.');
         }
@@ -171,8 +173,17 @@ try {
     if (array_key_exists('end_date', $data)) {
         $data['end_date'] = normalizeRequestDate($data['end_date'], 'Sluttdato', false);
     }
-    // Ignore legacy clients attempting to customize the fixed pickup time.
-    $data['pickup_time'] = '08:00:00';
+    if (array_key_exists('pickup_time', $data)) {
+        $data['pickup_time'] = normalizeRequestTime($data['pickup_time'], 'Hentetid', false);
+    }
+    if (array_key_exists('return_time', $data)) {
+        $returnTime = normalizeRequestTime($data['return_time'], 'Returtid', false);
+        if (array_key_exists('end_time', $data)
+            && normalizeRequestTime($data['end_time'], 'Sluttid', false) !== $returnTime) {
+            throw new InvalidArgumentException('Returtid og sluttid må samsvare.');
+        }
+        $data['end_time'] = $returnTime;
+    }
     if (array_key_exists('end_time', $data)) {
         $data['end_time'] = normalizeRequestTime($data['end_time'], 'Sluttid', false);
     }
@@ -236,9 +247,9 @@ try {
         $row['approved'] = $newApproved;
     }
     $effectiveStartDate = $data['start_date'] ?? $row['start_date'];
-    $effectivePickupTime = '08:00:00';
+    $effectivePickupTime = $data['pickup_time'] ?? $row['pickup_time'] ?? $row['start_time'] ?? '08:00:00';
     $effectiveEndDate = $data['end_date'] ?? $row['end_date'];
-    $effectiveEndTime = $data['end_time'] ?? $row['end_time'];
+    $effectiveEndTime = $data['end_time'] ?? $row['return_time'] ?? $row['end_time'];
     validateRentalSchedulePeriod(
         $effectiveStartDate,
         $effectivePickupTime,
@@ -252,18 +263,24 @@ try {
         $row['start_date'] = $data['start_date'];
     }
     $updateFields[] = 'pickup_time = ?';
-    $updateParams[] = '08:00:00';
-    $row['pickup_time'] = '08:00:00';
+    $updateParams[] = $effectivePickupTime;
+    $row['pickup_time'] = $effectivePickupTime;
     if (array_key_exists('end_date', $data)) {
         $updateFields[] = 'end_date = ?';
         $updateParams[] = $data['end_date'];
         $row['end_date'] = $data['end_date'];
     }
-    if (array_key_exists('end_time', $data)) {
-        $et = $data['end_time'];
-        $updateFields[] = 'end_time = ?';
-        $updateParams[] = $et;
-        $row['end_time'] = $et;
+    // Keep both historical time columns aligned with the explicit return time.
+    $updateFields[] = 'end_time = ?';
+    $updateParams[] = $effectiveEndTime;
+    $updateFields[] = 'return_time = ?';
+    $updateParams[] = $effectiveEndTime;
+    $row['end_time'] = $row['return_time'] = $effectiveEndTime;
+    if ($finalizingNow && $newStatus === 'approved' && $row['object_category'] === 'venue'
+        && $row['start_date'] >= rentalCodeToday() && !rentalValidAssignedCode($row['key_box_code'] ?? null)) {
+        $row['key_box_code'] = rentalGenerateReservationCode((string)($row['venue_code'] ?? ''));
+        $updateFields[] = 'key_box_code = ?';
+        $updateParams[] = $row['key_box_code'];
     }
 
     $adjustmentType = array_key_exists('price_adjustment_type', $data)

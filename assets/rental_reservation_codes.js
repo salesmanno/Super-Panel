@@ -1,4 +1,4 @@
-/* Existing Rental detail modal, no writes until an explicit confirmation. */
+/* Codes are assigned in the overview/approval, never generated in details. */
 window.RentalReservationCodes = (() => {
     async function request(payload) {
         const response = await fetch('/api/rental_reservation_code.php', {
@@ -19,18 +19,16 @@ window.RentalReservationCodes = (() => {
                 return;
             }
             host.innerHTML = `<div class="border rounded p-3 mt-3">
-                <h6>Forbered kode til neste utleie</h6>
-                <p class="small mb-2">${proposal.assigned ? 'Reservasjonens tildelte kode' : 'Foreslått kode'}:
+                <h6>Bekreft kode til neste utleie</h6>
+                <p class="small mb-2">Reservasjonens tildelte kode:
                     <strong class="font-monospace" data-code></strong></p>
-                <p class="small text-muted">${proposal.assigned
-                    ? 'Har du byttet koden fysisk på lokalet? Bekreft bare hvis dette er gjort.'
-                    : 'Koden lagres bare når du velger å tildele den. Lokalets kode endres ikke uten bekreftelsen under.'}</p>
+                <p class="small text-muted">Har du byttet koden fysisk på lokalet? Bekreft bare hvis dette er gjort.</p>
                 <label class="d-flex align-items-start gap-2 small mb-3">
                     <input type="checkbox" class="form-check-input flex-shrink-0" data-physical>
                     <span>Jeg har byttet koden fysisk på lokalet til denne koden</span>
                 </label>
                 <div class="d-flex flex-wrap gap-2">
-                    <button type="button" class="btn btn-primary btn-sm" data-save>${proposal.assigned ? 'Bekreft fysisk bytte' : 'Tildel koden'}</button>
+                    <button type="button" class="btn btn-primary btn-sm" data-save>Bekreft fysisk bytte</button>
                     <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss>Ikke nå</button>
                 </div><div class="small mt-2" role="status" data-status></div>
             </div>`;
@@ -38,8 +36,8 @@ window.RentalReservationCodes = (() => {
             const checkbox = host.querySelector('[data-physical]');
             const save = host.querySelector('[data-save]');
             const dismiss = host.querySelector('[data-dismiss]');
-            save.disabled = proposal.assigned;
-            checkbox.addEventListener('change', () => { save.disabled = proposal.assigned && !checkbox.checked; });
+            save.disabled = true;
+            checkbox.addEventListener('change', () => { save.disabled = !checkbox.checked; });
             dismiss.addEventListener('click', () => { host.replaceChildren(); });
             save.addEventListener('click', async () => {
                 if (save.disabled) return;
@@ -71,5 +69,8 @@ window.RentalReservationCodes = (() => {
             host.textContent = error.message;
         }
     }
-    return {open};
+    async function ensureUpcoming() {
+        return request({action: 'ensure_upcoming'});
+    }
+    return {open, ensureUpcoming};
 })();

@@ -22,6 +22,40 @@ function rentalGenerateReservationCode(string $reference): string {
     return $code;
 }
 
+/** Called explicitly by the upcoming overview, never by a detail window or cron.
+ * Valid assigned codes stay unchanged; unknown reference lengths are reported. */
+function rentalEnsureUpcomingCodes(PDO $db, string $company, array $actor): array {
+    $today = rentalCodeToday();
+    $q = $db->prepare("SELECT ro.id, rv.access_code FROM rental_objects ro
+        LEFT JOIN rental_venues rv ON rv.object_id = ro.id
+        WHERE ro.company_id = ? AND ro.category = 'venue' ORDER BY ro.id FOR UPDATE");
+    $q->execute([$company]);
+    $objects = $q->fetchAll(PDO::FETCH_ASSOC);
+    $assigned = 0;
+    $unresolved = [];
+    foreach ($objects as $object) {
+        $q = $db->prepare("SELECT id, key_box_code, checkin_email_queued_at, checkin_email_sent_at
+            FROM rental_schedule WHERE company_id = ? AND rental_object_id = ?
+            AND approved = 1 AND status = 'approved' AND start_date > ? ORDER BY start_date, id FOR UPDATE");
+        $q->execute([$company, $object['id'], $today]);
+        foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            if (rentalValidAssignedCode($row['key_box_code'])) continue;
+            if (!rentalValidAssignedCode($object['access_code'])
+                || !empty($row['checkin_email_queued_at']) || !empty($row['checkin_email_sent_at'])) {
+                $unresolved[] = (string)$row['id'];
+                continue;
+            }
+            $code = rentalGenerateReservationCode((string)$object['access_code']);
+            $db->prepare('UPDATE rental_schedule SET key_box_code = ?, updated_at = NOW() WHERE id = ? AND company_id = ?')
+                ->execute([$code, $row['id'], $company]);
+            tenantAuditRecord($db, $company, 'rental', 'rental.code.assign', 'rental_schedule', (string)$row['id'],
+                'Automatisk tildelt reservasjonskode', [], [], 'success', [], $actor, ['key_box_code']);
+            $assigned++;
+        }
+    }
+    return ['assigned_count' => $assigned, 'unresolved_ids' => $unresolved];
+}
+
 /** Unfiltered by the UI month; used by the overview as well as the locked action. */
 function rentalNextCodeReservations(PDO $db, string $company, string $today, ?string $object = null, bool $lock = false): array {
     $sql = "SELECT id, rental_object_id FROM rental_schedule
@@ -74,15 +108,15 @@ function rentalCodeVersion(array $row): string {
 
 function rentalCodeProposal(array $row): array {
     $assigned = trim((string)($row['key_box_code'] ?? ''));
-    if ($assigned !== '' && !rentalValidAssignedCode($assigned)) {
-        throw new DomainException('Reservasjonen har en ugyldig eldre kode. Den må rettes før en ny kode kan tildeles.', 409);
+    if (!rentalValidAssignedCode($assigned)) {
+        throw new DomainException('Reservasjonen mangler en gyldig tildelt kode. Oppdater kommende utleier. Kontroller at lokalet har en gyldig kode som angir kodelengden.', 409);
     }
     $venue = trim((string)($row['venue_code'] ?? ''));
     return [
         'id' => (string)$row['id'], 'company' => (string)$row['company_id'],
         'version' => rentalCodeVersion($row), 'expires' => time() + 1800,
-        'code' => $assigned !== '' ? $assigned : rentalGenerateReservationCode($venue),
-        'assigned' => $assigned !== '', 'matches' => $assigned !== '' && $assigned === $venue,
+        'code' => $assigned,
+        'assigned' => true, 'matches' => $assigned === $venue,
     ];
 }
 
@@ -96,11 +130,8 @@ function rentalSaveCodeProposal(PDO $db, string $company, string $id, array $pro
     }
     $code = $proposal['code'];
     if (!rentalValidAssignedCode($code)) throw new DomainException('Kodeforslaget er ugyldig.', 409);
-    if (empty($proposal['assigned'])) {
-        $db->prepare('UPDATE rental_schedule SET key_box_code = ?, updated_at = NOW() WHERE id = ? AND company_id = ?')
-            ->execute([$code, $id, $company]);
-        tenantAuditRecord($db, $company, 'rental', 'rental.code.assign', 'rental_schedule', $id,
-            'Tildelt reservasjonskode', [], [], 'success', [], $actor, ['key_box_code']);
+    if (!$physical || $code !== trim((string)$row['key_box_code'])) {
+        throw new DomainException('Bekreft at lokalets kode er endret til reservasjonens tildelte kode.', 409);
     }
     if ($physical && trim((string)($row['venue_code'] ?? '')) !== $code) {
         $db->prepare('INSERT INTO rental_venues (object_id, access_code) VALUES (?, ?)

@@ -18,7 +18,8 @@ try {
     rentalRequireDecisionCsrf($input);
     $id = $input['id'] ?? null;
     $action = $input['action'] ?? null;
-    if (!is_string($id) || $id === '' || strlen($id) > 36 || !in_array($action, ['prepare','save'], true)) {
+    if (!in_array($action, ['ensure_upcoming','prepare','save'], true)
+        || ($action !== 'ensure_upcoming' && (!is_string($id) || $id === '' || strlen($id) > 36))) {
         throw new InvalidArgumentException('Ugyldig handling.');
     }
     $db = getDBConnection();
@@ -27,6 +28,11 @@ try {
     $actor = tenantAuditActor($db, $company);
     $work = static function() use ($db, $company, $id, $action, $input, $actor): array {
         $db->beginTransaction();
+        if ($action === 'ensure_upcoming') {
+            $result = rentalEnsureUpcomingCodes($db, $company, $actor);
+            $db->commit();
+            return ['success' => true] + $result;
+        }
         if ($action === 'prepare') {
             $proposal = rentalCodeProposal(rentalCodeContext($db, $company, $id));
             $proposal['actor_id'] = $actor['id'];
