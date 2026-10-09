@@ -40,8 +40,8 @@ try {
             throw new DomainException('Tilgangen er endret.',401);
         }
         if (!$pending) {
-            $db->prepare('SELECT id FROM tenant_staff WHERE id=? FOR SHARE')->execute([$a['tenant_staff_id']]);
-            $db->prepare('SELECT id FROM tenant_companies WHERE id=? FOR SHARE')->execute([$a['company_id']]);
+            $db->prepare('SELECT id FROM tenant_staff WHERE id=? LOCK IN SHARE MODE')->execute([$a['tenant_staff_id']]);
+            $db->prepare('SELECT id FROM tenant_companies WHERE id=? LOCK IN SHARE MODE')->execute([$a['company_id']]);
             if (!companyLoginValidAccount(companyLoginAccount($db,$id),false)) throw new DomainException('Tilgangen er endret.',401);
         }
         $db->prepare('UPDATE tenant_admin_sessions SET is_active=0,logout_at=NOW()

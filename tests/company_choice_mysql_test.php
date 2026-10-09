@@ -3,6 +3,10 @@ declare(strict_types=1);
 [$script,$root,$temp]=$argv;
 if (!str_starts_with($temp,'/tmp/rental-unavailable-mysql.')) throw new RuntimeException('Disposable database required');
 function check(bool $ok,string $message):void { if(!$ok) throw new RuntimeException($message); }
+// The production server rejects FOR SHARE even though the isolated server accepts it.
+$loginSource=file_get_contents($root.'/auth/company_auth.php');
+check(!preg_match('/\bFOR\s+SHARE\b/i',$loginSource),'Login must not require unsupported production lock syntax');
+check(substr_count($loginSource,'LOCK IN SHARE MODE')===2,'Employee and company locks use compatible shared-lock syntax');
 $dsn='mysql:unix_socket='.$temp.'/mysql.sock;dbname=choice';
 $db=new PDO('mysql:unix_socket='.$temp.'/mysql.sock','root','',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
 $db->exec('CREATE DATABASE choice');$db->exec('USE choice');

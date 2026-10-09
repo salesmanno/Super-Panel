@@ -14,3 +14,4 @@
 - [Aktivering av betalingsmetoder](payment-method-activation.md) — betalingsmetoder må aktiveres; medlemskap skal ikke ha faste Vipps- eller Kontant-valg.
 - [Reservasjonskode og neste utleie](rental-code-policy.md) — kodespørsmål bare for neste utleie; cron sender tildelt kode uten å kopiere lokalets kode.
 - [Bedriftsvalg uten ansattkobling](unlinked-admin-company-selection.md) — ukoblede kontoer velger alle aktive firmaer etter verifisert innlogging.
+- [MySQL-låsesyntaks](mysql-lock-compatibility.md) — produksjonsserveren avviser FOR SHARE; bruk LOCK IN SHARE MODE for delte radlåser.
