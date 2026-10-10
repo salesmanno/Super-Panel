@@ -1,0 +1,379 @@
+<!-- 
+     E-postmal for påmeldingsbekreftelse på arrangement.
+     Stylet identisk med utleie-/innsjekkmalene.
+
+     Placeholders:
+     {{logo_url}}, {{first_name}}, {{last_name}},
+     {{title}}, {{event_image_url}},
+     {{start_date}}, {{start_time}}, {{end_date}}, {{end_time}},
+     {{venue_name}}, {{event_address}}, {{event_postal}}, {{event_city}},
+     {{registration_type}}, {{member_exclusive}},
+     {{barcode_url}}, {{barcode}},
+     {{attendee_email}}, {{attendee_phone}},
+     {{ticket_price}}, {{order_id}}, {{payment_status}},
+     {{cancellation_deadline}},
+     {{name}}, {{org_number}}, {{contact_email}}, {{contact_phone}},
+     {{address_street}}, {{address_zip}}, {{address_city}},
+     {{domain}}, {{share_code}}, {{current_year}},
+     {{header_bg_color}}
+-->
+<!DOCTYPE html>
+<html lang="no" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="x-apple-disable-message-reformatting">
+    <meta name="color-scheme" content="light">
+    <meta name="supported-color-schemes" content="light">
+    <title>Påmeldingsbekreftelse – {{title}}</title>
+
+    <!--[if mso]>
+    <noscript>
+        <xml>
+            <o:OfficeDocumentSettings>
+                <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+    </noscript>
+    <![endif]-->
+
+    <style type="text/css">
+        html, body { margin:0 !important; padding:0 !important; width:100% !important; }
+        .ExternalClass, .ReadMsgBody { width: 100%; background-color: #f4f5f7; }
+        body, table, td, p, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+        table { border-collapse: collapse; }
+        img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; display: block; }
+        body { margin: 0; padding: 0; width: 100% !important; height: 100% !important; background-color: #f4f5f7; }
+        a { color: {{header_bg_color}}; text-decoration: none; }
+        a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; font-size: inherit !important; font-family: inherit !important; font-weight: inherit !important; line-height: inherit !important; }
+
+        .label { font-size: 14px; line-height: 22px; color: #6b7280; padding: 8px 0; mso-line-height-rule: exactly; }
+        .value { font-size: 14px; line-height: 22px; color: #1a1a1a; font-weight: bold; padding: 8px 0; text-align: right; mso-line-height-rule: exactly; }
+        .row-sep td { border-bottom: 1px dashed #e5e7eb; }
+
+        .section-label { margin:0 0 12px 0; font-size:13px; line-height:18px; color:#6b7280; text-transform:uppercase; letter-spacing:0.5px; font-weight:bold; mso-line-height-rule:exactly; }
+
+        .info-box { background-color:#f7f8fa; border-radius:6px; }
+        .info-box-td { padding:12px 20px; font-size:15px; line-height:22px; color:#1a1a1a; mso-line-height-rule:exactly; }
+        .code-value { font-size:22px; line-height:28px; font-weight:bold; letter-spacing:2px; color:#1a1a1a; font-family:'Courier New', monospace; mso-line-height-rule:exactly; }
+
+        .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:bold; line-height:16px; mso-line-height-rule:exactly; }
+        .badge-paid { background:#c6f6d5; color:#22543d; }
+        .badge-pending { background:#feebc8; color:#744210; }
+        .badge-member { background:#faf089; color:#744210; }
+        .badge-binding { background:#fed7d7; color:#822727; }
+        .badge-signup { background:#c6f6d5; color:#22543d; }
+
+        @media screen and (max-width: 620px) {
+            .wrapper { width: 100% !important; max-width: 100% !important; }
+            .px { padding-left: 24px !important; padding-right: 24px !important; }
+            .h1 { font-size: 21px !important; line-height: 29px !important; }
+            .stack { display: block !important; width: 100% !important; text-align: left !important; }
+            .col { display: block !important; width: 100% !important; }
+            .col-left { padding-right: 0 !important; }
+            .col-right { padding-left: 0 !important; padding-top: 20px !important; }
+        }
+    </style>
+</head>
+<body style="margin:0; padding:0; background-color:#f4f5f7;">
+
+    <!-- Preheader -->
+    <div style="display:none; font-size:1px; color:#f4f5f7; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden; mso-hide:all;">
+        Påmeldingen din til {{title}} er bekreftet – {{start_date}} kl. {{start_time}}. Billett {{barcode}}.
+        &nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f5f7;">
+        <tr>
+            <td align="center" style="padding:24px 12px;">
+
+                <table role="presentation" class="wrapper" width="600" cellpadding="0" cellspacing="0" border="0"
+                       style="width:600px; max-width:600px; background-color:#ffffff; border-radius:8px; font-family:Arial, Helvetica, sans-serif;">
+
+                    <!-- ===== Header ===== -->
+                    <tr>
+                        <td align="center" bgcolor="{{header_bg_color}}"
+                            style="background-color:{{header_bg_color}}; padding:28px 24px; border-radius:8px 8px 0 0; mso-line-height-rule:exactly;">
+                            <img src="{{logo_url}}" alt="{{name}}" width="160"
+                                 style="display:block; width:160px; max-width:160px; height:auto;">
+                        </td>
+                    </tr>
+
+                    <!-- ===== Introtekst ===== -->
+                    <tr>
+                        <td class="px" style="padding:32px 40px 0 40px;">
+                            <h1 class="h1" style="margin:0 0 14px 0; font-size:24px; line-height:32px; color:#1a1a1a; font-weight:bold; mso-line-height-rule:exactly;">
+                                Påmeldingen er bekreftet
+                            </h1>
+                            <p style="margin:0 0 20px 0; font-size:16px; line-height:26px; color:#4a4a4a; mso-line-height-rule:exactly;">
+                                Hei {{first_name}} {{last_name}}! Takk for din påmelding til <strong>{{title}}</strong>. Nedenfor finner du arrangementdetaljer, billett og praktisk informasjon.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- ===== Arrangementbilde ===== -->
+                    <tr>
+                        <td class="px" style="padding:0 40px;">
+                            <img src="{{event_image_url}}" alt="{{title}}" width="520"
+                                 style="display:block; width:100%; max-width:520px; height:auto; border-radius:6px;">
+                        </td>
+                    </tr>
+
+                    <!-- ===== Viktig info-boks ===== -->
+                    <tr>
+                        <td class="px" style="padding:20px 40px 0 40px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                                   style="background-color:#fff9e6; border-left:3px solid {{header_bg_color}}; border-radius:4px;">
+                                <tr>
+                                    <td style="padding:14px 16px;">
+                                        <p style="margin:0; font-size:14px; line-height:22px; color:#1a1a1a; mso-line-height-rule:exactly;">
+                                            <strong>Når:</strong> {{start_date}} kl. {{start_time}} – {{end_date}} kl. {{end_time}}<br>
+                                            <strong>Hvor:</strong> {{venue_name}}, {{event_address}}, {{event_postal}} {{event_city}}
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- ===== Arrangementdetaljer ===== -->
+                    <tr>
+                        <td class="px" style="padding:20px 40px 0 40px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                                   style="background-color:#f7f8fa; border-radius:6px;">
+                                <tr>
+                                    <td style="padding:20px 24px;">
+                                        <p class="section-label">Arrangementdetaljer</p>
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                            <tr class="row-sep">
+                                                <td class="label stack" width="45%" style="padding:8px 0;">Tittel</td>
+                                                <td class="value stack" style="padding:8px 0;">
+                                                    {{title}}
+                                                    {% if member_exclusive == 1 %}
+                                                        <span class="badge badge-member">Medlem</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            <tr class="row-sep">
+                                                <td class="label stack" style="padding:8px 0;">Start</td>
+                                                <td class="value stack" style="padding:8px 0;">{{start_date}} kl. {{start_time}}</td>
+                                            </tr>
+                                            <tr class="row-sep">
+                                                <td class="label stack" style="padding:8px 0;">Slutt</td>
+                                                <td class="value stack" style="padding:8px 0;">{{end_date}} kl. {{end_time}}</td>
+                                            </tr>
+                                            <tr class="row-sep">
+                                                <td class="label stack" style="padding:8px 0;">Sted</td>
+                                                <td class="value stack" style="padding:8px 0;">{{venue_name}}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="label stack" style="padding:8px 0;">Påmeldingstype</td>
+                                                <td class="value stack" style="padding:8px 0;">
+                                                    {% if registration_type == "binding" %}
+                                                        <span class="badge badge-binding">Bindende</span>
+                                                    {% elsif registration_type == "signup" %}
+                                                        <span class="badge badge-signup">Åpen</span>
+                                                    {% else %}
+                                                        {{registration_type}}
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- ===== Billettkode + ordre (to kolonner) ===== -->
+                    <tr>
+                        <td class="px" style="padding:28px 40px 0 40px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                    <td class="col col-left" width="50%" valign="top" style="padding-right:8px;">
+                                        <p class="section-label">Billettkode</p>
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="info-box" style="background-color:#f7f8fa; border-radius:6px;">
+                                            <tr>
+                                                <td class="info-box-td" valign="middle" style="padding:12px 20px; font-size:15px; line-height:22px; color:#1a1a1a; mso-line-height-rule:exactly;">
+                                                    <span class="code-value">{{barcode}}</span><br>
+                                                    <span style="font-size:12px; color:#6b7280;">Ordrenr. {{order_id}}</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+
+                                    <td class="col col-right" width="50%" valign="top" style="padding-left:8px;">
+                                        <p class="section-label">Billett</p>
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="info-box" style="background-color:#f7f8fa; border-radius:6px;">
+                                            <tr>
+                                                <td class="info-box-td" valign="middle" style="padding:12px 20px; font-size:15px; line-height:22px; color:#1a1a1a; mso-line-height-rule:exactly;">
+                                                    <img src="{{barcode_url}}" alt="QR-kode" width="90" height="90"
+                                                         style="display:block; width:90px; height:90px; margin:0 auto;">
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- ===== Kontakt og betaling ===== -->
+                    <tr>
+                        <td class="px" style="padding:28px 40px 0 40px;">
+                            <p class="section-label">Kontakt og betaling</p>
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                                   style="background-color:#f7f8fa; border-radius:6px;">
+                                <tr>
+                                    <td style="padding:20px 24px;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                            <tr class="row-sep">
+                                                <td class="label stack" width="45%" style="padding:8px 0;">Navn</td>
+                                                <td class="value stack" style="padding:8px 0;">{{first_name}} {{last_name}}</td>
+                                            </tr>
+                                            <tr class="row-sep">
+                                                <td class="label stack" style="padding:8px 0;">E-post</td>
+                                                <td class="value stack" style="padding:8px 0;">{{attendee_email}}</td>
+                                            </tr>
+                                            <tr class="row-sep">
+                                                <td class="label stack" style="padding:8px 0;">Telefon</td>
+                                                <td class="value stack" style="padding:8px 0;">{{attendee_phone}}</td>
+                                            </tr>
+                                            <tr class="row-sep">
+                                                <td class="label stack" style="padding:8px 0;">Billettpris</td>
+                                                <td class="value stack" style="padding:8px 0;">{{ticket_price}} kr</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="label stack" style="padding:8px 0;">Status</td>
+                                                <td class="value stack" style="padding:8px 0;">
+                                                    {% if payment_status == "paid" %}
+                                                        <span class="badge badge-paid">✓ BETALT</span>
+                                                    {% else %}
+                                                        <span class="badge badge-pending">⏳ BETALES VED OPPMØTE</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- ===== Betinget informasjon ===== -->
+                    {% if registration_type == "binding" %}
+                    <tr>
+                        <td class="px" style="padding:20px 40px 0 40px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                                   style="background-color:#fff9e6; border-left:3px solid {{header_bg_color}}; border-radius:4px;">
+                                <tr>
+                                    <td style="padding:14px 16px;">
+                                        <p style="margin:0; font-size:14px; line-height:22px; color:#1a1a1a; mso-line-height-rule:exactly;">
+                                            <strong>Bindende påmelding:</strong> Påmeldingen er bindende. Avbestilling må skje innen {{cancellation_deadline}} for å unngå gebyr.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    {% elsif registration_type == "signup" %}
+                    <tr>
+                        <td class="px" style="padding:20px 40px 0 40px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                                   style="background-color:#fff9e6; border-left:3px solid {{header_bg_color}}; border-radius:4px;">
+                                <tr>
+                                    <td style="padding:14px 16px;">
+                                        <p style="margin:0; font-size:14px; line-height:22px; color:#1a1a1a; mso-line-height-rule:exactly;">
+                                            <strong>Åpen påmelding:</strong> Du kan melde deg av frem til {{cancellation_deadline}} uten kostnad.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    <!-- ===== Praktisk informasjon ===== -->
+                    <tr>
+                        <td class="px" style="padding:28px 40px 0 40px;">
+                            <p class="section-label">Praktisk informasjon</p>
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                                   style="background-color:#f7f8fa; border-radius:6px;">
+                                <tr>
+                                    <td style="padding:16px 20px;">
+                                        <ul style="margin:0; padding-left:18px; font-size:14px; line-height:22px; color:#4a4a4a; mso-line-height-rule:exactly;">
+                                            <li style="margin-bottom:6px;">Vis billettkoden ved inngangen.</li>
+                                            <li style="margin-bottom:6px;">Mø opp i god tid før start.</li>
+                                            <li style="margin-bottom:6px;">Ta med gyldig legitimasjon ved behov.</li>
+                                            <li>Kontakt oss dersom du ikke kan møte.</li>
+                                        </ul>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- ===== Arrangør ===== -->
+                    <tr>
+                        <td class="px" style="padding:28px 40px 0 40px;">
+                            <p class="section-label">Arrangør</p>
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                                   style="background-color:#f7f8fa; border-radius:6px;">
+                                <tr>
+                                    <td style="padding:16px 20px;">
+                                        <p style="margin:0 0 6px 0; font-size:16px; line-height:24px; color:#1a1a1a; font-weight:bold; mso-line-height-rule:exactly;">
+                                            {{name}}
+                                        </p>
+                                        <p style="margin:0; font-size:14px; line-height:22px; color:#4a4a4a; mso-line-height-rule:exactly;">
+                                            Org.nr {{org_number}}<br>
+                                            {{address_street}}, {{address_zip}} {{address_city}}<br>
+                                            <a href="mailto:{{contact_email}}" style="color:{{header_bg_color}}; text-decoration:underline;">{{contact_email}}</a> &nbsp;·&nbsp;
+                                            <a href="tel:{{contact_phone}}" style="color:{{header_bg_color}}; text-decoration:underline;">{{contact_phone}}</a>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- ===== Avsluttende tekst ===== -->
+                    <tr>
+                        <td class="px" style="padding:24px 40px 32px 40px;">
+                            <p style="margin:0 0 6px 0; font-size:15px; line-height:24px; color:#4a4a4a; mso-line-height-rule:exactly;">
+                                Har du spørsmål før arrangementet? Svar på denne e-posten, eller kontakt oss på
+                                <a href="tel:{{contact_phone}}" style="color:{{header_bg_color}}; text-decoration:underline;">{{contact_phone}}</a>.
+                            </p>
+                            <p style="margin:14px 0 0 0; font-size:15px; line-height:24px; color:#4a4a4a; mso-line-height-rule:exactly;">
+                                Vi gleder oss til å se deg!<br>
+                                Med vennlig hilsen,<br>
+                                <strong>{{name}}</strong>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- ===== Footer ===== -->
+                    <tr>
+                        <td class="px" bgcolor="#f7f8fa"
+                            style="background-color:#f7f8fa; padding:24px 40px; border-radius:0 0 8px 8px; text-align:center;">
+                            <p style="margin:0 0 6px 0; font-size:13px; line-height:20px; color:#6b7280; mso-line-height-rule:exactly;">
+                                {{address_street}}, {{address_zip}} {{address_city}}
+                            </p>
+                            <p style="margin:0; font-size:13px; line-height:20px; color:#6b7280; mso-line-height-rule:exactly;">
+                                Org.nr {{org_number}} &nbsp;·&nbsp; Tlf {{contact_phone}}
+                            </p>
+                            <p style="margin:14px 0 0 0; font-size:12px; line-height:18px; color:#9ca3af; mso-line-height-rule:exactly;">
+                                &copy; {{current_year}} {{name}}. Denne e-posten er sendt automatisk.
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>
