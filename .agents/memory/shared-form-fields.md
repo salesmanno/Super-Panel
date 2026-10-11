@@ -38,3 +38,9 @@ Ved samling av feltdefinisjoner må operative oppsett skilles fra eldre, ubrukte
 **Why:** Det fantes allerede felles feltdefinisjoner som ikke var brukt av modulene, med andre feltvalg, rekkefølge og valideringsregler enn de aktive dedikerte oppsettene.
 
 **How to apply:** Lag en skrivefri kontrollrapport og innhent godkjenning før tilkoblet database endres. Behold innsendte svar og gamle definisjoner, og ikke la en gjentatt overføring overskrive senere feltredigering.
+
+Utleiedashboard skal ikke ha subfanene «Opprett utleieobjekt», «Kommende utleie» eller «Forespurt utleie». Opprettelse skal åpnes fra et skeleton-kort med «+» i objektvisningen. Objektets kodehåndtering og grunnopplysningsredigering skal nås under de tre prikkene i listevisningen, hvor dagsats og helgesatser også skal fremkomme.
+
+**Why:** Brukeren synes de gamle kode-/redigeringsløsningene bryter fornyelsen og ønsker at de ulike visningene skal ha samme kvalitet som resten av utleiedashboardet.
+
+**How to apply:** Samle disse inngangene i dashboardet uten å erstatte den eksisterende godkjennings-, avslags-, e-post- eller kodelogikken. Behold skillet mellom grunnopplysninger og skjemafelt.
