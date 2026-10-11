@@ -27,6 +27,12 @@ Vis kontaktfeltoversikten uten alle feltredigeringene åpne. Et trykk på et kon
 
 **How to apply:** Behold feltoversikten og gjør åpning av ett felt tydelig forskjellig fra å velge om feltet skal være med i skjemaet.
 
+I Utleiedashboard skal trykk på objektnavnet ved bildet rulle objektet til toppen av objektlisten og åpne et ellers sammenfoldet feltoppsett med enkle avkryssinger. Etter lagring skal panelet lukkes og listen gå tilbake til normalen.
+
+**Why:** Brukeren ønsker enkelt og intuitivt feltoppsett direkte i Rental-grensesnittet, ikke enda en separat administrasjonsflate.
+
+**How to apply:** Behold skillet mellom grunnopplysninger og skjemafelt. Ikke legg til et nytt sett subfaner eller en redundant «Nytt utleieobjekt»-knapp ved overskriften; forespørsler og kommende utleie skal åpnes fra dashboardkort i modaler.
+
 Ved samling av feltdefinisjoner må operative oppsett skilles fra eldre, ubrukte oppsett i en felles tabell. Avvik og ugyldige innstillinger skal avklares før overføring, ikke automatisk overskrives eller repareres ved sidevisning.
 
 **Why:** Det fantes allerede felles feltdefinisjoner som ikke var brukt av modulene, med andre feltvalg, rekkefølge og valideringsregler enn de aktive dedikerte oppsettene.
