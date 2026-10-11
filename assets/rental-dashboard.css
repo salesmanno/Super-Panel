@@ -276,6 +276,39 @@
     #rentalModal .rental-edit-section-status { max-width:105px;text-align:right; }
     #rentalModal .modal-footer .btn { flex:1; }
 }
+#rentalModal .rental-edit-section[data-rental-edit-section="pricing"] .rental-edit-base-price { margin:0;border:0!important;background:transparent; }
+#rentalModal .rental-edit-section[data-rental-edit-section="pricing"] .rental-edit-base-price .card-body { padding:0; }
+.rental-weekday-mode-selector { min-width:0;padding:0;border:0;margin:0 0 14px; }
+.rental-weekday-mode-selector legend { float:none;width:auto;margin:0 0 8px;color:#58736b;font-size:.75rem;font-weight:750; }
+.rental-weekday-mode-options { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px; }
+.rental-pricing-mode-option { display:flex;align-items:flex-start;gap:9px;min-height:58px;padding:11px 12px;border:1px solid #dce7df;border-radius:11px;background:#fff;cursor:pointer; }
+.rental-pricing-mode-option:has(input:checked) { border-color:#80a990;background:#eff6f0;box-shadow:inset 0 0 0 1px #80a990; }
+.rental-pricing-mode-option input { flex:0 0 auto;margin-top:3px;accent-color:#36745f; }
+.rental-pricing-mode-option strong,.rental-pricing-mode-option small { display:block; }
+.rental-pricing-mode-option strong { color:#31584f;font-size:.78rem;line-height:1.25; }
+.rental-pricing-mode-option small { margin-top:3px;color:#778a80;font-size:.68rem;line-height:1.25; }
+.rental-base-rate-field .form-control,.rental-deposit-field .form-control,.rental-market-field .form-control { min-height:42px; }
+.rental-base-rate-field [data-rental-base-rate-label] { color:#31584f;font-weight:760; }
+.rental-base-rate-field [data-rental-base-rate-help] { display:block;min-height:2.5em;line-height:1.35; }
+.rental-weekday-prices { margin-top:0; }
+.rental-weekday-prices[hidden],.rental-weekday-prices-note[hidden],.rental-weekday-pricing-error[hidden] { display:none!important; }
+.rental-weekday-rate .form-label { color:#58736b;font-size:.72rem;font-weight:730; }
+.rental-weekday-rate .form-control { min-width:0;padding-inline:.5rem;font-variant-numeric:tabular-nums;font-weight:700; }
+.rental-weekday-rate .input-group-text { padding-inline:.5rem;color:#667f73;background:#eff4ef;font-size:.7rem; }
+.rental-weekday-prices-note { display:block;margin-top:7px; }
+.rental-weekday-pricing-error { margin:10px 0 0;padding:9px 11px;font-size:.8rem; }
+.rental-create-pricing-choice { display:grid;gap:12px; }
+.rental-create-primary-price .card-body { padding:13px; }
+.rental-create-primary-price .rental-weekday-mode-options { grid-template-columns:1fr; }
+.rental-create-primary-price .rental-base-rate-field { width:100%; }
+.rental-weekday-price { display:block;margin-top:3px;color:#517466;font-size:.7rem;font-weight:620;line-height:1.35;font-variant-numeric:tabular-nums; }
+.rental-weekday-price-error { color:#9b5424; }
+.rental-price-block .rental-weekday-price + .rental-weekend-price { margin-top:2px; }
+@media(max-width:575.98px) {
+    .rental-weekday-mode-options { grid-template-columns:1fr; }
+    .rental-weekday-rate .input-group-text { display:none; }
+    .rental-weekday-rate .form-control { border-radius:7px!important; }
+}
 #rental-module #rentalRequestsContainer .table-responsive { overflow-x:auto; }
 @media(max-width:767.98px) {
     #rental-module #rentalRequestsContainer .table-responsive { overflow:visible; }

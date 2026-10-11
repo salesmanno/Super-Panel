@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/rental_weekday_pricing.php';
+
 function rentalDecisionVersion(array $row): string {
     $values = [];
     foreach (['id','company_id','rental_object_id','status','start_date','end_date',
@@ -33,13 +35,22 @@ function rentalPeriodPriceCents(array $object, string $startDate, string $endDat
     if ($end < $start) {
         throw new InvalidArgumentException('Sluttdato kan ikke være før startdato.');
     }
-    $base = rentalConfiguredRateCents($object, 'rental_price', 'Dagsprisen', true);
+    $weekdays = rentalNormalizeWeekdayPrices($object['weekday_prices'] ?? null);
+    $base = rentalConfiguredRateCents($object, 'rental_price', 'Dagsprisen', $weekdays === null);
     $weekend = rentalConfiguredRateCents($object, 'weekend_price', 'Helgeprisen');
     $saturday = rentalConfiguredRateCents($object, 'saturday_price', 'Lørdagsprisen');
     $sunday = rentalConfiguredRateCents($object, 'sunday_price', 'Søndagsprisen');
     $total = 0;
     for ($date = $start; $date <= $end; $date = $date->modify('+1 day')) {
         $day = (int) $date->format('N');
+        if ($day <= 5 && $weekdays !== null) {
+            $total += rentalAmountToCents($weekdays[['monday','tuesday','wednesday','thursday','friday'][$day - 1]]);
+            continue;
+        }
+        if ($weekdays !== null && $day >= 6 && $weekend <= 0
+            && ($day === 6 ? $saturday : $sunday) <= 0) {
+            $base = rentalConfiguredRateCents($object, 'rental_price', 'Grunnprisen for helg', true);
+        }
         $total += $day === 6 && $saturday > 0 ? $saturday
             : ($day === 7 && $sunday > 0 ? $sunday
                 : (($day >= 6 && $weekend > 0) ? $weekend : $base));

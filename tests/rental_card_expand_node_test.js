@@ -100,6 +100,10 @@ const context = {
   ensureRentalFormToken: async () => 'fixture-csrf',
 };
 vm.createContext(context);
+const weekdayBegin = source.indexOf('const rentalWeekdays = [');
+const weekdayEnd = source.indexOf('function rentalWeekdayMode(', weekdayBegin);
+assert(weekdayBegin >= 0 && weekdayEnd > weekdayBegin, 'Real weekday display helpers must be present');
+vm.runInContext(source.slice(weekdayBegin, weekdayEnd), context);
 vm.runInContext(source.slice(begin, end), context);
 const availabilityBegin = source.indexOf('async function toggleAvailability(');
 const availabilityEnd = source.indexOf('async function editRentalObject(', availabilityBegin);

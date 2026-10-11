@@ -55,13 +55,31 @@
         return { type, amountCents, explanation: cleanExplanation };
     }
 
+    function weekdayPriceCents(value) {
+        if (value === null || value === undefined) return null;
+        if (typeof value === 'string') {
+            try { value = JSON.parse(value); }
+            catch (_) { throw new Error('Ukedagsprisene har ugyldig JSON.'); }
+            if (value === null) return null;
+        }
+        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+        if (!value || Array.isArray(value) || typeof value !== 'object'
+            || Object.keys(value).length !== 5 || Object.keys(value).some(key => !days.includes(key))) {
+            throw new Error('Ukedagsprisene må inneholde mandag til fredag.');
+        }
+        const prices = {};
+        days.forEach(day => { prices[day] = amountToCents(value[day], 'Ukedagsprisen', true); });
+        return prices;
+    }
+
     function calculateRentalQuote({ rates, startDate, endDate, cleaningFee, cleaning, adjustment }) {
         if (!rates || typeof rates !== 'object') {
             throw new Error('Prisene for utleieobjektet mangler. Oppdater prisene før godkjenning.');
         }
 
         const rateCorrection = 'Oppdater prisene på utleieobjektet.';
-        const daily = amountToCents(rates.rental_price, 'Dagsprisen', true, rateCorrection);
+        const weekdays = weekdayPriceCents(rates.weekday_prices);
+        const daily = amountToCents(rates.rental_price, 'Dagsprisen', weekdays === null, rateCorrection);
         const weekend = amountToCents(rates.weekend_price, 'Helgeprisen', false, rateCorrection);
         const saturday = amountToCents(rates.saturday_price, 'Lørdagsprisen', false, rateCorrection);
         const sunday = amountToCents(rates.sunday_price, 'Søndagsprisen', false, rateCorrection);
@@ -74,6 +92,14 @@
         let baseCents = 0;
         for (const day = new Date(start); day <= end; day.setUTCDate(day.getUTCDate() + 1)) {
             const weekday = day.getUTCDay();
+            if (weekday >= 1 && weekday <= 5 && weekdays !== null) {
+                baseCents += weekdays[['monday','tuesday','wednesday','thursday','friday'][weekday - 1]];
+                continue;
+            }
+            if (weekdays !== null && (weekday === 0 || weekday === 6) && weekend <= 0
+                && (weekday === 6 ? saturday : sunday) <= 0) {
+                amountToCents(rates.rental_price, 'Grunnprisen for helg', true, rateCorrection);
+            }
             baseCents += weekday === 6 && saturday > 0 ? saturday
                 : weekday === 0 && sunday > 0 ? sunday
                     : (weekday === 0 || weekday === 6) && weekend > 0 ? weekend
@@ -100,5 +126,5 @@
         };
     }
 
-    return { amountToCents, normalizeAdjustment, calculateRentalQuote };
+    return { amountToCents, normalizeAdjustment, calculateRentalQuote, weekdayPriceCents };
 });

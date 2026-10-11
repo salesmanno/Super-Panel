@@ -11,6 +11,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/rental_schemas.php';
 require_once __DIR__ . '/../includes/rental_customer_fields.php';
+require_once __DIR__ . '/../includes/rental_weekday_pricing.php';
 
 $admin = [
     'tenant_admin_id' => $_SESSION['tenant_admin_id'],
@@ -99,6 +100,13 @@ try {
     // Optional price columns vary between older installations. Include
     // explicit null/zero values as well; zero is a meaningful price.
     $optionalPriceCols = ['weekend_price', 'saturday_price', 'sunday_price'];
+    if (array_key_exists('weekday_prices', $data)) {
+        $weekdayJson = rentalWeekdayPriceWrite($db, $data['weekday_prices']);
+        if (rentalObjectColumnExists($db, 'weekday_prices')) {
+            $columns[] = 'weekday_prices';
+            $params[] = $weekdayJson;
+        }
+    }
     foreach ($optionalPriceCols as $col) {
         if (array_key_exists($col, $data) && rentalObjectColumnExists($db, $col)) {
             $columns[] = $col;
@@ -187,7 +195,7 @@ try {
     http_response_code(400);
     echo json_encode([
         'success' => false,
-        'message' => 'Ugyldige objektdata'
+        'message' => $e instanceof RentalWeekdayPriceException ? $e->getMessage() : 'Ugyldige objektdata'
     ]);
 } catch (\Throwable $e) {
     if (isset($db) && $db->inTransaction()) {

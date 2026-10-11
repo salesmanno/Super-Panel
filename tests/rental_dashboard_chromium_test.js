@@ -36,8 +36,9 @@ window.fixtureRentalHold=null;window.fixtureFailRentalSave=false;window.fixtureR
 const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);
 const iso=tomorrow.toISOString().slice(0,10);
 const image='https://fixture.invalid/house.svg';
-window.fixtureObjects=Array.from({length:16},(_,i)=>({id:'object-'+i,object_name:i===0?'Sal <img src=x onerror="window.injected=1">':'Utleieobjekt '+i,category:i===15?'tool':'venue',rental_price:100+i,weekend_price:i===1?425:0,saturday_price:i===0?175:0,sunday_price:i===0?190:0,deposit_amount:2500,description:'Lyst lokale ved fjorden.',rental_text:'Nøkkel hentes etter avtale.',images:[{url:image,is_primary:true,caption:'Hovedrommet'}],is_available:1,display_status:'available',type_data:{access_code:'1234',cleaning_fee:200,capacity_seated:48,facilities:'Lydanlegg tilgjengelig',pickup_time:'09:30',return_time:'21:00'}}));
-window.fixtureRequest={id:'request-a',rental_object_id:'object-0',object_name:'Sal A',category:'venue',status:'pending',approved:0,start_date:iso,end_date:iso,display_customer_name:'Testkunde',display_email:'kunde@example.invalid',customer_name:'Testkunde',customer_email:'kunde@example.invalid',pickup_time:'09:00:00',return_time:'17:30:00',rental_fee:100,decision_version:'v1'};
+window.fixtureObjects=Array.from({length:16},(_,i)=>({id:'object-'+i,object_name:i===0?'Sal <img src=x onerror="window.injected=1">':'Utleieobjekt '+i,category:i===15?'tool':'venue',rental_price:100+i,weekday_prices:i===0?JSON.stringify({monday:500,tuesday:500,wednesday:600,thursday:600,friday:800}):i===2?'{"monday":':null,weekend_price:i===1?425:0,saturday_price:i===0?175:0,sunday_price:i===0?190:0,deposit_amount:2500,description:'Lyst lokale ved fjorden.',rental_text:'Nøkkel hentes etter avtale.',images:[{url:image,is_primary:true,caption:'Hovedrommet'}],is_available:1,display_status:'available',type_data:{access_code:'1234',cleaning_fee:200,capacity_seated:48,facilities:'Lydanlegg tilgjengelig',pickup_time:'09:30',return_time:'21:00'}}));
+window.fixtureObjects[15].market_price=235;
+window.fixtureRequest={id:'request-a',rental_object_id:'object-0',object_name:'Sal A',category:'venue',object_weekday_prices:{monday:500,tuesday:500,wednesday:600,thursday:600,friday:800},status:'pending',approved:0,start_date:iso,end_date:iso,display_customer_name:'Testkunde',display_email:'kunde@example.invalid',customer_name:'Testkunde',customer_email:'kunde@example.invalid',pickup_time:'09:00:00',return_time:'17:30:00',rental_fee:100,decision_version:'v1'};
 window.fixtureUpcoming={...fixtureRequest,id:'schedule-a',status:'approved',approved:1,access_code:'0037',is_next_upcoming:1,requires_physical_code_confirmation:1,payment_status:'unpaid'};
 window.fixtureFields=['email','phone','city'].map((name,i)=>({field_name:name,field_label:{email:'E-postadresse',phone:'Telefonnummer',city:'Poststed'}[name],field_type:name==='email'?'email':name==='phone'?'tel':'text',is_visible:i===0,is_required:false,sort_order:i,options:[],validation_rules:{}}));
 window.fixtureCalls=[];
@@ -102,9 +103,18 @@ const checks=`(async()=>{
   fixtureObjects[0].object_name='Sal Fjordglimt';
   allRentalObjects.find(item=>String(item.id)==='object-0').object_name='Sal Fjordglimt';
   firstCard.querySelector('.rental-object-name').textContent='Sal Fjordglimt';
-  check(firstCard.textContent.includes('100 NOK/dag')&&firstCard.textContent.includes('Lørdag 175')&&firstCard.textContent.includes('Søndag 190'),'daily and weekend prices displayed on object card');
+  check(firstCard.querySelector('.rental-price')?.textContent.trim()==='Ukedagspriser'
+    &&firstCard.querySelector('.rental-weekday-price')?.textContent.includes('Fre 800')
+    &&!firstCard.querySelector('.rental-price').textContent.includes('100 NOK/dag')
+    &&firstCard.textContent.includes('Lørdag 175')&&firstCard.textContent.includes('Søndag 190'),'cards show actual weekday map rather than a misleading flat day price');
   check(firstCard.querySelector('[data-rental-access-value] code')?.textContent==='1234','current physical access code is visible directly on venue card');
   check(firstCard.querySelector('.rental-contract-control')&&firstCard.querySelectorAll('.rental-card-menu .dropdown-item').length===3,'contract action remains separate from three-item overflow menu');
+  viewDetails('object-0');
+  await wait(()=>document.getElementById('detailsModal').classList.contains('show'),'weekday-rate object details');await delay(100);
+  check(document.getElementById('detailsModal').textContent.includes('Mandag: 500 NOK')
+    &&document.getElementById('detailsModal').textContent.includes('Helgegrunnpris ved manglende helgesats'),'details show all weekday rates and weekend fallback meaning');
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('detailsModal')).hide();
+  await wait(()=>!document.getElementById('detailsModal').classList.contains('show'),'close weekday-rate details');
   rentalSchemas.venue.fields.pickup_time={type:'time',label:'Hentetid',required:false};
   rentalSchemas.venue.fields.return_time={type:'time',label:'Returtid',required:false};
   rentalSchemas.venue.fields.facilities.required=true;
@@ -120,7 +130,16 @@ const checks=`(async()=>{
   const editForm=document.getElementById('rentalForm');
   const editSections=[...editForm.querySelectorAll('details.rental-edit-section')];
   check(editSections.length>=4&&editSections.every(section=>!section.open),'less-used edit groups start collapsed');
-  check(editForm.querySelector('[data-rental-edit-section="pricing"] .rental-edit-section-title').textContent==='Helgepriser','venue edit does not offer nonexistent market price');
+  check(editForm.querySelector('[data-rental-edit-section="pricing"] .rental-edit-section-title').textContent==='Grunnpris og helgepris','pricing disclosure has the requested title and excludes market price for venues');
+  check(!editForm.querySelector('[name="market_price"]'),'venue pricing has no market-price control');
+  check(editForm.querySelector('#formFieldsContainer_weekdayModeCustom').checked
+    &&editForm.querySelector('[name="weekday_prices[monday]"]').value==='500'
+    &&editForm.querySelector('[name="weekday_prices[tuesday]"]').value==='500'
+    &&editForm.querySelector('[name="weekday_prices[wednesday]"]').value==='600'
+    &&editForm.querySelector('[name="weekday_prices[thursday]"]').value==='600'
+    &&editForm.querySelector('[name="weekday_prices[friday]"]').value==='800','existing JSON weekday map prepopulates all five named controls');
+  check([...editForm.querySelectorAll('[name^="weekday_prices["]')].every(input=>input.required&&input.min==='0'&&input.step==='0.01')
+    &&!editForm.querySelector('[name="rental_price"]').required,'weekday rates require all five nonnegative cent-precision values while fallback stays optional');
   check(!editForm.querySelector('[name="type_data[access_code]"]').closest('details'),'venue access code remains immediately visible');
   check(editForm.querySelector('[name="type_data[pickup_time]"]')?.type==='time'&&!editForm.querySelector('[name="type_data[pickup_time]"]').closest('details')
     &&editForm.querySelector('[name="type_data[return_time]"]')?.type==='time','type-specific pickup and return controls remain in the visible edit flow');
@@ -129,7 +148,8 @@ const checks=`(async()=>{
   check(editForm.querySelector('[name="weekend_price"]').value==='0'&&editForm.querySelector('[name="saturday_price"]').value==='175'
     &&editForm.querySelector('[name="sunday_price"]').value==='190','separate weekend values, including zero, survive grouping '+JSON.stringify([
       editForm.querySelector('[name="weekend_price"]').value,editForm.querySelector('[name="weekend_price"]').getAttribute('value'),editForm.querySelector('[name="saturday_price"]').value,editForm.querySelector('[name="sunday_price"]').value]));
-  check(editForm.querySelector('[name="rental_price"]').value==='100'&&editForm.querySelector('[name="deposit_amount"]').value==='2500','base rate and deposit stay visible');
+  check(editForm.querySelector('[name="rental_price"]').value==='100'&&editForm.querySelector('[name="deposit_amount"]').value==='2500'
+    &&editForm.querySelector('[data-rental-base-rate-help]').textContent.includes('lørdag og søndag'),'fallback rate remains adjustable and is clearly explained for weekend use');
   window.fixtureEditScreenshotReady=true;
   await new Promise(resolve=>window.fixtureContinueEditTests=resolve);
   const editName=editForm.querySelector('[name="object_name"]');
@@ -142,8 +162,13 @@ const checks=`(async()=>{
   document.getElementById('rentalSaveButton').click();await delay(100);
   check(document.querySelector('[data-rental-edit-section="specifications"]').open&&document.activeElement===facilities,'invalid field in closed details opens and receives focus');
   facilities.value='Lydanlegg tilgjengelig';
-  editForm.querySelector('[name="rental_price"]').value='1875';
+  editForm.querySelector('[name="rental_price"]').value='125';
   editForm.querySelector('[name="deposit_amount"]').value='3200';
+  editForm.querySelector('[name="weekday_prices[monday]"]').value='500';
+  editForm.querySelector('[name="weekday_prices[tuesday]"]').value='0';
+  editForm.querySelector('[name="weekday_prices[wednesday]"]').value='600';
+  editForm.querySelector('[name="weekday_prices[thursday]"]').value='600';
+  editForm.querySelector('[name="weekday_prices[friday]"]').value='800';
   editForm.querySelector('[name="saturday_price"]').value='0';
   editForm.querySelector('[name="sunday_price"]').value='340';
   editForm.querySelector('[name="type_data[access_code]"]').value='A731';
@@ -158,6 +183,7 @@ const checks=`(async()=>{
   await wait(()=>fixtureRentalWrites.length===1,'failed edit save');
   check(document.getElementById('rentalModal').classList.contains('show')&&editName.value==='Sal test'
     &&editForm.querySelector('[name="saturday_price"]').value==='0'
+    &&editForm.querySelector('[name="weekday_prices[tuesday]"]').value==='0'
     &&editForm.querySelector('[name="type_data[access_code]"]').value==='A731'
     &&editForm.querySelector('.image-caption-input').value==='Oppdatert sal','failed save retains the full edit draft');
   window.fixtureFailRentalSave=false;
@@ -169,13 +195,22 @@ const checks=`(async()=>{
   window.releaseRentalSave();window.fixtureRentalHold=null;
   await wait(()=>!document.getElementById('rentalModal').classList.contains('show'),'successful edit closes modal');
   const savedVenue=fixtureRentalWrites.at(-1);
-  check(savedVenue.category==='venue'&&savedVenue.rental_price===1875&&savedVenue.deposit_amount===3200
+  check(savedVenue.category==='venue'&&savedVenue.rental_price===125&&savedVenue.deposit_amount===3200
     &&savedVenue.saturday_price===0&&savedVenue.sunday_price===340&&savedVenue.weekend_price===0,'edit serialization retains locked category and day/weekend pricing values');
+  check(JSON.stringify(savedVenue.weekday_prices)===JSON.stringify({monday:500,tuesday:0,wednesday:600,thursday:600,friday:800}),'edit serializes all five weekday rates as numeric English-keyed map including explicit zero');
   check(savedVenue.type_data.access_code==='A731'&&savedVenue.type_data.pickup_time==='10:15'
     &&savedVenue.type_data.return_time==='22:45'&&savedVenue.type_data.facilities==='Lydanlegg tilgjengelig','edit serializes physical access and type-specific time/detail fields');
   check(savedVenue.description==='Oppdatert beskrivelse'&&savedVenue.rental_text==='Adgang etter avtale.'
     &&savedVenue.images[0].caption==='Oppdatert sal'&&savedVenue.images[0].is_primary&&savedVenue.is_available===true,'hidden copy, image caption/primary, and availability serialize through original API shape');
   await loadRentalObjects();
+  check(fixtureObjects[0].weekday_prices.monday===500&&fixtureObjects[0].weekday_prices.tuesday===0,'saved weekday map reloads as an object');
+  await editRentalObject('object-0');
+  await wait(()=>document.getElementById('rentalModal').classList.contains('show'),'reloaded weekday-map edit');await delay(100);
+  check(editForm.querySelector('#formFieldsContainer_weekdayModeCustom').checked
+    &&editForm.querySelector('[name="weekday_prices[tuesday]"]').value==='0'
+    &&editForm.querySelector('[name="rental_price"]').value==='125','saved map and zero prefill on reload without losing fallback');
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('rentalModal')).hide();
+  await wait(()=>!document.getElementById('rentalModal').classList.contains('show'),'close reloaded map modal');
   await editRentalObject('object-1');
   await wait(()=>document.getElementById('rentalModal').classList.contains('show'),'unified-price edit modal');await delay(100);
   const unifiedDetails=editForm.querySelector('[data-rental-edit-section="pricing"]');
@@ -188,6 +223,40 @@ const checks=`(async()=>{
   await wait(()=>!document.getElementById('rentalModal').classList.contains('show'),'unified mode save closes');
   check(fixtureRentalWrites.at(-1).weekend_price===425&&fixtureRentalWrites.at(-1).saturday_price===0
     &&fixtureRentalWrites.at(-1).sunday_price===0,'unified weekend serialization retains zero per-day values');
+  check(fixtureRentalWrites.at(-1).weekday_prices===null,'flat mode explicitly serializes weekday_prices as null');
+  await loadRentalObjects();
+  await editRentalObject('object-1');
+  await wait(()=>document.getElementById('rentalModal').classList.contains('show'),'reloaded flat-price edit');await delay(100);
+  check(editForm.querySelector('#formFieldsContainer_weekdayModeFlat').checked
+    &&editForm.querySelector('[name="rental_price"]').value==='101'
+    &&!editForm.querySelector('[data-rental-edit-section="pricing"] [name="weekday_prices[monday]"]').required
+    &&getComputedStyle(editForm.querySelector('#formFieldsContainer_weekdayPrices')).display==='none','null weekday map reloads as flat-rate mode');
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('rentalModal')).hide();
+  await wait(()=>!document.getElementById('rentalModal').classList.contains('show'),'close reloaded flat modal');
+  await editRentalObject('object-2');
+  await wait(()=>document.getElementById('rentalModal').classList.contains('show'),'malformed weekday map edit');await delay(100);
+  check(!editForm.querySelector('#formFieldsContainer_weekdayModeFlat').checked
+    &&!editForm.querySelector('#formFieldsContainer_weekdayModeCustom').checked
+    &&!editForm.querySelector('[data-weekday-pricing-error]').hidden,'invalid JSON weekday map is explicitly surfaced without choosing a silent mode '+JSON.stringify([
+      editForm.querySelector('#formFieldsContainer_weekdayModeFlat').checked,
+      editForm.querySelector('#formFieldsContainer_weekdayModeCustom').checked,
+      editForm.querySelector('[data-weekday-pricing-error]').hidden,
+      fixtureObjects[2].weekday_prices,
+      document.getElementById('rentalModal').textContent]));
+  document.getElementById('rentalSaveButton').click();await delay(100);
+  check(document.querySelector('[data-rental-edit-section="pricing"]').open,'invalid pricing choice opens its collapsed validation section');
+  editForm.querySelector('#formFieldsContainer_weekdayModeFlat').click();
+  check(editForm.querySelector('[data-weekday-pricing-error]').hidden
+    &&getFormData('rentalForm').weekday_prices===null,'explicit flat selection resolves malformed map intentionally');
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('rentalModal')).hide();
+  await wait(()=>!document.getElementById('rentalModal').classList.contains('show'),'close malformed-map test modal');
+  await editRentalObject('object-15');
+  await wait(()=>document.getElementById('rentalModal').classList.contains('show'),'non-venue pricing edit');await delay(100);
+  const marketPrice=editForm.querySelector('[name="market_price"]');
+  check(marketPrice?.closest('[data-rental-edit-section="specifications"]')
+    &&!editForm.querySelector('[data-rental-edit-section="pricing"] [name="market_price"]'),'market-price control stays under non-venue specifications, separate from rate controls');
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('rentalModal')).hide();
+  await wait(()=>!document.getElementById('rentalModal').classList.contains('show'),'close non-venue edit');
   await loadRentalObjects();firstCard=document.getElementById('rental-card-object-0');menuButton=firstCard.querySelector('.rental-menu-trigger');await delay(150);
   menuButton.click();menuItems()[1].click();await delay(80);
   check(fixtureObjectUpdates.at(-1)?.is_available===0,'Skjul reuses existing availability API');
@@ -284,7 +353,27 @@ const checks=`(async()=>{
   check(createFields.querySelector('[name="rental_price"]')&&!createFields.querySelector('[name="rental_price"]').closest('details'),'required daily rate stays visible in first-pass create form');
   check(createFields.querySelector('[name="type_data[access_code]"]')&&!createFields.querySelector('[name="type_data[access_code]"]').closest('details'),'venue access code stays visible in first-pass create form');
   check(createFields.querySelector('[name="description"]')?.closest('details')&&!createFields.querySelector('details.rental-create-advanced')?.open,'optional listing details are grouped in a closed disclosure');
+   check(createFields.querySelector('#createFormFieldsContainer_weekdayModeFlat').checked
+     &&getComputedStyle(createFields.querySelector('#createFormFieldsContainer_weekdayPrices')).display==='none'
+     &&createFields.querySelector('#createFormFieldsContainer_weekdayPriceNote').hidden,'new create form defaults to flat pricing when no weekday map exists');
   const createName=document.querySelector('#createRentalForm [name="object_name"]');createName.value='Utkast til lokale';
+   createFields.querySelector('[name="rental_price"]').value='900';
+   const createFlat=createFields.querySelector('#createFormFieldsContainer_weekdayModeFlat');
+   const createWeekdays=createFields.querySelector('#createFormFieldsContainer_weekdayModeCustom');
+   const createRates={monday:'500',tuesday:'0',wednesday:'600',thursday:'600',friday:'800'};
+   createFields.querySelector('[name="type_data[facilities]"]').value='Lydanlegg';
+   createWeekdays.click();
+   Object.entries(createRates).forEach(([day,value])=>createFields.querySelector('[name="weekday_prices['+day+']"]').value=value);
+   check([...createFields.querySelectorAll('[name^="weekday_prices["]')].every(input=>input.required)
+     &&!createFields.querySelector('#createFormFieldsContainer_weekdayPrices').hidden,'create weekday mode reveals and requires all five rates');
+   createFlat.click();
+   const flatCreateDraft=getFormData('createRentalForm');
+   check(flatCreateDraft.weekday_prices===null&&flatCreateDraft._weekdayPricesDraft.tuesday===0
+     &&createFields.querySelector('[name="weekday_prices[tuesday]"]').value==='0','switching create modes serializes null without discarding weekday draft values');
+   createWeekdays.click();
+   showCreateSummary();
+   check(pendingCreateData.weekday_prices.tuesday===0&&pendingCreateData.weekday_prices.friday===800
+     &&document.getElementById('createSummaryContent').textContent.includes('Fredag'),'creation summary retains the selected weekday map and displays its daily values');
   document.querySelector('.rental-create-fields-details').open=true;
   const createFieldCount=rentalCreateFieldsEditor.getFields().length;
   document.querySelector('#create-rental-fields-editor [data-add]').click();
@@ -298,7 +387,9 @@ const checks=`(async()=>{
  check(overview.contains(document.getElementById('rentalRequestsContainer')),'existing request workflow moved into modal');
  check(document.querySelectorAll('#rentalRequestsContainer').length===1,'no duplicate request content');
  const requestRow=document.querySelector('#rentalRequestsContainer [data-rental-request-id="request-a"]');
- check(requestRow?.dataset.baseRentalFee==='100'&&requestRow?.dataset.pickupTime==='09:00','request dataset and base pricing remain on original row');
+  check(Number(requestRow?.dataset.baseRentalFee)>0&&requestRow?.dataset.pickupTime==='09:00'
+    &&JSON.parse(requestRow?.dataset.weekdayPrices || '{}').monday===500,'request row carries escaped object weekday rates into quote calculation data '+JSON.stringify([
+      requestRow?.dataset.baseRentalFee,requestRow?.dataset.pickupTime,requestRow?.dataset.weekdayPrices]));
  check(requestRow.querySelector('.rental-request-end-time')&&requestRow.querySelector('.rental-request-adjustment-type')&&requestRow.querySelector('.rental-request-approve'),'date/time, pricing selectors, and approval controls remain available');
  if(innerWidth<768)check(getComputedStyle(requestRow).display==='block'&&getComputedStyle(requestRow.querySelector('[data-label="Til"]')).display==='grid','mobile requests render as labeled stacked cards');
  bootstrap.Modal.getOrCreateInstance(overview).hide();
@@ -369,6 +460,11 @@ async function main(){
         await new Promise(resolve=>setTimeout(resolve,120));
         const editShot=await send('Page.captureScreenshot',{format:'png'},sessionId);
         fs.writeFileSync(path.join(dir,'rental-edit-modal-'+width+'.png'),Buffer.from(editShot.data,'base64'));
+        await send('Runtime.evaluate',{expression:'(()=>{const section=document.querySelector("[data-rental-edit-section=\\"pricing\\"]");section.open=true;section.scrollIntoView({block:"start"});return true})()'},sessionId);
+        await new Promise(resolve=>setTimeout(resolve,120));
+        const pricingShot=await send('Page.captureScreenshot',{format:'png'},sessionId);
+        fs.writeFileSync(path.join(dir,'rental-edit-pricing-'+width+'.png'),Buffer.from(pricingShot.data,'base64'));
+        await send('Runtime.evaluate',{expression:'(()=>{document.querySelector("[data-rental-edit-section=\\"pricing\\"]").open=false;document.querySelector("#rentalModal .modal-body").scrollTop=0})()'},sessionId);
         await send('Runtime.evaluate',{expression:'window.fixtureContinueEditTests()'},sessionId);
         const result=await checksPromise;
         if(result.exceptionDetails)throw new Error(JSON.stringify(result.exceptionDetails));

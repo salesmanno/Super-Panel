@@ -15,3 +15,5 @@
 - [Reservasjonskode og neste utleie](rental-code-policy.md) — kodespørsmål bare for neste utleie; cron sender tildelt kode uten å kopiere lokalets kode.
 - [Bedriftsvalg uten ansattkobling](unlinked-admin-company-selection.md) — ukoblede kontoer velger alle aktive firmaer etter verifisert innlogging.
 - [MySQL-låsesyntaks](mysql-lock-compatibility.md) — produksjonsserveren avviser FOR SHARE; bruk LOCK IN SHARE MODE for delte radlåser.
+- [Ukedagspriser for utleie](rental-weekday-rates.md) — mandag–fredag kan prises individuelt i stedet for flat grunnpris; markedspris hører ikke til prisvalget.
+- [Forutsetninger for pristester](rental-pricing-test-fixtures.md) — offentlige prisflyter må testes med kontaktfelt som faktisk er aktivert for testobjektet.

@@ -37,6 +37,7 @@ $schema=[
 foreach($schema as $ddl)$db->exec('CREATE TABLE '.$ddl.' ENGINE=InnoDB');
 $db->exec('ALTER TABLE rental_schedule ADD return_time TIME, ADD key_box_code VARCHAR(6), ADD checkin_email_queued_at DATETIME, ADD checkin_email_sent_at DATETIME');
 $db->exec('ALTER TABLE rental_venues ADD access_code VARCHAR(6)');
+$db->exec('ALTER TABLE rental_objects ADD weekday_prices JSON');
 $db->exec('ALTER TABLE tenant_companies ADD cash_payment INT DEFAULT 0');
 $db->exec("ALTER TABLE rental_schedule ADD payment_status VARCHAR(30) DEFAULT 'unpaid', ADD payment_method VARCHAR(50), ADD paid_at DATETIME, ADD cancelled_at DATETIME, ADD updated_at DATETIME");
 $db->exec("INSERT INTO tenant_companies(id,name,is_active) VALUES('a','Bedrift A',1),('b','Bedrift B',1)");
@@ -240,5 +241,40 @@ try {
     $fieldFailure=$call('get_entity_form_fields','a',null,'entity_type=rental_object&entity_id=oa');
     workflowAssert($fieldFailure[0]===400 && str_contains($fieldFailure[1]['message'],'validation_rules') && str_contains($fieldFailure[1]['message'],'email'),'Field editor identifies malformed JSON explicitly');
     workflowAssert($db->query("SELECT validation_rules FROM dynamic_form_fields WHERE id='broken-email'")->fetchColumn()===$brokenRule,'Base edits preserve malformed rule unchanged');
+    $weekdayPrices=['monday'=>500,'tuesday'=>500,'wednesday'=>600,'thursday'=>600,'friday'=>800];
+    workflowAssert($call('update_rental_object','a',['id'=>'oa','csrf_token'=>'form-token','weekday_prices'=>$weekdayPrices])[1]['success'],'Weekday prices save on own object');
+    $map=json_decode($db->query("SELECT weekday_prices FROM rental_objects WHERE id='oa'")->fetchColumn(),true);
+    workflowAssert($map['monday']==500 && $map['friday']==800,'All weekday prices persist');
+    workflowAssert($call('get_rental_objects','a',null,'id=oa')[1]['object']['weekday_prices']!==null,'Details reload weekday JSON');
+    $scheduleMap=$call('get_rental_schedule','a',null,'request_id='.$id)[1]['requests'][0]['object_weekday_prices'];
+    workflowAssert(json_decode($scheduleMap,true)==$map,'Request list exposes rates to browser');
+    workflowAssert($call('update_rental_object','b',['id'=>'oa','csrf_token'=>'form-token','weekday_prices'=>null])[0]===404,'Cannot alter another tenant weekday prices');
+    workflowAssert($call('update_rental_object','a',['id'=>'oa','csrf_token'=>'form-token','weekday_prices'=>['monday'=>500]])[0]===400,'Incomplete weekday map rejected');
+    workflowAssert(json_decode($db->query("SELECT weekday_prices FROM rental_objects WHERE id='oa'")->fetchColumn(),true)==$map,'Invalid save rolls back unchanged map');
+    $newFormFields=array_values(array_filter(entityFormDefaults('rental_object'),static fn($field)=>in_array($field['field_name'],['first_name','last_name','email'],true)));
+    foreach($newFormFields as &$newField) { $newField['is_visible']=true; }
+    unset($newField);
+    [$http,$newObject]=$call('create_rental_object','a',['csrf_token'=>'form-token','object_name'=>'Ukedagslokale','category'=>'venue','rental_price'=>100,'weekday_prices'=>$weekdayPrices,'form_fields'=>$newFormFields]);
+    workflowAssert($http===200&&$newObject['success'],'Creation saves weekday prices');
+    $newId=$newObject['object_id'];
+    $newRequest=$payload;
+    $newRequest['submission_id']='weekday-request';$newRequest['object_id']=$newId;
+    $newRequest['start_date']='2031-07-07';$newRequest['end_date']='2031-07-11';
+    [$http,$weekdayRequest]=$call('create_rental_request','public',$newRequest);
+    if ($http !== 200) {
+        preg_match_all('/create_rental_request validation error: ([^\r\n]+)/', file_get_contents($temp.'/http.log'), $fixtureErrors);
+        $weekdayRequest['fixture_error'] = end($fixtureErrors[1]);
+    }
+    workflowAssert($http===200&&$weekdayRequest['success'],'Public request accepts weekday pricing: '.json_encode($weekdayRequest));
+    $weekdayRequestId=$weekdayRequest['request_id'];
+    workflowAssert((float)$db->query('SELECT rental_fee FROM rental_schedule WHERE id='.$db->quote($weekdayRequestId))->fetchColumn()===3000.0,'Public fee sums Mon-Fri rates');
+    $requestVersion=$call('get_rental_schedule','a',null,'request_id='.$weekdayRequestId)[1]['requests'][0]['decision_version'];
+    [$http,$recalculated]=$call('update_rental_schedule','a',['id'=>$weekdayRequestId,'csrf_token'=>'decision-token','expected_version'=>$requestVersion,'end_date'=>'2031-07-12']);
+    workflowAssert($http===200&&$recalculated['success']&&(float)$recalculated['rental_fee']===3100.0,'Date edit prices added Saturday using fallback');
+    workflowAssert($call('update_rental_object','a',['id'=>'oa','csrf_token'=>'form-token','weekday_prices'=>null])[1]['success'],'Flat mode clears weekday map');
+    workflowAssert($db->query("SELECT weekday_prices FROM rental_objects WHERE id='oa'")->fetchColumn()===null,'SQL NULL restored for flat mode');
+    $db->exec('ALTER TABLE rental_objects DROP COLUMN weekday_prices');
+    workflowAssert($call('get_rental_schedule','a')[1]['success'],'Legacy server without column still reads flat rates');
+    workflowAssert($call('update_rental_object','a',['id'=>'oa','csrf_token'=>'form-token','weekday_prices'=>$weekdayPrices])[0]===400,'Missing column rejects active map instead of silently losing prices');
     echo "Isolated rental workflow, decisions, notifications and permissions passed\n";
 } finally {proc_terminate($process);proc_close($process);}

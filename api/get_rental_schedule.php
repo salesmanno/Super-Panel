@@ -48,6 +48,7 @@ try {
 
     $whereClause = implode(' AND ', $where);
 
+    $weekdaySelect = rentalWeekdayPriceSelect($db, 'ro');
     $stmt = $db->prepare("
         SELECT
             rs.*,
@@ -57,6 +58,7 @@ try {
             ro.weekend_price AS object_weekend_price,
             ro.saturday_price AS object_saturday_price,
             ro.sunday_price AS object_sunday_price,
+            $weekdaySelect AS object_weekday_prices,
             COALESCE(rv.cleaning_fee, 0) AS cleaning_fee,
             COALESCE(
                 NULLIF(TRIM(rs.customer_name), ''),

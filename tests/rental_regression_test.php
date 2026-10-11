@@ -73,6 +73,16 @@ $assert(
     rentalPeriodPriceCents(['rental_price' => '0.00'], '2026-04-06', '2026-04-06') === 0,
     'A deliberately configured zero daily rate remains valid'
 );
+$weekdays = ['monday'=>500,'tuesday'=>500,'wednesday'=>600,'thursday'=>600,'friday'=>800];
+$assert(rentalPeriodPriceCents(['rental_price'=>100,'weekday_prices'=>$weekdays], '2026-04-06','2026-04-10')===300000,'Individual weekdays replace flat rate');
+$assert(rentalPeriodPriceCents(['rental_price'=>100,'saturday_price'=>175,'sunday_price'=>125,'weekday_prices'=>json_encode($weekdays)],'2026-04-03','2026-04-06')===160000,'JSON weekday and weekend rates match browser quote');
+$assert(rentalPeriodPriceCents(['weekday_prices'=>array_merge($weekdays,['monday'=>0])],'2026-04-06','2026-04-06')===0,'Explicit free weekday is not a flat-rate fallback');
+foreach (['{bad',[],array_merge($weekdays,['monday'=>-1]),array_merge($weekdays,['monday'=>500.999]),array_merge($weekdays,['monday'=>null]),array_merge($weekdays,['sunday'=>1])] as $invalid) {
+    $rejected = false;
+    try { rentalPeriodPriceCents(['rental_price'=>100,'weekday_prices'=>$invalid],'2026-04-06','2026-04-07'); }
+    catch (InvalidArgumentException $e) { $rejected = true; }
+    $assert($rejected, 'Invalid weekday map fails explicitly');
+}
 $missingRentalRateRejected = false;
 try {
     rentalPeriodPriceCents(['weekend_price' => '150.00'], '2026-04-06', '2026-04-06');
