@@ -32,10 +32,11 @@ window.confirmAnswer=true;window.confirm=()=>confirmAnswer;
 window.toast={loading:()=>null,success:()=>{},quickError:()=>{},error:()=>{}};
 window.fixtureFailSave=false;window.fixtureFailFields=false;window.fixtureFailObjects=false;
 window.fixtureHold=null;
+window.fixtureRentalHold=null;window.fixtureFailRentalSave=false;window.fixtureRentalWrites=[];
 const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);
 const iso=tomorrow.toISOString().slice(0,10);
 const image='https://fixture.invalid/house.svg';
-window.fixtureObjects=Array.from({length:16},(_,i)=>({id:'object-'+i,object_name:i===0?'Sal <img src=x onerror="window.injected=1">':'Utleieobjekt '+i,category:i===15?'tool':'venue',rental_price:100+i,weekend_price:0,saturday_price:i===0?175:0,sunday_price:i===0?190:0,images:[{url:image}],is_available:1,display_status:'available',type_data:{access_code:'1234',cleaning_fee:200}}));
+window.fixtureObjects=Array.from({length:16},(_,i)=>({id:'object-'+i,object_name:i===0?'Sal <img src=x onerror="window.injected=1">':'Utleieobjekt '+i,category:i===15?'tool':'venue',rental_price:100+i,weekend_price:i===1?425:0,saturday_price:i===0?175:0,sunday_price:i===0?190:0,deposit_amount:2500,description:'Lyst lokale ved fjorden.',rental_text:'Nøkkel hentes etter avtale.',images:[{url:image,is_primary:true,caption:'Hovedrommet'}],is_available:1,display_status:'available',type_data:{access_code:'1234',cleaning_fee:200,capacity_seated:48,facilities:'Lydanlegg tilgjengelig',pickup_time:'09:30',return_time:'21:00'}}));
 window.fixtureRequest={id:'request-a',rental_object_id:'object-0',object_name:'Sal A',category:'venue',status:'pending',approved:0,start_date:iso,end_date:iso,display_customer_name:'Testkunde',display_email:'kunde@example.invalid',customer_name:'Testkunde',customer_email:'kunde@example.invalid',pickup_time:'09:00:00',return_time:'17:30:00',rental_fee:100,decision_version:'v1'};
 window.fixtureUpcoming={...fixtureRequest,id:'schedule-a',status:'approved',approved:1,access_code:'0037',is_next_upcoming:1,requires_physical_code_confirmation:1,payment_status:'unpaid'};
 window.fixtureFields=['email','phone','city'].map((name,i)=>({field_name:name,field_label:{email:'E-postadresse',phone:'Telefonnummer',city:'Poststed'}[name],field_type:name==='email'?'email':name==='phone'?'tel':'text',is_visible:i===0,is_required:false,sort_order:i,options:[],validation_rules:{}}));
@@ -55,9 +56,15 @@ window.fetch=async function(url,options={}){
    if(fixtureFailObjects){status=500;result={success:false,message:'Kunne ikke hente objekter'};}
    else result={success:true,objects:fixtureObjects,object:fixtureObjects[0]};
   }else if(String(url).includes('update_rental_object')){
-   fixtureObjectUpdates.push(payload);const updated=fixtureObjects.find(item=>String(item.id)===String(payload.id));
-   if(updated){if(payload.type_data)updated.type_data={...updated.type_data,...payload.type_data};if(payload.is_available!==undefined)updated.is_available=payload.is_available;}
-   result={success:true};
+   if(payload&&Object.hasOwn(payload,'object_name')){
+    fixtureRentalWrites.push(payload);if(fixtureRentalHold)await fixtureRentalHold;
+    if(fixtureFailRentalSave){status=409;result={success:false,message:'Lagring av objekt feilet'};}
+    else {const saved=fixtureObjects.find(item=>String(item.id)===String(payload.id));if(saved){Object.assign(saved,payload);saved.type_data={...saved.type_data,...payload.type_data};}result={success:true};}
+   }else{
+    fixtureObjectUpdates.push(payload);const updated=fixtureObjects.find(item=>String(item.id)===String(payload.id));
+    if(updated){if(payload.type_data)updated.type_data={...updated.type_data,...payload.type_data};if(payload.is_available!==undefined)updated.is_available=payload.is_available;}
+    result={success:true};
+   }
   }
   else if(String(url).includes('get_payment_methods'))result={success:true,payment_methods:[{method_type:'cash',method_name:'Kontant'}]};
   else if(String(url).includes('get_customers_simple'))result={success:true,customers:[]};
@@ -92,10 +99,16 @@ const checks=`(async()=>{
  check(!document.querySelector('#rental-module > .d-flex [onclick*="openRentalCreate"]'),'no redundant header create button');
  check(document.documentElement.scrollWidth<=innerWidth+1,'dashboard fits viewport');
   let firstCard=document.getElementById('rental-card-object-0');
+  fixtureObjects[0].object_name='Sal Fjordglimt';
+  allRentalObjects.find(item=>String(item.id)==='object-0').object_name='Sal Fjordglimt';
+  firstCard.querySelector('.rental-object-name').textContent='Sal Fjordglimt';
   check(firstCard.textContent.includes('100 NOK/dag')&&firstCard.textContent.includes('Lørdag 175')&&firstCard.textContent.includes('Søndag 190'),'daily and weekend prices displayed on object card');
   check(firstCard.querySelector('[data-rental-access-value] code')?.textContent==='1234','current physical access code is visible directly on venue card');
   check(firstCard.querySelector('.rental-contract-control')&&firstCard.querySelectorAll('.rental-card-menu .dropdown-item').length===3,'contract action remains separate from three-item overflow menu');
-  const menuButton=firstCard.querySelector('.rental-menu-trigger');menuButton.click();
+  rentalSchemas.venue.fields.pickup_time={type:'time',label:'Hentetid',required:false};
+  rentalSchemas.venue.fields.return_time={type:'time',label:'Returtid',required:false};
+  rentalSchemas.venue.fields.facilities.required=true;
+  let menuButton=firstCard.querySelector('.rental-menu-trigger');menuButton.click();
   const menuItems=()=>[...document.querySelectorAll('[data-rental-menu-owner="object-0"] .dropdown-item')];
   const menu=()=>document.querySelector('[data-rental-menu-owner="object-0"]');
   check(menuItems().map(x=>x.textContent.trim().replace(/\s+/g,' ')).join('|').includes('Rediger|Skjul|Slett'),'three-dot menu exposes Rediger, Skjul, Slett');
@@ -104,10 +117,78 @@ const checks=`(async()=>{
   menuItems()[0].click();
   await wait(()=>document.getElementById('rentalModal').classList.contains('show'),'edit modal');await delay(350);
   check(!document.querySelector('#formFieldsContainer select[name="category"]')&&document.querySelector('#formFieldsContainer input[type="hidden"][name="category"]')?.value==='venue','edit category is display-only and preserved hidden');
-  const editName=document.querySelector('#rentalForm [name="object_name"]');editName.value='Ulagret navn';
+  const editForm=document.getElementById('rentalForm');
+  const editSections=[...editForm.querySelectorAll('details.rental-edit-section')];
+  check(editSections.length>=4&&editSections.every(section=>!section.open),'less-used edit groups start collapsed');
+  check(editForm.querySelector('[data-rental-edit-section="pricing"] .rental-edit-section-title').textContent==='Helgepriser','venue edit does not offer nonexistent market price');
+  check(!editForm.querySelector('[name="type_data[access_code]"]').closest('details'),'venue access code remains immediately visible');
+  check(editForm.querySelector('[name="type_data[pickup_time]"]')?.type==='time'&&!editForm.querySelector('[name="type_data[pickup_time]"]').closest('details')
+    &&editForm.querySelector('[name="type_data[return_time]"]')?.type==='time','type-specific pickup and return controls remain in the visible edit flow');
+  check(editForm.querySelector('[name="description"]').closest('details')&&editForm.querySelector('[name="rental_text"]').closest('details'),'descriptive copy is progressively disclosed');
+  check(editForm.querySelector('.image-caption-input').value==='Hovedrommet'&&editForm.querySelector('.image-row input[type="radio"]').checked,'image caption and primary selection remain in original fields');
+  check(editForm.querySelector('[name="weekend_price"]').value==='0'&&editForm.querySelector('[name="saturday_price"]').value==='175'
+    &&editForm.querySelector('[name="sunday_price"]').value==='190','separate weekend values, including zero, survive grouping '+JSON.stringify([
+      editForm.querySelector('[name="weekend_price"]').value,editForm.querySelector('[name="weekend_price"]').getAttribute('value'),editForm.querySelector('[name="saturday_price"]').value,editForm.querySelector('[name="sunday_price"]').value]));
+  check(editForm.querySelector('[name="rental_price"]').value==='100'&&editForm.querySelector('[name="deposit_amount"]').value==='2500','base rate and deposit stay visible');
+  window.fixtureEditScreenshotReady=true;
+  await new Promise(resolve=>window.fixtureContinueEditTests=resolve);
+  const editName=editForm.querySelector('[name="object_name"]');
+  editName.value='Sal test';
   window.confirmAnswer=false;bootstrap.Modal.getOrCreateInstance(document.getElementById('rentalModal')).hide();await delay(100);
   check(document.getElementById('rentalModal').classList.contains('show'),'dirty edit modal prevents accidental close');
-  window.confirmAnswer=true;bootstrap.Modal.getOrCreateInstance(document.getElementById('rentalModal')).hide();await wait(()=>!document.getElementById('rentalModal').classList.contains('show'),'confirmed edit modal close');await delay(150);
+  const facilities=editForm.querySelector('[name="type_data[facilities]"]');
+  facilities.value='';
+  window.confirmAnswer=true;
+  document.getElementById('rentalSaveButton').click();await delay(100);
+  check(document.querySelector('[data-rental-edit-section="specifications"]').open&&document.activeElement===facilities,'invalid field in closed details opens and receives focus');
+  facilities.value='Lydanlegg tilgjengelig';
+  editForm.querySelector('[name="rental_price"]').value='1875';
+  editForm.querySelector('[name="deposit_amount"]').value='3200';
+  editForm.querySelector('[name="saturday_price"]').value='0';
+  editForm.querySelector('[name="sunday_price"]').value='340';
+  editForm.querySelector('[name="type_data[access_code]"]').value='A731';
+  editForm.querySelector('[name="type_data[pickup_time]"]').value='10:15';
+  editForm.querySelector('[name="type_data[return_time]"]').value='22:45';
+  editForm.querySelector('[name="description"]').value='Oppdatert beskrivelse';
+  editForm.querySelector('[name="rental_text"]').value='Adgang etter avtale.';
+  editForm.querySelector('.image-caption-input').value='Oppdatert sal';
+  editForm.querySelector('[name="is_available"]').checked=true;
+  window.fixtureFailRentalSave=true;
+  document.getElementById('rentalSaveButton').click();
+  await wait(()=>fixtureRentalWrites.length===1,'failed edit save');
+  check(document.getElementById('rentalModal').classList.contains('show')&&editName.value==='Sal test'
+    &&editForm.querySelector('[name="saturday_price"]').value==='0'
+    &&editForm.querySelector('[name="type_data[access_code]"]').value==='A731'
+    &&editForm.querySelector('.image-caption-input').value==='Oppdatert sal','failed save retains the full edit draft');
+  window.fixtureFailRentalSave=false;
+  window.fixtureRentalHold=new Promise(resolve=>window.releaseRentalSave=resolve);
+  document.getElementById('rentalSaveButton').click();
+  document.getElementById('rentalSaveButton').click();
+  await wait(()=>fixtureRentalWrites.length===2,'successful edit request');
+  check(fixtureRentalWrites.length===2&&document.getElementById('rentalSaveButton').disabled,'duplicate save is blocked while request is in flight');
+  window.releaseRentalSave();window.fixtureRentalHold=null;
+  await wait(()=>!document.getElementById('rentalModal').classList.contains('show'),'successful edit closes modal');
+  const savedVenue=fixtureRentalWrites.at(-1);
+  check(savedVenue.category==='venue'&&savedVenue.rental_price===1875&&savedVenue.deposit_amount===3200
+    &&savedVenue.saturday_price===0&&savedVenue.sunday_price===340&&savedVenue.weekend_price===0,'edit serialization retains locked category and day/weekend pricing values');
+  check(savedVenue.type_data.access_code==='A731'&&savedVenue.type_data.pickup_time==='10:15'
+    &&savedVenue.type_data.return_time==='22:45'&&savedVenue.type_data.facilities==='Lydanlegg tilgjengelig','edit serializes physical access and type-specific time/detail fields');
+  check(savedVenue.description==='Oppdatert beskrivelse'&&savedVenue.rental_text==='Adgang etter avtale.'
+    &&savedVenue.images[0].caption==='Oppdatert sal'&&savedVenue.images[0].is_primary&&savedVenue.is_available===true,'hidden copy, image caption/primary, and availability serialize through original API shape');
+  await loadRentalObjects();
+  await editRentalObject('object-1');
+  await wait(()=>document.getElementById('rentalModal').classList.contains('show'),'unified-price edit modal');await delay(100);
+  const unifiedDetails=editForm.querySelector('[data-rental-edit-section="pricing"]');
+  check(!unifiedDetails.open&&editForm.querySelector('#formFieldsContainer_modeUnified').checked
+    &&editForm.querySelector('[name="weekend_price"]').value==='425','unified weekend price is preserved while its section stays collapsed');
+  window.fixtureRentalHold=new Promise(resolve=>window.releaseRentalSave=resolve);
+  document.getElementById('rentalSaveButton').click();document.getElementById('rentalSaveButton').click();
+  await wait(()=>fixtureRentalWrites.length===3,'unified mode save');
+  window.releaseRentalSave();window.fixtureRentalHold=null;
+  await wait(()=>!document.getElementById('rentalModal').classList.contains('show'),'unified mode save closes');
+  check(fixtureRentalWrites.at(-1).weekend_price===425&&fixtureRentalWrites.at(-1).saturday_price===0
+    &&fixtureRentalWrites.at(-1).sunday_price===0,'unified weekend serialization retains zero per-day values');
+  await loadRentalObjects();firstCard=document.getElementById('rental-card-object-0');menuButton=firstCard.querySelector('.rental-menu-trigger');await delay(150);
   menuButton.click();menuItems()[1].click();await delay(80);
   check(fixtureObjectUpdates.at(-1)?.is_available===0,'Skjul reuses existing availability API');
   menuButton.click();
@@ -120,7 +201,7 @@ const checks=`(async()=>{
   check(fixtureObjectUpdates.at(-1)?.is_available===0,'same card can hide again without reload');
   check(firstCard.querySelector('.rental-access-control'),'venue has prominent direct access-code action');
   firstCard.querySelector('.rental-access-control').click();
-  await wait(()=>document.getElementById('rental-code-object-0')?.value==='1234','access code fetched without opening mutation');
+  await wait(()=>document.getElementById('rental-code-object-0')?.value==='A731','access code fetched without opening mutation');
   check(fixtureObjectUpdates.length===3,'opening access-code control does not mutate');
   const codeForm=document.getElementById('rental-code-object-0').closest('form');
   document.getElementById('rental-code-object-0').value='9841';codeForm.requestSubmit();
@@ -197,6 +278,9 @@ const checks=`(async()=>{
   const createFields=document.getElementById('createFormFieldsContainer');
   const createCategory=createFields.querySelector('#createCategorySelect');
   createCategory.value='venue';createCategory.dispatchEvent(new Event('change'));
+  const zeroPriceDraft=getFormData('createRentalForm');zeroPriceDraft.rental_price=0;
+  buildCreateForm('venue',zeroPriceDraft);
+  check(createFields.querySelector('[name="rental_price"]').value==='0','edit cleanup preserves zero-rate creation draft');
   check(createFields.querySelector('[name="rental_price"]')&&!createFields.querySelector('[name="rental_price"]').closest('details'),'required daily rate stays visible in first-pass create form');
   check(createFields.querySelector('[name="type_data[access_code]"]')&&!createFields.querySelector('[name="type_data[access_code]"]').closest('details'),'venue access code stays visible in first-pass create form');
   check(createFields.querySelector('[name="description"]')?.closest('details')&&!createFields.querySelector('details.rental-create-advanced')?.open,'optional listing details are grouped in a closed disclosure');
@@ -271,7 +355,22 @@ async function main(){
         await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]},sessionId);
         await send('Page.navigate',{url:'file://'+fixture},sessionId);
         await new Promise(resolve=>setTimeout(resolve,650));
-        const result=await send('Runtime.evaluate',{expression:checks,awaitPromise:true,returnByValue:true},sessionId);
+        const checksPromise=send('Runtime.evaluate',{expression:checks,awaitPromise:true,returnByValue:true},sessionId);
+        let screenshotReady=false;
+        for(let attempt=0;attempt<100;attempt++){
+            const state=await send('Runtime.evaluate',{expression:'window.fixtureEditScreenshotReady===true',returnByValue:true},sessionId);
+            if(state.result.value){screenshotReady=true;break;}
+            await new Promise(resolve=>setTimeout(resolve,50));
+        }
+        if(!screenshotReady){
+            const failed=await checksPromise;
+            throw new Error('Edit screenshot checkpoint failed: '+JSON.stringify(failed.exceptionDetails||failed.result?.value));
+        }
+        await new Promise(resolve=>setTimeout(resolve,120));
+        const editShot=await send('Page.captureScreenshot',{format:'png'},sessionId);
+        fs.writeFileSync(path.join(dir,'rental-edit-modal-'+width+'.png'),Buffer.from(editShot.data,'base64'));
+        await send('Runtime.evaluate',{expression:'window.fixtureContinueEditTests()'},sessionId);
+        const result=await checksPromise;
         if(result.exceptionDetails)throw new Error(JSON.stringify(result.exceptionDetails));
         assert.equal(result.result.value?.passed,true);
         console.log('Rental dashboard Chromium',result.result.value);

@@ -296,10 +296,14 @@ $schemas = getRentalSchemas();
 
 <!-- Modal for redigering av utleieobjekt -->
 <div class="modal fade" id="rentalModal" tabindex="-1" aria-labelledby="rentalModalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable rental-edit-dialog">
+        <div class="modal-content rental-edit-modal">
             <div class="modal-header">
-                <h5 class="modal-title" id="rentalModalTitle">Rediger utleieobjekt</h5>
+                <div class="rental-edit-heading">
+                    <span class="rental-kicker">Objektinnstillinger</span>
+                    <h5 class="modal-title" id="rentalModalTitle">Rediger utleieobjekt</h5>
+                    <p id="rentalModalSubtitle" class="mb-0">Oppdater pris, adgang og praktiske detaljer.</p>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Lukk redigering"></button>
             </div>
             <div class="modal-body">
@@ -310,7 +314,7 @@ $schemas = getRentalSchemas();
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
-                <button type="button" class="btn btn-primary" onclick="saveRentalObject()">
+                <button type="button" class="btn btn-primary" id="rentalSaveButton" onclick="saveRentalObject()">
                     <i class="bi bi-check-circle me-1"></i>Lagre
                 </button>
             </div>
@@ -827,10 +831,13 @@ function buildCreateForm(category = '', existingData = {}) {
 
 function buildIntegratedForm(category = '', existingData = {}) {
     buildFormFields('formFieldsContainer', category, existingData);
+    organizeRentalEditForm(document.getElementById('formFieldsContainer'), category, existingData);
 }
 
 function buildFormFields(containerId, category = '', existingData = {}) {
     const container = document.getElementById(containerId);
+    const isEditForm = containerId === 'formFieldsContainer';
+    const fieldValue = value => isEditForm && (value === 0 || value === '0') ? '0' : (value || '');
     const formId = containerId === 'createFormFieldsContainer' ? 'createRentalForm' : 'rentalForm';
     const form = document.getElementById(formId);
     const cached = existingData._categoryDrafts?.[category];
@@ -870,15 +877,15 @@ function buildFormFields(containerId, category = '', existingData = {}) {
                 <div class="row">
                     <div class="col-md-4 mb-2">
                         <label class="form-label mb-1">Leiepris per dag (NOK) <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control form-control-sm" name="rental_price" step="0.01" min="0" value="${escAttr(existingData.rental_price ?? '')}" required>
+                        <input type="number" class="form-control form-control-sm" name="rental_price" step="0.01" min="0" value="${escAttr(String(existingData.rental_price ?? ''))}" required>
                     </div>
                     <div class="col-md-4 mb-2">
                         <label class="form-label mb-1">Depositum (NOK)</label>
-                        <input type="number" class="form-control form-control-sm" name="deposit_amount" step="0.01" value="${escAttr(existingData.deposit_amount || 0)}">
+                        <input type="number" class="form-control form-control-sm" name="deposit_amount" step="0.01" value="${escAttr(fieldValue(existingData.deposit_amount ?? 0))}">
                     </div>
                     ${category !== 'venue' ? `<div class="col-md-4 mb-2">
                         <label class="form-label mb-1">Markedspris (NOK)</label>
-                        <input type="number" class="form-control form-control-sm" name="market_price" step="0.01" value="${escAttr(existingData.market_price || '')}">
+                        <input type="number" class="form-control form-control-sm" name="market_price" step="0.01" value="${escAttr(fieldValue(existingData.market_price ?? ''))}">
                         <small class="text-muted">Veiledende/innkjøpspris</small>
                     </div>` : ''}
                 </div>
@@ -909,7 +916,7 @@ function buildFormFields(containerId, category = '', existingData = {}) {
                         <div class="row">
                             <div class="col-md-4">
                                 <label class="form-label mb-1">Helgepris per dag (NOK)</label>
-                                <input type="number" class="form-control form-control-sm" name="weekend_price" step="0.01" value="${escAttr(existingData.weekend_price || 0)}">
+                                <input type="number" class="form-control form-control-sm" name="weekend_price" step="0.01" value="${escAttr(fieldValue(existingData.weekend_price ?? 0))}">
                             </div>
                         </div>
                     </div>
@@ -917,11 +924,11 @@ function buildFormFields(containerId, category = '', existingData = {}) {
                         <div class="row">
                             <div class="col-md-4">
                                 <label class="form-label mb-1">Lørdagspris (NOK)</label>
-                                <input type="number" class="form-control form-control-sm" name="saturday_price" step="0.01" value="${escAttr(existingData.saturday_price || 0)}">
+                                <input type="number" class="form-control form-control-sm" name="saturday_price" step="0.01" value="${escAttr(fieldValue(existingData.saturday_price ?? 0))}">
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label mb-1">Søndagspris (NOK)</label>
-                                <input type="number" class="form-control form-control-sm" name="sunday_price" step="0.01" value="${escAttr(existingData.sunday_price || 0)}">
+                                <input type="number" class="form-control form-control-sm" name="sunday_price" step="0.01" value="${escAttr(fieldValue(existingData.sunday_price ?? 0))}">
                             </div>
                         </div>
                     </div>
@@ -974,15 +981,15 @@ function buildFormFields(containerId, category = '', existingData = {}) {
         html += '<div class="card bg-light mb-3"><div class="card-body py-2"><div class="row">';
         
         Object.entries(schema.fields).forEach(([fieldName, field]) => {
-            const value = existingData.type_data?.[fieldName] || '';
-            html += generateIntegratedFieldHTML(fieldName, field, value);
+            const value = existingData.type_data?.[fieldName] ?? '';
+            html += generateIntegratedFieldHTML(fieldName, field, value, isEditForm);
         });
         if (category === 'venue' && !Object.prototype.hasOwnProperty.call(schema.fields, 'access_code')) {
             html += generateIntegratedFieldHTML('access_code', {
                 type: 'text',
                 label: 'Tilgangskode',
                 required: false
-            }, existingData.type_data?.access_code || '');
+            }, existingData.type_data?.access_code || '', isEditForm);
         }
         
         html += '</div></div></div>';
@@ -1001,6 +1008,169 @@ function buildFormFields(containerId, category = '', existingData = {}) {
     
     container.innerHTML = html;
     if (containerId === 'createFormFieldsContainer') compactRentalCreateFields(container, category);
+}
+
+function organizeRentalEditForm(container, category, existingData) {
+    if (!container) return;
+    const children = [...container.children];
+    const identity = children.find(node => node.matches('.row') && node.querySelector('[name="object_name"]'));
+    const priceHeading = children.find(node => node.tagName === 'H6' && node.textContent.includes('Priser'));
+    const priceCard = priceHeading?.nextElementSibling;
+    const sourcePriceRow = priceCard?.querySelector('.card-body > .row');
+    const dailyField = sourcePriceRow?.querySelector('[name="rental_price"]')?.closest('.col-md-4');
+    const depositField = sourcePriceRow?.querySelector('[name="deposit_amount"]')?.closest('.col-md-4');
+    const marketField = sourcePriceRow?.querySelector('[name="market_price"]')?.closest('.col-md-4');
+    if (!identity || !priceHeading || !priceCard || !dailyField) return;
+
+    const imagesHeading = children.find(node => node.tagName === 'H6' && node.textContent.includes('Bilder'));
+    const imagesRow = imagesHeading?.nextElementSibling;
+    const imageColumn = imagesRow?.querySelector('.col-md-8');
+    const descriptionColumn = imagesRow?.querySelector('.col-md-4');
+    const availability = children.find(node => node.matches('.form-check.form-switch'));
+    const schema = rentalSchemas[category];
+    const schemaHeading = schema && children.find(node => node.tagName === 'H6' && node.textContent.includes('spesifikke detaljer'));
+    const schemaCard = schemaHeading?.nextElementSibling;
+    const rentalText = children.find(node => node.matches('.card') && node.querySelector('[name="rental_text"]'));
+    const priceBody = priceCard.querySelector('.card-body');
+    const weekendToggle = priceBody.querySelector(`#formFieldsContainer_weekendToggle`)?.closest('.mt-1.mb-2');
+    const weekendPricing = priceBody.querySelector('#formFieldsContainer_weekendPricing');
+    const weekendActive = Number(existingData.weekend_price || 0) > 0
+        || Number(existingData.saturday_price || 0) > 0
+        || Number(existingData.sunday_price || 0) > 0;
+
+    const makeDisclosure = (title, status, key) => {
+        const details = document.createElement('details');
+        details.className = 'rental-edit-section';
+        details.dataset.rentalEditSection = key;
+        const summary = document.createElement('summary');
+        const titleNode = document.createElement('span');
+        titleNode.className = 'rental-edit-section-title';
+        titleNode.textContent = title;
+        const statusNode = document.createElement('span');
+        statusNode.className = 'rental-edit-section-status';
+        statusNode.textContent = status;
+        summary.append(titleNode, statusNode);
+        const body = document.createElement('div');
+        body.className = 'rental-edit-section-body';
+        details.append(summary, body);
+        return {details, body, statusNode};
+    };
+
+    priceHeading.textContent = 'Døgnpris og depositum';
+    priceCard.className = 'card rental-edit-base-price';
+    const basePriceRow = document.createElement('div');
+    basePriceRow.className = 'row g-3 align-items-end';
+    dailyField.className = 'col-12 col-sm-6 mb-0';
+    basePriceRow.append(dailyField);
+    if (depositField) {
+        depositField.className = 'col-12 col-sm-6 mb-0';
+        basePriceRow.append(depositField);
+    }
+    priceBody.replaceChildren(basePriceRow);
+
+    const core = document.createElement('section');
+    core.className = 'rental-edit-core';
+    identity.classList.add('rental-edit-identity');
+    core.append(identity, priceHeading, priceCard);
+
+    if (availability) {
+        availability.className = 'form-check form-switch rental-edit-availability';
+        core.append(availability);
+    }
+
+    const pricing = makeDisclosure(
+        marketField ? 'Helgepriser og markedspris' : 'Helgepriser',
+        weekendActive ? 'Egne helgepriser aktive' : 'Bruker døgnpris',
+        'pricing'
+    );
+    if (marketField) {
+        marketField.className = 'col-12 col-sm-6 mb-0';
+        const marketRow = document.createElement('div');
+        marketRow.className = 'row g-3 mb-3';
+        marketRow.append(marketField);
+        pricing.body.append(marketRow);
+    }
+    if (weekendToggle) pricing.body.append(weekendToggle);
+    if (weekendPricing) pricing.body.append(weekendPricing);
+    if (weekendToggle) {
+        const checkbox = weekendToggle.querySelector('input[type="checkbox"]');
+        checkbox?.addEventListener('change', () => {
+            pricing.statusNode.textContent = checkbox.checked ? 'Egne helgepriser aktive' : 'Bruker døgnpris';
+        });
+    }
+
+    const typeRows = schemaCard ? [...schemaCard.querySelectorAll('[data-rental-field-name]')] : [];
+    const accessRows = typeRows.filter(row => row.dataset.rentalFieldName === 'access_code');
+    const timeFields = new Set(['pickup_time', 'return_time', 'start_time', 'end_time']);
+    const timeRows = typeRows.filter(row => timeFields.has(row.dataset.rentalFieldName));
+    const otherRows = typeRows.filter(row => !accessRows.includes(row) && !timeRows.includes(row));
+
+    if (accessRows.length) {
+        const access = document.createElement('section');
+        access.className = 'rental-edit-access';
+        const heading = document.createElement('div');
+        heading.className = 'rental-edit-access-heading';
+        heading.innerHTML = '<span class="rental-edit-access-mark"><i class="bi bi-key-fill" aria-hidden="true"></i></span><span><strong>Fysisk tilgang</strong><small>Oppdater koden som brukes ved inngang.</small></span>';
+        const fields = document.createElement('div');
+        fields.className = 'row g-2';
+        accessRows.forEach(row => {
+            row.className = 'col-12 mb-0';
+            fields.append(row);
+        });
+        access.append(heading, fields);
+        core.append(access);
+    }
+
+    if (timeRows.length) {
+        const timeSection = document.createElement('section');
+        timeSection.className = 'rental-edit-time';
+        const title = document.createElement('h6');
+        title.className = 'rental-edit-subheading';
+        title.innerHTML = '<i class="bi bi-clock me-2" aria-hidden="true"></i>Henting og retur';
+        const fields = document.createElement('div');
+        fields.className = 'row g-2';
+        timeRows.forEach(row => {
+            row.className = 'col-12 col-sm-6 mb-0';
+            fields.append(row);
+        });
+        timeSection.append(title, fields);
+        core.append(timeSection);
+    }
+
+    const disclosures = [pricing.details];
+    if (otherRows.length) {
+        const specifications = makeDisclosure(`${schema?.label || 'Objekt'} · spesifikasjoner`, `${otherRows.length} felt`, 'specifications');
+        const fields = document.createElement('div');
+        fields.className = 'row';
+        otherRows.forEach(row => fields.append(row));
+        specifications.body.append(fields);
+        disclosures.push(specifications.details);
+    }
+
+    if (imageColumn) {
+        imageColumn.className = 'col-12';
+        const imageCount = [...imageColumn.querySelectorAll('.image-url-input')].filter(input => input.value.trim() !== '').length;
+        const images = makeDisclosure('Bilder', imageCount ? `${imageCount} bilde${imageCount === 1 ? '' : 'r'}` : 'Ingen bilder', 'images');
+        images.body.append(imageColumn);
+        disclosures.push(images.details);
+    }
+
+    if (descriptionColumn || rentalText) {
+        const hasDescription = !!descriptionColumn?.querySelector('[name="description"]')?.value.trim();
+        const hasRentalText = !!rentalText?.querySelector('[name="rental_text"]')?.value.trim();
+        const text = makeDisclosure('Beskrivelse og leietekst', hasDescription || hasRentalText ? 'Tekst er lagt til' : 'Valgfritt', 'copy');
+        if (descriptionColumn) {
+            descriptionColumn.className = 'col-12';
+            text.body.append(descriptionColumn);
+        }
+        if (rentalText) {
+            rentalText.classList.add('rental-edit-rental-text');
+            text.body.append(rentalText);
+        }
+        disclosures.push(text.details);
+    }
+
+    container.replaceChildren(core, ...disclosures);
 }
 
 function compactRentalCreateFields(container, category) {
@@ -1087,19 +1257,20 @@ function compactRentalCreateFields(container, category) {
     container.replaceChildren(identity, priceHeading, priceCard, advanced);
 }
 
-function generateIntegratedFieldHTML(fieldName, field, value = '') {
+function generateIntegratedFieldHTML(fieldName, field, value = '', preserveZero = false) {
     const required = field.required ? '<span class="text-danger">*</span>' : '';
     const requiredAttr = field.required ? 'required' : '';
+    const displayValue = preserveZero && (value === 0 || value === '0') ? '0' : (value || '');
     
     let inputHTML = '';
     
     switch (field.type) {
         case 'text':
-            inputHTML = `<input type="text" class="form-control" name="type_data[${escAttr(fieldName)}]" value="${escAttr(value || '')}" ${field.maxlength ? `maxlength="${Number(field.maxlength)}"` : ''} ${requiredAttr}>`;
+            inputHTML = `<input type="text" class="form-control" name="type_data[${escAttr(fieldName)}]" value="${escAttr(displayValue)}" ${field.maxlength ? `maxlength="${Number(field.maxlength)}"` : ''} ${requiredAttr}>`;
             break;
         case 'number':
             const step = field.step || '1';
-            inputHTML = `<input type="number" class="form-control" name="type_data[${escAttr(fieldName)}]" step="${escAttr(step)}" value="${escAttr(value || '')}" ${requiredAttr}>`;
+            inputHTML = `<input type="number" class="form-control" name="type_data[${escAttr(fieldName)}]" step="${escAttr(step)}" value="${escAttr(displayValue)}" ${requiredAttr}>`;
             break;
         case 'checkbox':
             const checked = value === true || value === 1 || value === '1' ? 'checked' : '';
@@ -1117,12 +1288,15 @@ function generateIntegratedFieldHTML(fieldName, field, value = '') {
             inputHTML = `
                 <select class="form-select" name="type_data[${fieldName}]" ${requiredAttr}>
                     <option value="">Velg...</option>
-                    ${field.options.map(opt => `<option value="${escAttr(opt)}" ${value === opt ? 'selected' : ''}>${escHtml(opt)}</option>`).join('')}
+                    ${field.options.map(opt => `<option value="${escAttr(opt)}" ${String(displayValue) === String(opt) ? 'selected' : ''}>${escHtml(opt)}</option>`).join('')}
                 </select>
             `;
             break;
         case 'textarea':
-            inputHTML = `<textarea class="form-control" name="type_data[${escAttr(fieldName)}]" rows="2" ${requiredAttr}>${escHtml(value || '')}</textarea>`;
+            inputHTML = `<textarea class="form-control" name="type_data[${escAttr(fieldName)}]" rows="2" ${requiredAttr}>${escHtml(displayValue)}</textarea>`;
+            break;
+        case 'time':
+            inputHTML = `<input type="time" class="form-control" name="type_data[${escAttr(fieldName)}]" value="${escAttr(displayValue)}" ${requiredAttr}>`;
             break;
         default:
             inputHTML = `<input type="text" class="form-control" name="type_data[${escAttr(fieldName)}]" value="${escAttr(value || '')}" ${requiredAttr}>`;
@@ -1205,10 +1379,21 @@ function getCurrentFormData() {
 }
 
 async function saveRentalObject() {
-    const saveButton = document.querySelector('#rentalModal .modal-footer .btn-primary');
+    const saveButton = document.getElementById('rentalSaveButton');
     if (saveButton?.disabled) return;
     const form = document.getElementById('rentalForm');
     if (!form.checkValidity()) {
+        const invalidFields = [...form.querySelectorAll(':invalid')];
+        invalidFields.forEach(field => {
+            let section = field.closest('details');
+            while (section && form.contains(section)) {
+                section.open = true;
+                section = section.parentElement?.closest('details') || null;
+            }
+        });
+        const firstInvalid = invalidFields[0];
+        firstInvalid?.focus({preventScroll:true});
+        firstInvalid?.scrollIntoView({block:'center', behavior:'smooth'});
         form.reportValidity();
         return;
     }
@@ -1695,6 +1880,7 @@ async function editRentalObject(objectId) {
         return;
     }
     document.getElementById('rentalModalTitle').textContent = 'Rediger utleieobjekt';
+    document.getElementById('rentalModalSubtitle').textContent = `${rentalSchemas[obj.category]?.label || obj.category} · ${obj.object_name}`;
     document.getElementById('rental_id').value = obj.id;
     
     buildIntegratedForm(obj.category, obj);

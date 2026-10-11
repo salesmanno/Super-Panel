@@ -202,6 +202,80 @@
 #rental-module .rental-optional-fields { border:1px solid #e0e9e3;border-radius:10px;background:#fff;padding:1rem;margin:.6rem 0; }
 #rental-module .rental-required-fields { border:1px solid #dce7e2;border-radius:10px;background:#fff;padding:1rem;margin:.6rem 0; }
 #rental-module .rental-object-card .rental-object-footer { flex-wrap:wrap; }
+#rentalModal .rental-edit-dialog { max-width:min(900px,calc(100vw - 1rem)); }
+#rentalModal .rental-edit-modal { border:1px solid #d5e3da;border-radius:18px;overflow:hidden;box-shadow:0 24px 70px rgba(17,48,46,.2); }
+#rentalModal .modal-header { align-items:flex-start;gap:1rem; }
+#rentalModal .rental-edit-heading .rental-kicker { display:block;margin-bottom:5px;font-size:.65rem; }
+#rentalModal .rental-edit-heading .modal-title { color:#173e4c;font-size:1.2rem;font-weight:760;letter-spacing:-.025em; }
+#rentalModal #rentalModalSubtitle { margin-top:3px;color:#71877e;font-size:.81rem; }
+#rentalModal .modal-body { padding:1.15rem 1.35rem; }
+#rentalModal .modal-footer { position:relative;z-index:2;gap:.55rem; }
+#rentalModal .rental-edit-core { display:grid;gap:12px; }
+#rentalModal .rental-edit-identity {
+    margin:0!important;padding:15px!important;border:1px solid #dce8df!important;border-radius:14px!important;
+    background:linear-gradient(120deg,#fff 55%,#f2f7f1 100%)!important;row-gap:10px;
+}
+#rentalModal .rental-edit-identity .form-label { margin-bottom:6px;color:#58736b;font-size:.76rem;font-weight:750; }
+#rentalModal .rental-edit-identity .form-control,
+#rentalModal .rental-edit-identity .form-select { min-height:43px;background:#fff; }
+#rentalModal .rental-locked-category { padding:.45rem 0; }
+#rentalModal .rental-locked-category .rental-category { background:#eaf2ed;color:#385b50; }
+#rentalModal .rental-edit-core > h6,
+#rentalModal .rental-edit-subheading { margin:3px 0 -5px!important;color:#4c7064!important;font-size:.68rem!important;font-weight:850!important;letter-spacing:.12em!important;text-transform:uppercase; }
+#rentalModal .rental-edit-base-price { border:1px solid #dbe7df!important;border-radius:14px!important;background:#fff;box-shadow:0 4px 13px rgba(20,62,52,.045)!important; }
+#rentalModal .rental-edit-base-price .card-body { padding:14px 16px; }
+#rentalModal .rental-edit-base-price .form-label { color:#58736b;font-size:.75rem;font-weight:700; }
+#rentalModal .rental-edit-base-price .form-control { min-height:44px;border-color:#c9dbcf;font-size:1rem;font-weight:700;font-variant-numeric:tabular-nums; }
+#rentalModal .rental-edit-availability { display:flex;align-items:center;gap:10px;margin:0!important;padding:12px 14px 12px 44px;border:1px solid #dce8df;border-radius:12px;background:#f5f9f5; }
+#rentalModal .rental-edit-availability .form-check-input { margin-left:-30px; }
+#rentalModal .rental-edit-availability .form-check-label { color:#365a50;font-size:.86rem;font-weight:700; }
+#rentalModal .rental-edit-access { padding:14px;border:1px solid #c9ddcf;border-radius:14px;background:linear-gradient(110deg,#edf6ef,#f7faf6); }
+#rentalModal .rental-edit-access-heading { display:flex;align-items:center;gap:11px;margin-bottom:12px; }
+#rentalModal .rental-edit-access-mark { width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:#dcece0;color:#246858;font-size:1rem; }
+#rentalModal .rental-edit-access-heading strong,#rentalModal .rental-edit-access-heading small { display:block; }
+#rentalModal .rental-edit-access-heading strong { color:#244d43;font-size:.9rem; }
+#rentalModal .rental-edit-access-heading small { margin-top:2px;color:#70867c;font-size:.73rem; }
+#rentalModal .rental-edit-access .form-label { margin-bottom:5px;color:#58736b;font-size:.74rem;font-weight:750; }
+#rentalModal .rental-edit-access .form-control { min-height:43px;border-color:#bad1c2;background:#fff;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:1.02rem;font-weight:750;letter-spacing:.09em; }
+#rentalModal .rental-edit-time { padding:13px 14px;border:1px solid #dce8df;border-radius:13px;background:#fff; }
+#rentalModal .rental-edit-time .rental-edit-subheading { margin:0 0 11px!important; }
+#rentalModal .rental-edit-time .form-label { color:#58736b;font-size:.74rem;font-weight:700; }
+#rentalModal .rental-edit-time .form-control { min-height:42px; }
+#rentalModal .rental-edit-section { margin:0;border:1px solid #dce7e0;border-radius:13px;background:#fff; }
+#rentalModal .rental-edit-section > summary { display:flex;align-items:center;gap:12px;min-height:54px;padding:12px 15px;cursor:pointer;list-style:none; }
+#rentalModal .rental-edit-section > summary::-webkit-details-marker { display:none; }
+#rentalModal .rental-edit-section > summary::after { content:"+";margin-left:auto;color:#5d8274;font-size:1.15rem;font-weight:600; }
+#rentalModal .rental-edit-section[open] > summary::after { content:"−"; }
+#rentalModal .rental-edit-section-title { color:#31584f;font-size:.87rem;font-weight:760; }
+#rentalModal .rental-edit-section-status { color:#82948a;font-size:.72rem; }
+#rentalModal .rental-edit-section-body { padding:0 15px 15px;border-top:1px solid #eef2ee; }
+#rentalModal .rental-edit-section-body > .row { padding-top:13px; }
+#rentalModal .rental-edit-section-body .card { border-color:#e2ebe4!important;border-radius:11px!important;box-shadow:none!important; }
+#rentalModal .rental-edit-section-body .form-label { color:#58736b;font-size:.75rem;font-weight:700; }
+#rentalModal .rental-edit-section-body .form-control,
+#rentalModal .rental-edit-section-body .form-select { min-height:40px; }
+#rentalModal .rental-edit-rental-text { margin:12px 0 0!important; }
+#rentalModal .rental-edit-rental-text .card-body { padding:12px 0 0; }
+#rentalModal .rental-edit-section[data-rental-edit-section="images"] .image-row { flex-wrap:wrap;gap:0; }
+#rentalModal .rental-edit-section[data-rental-edit-section="images"] .image-url-input { flex:1 1 100%;min-width:0; }
+#rentalModal .rental-edit-section[data-rental-edit-section="images"] .image-caption-input { flex:1 1 auto;max-width:none!important;min-width:0; }
+#rentalModal .rental-edit-section[data-rental-edit-section="images"] .image-row > .w-100 { flex-basis:100%; }
+#rentalModal .rental-edit-section[data-rental-edit-section="images"] .image-row .img-thumbnail { max-width:130px; }
+#rentalModal .rental-edit-section:focus-within { border-color:#b8d1c2; }
+#rentalModal .form-control:focus-visible,#rentalModal .form-select:focus-visible { outline:2px solid #78a992;outline-offset:1px; }
+@media(max-width:575.98px) {
+    #rentalModal .rental-edit-dialog { max-width:calc(100vw - .75rem);margin:.375rem auto; }
+    #rentalModal .rental-edit-modal { border-radius:15px; }
+    #rentalModal .modal-header { padding:.9rem 1rem; }
+    #rentalModal .modal-body { padding:.85rem .75rem; }
+    #rentalModal .modal-footer { padding:.75rem; }
+    #rentalModal .rental-edit-identity { padding:12px!important; }
+    #rentalModal .rental-edit-access { padding:12px; }
+    #rentalModal .rental-edit-section > summary { min-height:50px;padding:11px 12px;gap:8px; }
+    #rentalModal .rental-edit-section-body { padding:0 11px 12px; }
+    #rentalModal .rental-edit-section-status { max-width:105px;text-align:right; }
+    #rentalModal .modal-footer .btn { flex:1; }
+}
 #rental-module #rentalRequestsContainer .table-responsive { overflow-x:auto; }
 @media(max-width:767.98px) {
     #rental-module #rentalRequestsContainer .table-responsive { overflow:visible; }
