@@ -33,6 +33,7 @@ if (empty($data['id'])) {
 
 try {
     $db = getDBConnection();
+    entityFormRequireModuleAccess($db, (string)$admin['company_id'], 'rental_object');
     $db->beginTransaction();
     
     // Verify object exists and belongs to company
@@ -41,6 +42,7 @@ try {
     $existing = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$existing) {
+        $db->rollBack();
         http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Objekt ikke funnet']);
         exit;
@@ -191,6 +193,7 @@ try {
     
     // Keep former category data so switching category does not erase history.
 
+    $customerFields = null;
     if (array_key_exists('form_fields', $data)) {
         if (!is_array($data['form_fields'])) throw new InvalidArgumentException('Ugyldig feltoppsett');
         $customerFields = entityFormSave($db, (string)$admin['company_id'], 'rental_object', (string)$data['id'], $data['form_fields']);
@@ -202,18 +205,21 @@ try {
             $data['id'],
             $customerInput
         );
-    } else {
-        $customerFields = getRentalCustomerFieldSettings($db, $admin['company_id'], $data['id']);
     }
     
     $db->commit();
     
-    echo json_encode([
+    $response = [
         'success' => true,
-        'message' => 'Utleieobjekt oppdatert',
-        'customer_fields' => $customerFields
-    ]);
+        'message' => 'Utleieobjekt oppdatert'
+    ];
+    if ($customerFields !== null) $response['customer_fields'] = $customerFields;
+    echo json_encode($response);
     
+} catch (TenantAuditException $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 } catch (InvalidArgumentException $e) {
     if (isset($db) && $db->inTransaction()) {
         $db->rollBack();

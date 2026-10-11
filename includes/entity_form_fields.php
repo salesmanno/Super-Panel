@@ -96,13 +96,27 @@ function entityFormNormalize(string $type, array $fields): array {
         if ($label === '' || mb_strlen($label)>255 || !in_array($kind,['text','email','tel','number','date','textarea','select','checkbox'],true)) {
             throw new InvalidArgumentException('Ugyldig etikett eller felttype');
         }
-        $options = entityFormDecode($f['options'] ?? []);
+        try {
+            $options = entityFormDecode($f['options'] ?? []);
+        } catch (JsonException $error) {
+            throw new InvalidArgumentException(
+                "Skjemafeltet «{$label}» ($name) har ugyldig JSON i options. Rett feltoppsettet i dynamic_form_fields.",
+                0, $error
+            );
+        }
         if (!array_is_list($options) || count($options)>50) throw new InvalidArgumentException('Ugyldige feltvalg');
         foreach ($options as $option) if (!is_string($option) || $option === '' || mb_strlen($option)>255) {
             throw new InvalidArgumentException('Ugyldig feltvalg');
         }
         if ($kind === 'select' && !$options) throw new InvalidArgumentException('Valgfelt må ha minst ett valg');
-        $rules = entityFormDecode($f['validation_rules'] ?? []);
+        try {
+            $rules = entityFormDecode($f['validation_rules'] ?? []);
+        } catch (JsonException $error) {
+            throw new InvalidArgumentException(
+                "Skjemafeltet «{$label}» ($name) har ugyldig JSON i validation_rules. Rett feltoppsettet i dynamic_form_fields.",
+                0, $error
+            );
+        }
         foreach(['maxLength'=>'max_length','minLength'=>'min_length'] as $oldKey=>$newKey) {
             if(array_key_exists($oldKey,$rules)) {
                 $rules[$newKey]=$rules[$newKey]??$rules[$oldKey];

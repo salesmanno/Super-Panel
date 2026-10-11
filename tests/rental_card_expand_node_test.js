@@ -105,7 +105,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
 (async () => {
   const html = context.renderObjectCard(object);
   assert.match(html, /aria-expanded="false"/);
-  assert.match(html, /handleRentalObjectCardClick/);
+  assert.match(html, /data-rental-fields="venue-1"/);
   assert.match(html, /event\.stopPropagation\(\); toggleContractForm/);
   assert.match(html, /event\.stopPropagation\(\); viewDetails/);
   assert.match(html, /event\.stopPropagation\(\); deleteRentalObject/);

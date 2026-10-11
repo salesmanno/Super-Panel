@@ -75,30 +75,46 @@ $schemas = getRentalSchemas();
 @media(max-width:767.98px){#rental-module .btn-group{flex-wrap:wrap}#rental-module .table{min-width:760px}#rental-module .card-body{padding:1rem}.rental-mobile-scroll{overflow-x:auto}#rental-module .rental-calendar-day{min-height:64px;padding:.45rem .1rem!important;font-size:.8rem}#rental-module .rental-calendar-bar{font-size:.66rem!important;padding:3px 4px!important}}
 </style>
 <link rel="stylesheet" href="/assets/entity-form-fields.css">
+<link rel="stylesheet" href="/assets/rental-dashboard.css">
 
 <div class="module-content" id="rental-module">
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
-        <div><div class="rental-kicker">Rental · kontrollsenter</div><h3 class="mb-1">Utleie med oversikt</h3><p class="text-muted mb-0 small">Objekter, forespørsler og kontrakter samlet på ett sted.</p></div>
-        <button class="btn btn-primary" type="button" onclick="openRentalCreate()"><i class="bi bi-plus-lg me-2"></i>Nytt utleieobjekt</button>
+        <div><div class="rental-kicker">Rental · kontrollsenter</div><h3 class="mb-1">Utleiedashboard</h3><p class="text-muted mb-0 small">Alt du trenger for å følge opp lokale utleier.</p></div>
     </div>
     <div id="rental-objects" class="subtab-content">
-        <div class="card">
+        <section class="rental-dashboard-summary" aria-label="Utleieoversikt">
+            <button type="button" class="rental-summary-card rental-summary-requests" data-rental-open="requests">
+                <span class="rental-summary-icon"><i class="bi bi-inbox"></i></span><span class="rental-summary-label">Forespørsler</span>
+                <strong class="rental-summary-value" id="rentalMetricRequests">–</strong><span class="rental-summary-note">venter på behandling</span><i class="bi bi-arrow-up-right rental-summary-arrow"></i>
+            </button>
+            <button type="button" class="rental-summary-card rental-summary-upcoming" data-rental-open="upcoming">
+                <span class="rental-summary-icon"><i class="bi bi-calendar2-week"></i></span><span class="rental-summary-label">Kommende utleie</span>
+                <strong class="rental-summary-value" id="rentalMetricUpcoming">–</strong><span class="rental-summary-note">godkjente reservasjoner</span><i class="bi bi-arrow-up-right rental-summary-arrow"></i>
+            </button>
+            <div class="rental-summary-card rental-summary-objects">
+                <span class="rental-summary-icon"><i class="bi bi-house"></i></span><span class="rental-summary-label">Utleieobjekter</span>
+                <strong class="rental-summary-value" id="rentalMetricObjects">–</strong><span class="rental-summary-note">i bedriften</span>
+            </div>
+            <div class="rental-summary-card rental-summary-contracts">
+                <span class="rental-summary-icon"><i class="bi bi-file-earmark-check"></i></span><span class="rental-summary-label">Aktive kontrakter</span>
+                <strong class="rental-summary-value" id="rentalMetricContracts">–</strong><span class="rental-summary-note">pågående avtaler</span>
+            </div>
+        </section>
+        <div class="rental-inventory card">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3"><div><div class="rental-kicker">Inventar</div><h5 class="card-title mb-0">Utleieobjekter</h5></div><span class="badge rounded-pill text-bg-light border" id="rentalObjectCount">– objekter</span></div>
-                
-                <div class="mb-3">
-                    <select class="form-select form-select-sm" id="categoryFilter" onchange="filterByCategory()" aria-label="Filtrer kategori">
+                <div class="rental-inventory-heading"><div><div class="rental-kicker">Inventar</div><h5 class="card-title mb-0">Utleieobjekter</h5><p class="small text-muted mb-0 mt-1">Velg et objektnavn for å tilpasse kundeopplysninger.</p></div><span class="badge rounded-pill text-bg-light border" id="rentalObjectCount">– objekter</span></div>
+                <div class="rental-filter-row">
+                    <label class="rental-search"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Søk utleieobjekter</span><input id="rentalObjectSearch" type="search" class="form-control" placeholder="Søk etter navn eller kategori"></label>
+                    <select class="form-select" id="categoryFilter" onchange="filterByCategory()" aria-label="Filtrer kategori">
                         <option value="">Alle kategorier</option>
                         <?php foreach ($schemas as $key => $schema): ?>
                             <option value="<?= $key ?>"><?= htmlspecialchars($schema['label']) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
-                
                 <div id="rentalObjectsContainer">
-                    <div class="text-center text-muted py-4">
-                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                        Laster inn data...
+                    <div class="rental-object-skeleton" aria-label="Laster utleieobjekter">
+                        <span></span><span></span><span></span>
                     </div>
                 </div>
             </div>
@@ -259,6 +275,17 @@ $schemas = getRentalSchemas();
             </div>
         </div>
     </div>
+    <div class="modal fade" id="rentalOverviewModal" tabindex="-1" aria-labelledby="rentalOverviewModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content rental-overview-modal">
+                <div class="modal-header">
+                    <div><div class="rental-kicker">Utleiedashboard</div><h5 class="modal-title" id="rentalOverviewModalTitle">Forespørsler</h5></div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Lukk"></button>
+                </div>
+                <div class="modal-body" id="rentalOverviewModalBody"></div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Modal for redigering av utleieobjekt -->
@@ -285,19 +312,6 @@ $schemas = getRentalSchemas();
     </div>
 </div>
 
-<div class="modal fade" id="rentalFieldsModal" tabindex="-1" aria-labelledby="rentalFieldsModalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div><div class="small text-uppercase text-muted">Dette utleieobjektet</div><h5 class="modal-title" id="rentalFieldsModalTitle">Skjemafelt</h5></div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Lukk"></button>
-            </div>
-            <div class="modal-body"><div id="rental-fields-editor"></div></div>
-            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Lukk</button></div>
-        </div>
-    </div>
-</div>
-
 <!-- Detaljvisning Modal -->
 <div class="modal fade" id="detailsModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -318,11 +332,11 @@ $schemas = getRentalSchemas();
 <script src="/assets/entity-form-fields.js"></script>
 <script src="/assets/rental_request_workflow.js"></script>
 <script src="/assets/rental_reservation_codes.js"></script>
+<script src="/assets/rental-dashboard.js" defer></script>
 <script>
 const rentalSchemas = <?= json_encode($schemas) ?>;
 const rentalLifecycleCsrf = <?= json_encode($rentalLifecycleCsrf) ?>;
 let rentalCreateFieldsEditor = null;
-let rentalEditFieldsEditor = null;
 let rentalFormCsrfToken = '';
 let rentalCreateSaving = false;
 let rentalPendingRequests = new Map();
@@ -343,9 +357,6 @@ const CAL_COLORS = [
 ];
 
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('rentalFieldsModal')?.addEventListener('hide.bs.modal', event=>{
-        if(rentalEditFieldsEditor && !rentalEditFieldsEditor.confirmClose()) event.preventDefault();
-    });
     setRentalUnavailableMode('day');
     loadRentalObjects();
     buildCreateForm();
@@ -372,7 +383,11 @@ function openRentalCreate() {
 }
 
 async function ensureRentalFormToken(objectId) {
-    const result = await EntityFormFields.load('rental_object', objectId || null);
+    const params = new URLSearchParams({entity_type:'rental_object', csrf_only:'1'});
+    if (objectId !== null && objectId !== undefined && objectId !== '') params.set('entity_id', objectId);
+    const response = await fetch(`/api/get_entity_form_fields.php?${params.toString()}`, {credentials:'same-origin'});
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.message || 'Kunne ikke hente sikkerhetstoken');
     rentalFormCsrfToken = result.csrf_token || window.entityFormCsrfToken || rentalFormCsrfToken;
     if (!rentalFormCsrfToken) throw new Error('Sikkerhetstoken mangler');
     return rentalFormCsrfToken;
@@ -384,6 +399,24 @@ async function initializeRentalCreateFields() {
     rentalCreateFieldsEditor = EntityFormFields.mount(host, {entityType: 'rental_object', entityId: null, createMode: true});
     try { await rentalCreateFieldsEditor.refresh(); }
     catch (error) { console.error('Could not load rental field defaults:', error); }
+}
+
+function showRentalObjectsLoadError(message, warning) {
+    const container = document.getElementById('rentalObjectsContainer');
+    if (!container) return;
+    const canPreservePanel = window.RentalDashboard?.isFieldPanelOpen();
+    if (canPreservePanel) {
+        let alert = container.querySelector('[data-rental-load-error]');
+        if (!alert) {
+            alert = document.createElement('div');
+            alert.dataset.rentalLoadError = 'true';
+            container.prepend(alert);
+        }
+        alert.className = `alert alert-${warning ? 'warning' : 'danger'} d-flex flex-wrap justify-content-between align-items-center gap-2`;
+        alert.innerHTML = `<span>${escHtml(message)}</span><button class="btn btn-sm btn-outline-secondary" type="button" onclick="loadRentalObjects()">Prøv igjen</button>`;
+        return;
+    }
+    container.innerHTML = `<div class="alert alert-${warning ? 'warning' : 'danger'} d-flex flex-wrap justify-content-between align-items-center gap-2"><span>${escHtml(message)}</span><button class="btn btn-sm btn-outline-secondary" type="button" onclick="loadRentalObjects()">Prøv igjen</button></div>`;
 }
 
 async function loadRentalObjects() {
@@ -406,33 +439,36 @@ async function loadRentalObjects() {
                 }
                 if (!Array.isArray(obj.images)) obj.images = [];
             });
-            renderRentalObjects(allRentalObjects);
+            document.querySelectorAll('[data-rental-load-error]').forEach(error => error.remove());
+            if (window.RentalDashboard?.isFieldPanelOpen()) window.RentalDashboard.deferObjectRender();
+            else if (window.RentalDashboard) window.RentalDashboard.refreshObjects();
+            else renderRentalObjects(allRentalObjects);
             renderRentalUnavailable();
+            document.dispatchEvent(new CustomEvent('rental-dashboard-source', {detail:{source:'objects',success:true}}));
+            document.dispatchEvent(new Event('rental-dashboard-update'));
         } else {
-            document.getElementById('rentalObjectsContainer').innerHTML = `
-                <div class="text-center text-muted py-4">
-                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                    ${data.message || 'Ingen utleieobjekter funnet'}
-                </div>
-            `;
+            document.dispatchEvent(new CustomEvent('rental-dashboard-source', {detail:{source:'objects',success:false}}));
+            const countBadge = document.getElementById('rentalObjectCount');
+            if (countBadge) countBadge.textContent = '– objekter';
+            showRentalObjectsLoadError(data.message || 'Kunne ikke laste utleieobjektene.', true);
         }
     } catch (error) {
+        document.dispatchEvent(new CustomEvent('rental-dashboard-source', {detail:{source:'objects',success:false}}));
         console.error('Error loading rental objects:', error);
-        document.getElementById('rentalObjectsContainer').innerHTML = `
-            <div class="text-center text-danger py-4">
-                <i class="bi bi-exclamation-triangle me-2"></i>
-                Feil ved lasting av data
-            </div>
-        `;
+        const countBadge = document.getElementById('rentalObjectCount');
+        if (countBadge) countBadge.textContent = '– objekter';
+        showRentalObjectsLoadError(`Feil ved lasting av objekter. ${error.message || ''}`, false);
     }
 }
 
-function filterByCategory() {
+async function filterByCategory() {
+    if (window.RentalDashboard && !(await window.RentalDashboard.beforeFilter())) return;
     rentalFilter = document.getElementById('categoryFilter').value;
-    const filtered = rentalFilter 
-        ? allRentalObjects.filter(obj => obj.category === rentalFilter)
-        : allRentalObjects;
-    renderRentalObjects(filtered);
+    if (window.RentalDashboard) window.RentalDashboard.refreshObjects();
+    else {
+        const filtered = rentalFilter ? allRentalObjects.filter(obj => obj.category === rentalFilter) : allRentalObjects;
+        renderRentalObjects(filtered);
+    }
 }
 
 function renderRentalObjects(objects) {
@@ -449,7 +485,7 @@ function renderRentalObjects(objects) {
     }
     
     container.innerHTML = `
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+        <div class="rental-object-list">
             ${objects.map(obj => renderObjectCard(obj)).join('')}
         </div>
     `;
@@ -494,17 +530,19 @@ function renderObjectCard(obj) {
         weekendPrice = `<br><small class="text-muted">Helg: ${parseFloat(obj.weekend_price).toFixed(0)} NOK/dag</small>`;
     }
     
-    const hiddenLabel = isRented
-        ? '<span class="badge text-bg-light border text-secondary ms-2"><i class="bi bi-lock me-1"></i>Utleid</span>'
-        : (!isAvailable ? '<span class="badge text-bg-light border text-secondary ms-2"><i class="bi bi-eye-slash me-1"></i>Inaktiv</span>' : '');
+    const statusLabel = isRented
+        ? '<span class="badge rental-state-badge rental-state-rented ms-2">Utleid</span>'
+        : (isAvailable
+            ? '<span class="badge rental-state-badge rental-state-available ms-2">Tilgjengelig</span>'
+            : '<span class="badge rental-state-badge rental-state-inactive ms-2">Inaktiv</span>');
     
     const dailyPrice = parseFloat(obj.rental_price) || 0;
     const defaultDeposit = parseFloat(obj.deposit_amount) || 0;
 
     return `
-        <div class="col" id="rental-card-${escAttr(obj.id)}">
+        <article class="rental-object-entry" id="rental-card-${escAttr(obj.id)}">
             <div class="card h-100 rental-object-card${cardStateClass}" role="button" tabindex="0"
-                 aria-label="Utvid ${escAttr(obj.object_name)}" aria-expanded="false"
+                 aria-label="Vis mer om ${escAttr(obj.object_name)}" aria-expanded="false"
                  aria-controls="rental-expanded-${escAttr(obj.id)}"
                  onclick="handleRentalObjectCardClick(event, decodeURIComponent('${objectToken}'))"
                  onkeydown="handleRentalObjectCardKeydown(event, decodeURIComponent('${objectToken}'))">
@@ -512,11 +550,11 @@ function renderObjectCard(obj) {
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div>
-                            <h6 class="card-title mb-0 d-inline">${escHtml(obj.object_name)}</h6>
-                            <span class="rental-card-status">${hiddenLabel}</span>
+                            <button type="button" class="rental-object-name" data-rental-fields="${escAttr(obj.id)}" aria-expanded="false" aria-controls="rental-inline-${escAttr(obj.id)}">${escHtml(obj.object_name)}</button>
+                            <span class="rental-card-status">${statusLabel}</span>
                         </div>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="d-flex justify-content-between align-items-center gap-2 mb-2 rental-object-category">
                         <span class="badge rental-category">${escHtml(categoryLabel)}</span>
                         <div class="form-check form-switch mb-0" title="${isAvailable ? 'Synlig for kunder' : 'Skjult for kunder'}" onclick="event.stopPropagation()">
                             <input class="form-check-input" type="checkbox" role="switch" id="avail-${escAttr(obj.id)}" ${toggleChecked} onclick="event.stopPropagation()" onchange="toggleAvailability(decodeURIComponent('${objectToken}'), this.checked)">
@@ -527,27 +565,29 @@ function renderObjectCard(obj) {
                         ${badgesHtml}
                     </div>
                         ${obj.description ? `<p class="card-text text-muted small">${escHtml(obj.description.substring(0, 100))}${obj.description.length > 100 ? '...' : ''}</p>` : ''}
-                    <div class="d-flex justify-content-between align-items-center mt-3">
+                    <div class="d-flex justify-content-between align-items-center gap-2 mt-3 rental-object-footer">
                         <div>
                     <strong class="rental-price">${dailyPrice.toLocaleString('nb-NO',{maximumFractionDigits:0})} NOK/dag</strong>
                             ${weekendPrice}
                         </div>
                         <div class="btn-group btn-group-sm rental-object-actions">
+                            ${obj.category === 'venue' ? `<button class="btn" type="button" onclick="event.stopPropagation(); toggleRentalObjectCard(decodeURIComponent('${objectToken}'))" title="Tilgangskode"><i class="bi bi-key me-1"></i>Tilgangskode</button>` : ''}
                             <button class="btn" onclick="event.stopPropagation(); toggleContractForm(decodeURIComponent('${objectToken}'))" title="Kontrakter" id="contract-btn-${escAttr(obj.id)}">
                                 <i class="bi bi-file-earmark-text me-1"></i>Opprett kontrakt
                             </button>
-                            <button class="btn" onclick="event.stopPropagation(); viewDetails(decodeURIComponent('${objectToken}'))" title="Detaljer">
+                            <button class="btn" onclick="event.stopPropagation(); viewDetails(decodeURIComponent('${objectToken}'))" title="Detaljer" aria-label="Vis detaljer">
                                 <i class="bi bi-eye"></i>
                             </button>
-                            <button class="btn rental-delete" onclick="event.stopPropagation(); deleteRentalObject(decodeURIComponent('${objectToken}'))" title="Slett">
+                            <button class="btn rental-delete" onclick="event.stopPropagation(); deleteRentalObject(decodeURIComponent('${objectToken}'))" title="Slett" aria-label="Slett utleieobjekt">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
                     </div>
-                    <div class="small text-muted mt-2 rental-expand-hint"><i class="bi bi-chevron-down me-1"></i>Trykk på kortet for å utvide</div>
+                    <div class="small text-muted mt-2 rental-expand-hint"><i class="bi bi-chevron-down me-1"></i>Detaljer og innstillinger</div>
                 </div>
                 <div id="rental-expanded-${escAttr(obj.id)}" class="rental-object-expanded p-3" hidden onclick="event.stopPropagation()"></div>
             </div>
+            <div id="rental-inline-${escAttr(obj.id)}" class="rental-inline-fields" hidden></div>
             <div id="contract-panel-${obj.id}" class="card mt-2 border-success" style="display: none;">
                 <div class="card-header bg-success bg-opacity-10 d-flex justify-content-between align-items-center py-2">
                     <h6 class="mb-0 text-success"><i class="bi bi-file-earmark-text me-1"></i>Kontrakter – ${escHtml(obj.object_name)}</h6>
@@ -619,7 +659,7 @@ function renderObjectCard(obj) {
                     </div>
                 </div>
             </div>
-        </div>
+        </article>
     `;
 }
 
@@ -640,7 +680,8 @@ function toggleRentalObjectCard(objectId) {
     card.classList.toggle('is-expanded', opening);
     card.setAttribute('aria-expanded', String(opening));
     card.setAttribute('aria-label', `${opening ? 'Lukk' : 'Utvid'} ${obj.object_name}`);
-    card.querySelector('.rental-expand-hint').innerHTML = opening
+    const hint = card.querySelector('.rental-expand-hint');
+    if (hint) hint.innerHTML = opening
         ? '<i class="bi bi-chevron-up me-1"></i>Trykk på kortet for å lukke'
         : '<i class="bi bi-chevron-down me-1"></i>Trykk på kortet for å utvide';
     if (!opening) {
@@ -659,14 +700,13 @@ function toggleRentalObjectCard(objectId) {
                 <div class="d-flex flex-wrap gap-2 mt-3">
                     <button type="submit" class="btn btn-sm btn-primary" disabled>Lagre kode</button>
                     <button type="button" class="btn btn-sm btn-outline-secondary" onclick="editRentalObject(decodeURIComponent('${encodeURIComponent(String(objectId))}'))">Grunnopplysninger</button>
-                    <button type="button" class="btn btn-sm btn-outline-info" onclick="openRentalFormFields(decodeURIComponent('${encodeURIComponent(String(objectId))}'))">Skjemafelt</button>
                 </div>
             </form>`;
         loadRentalCardAccessCode(objectId, panel);
     } else {
         panel.innerHTML = `<p class="small text-muted mb-2">Administrer opplysninger og kundeinformasjon for dette objektet.</p>
             <div class="d-flex flex-wrap gap-2"><button type="button" class="btn btn-sm btn-primary" onclick="editRentalObject(decodeURIComponent('${encodeURIComponent(String(objectId))}'))">Grunnopplysninger</button>
-            <button type="button" class="btn btn-sm btn-outline-info" onclick="openRentalFormFields(decodeURIComponent('${encodeURIComponent(String(objectId))}'))">Skjemafelt</button></div>`;
+            </div>`;
     }
 }
 
@@ -1532,22 +1572,6 @@ async function editRentalObject(objectId) {
     modal.show();
 }
 
-async function openRentalFormFields(objectId) {
-    if (rentalEditFieldsEditor && !rentalEditFieldsEditor.confirmClose()) return;
-    const obj = allRentalObjects.find(item => String(item.id) === String(objectId));
-    const title = document.getElementById('rentalFieldsModalTitle');
-    if (title) title.textContent = `Skjemafelt · ${obj?.object_name || 'Utleieobjekt'}`;
-    const host = document.getElementById('rental-fields-editor');
-    if (!host) return;
-    rentalEditFieldsEditor = EntityFormFields.mount(host, {entityType: 'rental_object', entityId: objectId});
-    try {
-        await rentalEditFieldsEditor.refresh();
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('rentalFieldsModal')).show();
-    } catch (error) {
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('rentalFieldsModal')).show();
-    }
-}
-
 const rentalDeletingObjects = new Set();
 async function deleteRentalObject(objectId) {
     if (rentalDeletingObjects.has(objectId)) return;
@@ -1859,11 +1883,14 @@ async function loadContracts(status) {
         if (data.success) {
             allContracts = data.contracts || [];
             renderContractsList(allContracts);
+            document.dispatchEvent(new CustomEvent('rental-dashboard-source', {detail:{source:'contracts',success:true,status:status || 'all',activeCount:allContracts.filter(item => item.status === 'active').length}}));
         } else {
-            container.innerHTML = `<div class="alert alert-warning">${escHtml(data.message || 'Feil ved henting av kontrakter')}</div>`;
+            document.dispatchEvent(new CustomEvent('rental-dashboard-source', {detail:{source:'contracts',success:false,status:status || 'all'}}));
+            container.innerHTML = `<div class="alert alert-warning d-flex justify-content-between align-items-center gap-2"><span>${escHtml(data.message || 'Feil ved henting av kontrakter')}</span><button type="button" class="btn btn-sm btn-outline-secondary" onclick="loadContracts(contractStatusFilter)">Prøv igjen</button></div>`;
         }
     } catch (e) {
-        container.innerHTML = `<div class="alert alert-danger">Feil ved lasting av kontrakter</div>`;
+        document.dispatchEvent(new CustomEvent('rental-dashboard-source', {detail:{source:'contracts',success:false,status:status || 'all'}}));
+        container.innerHTML = `<div class="alert alert-danger d-flex justify-content-between align-items-center gap-2"><span>Feil ved lasting av kontrakter</span><button type="button" class="btn btn-sm btn-outline-danger" onclick="loadContracts(contractStatusFilter)">Prøv igjen</button></div>`;
     }
 }
 
@@ -2149,6 +2176,7 @@ async function loadRentalRequests() {
             || document.getElementById('rental-decision-dialog')?.open) return false;
 
         if (!resp.ok || !data.success) {
+            document.dispatchEvent(new CustomEvent('rental-dashboard-source', {detail:{source:'requests',success:false}}));
             container.innerHTML = `<div class="alert alert-danger">
                 Kunne ikke laste forespørslene. Databasen kan være midlertidig utilgjengelig.
             </div>`;
@@ -2157,6 +2185,7 @@ async function loadRentalRequests() {
 
         if (!data.requests || data.requests.length === 0) {
             rentalPendingRequests.clear();
+            document.dispatchEvent(new CustomEvent('rental-dashboard-source', {detail:{source:'requests',success:true}}));
             container.innerHTML = `<div class="text-center text-muted py-5">
                 <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                 Ingen ventende forespørsler
@@ -2164,6 +2193,7 @@ async function loadRentalRequests() {
             return true;
         }
         rentalPendingRequests = new Map(data.requests.map(r => [String(r.id), r]));
+        document.dispatchEvent(new CustomEvent('rental-dashboard-source', {detail:{source:'requests',success:true}}));
         rentalDecisionEmailEnabled = data.decision_email_enabled === true;
 
         const rows = data.requests.map(r => {
@@ -2319,6 +2349,7 @@ async function loadRentalRequests() {
         });
         return true;
     } catch (e) {
+        document.dispatchEvent(new CustomEvent('rental-dashboard-source', {detail:{source:'requests',success:false}}));
         if (sequence === rentalRequestsLoadSequence && !RentalRequestWorkflow.hasDrafts()
             && !container.querySelector('[data-busy="true"]')
             && !document.getElementById('rental-decision-dialog')?.open) {
@@ -2707,16 +2738,19 @@ async function loadApprovedSchedule() {
         const data = await resp.json();
 
         if (!data.success) {
+            document.dispatchEvent(new CustomEvent('rental-dashboard-source', {detail:{source:'schedule',success:false}}));
             calendarHost.innerHTML = `<div class="alert alert-danger">Feil ved lasting av utleier <button class="btn btn-sm btn-outline-danger ms-2" type="button" onclick="loadApprovedSchedule()">Prøv igjen</button></div>`;
             return;
         }
 
         allApprovedRentals = data.requests || [];
+        document.dispatchEvent(new CustomEvent('rental-dashboard-source', {detail:{source:'schedule',success:true}}));
         if (data.today) rentalUnavailableToday = data.today;
 
         if (!calViewStart) calViewStart = calMondayOf(calParseDate(rentalUnavailableToday || getRentalOsloToday()));
         renderRentalCalendar();
     } catch (e) {
+        document.dispatchEvent(new CustomEvent('rental-dashboard-source', {detail:{source:'schedule',success:false}}));
         calendarHost.innerHTML = `<div class="alert alert-danger">Feil ved lasting av kommende utleier <button class="btn btn-sm btn-outline-danger ms-2" type="button" onclick="loadApprovedSchedule()">Prøv igjen</button></div>`;
     }
 }

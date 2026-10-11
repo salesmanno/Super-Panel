@@ -18,14 +18,20 @@
         return result;
     }
 
-    function normalize(field, index) {
+    function normalize(field, index, strictRentalValidation) {
         let options = field.options;
         if (typeof options === 'string') {
-            try { options = JSON.parse(options); } catch (_) { options = []; }
+            try { options = JSON.parse(options); } catch (_) {
+                if (strictRentalValidation === true) throw new Error(`Feltet «${field.field_label || field.field_name || 'uten navn'}» har ugyldig JSON i innstillingen «options». Verdien er ikke endret.`);
+                options = [];
+            }
         }
         let validationRules = field.validation_rules;
         if (typeof validationRules === 'string') {
-            try { validationRules = JSON.parse(validationRules); } catch (_) { validationRules = {}; }
+            try { validationRules = JSON.parse(validationRules); } catch (_) {
+                if (strictRentalValidation === true) throw new Error(`Feltet «${field.field_label || field.field_name || 'uten navn'}» har ugyldig JSON i innstillingen «validation_rules». Verdien er ikke endret.`);
+                validationRules = {};
+            }
         }
         return {
             ...field,
@@ -142,7 +148,25 @@
                     if (!checkbox.checked) selected.is_required=false;
                     dirty=true;render();
                 });
-                label.append(checkbox,text);common.append(label);
+                const requiredLabel=document.createElement('label');
+                requiredLabel.className='form-check d-inline-flex align-items-center gap-1 ms-2 small text-muted';
+                const required=document.createElement('input');
+                required.type='checkbox';required.className='form-check-input mt-0';
+                required.checked=!!field?.is_required;
+                required.disabled=!field?.is_visible || registrationType==='none';
+                required.setAttribute('aria-label',`Gjør ${field?.field_label || definition.field_label} påkrevd`);
+                required.addEventListener('change',()=>{
+                    if (busy) return;
+                    let selected=fields.find(item=>item.field_name===name);
+                    if (!selected) {selected=normalize(definition,fields.length);fields.push(selected);}
+                    if (required.checked) selected.is_visible=true;
+                    selected.is_required=required.checked;
+                    dirty=true;render();
+                });
+                requiredLabel.append(required,document.createTextNode('Påkrevd'));
+                if (options.entityType === 'rental_object') label.append(checkbox,text,requiredLabel);
+                else label.append(checkbox,text);
+                common.append(label);
             }
             for(const field of fields) {
                 if(definitions.has(field.field_name)) continue;
@@ -279,7 +303,7 @@
                 serverRevision = result.revision || '';
                 selectedName = null;
                 if (!options.createMode && result.registration_type) registrationType = result.registration_type;
-                fields = (result.fields || []).map(normalize).sort((a, b) => a.sort_order - b.sort_order);
+                fields = (result.fields || []).map((field,index) => normalize(field,index,!!options.strictRentalValidation)).sort((a, b) => a.sort_order - b.sort_order);
                 if (options.entityType === 'event' && registrationType === 'none') fields = [];
                 presets = result.presets || [];
                 presetSelect.innerHTML = '<option value="">Forhåndsoppsett</option>' + presets.map(item => `<option value="${esc(item.key)}">${esc(item.label)}</option>`).join('');
@@ -356,6 +380,7 @@
                 dirty = false;
                 render();
                 setStatus('Skjemafelt lagret.', false);
+                if (typeof options.onSaved === 'function') options.onSaved();
                 return true;
             } catch (error) {
                 setStatus(error.message || 'Kunne ikke lagre skjemafelt. Utkastet er beholdt.', true);

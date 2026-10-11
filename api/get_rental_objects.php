@@ -20,6 +20,7 @@ $admin = [
 
 try {
     $db = getDBConnection();
+    entityFormRequireModuleAccess($db, (string)$admin['company_id'], 'rental_object');
     
     // Get specific object by ID or all objects
     $object_id = $_GET['id'] ?? null;
@@ -69,11 +70,8 @@ try {
             }
         }
 
-        $object['customer_fields'] = getRentalCustomerFieldSettings(
-            $db,
-            $admin['company_id'],
-            $object_id
-        );
+        // Field configuration is loaded by its dedicated endpoint. A broken
+        // rule must not prevent reading this object's base information.
         
         echo json_encode(['success' => true, 'object' => $object]);
         
@@ -120,11 +118,6 @@ try {
             } else {
                 $object['images'] = [];
             }
-            $object['customer_fields'] = getRentalCustomerFieldSettings(
-                $db,
-                $admin['company_id'],
-                $object['id']
-            );
         }
         
         // Fetch type-specific data for each object (graceful if table doesn't exist)
@@ -154,6 +147,9 @@ try {
         echo json_encode(['success' => true, 'objects' => $objects]);
     }
     
+} catch (TenantAuditException $e) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 } catch (\Throwable $e) {
     error_log('get_rental_objects error: ' . $e->getMessage());
     http_response_code(500);

@@ -10,6 +10,15 @@ try {
     if(!in_array($type,['event','rental_object'],true))throw new InvalidArgumentException('Ugyldig skjematype');
     entityFormRequireModuleAccess($db,$company,$type);
     $id=(string)($_GET['entity_id']??'');
+    if (($_GET['csrf_only'] ?? '') === '1') {
+        // Keep authorization and entity scoping without parsing unrelated
+        // field configuration just to obtain a token for a base-details edit.
+        if ($id !== '') entityFormContext($db,$company,$type,$id);
+        $token=entityFormCsrfToken();
+        session_write_close();
+        echo json_encode(['success'=>true,'csrf_token'=>$token],JSON_THROW_ON_ERROR);
+        exit;
+    }
     $loaded=$id!==''?entityFormLoad($db,$company,$type,$id):['fields'=>entityFormDefaults($type),'source'=>'default','registration_type'=>null];
     $token=entityFormCsrfToken();
     session_write_close();

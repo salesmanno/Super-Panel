@@ -583,7 +583,7 @@ try {
             <!-- Rental subtabs -->
             <ul class="nav nav-pills py-2 subtabs" id="subtabs-rental" style="display: none;">
                 <li class="nav-item">
-                    <a class="nav-link active" href="#rental-objects">Se utleieobjekt</a>
+                    <a class="nav-link active" href="#rental-objects">Utleiedashboard</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="#rental-create">Opprett utleieobjekt</a>
@@ -1363,7 +1363,11 @@ try {
                 });
                 
                 // Sjekk om det finnes en lagret subtab for denne modulen
-                const savedSubtab = localStorage.getItem(STORAGE_KEY_SUBTAB + '_' + moduleSlug);
+                let savedSubtab = localStorage.getItem(STORAGE_KEY_SUBTAB + '_' + moduleSlug);
+                // Requests and upcoming rentals now live in dashboard modals; never restore their legacy empty panels.
+                if (moduleSlug === 'rental' && ['rental-requests', 'rental-upcoming'].includes(savedSubtab)) {
+                    savedSubtab = 'rental-objects';
+                }
                 
                 let targetLink = null;
                 if (savedSubtab) {

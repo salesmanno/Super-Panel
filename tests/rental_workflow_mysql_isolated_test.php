@@ -48,7 +48,8 @@ $db->exec("INSERT INTO email_templates VALUES('ta','a','rental_confirmation','Be
 mkdir($temp.'/app/api',0700,true);mkdir($temp.'/app/config',0700,true);
 symlink($root.'/includes',$temp.'/app/includes');
 foreach(['create_rental_request','get_rental_schedule','update_rental_schedule','check_refresh_flag',
-    'set_polling_complete','update_rental_object','create_rental_object'] as $api) {
+    'set_polling_complete','update_rental_object','create_rental_object',
+    'get_rental_objects','get_entity_form_fields'] as $api) {
     copy($root.'/api/'.$api.'.php',$temp.'/app/api/'.$api.'.php');
 }
 $dsn='mysql:unix_socket='.$temp.'/mysql.sock;dbname=rental_workflow;charset=utf8mb4';
@@ -158,5 +159,25 @@ try {
     workflowAssert($call('create_rental_request','public',$payload)[0]===500,'Notification outage fails explicitly');
     workflowAssert((int)$db->query('SELECT COUNT(*) FROM rental_schedule')->fetchColumn()===2,'Notification outage rolls back request');
     $db->exec('RENAME TABLE unavailable_polling TO tenant_polling_tracker');
+    // Broken field JSON cannot interfere with unrelated base object
+    // operations. Test only in this disposable database, never the app DB.
+    $db->exec('ALTER TABLE rental_objects ADD created_at DATETIME DEFAULT CURRENT_TIMESTAMP');
+    $brokenRule = '"pattern": "^[^@]+@[^@]+$", "maxLength": 254}';
+    $db->prepare("INSERT INTO dynamic_form_fields
+        (id,company_id,entity_type,entity_id,field_name,field_label,field_type,is_required,is_visible,sort_order,validation_rules)
+        VALUES ('broken-email','a','rental_object','oa','email','E-post','email',0,1,0,?)")->execute([$brokenRule]);
+    workflowAssert($call('get_rental_objects','a')[1]['success'],'Invalid field JSON does not break object list');
+    workflowAssert($call('get_rental_objects','a',null,'id=oa')[1]['success'],'Invalid field JSON does not break object details');
+    workflowAssert($call('get_entity_form_fields','a',null,'entity_type=rental_object&entity_id=oa&csrf_only=1')[1]['csrf_token']==='form-token','Token issuance ignores broken field rules');
+    workflowAssert($call('get_entity_form_fields','b',null,'entity_type=rental_object&entity_id=oa&csrf_only=1')[0]===404,'Token-only request enforces tenant boundary');
+    workflowAssert($call('get_entity_form_fields','none',null,'entity_type=rental_object&entity_id=oa&csrf_only=1')[0]===403,'Token-only request enforces module access');
+    workflowAssert($call('get_rental_objects','b',null,'id=oa')[0]===404,'Object details enforce tenant boundary');
+    workflowAssert($call('get_rental_objects','none')[0]===403,'Object list enforces module access');
+    workflowAssert($call('update_rental_object','none',['id'=>'oa','csrf_token'=>'form-token','object_name'=>'Unauthorized'])[0]===403,'Basic edit enforces module access');
+    workflowAssert($call('update_rental_object','b',['id'=>'oa','csrf_token'=>'form-token','object_name'=>'Unauthorized'])[0]===404,'Basic edit enforces tenant boundary');
+    workflowAssert($call('update_rental_object','a',['id'=>'oa','object_name'=>'Changed independently','csrf_token'=>'form-token'])[1]['success'],'Basic edit ignores broken field rules');
+    $fieldFailure=$call('get_entity_form_fields','a',null,'entity_type=rental_object&entity_id=oa');
+    workflowAssert($fieldFailure[0]===400 && str_contains($fieldFailure[1]['message'],'validation_rules') && str_contains($fieldFailure[1]['message'],'email'),'Field editor identifies malformed JSON explicitly');
+    workflowAssert($db->query("SELECT validation_rules FROM dynamic_form_fields WHERE id='broken-email'")->fetchColumn()===$brokenRule,'Base edits preserve malformed rule unchanged');
     echo "Isolated rental workflow, decisions, notifications and permissions passed\n";
 } finally {proc_terminate($process);proc_close($process);}
