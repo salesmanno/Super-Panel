@@ -31,10 +31,14 @@ $schema=[
     "email_queue(id CHAR(36) PRIMARY KEY,company_id CHAR(36),recipient_email TEXT,from_email TEXT,subject TEXT,body TEXT,template_id CHAR(36),module_source VARCHAR(50),source_id CHAR(36),status VARCHAR(30),priority INT,scheduled_at DATETIME,created_at DATETIME,updated_at DATETIME)",
     "tenant_website_general(company_id CHAR(36),logo_url TEXT,header_bg_color TEXT)",
     "economy_bank_accounts(company_id CHAR(36),account_number TEXT,is_active INT,bank_name TEXT)",
+    "economy_configuration_data(id VARCHAR(36),company_id VARCHAR(36),gateway_type VARCHAR(30),config_name TEXT,is_active INT,test_mode INT,client_id TEXT,client_secret_encrypted TEXT,merchant_serial_number TEXT,subscription_key TEXT,public_key TEXT,private_key_encrypted TEXT)",
+    "unified_ledger(id VARCHAR(36) PRIMARY KEY,order_id VARCHAR(100) UNIQUE,company_id VARCHAR(36),module_source VARCHAR(30),item_type VARCHAR(30),source_id VARCHAR(36),item_name TEXT,quantity INT,selling_price DECIMAL(12,2),cost_price DECIMAL(12,2),customer_id VARCHAR(36),payment_method VARCHAR(50),payment_status VARCHAR(30),status VARCHAR(30),transaction_date DATETIME,transaction_type VARCHAR(30),category TEXT,metadata JSON,rental_schedule_id VARCHAR(36),UNIQUE KEY rental_payment(company_id,rental_schedule_id))",
 ];
 foreach($schema as $ddl)$db->exec('CREATE TABLE '.$ddl.' ENGINE=InnoDB');
 $db->exec('ALTER TABLE rental_schedule ADD return_time TIME, ADD key_box_code VARCHAR(6), ADD checkin_email_queued_at DATETIME, ADD checkin_email_sent_at DATETIME');
 $db->exec('ALTER TABLE rental_venues ADD access_code VARCHAR(6)');
+$db->exec('ALTER TABLE tenant_companies ADD cash_payment INT DEFAULT 0');
+$db->exec("ALTER TABLE rental_schedule ADD payment_status VARCHAR(30) DEFAULT 'unpaid', ADD payment_method VARCHAR(50), ADD paid_at DATETIME, ADD cancelled_at DATETIME, ADD updated_at DATETIME");
 $db->exec("INSERT INTO tenant_companies(id,name,is_active) VALUES('a','Bedrift A',1),('b','Bedrift B',1)");
 $db->exec("INSERT INTO tenant_staff VALUES('pa','a','Ansatt','A'),('pb','b','Ansatt','B')");
 $db->exec("INSERT INTO tenant_admins VALUES('aa','a','pa','ansatt-a','staff',1),('ab','b','pb','ansatt-b','staff',1),('none','a','pa','uten-modul','staff',1)");
@@ -49,7 +53,7 @@ mkdir($temp.'/app/api',0700,true);mkdir($temp.'/app/config',0700,true);
 symlink($root.'/includes',$temp.'/app/includes');
 foreach(['create_rental_request','get_rental_schedule','update_rental_schedule','check_refresh_flag',
     'set_polling_complete','update_rental_object','create_rental_object',
-    'get_rental_objects','get_entity_form_fields'] as $api) {
+    'get_rental_objects','get_entity_form_fields','update_rental_schedule_lifecycle'] as $api) {
     copy($root.'/api/'.$api.'.php',$temp.'/app/api/'.$api.'.php');
 }
 $dsn='mysql:unix_socket='.$temp.'/mysql.sock;dbname=rental_workflow;charset=utf8mb4';
@@ -122,12 +126,23 @@ try {
     [$http,$saved]=$call('update_rental_schedule','a',$save);
     workflowAssert($http===200&&$saved['success']&&$saved['status']==='pending'&&!$saved['email_queued']&&$saved['rental_fee']==300,'Separate save remains pending, server amount, no email');
     workflowAssert($call('update_rental_schedule','a',$decision)[0]===409,'Stale decision blocked');
+    [$http,$saved]=$call('update_rental_schedule','a',[
+        'id'=>$id,'csrf_token'=>'decision-token','expected_version'=>$saved['request']['decision_version'],
+        'return_time'=>'19:10','price_adjustment_type'=>'discount','price_adjustment_amount'=>50,
+        'price_adjustment_explanation'=>'Avtalt rabatt']);
+    workflowAssert($http===200 && $saved['success'] && $saved['rental_fee']==250
+        && $saved['request']['return_time']==='19:10:00' && !$saved['email_queued'],'Return-time edit and price adjustment save independently of approval');
+    [$http,$saved]=$call('update_rental_schedule','a',[
+        'id'=>$id,'csrf_token'=>'decision-token','expected_version'=>$saved['request']['decision_version'],
+        'end_date'=>'2031-05-07']);
+    workflowAssert($http===200 && $saved['success'] && $saved['rental_fee']==350
+        && $saved['request']['return_time']==='19:10:00','Date change recalculates base fee while retaining discount and return time');
     $decision['expected_version']=$saved['request']['decision_version'];
     [$http,$approved]=$call('update_rental_schedule','a',$decision);
     workflowAssert($http===200&&$approved['success']&&$approved['email_queued'],'Actual decision queues one email');
     $stored=$db->query("SELECT pickup_time,return_time,end_time,key_box_code FROM rental_schedule WHERE id=".$db->quote($id))->fetch(PDO::FETCH_ASSOC);
-    workflowAssert($stored['pickup_time']==='15:30:00' && $stored['return_time']==='18:45:00'
-        && $stored['end_time']==='18:45:00','Approval retains pickup and explicit return, not legacy noon');
+    workflowAssert($stored['pickup_time']==='15:30:00' && $stored['return_time']==='19:10:00'
+        && $stored['end_time']==='19:10:00','Approval retains edited pickup and explicit return, not legacy noon');
     workflowAssert(preg_match('/^\d{4}$/D',$stored['key_box_code']) && $stored['key_box_code']!=='1234',
         'Approval assigns numeric code of venue length without copying venue code');
     workflowAssert($db->query("SELECT access_code FROM rental_venues WHERE object_id='oa'")->fetchColumn()==='1234',
@@ -151,8 +166,54 @@ try {
     $edit=['id'=>'oa','csrf_token'=>'form-token','category'=>'venue','object_name'=>'Nytt navn','market_price'=>null];
     workflowAssert($call('update_rental_object','a',$edit)[1]['success'],'Basic object edit');
     workflowAssert((float)$db->query("SELECT market_price FROM rental_objects WHERE id='oa'")->fetchColumn()===9000.0,'Hidden price preserved even for legacy client');
-    workflowAssert($call('update_rental_object','a',['id'=>'oa','csrf_token'=>'form-token','category'=>'tool','type_data'=>['brand'=>'Brand']])[1]['success'],'Category change');
-    workflowAssert((int)$db->query("SELECT COUNT(*) FROM rental_venues WHERE object_id='oa'")->fetchColumn()===1,'Old category data preserved');
+    $typeChange=$call('update_rental_object','a',['id'=>'oa','csrf_token'=>'form-token','category'=>'tool','object_name'=>'Should not save','type_data'=>['brand'=>'Brand']]);
+    workflowAssert($typeChange[0]===400 && !$typeChange[1]['success'],'Object type change is rejected');
+    workflowAssert($db->query("SELECT category FROM rental_objects WHERE id='oa'")->fetchColumn()==='venue'
+        && $db->query("SELECT object_name FROM rental_objects WHERE id='oa'")->fetchColumn()==='Nytt navn','Rejected type change saves nothing');
+    workflowAssert((int)$db->query("SELECT COUNT(*) FROM rental_tools WHERE object_id='oa'")->fetchColumn()===0
+        && (int)$db->query("SELECT COUNT(*) FROM rental_venues WHERE object_id='oa'")->fetchColumn()===1,'Rejected type change preserves typed records');
+    workflowAssert($call('update_rental_object','a',['id'=>'oa','csrf_token'=>'form-token','rental_price'=>150,'weekend_price'=>200,'saturday_price'=>null,'sunday_price'=>null,'type_data'=>['access_code'=>'2468']])[1]['success'],'Rates and physical code remain editable with category omitted');
+    $editedObject=$db->query("SELECT rental_price,weekend_price,saturday_price,sunday_price FROM rental_objects WHERE id='oa'")->fetch(PDO::FETCH_ASSOC);
+    workflowAssert((float)$editedObject['rental_price']===150.0 && (float)$editedObject['weekend_price']===200.0
+        && $editedObject['saturday_price']===null && $editedObject['sunday_price']===null,'Unified weekend prices persisted');
+    workflowAssert($db->query("SELECT access_code FROM rental_venues WHERE object_id='oa'")->fetchColumn()==='2468','Physical venue code updated explicitly');
+    workflowAssert($db->query("SELECT key_box_code FROM rental_schedule WHERE id=".$db->quote($id))->fetchColumn()===$stored['key_box_code'],'Object code edit never changes assigned reservation code');
+    workflowAssert($call('update_rental_object','a',['id'=>'oa','csrf_token'=>'form-token','weekend_price'=>null,'saturday_price'=>250,'sunday_price'=>175,'is_available'=>0])[1]['success'],'Separate weekend rates and hiding remain editable');
+    $editedObject=$db->query("SELECT weekend_price,saturday_price,sunday_price,is_available FROM rental_objects WHERE id='oa'")->fetch(PDO::FETCH_ASSOC);
+    workflowAssert($editedObject['weekend_price']===null && (float)$editedObject['saturday_price']===250.0
+        && (float)$editedObject['sunday_price']===175.0 && (int)$editedObject['is_available']===0,'Separate weekend prices and hidden flag persisted');
+    workflowAssert($call('update_rental_object','b',['id'=>'oa','csrf_token'=>'form-token','is_available'=>1])[0]===404,'Other company cannot unhide object');
+    workflowAssert($call('update_rental_object','a',['id'=>'oa','csrf_token'=>'form-token','is_available'=>1])[1]['success'],'Hidden object can be shown again');
+    $payment=['id'=>$id,'action'=>'mark_paid','csrf_token'=>'decision-token','payment_method'=>'stripe'];
+    workflowAssert($call('update_rental_schedule_lifecycle','a',array_diff_key($payment,['csrf_token'=>true]))[0]===403,'Payment requires CSRF');
+    workflowAssert($call('update_rental_schedule_lifecycle','b',$payment)[0]===404,'Payment enforces company boundary');
+    workflowAssert($call('update_rental_schedule_lifecycle','none',$payment)[0]===403,'Payment requires Rental module');
+    workflowAssert($call('update_rental_schedule_lifecycle','a',$payment)[0]===400,'Inactive payment method rejected');
+    workflowAssert((int)$db->query('SELECT COUNT(*) FROM unified_ledger')->fetchColumn()===0
+        && $db->query("SELECT payment_status FROM rental_schedule WHERE id=".$db->quote($id))->fetchColumn()==='unpaid','Rejected payment changes no status or ledger');
+    $db->exec("INSERT INTO economy_configuration_data(id,company_id,gateway_type,config_name,is_active,test_mode)
+        VALUES('card-a','a','stripe','Kort',1,0),('bank-a','a','bank','Bankoverføring',1,0),('card-b','b','stripe','Kort',1,0)");
+    workflowAssert($call('update_rental_schedule_lifecycle','a',$payment)[1]['success'],'Activated card method accepted');
+    $paymentRow=$db->query("SELECT payment_status,payment_method,status FROM rental_schedule WHERE id=".$db->quote($id))->fetch(PDO::FETCH_ASSOC);
+    $ledgerRow=$db->query("SELECT * FROM unified_ledger WHERE rental_schedule_id=".$db->quote($id))->fetch(PDO::FETCH_ASSOC);
+    workflowAssert($paymentRow['payment_status']==='paid' && $paymentRow['payment_method']==='stripe'
+        && $paymentRow['status']==='approved','Payment updates paid status and preserves approved rental');
+    workflowAssert($ledgerRow['module_source']==='rental' && $ledgerRow['source_id']===$id
+        && $ledgerRow['payment_method']==='stripe' && $ledgerRow['payment_status']==='completed'
+        && $ledgerRow['status']==='active' && (float)$ledgerRow['selling_price']===350.0,'Card payment creates correctly linked ledger entry for final adjusted rental fee');
+    $db->exec("UPDATE economy_configuration_data SET is_active=0 WHERE id='card-a'");
+    workflowAssert($call('update_rental_schedule_lifecycle','a',$payment)[1]['success']
+        && (int)$db->query('SELECT COUNT(*) FROM unified_ledger')->fetchColumn()===1,'Retry retains historical payment after method deactivation without duplicate revenue');
+    workflowAssert($call('update_rental_schedule_lifecycle','a',['id'=>$second,'action'=>'mark_paid','csrf_token'=>'decision-token','payment_method'=>'bank'])[0]===409,'Rejected request cannot be marked paid');
+    $db->prepare("INSERT INTO rental_schedule(id,company_id,rental_object_id,status,approved,start_date,end_date,rental_fee)
+        VALUES('bank-booking','a','oa','approved',1,'2031-08-01','2031-08-02',250)")->execute();
+    workflowAssert($call('update_rental_schedule_lifecycle','a',['id'=>'bank-booking','action'=>'mark_paid','csrf_token'=>'decision-token','payment_method'=>'bank'])[1]['success'],'Activated bank method accepted');
+    workflowAssert($db->query("SELECT payment_method FROM unified_ledger WHERE rental_schedule_id='bank-booking'")->fetchColumn()==='bank','Bank method canonical in ledger');
+    workflowAssert($call('update_rental_schedule_lifecycle','a',['id'=>'bank-booking','action'=>'cancel','csrf_token'=>'decision-token'])[1]['success'],'Paid booking can be cancelled');
+    workflowAssert($db->query("SELECT status FROM rental_schedule WHERE id='bank-booking'")->fetchColumn()==='cancelled'
+        && $db->query("SELECT status FROM unified_ledger WHERE rental_schedule_id='bank-booking'")->fetchColumn()==='cancelled','Cancellation preserves linked payment history with cancelled status');
+    $db->exec("DELETE FROM unified_ledger WHERE rental_schedule_id='bank-booking'");
+    $db->exec("DELETE FROM rental_schedule WHERE id='bank-booking'");
     // Fail the notification insert: all request/customer/answers writes must roll back.
     $db->exec('RENAME TABLE tenant_polling_tracker TO unavailable_polling');
     $payload['submission_id']='notification-outage';$payload['start_date']='2031-07-01';$payload['end_date']='2031-07-02';

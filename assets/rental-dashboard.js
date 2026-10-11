@@ -71,10 +71,11 @@
         const host = document.getElementById('rentalObjectsContainer');
         if (!host) return;
         if (!objects.length) {
-            host.innerHTML = `<div class="rental-empty-state"><span class="rental-empty-icon"><i class="bi bi-house"></i></span><strong>Ingen utleieobjekter her ennå</strong><span>Prøv et annet søk eller en annen kategori.</span></div>`;
+            const hasInventory = Array.isArray(allRentalObjects) && allRentalObjects.length > 0;
+            host.innerHTML = `<div class="rental-object-list"><div class="rental-empty-state"><span class="rental-empty-icon"><i class="bi bi-house"></i></span><strong>${hasInventory ? 'Ingen objekter i dette utvalget' : 'Start med ditt første utleieobjekt'}</strong><span>${hasInventory ? 'Prøv et annet søk eller en annen kategori.' : 'Legg inn lokale, utstyr eller kjøretøy i oversikten.'}</span></div>${window.renderRentalCreateTile?.() || ''}</div>`;
             return;
         }
-        host.innerHTML = `<div class="rental-object-list">${objects.map(item => window.renderObjectCard(item)).join('')}</div>`;
+        host.innerHTML = `<div class="rental-object-list">${objects.map(item => window.renderObjectCard(item)).join('')}${window.renderRentalCreateTile?.() || ''}</div>`;
     }
 
     function applyObjectFilters() {
@@ -228,8 +229,32 @@
                 openFieldPanel(button.dataset.rentalFields, button);
             }
         });
+        const objectList = document.getElementById('rentalObjectsContainer');
+        objectList?.addEventListener('shown.bs.dropdown', event => {
+            const dropdown = event.target.closest?.('.rental-card-menu');
+            const menu = dropdown?.querySelector('.dropdown-menu');
+            if (menu && menu.parentElement !== document.body) {
+                menu.classList.add('rental-card-menu-floating');
+                document.body.append(menu);
+            }
+        });
+        objectList?.addEventListener('hide.bs.dropdown', event => {
+            const dropdown = event.target.closest?.('.rental-card-menu');
+            const objectId = dropdown?.dataset.rentalObjectId;
+            const menu = objectId && document.querySelector(`.dropdown-menu[data-rental-menu-owner="${CSS.escape(objectId)}"]`);
+            if (dropdown && menu && menu.parentElement === document.body) {
+                menu.classList.remove('rental-card-menu-floating');
+                dropdown.append(menu);
+            }
+        });
         document.querySelectorAll('#subtabs-rental a[href="#rental-requests"], #subtabs-rental a[href="#rental-upcoming"]').forEach(link => {
             link.addEventListener('click', event => {
+                const createView = document.getElementById('rental-create');
+                if (createView?.style.display === 'block' && !window.closeRentalCreate?.()) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    return;
+                }
                 event.preventDefault();
                 event.stopImmediatePropagation();
                 const kind = link.hash === '#rental-requests' ? 'requests' : 'upcoming';
@@ -238,6 +263,16 @@
                 window.localStorage.setItem('salesman_active_subtab_rental', 'rental-objects');
                 document.querySelectorAll('#content-rental .subtab-content').forEach(item => item.style.display = item.id === 'rental-objects' ? 'block' : 'none');
                 openOverview(kind);
+            }, true);
+        });
+        document.querySelectorAll('#subtabs-rental a').forEach(link => {
+            link.addEventListener('click', event => {
+                const createView = document.getElementById('rental-create');
+                if (!createView || createView.style.display !== 'block' || link.hash === '#rental-create') return;
+                if (!window.closeRentalCreate?.()) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                }
             }, true);
         });
         root.querySelectorAll('[data-rental-open]').forEach(button => button.addEventListener('click', () => openOverview(button.dataset.rentalOpen)));

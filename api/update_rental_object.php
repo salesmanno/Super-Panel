@@ -48,8 +48,14 @@ try {
         exit;
     }
     
-    // Use existing category if not provided in update
-    $category = $data['category'] ?? $existing['category'];
+    // Object type is fixed at creation, including for direct API callers.
+    $category = $existing['category'];
+    if (array_key_exists('category', $data) && $data['category'] !== $category) {
+        $db->rollBack();
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Objekttypen kan ikke endres etter opprettelse.']);
+        exit;
+    }
     if (!$category || !getRentalSchema($category)) {
         $db->rollBack();
         http_response_code(400);
@@ -57,19 +63,16 @@ try {
         exit;
     }
     
-    $oldCategory = $existing['category'] ?? null;
-    $categoryChanged = $oldCategory !== $category;
     if (array_key_exists('type_data', $data) && !is_array($data['type_data'])) {
         throw new InvalidArgumentException('Objektets typedata er ugyldig');
     }
 
     /*
-     * Upsert the new category row before changing the base category. Both
-     * writes are in this transaction; a missing type table or invalid field
-     * therefore rolls back the complete edit instead of leaving a half-edit.
+     * Persist details for the fixed object category in the same transaction
+     * as the base edit, so a failure cannot leave a half-edit.
      */
     $hasTypeData = array_key_exists('type_data', $data);
-    if ($categoryChanged || $hasTypeData) {
+    if ($hasTypeData) {
         $schema = getRentalSchema($category);
         $typeTable = $schema['table'];
         $typeData = $hasTypeData ? $data['type_data'] : [];
@@ -130,7 +133,7 @@ try {
     $updateFields = [];
     $updateParams = [];
     
-    $allowedFields = ['object_name', 'serial_number', 'description', 'category', 
+    $allowedFields = ['object_name', 'serial_number', 'description',
                       'rental_price', 'deposit_amount', 'condition_notes', 'image_url',
                       'is_available', 'is_active', 'market_price', 'rental_text'];
     
@@ -191,8 +194,6 @@ try {
         $stmt->execute($updateParams);
     }
     
-    // Keep former category data so switching category does not erase history.
-
     $customerFields = null;
     if (array_key_exists('form_fields', $data)) {
         if (!is_array($data['form_fields'])) throw new InvalidArgumentException('Ugyldig feltoppsett');

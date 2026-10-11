@@ -54,6 +54,7 @@ const card = {
   classList: {toggle(name, active) { if (active) classes.add(name); else classes.delete(name); }},
   setAttribute(name, value) { attributes[name] = value; },
   querySelector(selector) {
+    if (selector === '.rental-access-control') return {setAttribute: (name,value) => attributes[name] = value};
     if (selector === '.rental-expand-hint') return hint;
     if (selector === '.rental-card-status') return stateBadge;
     if (selector === '.form-switch .form-check-label') return switchLabel;
@@ -68,7 +69,8 @@ const elements = {
 const context = {
   allRentalObjects: [object],
   rentalSchemas: {venue: {label: 'Lokale'}},
-  document: {getElementById: id => elements[id]},
+  document: {getElementById: id => elements[id], querySelector: () => null},
+  CSS: {escape: value => String(value)},
   escHtml: value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;'),
   escAttr: value => String(value),
   validRentalImageUrl: () => false,
@@ -93,6 +95,8 @@ const context = {
   },
   toast: {quickSuccess() {}, quickError() {}},
   rentalFilter: '',
+  Event,
+  CustomEvent,
   ensureRentalFormToken: async () => 'fixture-csrf',
 };
 vm.createContext(context);
@@ -106,14 +110,12 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   const html = context.renderObjectCard(object);
   assert.match(html, /aria-expanded="false"/);
   assert.match(html, /data-rental-fields="venue-1"/);
-  assert.match(html, /event\.stopPropagation\(\); toggleContractForm/);
-  assert.match(html, /event\.stopPropagation\(\); viewDetails/);
-  assert.match(html, /event\.stopPropagation\(\); deleteRentalObject/);
+  assert.match(html, /editRentalObject/);
+  assert.match(html, /toggleAvailability/);
+  assert.match(html, /deleteRentalObject/);
   assert.doesNotMatch(html, /value="OLD123"/);
 
-  context.handleRentalObjectCardClick({target: {closest: () => true}}, object.id);
-  assert.equal(panel.hidden, true, 'Own buttons and switch do not expand');
-  context.handleRentalObjectCardClick({target: {closest: () => null}}, object.id);
+  context.toggleRentalObjectCard(object.id);
   await tick();
   assert.equal(panel.hidden, false);
   assert.equal(attributes['aria-expanded'], 'true');
@@ -124,7 +126,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   assert.equal(availabilityCalls, 1);
   assert.equal(panel.hidden, false, 'Switch does not close the expanded card');
   assert.equal(panel.form.input.value, 'OLD123', 'Switch does not discard unsaved code');
-  assert.equal(switchLabel.textContent, 'Skjult');
+  assert.match(stateBadge.innerHTML, /Skjult/);
   assert(classes.has('is-muted'));
 
   const oldForm = panel.form;
@@ -136,24 +138,15 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   assert.equal(savedCode, 'NEW456');
   assert.equal(oldForm.status.textContent, 'Koden er lagret.');
 
-  context.handleRentalObjectCardKeydown({
-    target: card, currentTarget: card, key: 'Enter', preventDefault() {},
-  }, object.id);
+  context.toggleRentalObjectCard(object.id);
   assert.equal(panel.hidden, true);
   assert.equal(attributes['aria-expanded'], 'false');
   assert.equal(panel.innerHTML, '', 'Closing removes the code field from the DOM');
 
-  context.handleRentalObjectCardKeydown({
-    target: card, currentTarget: card, key: ' ', preventDefault() {},
-  }, object.id);
+  context.toggleRentalObjectCard(object.id);
   await tick();
   assert.equal(panel.form.input.value, 'NEW456', 'Reopening reads the persisted value');
   assert.equal(getCalls, 2);
-  context.handleRentalObjectCardKeydown({
-    target: panel.form.input, currentTarget: card, key: ' ', preventDefault() {
-      throw new Error('Typing in the input must not toggle the card');
-    },
-  }, object.id);
-  assert.equal(panel.hidden, false);
+  assert.equal(panel.hidden, false, 'Explicit card code control opens saved code');
   console.log('Rental card expansion tests passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

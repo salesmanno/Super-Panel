@@ -131,6 +131,7 @@ window.RentalRequestWorkflow = (() => {
                 baselines.delete(String(id));
                 savedValues.delete(String(id));
                 row.remove();
+                document.dispatchEvent(new CustomEvent('rental-request-decided', {detail:{id:String(id)}}));
                 dialog.close();
                 if (!document.querySelector('[data-rental-request-id]')) {
                     document.getElementById('rentalRequestsContainer').textContent = 'Ingen ventende forespørsler';

@@ -15,6 +15,7 @@ session_write_close();
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
+require_once __DIR__ . '/../includes/active_payment_methods.php';
 
 $data = json_decode(file_get_contents('php://input'), true);
 $scheduleId = is_array($data) ? trim((string) ($data['id'] ?? '')) : '';
@@ -55,6 +56,7 @@ try {
     }
 
     $db->beginTransaction();
+    if ($action === 'mark_paid') activePaymentMethodsLock($db, $companyId);
 
     $stmt = $db->prepare("
         SELECT rs.*, ro.object_name
@@ -114,21 +116,10 @@ try {
     }
 
     $isAlreadyPaid = ($rental['payment_status'] ?? 'unpaid') === 'paid';
-    $allowedMethods = [
-        'vipps' => 'Vipps',
-        'card' => 'Kort',
-        'cash' => 'Kontant',
-        'invoice' => 'Faktura',
-        'bank_transfer' => 'Bankoverføring',
-        'other' => 'Annet',
-    ];
-    $methodKey = trim((string) ($data['payment_method'] ?? ''));
-    if (!$isAlreadyPaid && !isset($allowedMethods[$methodKey])) {
-        $db->rollBack();
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Velg betalingsmåte']);
-        exit;
-    }
+    // The same company activation source is used by the payment selector.
+    // Already-recorded payments retain their historical method on retries.
+    $paymentMethod = $isAlreadyPaid ? null
+        : requireActivePaymentMethod($db, $companyId, $data['payment_method'] ?? null);
 
     $amount = (float) ($rental['rental_fee'] ?? 0);
     if ($amount <= 0) {
@@ -225,7 +216,7 @@ try {
             'item_name' => 'Utleie: ' . ($rental['object_name'] ?: 'Utleieobjekt'),
             'selling_price' => $amount,
             'customer_id' => $rental['customer_id'] ?: null,
-            'payment_method' => $allowedMethods[$methodKey],
+            'payment_method' => $paymentMethod,
             'payment_status' => 'completed',
             'status' => 'active',
             'transaction_type' => 'income',
@@ -249,7 +240,7 @@ try {
         ")->execute([$scheduleId, $existingLedgerId, $companyId]);
     }
 
-    $resolvedPaymentMethod = $existingLedger['payment_method'] ?? $allowedMethods[$methodKey];
+    $resolvedPaymentMethod = $existingLedger['payment_method'] ?? $paymentMethod;
     $db->prepare("
         UPDATE rental_schedule
         SET payment_status = 'paid', payment_method = ?, paid_at = NOW(), updated_at = NOW()
@@ -258,6 +249,10 @@ try {
 
     $db->commit();
     echo json_encode(['success' => true, 'message' => 'Betalingen er registrert og ført i regnskapet']);
+} catch (InvalidArgumentException $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 } catch (Throwable $e) {
     if (isset($db) && $db->inTransaction()) {
         $db->rollBack();

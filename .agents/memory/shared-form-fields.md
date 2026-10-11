@@ -39,8 +39,14 @@ Ved samling av feltdefinisjoner må operative oppsett skilles fra eldre, ubrukte
 
 **How to apply:** Lag en skrivefri kontrollrapport og innhent godkjenning før tilkoblet database endres. Behold innsendte svar og gamle definisjoner, og ikke la en gjentatt overføring overskrive senere feltredigering.
 
-Utleiedashboard skal ikke ha subfanene «Opprett utleieobjekt», «Kommende utleie» eller «Forespurt utleie». Opprettelse skal åpnes fra et skeleton-kort med «+» i objektvisningen. Objektets kodehåndtering og grunnopplysningsredigering skal nås under de tre prikkene i listevisningen, hvor dagsats og helgesatser også skal fremkomme.
+Utleiedashboard skal ikke ha subfanene «Opprett utleieobjekt», «Kommende utleie» eller «Forespurt utleie». Opprettelse skal åpnes fra et skeleton-kort med «+» i objektvisningen. Dagsats og helgesatser skal vises direkte på utstrakte objektkort, og bildene skal være mindre på mobil. Treprikkmenyen skal ha «Rediger», «Skjul» og «Slett». Redigeringsmodalen skal fornyes; nøkkelbokskoden skal være lett tilgjengelig direkte på kortet, ikke gjemmes i treprikkmenyen.
 
 **Why:** Brukeren synes de gamle kode-/redigeringsløsningene bryter fornyelsen og ønsker at de ulike visningene skal ha samme kvalitet som resten av utleiedashboardet.
 
-**How to apply:** Samle disse inngangene i dashboardet uten å erstatte den eksisterende godkjennings-, avslags-, e-post- eller kodelogikken. Behold skillet mellom grunnopplysninger og skjemafelt.
+**How to apply:** Samle disse inngangene i dashboardet uten å erstatte den eksisterende godkjennings-, avslags-, e-post- eller kodelogikken. Behold skillet mellom grunnopplysninger og skjemafelt. Forespørsler skal fortsatt støtte endring av returtid, prisjustering og ny prisberegning ved datoendring; kommende utleie skal kunne merkes betalt med riktig betalingsmetode og regnskapstilknytning.
+
+Utleieobjektets type er fast etter opprettelse: et VENUE kan ikke bytte type gjennom redigeringsgrensesnittet. Øvrige opplysninger skal kunne endres.
+
+**Why:** Brukeren presiserte at «Redigeringsmodal eller interface kan IKKE endre utleieobjekt_type».
+
+**How to apply:** Ikke tilby typebytte ved redigering. Behold typevalget ved opprettelse, og avvis forsøk på typebytte også på serveren.

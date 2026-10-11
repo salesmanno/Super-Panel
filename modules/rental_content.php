@@ -125,10 +125,16 @@ $schemas = getRentalSchemas();
         <div id="createFormSection">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title mb-3">Opprett nytt utleieobjekt</h5>
+                    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                        <div><div class="rental-kicker">Nytt inventar</div><h5 class="card-title mb-1">Opprett utleieobjekt</h5><p class="small text-muted mb-0">Legg inn grunninfo og priser. Du kan finjustere detaljene senere.</p></div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" onclick="closeRentalCreate()"><i class="bi bi-arrow-left me-1"></i>Til oversikten</button>
+                    </div>
                     <form id="createRentalForm">
                         <div id="createFormFieldsContainer"></div>
-                        <div id="create-rental-fields-editor" class="mt-3"></div>
+                        <details class="rental-create-fields-details">
+                            <summary>Tilpass kundeopplysninger</summary>
+                            <div id="create-rental-fields-editor" class="px-3 pb-3"></div>
+                        </details>
                         <div class="mt-3">
                             <button type="button" class="btn btn-primary" onclick="showCreateSummary()">
                                 <i class="bi bi-eye me-1"></i>Forhåndsvis og opprett
@@ -289,12 +295,12 @@ $schemas = getRentalSchemas();
 </div>
 
 <!-- Modal for redigering av utleieobjekt -->
-<div class="modal fade" id="rentalModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
+<div class="modal fade" id="rentalModal" tabindex="-1" aria-labelledby="rentalModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="rentalModalTitle">Rediger utleieobjekt</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Lukk redigering"></button>
             </div>
             <div class="modal-body">
                 <form id="rentalForm">
@@ -329,6 +335,7 @@ $schemas = getRentalSchemas();
 </div>
 
 <script src="/assets/rental_request_pricing.js"></script>
+<script src="/assets/active-payment-methods.js"></script>
 <script src="/assets/entity-form-fields.js"></script>
 <script src="/assets/rental_request_workflow.js"></script>
 <script src="/assets/rental_reservation_codes.js"></script>
@@ -337,11 +344,16 @@ $schemas = getRentalSchemas();
 const rentalSchemas = <?= json_encode($schemas) ?>;
 const rentalLifecycleCsrf = <?= json_encode($rentalLifecycleCsrf) ?>;
 let rentalCreateFieldsEditor = null;
+let rentalCreateFieldsBaseline = '';
 let rentalFormCsrfToken = '';
 let rentalCreateSaving = false;
 let rentalPendingRequests = new Map();
 let rentalDecisionEmailEnabled = false;
 let rentalRequestsLoadSequence = 0;
+document.addEventListener('rental-request-decided', event => {
+    rentalPendingRequests.delete(String(event.detail?.id ?? ''));
+    document.dispatchEvent(new Event('rental-dashboard-update'));
+});
 let allRentalObjects = [];
 let rentalFilter = '';
 let allApprovedRentals = [];
@@ -360,26 +372,59 @@ document.addEventListener('DOMContentLoaded', function() {
     setRentalUnavailableMode('day');
     loadRentalObjects();
     buildCreateForm();
+    document.getElementById('createRentalForm')?.setAttribute('data-initialized', 'true');
     initializeRentalCreateFields();
     loadContracts('all');
     loadRentalRequests();
     loadApprovedSchedule();
     loadRentalUnavailable();
     loadRentalResults();
+    const createForm = document.getElementById('createRentalForm');
+    if (createForm) createForm.dataset.rentalBaseline = rentalFormSnapshot(createForm);
+    const rentalTab = document.querySelector('[data-bs-target="#content-rental"]');
+    rentalTab?.addEventListener('hide.bs.tab', event => {
+        if (document.getElementById('rental-create')?.style.display !== 'block') return;
+        if (!closeRentalCreate()) event.preventDefault();
+    });
+    document.getElementById('rentalModal')?.addEventListener('hide.bs.modal', event => {
+        const form = document.getElementById('rentalForm');
+        if (!form || !form.dataset.rentalBaseline || form.dataset.rentalBaseline === rentalFormSnapshot(form)) return;
+        if (!window.confirm('Du har ulagrede endringer. Lukk uten å lagre?')) event.preventDefault();
+    });
 });
+
+function rentalFormSnapshot(form) {
+    return JSON.stringify([...form.querySelectorAll('input, select, textarea')].map(field => [
+        field.name || field.id || field.className,
+        field.type === 'checkbox' || field.type === 'radio' ? field.checked : field.value
+    ]));
+}
 
 function openRentalCreate() {
     if (rentalCreateSaving) return;
-    document.querySelectorAll('.subtab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('#rental-module .subtab-content').forEach(el => el.style.display = 'none');
     const target = document.getElementById('rental-create');
     if (target) target.style.display = 'block';
-    buildCreateForm();
-    if (rentalCreateFieldsEditor) {
-        rentalCreateFieldsEditor.reset();
-        rentalCreateFieldsEditor.refresh().catch(error => console.error('Could not reload rental field defaults:', error));
+    if (!document.getElementById('createRentalForm')?.dataset.initialized) {
+        buildCreateForm();
+        document.getElementById('createRentalForm').dataset.initialized = 'true';
+        if (rentalCreateFieldsEditor) rentalCreateFieldsEditor.refresh().catch(error => console.error('Could not reload rental field defaults:', error));
     }
-    pendingCreateData = null;
     document.getElementById('createFormSection')?.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function closeRentalCreate() {
+    const form = document.getElementById('createRentalForm');
+    const formDirty = form && form.dataset.rentalBaseline !== rentalFormSnapshot(form);
+    const fieldsDirty = rentalCreateFieldsEditor
+        && rentalCreateFieldsBaseline !== JSON.stringify(rentalCreateFieldsEditor.getFields());
+    if ((formDirty || fieldsDirty)
+        && !window.confirm('Du har et utkast i opprettelsen. Gå tilbake til oversikten? Utkastet beholdes her.')) return false;
+    const target = document.getElementById('rental-create');
+    if (target) target.style.display = 'none';
+    const objects = document.getElementById('rental-objects');
+    if (objects) objects.style.display = 'block';
+    return true;
 }
 
 async function ensureRentalFormToken(objectId) {
@@ -399,6 +444,7 @@ async function initializeRentalCreateFields() {
     rentalCreateFieldsEditor = EntityFormFields.mount(host, {entityType: 'rental_object', entityId: null, createMode: true});
     try { await rentalCreateFieldsEditor.refresh(); }
     catch (error) { console.error('Could not load rental field defaults:', error); }
+    rentalCreateFieldsBaseline = JSON.stringify(rentalCreateFieldsEditor.getFields());
 }
 
 function showRentalObjectsLoadError(message, warning) {
@@ -476,9 +522,11 @@ function renderRentalObjects(objects) {
     
     if (objects.length === 0) {
         container.innerHTML = `
-            <div class="text-center text-muted py-4">
-                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                Ingen objekter funnet
+            <div class="rental-object-list">
+                <div class="rental-empty-state"><span class="rental-empty-icon"><i class="bi bi-inbox"></i></span>
+                    <strong>${allRentalObjects.length ? 'Ingen objekter i dette utvalget' : 'Start med ditt første utleieobjekt'}</strong>
+                    <span>${allRentalObjects.length ? 'Prøv et annet søk eller en annen kategori.' : 'Legg inn lokale, utstyr eller kjøretøy i oversikten.'}</span>
+                </div>${renderRentalCreateTile()}
             </div>
         `;
         return;
@@ -487,8 +535,17 @@ function renderRentalObjects(objects) {
     container.innerHTML = `
         <div class="rental-object-list">
             ${objects.map(obj => renderObjectCard(obj)).join('')}
+            ${renderRentalCreateTile()}
         </div>
     `;
+}
+
+function renderRentalCreateTile() {
+    return `<button type="button" class="rental-create-tile" onclick="openRentalCreate()">
+        <span class="rental-create-tile-mark"><i class="bi bi-plus-lg" aria-hidden="true"></i></span>
+        <span><strong>Legg til utleieobjekt</strong><small>Opprett lokale, utstyr eller kjøretøy</small></span>
+        <i class="bi bi-arrow-up-right ms-auto" aria-hidden="true"></i>
+    </button>`;
 }
 
 function renderObjectCard(obj) {
@@ -497,7 +554,6 @@ function renderObjectCard(obj) {
     const categoryLabel = schema ? schema.label : obj.category;
     const isAvailable = obj.is_available == 1 || obj.is_available === true;
     const isRented = !isAvailable && obj.display_status === 'rented';
-    const toggleChecked = isAvailable ? 'checked' : '';
     const cardStateClass = isRented ? ' is-rented is-muted' : (isAvailable ? '' : ' is-muted');
     
     let badges = obj.badges || [];
@@ -516,36 +572,32 @@ function renderObjectCard(obj) {
              <img src="${escHtml(primaryImage.url)}" class="card-img-top rental-object-image" alt="${escHtml(obj.object_name)}">
              ${imageCount > 1 ? `<span class="position-absolute top-0 end-0 badge bg-dark bg-opacity-75 m-2"><i class="bi bi-images me-1"></i>${imageCount}</span>` : ''}
            </div>`
-        : `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 150px;">
+        : `<div class="card-img-top rental-object-image-placeholder d-flex align-items-center justify-content-center">
              <i class="bi bi-image fs-1 text-muted"></i>
            </div>`;
     
     let weekendPrice = '';
     if (obj.saturday_price > 0 || obj.sunday_price > 0) {
         const parts = [];
-        if (obj.saturday_price > 0) parts.push(`Lør: ${parseFloat(obj.saturday_price).toFixed(0)}`);
-        if (obj.sunday_price > 0) parts.push(`Søn: ${parseFloat(obj.sunday_price).toFixed(0)}`);
-        weekendPrice = `<br><small class="text-muted">${parts.join(' / ')} NOK/dag</small>`;
+        if (obj.saturday_price > 0) parts.push(`Lørdag ${parseFloat(obj.saturday_price).toLocaleString('nb-NO',{maximumFractionDigits:0})}`);
+        if (obj.sunday_price > 0) parts.push(`Søndag ${parseFloat(obj.sunday_price).toLocaleString('nb-NO',{maximumFractionDigits:0})}`);
+        weekendPrice = `<span class="rental-weekend-price">${parts.join(' · ')} NOK/dag</span>`;
     } else if (obj.weekend_price > 0) {
-        weekendPrice = `<br><small class="text-muted">Helg: ${parseFloat(obj.weekend_price).toFixed(0)} NOK/dag</small>`;
+        weekendPrice = `<span class="rental-weekend-price">Helg ${parseFloat(obj.weekend_price).toLocaleString('nb-NO',{maximumFractionDigits:0})} NOK/dag</span>`;
     }
     
     const statusLabel = isRented
         ? '<span class="badge rental-state-badge rental-state-rented ms-2">Utleid</span>'
         : (isAvailable
             ? '<span class="badge rental-state-badge rental-state-available ms-2">Tilgjengelig</span>'
-            : '<span class="badge rental-state-badge rental-state-inactive ms-2">Inaktiv</span>');
+            : '<span class="badge rental-state-badge rental-state-inactive ms-2">Skjult</span>');
     
     const dailyPrice = parseFloat(obj.rental_price) || 0;
     const defaultDeposit = parseFloat(obj.deposit_amount) || 0;
 
     return `
         <article class="rental-object-entry" id="rental-card-${escAttr(obj.id)}">
-            <div class="card h-100 rental-object-card${cardStateClass}" role="button" tabindex="0"
-                 aria-label="Vis mer om ${escAttr(obj.object_name)}" aria-expanded="false"
-                 aria-controls="rental-expanded-${escAttr(obj.id)}"
-                 onclick="handleRentalObjectCardClick(event, decodeURIComponent('${objectToken}'))"
-                 onkeydown="handleRentalObjectCardKeydown(event, decodeURIComponent('${objectToken}'))">
+            <div class="card h-100 rental-object-card${cardStateClass}">
                 ${imageHtml}
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
@@ -553,37 +605,35 @@ function renderObjectCard(obj) {
                             <button type="button" class="rental-object-name" data-rental-fields="${escAttr(obj.id)}" aria-expanded="false" aria-controls="rental-inline-${escAttr(obj.id)}">${escHtml(obj.object_name)}</button>
                             <span class="rental-card-status">${statusLabel}</span>
                         </div>
+                        <div class="dropdown rental-card-menu" data-rental-object-id="${escAttr(obj.id)}" onclick="event.stopPropagation()">
+                            <button class="btn rental-menu-trigger" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" aria-expanded="false" aria-label="Flere valg for ${escAttr(obj.object_name)}">
+                                <i class="bi bi-three-dots" aria-hidden="true"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" data-rental-menu-owner="${escAttr(obj.id)}">
+                                <li><button class="dropdown-item" type="button" onclick="editRentalObject(decodeURIComponent('${objectToken}'))"><i class="bi bi-pencil me-2"></i>Rediger</button></li>
+                                <li><button class="dropdown-item" type="button" data-rental-visibility="${escAttr(obj.id)}" data-rental-visible="${isAvailable ? '1' : '0'}" onclick="toggleAvailability(decodeURIComponent('${objectToken}'), this.dataset.rentalVisible !== '1')"><i class="bi bi-eye-slash me-2"></i>${isAvailable ? 'Skjul' : 'Vis igjen'}</button></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><button class="dropdown-item text-danger" type="button" onclick="deleteRentalObject(decodeURIComponent('${objectToken}'))"><i class="bi bi-trash me-2"></i>Slett</button></li>
+                            </ul>
+                        </div>
                     </div>
                     <div class="d-flex justify-content-between align-items-center gap-2 mb-2 rental-object-category">
                         <span class="badge rental-category">${escHtml(categoryLabel)}</span>
-                        <div class="form-check form-switch mb-0" title="${isAvailable ? 'Synlig for kunder' : 'Skjult for kunder'}" onclick="event.stopPropagation()">
-                            <input class="form-check-input" type="checkbox" role="switch" id="avail-${escAttr(obj.id)}" ${toggleChecked} onclick="event.stopPropagation()" onchange="toggleAvailability(decodeURIComponent('${objectToken}'), this.checked)">
-                            <label class="form-check-label small" for="avail-${obj.id}">${isAvailable ? 'Synlig' : 'Skjult'}</label>
-                        </div>
                     </div>
                     <div class="mb-2">
                         ${badgesHtml}
                     </div>
                         ${obj.description ? `<p class="card-text text-muted small">${escHtml(obj.description.substring(0, 100))}${obj.description.length > 100 ? '...' : ''}</p>` : ''}
                     <div class="d-flex justify-content-between align-items-center gap-2 mt-3 rental-object-footer">
-                        <div>
+                        <div class="rental-price-block">
                     <strong class="rental-price">${dailyPrice.toLocaleString('nb-NO',{maximumFractionDigits:0})} NOK/dag</strong>
                             ${weekendPrice}
                         </div>
                         <div class="btn-group btn-group-sm rental-object-actions">
-                            ${obj.category === 'venue' ? `<button class="btn" type="button" onclick="event.stopPropagation(); toggleRentalObjectCard(decodeURIComponent('${objectToken}'))" title="Tilgangskode"><i class="bi bi-key me-1"></i>Tilgangskode</button>` : ''}
-                            <button class="btn" onclick="event.stopPropagation(); toggleContractForm(decodeURIComponent('${objectToken}'))" title="Kontrakter" id="contract-btn-${escAttr(obj.id)}">
-                                <i class="bi bi-file-earmark-text me-1"></i>Opprett kontrakt
-                            </button>
-                            <button class="btn" onclick="event.stopPropagation(); viewDetails(decodeURIComponent('${objectToken}'))" title="Detaljer" aria-label="Vis detaljer">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                            <button class="btn rental-delete" onclick="event.stopPropagation(); deleteRentalObject(decodeURIComponent('${objectToken}'))" title="Slett" aria-label="Slett utleieobjekt">
-                                <i class="bi bi-trash"></i>
-                            </button>
+                            ${obj.category === 'venue' ? `<button class="btn rental-access-control" type="button" aria-expanded="false" aria-controls="rental-expanded-${escAttr(obj.id)}" onclick="toggleRentalObjectCard(decodeURIComponent('${objectToken}'))" title="Tilgangskode for lokalet"><i class="bi bi-key me-1"></i>Tilgangskode</button><span class="rental-card-access-value" data-rental-access-value>Aktuell <code>${escHtml(obj.type_data?.access_code || 'Ikke satt')}</code></span>` : ''}
+                            <button class="btn rental-contract-control" type="button" onclick="event.stopPropagation(); toggleContractForm(decodeURIComponent('${objectToken}'))" title="Opprett kontrakt" id="contract-btn-${escAttr(obj.id)}"><i class="bi bi-file-earmark-text me-1"></i>Kontrakt</button>
                         </div>
                     </div>
-                    <div class="small text-muted mt-2 rental-expand-hint"><i class="bi bi-chevron-down me-1"></i>Detaljer og innstillinger</div>
                 </div>
                 <div id="rental-expanded-${escAttr(obj.id)}" class="rental-object-expanded p-3" hidden onclick="event.stopPropagation()"></div>
             </div>
@@ -632,13 +682,9 @@ function renderObjectCard(obj) {
                         <div class="col-6">
                             <label class="form-label mb-1 small">Betalingsmetode</label>
                             <select class="form-select form-select-sm" id="cf-payment-method-${obj.id}">
-                                <option value="">Ikke valgt</option>
-                                <option value="Kontant">Kontant</option>
-                                <option value="Vipps">Vipps</option>
-                                <option value="Faktura">Faktura</option>
-                                <option value="Kortbetaling">Kortbetaling</option>
-                                <option value="Bankoverføring">Bankoverføring</option>
+                                <option value="">Laster aktiverte betalingsmåter…</option>
                             </select>
+                            <div id="cf-payment-method-state-${obj.id}" class="form-text" aria-live="polite"></div>
                         </div>
                         <div class="col-6">
                             <label class="form-label mb-1 small">Status</label>
@@ -663,11 +709,6 @@ function renderObjectCard(obj) {
     `;
 }
 
-function handleRentalObjectCardClick(event, objectId) {
-    if (event.target.closest('button, input, label, select, textarea, a, .form-switch, .rental-object-expanded')) return;
-    toggleRentalObjectCard(objectId);
-}
-
 function toggleRentalObjectCard(objectId) {
     const wrapper = document.getElementById(`rental-card-${objectId}`);
     const card = wrapper?.querySelector('.rental-object-card');
@@ -678,12 +719,7 @@ function toggleRentalObjectCard(objectId) {
     const opening = panel.hidden;
     panel.hidden = !opening;
     card.classList.toggle('is-expanded', opening);
-    card.setAttribute('aria-expanded', String(opening));
-    card.setAttribute('aria-label', `${opening ? 'Lukk' : 'Utvid'} ${obj.object_name}`);
-    const hint = card.querySelector('.rental-expand-hint');
-    if (hint) hint.innerHTML = opening
-        ? '<i class="bi bi-chevron-up me-1"></i>Trykk på kortet for å lukke'
-        : '<i class="bi bi-chevron-down me-1"></i>Trykk på kortet for å utvide';
+    card.querySelector('.rental-access-control')?.setAttribute('aria-expanded', String(opening));
     if (!opening) {
         panel.replaceChildren();
         return;
@@ -722,6 +758,7 @@ async function loadRentalCardAccessCode(objectId, panel) {
         }
         if (!panel.isConnected || panel.hidden || panel.querySelector('input') !== input) return;
         input.value = data.object.type_data?.access_code || '';
+        updateRentalCardAccessCodeDisplay(objectId, input.value);
         input.disabled = false;
         saveButton.disabled = false;
         status.textContent = 'La feltet stå tomt for å fjerne koden.';
@@ -766,6 +803,7 @@ async function saveRentalCardAccessCode(event, objectId) {
         const obj = allRentalObjects.find(o => String(o.id) === String(objectId));
         if (obj) obj.type_data = {...obj.type_data, access_code: code || null};
         input.value = code;
+        updateRentalCardAccessCodeDisplay(objectId, code);
     } catch (error) {
         if (!form.isConnected) return;
         status.textContent = error.message || 'Kunne ikke lagre koden';
@@ -778,12 +816,9 @@ async function saveRentalCardAccessCode(event, objectId) {
     }
 }
 
-function handleRentalObjectCardKeydown(event, objectId) {
-    if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) {
-        return;
-    }
-    event.preventDefault();
-    toggleRentalObjectCard(objectId);
+function updateRentalCardAccessCodeDisplay(objectId, code) {
+    const display = document.querySelector(`#rental-card-${CSS.escape(String(objectId))} [data-rental-access-value] code`);
+    if (display) display.textContent = code || 'Ikke satt';
 }
 
 function buildCreateForm(category = '', existingData = {}) {
@@ -815,16 +850,17 @@ function buildFormFields(containerId, category = '', existingData = {}) {
             </div>
             <div class="col-md-6">
                 <label class="form-label">Kategori <span class="text-danger">*</span></label>
-                <select class="form-select" name="category" id="${selectId}" required onchange="${rebuildFn}(this.value, getFormData('${formId}'))">
-                    <option value="">Velg kategori</option>
     `;
-    
-    Object.entries(rentalSchemas).forEach(([key, schema]) => {
-        html += `<option value="${key}" ${key === category ? 'selected' : ''}>${schema.label}</option>`;
-    });
-    
+    if (containerId === 'formFieldsContainer') {
+        html += `<div class="rental-locked-category"><span class="badge rental-category">${escHtml(rentalSchemas[category]?.label || category)}</span><span class="small text-muted">Kategorien kan ikke endres etter opprettelse.</span></div><input type="hidden" name="category" value="${escAttr(category)}">`;
+    } else {
+        html += `<select class="form-select" name="category" id="${selectId}" required onchange="${rebuildFn}(this.value, getFormData('${formId}'))"><option value="">Velg kategori</option>`;
+        Object.entries(rentalSchemas).forEach(([key, schema]) => {
+            html += `<option value="${key}" ${key === category ? 'selected' : ''}>${escHtml(schema.label)}</option>`;
+        });
+        html += '</select>';
+    }
     html += `
-                </select>
             </div>
         </div>
         
@@ -834,7 +870,7 @@ function buildFormFields(containerId, category = '', existingData = {}) {
                 <div class="row">
                     <div class="col-md-4 mb-2">
                         <label class="form-label mb-1">Leiepris per dag (NOK) <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control form-control-sm" name="rental_price" step="0.01" value="${escAttr(existingData.rental_price || '')}" required>
+                        <input type="number" class="form-control form-control-sm" name="rental_price" step="0.01" min="0" value="${escAttr(existingData.rental_price ?? '')}" required>
                     </div>
                     <div class="col-md-4 mb-2">
                         <label class="form-label mb-1">Depositum (NOK)</label>
@@ -964,6 +1000,91 @@ function buildFormFields(containerId, category = '', existingData = {}) {
     `;
     
     container.innerHTML = html;
+    if (containerId === 'createFormFieldsContainer') compactRentalCreateFields(container, category);
+}
+
+function compactRentalCreateFields(container, category) {
+    const children = [...container.children];
+    const identity = children.find(node => node.matches('.row') && node.querySelector('[name="object_name"]'));
+    const priceHeading = children.find(node => node.tagName === 'H6' && node.textContent.includes('Priser'));
+    const priceCard = priceHeading?.nextElementSibling;
+    const sourcePriceRow = priceCard?.querySelector('.card-body > .row');
+    const dailyField = sourcePriceRow?.querySelector('[name="rental_price"]')?.closest('.col-md-4');
+    const depositField = sourcePriceRow?.querySelector('[name="deposit_amount"]')?.closest('.col-md-4');
+    const marketField = sourcePriceRow?.querySelector('[name="market_price"]')?.closest('.col-md-4');
+    if (!identity || !priceHeading || !priceCard || !dailyField) return;
+
+    const imagesHeading = children.find(node => node.tagName === 'H6' && node.textContent.includes('Bilder'));
+    const imagesRow = imagesHeading?.nextElementSibling;
+    const availability = children.find(node => node.matches('.form-check.form-switch'));
+    const schema = rentalSchemas[category];
+    const schemaHeading = schema && children.find(node => node.tagName === 'H6' && node.textContent.includes('spesifikke detaljer'));
+    const schemaCard = schemaHeading?.nextElementSibling;
+    const rentalText = children.find(node => node.matches('.card') && node.querySelector('[name="rental_text"]'));
+    const pricingBody = priceCard.querySelector('.card-body');
+    const weekendToggle = pricingBody.querySelector(`#${container.id}_weekendToggle`)?.closest('.mt-1.mb-2');
+    const weekendPricing = pricingBody.querySelector(`#${container.id}_weekendPricing`);
+
+    const basePriceRow = document.createElement('div');
+    basePriceRow.className = 'row g-2';
+    basePriceRow.append(dailyField);
+    priceHeading.textContent = 'Grunnpris';
+    priceCard.className = 'card rental-create-primary-price mb-3';
+    pricingBody.replaceChildren(basePriceRow);
+
+    const advanced = document.createElement('details');
+    advanced.className = 'rental-create-advanced';
+    advanced.innerHTML = '<summary>Flere innstillinger</summary><div class="rental-create-advanced-body"></div>';
+    const advancedBody = advanced.querySelector('.rental-create-advanced-body');
+
+    if (depositField || marketField || weekendToggle || weekendPricing) {
+        const pricingCard = document.createElement('div');
+        pricingCard.className = 'card bg-light mb-3';
+        const pricingRow = document.createElement('div');
+        pricingRow.className = 'row g-2';
+        if (depositField) pricingRow.append(depositField);
+        if (marketField) pricingRow.append(marketField);
+        const body = document.createElement('div');
+        body.className = 'card-body py-2';
+        if (pricingRow.childElementCount) body.append(pricingRow);
+        if (weekendToggle) body.append(weekendToggle);
+        if (weekendPricing) body.append(weekendPricing);
+        pricingCard.append(body);
+        advancedBody.append(pricingCard);
+    }
+
+    if (imagesHeading) advancedBody.append(imagesHeading);
+    if (imagesRow) advancedBody.append(imagesRow);
+    if (availability) advancedBody.append(availability);
+    if (schemaCard && schema) {
+        const schemaRows = [...schemaCard.querySelectorAll('[data-rental-field-name]')];
+        const requiredRows = schemaRows.filter(row => schema.fields[row.dataset.rentalFieldName]?.required || (category === 'venue' && row.dataset.rentalFieldName === 'access_code'));
+        const optionalRows = schemaRows.filter(row => !requiredRows.includes(row));
+        const makeFieldCard = (heading, rows, className) => {
+            if (!rows.length) return null;
+            const section = document.createElement('section');
+            section.className = className;
+            const title = document.createElement('h6');
+            title.className = 'small text-uppercase fw-bold mb-3';
+            title.textContent = heading;
+            const row = document.createElement('div');
+            row.className = 'row';
+            rows.forEach(field => row.append(field));
+            section.append(title, row);
+            return section;
+        };
+        const requiredSection = makeFieldCard(`${schema.label} · nødvendig`, requiredRows, 'rental-required-fields');
+        const optionalSection = makeFieldCard(`${schema.label} · valgfritt`, optionalRows, 'rental-optional-fields');
+        if (optionalSection) advancedBody.append(optionalSection);
+        if (requiredSection) {
+            container.replaceChildren(identity, priceHeading, priceCard, requiredSection, advanced);
+            if (rentalText) advancedBody.append(rentalText);
+            return;
+        }
+        if (rentalText) advancedBody.append(rentalText);
+    }
+    if (rentalText) advancedBody.append(rentalText);
+    container.replaceChildren(identity, priceHeading, priceCard, advanced);
 }
 
 function generateIntegratedFieldHTML(fieldName, field, value = '') {
@@ -983,7 +1104,7 @@ function generateIntegratedFieldHTML(fieldName, field, value = '') {
         case 'checkbox':
             const checked = value === true || value === 1 || value === '1' ? 'checked' : '';
             return `
-                <div class="col-md-6 mb-3">
+                <div class="col-md-6 mb-3" data-rental-field-name="${escAttr(fieldName)}">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="type_data[${fieldName}]" id="${fieldName}" value="1" ${checked}>
                         <label class="form-check-label" for="${fieldName}">
@@ -1008,7 +1129,7 @@ function generateIntegratedFieldHTML(fieldName, field, value = '') {
     }
     
     return `
-        <div class="col-md-6 mb-3">
+        <div class="col-md-6 mb-3" data-rental-field-name="${escAttr(fieldName)}">
             <label class="form-label">${escHtml(field.label)} ${required}</label>
             ${inputHTML}
         </div>
@@ -1164,6 +1285,7 @@ async function saveRentalObject() {
         
         if (result.success) {
             toast.success(toastId, isEdit ? 'Objekt oppdatert' : 'Objekt opprettet', `${data.object_name} er lagret`);
+            form.dataset.rentalBaseline = rentalFormSnapshot(form);
             bootstrap.Modal.getInstance(document.getElementById('rentalModal')).hide();
             loadRentalObjects();
         } else {
@@ -1488,10 +1610,15 @@ async function confirmSaveNewRentalObject() {
             toast.success(toastId, 'Objekt opprettet', `${data.object_name} er lagret`);
             pendingCreateData = null;
             backToCreateForm();
-            document.getElementById('createRentalForm').reset();
+            const createForm = document.getElementById('createRentalForm');
+            createForm.reset();
             buildCreateForm();
+            createForm.dataset.rentalBaseline = rentalFormSnapshot(createForm);
             rentalCreateFieldsEditor?.reset();
-            rentalCreateFieldsEditor?.refresh().catch(error => console.warn('Could not reload rental defaults:', error));
+            rentalCreateFieldsEditor?.refresh().then(() => {
+                rentalCreateFieldsBaseline = JSON.stringify(rentalCreateFieldsEditor.getFields());
+            }).catch(error => console.warn('Could not reload rental defaults:', error));
+            closeRentalCreate();
             loadRentalObjects();
         } else {
             toast.error(toastId, 'Feil', result.message || 'Kunne ikke opprette objekt');
@@ -1506,7 +1633,7 @@ async function confirmSaveNewRentalObject() {
 }
 
 async function toggleAvailability(objectId, isAvailable) {
-    const obj = allRentalObjects.find(o => o.id === objectId);
+    const obj = allRentalObjects.find(o => String(o.id) === String(objectId));
     if (!obj) return;
     
     try {
@@ -1525,16 +1652,20 @@ async function toggleAvailability(objectId, isAvailable) {
             obj.is_available = isAvailable ? 1 : 0;
             obj.display_status = isAvailable ? 'available'
                 : (obj.display_status === 'rented' ? 'rented' : 'inactive');
+            const visibilityAction = document.querySelector(`[data-rental-visibility="${CSS.escape(String(objectId))}"]`);
+            if (visibilityAction) {
+                visibilityAction.dataset.rentalVisible = isAvailable ? '1' : '0';
+                visibilityAction.innerHTML = `<i class="bi bi-${isAvailable ? 'eye-slash' : 'eye'} me-2"></i>${isAvailable ? 'Skjul' : 'Vis igjen'}`;
+            }
             const card = document.getElementById(`rental-card-${objectId}`)?.querySelector('.rental-object-card');
             if (card) {
                 card.classList.toggle('is-muted', !isAvailable);
                 card.classList.toggle('is-rented', !isAvailable && obj.display_status === 'rented');
-                card.querySelector('.rental-card-status').innerHTML = isAvailable ? ''
+                card.querySelector('.rental-card-status').innerHTML = isAvailable
+                    ? '<span class="badge rental-state-badge rental-state-available ms-2">Tilgjengelig</span>'
                     : obj.display_status === 'rented'
                         ? '<span class="badge text-bg-light border text-secondary ms-2"><i class="bi bi-lock me-1"></i>Utleid</span>'
-                        : '<span class="badge text-bg-light border text-secondary ms-2"><i class="bi bi-eye-slash me-1"></i>Inaktiv</span>';
-                const switchLabel = card.querySelector('.form-switch .form-check-label');
-                if (switchLabel) switchLabel.textContent = isAvailable ? 'Synlig' : 'Skjult';
+                        : '<span class="badge text-bg-light border text-secondary ms-2"><i class="bi bi-eye-slash me-1"></i>Skjult</span>';
             }
             toast.quickSuccess(isAvailable ? 'Synlig' : 'Skjult', `${obj.object_name} er nå ${isAvailable ? 'synlig for kunder' : 'skjult fra kunder'}`);
         } else {
@@ -1563,10 +1694,12 @@ async function editRentalObject(objectId) {
         toast.quickError('Sikkerhet', error.message || 'Kunne ikke hente sikkerhetstoken');
         return;
     }
-    document.getElementById('rentalModalTitle').textContent = 'Grunnopplysninger';
+    document.getElementById('rentalModalTitle').textContent = 'Rediger utleieobjekt';
     document.getElementById('rental_id').value = obj.id;
     
     buildIntegratedForm(obj.category, obj);
+    const editForm = document.getElementById('rentalForm');
+    editForm.dataset.rentalBaseline = rentalFormSnapshot(editForm);
     
     const modal = new bootstrap.Modal(document.getElementById('rentalModal'));
     modal.show();
@@ -1700,6 +1833,30 @@ async function toggleContractForm(objectId) {
     panel.style.display = 'block';
     loadObjectContracts(objectId);
     loadCustomersCache();
+    loadRentalContractPaymentMethods(objectId);
+}
+
+async function loadRentalContractPaymentMethods(objectId) {
+    const select = document.getElementById(`cf-payment-method-${objectId}`);
+    const state = document.getElementById(`cf-payment-method-state-${objectId}`);
+    if (!select || !state || select.dataset.loaded === 'true') return;
+    select.disabled = true;
+    try {
+        const methods = await window.ActivePaymentMethods.load();
+        if (!select.isConnected) return;
+        select.replaceChildren(new Option(methods.length ? 'Velg aktivert metode' : 'Ingen aktiverte betalingsmåter', ''));
+        methods.forEach(method => select.add(new Option(window.ActivePaymentMethods.label(method), method.method_type)));
+        select.dataset.loaded = 'true';
+        select.disabled = methods.length === 0;
+        state.textContent = methods.length ? '' : 'Aktiver en metode i Økonomi først.';
+    } catch (error) {
+        if (!select.isConnected) return;
+        select.replaceChildren(new Option('Kunne ikke laste betalingsmåter', ''));
+        state.textContent = error.message || 'Kunne ikke hente betalingsmåter.';
+        state.classList.add('text-danger');
+        select.disabled = true;
+        select.dataset.loaded = 'error';
+    }
 }
 
 async function loadObjectContracts(objectId) {
@@ -2246,16 +2403,16 @@ async function loadRentalRequests() {
                         data-base-rental-fee="${baseRentalFee}"
                         data-pickup-time="${escAttr(pickupTime)}"
                         data-cleaning-fee="${escAttr(r.cleaning_fee ?? '')}">
-                <td class="small">
+                <td class="small" data-label="Objekt">
                     <div class="fw-semibold">${escHtml(r.object_name || '–')}</div>
                     ${r.object_category ? `<span class="badge bg-light text-dark border">${escHtml(r.object_category)}</span>` : ''}
                 </td>
-                <td class="small">
+                <td class="small" data-label="Kunde">
                     <div>${escHtml(r.display_customer_name)}${ageStr}</div>
                     ${contactInfo}
                     ${rentalRequestFieldsHtml(r.request_fields, true)}
                 </td>
-                <td class="small">
+                <td class="small" data-label="Fra">
                     <div class="d-flex flex-column gap-1" style="min-width:8.5rem">
                         <input type="date" class="form-control form-control-sm rental-request-start-date"
                                data-rental-request-field="start-date"
@@ -2263,7 +2420,7 @@ async function loadRentalRequests() {
                         <span class="badge text-bg-light border py-2">Henting${pickupTime ? ` kl. ${escHtml(pickupTime)}` : ''}</span>
                     </div>
                 </td>
-                <td class="small">
+                <td class="small" data-label="Til">
                     <div class="d-flex flex-column gap-1" style="min-width:8.5rem">
                         <input type="date" class="form-control form-control-sm rental-request-end-date"
                                data-rental-request-field="end-date"
@@ -2273,11 +2430,11 @@ async function loadRentalRequests() {
                                value="${escHtml(endTime)}" aria-label="Sluttid">
                     </div>
                 </td>
-                <td class="small">
+                <td class="small" data-label="Logistikk">
                     ${logisticsLabel}
                     ${deliveryAddr}
                 </td>
-                <td class="small" style="min-width:9rem">
+                <td class="small" data-label="Leiebeløp" style="min-width:9rem">
                     <div class="fw-semibold text-nowrap rental-request-base-fee">
                         ${baseRentalFee.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK
                     </div>
@@ -2307,17 +2464,19 @@ async function loadRentalRequests() {
                         </label>
                     </div>
                 </td>
-                <td class="small text-nowrap text-muted">${createdAt}</td>
-                <td class="small">${notesCell || '<span class="text-muted">–</span>'}</td>
-                <td class="text-nowrap">
-                    <button class="btn btn-outline-primary btn-sm rental-request-save" onclick="RentalRequestWorkflow.save('${escHtml(r.id)}')">Lagre endringer</button>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="RentalRequestWorkflow.discard('${escHtml(r.id)}')">Forkast endringer</button>
-                    <button class="btn btn-success btn-sm me-1 rental-request-approve" onclick="approveScheduleRequest('${escHtml(r.id)}')">
-                        <i class="bi bi-check-lg me-1"></i>Godkjenn
-                    </button>
-                    <button class="btn btn-outline-danger btn-sm" onclick="declineScheduleRequest('${escHtml(r.id)}')">
-                        <i class="bi bi-x-lg me-1"></i>Avslå
-                    </button>
+                <td class="small text-nowrap text-muted" data-label="Innsendt">${createdAt}</td>
+                <td class="small" data-label="Notater">${notesCell || '<span class="text-muted">–</span>'}</td>
+                <td class="text-nowrap" data-label="Handling">
+                    <div class="rental-request-actions">
+                        <button class="btn btn-outline-primary btn-sm rental-request-save" onclick="RentalRequestWorkflow.save('${escHtml(r.id)}')">Lagre endringer</button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="RentalRequestWorkflow.discard('${escHtml(r.id)}')">Forkast endringer</button>
+                        <button class="btn btn-success btn-sm rental-request-approve" onclick="approveScheduleRequest('${escHtml(r.id)}')">
+                            <i class="bi bi-check-lg me-1"></i>Godkjenn
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="declineScheduleRequest('${escHtml(r.id)}')">
+                            <i class="bi bi-x-lg me-1"></i>Avslå
+                        </button>
+                    </div>
                 </td>
             </tr>`;
         }).join('');
@@ -2377,9 +2536,9 @@ async function openRentalRequestNotification(id) {
     const tab = document.querySelector('[data-bs-target="#content-rental"]');
     if (!tab) throw new Error('Du har ikke tilgang til utleiemodulen');
     bootstrap.Tab.getOrCreateInstance(tab).show();
-    if (typeof showSubTabContent === 'function') showSubTabContent('rental','rental-requests');
-    document.querySelectorAll('#subtabs-rental .nav-link').forEach(link => link.classList.toggle('active',link.getAttribute('href') === '#rental-requests'));
+    document.querySelectorAll('#content-rental .subtab-content').forEach(section => section.style.display = section.id === 'rental-objects' ? 'block' : 'none');
     if (!await loadRentalRequests()) return false;
+    window.RentalDashboard?.openOverview('requests', false);
     const row = document.querySelector(`[data-rental-request-id="${CSS.escape(String(id))}"]`);
     if (!row) {
         const response = await fetch('/api/get_rental_schedule.php?request_id='+encodeURIComponent(id));
@@ -3052,14 +3211,9 @@ function showRentalCalDetail(id, promptCode = true) {
                 <div>
                     <label class="form-label small fw-semibold" for="rentalSchedulePaymentMethod">Betalingsmåte</label>
                     <select class="form-select form-select-sm" id="rentalSchedulePaymentMethod" onchange="toggleRentalPaymentButton(this.value)" ${isPaid ? 'disabled' : ''}>
-                        <option value="">Velg betalingsmåte</option>
-                        <option value="vipps">Vipps</option>
-                        <option value="card">Kort</option>
-                        <option value="cash">Kontant</option>
-                        <option value="invoice">Faktura</option>
-                        <option value="bank_transfer">Bankoverføring</option>
-                        <option value="other">Annet</option>
+                        <option value="">Laster aktiverte betalingsmåter…</option>
                     </select>
+                    <div id="rentalPaymentMethodsState" class="small text-muted mt-1" aria-live="polite"></div>
                 </div>
                 <div class="d-grid">
                     <button class="btn btn-success btn-sm" type="button" id="rentalSchedulePaymentButton"
@@ -3112,8 +3266,38 @@ function showRentalCalDetail(id, promptCode = true) {
         ${actionPanel}`;
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById('detailsModal')).show();
+    if (!isPaid) loadRentalSchedulePaymentMethods();
     if (promptCode && r.can_prepare_code && r.start_date > getRentalOsloToday()) {
         RentalReservationCodes.open(document.getElementById('rentalReservationCodeHost'), String(r.id));
+    }
+}
+
+async function loadRentalSchedulePaymentMethods() {
+    const select = document.getElementById('rentalSchedulePaymentMethod');
+    const state = document.getElementById('rentalPaymentMethodsState');
+    const submit = document.getElementById('rentalSchedulePaymentButton');
+    if (!select || !state || !submit) return;
+    select.disabled = true;
+    submit.disabled = true;
+    state.textContent = 'Henter betalingsmåter som er aktivert i Økonomi…';
+    try {
+        const methods = await window.ActivePaymentMethods.load();
+        if (!select.isConnected) return;
+        select.replaceChildren(new Option(methods.length ? 'Velg betalingsmåte' : 'Ingen betalingsmåter aktivert', ''));
+        methods.forEach(method => select.add(new Option(window.ActivePaymentMethods.label(method), method.method_type)));
+        select.disabled = methods.length === 0;
+        state.textContent = methods.length ? 'Kun aktiverte betalingsmåter kan velges.' : 'Aktiver en betalingsmåte i Økonomi for å registrere betaling.';
+    } catch (error) {
+        if (!select.isConnected) return;
+        select.replaceChildren(new Option('Kunne ikke laste betalingsmåter', ''));
+        state.textContent = error.message || 'Kunne ikke hente aktiverte betalingsmåter.';
+        state.classList.add('text-danger');
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.className = 'btn btn-link btn-sm p-0';
+        retry.textContent = 'Prøv igjen';
+        retry.addEventListener('click', loadRentalSchedulePaymentMethods);
+        state.append(' ', retry);
     }
 }
 
