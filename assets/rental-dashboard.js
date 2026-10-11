@@ -79,9 +79,12 @@
     }
 
     function applyObjectFilters() {
-        const query = (document.getElementById('rentalObjectSearch')?.value || '').trim().toLocaleLowerCase('nb-NO');
+        // A browser/password manager may fill the input without an editing event.
+        // Only a query accepted from a deliberate edit may filter the inventory.
+        const search = document.getElementById('rentalObjectSearch');
+        if (search) search.value = dashboard.appliedSearch;
+        const query = dashboard.appliedSearch.trim().toLocaleLowerCase('nb-NO');
         const category = document.getElementById('categoryFilter')?.value || '';
-        dashboard.appliedSearch = document.getElementById('rentalObjectSearch')?.value || '';
         dashboard.appliedCategory = category;
         const objects = allRentalObjects.filter(item => {
             const schema = rentalSchemas?.[item.category];
@@ -218,9 +221,23 @@
     document.addEventListener('rental-dashboard-update', renderMetrics);
     document.addEventListener('DOMContentLoaded', () => {
         const search = document.getElementById('rentalObjectSearch');
-        search?.addEventListener('input', async () => {
-            if (await beforeFilter()) applyObjectFilters();
+        search?.addEventListener('input', async event => {
+            const inputType = event.inputType || '';
+            const explicitEdit = /^(delete|history)/.test(inputType)
+                || ['insertFromPaste', 'insertFromDrop'].includes(inputType)
+                || (['insertText', 'insertCompositionText'].includes(inputType) && event.data !== null && event.data !== undefined);
+            if (!explicitEdit && search.value !== '') {
+                search.value = dashboard.appliedSearch;
+                return;
+            }
+            const query = search.value;
+            if (await beforeFilter()) {
+                dashboard.appliedSearch = query;
+                applyObjectFilters();
+            }
         });
+        search?.addEventListener('change', () => { search.value = dashboard.appliedSearch; });
+        search?.addEventListener('focus', () => { search.value = dashboard.appliedSearch; });
         document.getElementById('rentalObjectsContainer')?.addEventListener('click', event => {
             const button = event.target.closest('[data-rental-fields]');
             if (button) {

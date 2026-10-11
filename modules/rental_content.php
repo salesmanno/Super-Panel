@@ -104,7 +104,7 @@ $schemas = getRentalSchemas();
             <div class="card-body">
                 <div class="rental-inventory-heading"><div><div class="rental-kicker">Inventar</div><h5 class="card-title mb-0">Utleieobjekter</h5><p class="small text-muted mb-0 mt-1">Velg et objektnavn for å tilpasse kundeopplysninger.</p></div><span class="badge rounded-pill text-bg-light border" id="rentalObjectCount">– objekter</span></div>
                 <div class="rental-filter-row">
-                    <label class="rental-search"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Søk utleieobjekter</span><input id="rentalObjectSearch" type="search" class="form-control" placeholder="Søk etter navn eller kategori"></label>
+                    <label class="rental-search"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Søk utleieobjekter</span><input id="rentalObjectSearch" name="rental_inventory_query" type="search" class="form-control" placeholder="Søk etter navn eller kategori" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></label>
                     <select class="form-select" id="categoryFilter" onchange="filterByCategory()" aria-label="Filtrer kategori">
                         <option value="">Alle kategorier</option>
                         <?php foreach ($schemas as $key => $schema): ?>
