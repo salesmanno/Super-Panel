@@ -17,7 +17,7 @@ $schema=[
     "system_modules(id CHAR(36),module_key VARCHAR(50),is_active INT)",
     "tenant_admin_modules(tenant_admin_id CHAR(36),module_id CHAR(36))",
     "rental_objects(id CHAR(36) PRIMARY KEY,company_id CHAR(36),object_name TEXT,category VARCHAR(50),rental_text TEXT,rental_price DECIMAL(12,2),weekend_price DECIMAL(12,2),saturday_price DECIMAL(12,2),sunday_price DECIMAL(12,2),weekday_prices_enabled TINYINT(1) NOT NULL DEFAULT 0,is_active INT DEFAULT 1,is_available INT DEFAULT 1,created_by CHAR(36),market_price DECIMAL(12,2),serial_number TEXT,description TEXT,deposit_amount DECIMAL(12,2),condition_notes TEXT,image_url TEXT,images TEXT,rental_periods TEXT,output_product_id CHAR(36))",
-    "rental_venues(object_id CHAR(36) PRIMARY KEY,cleaning_fee DECIMAL(12,2),capacity_seated INT)",
+    "rental_venues(object_id CHAR(36) PRIMARY KEY,cleaning_fee DECIMAL(12,2),capacity_seated INT,age_required INT NOT NULL DEFAULT 0)",
     "rental_tools(object_id CHAR(36) PRIMARY KEY,brand TEXT)",
     "rental_contracts(id CHAR(36),company_id CHAR(36),rental_object_id CHAR(36),status VARCHAR(30),start_date DATE,end_date DATE)",
     "tenant_customers(id CHAR(36) PRIMARY KEY,company_id CHAR(36),first_name TEXT,last_name TEXT,email TEXT,phone TEXT,address_street TEXT,address_zip TEXT,address_city TEXT,date_of_birth DATE,customer_code TEXT,customer_type TEXT,status TEXT,source TEXT,created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
@@ -173,11 +173,16 @@ try {
         && $db->query("SELECT object_name FROM rental_objects WHERE id='oa'")->fetchColumn()==='Nytt navn','Rejected type change saves nothing');
     workflowAssert((int)$db->query("SELECT COUNT(*) FROM rental_tools WHERE object_id='oa'")->fetchColumn()===0
         && (int)$db->query("SELECT COUNT(*) FROM rental_venues WHERE object_id='oa'")->fetchColumn()===1,'Rejected type change preserves typed records');
-    workflowAssert($call('update_rental_object','a',['id'=>'oa','csrf_token'=>'form-token','rental_price'=>150,'weekend_price'=>200,'saturday_price'=>null,'sunday_price'=>null,'type_data'=>['access_code'=>'2468']])[1]['success'],'Rates and physical code remain editable with category omitted');
+    workflowAssert($call('update_rental_object','a',['id'=>'oa','csrf_token'=>'form-token','rental_price'=>150,'weekend_price'=>200,'saturday_price'=>null,'sunday_price'=>null,'type_data'=>['access_code'=>'2468','age_required'=>18]])[1]['success'],'Rates, physical code, and minimum age remain editable with category omitted');
     $editedObject=$db->query("SELECT rental_price,weekend_price,saturday_price,sunday_price FROM rental_objects WHERE id='oa'")->fetch(PDO::FETCH_ASSOC);
     workflowAssert((float)$editedObject['rental_price']===150.0 && (float)$editedObject['weekend_price']===200.0
         && $editedObject['saturday_price']===null && $editedObject['sunday_price']===null,'Unified weekend prices persisted');
     workflowAssert($db->query("SELECT access_code FROM rental_venues WHERE object_id='oa'")->fetchColumn()==='2468','Physical venue code updated explicitly');
+    workflowAssert((int)$db->query("SELECT age_required FROM rental_venues WHERE object_id='oa'")->fetchColumn()===18,'Enabled minimum age persists to the existing venue row');
+    workflowAssert($call('update_rental_object','a',['id'=>'oa','csrf_token'=>'form-token','type_data'=>['age_required'=>0]])[1]['success']
+        &&(int)$db->query("SELECT age_required FROM rental_venues WHERE object_id='oa'")->fetchColumn()===0,'Disabled minimum age is explicitly persisted as zero');
+    workflowAssert($call('update_rental_object','a',['id'=>'oa','csrf_token'=>'form-token','type_data'=>['age_required'=>-1]])[0]===400
+        &&(int)$db->query("SELECT age_required FROM rental_venues WHERE object_id='oa'")->fetchColumn()===0,'Negative minimum age is rejected without changing the saved value');
     workflowAssert($db->query("SELECT key_box_code FROM rental_schedule WHERE id=".$db->quote($id))->fetchColumn()===$stored['key_box_code'],'Object code edit never changes assigned reservation code');
     workflowAssert($call('update_rental_object','a',['id'=>'oa','csrf_token'=>'form-token','weekend_price'=>null,'saturday_price'=>250,'sunday_price'=>175,'is_available'=>0])[1]['success'],'Separate weekend rates and hiding remain editable');
     $editedObject=$db->query("SELECT weekend_price,saturday_price,sunday_price,is_available FROM rental_objects WHERE id='oa'")->fetch(PDO::FETCH_ASSOC);
@@ -259,6 +264,7 @@ try {
     [$http,$newObject]=$call('create_rental_object','a',['csrf_token'=>'form-token','object_name'=>'Ukedagslokale','category'=>'venue','rental_price'=>100,'weekday_prices_enabled'=>1,'weekday_prices'=>$weekdayPrices,'form_fields'=>$newFormFields]);
     workflowAssert($http===200&&$newObject['success'],'Creation saves weekday prices');
     $newId=$newObject['object_id'];
+    workflowAssert((int)$db->query("SELECT age_required FROM rental_venues WHERE object_id=".$db->quote($newId))->fetchColumn()===0,'New venue defaults to no minimum age');
     $newRequest=$payload;
     $newRequest['submission_id']='weekday-request';$newRequest['object_id']=$newId;
     $newRequest['start_date']='2031-07-07';$newRequest['end_date']='2031-07-11';

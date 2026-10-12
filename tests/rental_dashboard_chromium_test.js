@@ -36,7 +36,7 @@ window.fixtureRentalHold=null;window.fixtureFailRentalSave=false;window.fixtureR
 const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);
 const iso=tomorrow.toISOString().slice(0,10);
 const image='https://fixture.invalid/house.svg';
-window.fixtureObjects=Array.from({length:16},(_,i)=>({id:'object-'+i,object_name:i===0?'Sal <img src=x onerror="window.injected=1">':'Utleieobjekt '+i,category:i===15?'tool':'venue',rental_price:100+i,weekday_prices:i===0?JSON.stringify({monday:500,tuesday:500,wednesday:600,thursday:600,friday:800}):i===2?'{"monday":':null,weekday_prices_enabled:i===0||i===2?1:0,weekend_price:i===1?425:0,saturday_price:i===0?175:0,sunday_price:i===0?190:0,deposit_amount:2500,description:'Lyst lokale ved fjorden.',rental_text:'Nøkkel hentes etter avtale.',images:[{url:image,is_primary:true,caption:'Hovedrommet'}],is_available:1,display_status:'available',type_data:{access_code:'1234',cleaning_fee:200,capacity_seated:48,facilities:'Lydanlegg tilgjengelig',pickup_time:'09:30',return_time:'21:00'}}));
+window.fixtureObjects=Array.from({length:16},(_,i)=>({id:'object-'+i,object_name:i===0?'Sal <img src=x onerror="window.injected=1">':'Utleieobjekt '+i,category:i===15?'tool':'venue',rental_price:100+i,weekday_prices:i===0?JSON.stringify({monday:500,tuesday:500,wednesday:600,thursday:600,friday:800}):i===2?'{"monday":':null,weekday_prices_enabled:i===0||i===2?1:0,weekend_price:i===1?425:0,saturday_price:i===0?175:0,sunday_price:i===0?190:0,deposit_amount:2500,description:'Lyst lokale ved fjorden.',rental_text:'Nøkkel hentes etter avtale.',images:[{url:image,is_primary:true,caption:'Hovedrommet'}],is_available:1,display_status:'available',type_data:{access_code:'1234',age_required:i===0?18:0,cleaning_fee:200,capacity_seated:48,facilities:'Lydanlegg tilgjengelig',pickup_time:'09:30',return_time:'21:00'}}));
 window.fixtureObjects[1].weekday_prices=JSON.stringify({monday:500,tuesday:500,wednesday:600,thursday:600,friday:800});
 window.fixtureObjects[15].market_price=235;
 window.fixtureRequest={id:'request-a',rental_object_id:'object-0',object_name:'Sal A',category:'venue',object_daily_price:100,object_weekend_price:0,object_saturday_price:150,object_sunday_price:125,object_weekday_prices:{monday:500,tuesday:500,wednesday:600,thursday:600,friday:800},object_weekday_prices_enabled:1,status:'pending',approved:0,start_date:iso,end_date:iso,display_customer_name:'Testkunde',display_email:'kunde@example.invalid',customer_name:'Testkunde',customer_email:'kunde@example.invalid',pickup_time:'09:00:00',return_time:'17:30:00',rental_fee:100,decision_version:'v1'};
@@ -147,6 +147,14 @@ const checks=`(async()=>{
   check(!editForm.querySelector('[name="type_data[access_code]"]').closest('details'),'venue access code remains immediately visible');
   check(editForm.querySelector('[name="type_data[pickup_time]"]')?.type==='time'&&!editForm.querySelector('[name="type_data[pickup_time]"]').closest('details')
     &&editForm.querySelector('[name="type_data[return_time]"]')?.type==='time','type-specific pickup and return controls remain in the visible edit flow');
+  const ageToggle=editForm.querySelector('[data-rental-age-required-toggle]');
+  const ageInput=editForm.querySelector('[name="type_data[age_required]"]');
+  check(ageToggle?.checked&&ageInput?.value==='18'&&!ageInput.disabled&&ageInput.required
+    &&ageInput.min==='1'&&ageInput.step==='1','saved venue minimum age enables an integer input');
+  ageToggle.click();
+  check(!ageToggle.checked&&ageInput.disabled&&!ageInput.required,'disabling minimum age disables its number input');
+  ageToggle.click();
+  check(ageToggle.checked&&!ageInput.disabled&&ageInput.value==='18','re-enabling preserves the edit draft');
   check(editForm.querySelector('[name="description"]').closest('details')&&editForm.querySelector('[name="rental_text"]').closest('details'),'descriptive copy is progressively disclosed');
   check(editForm.querySelector('.image-caption-input').value==='Hovedrommet'&&editForm.querySelector('.image-row input[type="radio"]').checked,'image caption and primary selection remain in original fields');
   check(editForm.querySelector('[name="weekend_price"]').value==='0'&&editForm.querySelector('[name="saturday_price"]').value==='175'
@@ -203,7 +211,8 @@ const checks=`(async()=>{
     &&savedVenue.saturday_price===0&&savedVenue.sunday_price===340&&savedVenue.weekend_price===0,'edit serialization retains locked category and day/weekend pricing values');
   check(JSON.stringify(savedVenue.weekday_prices)===JSON.stringify({monday:500,tuesday:0,wednesday:600,thursday:600,friday:800}),'edit serializes all five weekday rates as numeric English-keyed map including explicit zero');
   check(savedVenue.type_data.access_code==='A731'&&savedVenue.type_data.pickup_time==='10:15'
-    &&savedVenue.type_data.return_time==='22:45'&&savedVenue.type_data.facilities==='Lydanlegg tilgjengelig','edit serializes physical access and type-specific time/detail fields');
+    &&savedVenue.type_data.return_time==='22:45'&&savedVenue.type_data.facilities==='Lydanlegg tilgjengelig'
+    &&savedVenue.type_data.age_required===18,'edit serializes physical access, type-specific details, and enabled minimum age');
   check(savedVenue.description==='Oppdatert beskrivelse'&&savedVenue.rental_text==='Adgang etter avtale.'
     &&savedVenue.images[0].caption==='Oppdatert sal'&&savedVenue.images[0].is_primary&&savedVenue.is_available===true,'hidden copy, image caption/primary, and availability serialize through original API shape');
   await loadRentalObjects();
@@ -212,9 +221,21 @@ const checks=`(async()=>{
   await wait(()=>document.getElementById('rentalModal').classList.contains('show'),'reloaded weekday-map edit');await delay(100);
   check(editForm.querySelector('#formFieldsContainer_weekdayPricesEnabled').checked
     &&editForm.querySelector('[name="weekday_prices[tuesday]"]').value==='0'
-    &&editForm.querySelector('[name="rental_price"]').value==='125','saved map and zero prefill on reload without losing fallback');
+    &&editForm.querySelector('[name="rental_price"]').value==='125'
+    &&editForm.querySelector('[data-rental-age-required-toggle]').checked
+    &&editForm.querySelector('[name="type_data[age_required]"]').value==='18','saved map, zero rate, and minimum age prefill on reload');
+  editForm.querySelector('[data-rental-age-required-toggle]').click();
+  document.getElementById('rentalSaveButton').click();
+  await wait(()=>fixtureRentalWrites.length===3,'save disabled minimum age');
+  await wait(()=>!document.getElementById('rentalModal').classList.contains('show'),'save disabled minimum age closes');
+  check(fixtureRentalWrites.at(-1).type_data.age_required===0,'unchecked minimum age is explicitly saved as 0');
+  await loadRentalObjects();
+  await editRentalObject('object-0');
+  await wait(()=>document.getElementById('rentalModal').classList.contains('show'),'reload disabled minimum age');await delay(100);
+  check(!editForm.querySelector('[data-rental-age-required-toggle]').checked
+    &&editForm.querySelector('[name="type_data[age_required]"]').disabled,'saved zero reloads as unchecked with disabled input');
   bootstrap.Modal.getOrCreateInstance(document.getElementById('rentalModal')).hide();
-  await wait(()=>!document.getElementById('rentalModal').classList.contains('show'),'close reloaded map modal');
+  await wait(()=>!document.getElementById('rentalModal').classList.contains('show'),'close disabled age modal');
   await editRentalObject('object-1');
   await wait(()=>document.getElementById('rentalModal').classList.contains('show'),'unified-price edit modal');await delay(100);
   const unifiedDetails=editForm.querySelector('[data-rental-edit-section="pricing"]');
@@ -222,7 +243,7 @@ const checks=`(async()=>{
     &&editForm.querySelector('[name="weekend_price"]').value==='425','unified weekend price is preserved while its section stays collapsed');
   window.fixtureRentalHold=new Promise(resolve=>window.releaseRentalSave=resolve);
   document.getElementById('rentalSaveButton').click();document.getElementById('rentalSaveButton').click();
-  await wait(()=>fixtureRentalWrites.length===3,'unified mode save');
+  await wait(()=>fixtureRentalWrites.length===4,'unified mode save');
   window.releaseRentalSave();window.fixtureRentalHold=null;
   await wait(()=>!document.getElementById('rentalModal').classList.contains('show'),'unified mode save closes');
   check(fixtureRentalWrites.at(-1).weekend_price===425&&fixtureRentalWrites.at(-1).saturday_price===0
@@ -357,6 +378,7 @@ const checks=`(async()=>{
   check(createFields.querySelector('[name="rental_price"]').value==='0','edit cleanup preserves zero-rate creation draft');
   check(createFields.querySelector('[name="rental_price"]')&&!createFields.querySelector('[name="rental_price"]').closest('details'),'required daily rate stays visible in first-pass create form');
   check(createFields.querySelector('[name="type_data[access_code]"]')&&!createFields.querySelector('[name="type_data[access_code]"]').closest('details'),'venue access code stays visible in first-pass create form');
+   check(!createFields.querySelector('[name="type_data[age_required]"]')&&!createFields.querySelector('[data-rental-age-required-toggle]'),'venue age requirement remains an edit-only setting');
   check(createFields.querySelector('[name="description"]')?.closest('details')&&!createFields.querySelector('details.rental-create-advanced')?.open,'optional listing details are grouped in a closed disclosure');
    check(!createFields.querySelector('#createFormFieldsContainer_weekdayPricesEnabled').checked
      &&getComputedStyle(createFields.querySelector('#createFormFieldsContainer_weekdayPrices')).display==='none'

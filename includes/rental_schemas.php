@@ -66,6 +66,7 @@ function getRentalSchemas() {
                 'tables_chairs_included' => ['type' => 'checkbox', 'label' => 'Bord og stoler inkludert', 'required' => false],
                 'parking_spaces' => ['type' => 'number', 'label' => 'Antall parkeringsplasser', 'required' => false],
                 'min_days' => ['type' => 'number', 'label' => 'Minimum antall dager', 'required' => false],
+                'age_required' => ['type' => 'number', 'label' => 'Minste alder (år)', 'step' => '1', 'required' => false],
                 'cleaning_included' => ['type' => 'checkbox', 'label' => 'Rengjøring inkludert', 'required' => false],
                 'cleaning_fee' => ['type' => 'number', 'label' => 'Rengjøringsavgift (kr)', 'step' => '0.01', 'required' => false],
                  'facilities' => ['type' => 'textarea', 'label' => 'Fasiliteter (kommaseparert)', 'required' => false],

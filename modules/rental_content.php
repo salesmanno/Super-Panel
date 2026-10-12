@@ -1199,6 +1199,7 @@ function buildFormFields(containerId, category = '', existingData = {}) {
         html += '<div class="card bg-light mb-3"><div class="card-body py-2"><div class="row">';
         
         Object.entries(schema.fields).forEach(([fieldName, field]) => {
+            if (fieldName === 'age_required' && !isEditForm) return;
             const value = existingData.type_data?.[fieldName] ?? '';
             html += generateIntegratedFieldHTML(fieldName, field, value, isEditForm);
         });
@@ -1483,6 +1484,28 @@ function compactRentalCreateFields(container, category) {
 }
 
 function generateIntegratedFieldHTML(fieldName, field, value = '', preserveZero = false) {
+    if (fieldName === 'age_required') {
+        const age = Number(value);
+        const enabled = Number.isInteger(age) && age > 0;
+        return `
+            <div class="col-md-6 mb-3" data-rental-field-name="age_required" data-rental-age-required>
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                        id="rentalAgeRequiredToggle" name="age_required_enabled_ui"
+                        data-rental-age-required-toggle ${enabled ? 'checked' : ''}
+                        onchange="toggleRentalAgeRequirement(this)">
+                    <label class="form-check-label" for="rentalAgeRequiredToggle">Krev minstealder</label>
+                </div>
+                <label class="form-label" for="rentalAgeRequiredValue">Minste alder (år)</label>
+                <input class="form-control" type="number" id="rentalAgeRequiredValue"
+                    name="type_data[age_required]" data-rental-age-required-value
+                    min="1" step="1" value="${enabled ? escAttr(String(age)) : ''}"
+                    ${enabled ? 'required' : 'disabled'}
+                    aria-describedby="rentalAgeRequiredHelp">
+                <div id="rentalAgeRequiredHelp" class="form-text">Slå på bryteren og angi laveste tillatte alder.</div>
+            </div>`;
+    }
+
     const required = field.required ? '<span class="text-danger">*</span>' : '';
     const requiredAttr = field.required ? 'required' : '';
     const displayValue = preserveZero && (value === 0 || value === '0') ? '0' : (value || '');
@@ -1533,6 +1556,14 @@ function generateIntegratedFieldHTML(fieldName, field, value = '', preserveZero 
             ${inputHTML}
         </div>
     `;
+}
+
+function toggleRentalAgeRequirement(toggle) {
+    const input = toggle?.closest('[data-rental-age-required]')
+        ?.querySelector('[data-rental-age-required-value]');
+    if (!input) return;
+    input.disabled = !toggle.checked;
+    input.required = toggle.checked;
 }
 
 function toggleWeekendPricing(checkbox, containerId) {
@@ -1673,6 +1704,11 @@ async function saveRentalObject() {
         const accessCodeInput = form.querySelector('[name="type_data[access_code]"]');
         if (accessCodeInput) {
             typeData.access_code = accessCodeInput.value.trim() || null;
+        }
+        const ageToggle = form.querySelector('[data-rental-age-required-toggle]');
+        const ageInput = form.querySelector('[name="type_data[age_required]"]');
+        if (ageToggle && ageInput) {
+            typeData.age_required = ageToggle.checked ? Number(ageInput.value) : 0;
         }
     }
     

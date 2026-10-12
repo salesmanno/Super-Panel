@@ -93,6 +93,12 @@ try {
                     throw new InvalidArgumentException('Tilgangskoden kan bare inneholde 1–6 bokstaver eller tall');
                 }
                 $value = $value === '' ? null : $value;
+            } elseif ($field === 'age_required') {
+                $age = filter_var($value, FILTER_VALIDATE_INT);
+                if ($age === false || $age < 0) {
+                    throw new InvalidArgumentException('Minstealder må være et heltall på 0 eller høyere');
+                }
+                $value = $age;
             }
             $typeFields[] = $field;
             if ($schema['fields'][$field]['type'] === 'checkbox') {

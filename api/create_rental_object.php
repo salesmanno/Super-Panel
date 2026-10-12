@@ -145,6 +145,9 @@ try {
     $typeValues = ['?'];
     $typeParams = [$object_id];
     $typeData = $data['type_data'] ?? [];
+    if (($data['category'] ?? null) === 'venue' && !array_key_exists('age_required', $typeData)) {
+        $typeData['age_required'] = 0;
+    }
 
     foreach ($typeData as $field => $value) {
         if (!array_key_exists($field, $schema['fields'])) {
@@ -159,6 +162,12 @@ try {
                 throw new InvalidArgumentException('Tilgangskoden kan bare inneholde 1–6 bokstaver eller tall');
             }
             $value = $value === '' ? null : $value;
+        } elseif ($field === 'age_required') {
+            $age = filter_var($value, FILTER_VALIDATE_INT);
+            if ($age === false || $age < 0) {
+                throw new InvalidArgumentException('Minstealder må være et heltall på 0 eller høyere');
+            }
+            $value = $age;
         }
         $typeFields[] = $field;
         $typeValues[] = '?';
