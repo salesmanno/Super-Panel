@@ -19,57 +19,70 @@ let savedCode = 'OLD123';
 let getCalls = 0;
 let updateCalls = 0;
 let availabilityCalls = 0;
-const input = () => ({value: '', disabled: true, reportValidity: () => true});
-const status = () => ({textContent: '', classList: {add() {}, remove() {}}});
-const button = () => ({disabled: true});
-const panel = {
-  hidden: true,
-  isConnected: true,
-  html: '',
-  set innerHTML(value) {
-    this.html = value;
-    this.form = {
-      input: input(),
-      status: status(),
-      button: button(),
-      isConnected: true,
-      querySelector(selector) {
-        if (selector === 'input') return this.input;
-        if (selector === '[data-code-status]') return this.status;
-        if (selector === 'button[type="submit"]') return this.button;
-        return null;
-      },
-    };
-  },
-  get innerHTML() { return this.html; },
-  replaceChildren() { this.html = ''; this.form.isConnected = false; },
-  querySelector(selector) { return this.form.querySelector(selector); },
-};
+let failCodeSave = false;
 const attributes = {};
 const classes = new Set();
-const hint = {innerHTML: ''};
-const stateBadge = {innerHTML: ''};
-const switchLabel = {textContent: 'Synlig'};
-const card = {
-  classList: {toggle(name, active) { if (active) classes.add(name); else classes.delete(name); }},
+const codeValue = {textContent: savedCode};
+const display = {
+  hidden: false,
+  querySelector(selector) { return selector === 'code' ? codeValue : null; },
+};
+const input = {
+  value: '',
+  disabled: false,
+  reportValidity: () => true,
+  focus() {},
+  select() {},
+};
+const status = {
+  textContent: '',
+  classList: {add(name) { classes.add(name); }, remove(name) { classes.delete(name); }},
+};
+const accessButton = {
+  disabled: false,
+  dataset: {rentalAccessMode: 'display'},
+  title: '',
   setAttribute(name, value) { attributes[name] = value; },
+  focus() {},
+};
+const form = {
+  hidden: true,
+  isConnected: true,
   querySelector(selector) {
-    if (selector === '.rental-access-control') return {setAttribute: (name,value) => attributes[name] = value};
-    if (selector === '.rental-expand-hint') return hint;
+    return selector === '[data-rental-access-input]' ? input : null;
+  },
+};
+const stateBadge = {innerHTML: ''};
+const visibilityAction = {dataset: {}, innerHTML: ''};
+const objectCard = {
+  classList: {toggle(name, active) { if (active) classes.add(name); else classes.delete(name); }},
+  querySelector(selector) {
     if (selector === '.rental-card-status') return stateBadge;
-    if (selector === '.form-switch .form-check-label') return switchLabel;
     return null;
   },
 };
-const wrapper = {querySelector: () => card};
-const elements = {
-  'rental-card-venue-1': wrapper,
-  'rental-expanded-venue-1': panel,
+const wrapper = {
+  isConnected: true,
+  querySelector(selector) {
+    if (selector === '.rental-object-card') return objectCard;
+    if (selector === '.rental-access-control') return accessButton;
+    if (selector === '[data-rental-access-value]') return display;
+    if (selector === '.rental-access-edit-form') return form;
+    if (selector === '[data-rental-access-status]') return status;
+    return null;
+  },
 };
 const context = {
   allRentalObjects: [object],
   rentalSchemas: {venue: {label: 'Lokale'}},
-  document: {getElementById: id => elements[id], querySelector: () => null},
+  document: {
+    getElementById: id => id === 'rental-card-venue-1' ? wrapper : null,
+    querySelector(selector) {
+      if (selector.includes('[data-rental-visibility=')) return visibilityAction;
+      if (selector.includes('[data-rental-access-value] code')) return codeValue;
+      return null;
+    },
+  },
   CSS: {escape: value => String(value)},
   escHtml: value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;'),
   escAttr: value => String(value),
@@ -98,6 +111,21 @@ const context = {
   Event,
   CustomEvent,
   ensureRentalFormToken: async () => 'fixture-csrf',
+  fetch: async (url, options) => {
+    assert.match(url, /update_rental_object\.php$/);
+    const data = JSON.parse(options.body);
+    assert.equal(data.id, object.id);
+    if (Object.hasOwn(data, 'is_available')) {
+      availabilityCalls++;
+      object.is_available = data.is_available;
+      return {ok: true, text: async () => JSON.stringify({success: true})};
+    }
+    updateCalls++;
+    assert.deepEqual(data.type_data, {access_code: input.value.trim()});
+    if (failCodeSave) return {ok: false, json: async () => ({success: false, message: 'Lagring feilet'})};
+    savedCode = data.type_data.access_code;
+    return {ok: true, json: async () => ({success: true})};
+  },
 };
 vm.createContext(context);
 const weekdayBegin = source.indexOf('const rentalWeekdays = [');
@@ -114,43 +142,55 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   const html = context.renderObjectCard(object);
   assert.match(html, /aria-expanded="false"/);
   assert.match(html, /data-rental-fields="venue-1"/);
+  assert.match(html, /data-rental-edit-fields="venue-1"/);
   assert.match(html, /editRentalObject/);
   assert.match(html, /toggleAvailability/);
+  assert.match(html, /toggleRentalAccessCode/);
+  assert.match(html, /data-rental-access-input/);
   assert.match(html, /deleteRentalObject/);
-  assert.doesNotMatch(html, /value="OLD123"/);
+  assert.doesNotMatch(html, /Lagre kode/);
 
-  context.toggleRentalObjectCard(object.id);
-  await tick();
-  assert.equal(panel.hidden, false);
+  context.toggleRentalAccessCode(object.id);
+  assert.equal(form.hidden, false);
+  assert.equal(display.hidden, true);
   assert.equal(attributes['aria-expanded'], 'true');
-  assert(classes.has('is-expanded'));
-  assert.equal(panel.form.input.value, 'OLD123');
-  assert.equal(panel.form.button.disabled, false);
+  assert.equal(input.value, 'OLD123');
+  assert.equal(updateCalls, 0, 'opening code editing does not mutate the object');
+  input.value = 'DRAFT2';
   await context.toggleAvailability(object.id, false);
   assert.equal(availabilityCalls, 1);
-  assert.equal(panel.hidden, false, 'Switch does not close the expanded card');
-  assert.equal(panel.form.input.value, 'OLD123', 'Switch does not discard unsaved code');
+  assert.equal(form.hidden, false, 'availability changes do not close code editing');
+  assert.equal(input.value, 'DRAFT2', 'availability changes do not discard the code draft');
   assert.match(stateBadge.innerHTML, /Skjult/);
   assert(classes.has('is-muted'));
 
-  const oldForm = panel.form;
-  oldForm.input.value = 'NEW456';
-  await context.saveRentalCardAccessCode({
-    preventDefault() {}, stopPropagation() {}, currentTarget: oldForm,
-  }, object.id);
+  input.value = '0000';
+  await context.toggleRentalAccessCode(object.id);
+  assert.equal(updateCalls, 0, 'invalid code is rejected before writing');
+  assert.match(status.textContent, /0000/);
+
+  input.value = 'A732';
+  failCodeSave = true;
+  await context.toggleRentalAccessCode(object.id);
   assert.equal(updateCalls, 1);
+  assert.equal(form.hidden, false, 'failed save keeps code editing open');
+  assert.equal(input.value, 'A732', 'failed save retains the user draft');
+  assert.equal(codeValue.textContent, 'OLD123', 'failed save does not change the displayed code');
+  assert.equal(status.textContent, 'Lagring feilet');
+
+  failCodeSave = false;
+  input.value = 'NEW456';
+  await context.toggleRentalAccessCode(object.id);
+  assert.equal(updateCalls, 2);
   assert.equal(savedCode, 'NEW456');
-  assert.equal(oldForm.status.textContent, 'Koden er lagret.');
-
-  context.toggleRentalObjectCard(object.id);
-  assert.equal(panel.hidden, true);
+  assert.equal(object.type_data.access_code, 'NEW456');
+  assert.equal(form.hidden, true, 'successful save returns to card display');
+  assert.equal(display.hidden, false);
+  assert.equal(codeValue.textContent, 'NEW456');
   assert.equal(attributes['aria-expanded'], 'false');
-  assert.equal(panel.innerHTML, '', 'Closing removes the code field from the DOM');
-
-  context.toggleRentalObjectCard(object.id);
-  await tick();
-  assert.equal(panel.form.input.value, 'NEW456', 'Reopening reads the persisted value');
-  assert.equal(getCalls, 2);
-  assert.equal(panel.hidden, false, 'Explicit card code control opens saved code');
-  console.log('Rental card expansion tests passed');
+  assert.equal(status.textContent, 'Koden er lagret.');
+  assert.equal(getCalls, 0, 'inline editing uses the code already shown on the card');
+  await context.toggleAvailability(object.id, true);
+  assert.equal(availabilityCalls, 2);
+  console.log('Rental card menu and access-code tests passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

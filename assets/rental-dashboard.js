@@ -320,6 +320,10 @@
     window.RentalDashboard = {
         renderObjects,
         openOverview,
+        openFieldPanel:(id, trigger) => openFieldPanel(
+            id,
+            trigger || root.querySelector(`[data-rental-fields="${CSS.escape(String(id))}"]`)
+        ),
         closeFieldPanel,
         beforeFilter,
         refreshObjects:applyObjectFilters,

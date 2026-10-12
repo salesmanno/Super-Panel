@@ -32,7 +32,7 @@ window.confirmAnswer=true;window.confirm=()=>confirmAnswer;
 window.toast={loading:()=>null,success:()=>{},quickError:()=>{},error:()=>{}};
 window.fixtureFailSave=false;window.fixtureFailFields=false;window.fixtureFailObjects=false;
 window.fixtureHold=null;
-window.fixtureRentalHold=null;window.fixtureFailRentalSave=false;window.fixtureRentalWrites=[];
+window.fixtureRentalHold=null;window.fixtureFailRentalSave=false;window.fixtureFailRentalCodeSave=false;window.fixtureRentalWrites=[];
 const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);
 const iso=tomorrow.toISOString().slice(0,10);
 const image='https://fixture.invalid/house.svg';
@@ -62,10 +62,12 @@ window.fetch=async function(url,options={}){
     fixtureRentalWrites.push(payload);if(fixtureRentalHold)await fixtureRentalHold;
     if(fixtureFailRentalSave){status=409;result={success:false,message:'Lagring av objekt feilet'};}
     else {const saved=fixtureObjects.find(item=>String(item.id)===String(payload.id));if(saved){Object.assign(saved,payload);saved.type_data={...saved.type_data,...payload.type_data};}result={success:true};}
-   }else{
-    fixtureObjectUpdates.push(payload);const updated=fixtureObjects.find(item=>String(item.id)===String(payload.id));
-    if(updated){if(payload.type_data)updated.type_data={...updated.type_data,...payload.type_data};if(payload.is_available!==undefined)updated.is_available=payload.is_available;}
-    result={success:true};
+    }else{
+     fixtureObjectUpdates.push(payload);
+     if(fixtureFailRentalCodeSave){status=409;result={success:false,message:'Lagring av objekt feilet'};}
+     else {const updated=fixtureObjects.find(item=>String(item.id)===String(payload.id));
+      if(updated){if(payload.type_data)updated.type_data={...updated.type_data,...payload.type_data};if(payload.is_available!==undefined)updated.is_available=payload.is_available;}
+      result={success:true};}
    }
   }
   else if(String(url).includes('get_payment_methods'))result={success:true,payment_methods:[{method_type:'cash',method_name:'Kontant'}]};
@@ -112,7 +114,7 @@ const checks=`(async()=>{
   check(inactiveMapCard.querySelector('.rental-price')?.textContent.includes('101 NOK/dag')
     &&!inactiveMapCard.querySelector('.rental-weekday-price'),'a retained but disabled weekday map does not affect displayed flat pricing');
   check(firstCard.querySelector('[data-rental-access-value] code')?.textContent==='1234','current physical access code is visible directly on venue card');
-  check(firstCard.querySelector('.rental-contract-control')&&firstCard.querySelectorAll('.rental-card-menu .dropdown-item').length===3,'contract action remains separate from three-item overflow menu');
+  check(firstCard.querySelector('.rental-contract-control')&&firstCard.querySelectorAll('.rental-card-menu .dropdown-item').length===4,'contract action remains separate from four-item overflow menu');
   viewDetails('object-0');
   await wait(()=>document.getElementById('detailsModal').classList.contains('show'),'weekday-rate object details');await delay(100);
   check(document.getElementById('detailsModal').textContent.includes('Mandag: 500 NOK')
@@ -124,11 +126,13 @@ const checks=`(async()=>{
   rentalSchemas.venue.fields.facilities.required=true;
   let menuButton=firstCard.querySelector('.rental-menu-trigger');menuButton.click();
   const menuItems=()=>[...document.querySelectorAll('[data-rental-menu-owner="object-0"] .dropdown-item')];
+  const menuItem=label=>menuItems().find(item=>item.textContent.trim()===label);
   const menu=()=>document.querySelector('[data-rental-menu-owner="object-0"]');
-  check(menuItems().map(x=>x.textContent.trim().replace(/\s+/g,' ')).join('|').includes('Rediger|Skjul|Slett'),'three-dot menu exposes Rediger, Skjul, Slett');
+  const menuLabels=menuItems().map(x=>x.textContent.trim());
+  check(['Rediger','Rediger skjemafelt','Skjul','Slett'].every(label=>menuLabels.includes(label)),'three-dot menu exposes base editing, form fields, hide, and delete: '+JSON.stringify(menuLabels));
   const menuRect=menu().getBoundingClientRect();
   check(menu().parentElement===document.body&&menuRect.top>=0&&menuRect.bottom<=innerHeight,'overflow menu escapes the scrolling object list and remains tappable');
-  menuItems()[0].click();
+  menuItem('Rediger').click();
   await wait(()=>document.getElementById('rentalModal').classList.contains('show'),'edit modal');await delay(350);
   check(!document.querySelector('#formFieldsContainer select[name="category"]')&&document.querySelector('#formFieldsContainer input[type="hidden"][name="category"]')?.value==='venue','edit category is display-only and preserved hidden');
   const editForm=document.getElementById('rentalForm');
@@ -284,27 +288,45 @@ const checks=`(async()=>{
   bootstrap.Modal.getOrCreateInstance(document.getElementById('rentalModal')).hide();
   await wait(()=>!document.getElementById('rentalModal').classList.contains('show'),'close non-venue edit');
   await loadRentalObjects();firstCard=document.getElementById('rental-card-object-0');menuButton=firstCard.querySelector('.rental-menu-trigger');await delay(150);
-  menuButton.click();menuItems()[1].click();await delay(80);
+  menuButton.click();menuItem('Skjul').click();await delay(80);
   check(fixtureObjectUpdates.at(-1)?.is_available===0,'Skjul reuses existing availability API');
   menuButton.click();
-  check(menuItems()[1].textContent.trim()==='Vis igjen','hidden object immediately offers reverse action');
-  menuItems()[1].click();await delay(80);
+  check(menuItem('Vis igjen')?.textContent.trim()==='Vis igjen','hidden object immediately offers reverse action');
+  menuItem('Vis igjen').click();await delay(80);
   check(fixtureObjectUpdates.at(-1)?.is_available===1,'Vis igjen reverses visibility without reload');
   menuButton.click();
-  check(menuItems()[1].textContent.trim()==='Skjul','shown object again offers hide');
-  menuItems()[1].click();await delay(80);
+  check(menuItem('Skjul')?.textContent.trim()==='Skjul','shown object again offers hide');
+  menuItem('Skjul').click();await delay(80);
   check(fixtureObjectUpdates.at(-1)?.is_available===0,'same card can hide again without reload');
   check(firstCard.querySelector('.rental-access-control'),'venue has prominent direct access-code action');
-  firstCard.querySelector('.rental-access-control').click();
-  await wait(()=>document.getElementById('rental-code-object-0')?.value==='A731','access code fetched without opening mutation');
+  const accessButton=firstCard.querySelector('.rental-access-control');
+  accessButton.click();
+  const accessInput=firstCard.querySelector('[data-rental-access-input]');
+  await wait(()=>!firstCard.querySelector('.rental-access-edit-form').hidden&&accessInput?.value==='A731','access code is edited in place and prefilled from the card');
   check(fixtureObjectUpdates.length===3,'opening access-code control does not mutate');
-  const codeForm=document.getElementById('rental-code-object-0').closest('form');
-  document.getElementById('rental-code-object-0').value='9841';codeForm.requestSubmit();
-  await wait(()=>fixtureObjectUpdates.length===4,'access code explicit save');
-  check(fixtureObjectUpdates.at(-1).type_data.access_code==='9841','access code saves through existing card API');
-  check(firstCard.querySelector('[data-rental-access-value] code')?.textContent==='9841','explicitly saved access code immediately syncs to card');
+  accessInput.value='0000';accessButton.click();await delay(50);
+  check(fixtureObjectUpdates.length===3&&!firstCard.querySelector('.rental-access-edit-form').hidden
+    &&firstCard.querySelector('[data-rental-access-status]').textContent.includes('0000'),'invalid code is rejected without discarding the inline draft');
+  accessInput.value='A732';window.fixtureFailRentalCodeSave=true;accessButton.click();
+  await wait(()=>fixtureObjectUpdates.length===4,'failed access-code save');
+  check(!firstCard.querySelector('.rental-access-edit-form').hidden&&accessInput.value==='A732'
+    &&!accessButton.disabled&&firstCard.querySelector('[data-rental-access-status]').textContent==='Lagring av objekt feilet'
+    &&firstCard.querySelector('[data-rental-access-value] code')?.textContent==='A731','failed save preserves the in-place code draft');
+  window.fixtureFailRentalCodeSave=false;accessInput.value='9841';accessButton.click();accessButton.click();
+  await wait(()=>fixtureObjectUpdates.length===5,'access code toggle save');
+  check(fixtureObjectUpdates.length===5&&fixtureObjectUpdates.at(-1).type_data.access_code==='9841','second click saves through the existing card API without duplicate requests');
+  check(firstCard.querySelector('.rental-access-edit-form').hidden
+    &&firstCard.querySelector('[data-rental-access-value] code')?.textContent==='9841','saved access code immediately returns to the card display');
   await loadRentalObjects();await wait(()=>document.querySelector('#rental-card-object-0 [data-rental-access-value] code')?.textContent==='9841','access code persists after object confirmation reload');
   firstCard=document.getElementById('rental-card-object-0');
+  document.querySelector('#rental-card-object-1 .rental-menu-trigger').click();
+  document.querySelector('[data-rental-menu-owner="object-1"] [data-rental-edit-fields="object-1"]').click();
+  await wait(()=>!document.getElementById('rental-inline-object-1').hidden
+    &&document.querySelector('#rental-inline-object-1 [data-common-field="phone"]'),'form-field menu opens the shared editor under its selected object');
+  check(document.getElementById('rental-inline-object-0').hidden
+    &&!document.getElementById('rentalModal').classList.contains('show'),'field menu targets only the chosen card and does not open basic editing');
+  await RentalDashboard.closeFieldPanel(false);
+  await wait(()=>document.getElementById('rental-inline-object-1').hidden,'close form-field menu editor');
   firstCard.querySelector('.rental-contract-control').click();
   await wait(()=>document.querySelector('#cf-payment-method-object-0 option[value="cash"]'),'contract payment methods load');
   check(document.querySelectorAll('#cf-payment-method-object-0 option').length===2,'contract form uses only canonical active payment methods');

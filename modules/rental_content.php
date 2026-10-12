@@ -637,6 +637,8 @@ function renderObjectCard(obj) {
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end" data-rental-menu-owner="${escAttr(obj.id)}">
                                 <li><button class="dropdown-item" type="button" onclick="editRentalObject(decodeURIComponent('${objectToken}'))"><i class="bi bi-pencil me-2"></i>Rediger</button></li>
+                                <li><button class="dropdown-item" type="button" data-rental-edit-fields="${escAttr(obj.id)}" onclick="window.RentalDashboard?.openFieldPanel(decodeURIComponent('${objectToken}'))"><i class="bi bi-ui-checks-grid me-2"></i>Rediger skjemafelt</button></li>
+                                <li><hr class="dropdown-divider"></li>
                                 <li><button class="dropdown-item" type="button" data-rental-visibility="${escAttr(obj.id)}" data-rental-visible="${isAvailable ? '1' : '0'}" onclick="toggleAvailability(decodeURIComponent('${objectToken}'), this.dataset.rentalVisible !== '1')"><i class="bi bi-eye-slash me-2"></i>${isAvailable ? 'Skjul' : 'Vis igjen'}</button></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><button class="dropdown-item text-danger" type="button" onclick="deleteRentalObject(decodeURIComponent('${objectToken}'))"><i class="bi bi-trash me-2"></i>Slett</button></li>
@@ -657,7 +659,15 @@ function renderObjectCard(obj) {
                             ${weekendPrice}
                         </div>
                         <div class="btn-group btn-group-sm rental-object-actions">
-                            ${obj.category === 'venue' ? `<button class="btn rental-access-control" type="button" aria-expanded="false" aria-controls="rental-expanded-${escAttr(obj.id)}" onclick="toggleRentalObjectCard(decodeURIComponent('${objectToken}'))" title="Tilgangskode for lokalet"><i class="bi bi-key me-1"></i>Tilgangskode</button><span class="rental-card-access-value" data-rental-access-value>Aktuell <code>${escHtml(obj.type_data?.access_code || 'Ikke satt')}</code></span>` : ''}
+                            ${obj.category === 'venue' ? `<div class="rental-access-inline" data-rental-access-inline>
+                                <button class="btn rental-access-control" type="button" aria-expanded="false" aria-controls="rental-code-${escAttr(obj.id)}" aria-label="Rediger tilgangskode for ${escAttr(obj.object_name)}" data-rental-access-mode="display" onclick="toggleRentalAccessCode(decodeURIComponent('${objectToken}'))" title="Trykk for å redigere tilgangskoden"><i class="bi bi-key me-1" aria-hidden="true"></i><span data-rental-access-button-label>Tilgangskode</span></button>
+                                <span class="rental-card-access-value" data-rental-access-value>Aktuell <code>${escHtml(obj.type_data?.access_code || 'Ikke satt')}</code></span>
+                                <form class="rental-access-edit-form" id="rental-code-${escAttr(obj.id)}" hidden onsubmit="submitRentalCardAccessCode(event, decodeURIComponent('${objectToken}'))">
+                                    <label class="visually-hidden" for="rental-code-input-${escAttr(obj.id)}">Tilgangskode for ${escAttr(obj.object_name)}</label>
+                                    <input type="text" class="form-control form-control-sm" id="rental-code-input-${escAttr(obj.id)}" data-rental-access-input autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="6" pattern="[A-Za-z0-9]{1,6}" aria-describedby="rental-code-status-${escAttr(obj.id)}">
+                                </form>
+                                <span class="rental-access-status small" id="rental-code-status-${escAttr(obj.id)}" data-rental-access-status role="status" aria-live="polite"></span>
+                            </div>` : ''}
                             <button class="btn rental-contract-control" type="button" onclick="event.stopPropagation(); toggleContractForm(decodeURIComponent('${objectToken}'))" title="Opprett kontrakt" id="contract-btn-${escAttr(obj.id)}"><i class="bi bi-file-earmark-text me-1"></i>Kontrakt</button>
                         </div>
                     </div>
@@ -736,83 +746,62 @@ function renderObjectCard(obj) {
     `;
 }
 
-function toggleRentalObjectCard(objectId) {
-    const wrapper = document.getElementById(`rental-card-${objectId}`);
-    const card = wrapper?.querySelector('.rental-object-card');
-    const panel = document.getElementById(`rental-expanded-${objectId}`);
-    const obj = allRentalObjects.find(o => String(o.id) === String(objectId));
-    if (!card || !panel || !obj) return;
+function toggleRentalAccessCode(objectId) {
+    const card = document.getElementById(`rental-card-${objectId}`);
+    const obj = allRentalObjects.find(item => String(item.id) === String(objectId));
+    const button = card?.querySelector('.rental-access-control');
+    const display = card?.querySelector('[data-rental-access-value]');
+    const form = card?.querySelector('.rental-access-edit-form');
+    const input = form?.querySelector('[data-rental-access-input]');
+    const status = card?.querySelector('[data-rental-access-status]');
+    if (!card || !obj || obj.category !== 'venue' || !button || !display || !form || !input || !status) return;
 
-    const opening = panel.hidden;
-    panel.hidden = !opening;
-    card.classList.toggle('is-expanded', opening);
-    card.querySelector('.rental-access-control')?.setAttribute('aria-expanded', String(opening));
-    if (!opening) {
-        panel.replaceChildren();
-        return;
+    const mode = button.dataset.rentalAccessMode || 'display';
+    if (mode === 'saving') return;
+    if (mode === 'editing') {
+        return saveRentalCardAccessCode(objectId);
     }
 
-    if (obj.category === 'venue') {
-        panel.innerHTML = `
-            <form onsubmit="saveRentalCardAccessCode(event, decodeURIComponent('${encodeURIComponent(String(objectId))}'))">
-                <label class="form-label fw-semibold mb-1" for="rental-code-${escAttr(objectId)}">Tilgangskode</label>
-                <p class="small text-muted mb-2">Kode til utleielokalet, 1–6 bokstaver eller tall.</p>
-                <input type="text" class="form-control form-control-sm" id="rental-code-${escAttr(objectId)}"
-                       autocomplete="off" maxlength="6" pattern="[A-Za-z0-9]{1,6}" disabled>
-                <div class="small mt-2" role="status" aria-live="polite" data-code-status>Laster kode…</div>
-                <div class="d-flex flex-wrap gap-2 mt-3">
-                    <button type="submit" class="btn btn-sm btn-primary" disabled>Lagre kode</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="editRentalObject(decodeURIComponent('${encodeURIComponent(String(objectId))}'))">Grunnopplysninger</button>
-                </div>
-            </form>`;
-        loadRentalCardAccessCode(objectId, panel);
-    } else {
-        panel.innerHTML = `<p class="small text-muted mb-2">Administrer opplysninger og kundeinformasjon for dette objektet.</p>
-            <div class="d-flex flex-wrap gap-2"><button type="button" class="btn btn-sm btn-primary" onclick="editRentalObject(decodeURIComponent('${encodeURIComponent(String(objectId))}'))">Grunnopplysninger</button>
-            </div>`;
-    }
+    input.value = String(obj.type_data?.access_code ?? '');
+    input.disabled = false;
+    display.hidden = true;
+    form.hidden = false;
+    button.dataset.rentalAccessMode = 'editing';
+    button.setAttribute('aria-expanded', 'true');
+    button.setAttribute('aria-label', `Lagre tilgangskode for ${obj.object_name}`);
+    button.title = 'Trykk igjen for å lagre tilgangskoden';
+    status.classList.remove('text-danger');
+    status.textContent = 'Endre koden og trykk «Tilgangskode» igjen for å lagre. Tomt felt fjerner koden.';
+    input.focus({preventScroll:true});
+    input.select();
 }
 
-async function loadRentalCardAccessCode(objectId, panel) {
-    const input = panel.querySelector('input');
-    const status = panel.querySelector('[data-code-status]');
-    const saveButton = panel.querySelector('button[type="submit"]');
-    try {
-        const response = await fetch(`/api/get_rental_objects.php?id=${encodeURIComponent(objectId)}`);
-        const data = await response.json();
-        if (!response.ok || !data.success || data.object?.category !== 'venue') {
-            throw new Error(data.message || 'Kunne ikke hente tilgangskoden');
-        }
-        if (!panel.isConnected || panel.hidden || panel.querySelector('input') !== input) return;
-        input.value = data.object.type_data?.access_code || '';
-        updateRentalCardAccessCodeDisplay(objectId, input.value);
-        input.disabled = false;
-        saveButton.disabled = false;
-        status.textContent = 'La feltet stå tomt for å fjerne koden.';
-        const obj = allRentalObjects.find(o => String(o.id) === String(objectId));
-        if (obj) obj.type_data = {...obj.type_data, ...data.object.type_data};
-    } catch (error) {
-        if (!panel.isConnected || panel.hidden || panel.querySelector('input') !== input) return;
-        status.textContent = error.message || 'Kunne ikke hente tilgangskoden';
-        status.classList.add('text-danger');
-    }
-}
-
-async function saveRentalCardAccessCode(event, objectId) {
+function submitRentalCardAccessCode(event, objectId) {
     event.preventDefault();
     event.stopPropagation();
-    const form = event.currentTarget;
-    const input = form.querySelector('input');
-    const saveButton = form.querySelector('button[type="submit"]');
-    const status = form.querySelector('[data-code-status]');
-    if (saveButton.disabled || !input.reportValidity()) return;
+    return saveRentalCardAccessCode(objectId);
+}
+
+async function saveRentalCardAccessCode(objectId) {
+    const card = document.getElementById(`rental-card-${objectId}`);
+    const obj = allRentalObjects.find(item => String(item.id) === String(objectId));
+    const button = card?.querySelector('.rental-access-control');
+    const display = card?.querySelector('[data-rental-access-value]');
+    const form = card?.querySelector('.rental-access-edit-form');
+    const input = form?.querySelector('[data-rental-access-input]');
+    const status = card?.querySelector('[data-rental-access-status]');
+    if (!card || !obj || !button || !display || !form || !input || !status
+        || button.dataset.rentalAccessMode !== 'editing' || button.disabled) return;
+    if (!input.reportValidity()) return;
+
     const code = input.value.trim();
     if (code === '0000' || (code !== '' && !/^[A-Za-z0-9]{1,6}$/.test(code))) {
         status.textContent = 'Bruk 1–6 bokstaver eller tall. Koden 0000 kan ikke brukes.';
         status.classList.add('text-danger');
         return;
     }
-    saveButton.disabled = true;
+    button.dataset.rentalAccessMode = 'saving';
+    button.disabled = true;
     input.disabled = true;
     status.classList.remove('text-danger');
     status.textContent = 'Lagrer…';
@@ -825,20 +814,27 @@ async function saveRentalCardAccessCode(event, objectId) {
         });
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.message || 'Kunne ikke lagre koden');
-        if (!form.isConnected) return;
-        status.textContent = 'Koden er lagret.';
-        const obj = allRentalObjects.find(o => String(o.id) === String(objectId));
+        if (!form.isConnected || !card.isConnected) return;
         if (obj) obj.type_data = {...obj.type_data, access_code: code || null};
-        input.value = code;
         updateRentalCardAccessCodeDisplay(objectId, code);
+        form.hidden = true;
+        display.hidden = false;
+        button.dataset.rentalAccessMode = 'display';
+        button.setAttribute('aria-expanded', 'false');
+        button.setAttribute('aria-label', `Rediger tilgangskode for ${obj.object_name}`);
+        button.title = 'Trykk for å redigere tilgangskoden';
+        status.textContent = 'Koden er lagret.';
+        button.focus({preventScroll:true});
     } catch (error) {
-        if (!form.isConnected) return;
+        if (!form.isConnected || !card.isConnected) return;
+        button.dataset.rentalAccessMode = 'editing';
         status.textContent = error.message || 'Kunne ikke lagre koden';
         status.classList.add('text-danger');
     } finally {
-        if (form.isConnected) {
+        if (form.isConnected && card.isConnected) {
+            button.disabled = false;
             input.disabled = false;
-            saveButton.disabled = false;
+            if (button.dataset.rentalAccessMode === 'editing') input.focus({preventScroll:true});
         }
     }
 }
