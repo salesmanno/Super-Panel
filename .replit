@@ -43,6 +43,24 @@ args = "while true; do php cron_email_queue.php; sleep 60; done"
 [workflows.workflow.metadata]
 outputType = "console"
 
+[[workflows.workflow]]
+name = "PUSH tenant_copy,company_panel2"
+mode = "sequential"
+author = 15553469
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "git remote add origin https://github.com/salesmanno/tenant_copy-company-panel-2.git"
+
+[[workflows.workflow]]
+name = "PUSH Super, Company_panel1"
+mode = "sequential"
+author = 15553469
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "git remote add origin https://github.com/salesmanno/Super-Panel.git git branch -M main git push -u origin main"
+
 [[ports]]
 localPort = 5000
 externalPort = 80
