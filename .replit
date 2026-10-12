@@ -54,12 +54,12 @@ args = "git remote add origin https://github.com/salesmanno/tenant_copy-company-
 
 [[workflows.workflow]]
 name = "PUSH Super, Company_panel1"
-mode = "sequential"
+mode = "parallel"
 author = 15553469
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "git remote add origin https://github.com/salesmanno/Super-Panel.git git branch -M main git push -u origin main"
+args = "git init && git config user.email \"replit@example.com\" && git config user.name \"Replit Workflow\" && git add . && git commit -m \"Oppdatering fra Replit\" --allow-empty && git remote remove origin 2>/dev/null; git remote add origin https://${GITHUB_TOKEN}@${TARGET_REPO} && git branch -M main && git push -u origin main --force"
 
 [[ports]]
 localPort = 5000
