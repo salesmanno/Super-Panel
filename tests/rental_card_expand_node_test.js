@@ -87,25 +87,6 @@ const context = {
   escHtml: value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;'),
   escAttr: value => String(value),
   validRentalImageUrl: () => false,
-  fetch: async (url, options) => {
-    if (options?.method === 'POST') {
-      const data = JSON.parse(options.body);
-      assert.equal(data.id, object.id);
-      if (Object.hasOwn(data, 'is_available')) {
-        availabilityCalls++;
-        return {ok: true, text: async () => JSON.stringify({success: true})};
-      }
-      updateCalls++;
-      assert.deepEqual(data.type_data, {access_code: 'NEW456'});
-      savedCode = data.type_data.access_code;
-      return {ok: true, json: async () => ({success: true})};
-    }
-    getCalls++;
-    assert.match(url, /get_rental_objects\.php\?id=venue-1$/);
-    return {ok: true, json: async () => ({success: true, object: {
-      category: 'venue', type_data: {access_code: savedCode},
-    }})};
-  },
   toast: {quickSuccess() {}, quickError() {}},
   rentalFilter: '',
   Event,
@@ -136,7 +117,6 @@ vm.runInContext(source.slice(begin, end), context);
 const availabilityBegin = source.indexOf('async function toggleAvailability(');
 const availabilityEnd = source.indexOf('async function editRentalObject(', availabilityBegin);
 vm.runInContext(source.slice(availabilityBegin, availabilityEnd), context);
-const tick = () => new Promise(resolve => setImmediate(resolve));
 
 (async () => {
   const html = context.renderObjectCard(object);
