@@ -35,8 +35,16 @@ function rentalPeriodPriceCents(array $object, string $startDate, string $endDat
     if ($end < $start) {
         throw new InvalidArgumentException('Sluttdato kan ikke være før startdato.');
     }
-    $weekdays = rentalNormalizeWeekdayPrices($object['weekday_prices'] ?? null);
-    $base = rentalConfiguredRateCents($object, 'rental_price', 'Dagsprisen', $weekdays === null);
+    $weekdayPricingActive = rentalWeekdayPricingIsActive($object);
+    $weekdays = $weekdayPricingActive
+        ? rentalNormalizeWeekdayPrices($object['weekday_prices'] ?? null)
+        : null;
+    if ($weekdayPricingActive && $weekdays === null) {
+        throw new RentalWeekdayPriceException(
+            'Ukedagspriser er slått på, men mangler. Oppdater prisene på utleieobjektet.'
+        );
+    }
+    $base = rentalConfiguredRateCents($object, 'rental_price', 'Dagsprisen', !$weekdayPricingActive);
     $weekend = rentalConfiguredRateCents($object, 'weekend_price', 'Helgeprisen');
     $saturday = rentalConfiguredRateCents($object, 'saturday_price', 'Lørdagsprisen');
     $sunday = rentalConfiguredRateCents($object, 'sunday_price', 'Søndagsprisen');

@@ -179,8 +179,26 @@ try {
     // Optional price columns vary between older installations. Explicit
     // null/zero values must still be persisted when supplied.
     $optionalPriceCols = ['weekend_price', 'saturday_price', 'sunday_price'];
-    if (array_key_exists('weekday_prices', $data)) {
+    $weekdayPricesEnabled = null;
+    if (array_key_exists('weekday_prices_enabled', $data)) {
+        $weekdayPricesEnabled = rentalWeekdayPricingEnabled($db, $data['weekday_prices_enabled']);
+        $updateFields[] = 'weekday_prices_enabled = ?';
+        $updateParams[] = $weekdayPricesEnabled;
+        if ($weekdayPricesEnabled === 1) {
+            $weekdayCandidate = array_key_exists('weekday_prices', $data)
+                ? $data['weekday_prices']
+                : ($existing['weekday_prices'] ?? null);
+            if (rentalNormalizeWeekdayPrices($weekdayCandidate) === null) {
+                throw new RentalWeekdayPriceException('Ukedagspriser må fylles ut før de kan aktiveres.');
+            }
+        }
+    }
+    if (array_key_exists('weekday_prices', $data)
+        && !($weekdayPricesEnabled === 0 && $data['weekday_prices'] === null)) {
         $weekdayJson = rentalWeekdayPriceWrite($db, $data['weekday_prices']);
+        if ($weekdayPricesEnabled === 1 && $weekdayJson === null) {
+            throw new RentalWeekdayPriceException('Ukedagspriser må fylles ut før de kan aktiveres.');
+        }
         if (rentalObjectColumnExists($db, 'weekday_prices')) {
             $updateFields[] = 'weekday_prices = ?';
             $updateParams[] = $weekdayJson;

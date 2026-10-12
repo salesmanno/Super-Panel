@@ -31,7 +31,7 @@ assert.equal(css.status, 0, 'Dashboard Bootstrap CSS could not be loaded: ' + cs
 const stubs = `
 const rentalLifecycleCsrf='fixture-csrf';
 let allRentalObjects=[{id:'a',object_name:'Sal A'},{id:'b',object_name:'Sal B'}];
-let allApprovedRentals=[],allRentalUnavailable=[],calViewStart=null;
+let allApprovedRentals=[],allPendingRentalRequests=[],allRentalUnavailable=[],calViewStart=null;
 let rentalUnavailableToday=null,rentalUnavailableListExpanded=false,rentalUnavailableSaving=false;
 window.fixtureErrors=[];window.fixtureWrites=[];window.fixtureToasts=[];
 window.fixtureFail=false;window.fixtureReject=false;window.fixtureHold=null;
@@ -64,6 +64,10 @@ const fixtureRentals=[
  {id:'rental-c',object_name:'Sal C',display_customer_name:'Testkunde C',start_date:'2028-04-06',end_date:'2028-04-08',
   display_phone:'87654321',payment_status:'partial',rental_fee:600}
 ];
+const fixturePendingRequests=[
+ {id:'pending-april',object_name:'Sal B',status:'pending',approved:0,display_customer_name:'Ventende kunde',start_date:'2028-04-04',end_date:'2028-04-05'},
+ {id:'pending-november',object_name:'Sal C',status:'pending',approved:0,display_customer_name:'Novemberkunde',start_date:'2028-11-02',end_date:'2028-11-03'}
+];
 allApprovedRentals=fixtureRentals;
 window.fetch=async (url,options={})=>{
  if(url==='/api/rental_reservation_code.php'){
@@ -79,6 +83,7 @@ window.fetch=async (url,options={})=>{
  if(!options.method){
   if(url==='/api/rental_unavailable.php')return {ok:true,json:async()=>({success:true,today:'2028-04-03',periods:fixturePeriods})};
   if(url==='/api/get_rental_schedule.php?approved=1')return {ok:true,json:async()=>({success:true,requests:allApprovedRentals})};
+   if(url==='/api/get_rental_schedule.php?approved=0')return {ok:true,json:async()=>({success:true,today:'2028-04-03',requests:fixturePendingRequests})};
   throw new Error('Unexpected GET: '+url);
  }
  if(!url.startsWith('/api/rental_unavailable.php'))throw new Error('Unexpected write: '+url);
@@ -116,6 +121,13 @@ const checks = `
   check(proxy('End').disabled&&!proxy('End').required,'Single-day end proxy cannot block validation');
   check(!list.querySelector('img')&&!document.getElementById('rentalCalendarHost').querySelector('img')&&!window.injected,'Notes escaped in list and calendar');
   check(document.querySelector('.rental-unavailable[title*="Service"]')?.textContent.includes('Sal A'),'Calendar label identifies object and note');
+   const pendingBar=document.querySelector('.rental-calendar-request');
+   check(pendingBar?.textContent.includes('Forespurt')&&pendingBar.textContent.includes('Ventende kunde')
+     &&getComputedStyle(pendingBar).backgroundColor==='rgb(255, 214, 107)','Pending request appears as a clearly labeled yellow calendar bar');
+   check(document.querySelector('.rental-calendar-request-key')?.textContent.includes('Forespurte')
+     &&document.querySelectorAll('.rental-upcoming-card').length===3,'Request calendar legend is clear without mixing pending requests into approved reservation cards');
+   const monthOptions=document.getElementById('rentalUpcomingMonth').options;
+   check(monthOptions[monthOptions.length-1]?.value==='2028-11','Pending dates extend the navigable upcoming calendar range');
   check(list.textContent.includes('Utilgjengelig'),'Legacy blank-note fallback retained');
   check(list.querySelector('[title^="Vedlikehold"]')?.textContent.endsWith('…'),'Long notes truncated with full tooltip');
   toggleRentalUnavailableList();

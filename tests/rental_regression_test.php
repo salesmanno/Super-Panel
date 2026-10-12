@@ -75,8 +75,26 @@ $assert(
 );
 $weekdays = ['monday'=>500,'tuesday'=>500,'wednesday'=>600,'thursday'=>600,'friday'=>800];
 $assert(rentalPeriodPriceCents(['rental_price'=>100,'weekday_prices'=>$weekdays], '2026-04-06','2026-04-10')===300000,'Individual weekdays replace flat rate');
+$assert(rentalPeriodPriceCents(['rental_price'=>100,'weekday_prices'=>$weekdays,'weekday_prices_enabled'=>1], '2026-04-06','2026-04-10')===300000,'Enabled weekday flag uses the five weekday rates');
+$assert(rentalPeriodPriceCents(['rental_price'=>100,'weekday_prices'=>$weekdays,'weekday_prices_enabled'=>0], '2026-04-06','2026-04-10')===50000,'Disabled weekday flag uses rental_price even when a saved map remains');
+$assert(rentalPeriodPriceCents(['rental_price'=>100,'weekday_prices'=>'{invalid','weekday_prices_enabled'=>0], '2026-04-06','2026-04-10')===50000,'Disabled weekday pricing ignores an inactive malformed historical map');
 $assert(rentalPeriodPriceCents(['rental_price'=>100,'saturday_price'=>175,'sunday_price'=>125,'weekday_prices'=>json_encode($weekdays)],'2026-04-03','2026-04-06')===160000,'JSON weekday and weekend rates match browser quote');
+$assert(rentalPeriodPriceCents(['rental_price'=>100,'saturday_price'=>175,'sunday_price'=>125,'weekday_prices'=>$weekdays,'weekday_prices_enabled'=>0],'2026-04-03','2026-04-05')===40000,'Weekend-specific prices still apply when weekday variation is disabled');
 $assert(rentalPeriodPriceCents(['weekday_prices'=>array_merge($weekdays,['monday'=>0])],'2026-04-06','2026-04-06')===0,'Explicit free weekday is not a flat-rate fallback');
+$enabledWithoutMapRejected = false;
+try {
+    rentalPeriodPriceCents(['rental_price'=>100,'weekday_prices_enabled'=>1], '2026-04-06','2026-04-06');
+} catch (InvalidArgumentException $e) {
+    $enabledWithoutMapRejected = str_contains($e->getMessage(), 'mangler');
+}
+$assert($enabledWithoutMapRejected, 'Enabled weekday pricing requires its complete map');
+$invalidWeekdayFlagRejected = false;
+try {
+    rentalPeriodPriceCents(['rental_price'=>100,'weekday_prices'=>$weekdays,'weekday_prices_enabled'=>2], '2026-04-06','2026-04-06');
+} catch (InvalidArgumentException $e) {
+    $invalidWeekdayFlagRejected = true;
+}
+$assert($invalidWeekdayFlagRejected, 'Weekday pricing flag accepts only 0 or 1');
 foreach (['{bad',[],array_merge($weekdays,['monday'=>-1]),array_merge($weekdays,['monday'=>500.999]),array_merge($weekdays,['monday'=>null]),array_merge($weekdays,['sunday'=>1])] as $invalid) {
     $rejected = false;
     try { rentalPeriodPriceCents(['rental_price'=>100,'weekday_prices'=>$invalid],'2026-04-06','2026-04-07'); }

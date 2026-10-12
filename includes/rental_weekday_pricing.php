@@ -43,6 +43,40 @@ function rentalWeekdayPriceSelect(PDO $db, string $alias = ''): string {
         : 'NULL';
 }
 
+function rentalWeekdayPricingEnabledSelect(PDO $db, string $alias = ''): string {
+    return rentalObjectColumnExists($db, 'weekday_prices_enabled')
+        ? ($alias === '' ? '' : $alias . '.') . 'weekday_prices_enabled'
+        : 'NULL';
+}
+
+function rentalNormalizeWeekdayPricingEnabled($value): int {
+    if ($value === 1 || $value === '1' || $value === true) return 1;
+    if ($value === 0 || $value === '0' || $value === false) return 0;
+    throw new RentalWeekdayPriceException('Valget for ukedagspriser må være 0 eller 1.');
+}
+
+function rentalWeekdayPricingEnabled(PDO $db, $value): int {
+    $enabled = rentalNormalizeWeekdayPricingEnabled($value);
+    if (!rentalObjectColumnExists($db, 'weekday_prices_enabled')) {
+        throw new RentalWeekdayPriceException(
+            'Kolonnen weekday_prices_enabled mangler. Kjør den oppgitte databaseoppdateringen før du lagrer ukedagsvalget.'
+        );
+    }
+    return $enabled;
+}
+
+function rentalWeekdayPricingIsActive(array $object): bool {
+    if (array_key_exists('weekday_prices_enabled', $object)
+        && $object['weekday_prices_enabled'] !== null
+        && $object['weekday_prices_enabled'] !== '') {
+        return rentalNormalizeWeekdayPricingEnabled($object['weekday_prices_enabled']) === 1;
+    }
+
+    // Compatibility for installations that have not yet added the explicit
+    // switch: a stored map keeps its historical active behavior.
+    return rentalNormalizeWeekdayPrices($object['weekday_prices'] ?? null) !== null;
+}
+
 /** Never create/migrate a column, and never silently discard an active map. */
 function rentalWeekdayPriceWrite(PDO $db, $input): ?string {
     $prices = rentalNormalizeWeekdayPrices($input);

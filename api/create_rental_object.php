@@ -100,8 +100,19 @@ try {
     // Optional price columns vary between older installations. Include
     // explicit null/zero values as well; zero is a meaningful price.
     $optionalPriceCols = ['weekend_price', 'saturday_price', 'sunday_price'];
+    if (array_key_exists('weekday_prices_enabled', $data)) {
+        $weekdayPricesEnabled = rentalWeekdayPricingEnabled($db, $data['weekday_prices_enabled']);
+        if ($weekdayPricesEnabled === 1 && !array_key_exists('weekday_prices', $data)) {
+            throw new RentalWeekdayPriceException('Ukedagspriser må fylles ut før de kan aktiveres.');
+        }
+        $columns[] = 'weekday_prices_enabled';
+        $params[] = $weekdayPricesEnabled;
+    }
     if (array_key_exists('weekday_prices', $data)) {
         $weekdayJson = rentalWeekdayPriceWrite($db, $data['weekday_prices']);
+        if (($weekdayPricesEnabled ?? 0) === 1 && $weekdayJson === null) {
+            throw new RentalWeekdayPriceException('Ukedagspriser må fylles ut før de kan aktiveres.');
+        }
         if (rentalObjectColumnExists($db, 'weekday_prices')) {
             $columns[] = 'weekday_prices';
             $params[] = $weekdayJson;

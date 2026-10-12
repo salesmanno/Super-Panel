@@ -78,7 +78,22 @@
         }
 
         const rateCorrection = 'Oppdater prisene på utleieobjektet.';
-        const weekdays = weekdayPriceCents(rates.weekday_prices);
+        const flag = rates.weekday_prices_enabled;
+        let weekdayPricingEnabled;
+        if (flag === null || flag === undefined || flag === '') {
+            weekdayPricingEnabled = rates.weekday_prices !== null && rates.weekday_prices !== undefined
+                && rates.weekday_prices !== '';
+        } else if (String(flag) === '0' || flag === false) {
+            weekdayPricingEnabled = false;
+        } else if (String(flag) === '1' || flag === true) {
+            weekdayPricingEnabled = true;
+        } else {
+            throw new Error('Valget for ukedagspriser er ugyldig.');
+        }
+        const weekdays = weekdayPricingEnabled ? weekdayPriceCents(rates.weekday_prices) : null;
+        if (weekdayPricingEnabled && weekdays === null) {
+            throw new Error('Ukedagspriser er slått på, men mangler. Oppdater prisene på utleieobjektet.');
+        }
         const daily = amountToCents(rates.rental_price, 'Dagsprisen', weekdays === null, rateCorrection);
         const weekend = amountToCents(rates.weekend_price, 'Helgeprisen', false, rateCorrection);
         const saturday = amountToCents(rates.saturday_price, 'Lørdagsprisen', false, rateCorrection);

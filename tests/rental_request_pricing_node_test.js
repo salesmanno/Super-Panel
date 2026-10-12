@@ -22,12 +22,18 @@ const quote = (startDate, endDate, options = {}) => pricing.calculateRentalQuote
 assert.equal(quote('2026-04-06', '2026-04-07').baseCents, 20000,
   'Changing a weekday date range recalculates the inclusive daily price');
 assert.equal(quote('2026-04-06','2026-04-10',{rates:{...rates,weekday_prices:weekdays}}).baseCents,300000,'Individual weekdays replace flat rate');
+assert.equal(quote('2026-04-06','2026-04-10',{rates:{...rates,weekday_prices:weekdays,weekday_prices_enabled:1}}).baseCents,300000,'Enabled weekday flag uses configured rates');
+assert.equal(quote('2026-04-06','2026-04-10',{rates:{...rates,weekday_prices:weekdays,weekday_prices_enabled:0}}).baseCents,50000,'Disabled weekday flag uses rental_price while preserving the map');
+assert.equal(quote('2026-04-06','2026-04-10',{rates:{...rates,weekday_prices:'{bad',weekday_prices_enabled:0}}).baseCents,50000,'Disabled weekday flag ignores an inactive malformed map');
 assert.equal(quote('2026-04-03','2026-04-06',{rates:{...rates,weekday_prices:JSON.stringify(weekdays)}}).baseCents,160000,'Friday, weekend and Monday use matching rates');
+assert.equal(quote('2026-04-03','2026-04-05',{rates:{rental_price:100,saturday_price:175,sunday_price:125,weekday_prices:weekdays,weekday_prices_enabled:0}}).baseCents,40000,'Weekend prices remain independent of weekday toggle');
 assert.equal(quote('2026-04-06','2026-04-06',{rates:{weekday_prices:{...weekdays,monday:0}}}).baseCents,0,'Zero Monday overrides flat rate and does not need a flat weekday rate');
 assert.equal(quote('2026-04-04','2026-04-05',{rates:{rental_price:100,weekday_prices:weekdays}}).baseCents,20000,'Weekend retains historical base fallback');
 for(const invalid of ['{bad', {}, {...weekdays,monday:-1}, {...weekdays,monday:500.999}, {...weekdays,monday:null}, {...weekdays,sunday:10}]) {
   assert.throws(()=>quote('2026-04-06','2026-04-07',{rates:{...rates,weekday_prices:invalid}}),/Ukedagspris/,'Malformed map never silently falls back');
 }
+assert.throws(()=>quote('2026-04-06','2026-04-06',{rates:{...rates,weekday_prices_enabled:1}}),/Ukedagspriser.*mangler/,'Enabled pricing requires its weekday map');
+assert.throws(()=>quote('2026-04-06','2026-04-06',{rates:{...rates,weekday_prices:weekdays,weekday_prices_enabled:2}}),/ukedagspriser.*ugyldig/i,'Invalid weekday flag is rejected');
 assert.equal(quote('2026-04-03', '2026-04-05').baseCents, 40000,
   'Period pricing matches the daily, Saturday and Sunday rate rules');
 assert.equal(quote('2026-04-04', '2026-04-05', {

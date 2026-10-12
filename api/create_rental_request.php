@@ -60,8 +60,10 @@ try {
     $db->beginTransaction();
 
     $weekdaySelect = rentalWeekdayPriceSelect($db);
+    $weekdayEnabledSelect = rentalWeekdayPricingEnabledSelect($db);
     $objectStmt = $db->prepare(
-        'SELECT ' . $weekdaySelect . ' AS weekday_prices, id, company_id, object_name, rental_price, weekend_price,
+        'SELECT ' . $weekdaySelect . ' AS weekday_prices, '
+                . $weekdayEnabledSelect . ' AS weekday_prices_enabled, id, company_id, object_name, rental_price, weekend_price,
                 saturday_price, sunday_price, created_by
          FROM rental_objects
          WHERE id = ? AND ' . rentalPublicEligibilitySql() . '

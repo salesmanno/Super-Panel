@@ -62,6 +62,7 @@ try {
     }
 
     $weekdaySelect = rentalWeekdayPriceSelect($db, 'ro');
+    $weekdayEnabledSelect = rentalWeekdayPricingEnabledSelect($db, 'ro');
     $stmt = $db->prepare("
         SELECT rs.id, rs.company_id, rs.rental_object_id, rs.approved, rs.status,
                rs.start_date, rs.end_date, rs.rental_fee, rs.customer_id,
@@ -75,6 +76,7 @@ try {
                ro.rental_text, ro.rental_price, ro.weekend_price,
                ro.saturday_price, ro.sunday_price,
                $weekdaySelect AS weekday_prices,
+               $weekdayEnabledSelect AS weekday_prices_enabled,
                COALESCE(rv.cleaning_fee, 0) AS cleaning_fee,
                tc.email AS profile_customer_email,
                tc.first_name AS profile_first_name,
