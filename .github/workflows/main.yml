@@ -1,31 +1,31 @@
-name: FTP Deploy til Domeneshop (super)
-
-on:
-  push:
-    branches:
-      - main # Endre til 'master' hvis hovedgrenen din heter det
-
+on: push
+name: 🚀 Deploy website on push
 jobs:
   web-deploy:
-    name: Deploy til server
+    name: 🎉 Deploy
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Hent nyeste kode
-      uses: actions/checkout@v4
-      
-    - name: Synkroniser HTML og PHP til FTP
-      uses: SamKirkland/FTP-Deploy-Action@v4.4.0
-      with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        
-        # Peker direkte til super i rotkatalogen
-        server-dir: super/
-        
-        dangerous-clean-slate: false
-        exclude: |
-          **/.git*
-          **/.git*/**
-          **/.github*/**
+      - name: 🚚 Get latest code
+        uses: actions/checkout@v6
+
+      - name: 📂 Sync files
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+        with:
+          server: ftp.domeneshop.no
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: super/
+          protocol: ftps
+          timeout: 90000
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.repl*
+            **/.repl*/**
+            **/.upm*
+            **/.upm*/**
+            **/.cache*
+            **/.cache*/**
+            **/*.agent
+            **/agent/**
