@@ -565,11 +565,6 @@ function renderObjectCard(obj) {
     const isRented = !isAvailable && obj.display_status === 'rented';
     const cardStateClass = isRented ? ' is-rented is-muted' : (isAvailable ? '' : ' is-muted');
     
-    let badges = obj.badges || [];
-    const badgesHtml = badges.length > 0 
-        ? badges.map(b => `<span class="badge rental-attribute me-1">${escHtml(b)}</span>`).join('')
-        : '';
-    
     const safeImages = (Array.isArray(obj.images) ? obj.images : []).map(img => typeof img === 'string' ? {url: img} : img).filter(img => validRentalImageUrl(img?.url));
     const primaryImage = safeImages.length
         ? safeImages.find(img => img.is_primary) || safeImages[0]
@@ -647,9 +642,6 @@ function renderObjectCard(obj) {
                     </div>
                     <div class="d-flex justify-content-between align-items-center gap-2 mb-2 rental-object-category">
                         <span class="badge rental-category">${escHtml(categoryLabel)}</span>
-                    </div>
-                    <div class="mb-2">
-                        ${badgesHtml}
                     </div>
                         ${obj.description ? `<p class="card-text text-muted small">${escHtml(obj.description.substring(0, 100))}${obj.description.length > 100 ? '...' : ''}</p>` : ''}
                     <div class="d-flex justify-content-between align-items-center gap-2 mt-3 rental-object-footer">
@@ -3639,37 +3631,30 @@ function renderRentalCalendar() {
     const upcomingCards = rentalsForMonth.map(r => {
         const id = encodeURIComponent(String(r.id));
         const customerName = escHtml(r.display_customer_name || r.customer_name || 'Ukjent kunde');
-        const email = r.display_email
-            ? `<a href="mailto:${escAttr(r.display_email)}"><i class="bi bi-envelope me-1"></i>${escHtml(r.display_email)}</a>`
-            : '';
-        const phone = r.display_phone
-            ? `<a href="tel:${escAttr(r.display_phone)}"><i class="bi bi-telephone me-1"></i>${escHtml(r.display_phone)}</a>`
-            : '';
         const paymentStatus = r.payment_status || 'unpaid';
         const paymentText = paymentStatus === 'paid' ? 'Betalt' : paymentStatus === 'partial' ? 'Delvis betalt' : 'Ubetalt';
         const paymentClass = paymentStatus === 'paid' ? 'text-bg-success' : paymentStatus === 'partial' ? 'text-bg-info' : 'text-bg-warning';
         const assignedCode = validAssignedRentalCode(r.key_box_code ?? r.access_code);
-        const canPromptForNextCode = Boolean(r.can_prepare_code && r.start_date > todayStr);
         const pickupTime = (r.pickup_time || r.start_time || '').slice(0,5);
         const returnTime = (r.return_time || r.end_time || '').slice(0,5);
         return `<article class="rental-upcoming-card" role="button" tabindex="0"
                     aria-label="Vis detaljer for ${escAttr(r.object_name || 'utleieobjekt')} — ${escAttr(customerName)}"
                     onclick="openRentalUpcomingCard(event, decodeURIComponent('${id}'))"
                     onkeydown="handleRentalUpcomingCardKey(event, decodeURIComponent('${id}'))">
-            <div class="d-flex justify-content-between align-items-start gap-2">
-                <div class="min-w-0">
-                    <div class="fw-semibold text-truncate">${customerName}</div>
-                    <div class="small text-muted text-truncate">${escHtml(r.object_name || 'Utleieobjekt')}</div>
-                    <div class="rental-period">${formatRentalDisplayDate(r.start_date)} – ${formatRentalDisplayDate(r.end_date)}</div>
-                    ${pickupTime || returnTime ? `<div class="small text-muted">${escHtml(pickupTime || '–')} – ${escHtml(returnTime || '–')}</div>` : ''}
+            <div class="rental-upcoming-heading">
+                <div class="rental-upcoming-ident">
+                    <div class="rental-upcoming-customer">${customerName}</div>
+                    <div class="rental-upcoming-object">${escHtml(r.object_name || 'Utleieobjekt')}</div>
                 </div>
                 <span class="badge ${paymentClass} rental-payment-short">${paymentText}</span>
             </div>
-            ${email || phone ? `<div class="rental-customer-links small mt-2">${phone}${email}</div>` : ''}
-            <div class="small mt-2">
-                <div class="fw-semibold">${Number(r.rental_fee || 0).toLocaleString('nb-NO', {maximumFractionDigits:2})} NOK</div>
-                <div>${assignedCode ? `Tilgangskode: <span class="rental-access-code">${escHtml(assignedCode)}</span>` : 'Kode ikke tildelt'}${canPromptForNextCode ? ' · Neste utleie for objektet' : ''}</div>
-                <div class="${r.checkin_code_missing ? 'text-warning-emphasis' : 'text-muted'}">Innsjekk-e-post: ${escHtml(rentalCheckinStatus(r))}</div>
+            <div class="rental-upcoming-period">
+                <span>${formatRentalDisplayDate(r.start_date)} – ${formatRentalDisplayDate(r.end_date)}</span>
+                ${(pickupTime || returnTime) ? `<span class="rental-upcoming-time">${escHtml(pickupTime || '–')}–${escHtml(returnTime || '–')}</span>` : ''}
+            </div>
+            <div class="rental-upcoming-meta">
+                <strong class="rental-upcoming-price">${Number(r.rental_fee || 0).toLocaleString('nb-NO', {maximumFractionDigits:2})} NOK</strong>
+                <span class="rental-upcoming-code">${assignedCode ? `Tilgangskode <code>${escHtml(assignedCode)}</code>` : 'Kode ikke tildelt'}</span>
             </div>
         </article>`;
     }).join('');

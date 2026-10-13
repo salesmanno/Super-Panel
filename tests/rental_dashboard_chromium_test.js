@@ -10,6 +10,8 @@ if (typeof WebSocket === 'undefined') {
     process.exit(run.status ?? 1);
 }
 const root = path.join(__dirname, '..');
+const dashboardSource = fs.readFileSync(path.join(root, 'pages/company_dashboard.php'), 'utf8');
+assert.ok(!dashboardSource.includes('href="#rental-contracts"'), 'contract subtab removed from dashboard');
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rental-dashboard-'));
 function download(url) {
     const run = spawnSync('curl', ['--fail','--silent','--show-error','--max-time','30',url], {encoding:'utf8',maxBuffer:2*1024*1024});
@@ -474,13 +476,23 @@ const checks=`(async()=>{
  await wait(()=>overview.classList.contains('show'),'legacy upcoming link opens modal');await delay(350);
  check(overview.contains(document.getElementById('rentalCalendarHost')),'calendar inside same overview modal');
  check(document.getElementById('rentalUnavailableContent').hidden,'internal planning collapsed');
- showRentalCalDetail('schedule-a');
+ const upcomingCard=document.querySelector('.rental-upcoming-card');
+ check(Boolean(upcomingCard),'upcoming card exists');
+ check(!upcomingCard.querySelector('.rental-customer-links'),'contact clutter kept in details only');
+ check(!upcomingCard.textContent.includes('Innsjekk-e-post'),'email status kept in details only');
+ check(upcomingCard.textContent.includes('0037'),'assigned access code visible');
+ check(upcomingCard.textContent.includes('Ubetalt'),'payment state visible');
+ upcomingCard.click();
  await wait(()=>details.classList.contains('show'),'child details opens');await delay(350);
  check(!overview.classList.contains('show')&&document.querySelectorAll('.modal-backdrop').length===1,'parent hidden before child, single backdrop');
  bootstrap.Modal.getOrCreateInstance(details).hide();
  await wait(()=>overview.classList.contains('show'),'parent reopened after child');await delay(350);
  check(document.querySelectorAll('#rental-upcoming').length===1,'upcoming contents restored without duplication');
  check(document.documentElement.scrollWidth<=innerWidth+1,'upcoming modal fits viewport');
+ document.querySelector('.rental-upcoming-card').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+ await wait(()=>details.classList.contains('show'),'upcoming card keyboard opens details');await delay(350);
+ bootstrap.Modal.getOrCreateInstance(details).hide();
+ await wait(()=>overview.classList.contains('show'),'overview restored after keyboard details');await delay(350);
  bootstrap.Modal.getOrCreateInstance(overview).hide();await delay(500);
   showRentalCalDetail('schedule-a',false);
   await wait(()=>document.getElementById('detailsModal').classList.contains('show'),'upcoming payment detail modal');

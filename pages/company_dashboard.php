@@ -586,9 +586,6 @@ try {
                     <a class="nav-link active" href="#rental-objects">Utleiedashboard</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#rental-contracts">Kontrakt & betingelser</a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link" href="#rental-results">Deres utleie resultat</a>
                 </li>
             </ul>
