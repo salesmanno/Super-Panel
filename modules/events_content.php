@@ -14,6 +14,7 @@ try {
 ?>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="/assets/entity-form-fields.css">
+<link rel="stylesheet" href="/assets/events-dashboard.css">
 <script src="/assets/active-payment-methods.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
@@ -770,14 +771,40 @@ try {
     }
 }
 </style>
-<div class="module-content">
+<div class="module-content" id="events-module" data-membership-access="<?php echo !empty($hasMembershipAccess) ? '1' : '0'; ?>">
+    <div id="events-dashboard" class="subtab-content">
+        <div class="events-dashboard-head">
+            <div><span class="events-dashboard-kicker">Arrangementer</span>
+                <h2 class="events-dashboard-title">Planlegg det som samler folk.</h2>
+                <p class="events-dashboard-intro">En tydelig oversikt over det som kommer, og det som allerede har skjedd.</p></div>
+            <div class="events-dashboard-head-actions">
+                <button type="button" class="btn btn-sm btn-outline-success" data-open-overview="requests"><i class="bi bi-inbox me-1"></i>Påmeldinger</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-open-overview="checkin"><i class="bi bi-qr-code-scan me-1"></i>Innsjekking</button>
+                <button type="button" class="btn events-dashboard-create" data-event-create><i class="bi bi-plus-lg me-2"></i>Nytt arrangement</button>
+            </div>
+        </div>
+        <div id="eventsDashboardSummary" aria-live="polite"></div>
+        <div class="events-dashboard-toolbar">
+            <label class="events-dashboard-search"><i class="bi bi-search" aria-hidden="true"></i>
+                <span class="visually-hidden">Søk etter arrangement</span>
+                <input id="eventsDashboardSearch" type="search" class="form-control" placeholder="Søk etter navn, beskrivelse eller sted" autocomplete="off">
+            </label>
+            <label class="visually-hidden" for="eventsDashboardStatus">Visning</label>
+            <select id="eventsDashboardStatus" class="form-select events-dashboard-filter">
+                <option value="active">Synlige</option><option value="hidden">Skjulte</option><option value="past">Avsluttede</option><option value="all">Alle</option>
+            </select>
+        </div>
+        <p id="eventsDashboardNotice" class="events-dashboard-status" role="status" aria-live="polite">Arrangementene lastes…</p>
+        <div id="eventsDashboardList"><div class="events-dashboard-skeleton"><span></span><span></span><span></span></div></div>
+    </div>
+
     <div id="events-my" class="subtab-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h4 class="mb-1"><i class="bi bi-calendar-event me-2"></i>Dine arrangement</h4>
                 <p class="text-muted mb-0">Oversikt over alle dine arrangementer 
                     <a href="#" onclick="document.querySelector('[href=\'#events-registrations\']').click(); return false;" style="text-decoration: none;">
-                        <span class="badge bg-danger ms-1" id="pending-count-badge" style="display: none;">0 venter godkjenning</span>
+                        <span class="badge bg-danger ms-1" id="pending-count-badge" data-event-pending-count style="display: none;">0 venter godkjenning</span>
                     </a>
                 </p>
             </div>
@@ -1759,7 +1786,7 @@ try {
             <div class="card-header bg-warning bg-opacity-10">
                 <h5 class="card-title mb-0">
                     <i class="bi bi-hourglass-split me-2 text-warning"></i>Ventende påmeldinger
-                    <span class="badge bg-warning text-dark ms-2" id="pending-count-badge" style="display: none;">0</span>
+                    <span class="badge bg-warning text-dark ms-2" id="registrations-pending-count-badge" data-event-pending-count style="display: none;">0</span>
                 </h5>
             </div>
             <div class="card-body">
@@ -1805,6 +1832,16 @@ try {
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="eventsOverviewModal" tabindex="-1" aria-labelledby="eventsOverviewModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content events-overview-modal">
+            <div class="modal-header"><h5 class="modal-title" id="eventsOverviewModalTitle">Eventbestillinger</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Lukk"></button></div>
+            <div class="modal-body" id="eventsOverviewModalBody"></div>
         </div>
     </div>
 </div>
@@ -2350,6 +2387,7 @@ try {
 <script src="/assets/event_form_helpers.js"></script>
 <script src="/assets/entity-form-fields.js"></script>
 <script src="/assets/event-settings.js"></script>
+<script src="/assets/events-dashboard.js"></script>
 <script>
 const norskMnd = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des'];
 const norskMndLang = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
@@ -2742,11 +2780,15 @@ async function loadEvents() {
         const eventsList = document.getElementById('events-list');
         
         if (!result.success) {
+            document.dispatchEvent(new CustomEvent('events-dashboard-source', {detail:{success:false,message:result.message || 'Kunne ikke laste arrangementer'}}));
             eventsList.innerHTML = `<div class="alert alert-warning">
                 <i class="bi bi-exclamation-triangle"></i> ${result.message || 'Kunne ikke laste arrangementer'}
             </div>`;
             return;
         }
+        document.dispatchEvent(new CustomEvent('events-dashboard-source', {
+            detail:{success:true,events:Array.isArray(result.events) ? result.events : []}
+        }));
         
         if (result.success && result.events && result.events.length > 0) {
             // DEDUPLICATE: Remove duplicate events by ID
@@ -2947,6 +2989,7 @@ async function loadEvents() {
         }
     } catch (error) {
         console.error('Error loading events:', error);
+        document.dispatchEvent(new CustomEvent('events-dashboard-source', {detail:{success:false,message:'Feil ved lasting av arrangementer'}}));
         document.getElementById('events-list').innerHTML = `
             <div class="col-12">
                 <div class="empty-events">
@@ -4507,7 +4550,66 @@ async function addEventExpense(eventId) {
 }
 
 // Edit event function
+let editMembershipPricingLoaded = false;
+let editMembershipPricingEventId = null;
+let editEventModalReady = false;
+let editEventSaveBusy = false;
+let editEventDirty = false;
+
+async function loadEditMembershipPricing(eventId) {
+    const container = document.getElementById('edit-membership-pricing-container');
+    if (!container) return;
+    editMembershipPricingLoaded = false;
+    editMembershipPricingEventId = String(eventId);
+    container.dataset.membershipState = 'loading';
+    container.innerHTML = '<div class="events-pricing-loading"><span></span><span></span></div>';
+    try {
+        const [plansResponse, pricingResponse] = await Promise.all([
+            fetch('/api/get_membership_plans.php', {credentials:'same-origin'}),
+            fetch(`/api/get_event_membership_pricing.php?event_id=${encodeURIComponent(eventId)}`, {credentials:'same-origin'})
+        ]);
+        if (!plansResponse.ok || !pricingResponse.ok) throw new Error('Medlemspriser kunne ikke lastes.');
+        const [plansResult, pricingResult] = await Promise.all([plansResponse.json(),pricingResponse.json()]);
+        if (!plansResult.success || !Array.isArray(plansResult.plans) || !pricingResult.success || !Array.isArray(pricingResult.pricing)) {
+            throw new Error(plansResult.message || pricingResult.message || 'Medlemspriser kunne ikke lastes.');
+        }
+        const existing = new Map(pricingResult.pricing.map(price => [String(price.plan_id),price]));
+        const safe = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+        if (!plansResult.plans.length) {
+            container.innerHTML = '<p class="small text-muted mb-0">Ingen medlemskapsplaner er tilgjengelige.</p>';
+        } else {
+            container.innerHTML = `<div class="edit-membership-plan-list">${plansResult.plans.map(plan => {
+                const planId = String(plan.plan_id ?? plan.id ?? '');
+                const price = existing.get(planId);
+                const amount = price ? (price.ticket_price ?? price.price ?? '') : '';
+                const isPublic = price ? (price.public_display == 1 || price.public_display === true) : true;
+                return `<div class="edit-membership-plan-row">
+                    <label class="edit-membership-plan-enable"><input type="checkbox" class="form-check-input" data-membership-enabled ${price ? 'checked' : ''} aria-label="Bruk medlemspris for ${safe(plan.name || plan.plan_name)}">
+                        <span><strong>${safe(plan.name || plan.plan_name || 'Medlemsplan')}</strong><small>Planpris ${safe(plan.price ?? plan.plan_price ?? '–')} kr/år</small></span></label>
+                    <label class="edit-membership-price-field"><span>Arrangementpris</span><span class="input-group input-group-sm"><input type="number" min="0" step="0.01" class="form-control" data-membership-price value="${safe(amount)}" ${price ? '' : 'disabled'} aria-label="Arrangementpris for ${safe(plan.name || plan.plan_name)}"><span class="input-group-text">kr</span></span></label>
+                    <label class="edit-membership-public"><input type="checkbox" class="form-check-input" data-membership-public ${isPublic ? 'checked' : ''} ${price ? '' : 'disabled'}> Vis offentlig</label>
+                    <input type="hidden" data-membership-plan-id value="${safe(planId)}">
+                </div>`;
+            }).join('')}</div>`;
+            container.querySelectorAll('.edit-membership-plan-row').forEach(row => {
+                const enable = row.querySelector('[data-membership-enabled]');
+                const price = row.querySelector('[data-membership-price]');
+                const publicDisplay = row.querySelector('[data-membership-public]');
+                enable.addEventListener('change',() => { price.disabled = !enable.checked;publicDisplay.disabled = !enable.checked; });
+            });
+        }
+        container.dataset.membershipState = 'ready';
+        editMembershipPricingLoaded = true;
+    } catch (error) {
+        container.dataset.membershipState = 'error';
+        container.innerHTML = `<div class="events-pricing-error" role="alert"><span>${String(error.message || 'Medlemspriser kunne ikke lastes.').replace(/[&<>"]/g,char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char]))}</span><button type="button" class="btn btn-sm btn-outline-secondary" data-retry-membership-prices>Prøv igjen</button></div>`;
+        container.querySelector('[data-retry-membership-prices]')?.addEventListener('click',() => loadEditMembershipPricing(eventId));
+    }
+}
+
 async function editEvent(eventId) {
+    editEventModalReady = false;
+    editEventDirty = false;
     console.log('editEvent called with ID:', eventId, 'Type:', typeof eventId);
     
     try {
@@ -4603,7 +4705,7 @@ async function editEvent(eventId) {
         
         // Load the module-scoped form-field token for the basic-information update.
         try {
-            const fieldData = await EntityFormFields.load('event', eventId);
+            const fieldData = await EntityFormFields.load('event', eventId, true);
             eventCsrfToken = fieldData.csrf_token || window.entityFormCsrfToken || '';
         } catch (fieldError) {
             console.error('Could not load event security token:', fieldError);
@@ -4628,57 +4730,15 @@ async function editEvent(eventId) {
             // Continue - payment methods are optional for modal to open
         }
         
-        // Load membership pricing for edit modal (only if container exists)
-        const membershipPricingContainer = document.getElementById('edit-membership-pricing-container');
-        if (membershipPricingContainer) {
-            try {
-                const pricingResponse = await fetch(`/api/get_event_membership_pricing.php?event_id=${eventId}`);
-                if (pricingResponse.ok) {
-                    const pricingResult = await pricingResponse.json();
-                    membershipPricingContainer.innerHTML = '';
-                    
-                    if (pricingResult.success && pricingResult.pricing && pricingResult.pricing.length > 0) {
-                        pricingResult.pricing.forEach((pricing, index) => {
-                            const priceDiv = document.createElement('div');
-                            const isPublic = pricing.public_display == 1 || pricing.public_display === true;
-                            priceDiv.className = `card mb-2 border-1 ${!isPublic ? 'opacity-50 bg-light' : ''}`;
-                            const publicBadge = isPublic ? '<span class="badge bg-success ms-2">Offentlig</span>' : '<span class="badge bg-warning ms-2">Privat (skjult)</span>';
-                            
-                            priceDiv.innerHTML = `
-                                <div class="card-body p-3">
-                                    <div class="row align-items-center">
-                                        <div class="col">
-                                            <strong>${pricing.plan_name}</strong>
-                                            <div class="small text-muted mt-1">
-                                                <i class="bi bi-tag me-1"></i>Pris: <strong>${pricing.ticket_price} kr</strong>
-                                            </div>
-                                        </div>
-                                        <div class="col-auto text-end">
-                                            <input type="hidden" class="edit-membership-plan-id" value="${pricing.plan_id}">
-                                            <input type="hidden" class="edit-membership-price" value="${pricing.ticket_price}">
-                                            <div>
-                                                <span class="badge bg-primary">${pricing.ticket_price} kr</span>
-                                                ${publicBadge}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                            membershipPricingContainer.appendChild(priceDiv);
-                        });
-                    } else {
-                        membershipPricingContainer.innerHTML = '<div class="alert alert-info small mb-0"><i class="bi bi-info-circle me-2"></i>Ingen medlemskapspriser konfigurert for dette arrangementet</div>';
-                    }
-                }
-            } catch (pricingError) {
-                console.warn('Error loading membership pricing:', pricingError);
-                // Continue - membership pricing is optional
-            }
-        }
+        // Membership plan and event-price data are loaded independently and
+        // saved together only when both sources completed successfully.
+        await loadEditMembershipPricing(eventId);
         
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('editEventModal'));
         modal.show();
+        editEventDirty = false;
+        editEventModalReady = true;
         
     } catch (error) {
         console.error('Error loading event for edit:', error);
@@ -4706,6 +4766,7 @@ if (editMinAttendeesInput && editDeadlineContainer) {
 
 // Save event changes
 async function saveEventChanges() {
+    if (editEventSaveBusy) return;
     const form = document.getElementById('edit-event-form');
     if (!validateEventDateTimeInputs(form)) {
         toast.quickWarning('Validering', 'Kontroller datoer og klokkeslett. Bruk DD.MM.YYYY og HH:mm.');
@@ -4754,6 +4815,34 @@ async function saveEventChanges() {
     const editDefaultPaymentMethodSelect = document.getElementById('edit-default-payment-method');
     const defaultPaymentMethod = allowedPaymentMethods.includes(editDefaultPaymentMethodSelect?.value)
         ? editDefaultPaymentMethodSelect.value : allowedPaymentMethods[0] || null;
+
+    const membershipPricingContainer = document.getElementById('edit-membership-pricing-container');
+    let membershipPrices = null;
+    if (eventHasMembershipAccess()) {
+        if (!membershipPricingContainer || !editMembershipPricingLoaded ||
+            editMembershipPricingEventId !== String(formData.get('event_id')) ||
+            membershipPricingContainer.dataset.membershipState !== 'ready') {
+            toast.quickError('Medlemspriser', 'Medlemsprisene er ikke lastet. Last dem på nytt før du lagrer.');
+            return;
+        }
+        membershipPrices = [];
+        for (const row of membershipPricingContainer.querySelectorAll('.edit-membership-plan-row')) {
+            const enabled = row.querySelector('[data-membership-enabled]');
+            if (!enabled?.checked) continue;
+            const priceControl = row.querySelector('[data-membership-price]');
+            const price = Number(priceControl?.value);
+            if (!priceControl?.value || !Number.isFinite(price) || price < 0) {
+                toast.quickWarning('Medlemspriser', 'Legg inn en gyldig pris for hver aktiv medlemsplan.');
+                priceControl?.focus();
+                return;
+            }
+            membershipPrices.push({
+                plan_id:row.querySelector('[data-membership-plan-id]')?.value || '',
+                price,
+                public_display:row.querySelector('[data-membership-public]')?.checked ? 1 : 0
+            });
+        }
+    }
     
     const data = {
         event_id: formData.get('event_id'),
@@ -4780,7 +4869,21 @@ async function saveEventChanges() {
         payment_timing_methods: paymentTimingMethods,
         csrf_token: eventCsrfToken
     };
+    if (membershipPrices !== null) data.membership_prices = membershipPrices;
 
+    editEventSaveBusy = true;
+    form.setAttribute('aria-busy','true');
+    form.querySelectorAll('input,select,textarea,button').forEach(control => {
+        control.dataset.disabledBeforeEventSave = String(control.disabled);
+        control.disabled = true;
+    });
+    const saveButton = document.querySelector('#editEventModal .modal-footer button[onclick="saveEventChanges()"]');
+    if (saveButton) {
+        saveButton.dataset.disabledBeforeEventSave = String(saveButton.disabled);
+        saveButton.disabled = true;
+        saveButton.dataset.originalLabel = saveButton.textContent;
+        saveButton.textContent = 'Lagrer…';
+    }
     try {
         const response = await fetch('/api/update_event.php', {
             method: 'POST',
@@ -4793,8 +4896,12 @@ async function saveEventChanges() {
 
         const result = await response.json();
 
-        if (result.success) {
+        if (response.ok && result.success) {
             toast.quickSuccess('Arrangement', 'Arrangement oppdatert!');
+            editEventDirty = false;
+            // The close guard must release after a completed save, not cancel
+            // this programmatic hide because the request was previously busy.
+            editEventSaveBusy = false;
             bootstrap.Modal.getInstance(document.getElementById('editEventModal')).hide();
             loadEvents();
         } else {
@@ -4803,6 +4910,19 @@ async function saveEventChanges() {
     } catch (error) {
         console.error('Error updating event:', error);
         toast.quickError('Arrangement', 'Feil ved oppdatering av arrangement');
+    } finally {
+        editEventSaveBusy = false;
+        form.removeAttribute('aria-busy');
+        form.querySelectorAll('[data-disabled-before-event-save]').forEach(control => {
+            control.disabled = control.dataset.disabledBeforeEventSave === 'true';
+            delete control.dataset.disabledBeforeEventSave;
+        });
+        if (saveButton) {
+            saveButton.disabled = saveButton.dataset.disabledBeforeEventSave === 'true';
+            saveButton.textContent = saveButton.dataset.originalLabel || 'Lagre endringer';
+            delete saveButton.dataset.disabledBeforeEventSave;
+            delete saveButton.dataset.originalLabel;
+        }
     }
 }
 
@@ -5254,7 +5374,7 @@ async function loadPendingRegistrations() {
         const result = await response.json();
         
         const tbody = document.getElementById('pending-registrations-list');
-        const badge = document.getElementById('pending-count-badge');
+        const badges = document.querySelectorAll('[data-event-pending-count]');
         
         if (!result.success) {
             tbody.innerHTML = `
@@ -5268,12 +5388,10 @@ async function loadPendingRegistrations() {
         }
         
         // Update badge count
-        if (badge && result.registrations && result.registrations.length > 0) {
-            badge.textContent = result.registrations.length;
-            badge.style.display = 'inline-block';
-        } else if (badge) {
-            badge.style.display = 'none';
-        }
+        badges.forEach(badge => {
+            badge.textContent = result.registrations?.length || 0;
+            badge.style.display = result.registrations?.length ? 'inline-block' : 'none';
+        });
         
         if (result.registrations && result.registrations.length > 0) {
             tbody.innerHTML = result.registrations.map(reg => {
@@ -5319,7 +5437,7 @@ async function loadPendingRegistrations() {
                 const priceInfo = reg.price_info || {};
                 const isMember = priceInfo.is_member;
                 const displayPrice = priceInfo.display_price || 0;
-                const memberIcon = isMember ? '✅' : '❌';
+                const memberIcon = isMember ? '<i class="bi bi-person-check text-success" aria-label="Medlem"></i>' : '<i class="bi bi-person text-muted" aria-label="Ikke medlem"></i>';
                 const priceHtml = `
                     <span class="fw-bold" style="font-size: 1rem;">
                         ${memberIcon} ${displayPrice} kr
@@ -5328,7 +5446,7 @@ async function loadPendingRegistrations() {
                 `;
                 
                 return `
-                    <tr data-registration-id="${reg.id}">
+                    <tr data-registration-id="${eventImageAttribute(reg.id)}" data-event-id="${eventImageAttribute(reg.event_id)}">
                         <td style="min-width: 250px;">${entryDataHtml}</td>
                         <td class="text-center" style="min-width: 100px;">${priceHtml}</td>
                         <td>
@@ -5392,6 +5510,7 @@ async function approveRegistrationWithReason(registrationId) {
         
         if (result.success) {
             toast.quickSuccess('Påmelding godkjent', `Innsjekking opprettet. Billettpris: ${result.ticket_price} kr`);
+            document.dispatchEvent(new Event('events-registration-decided'));
             // Refresh both views
             setTimeout(() => {
                 loadPendingRegistrations();
@@ -5451,6 +5570,7 @@ async function submitRejection() {
             bootstrap.Modal.getInstance(document.getElementById('rejectionReasonModal')).hide();
             
             toast.quickSuccess('Påmelding avvist', 'Påmeldingen er nå avvist.');
+            document.dispatchEvent(new Event('events-registration-decided'));
             // Refresh both views
             setTimeout(() => {
                 loadPendingRegistrations();
@@ -6343,6 +6463,27 @@ let eventCreationBusy = false;
 let eventCreateFieldsEditor = null;
 let eventEditFieldsEditor = null;
 let eventCsrfToken = '';
+const editEventDirtyForm = document.getElementById('edit-event-form');
+editEventDirtyForm?.addEventListener('input', () => {
+    if (editEventModalReady && !editEventSaveBusy) editEventDirty = true;
+});
+editEventDirtyForm?.addEventListener('change', () => {
+    if (editEventModalReady && !editEventSaveBusy) editEventDirty = true;
+});
+document.getElementById('editEventModal')?.addEventListener('hide.bs.modal', event => {
+    if (editEventSaveBusy) {
+        event.preventDefault();
+        return;
+    }
+    if (editEventModalReady && editEventDirty && !window.confirm('Du har ulagrede endringer. Vil du lukke uten å lagre?')) {
+        event.preventDefault();
+        return;
+    }
+    editEventDirty = false;
+});
+document.getElementById('editEventModal')?.addEventListener('hidden.bs.modal', () => {
+    editEventModalReady = false;
+});
 let eventCreationDisabledControls = [];
 
 function setEventCreationBusy(busy) {
@@ -6977,7 +7118,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // Handle subtab change to load data when entering events tabs
 document.addEventListener('subtab-changed', function(event) {
     if (event.detail.module === 'events') {
-        if (event.detail.subtab === 'events-my') {
+        if (event.detail.subtab === 'events-dashboard') {
+            loadEvents();
+        } else if (event.detail.subtab === 'events-my') {
             loadEvents();
             loadPendingRegistrations();
         } else if (event.detail.subtab === 'events-create') {

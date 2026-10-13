@@ -529,7 +529,10 @@ try {
             <!-- Events subtabs -->
             <ul class="nav nav-pills py-2 subtabs" id="subtabs-events" style="display: none;">
                 <li class="nav-item">
-                    <a class="nav-link active" href="#events-my">Dine arrangement</a>
+                    <a class="nav-link active" href="#events-dashboard">Arrangementsdashboard</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#events-my">Dine arrangement</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="#events-registrations">Eventbestillinger</a>

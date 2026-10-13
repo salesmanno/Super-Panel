@@ -8,9 +8,10 @@
     }[char]));
     const copy = value => JSON.parse(JSON.stringify(value));
 
-    async function load(entityType, entityId) {
+    async function load(entityType, entityId, csrfOnly = false) {
         const params = new URLSearchParams({entity_type: entityType});
         if (entityId !== null && entityId !== undefined && entityId !== '') params.set('entity_id', entityId);
+        if (csrfOnly) params.set('csrf_only', '1');
         const response = await fetch(`/api/get_entity_form_fields.php?${params.toString()}`, {credentials: 'same-origin'});
         const result = await response.json();
         if (!response.ok || !result.success) throw new Error(result.message || 'Kunne ikke laste skjemafelt');
@@ -73,7 +74,7 @@
             }
         };
 
-        host.innerHTML = `<section class="entity-fields-editor${options.rentalLayout === true ? ' entity-fields-editor-rental' : ''}" aria-label="Skjemafelt">
+        host.innerHTML = `<section class="entity-fields-editor${options.rentalLayout === true ? ' entity-fields-editor-rental' : ''}${options.eventLayout === true ? ' entity-fields-editor-event' : ''}" aria-label="Skjemafelt">
             <div class="entity-fields-head">
                 <div><span class="entity-fields-kicker">Deltakerinformasjon</span><h6 class="mb-1">Skjemafelt</h6>
                 <p class="small text-muted mb-0">Feltene følger dette ${options.entityType === 'event' ? 'arrangementet' : 'utleieobjektet'}.</p></div>
@@ -225,6 +226,53 @@
                 return;
             }
             list.replaceChildren();
+            if (options.eventLayout === true) {
+                const orderList = document.createElement('div');
+                orderList.className = 'event-fields-order-list';
+                const heading = document.createElement('div');
+                heading.className = 'event-fields-order-heading';
+                heading.textContent = 'Feltrekkefølge';
+                orderList.append(heading);
+                fields.forEach((field,index) => {
+                    const line = document.createElement('div');
+                    line.className = 'event-fields-order-row';
+                    const open = document.createElement('button');
+                    open.type = 'button';
+                    open.className = 'event-fields-order-label';
+                    open.textContent = field.field_label || field.field_name;
+                    open.setAttribute('aria-expanded',String(selectedName === field.field_name));
+                    open.disabled = registrationType === 'none' || busy;
+                    open.addEventListener('click',() => openField(field.field_name));
+                    const visibility = document.createElement('span');
+                    visibility.className = 'event-fields-order-state';
+                    visibility.textContent = field.is_visible ? (field.is_required ? 'Synlig · påkrevd' : 'Synlig') : 'Skjult';
+                    const controls = document.createElement('span');
+                    controls.className = 'event-fields-order-controls';
+                    [-1,1].forEach(direction => {
+                        const move = document.createElement('button');
+                        move.type = 'button';
+                        move.className = 'btn btn-sm btn-light';
+                        move.textContent = direction < 0 ? '↑' : '↓';
+                        move.setAttribute('aria-label',`Flytt ${field.field_label || field.field_name} ${direction < 0 ? 'opp' : 'ned'}`);
+                        move.disabled = registrationType === 'none' || busy || index + direction < 0 || index + direction >= fields.length;
+                        move.addEventListener('click',() => {
+                            if (busy || loading || registrationType === 'none') return;
+                            const currentIndex = fields.indexOf(field);
+                            const target = currentIndex + direction;
+                            if (target < 0 || target >= fields.length) return;
+                            [fields[currentIndex],fields[target]] = [fields[target],fields[currentIndex]];
+                            fields.forEach((item,position) => item.sort_order = position);
+                            dirty = true;
+                            render();
+                            host.querySelector(`.event-fields-order-row:nth-child(${target + 2}) .event-fields-order-label`)?.focus();
+                        });
+                        controls.append(move);
+                    });
+                    line.append(open,visibility,controls);
+                    orderList.append(line);
+                });
+                list.append(orderList);
+            }
             fields.forEach((field, index) => {
                 if (field.field_name !== selectedName) return;
                 const row = document.createElement('article');
@@ -367,8 +415,7 @@
                 serverRevision = result.revision || '';
                 selectedName = null;
                 if (!options.createMode && result.registration_type) registrationType = result.registration_type;
-                fields = (result.fields || []).map((field,index) => normalize(field,index,!!options.strictRentalValidation)).sort((a, b) => a.sort_order - b.sort_order);
-                if (options.entityType === 'event' && registrationType === 'none') fields = [];
+                fields = (result.fields || []).map((field,index) => normalize(field,index,!!(options.strictRentalValidation || options.strictEventValidation))).sort((a, b) => a.sort_order - b.sort_order);
                 presets = result.presets || [];
                 presetSelect.innerHTML = '<option value="">Forhåndsoppsett</option>' + presets.map(item => `<option value="${esc(item.key)}">${esc(item.label)}</option>`).join('');
                 const notice = host.querySelector('[data-fields-notice]');
@@ -467,6 +514,7 @@
             save,
             confirmClose,
             isBusy: () => busy,
+            isDirty: () => dirty,
             getFields: () => copy(fields),
             getCsrfToken: () => csrfToken || window.entityFormCsrfToken || '',
             isReady: () => ready && !loading && !!(csrfToken || window.entityFormCsrfToken),

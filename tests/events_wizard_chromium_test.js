@@ -45,6 +45,7 @@ window.bootstrap={Modal:class {static getInstance(){return {hide(){}}} show(){} 
 window.fetch=async(url,options)=>{
     fixtureReads.push(String(url));
     if(String(url).includes('/get_event.php?'))return {ok:true,json:async()=>({success:true,event:fixtureEvent})};
+    if(String(url).includes('get_event_membership_pricing.php')) return {ok:true,json:async()=>({success:true,pricing:[]})};
     if(String(url).includes('update_event.php')){
         fixtureEdits.push(JSON.parse(options.body));return {ok:true,json:async()=>({success:true})};
     }
@@ -236,6 +237,7 @@ const checks = `
         edit.querySelector('[name="memberverification"]').checked=true;
         edit.querySelector('[name="is_member_exclusive"]').checked=true;
         eventCsrfToken='csrf-fixture';
+        await loadEditMembershipPricing('fixture-event');
         await loadPaymentMethodsForEdit(['vipps'],'vipps');
         check(!edit.querySelector('[data-method-type="cash"]'),'Binding edit never offers cash');
         await saveEventChanges();

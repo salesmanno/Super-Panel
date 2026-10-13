@@ -13,6 +13,7 @@ require_once __DIR__ . '/../includes/request_date_time.php';
 require_once __DIR__ . '/../includes/event_image_url.php';
 require_once __DIR__ . '/../includes/entity_form_fields.php';
 require_once __DIR__ . '/../includes/event_settings.php';
+require_once __DIR__ . '/../includes/event_membership_prices.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -35,6 +36,7 @@ try {
     );
 
     $db = getDBConnection();
+    entityFormRequireModuleAccess($db, (string)($_SESSION['company_id'] ?? ''), 'event');
     
     // Server-side validation for registration_deadline
     if (!empty($data['min_attendees']) && intval($data['min_attendees']) > 0) {
@@ -60,6 +62,15 @@ try {
         }
         
         $settings = eventSettings($db, (string)$_SESSION['company_id'], $data, $existingEvent);
+        if (array_key_exists('membership_prices', $data)) {
+            if (!eventSettingsHasMembershipAccess($db, (string)$_SESSION['company_id'])) {
+                throw new TenantAuditException('Du trenger Membership-modulen for å endre medlemspriser.');
+            }
+            if (!is_array($data['membership_prices']) || !array_is_list($data['membership_prices'])) {
+                throw new InvalidArgumentException('Ugyldig medlemsprisoppsett');
+            }
+            saveEventMembershipPrices($db, (string)$_SESSION['company_id'], (string)$data['event_id'], $data['membership_prices']);
+        }
         // A date-only edit must not erase the time component of an unchanged deadline.
         $oldDeadline = $existingEvent['registration_deadline'] ?? null;
         if ($data['registration_deadline'] !== null && is_string($oldDeadline) &&

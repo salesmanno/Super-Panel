@@ -128,8 +128,8 @@ $setup->exec("INSERT INTO economy_payment_gateways VALUES('a','vipps',1),('b','s
 $setup->exec("CREATE TABLE economy_configuration_data(id CHAR(36),company_id CHAR(36),gateway_type VARCHAR(50),config_name VARCHAR(100),is_active INT,test_mode INT,client_id TEXT,client_secret_encrypted TEXT,merchant_serial_number TEXT,subscription_key TEXT,public_key TEXT,private_key_encrypted TEXT)");
 $setup->exec("CREATE TABLE economy_bank_accounts(company_id CHAR(36),is_active INT,account_number TEXT)");
 $setup->exec("INSERT INTO economy_configuration_data(id,company_id,gateway_type,config_name,is_active,test_mode) VALUES('active','a','vipps','Vipps',1,0),('other','b','stripe','Kort',1,0)");
-$setup->exec("CREATE TABLE event_membership_plans(event_id CHAR(36),membership_plan_id CHAR(36),ticket_price DECIMAL(12,2),public_display INT)");
-$setup->exec("CREATE TABLE membership_plans(id CHAR(36),name VARCHAR(255))");
+$setup->exec("CREATE TABLE event_membership_plans(event_id CHAR(36),membership_plan_id CHAR(36),ticket_price DECIMAL(12,2),public_display INT,created_at DATETIME DEFAULT CURRENT_TIMESTAMP)");
+$setup->exec("CREATE TABLE membership_plans(id CHAR(36),name VARCHAR(255),company_id CHAR(36))");
 $setup->exec("CREATE TABLE output_products(id CHAR(36) PRIMARY KEY,company_id CHAR(36),module_id CHAR(36),
  product_type VARCHAR(50),product_id CHAR(36),is_visible INT,is_public INT,is_marketplace_featured INT,
  marketplace_priority INT,discount_percent DECIMAL(12,2),created_by CHAR(36))");
@@ -168,7 +168,7 @@ foreach(['get_entity_form_fields.php','save_entity_form_fields.php'] as $file) {
     $source=str_replace("__DIR__.'/../includes/entity_form_fields.php'",var_export($root.'/includes/entity_form_fields.php',true),$source);
     file_put_contents($serverDir.'/'.$file,$source);
 }
-foreach(['create_event.php','update_event.php','get_event.php','delete_event.php','delete_rental_object.php'] as $file) {
+foreach(['create_event.php','update_event.php','get_event.php','get_events.php','delete_event.php','set_event_visibility.php','delete_rental_object.php'] as $file) {
     $source=file_get_contents($root.'/api/'.$file);
     $source=str_replace('session_start();','session_save_path('.var_export($temp.'/sessions',true).');session_start();$_SESSION["company_id"]="a";$_SESSION["tenant_admin_id"]="admin";',$source);
     $source=str_replace("require_once __DIR__ . '/../config/database.php';",$bootstrap,$source);
@@ -229,8 +229,8 @@ try {
         $edit['default_payment_method'],$edit['memberverification'],$edit['is_member_exclusive']);
     $edit['event_id']=$id;$edit['title']='Endret tittel';
     $setup->exec("UPDATE events_eventdata SET min_attendees=2,registration_deadline='2070-05-31 18:45:12' WHERE id='$id'");
-    $setup->exec("INSERT INTO membership_plans VALUES('member-plan','Medlemskap')");
-    $setup->exec("INSERT INTO event_membership_plans VALUES('$id','member-plan',50,1)");
+    $setup->exec("INSERT INTO membership_plans VALUES('member-plan','Medlemskap','a')");
+    $setup->exec("INSERT INTO event_membership_plans(event_id,membership_plan_id,ticket_price,public_display) VALUES('$id','member-plan',50,1)");
     $edit['min_attendees']=2;$edit['registration_deadline']='31.05.2070';
     $setup->exec("DELETE FROM tenant_admin_modules WHERE module_id='membership-module'");
     formsAssert(formsHttp('update_event.php',$edit)['success'],'Basic edit with omitted settings succeeds');
@@ -252,5 +252,6 @@ try {
     $read=formsHttp('get_event.php?id='.$id)['event'];
     formsAssert((int)$read['memberverification']===0&&(int)$read['is_member_exclusive']===0,'Both flags can be explicitly cleared');
     require_once $root.'/tests/entity_deletion_fixture_checks.php';
+    require_once $root.'/tests/events_dashboard_fixture_checks.php';
 }finally{proc_terminate($worker);proc_close($worker);}
 echo "Isolated shared form storage, migration, audit, rendering, validation and HTTP tests passed\n";
