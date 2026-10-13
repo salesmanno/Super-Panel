@@ -1,5 +1,9 @@
 # Dekningskart for bedriftsaudit
 
+Gjeldende regel for uendret lagring og full oversikt over audit-skriveveier:
+[Audit uten uendrede lagringer](audit-unchanged-saves.md). No-op-lagringer skriver
+ikke lenger journalposter; eksisterende historikk og reelle hendelseslogger beholdes.
+
 ## Kartlegging før implementering
 
 Den eksisterende `audit_logs`-tabellen brukes videre. Innsjekk av arrangementer har en lokal INSERT; innloggingshistorikk er separat. Innloggede ansatte får egne `tenant_admins`-kontoer knyttet til `tenant_staff`; aktøren skal derfor slås opp med faktisk konto-ID og bedrift, ikke med bedriftens første administrator.

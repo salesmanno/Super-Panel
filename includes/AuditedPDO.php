@@ -155,7 +155,11 @@ final class AuditedPDO extends PDO {
         }
         $select[] = tenantAuditScopeExpression($table, $columns) . ' AS _audit_company';
         foreach (array_intersect($privateFields, $columns) as $field) {
-            $select[] = "SHA2(CAST(`$field` AS CHAR),256) AS `_audit_hash_$field`";
+            if (in_array($field, ['weekday_prices','images','rental_periods','options','validation_rules','metadata','settings','configuration'], true)) {
+                $select[] = "`$field` AS `_audit_compare_$field`";
+            } else {
+                $select[] = "SHA2(CAST(`$field` AS CHAR),256) AS `_audit_hash_$field`";
+            }
         }
         $query = $this->prepare('SELECT ' . implode(',', $select) . " FROM `$table` WHERE ($where) LIMIT 5001 FOR UPDATE");
         $query->execute($params);
@@ -163,6 +167,14 @@ final class AuditedPDO extends PDO {
         if (count($rows) > 5000) throw new TenantAuditException('Endringen er for stor for én audittransaksjon.');
         $indexed = [];
         foreach ($rows as $row) {
+            foreach ($privateFields as $field) {
+                if (array_key_exists('_audit_compare_' . $field, $row)) {
+                    $value = $row['_audit_compare_' . $field];
+                    $row['_audit_hash_' . $field] = $value === null ? null
+                        : hash('sha256', serialize(tenantAuditComparable($field, $value)));
+                    unset($row['_audit_compare_' . $field]);
+                }
+            }
             $company = (string) ($row['_audit_company'] ?? '');
             if ($company === '') throw new TenantAuditException('Audit kunne ikke bekrefte bedriften for ressursen.');
             $this->actor($company); // Authorized, server-resolved account BEFORE mutation.
@@ -195,6 +207,15 @@ final class AuditedPDO extends PDO {
             if ($ownTransaction) $this->beginTransaction();
             if (in_array($verb, ['INSERT','REPLACE'], true)) {
                 [$where,$bindings] = tenantAuditInsertSelector($mutation['sql'], $params, $this->columns($table));
+                if (preg_match('/\(([^)]+)\)\s*VALUES\b/is', $mutation['sql'], $insert)) {
+                    $written = array_map(static fn($part) => trim($part, " \t\r\n`"), tenantAuditSqlParts($insert[1]));
+                    if (preg_match('/ON\s+DUPLICATE\s+KEY\s+UPDATE\s+(.*)$/is', $mutation['sql'], $upsert)) {
+                        $written = array_merge($written, array_map(static fn($part) => trim(explode('=', $part, 2)[0], " \t\r\n`"), tenantAuditSqlParts($upsert[1])));
+                    }
+                    $privateFields = array_values(array_filter(array_diff($written, tenantAuditResourceSpec($table)['fields'],
+                        ['updated_at','created_at','body_template','subject_template','company_id']),
+                        static fn($field) => (bool)preg_match('/^[a-zA-Z_][a-zA-Z0-9_]{0,99}$/D', $field)));
+                }
             } else {
                 // Only single-table writes are supported. Do not silently miss a joined mutation.
                 $prefix = $verb === 'UPDATE' ? '/^UPDATE\s+`?[a-zA-Z0-9_]+`?\s+SET\b/i'
@@ -251,7 +272,8 @@ final class AuditedPDO extends PDO {
             foreach (array_unique(array_merge(array_keys($before), array_keys($after))) as $key) {
                 $old = $before[$key] ?? [];
                 $new = $after[$key] ?? [];
-                if ($old === $new && $affected > 0 && in_array($verb, ['INSERT','REPLACE'], true)) continue;
+                $changedKeys = tenantAuditChangedKeys($table, $old, $new);
+                if (!$changedKeys) continue;
                 $row = $new ?: $old;
                 $company = $row['_audit_company'];
                 $resourceId = (string) ($row['id'] ?? $row['tenant_admin_id'] ?? $row['tenant_staff_id']
@@ -272,18 +294,13 @@ final class AuditedPDO extends PDO {
                     tenantAuditChange($this, $company, tenantAuditResourceSpec($table)['module'], $action,
                         $table, $resourceId, $name, $old, $new, $links, $this->actor($company));
                 }
-                if ($redacted || tenantAuditSafeValues($table, $old) !== tenantAuditSafeValues($table, $new)) {
+                if ($changedKeys) {
                     $this->pendingAuditChanges[] = [
                         'company' => $company, 'module' => tenantAuditResourceSpec($table)['module'],
                         'action' => $action, 'table' => $table, 'id' => $resourceId, 'name' => $name,
                         'actor' => $this->actor($company),
                     ];
                 }
-            }
-            if (!$before && !$after && $affected === 0 && !empty($_SESSION['company_id'])) {
-                $company = (string) $_SESSION['company_id'];
-                tenantAuditRecord($this, $company, tenantAuditResourceSpec($table)['module'],
-                    strtolower($verb), $table, '', 'Ingen tilgjengelige rader', [], [], 'noop', [], $this->actor($company));
             }
             if ($ownTransaction) $this->commit();
             return $result;

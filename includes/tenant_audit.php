@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/audit_comparison.php';
 
 final class TenantAuditException extends RuntimeException {}
 
@@ -153,16 +154,19 @@ function tenantAuditChange(
 ): string {
     $old = tenantAuditSafeValues($resource, $before);
     $new = tenantAuditSafeValues($resource, $after);
+    $keys = tenantAuditChangedKeys($resource, $before, $after);
+    if (!$keys) {
+        $actor ??= tenantAuditActor($db, $companyId);
+        return '';
+    }
     $changedOld = [];
     $changedNew = [];
-    foreach (array_unique(array_merge(array_keys($old), array_keys($new))) as $key) {
-        if (($old[$key] ?? null) !== ($new[$key] ?? null)) {
-            if (array_key_exists($key, $old)) $changedOld[$key] = $old[$key];
-            if (array_key_exists($key, $new)) $changedNew[$key] = $new[$key];
-        }
+    foreach ($keys as $key) {
+        if (array_key_exists($key, $old)) $changedOld[$key] = $old[$key];
+        if (array_key_exists($key, $new)) $changedNew[$key] = $new[$key];
     }
     return tenantAuditRecord($db, $companyId, $module, $action, $resource, $resourceId, $resourceName,
-        $changedOld, $changedNew, $changedOld === [] && $changedNew === [] ? 'noop' : 'success', $links, $actor);
+        $changedOld, $changedNew, 'success', $links, $actor);
 }
 
 /** Failures are recorded after rollback, never masquerading as successful changes. */
@@ -197,6 +201,8 @@ function tenantAuditRecord(
         throw new TenantAuditException('Endringen og auditloggen må være i samme transaksjon.');
     }
     $actor ??= tenantAuditActor($db, $companyId);
+    // Empty-string means no new audit ID. Event/security records use their explicit outcomes.
+    if ($outcome === 'noop') return '';
     $safeBefore = tenantAuditSafeValues($resource, $before);
     $safeAfter = tenantAuditSafeValues($resource, $after);
     $safeLinks = [];

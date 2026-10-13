@@ -23,13 +23,13 @@ foreach ([
     "CREATE TABLE rental_schedule (
         id VARCHAR(36) PRIMARY KEY, company_id VARCHAR(36), rental_object_id VARCHAR(36), approved INT DEFAULT 0,
         status VARCHAR(30), start_date DATE, end_date DATE, rental_fee DECIMAL(12,2), customer_id VARCHAR(36),
-        pickup_time TIME, start_time TIME, end_time TIME, logistics VARCHAR(30), notes TEXT,
+        pickup_time TIME, return_time TIME, start_time TIME, end_time TIME, key_box_code VARCHAR(6) DEFAULT '1234', logistics VARCHAR(30), notes TEXT,
         cleaning INT DEFAULT 0, price_adjustment_type VARCHAR(20), price_adjustment_cents INT DEFAULT 0,
         price_adjustment_explanation TEXT, customer_name VARCHAR(255), customer_email VARCHAR(255)
     ) ENGINE=InnoDB",
     "CREATE TABLE rental_objects (id VARCHAR(36) PRIMARY KEY, company_id VARCHAR(36), object_name VARCHAR(255),
-        rental_text TEXT, rental_price DECIMAL(12,2), weekend_price DECIMAL(12,2), saturday_price DECIMAL(12,2), sunday_price DECIMAL(12,2))",
-    "CREATE TABLE rental_venues (object_id VARCHAR(36), cleaning_fee DECIMAL(12,2))",
+        category VARCHAR(30) DEFAULT 'venue', rental_text TEXT, rental_price DECIMAL(12,2), weekend_price DECIMAL(12,2), saturday_price DECIMAL(12,2), sunday_price DECIMAL(12,2))",
+    "CREATE TABLE rental_venues (object_id VARCHAR(36), access_code VARCHAR(6), cleaning_fee DECIMAL(12,2))",
     "CREATE TABLE tenant_customers (id VARCHAR(36), company_id VARCHAR(36), email VARCHAR(255), first_name VARCHAR(255), last_name VARCHAR(255))",
     "CREATE TABLE tenant_companies (id VARCHAR(36), name VARCHAR(255), logo_url TEXT, contact_phone VARCHAR(100),
         address_street VARCHAR(255), address_zip VARCHAR(20), address_city VARCHAR(255), org_number VARCHAR(30),is_active INT DEFAULT 1)",
@@ -135,7 +135,7 @@ try {
     foreach (['one', 'two', 'rejected', 'other'] as $id) {
         [$http, $result] = $request($id, $id === 'other' ? 'b' : 'a', $id === 'rejected' ? 'rejected' : 'approved',
             $id === 'two' ? 'staff-a' : '');
-        checkRentalMail($http === 200 && $result['success'] && $result['email_queued'], 'Actual API decision and queue insert: ' . $id);
+        checkRentalMail($http === 200 && $result['success'] && $result['email_queued'], 'Actual API decision and queue insert: ' . $id . ' response=' . json_encode($result));
     }
     $emails = $db->query('SELECT * FROM email_queue ORDER BY source_id')->fetchAll(PDO::FETCH_ASSOC);
     checkRentalMail(count($emails) === 4, 'Exactly one email per decision including self-approval');

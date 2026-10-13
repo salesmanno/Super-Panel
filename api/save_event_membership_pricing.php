@@ -8,6 +8,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/event_membership_prices.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -35,32 +36,8 @@ try {
     $db->beginTransaction();
     
     try {
-        $deleteStmt = $db->prepare("DELETE FROM event_membership_plans WHERE event_id = ?");
-        $deleteStmt->execute([$eventId]);
-        
-        $insertStmt = $db->prepare("
-            INSERT INTO event_membership_plans (event_id, membership_plan_id, ticket_price, public_display, created_at)
-            VALUES (?, ?, ?, ?, NOW())
-        ");
-        
-        foreach ($pricingData as $pricing) {
-            if (isset($pricing['plan_id']) && isset($pricing['price'])) {
-                // Verify membership plan belongs to company
-                $planCheckStmt = $db->prepare("SELECT company_id FROM membership_plans WHERE id = ?");
-                $planCheckStmt->execute([$pricing['plan_id']]);
-                $plan = $planCheckStmt->fetch(PDO::FETCH_ASSOC);
-                
-                if ($plan && $plan['company_id'] === $companyId) {
-                    $publicDisplay = isset($pricing['public_display']) ? (int)$pricing['public_display'] : 1;
-                    $insertStmt->execute([
-                        $eventId,
-                        $pricing['plan_id'],
-                        $pricing['price'],
-                        $publicDisplay
-                    ]);
-                }
-            }
-        }
+        if (!is_array($pricingData) || !array_is_list($pricingData)) throw new InvalidArgumentException('Ugyldig prisoppsett');
+        saveEventMembershipPrices($db, (string)$companyId, (string)$eventId, $pricingData);
         
         $db->commit();
         

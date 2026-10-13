@@ -96,7 +96,7 @@ try {
     if ($checkin['checked_in'] == 1 && !$isNoShow) {
         $db->rollBack();
         tenantAuditRecord($db, $companyId, 'events', 'EVENT_CHECKIN', 'events_checkin',
-            (string) $checkinId, (string) $checkin['event_title'], [], [], 'noop', [], $auditActor);
+            (string) $checkinId, (string) $checkin['event_title'], [], [], 'denied', [], $auditActor);
         echo json_encode(['success' => false, 'message' => 'Allerede sjekket inn']);
         exit;
     }
