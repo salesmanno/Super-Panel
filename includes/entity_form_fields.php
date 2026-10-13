@@ -77,7 +77,7 @@ function entityFormDecode($value): array {
     return $decoded;
 }
 
-function entityFormNormalize(string $type, array $fields): array {
+function entityFormNormalize(string $type, array $fields, bool $allowBrokenRentalEmailRules = false): array {
     if (count($fields)>40) throw new InvalidArgumentException('For mange skjemafelt');
     $result = [];
     foreach ($fields as $index=>$f) {
@@ -109,13 +109,20 @@ function entityFormNormalize(string $type, array $fields): array {
             throw new InvalidArgumentException('Ugyldig feltvalg');
         }
         if ($kind === 'select' && !$options) throw new InvalidArgumentException('Valgfelt må ha minst ett valg');
+        $invalidRulesHash = null;
         try {
             $rules = entityFormDecode($f['validation_rules'] ?? []);
         } catch (JsonException $error) {
+            if ($allowBrokenRentalEmailRules && $type === 'rental_object'
+                && $name === 'email' && $kind === 'email') {
+                $invalidRulesHash = hash('sha256', (string)($f['validation_rules'] ?? ''));
+                $rules = [];
+            } else {
             throw new InvalidArgumentException(
                 "Skjemafeltet «{$label}» ($name) har ugyldig JSON i validation_rules. Rett feltoppsettet i dynamic_form_fields.",
                 0, $error
             );
+            }
         }
         foreach(['maxLength'=>'max_length','minLength'=>'min_length'] as $oldKey=>$newKey) {
             if(array_key_exists($oldKey,$rules)) {
@@ -155,6 +162,16 @@ function entityFormNormalize(string $type, array $fields): array {
             'is_required'=>$required,'is_visible'=>$visible,'sort_order'=>(int)$order,
             'default_value'=>$default === null ? null : (string)$default,'options'=>array_values(array_unique($options)),
             'validation_rules'=>$rules];
+        if ($invalidRulesHash !== null) {
+            $result[$name]['_invalid_validation_rules_hash'] = $invalidRulesHash;
+        } elseif (isset($f['_invalid_validation_rules_hash'])
+            && is_string($f['_invalid_validation_rules_hash'])
+            && preg_match('/^[a-f0-9]{64}$/D', $f['_invalid_validation_rules_hash'])) {
+            $result[$name]['_invalid_validation_rules_hash'] = $f['_invalid_validation_rules_hash'];
+        }
+        if (!empty($f['_repair_invalid_validation_rules'])) {
+            $result[$name]['_repair_invalid_validation_rules'] = true;
+        }
     }
     usort($result,static fn($a,$b)=>$a['sort_order']<=>$b['sort_order']);
     return array_values($result);
@@ -190,14 +207,14 @@ function entityFormLegacy(PDO $db,string $company,string $type,string $id): arra
 }
 
 /** Legacy reads are transitional and read-only; never copy at page load. */
-function entityFormLoad(PDO $db,string $company,string $type,string $id): array {
+function entityFormLoad(PDO $db,string $company,string $type,string $id,bool $allowBrokenRentalEmailRules=false): array {
     $context=entityFormContext($db,$company,$type,$id);
     $raw=entityFormRaw($db,$company,$type,$id);
     $fields=array_values(array_filter($raw,static fn($f)=>$f['field_name']!=='__configured'));
     $configured=in_array('__configured',array_column($raw,'field_name'),true);
     $legacy=$configured?[]:entityFormLegacy($db,$company,$type,$id);
     if ($configured || ($raw && !$legacy)) {
-        $fields=entityFormNormalize($type,$fields);
+        $fields=entityFormNormalize($type,$fields,$allowBrokenRentalEmailRules);
         $source='dynamic';
     } else {
         $fields=$legacy;
@@ -230,10 +247,12 @@ function entityFormSave(PDO $db,string $company,string $type,string $id,array $i
     try {
         $context=entityFormContext($db,$company,$type,$id,true);
         $actor=entityFormRequireModuleAccess($db,$company,$type);
-        if ($expectedRevision !== null && !hash_equals(entityFormRevision(entityFormLoad($db,$company,$type,$id)), $expectedRevision)) {
+        if ($expectedRevision !== null && !hash_equals(
+            entityFormRevision(entityFormLoad($db,$company,$type,$id,true)), $expectedRevision
+        )) {
             throw new EntityFormConflictException('Skjemafeltene er endret siden du åpnet dem. Utkastet er beholdt; åpne oppsettet på nytt før du lagrer.');
         }
-        $fields=entityFormNormalize($type,$input);
+        $fields=entityFormNormalize($type,$input,$type==='rental_object');
         require_once __DIR__.'/entity_form_input.php';
         foreach($fields as $field)if($field['default_value']!==null && $field['default_value']!=='') {
             validateEntityFormValues([array_replace($field,['is_visible'=>1,'is_required'=>0])],[$field['field_name']=>$field['default_value']]);
@@ -274,13 +293,50 @@ function entityFormSave(PDO $db,string $company,string $type,string $id,array $i
                     json_encode($new['validation_rules'],JSON_THROW_ON_ERROR),$new['sort_order']];
                 if($old) {
                     $oldComparable=entityFormDecode($old['options']??null);
-                    $oldRules=entityFormDecode($old['validation_rules']??null);
+                    $invalidEmailRules = false;
+                    try {
+                        $oldRules=entityFormDecode($old['validation_rules']??null);
+                    } catch (JsonException $error) {
+                        if ($type !== 'rental_object' || $field['field_name'] !== 'email'
+                            || ($old['field_type'] ?? '') !== 'email') {
+                            throw new InvalidArgumentException(
+                                "Skjemafeltet «{$old['field_label']}» har ugyldig JSON i validation_rules.",
+                                0, $error
+                            );
+                        }
+                        $invalidEmailRules = true;
+                        $currentHash = hash('sha256', (string)($old['validation_rules'] ?? ''));
+                        $providedHash = (string)($field['_invalid_validation_rules_hash'] ?? '');
+                        if (!hash_equals($currentHash, $providedHash)) {
+                            throw new EntityFormConflictException('E-postfeltet er endret. Last skjemafeltene på nytt før du lagrer.');
+                        }
+                        if (!empty($field['_repair_invalid_validation_rules'])) {
+                            $oldRules = [];
+                        } else {
+                            if ($new['validation_rules'] !== []) {
+                                throw new InvalidArgumentException('Bekreft først at den ugyldige e-postregelen skal erstattes med standard e-postvalidering.');
+                            }
+                            // Keep the stored value untouched until the user confirms repair.
+                            $values[6] = (string)$old['validation_rules'];
+                            $oldRules = [];
+                        }
+                    }
+                    $repairEmailRules = $invalidEmailRules && !empty($field['_repair_invalid_validation_rules']);
+                    if (!empty($field['_repair_invalid_validation_rules']) && !$invalidEmailRules) {
+                        throw new EntityFormConflictException('E-postfeltet er allerede rettet. Last skjemafeltene på nytt.');
+                    }
                     if ($old['field_label']===$new['field_label'] && $old['field_type']===$new['field_type']
                         && (int)$old['is_required']===$new['is_required'] && (int)$old['is_visible']===$new['is_visible']
                         && (int)$old['sort_order']===$new['sort_order'] && $old['default_value']===$new['default_value']
-                        && $oldComparable===$new['options'] && $oldRules==$new['validation_rules']) continue;
+                        && $oldComparable===$new['options'] && $oldRules==$new['validation_rules']
+                        && (!$invalidEmailRules || !$repairEmailRules)) continue;
+                    $auditNew = $new;
+                    if ($invalidEmailRules && !$repairEmailRules) {
+                        $auditNew['validation_rules'] = (string)$old['validation_rules'];
+                    }
                     $db->prepare('UPDATE dynamic_form_fields SET field_label=?,field_type=?,is_required=?,is_visible=?,default_value=?,options=?,validation_rules=?,sort_order=?,updated_at=NOW() WHERE id=? AND company_id=? AND entity_type=? AND entity_id=?')
                         ->execute(array_merge($values,[$new['id'],$company,$type,$id]));
+                    $new = $auditNew;
                 } else {
                     $db->prepare('INSERT INTO dynamic_form_fields (field_label,field_type,is_required,is_visible,default_value,options,validation_rules,sort_order,id,company_id,entity_type,entity_id,field_name) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
                         ->execute(array_merge($values,[$new['id'],$company,$type,$id,$new['field_name']]));

@@ -18,8 +18,10 @@ try {
     }
     $db->beginTransaction();
     try {
-        $fields=entityFormSave($db,$company,$type,$id,$data['fields'],$data['expected_revision']);
-        $revision=entityFormRevision(entityFormLoad($db,$company,$type,$id));
+        entityFormSave($db,$company,$type,$id,$data['fields'],$data['expected_revision']);
+        $loaded=entityFormLoad($db,$company,$type,$id,true);
+        $fields=$loaded['fields'];
+        $revision=entityFormRevision($loaded);
         $db->commit();
     } catch(Throwable $e) {
         if($db->inTransaction())$db->rollBack();

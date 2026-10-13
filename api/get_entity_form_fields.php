@@ -19,7 +19,7 @@ try {
         echo json_encode(['success'=>true,'csrf_token'=>$token],JSON_THROW_ON_ERROR);
         exit;
     }
-    $loaded=$id!==''?entityFormLoad($db,$company,$type,$id):['fields'=>entityFormDefaults($type),'source'=>'default','registration_type'=>null];
+    $loaded=$id!==''?entityFormLoad($db,$company,$type,$id,$type==='rental_object'):['fields'=>entityFormDefaults($type),'source'=>'default','registration_type'=>null];
     $token=entityFormCsrfToken();
     session_write_close();
     echo json_encode(['success'=>true]+$loaded+['revision'=>entityFormRevision($loaded),'presets'=>entityFormPresets($type),'csrf_token'=>$token],JSON_THROW_ON_ERROR);
