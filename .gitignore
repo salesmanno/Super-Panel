@@ -1,0 +1,16 @@
+# AI-agenter og minne (Disse må holdes utenfor GitHub/FTP!)
+.agents/
+.agent/
+.agents_memory/
+memory/
+attached_assets/
+
+# Avhengigheter (Disse skal heller aldri på FTP)
+vendor/
+node_modules/
+
+# Systemfiler og dumper
+.replit
+replit.md
+*.sql
+*.log
