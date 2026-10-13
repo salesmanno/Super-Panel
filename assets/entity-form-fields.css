@@ -18,3 +18,89 @@
 .entity-field-advanced textarea{resize:vertical}
 .entity-fields-editor button:disabled{opacity:.55}
 @media(max-width:767.98px){.entity-fields-head{display:block}.entity-fields-presets{min-width:0;margin-top:.8rem}.entity-field-controls{grid-template-columns:auto 1fr 1fr}.entity-field-toggle{padding:.25rem 0}.entity-field-remove{grid-column:3}.entity-field-advanced{grid-template-columns:1fr 1fr}.entity-field-advanced .entity-options,.entity-field-advanced label:last-child{grid-column:1/-1}}
+
+/* The rental card editor is a compact, full-width continuation of its object. */
+#rental-module .entity-fields-editor-rental,
+#rental-module .rental-inline-fields-card { min-width:0;max-width:100%; }
+#rental-module .entity-fields-editor-rental {
+    padding:clamp(.65rem,1.7vw,1rem);
+    border:0;border-top:1px solid #dce8df;border-radius:0 0 13px 13px;
+    background:#f4f8f4;color:#24483f;box-shadow:none;
+}
+#rental-module .entity-fields-editor-rental .entity-fields-head { align-items:center;gap:.75rem;margin-bottom:.75rem; }
+#rental-module .entity-fields-editor-rental .entity-fields-head h6 { color:#244d43;font-size:.95rem; }
+#rental-module .entity-fields-editor-rental .entity-fields-head p { font-size:.75rem; }
+#rental-module .entity-fields-editor-rental .entity-fields-kicker { color:#4b8070;font-size:.61rem; }
+#rental-module .entity-fields-editor-rental .entity-fields-presets { min-width:0;max-width:390px; }
+#rental-module .entity-fields-editor-rental .entity-fields-presets .form-select { min-width:0;width:auto;flex:1 1 150px; }
+#rental-module .entity-fields-editor-rental [data-common-fields] { min-width:0;padding:.65rem .7rem;border:1px solid #dce7df;border-radius:10px;background:#fff; }
+#rental-module .entity-fields-editor-rental [data-common-fields] legend { float:none;width:auto;margin:0 0 .2rem;color:#31584f;font-size:.81rem;font-weight:750; }
+#rental-module .entity-fields-editor-rental [data-common-fields] > p { margin-bottom:.55rem!important;font-size:.71rem; }
+#rental-module .entity-fields-editor-rental [data-common-list] { display:grid!important;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:.35rem .75rem!important; }
+#rental-module .entity-fields-editor-rental [data-common-list] > .form-check { min-width:0;display:grid!important;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;gap:.4rem!important;padding:.3rem .35rem;border:1px solid #edf1ed;border-radius:7px;background:#fbfcfa; }
+#rental-module .entity-fields-editor-rental [data-common-list] > .form-check > .form-check-input { margin:0; }
+#rental-module .entity-fields-editor-rental [data-common-list] > .form-check > .btn { min-width:0;overflow-wrap:anywhere;font-size:.78rem; }
+#rental-module .entity-fields-editor-rental [data-common-list] > .form-check > label { margin:0!important;font-size:.67rem; }
+#rental-module .entity-fields-editor-rental [data-common-list] > .form-check > label input { margin:0; }
+#rental-module .entity-fields-editor-rental .entity-field-row { min-width:0;margin-bottom:.5rem;padding:.6rem;border-color:#dce7df;border-radius:9px; }
+#rental-module .entity-fields-editor-rental .entity-field-controls { grid-template-columns:auto minmax(0,1.25fr) minmax(105px,.7fr) auto auto auto;gap:.4rem; }
+#rental-module .entity-fields-editor-rental .entity-field-controls > * { min-width:0; }
+#rental-module .entity-fields-editor-rental .entity-field-controls .form-control,
+#rental-module .entity-fields-editor-rental .entity-field-controls .form-select { width:100%;min-width:0; }
+#rental-module .entity-fields-editor-rental .entity-field-order .btn { padding:.22rem .45rem; }
+#rental-module .entity-fields-editor-rental .entity-field-toggle { gap:.25rem;font-size:.71rem; }
+#rental-module .entity-fields-editor-rental .entity-field-advanced { grid-template-columns:repeat(auto-fit,minmax(min(100%,125px),1fr));gap:.5rem; }
+#rental-module .entity-fields-editor-rental .entity-field-advanced .entity-options { grid-column:span 2; }
+#rental-module .entity-fields-editor-rental > .d-flex { min-width:0; }
+#rental-module .entity-fields-editor-rental [data-fields-status] { min-width:0;flex:1 1 100%;margin:0!important;overflow-wrap:anywhere; }
+#rental-module .entity-fields-editor-rental .rental-inline-object-label { display:block;margin-top:.2rem;overflow-wrap:anywhere; }
+@media(max-width:767.98px) {
+    #rental-module .entity-fields-editor-rental .entity-fields-head { align-items:stretch; }
+    #rental-module .entity-fields-editor-rental .entity-fields-presets { width:100%;max-width:none; }
+    #rental-module .entity-fields-editor-rental .entity-field-controls { grid-template-columns:auto minmax(0,1fr) minmax(0,1fr); }
+    #rental-module .entity-fields-editor-rental .entity-field-order { grid-column:1;grid-row:1 / span 2;align-self:center; }
+    #rental-module .entity-fields-editor-rental .entity-field-label { grid-column:2 / -1; }
+    #rental-module .entity-fields-editor-rental .entity-field-type { grid-column:2 / -1; }
+    #rental-module .entity-fields-editor-rental .entity-field-toggle { grid-column:auto;white-space:normal; }
+    #rental-module .entity-fields-editor-rental .entity-field-remove { grid-column:3; }
+}
+@media(max-width:420px) {
+    #rental-module .entity-fields-editor-rental { padding:.6rem; }
+    #rental-module .entity-fields-editor-rental [data-common-list] { grid-template-columns:minmax(0,1fr); }
+    #rental-module .entity-fields-editor-rental .entity-field-controls { grid-template-columns:auto minmax(0,1fr); }
+    #rental-module .entity-fields-editor-rental .entity-field-order { grid-column:1;grid-row:1 / span 2;flex-direction:column; }
+    #rental-module .entity-fields-editor-rental .entity-field-label,
+    #rental-module .entity-fields-editor-rental .entity-field-type { grid-column:2; }
+    #rental-module .entity-fields-editor-rental .entity-field-toggle { grid-column:2; }
+    #rental-module .entity-fields-editor-rental .entity-field-remove { grid-column:2;justify-self:start; }
+    #rental-module .entity-fields-editor-rental .entity-field-advanced { grid-template-columns:minmax(0,1fr); }
+    #rental-module .entity-fields-editor-rental .entity-field-advanced .entity-options { grid-column:auto; }
+    #rental-module .entity-fields-editor-rental .entity-fields-presets { flex-wrap:wrap; }
+    #rental-module .entity-fields-editor-rental .entity-fields-presets .form-select { flex-basis:100%; }
+    #rental-module .entity-fields-editor-rental [data-fields-status] { flex-basis:100%; }
+}
+@container rental-card (max-width:680px) {
+    #rental-module .entity-fields-editor-rental .entity-fields-head { align-items:stretch; }
+    #rental-module .entity-fields-editor-rental .entity-fields-presets { width:100%;max-width:none; }
+    #rental-module .entity-fields-editor-rental .entity-field-controls { grid-template-columns:auto minmax(0,1fr) minmax(0,1fr); }
+    #rental-module .entity-fields-editor-rental .entity-field-order { grid-column:1;grid-row:1 / span 2;align-self:center; }
+    #rental-module .entity-fields-editor-rental .entity-field-label { grid-column:2 / -1; }
+    #rental-module .entity-fields-editor-rental .entity-field-type { grid-column:2 / -1; }
+    #rental-module .entity-fields-editor-rental .entity-field-toggle { grid-column:auto;white-space:normal; }
+    #rental-module .entity-fields-editor-rental .entity-field-remove { grid-column:3; }
+    #rental-module .entity-fields-editor-rental [data-common-list] { grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); }
+}
+@container rental-card (max-width:420px) {
+    #rental-module .entity-fields-editor-rental { padding:.6rem; }
+    #rental-module .entity-fields-editor-rental [data-common-list] { grid-template-columns:minmax(0,1fr); }
+    #rental-module .entity-fields-editor-rental .entity-field-controls { grid-template-columns:auto minmax(0,1fr); }
+    #rental-module .entity-fields-editor-rental .entity-field-order { grid-column:1;grid-row:1 / span 2;flex-direction:column; }
+    #rental-module .entity-fields-editor-rental .entity-field-label,
+    #rental-module .entity-fields-editor-rental .entity-field-type { grid-column:2; }
+    #rental-module .entity-fields-editor-rental .entity-field-toggle { grid-column:2; }
+    #rental-module .entity-fields-editor-rental .entity-field-remove { grid-column:2;justify-self:start; }
+    #rental-module .entity-fields-editor-rental .entity-field-advanced { grid-template-columns:minmax(0,1fr); }
+    #rental-module .entity-fields-editor-rental .entity-field-advanced .entity-options { grid-column:auto; }
+    #rental-module .entity-fields-editor-rental .entity-fields-presets { flex-wrap:wrap; }
+    #rental-module .entity-fields-editor-rental .entity-fields-presets .form-select { flex-basis:100%; }
+}

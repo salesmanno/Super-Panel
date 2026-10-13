@@ -135,11 +135,13 @@
         const label = allRentalObjects.find(item => String(item.id) === String(id))?.object_name || 'Utleieobjekt';
         const host = document.createElement('div');
         host.id = `rental-fields-editor-inline-${String(id).replace(/[^a-zA-Z0-9_-]/g,'')}`;
+        host.className = 'rental-fields-host';
         panel.append(host);
         const editor = window.EntityFormFields.mount(host, {
             entityType:'rental_object',
             entityId:id,
             strictRentalValidation:true,
+            rentalLayout:true,
             onSaved:() => closeFieldPanel(true)
         });
         dashboard.editor = editor;

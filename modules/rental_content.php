@@ -673,8 +673,8 @@ function renderObjectCard(obj) {
                     </div>
                 </div>
                 <div id="rental-expanded-${escAttr(obj.id)}" class="rental-object-expanded p-3" hidden onclick="event.stopPropagation()"></div>
+                <div id="rental-inline-${escAttr(obj.id)}" class="rental-inline-fields rental-inline-fields-card" hidden></div>
             </div>
-            <div id="rental-inline-${escAttr(obj.id)}" class="rental-inline-fields" hidden></div>
             <div id="contract-panel-${obj.id}" class="card mt-2 border-success" style="display: none;">
                 <div class="card-header bg-success bg-opacity-10 d-flex justify-content-between align-items-center py-2">
                     <h6 class="mb-0 text-success"><i class="bi bi-file-earmark-text me-1"></i>Kontrakter – ${escHtml(obj.object_name)}</h6>

@@ -73,7 +73,7 @@
             }
         };
 
-        host.innerHTML = `<section class="entity-fields-editor" aria-label="Skjemafelt">
+        host.innerHTML = `<section class="entity-fields-editor${options.rentalLayout === true ? ' entity-fields-editor-rental' : ''}" aria-label="Skjemafelt">
             <div class="entity-fields-head">
                 <div><span class="entity-fields-kicker">Deltakerinformasjon</span><h6 class="mb-1">Skjemafelt</h6>
                 <p class="small text-muted mb-0">Feltene følger dette ${options.entityType === 'event' ? 'arrangementet' : 'utleieobjektet'}.</p></div>

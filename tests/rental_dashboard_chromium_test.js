@@ -338,7 +338,25 @@ const checks=`(async()=>{
  name('object-0').click();
  await wait(()=>panel('object-0').querySelector('[data-common-field="phone"]'),'inline editor');
  check(!panel('object-0').hidden,'name opens inline editor');
+ check(panel('object-0').closest('.rental-object-card')===firstCard.querySelector('.rental-object-card'),'field editor is inside its object card, not a separate panel');
+ const checkFieldLayout=()=>{
+   const editor=panel('object-0').querySelector('.entity-fields-editor');
+   check(editor.scrollWidth<=editor.clientWidth+1,'field editor fits the card without horizontal overflow');
+   check(document.documentElement.scrollWidth<=innerWidth+1,'open field editor fits viewport');
+   const bounds=firstCard.querySelector('.rental-object-card').getBoundingClientRect();
+   const panelBounds=panel('object-0').getBoundingClientRect();
+   check(panelBounds.left>=bounds.left-1&&panelBounds.right<=bounds.right+1,'field panel stays within the object card');
+ };
+ checkFieldLayout();
  check(!panel('object-0').querySelector('.entity-field-row'),'individual fields closed initially');
+ panel('object-0').querySelector('[data-edit-field="email"]').click();
+ check(panel('object-0').querySelectorAll('.entity-field-row').length===1,'only selected field editor opens inside card');
+ checkFieldLayout();
+ const advanced=panel('object-0').querySelector('.entity-field-row details');
+ if(advanced){advanced.open=true;checkFieldLayout();advanced.open=false;}
+ window.fixtureFieldsScreenshotReady=true;
+ await new Promise(resolve=>window.fixtureContinueFieldsTests=resolve);
+ panel('object-0').querySelector('[data-close-field]').click();
  panel('object-0').querySelector('[data-common-field="phone"]').click();
  window.confirmAnswer=false;
  name('object-1').click();await delay();
@@ -498,7 +516,7 @@ async function main(){
     const send=(method,params={},sessionId)=>new Promise((resolve,reject)=>{pending.set(++id,{resolve,reject});socket.send(JSON.stringify({id,method,params,sessionId}));});
     const {targetId}=await send('Target.createTarget',{url:'about:blank'});
     const {sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});
-    for(const width of [390,1280]){
+    for(const width of [320,390,1280]){
         await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false},sessionId);
         await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]},sessionId);
         await send('Page.navigate',{url:'file://'+fixture},sessionId);
@@ -523,6 +541,20 @@ async function main(){
         fs.writeFileSync(path.join(dir,'rental-edit-pricing-'+width+'.png'),Buffer.from(pricingShot.data,'base64'));
         await send('Runtime.evaluate',{expression:'(()=>{document.querySelector("[data-rental-edit-section=\\"pricing\\"]").open=false;document.querySelector("#rentalModal .modal-body").scrollTop=0})()'},sessionId);
         await send('Runtime.evaluate',{expression:'window.fixtureContinueEditTests()'},sessionId);
+        let fieldsReady=false;
+        for(let attempt=0;attempt<160;attempt++){
+            const state=await send('Runtime.evaluate',{expression:'window.fixtureFieldsScreenshotReady===true',returnByValue:true},sessionId);
+            if(state.result.value){fieldsReady=true;break;}
+            await new Promise(resolve=>setTimeout(resolve,50));
+        }
+        if(!fieldsReady){
+            const failed=await checksPromise;
+            throw new Error('Inline fields checkpoint failed: '+JSON.stringify(failed.exceptionDetails||failed.result?.value));
+        }
+        await send('Runtime.evaluate',{expression:'document.getElementById("rental-card-object-0").scrollIntoView({block:"start"})'},sessionId);
+        const fieldsShot=await send('Page.captureScreenshot',{format:'png'},sessionId);
+        fs.writeFileSync(path.join(dir,'rental-card-fields-'+width+'.png'),Buffer.from(fieldsShot.data,'base64'));
+        await send('Runtime.evaluate',{expression:'window.fixtureContinueFieldsTests()'},sessionId);
         const result=await checksPromise;
         if(result.exceptionDetails)throw new Error(JSON.stringify(result.exceptionDetails));
         assert.equal(result.result.value?.passed,true);
