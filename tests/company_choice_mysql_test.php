@@ -31,7 +31,15 @@ $db->exec("INSERT INTO tenant_company_modules VALUES('a','r',1),('a','e',1),('b'
 foreach(['app','app/auth','app/api','app/includes','app/config','app/pages'] as $dir)mkdir($temp.'/'.$dir);
 // Copy includes: symlinking functions.php would resolve its config in the real project.
 foreach(glob($root.'/includes/*.php') as $f)copy($f,$temp.'/app/includes/'.basename($f));
-foreach(['auth/company_auth.php','auth/logout.php','api/company_choice.php','api/refresh_session.php','pages/login_transition.php'] as $f)copy($root.'/'.$f,$temp.'/app/'.$f);
+foreach(['index.php','pages/company_login.php','auth/company_auth.php','auth/logout.php','api/company_choice.php','api/refresh_session.php','pages/login_transition.php'] as $f)copy($root.'/'.$f,$temp.'/app/'.$f);
+// Use the actual dashboard authentication preamble, without loading business UI/data.
+$dashboardSource=file_get_contents($root.'/pages/company_dashboard.php');
+$dashboardBoundary=strpos($dashboardSource,'$auditVisible = false;');
+check($dashboardBoundary!==false,'Dashboard authentication preamble found');
+file_put_contents($temp.'/app/pages/company_dashboard.php',substr($dashboardSource,0,$dashboardBoundary).'echo "fixture dashboard";');
+file_put_contents($temp.'/app/pages/protected.php','<?php session_start();require __DIR__."/../includes/functions.php";getDBConnection();echo "protected";');
+// Session corruption is restricted to this disposable fixture, never shipped as a route.
+file_put_contents($temp.'/app/auth/fixture_session.php','<?php session_start();foreach(["session_id","db_type","company_id"] as $key)if(isset($_POST[$key])){if($_POST[$key]==="__unset")unset($_SESSION[$key]);else $_SESSION[$key]=$_POST[$key];}echo "fixture";');
 foreach(['add_to_cart','checkout_cart','process_service_sale','get_cart','get_purchase_history','get_invoices','get_renewal_stats'] as $endpoint) {
     copy($root.'/api/'.$endpoint.'.php',$temp.'/app/api/'.$endpoint.'.php');
 }
@@ -49,8 +57,24 @@ $request=function(string $path,string $browser='one',?array $data=null,bool $jso
     if($context!==null)$headers.="X-Company-Context: ".$context."\r\n";
     $body=file_get_contents('http://'.$address.$path,false,stream_context_create(['http'=>['method'=>$data===null?'GET':'POST','ignore_errors'=>true,'follow_location'=>0,'header'=>$headers,'content'=>$data===null?'':($json?json_encode($data):http_build_query($data))]]));
     $status=(int)explode(' ',$http_response_header[0])[1];$location='';
-    foreach($http_response_header as $h){if(preg_match('/Set-Cookie: PHPSESSID=([^;]+)/i',$h,$m))$cookies[$browser]=$m[1];if(str_starts_with($h,'Location:'))$location=trim(substr($h,9));}
-    return [$status,json_decode($body,true),$location,$body];
+    foreach($http_response_header as $h){
+        if(preg_match('/Set-Cookie: PHPSESSID=([^;]*)/i',$h,$m)){
+            if($m[1]===''||$m[1]==='deleted'||stripos($h,'Max-Age=0')!==false)unset($cookies[$browser]);
+            else $cookies[$browser]=$m[1];
+        }
+        if(str_starts_with($h,'Location:'))$location=trim(substr($h,9));
+    }
+    return [$status,json_decode($body,true),$location,$body,$http_response_header];
+};
+$follow=function(string $path,string $browser)use($request):array{
+    $chain=[];
+    for($hop=0;$hop<8;$hop++){
+        $response=$request($path,$browser);
+        $chain[]=[$path,$response[0],$response[2]];
+        if($response[2]==='')return [$response,$chain];
+        $path=str_starts_with($response[2],'/')?$response[2]:'/'.ltrim($response[2],'./');
+    }
+    throw new RuntimeException('Redirect chain did not terminate: '.json_encode($chain));
 };
 $login=fn($name='free',$browser='one',$password='fixture-password')=>$request('/auth/company_auth.php',$browser,['username'=>$name,'password'=>$password]);
 $choose=function(string $company,string $browser='one')use($request):array{
@@ -68,6 +92,8 @@ try{
     check($login()[2]==='/pages/login_transition.php','Verified login enters choice');
     check($db->query("SELECT company_id FROM tenant_admins WHERE id='free'")->fetchColumn()===null,'Verified login clears stored company');
     check($request('/api/probe.php')[0]===401,'Partial session cannot query company API');
+    check($request('/pages/protected.php')[2]==='/pages/login_transition.php','Valid partial HTML access returns to company choice');
+    check($request('/pages/login_transition.php')[0]===200,'Company-choice page survives denied API and HTML routes');
     $list=$request('/api/company_choice.php')[1];
     check(array_column($list['companies'],'id')===['a','b'],'All and only active companies offered');
     check($request('/api/company_choice.php','one',['company_id'=>'b','csrf_token'=>'bad'],true)[0]===403,'CSRF enforced');
@@ -79,6 +105,7 @@ try{
     check($state['company']==='b'&&$state['role']==='owner'&&$state['name']==='free','Full identity follows selected company without old staff');
     check($state['modules']===['events'],'User rights intersect selected company modules');
     check($request('/api/get_rental_test.php')[0]===403,'Disabled company module rejected server side');
+    check($request('/api/probe.php')[0]===200,'Module denial preserves valid authenticated session');
     foreach(['add_to_cart','checkout_cart','process_service_sale','get_cart','get_purchase_history','get_invoices','get_renewal_stats'] as $endpoint) {
         check($request('/api/'.$endpoint.'.php','one',['output_product_id'=>'fixture','quantity'=>1],true,$state['context'])[0]===403,
             'Real endpoint rejects unlicensed access: '.$endpoint);
@@ -101,6 +128,7 @@ try{
     $refreshed=$request('/api/probe.php')[1];
     check($refreshed['company']==='b' && $refreshed['name']==='free' && $refreshed['context']===$state['context'],'Refresh preserves chosen company and context');
     check($request('/api/probe.php','one',[],true,'old-context')[0]===409,'Old tab writes rejected');
+    check($request('/api/probe.php')[0]===200,'Old context denial preserves the current authenticated session');
     check($request('/api/probe.php','one',[],true,$state['context'])[0]===200,'Current context can write');
     check($request('/api/probe.php','one',[],true)[0]===409,'Missing context cannot write');
     $request('/auth/logout.php');
@@ -131,6 +159,50 @@ try{
     check($choose('a')[0]===200,'Choice recovers when company available');
     $db->exec("UPDATE tenant_admin_sessions SET is_active=0");
     check($request('/api/probe.php')[0]===401,'Revoked full session blocked at legacy endpoint');
+    // One independent valid browser must survive cleanup of another browser.
+    check($login('free','keeper')[2]==='/pages/login_transition.php'&&$choose('a','keeper')[0]===200,'Independent browser authenticated');
+    [$validRoot,$validChain]=$follow('/','keeper');
+    check($validRoot[0]===200&&$validRoot[3]==='fixture dashboard'&&count($validChain)===2,'Valid root session still reaches dashboard');
+    $busyKey='company-login:'.substr(hash('sha256','free'),0,40);
+    $db->prepare('SELECT GET_LOCK(?,5)')->execute([$busyKey]);
+    try{
+        [$busyResponse,$busyChain]=$follow('/','keeper');
+        check($busyResponse[0]===409&&$busyResponse[2]===''&&count($busyChain)===2
+            &&str_contains($busyResponse[3],'Prøv igjen'),'Busy connection ends without redirect loop or forced logout');
+    }finally{$db->prepare('SELECT RELEASE_LOCK(?)')->execute([$busyKey]);}
+    check($request('/api/probe.php','keeper')[0]===200,'Busy request preserves the valid login');
+    foreach(['expired','revoked','account-inactive','company-mismatch','session-mismatch','missing-session-id','wrong-database'] as $scenario){
+        check($login('staff','redirect')[2]==='/pages/login_transition.php','Employee login before '.$scenario);
+        $oldCookie=$cookies['redirect'];
+        $foreignSession='unrelated-'.$scenario;
+        $db->prepare('INSERT INTO tenant_admin_sessions(tenant_admin_id,session_id,is_active,login_at,last_activity) VALUES(?,?,1,NOW(),NOW())')
+            ->execute(['staff',$foreignSession]);
+        if($scenario==='expired')$db->prepare('UPDATE tenant_admin_sessions SET last_activity=DATE_SUB(NOW(),INTERVAL 31 MINUTE) WHERE session_id=?')->execute([$oldCookie]);
+        elseif($scenario==='revoked')$db->prepare('UPDATE tenant_admin_sessions SET is_active=0 WHERE session_id=?')->execute([$oldCookie]);
+        elseif($scenario==='account-inactive')$db->exec("UPDATE tenant_admins SET is_active=0 WHERE id='staff'");
+        else{
+            $changes=match($scenario){
+                'company-mismatch'=>['company_id'=>'b'],
+                'session-mismatch'=>['session_id'=>'not-the-browser-session'],
+                'missing-session-id'=>['session_id'=>'__unset'],
+                'wrong-database'=>['db_type'=>'pgsql'],
+            };
+            $request('/auth/fixture_session.php','redirect',$changes);
+        }
+        [$terminal,$chain]=$follow('/','redirect');
+        check($terminal[0]===200&&str_contains($terminal[3],'Økten din har utløpt'),'Invalid root ends on explained login: '.$scenario);
+        check(count($chain)===3&&$chain[0][2]==='pages/company_dashboard.php'
+            &&$chain[1][2]==='/index.php?error=session_expired','Redirect chain terminates without a loop: '.$scenario);
+        check(str_contains(implode("\n",$terminal[4]),'Cache-Control: no-store'),'Login recovery is not cached');
+        $q=$db->prepare('SELECT is_active FROM tenant_admin_sessions WHERE session_id=?');$q->execute([$oldCookie]);
+        check((int)$q->fetchColumn()===0,'Only invalid current session is retired: '.$scenario);
+        $q->execute([$foreignSession]);check((int)$q->fetchColumn()===1,'Same-account unrelated session preserved: '.$scenario);
+        check($request('/api/probe.php','keeper')[0]===200,'Other browser remains authenticated: '.$scenario);
+        check($request('/pages/login_transition.php','redirect')[2]==='/index.php?error=session_expired','Cleared session cannot reuse transition: '.$scenario);
+        $db->exec("UPDATE tenant_admins SET is_active=1 WHERE id='staff'");
+        $db->prepare('DELETE FROM tenant_admin_sessions WHERE session_id=?')->execute([$foreignSession]);
+    }
+    $request('/auth/logout.php','keeper');
     // Independent servers/processes: PHP's per-session lock must not hide the
     // race between different browsers authenticating the same administrator.
     $socket2=stream_socket_server('tcp://127.0.0.1:0');$address2=stream_socket_get_name($socket2,false);fclose($socket2);

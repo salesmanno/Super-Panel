@@ -7,7 +7,17 @@ function companyLoginIsPending(): bool {
 }
 function companyLoginContext(): string { return (string) ($_SESSION['company_context'] ?? ''); }
 
-function companyLoginClearSession(): void {
+function companyLoginClearSession(?PDO $db = null): void {
+    $adminId = (string) ($_SESSION['tenant_admin_id'] ?? $_SESSION['verified_company_user'] ?? '');
+    if ($db && $adminId !== '') {
+        try {
+            $db->prepare('UPDATE tenant_admin_sessions SET is_active=0,logout_at=NOW()
+                WHERE tenant_admin_id=? AND session_id=? AND is_active=1')
+                ->execute([$adminId, session_id()]);
+        } catch (Throwable $cleanupError) {
+            error_log('Unable to retire invalid company session.');
+        }
+    }
     $_SESSION = [];
     if (session_status() !== PHP_SESSION_ACTIVE) return;
 
@@ -110,10 +120,12 @@ function companyLoginGuardConnection(PDO $db): void {
     $path=(string)(parse_url($_SERVER['REQUEST_URI']??'',PHP_URL_PATH)??'');
     // Password login and logout manage the state themselves (including expired choice).
     if (in_array($path,['/auth/company_auth.php','/auth/logout.php'],true)) return;
+    $sessionValidated = false;
+    $pending = companyLoginIsPending();
     try {
         companyLoginLock($db,(string)($_SESSION['tenant_admin_id']??$_SESSION['verified_company_user']));
-        $pending=companyLoginIsPending();
         companyLoginRequire($db,$pending);
+        $sessionValidated = true;
         if ($pending && !in_array($path,['/pages/login_transition.php','/api/company_choice.php'],true)) {
             throw new DomainException('Velg bedrift før du fortsetter.',401);
         }
@@ -131,24 +143,22 @@ function companyLoginGuardConnection(PDO $db): void {
     } catch (DomainException $e) {
         http_response_code($e->getCode()?:401);
         header('Cache-Control: no-store');
-        if ($e->getCode() === 401) {
-            $adminId = (string) ($_SESSION['tenant_admin_id'] ?? $_SESSION['verified_company_user'] ?? '');
-            if ($adminId !== '') {
-                try {
-                    $db->prepare('UPDATE tenant_admin_sessions SET is_active=0,logout_at=NOW()
-                        WHERE tenant_admin_id=? AND session_id=? AND is_active=1')
-                        ->execute([$adminId, session_id()]);
-                } catch (Throwable $cleanupError) {
-                    error_log('Unable to retire invalid company session.');
-                }
-            }
-            companyLoginClearSession();
+        // A denied route is not an invalid login: keep verified company choices
+        // and valid sessions rejected only for module/context permissions.
+        if (!$sessionValidated && $e->getCode() === 401) {
+            companyLoginClearSession($db);
         }
         if (str_starts_with($path,'/api/')) {
             header('Content-Type: application/json');
             echo json_encode(['success'=>false,'message'=>$e->getMessage(),'error'=>'session_expired']);
+        } elseif (!$sessionValidated && $e->getCode() === 409) {
+            // Retrying through the index would hit the same busy lock repeatedly.
+            header('Content-Type: text/plain; charset=utf-8');
+            header('Retry-After: 5');
+            echo $e->getMessage();
         } else {
-            header('Location: /index.php?error=session_expired');
+            header('Location: '.($sessionValidated && $pending
+                ? '/pages/login_transition.php' : '/index.php?error=session_expired'));
         }
         exit;
     }

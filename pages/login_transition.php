@@ -8,6 +8,7 @@ try {
     $pending = companyLoginIsPending();
     companyLoginRequire($db, $pending);
 } catch (Throwable $e) {
+    companyLoginClearSession($db ?? null);
     header('Location: /index.php?error=session_expired');
     exit;
 }

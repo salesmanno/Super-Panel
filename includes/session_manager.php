@@ -8,8 +8,7 @@ try {
     companyLoginRequire($db);
     updateSessionActivity(session_id());
 } catch (Throwable $e) {
-    session_unset();
-    session_destroy();
+    companyLoginClearSession($db ?? null);
     header('Location: /index.php?error=session_expired');
     exit;
 }

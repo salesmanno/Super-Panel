@@ -8,6 +8,7 @@ if (strpos($request_uri, '/api/') !== false) {
 }
 
 session_start();
+header('Cache-Control: no-store');
 
 // If already logged in, redirect to dashboard
 if (isset($_SESSION['tenant_admin_id']) && isset($_SESSION['company_id'])) {
