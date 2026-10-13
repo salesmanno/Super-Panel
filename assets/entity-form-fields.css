@@ -42,6 +42,8 @@
 #rental-module .entity-fields-editor-rental [data-common-list] > .form-check > .btn { min-width:0;overflow-wrap:anywhere;font-size:.78rem; }
 #rental-module .entity-fields-editor-rental [data-common-list] > .form-check > label { margin:0!important;font-size:.67rem; }
 #rental-module .entity-fields-editor-rental [data-common-list] > .form-check > label input { margin:0; }
+#rental-module .entity-fields-editor-rental .entity-common-order { grid-column:2 / -1;display:flex;justify-content:flex-end;gap:.3rem; }
+#rental-module .entity-fields-editor-rental .entity-common-order button { min-width:32px;min-height:32px;padding:.2rem .45rem; }
 #rental-module .entity-fields-editor-rental .entity-field-row { min-width:0;margin-bottom:.5rem;padding:.6rem;border-color:#dce7df;border-radius:9px; }
 #rental-module .entity-fields-editor-rental .entity-field-controls { grid-template-columns:auto minmax(0,1.25fr) minmax(105px,.7fr) auto auto auto;gap:.4rem; }
 #rental-module .entity-fields-editor-rental .entity-field-controls > * { min-width:0; }

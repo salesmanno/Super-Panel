@@ -54,7 +54,7 @@ mkdir($temp.'/app/api',0700,true);mkdir($temp.'/app/config',0700,true);
 symlink($root.'/includes',$temp.'/app/includes');
 foreach(['create_rental_request','get_rental_schedule','update_rental_schedule','check_refresh_flag',
     'set_polling_complete','update_rental_object','create_rental_object',
-    'get_rental_objects','get_entity_form_fields','update_rental_schedule_lifecycle'] as $api) {
+    'get_rental_objects','get_entity_form_fields','save_entity_form_fields','update_rental_schedule_lifecycle'] as $api) {
     copy($root.'/api/'.$api.'.php',$temp.'/app/api/'.$api.'.php');
 }
 $dsn='mysql:unix_socket='.$temp.'/mysql.sock;dbname=rental_workflow;charset=utf8mb4';
@@ -243,9 +243,45 @@ try {
     workflowAssert($call('update_rental_object','none',['id'=>'oa','csrf_token'=>'form-token','object_name'=>'Unauthorized'])[0]===403,'Basic edit enforces module access');
     workflowAssert($call('update_rental_object','b',['id'=>'oa','csrf_token'=>'form-token','object_name'=>'Unauthorized'])[0]===404,'Basic edit enforces tenant boundary');
     workflowAssert($call('update_rental_object','a',['id'=>'oa','object_name'=>'Changed independently','csrf_token'=>'form-token'])[1]['success'],'Basic edit ignores broken field rules');
-    $fieldFailure=$call('get_entity_form_fields','a',null,'entity_type=rental_object&entity_id=oa');
-    workflowAssert($fieldFailure[0]===400 && str_contains($fieldFailure[1]['message'],'validation_rules') && str_contains($fieldFailure[1]['message'],'email'),'Field editor identifies malformed JSON explicitly');
+    $db->exec("INSERT INTO dynamic_form_fields
+        (id,company_id,entity_type,entity_id,field_name,field_label,field_type,is_required,is_visible,sort_order,validation_rules)
+        VALUES ('other-email','b','rental_object','ob','email','Annen e-post','email',1,1,0,'{\"max_length\":100}'),
+        ('same-object-phone','a','rental_object','oa','phone','Telefon','tel',1,1,1,'{\"max_length\":20}')");
+    $otherBefore=$db->query("SELECT * FROM dynamic_form_fields WHERE id='other-email'")->fetch(PDO::FETCH_ASSOC);
+    $phoneBefore=$db->query("SELECT * FROM dynamic_form_fields WHERE id='same-object-phone'")->fetch(PDO::FETCH_ASSOC);
+    [$http,$fieldEditor]=$call('get_entity_form_fields','a',null,'entity_type=rental_object&entity_id=oa');
+    workflowAssert($http===200 && $fieldEditor['success']
+        && $fieldEditor['fields'][0]['_invalid_validation_rules_hash']===hash('sha256',$brokenRule),'Field editor opens broken email with exact repair fingerprint');
     workflowAssert($db->query("SELECT validation_rules FROM dynamic_form_fields WHERE id='broken-email'")->fetchColumn()===$brokenRule,'Base edits preserve malformed rule unchanged');
+    $formSave=['entity_type'=>'rental_object','entity_id'=>'oa','fields'=>$fieldEditor['fields'],
+        'expected_revision'=>$fieldEditor['revision'],'csrf_token'=>'form-token'];
+    workflowAssert($call('save_entity_form_fields','a',$formSave)[1]['success'],'Unconfirmed save preserves existing invalid rule');
+    workflowAssert($db->query("SELECT validation_rules FROM dynamic_form_fields WHERE id='broken-email'")->fetchColumn()===$brokenRule,'No silent repair on save');
+    $fieldEditor=$call('get_entity_form_fields','a',null,'entity_type=rental_object&entity_id=oa')[1];
+    $formSave['expected_revision']=$fieldEditor['revision'];
+    $formSave['fields']=$fieldEditor['fields'];
+    $formSave['fields'][0]['_repair_invalid_validation_rules']=true;
+    $badHash=$formSave;$badHash['fields'][0]['_invalid_validation_rules_hash']=str_repeat('0',64);
+    workflowAssert($call('save_entity_form_fields','a',$badHash)[0]===409,'Repair rejects mismatched rule fingerprint');
+    workflowAssert($call('save_entity_form_fields','b',$formSave)[0]===404,'Repair rejects foreign company');
+    [$http,$repaired]=$call('save_entity_form_fields','a',$formSave);
+    workflowAssert($http===200 && $repaired['success']
+        && !isset($repaired['fields'][0]['_invalid_validation_rules_hash']),'Explicit confirmed repair clears invalid status');
+    workflowAssert($db->query("SELECT validation_rules FROM dynamic_form_fields WHERE id='broken-email'")->fetchColumn()==='[]','Confirmed email rule replaced with standard validation');
+    workflowAssert($db->query("SELECT * FROM dynamic_form_fields WHERE id='other-email'")->fetch(PDO::FETCH_ASSOC)===$otherBefore,'Other company and object field untouched by repair');
+    workflowAssert($db->query("SELECT * FROM dynamic_form_fields WHERE id='same-object-phone'")->fetch(PDO::FETCH_ASSOC)===$phoneBefore,'Valid sibling field and its rules unchanged by email repair');
+    $fieldEditor=$call('get_entity_form_fields','a',null,'entity_type=rental_object&entity_id=oa')[1];
+    workflowAssert($fieldEditor['success'] && $fieldEditor['fields'][0]['field_name']==='email','Repaired email reopens normally');
+    $formSave['fields']=array_reverse($fieldEditor['fields']);
+    foreach($formSave['fields'] as $position=>&$field)$field['sort_order']=$position;
+    unset($field);
+    $formSave['expected_revision']=$fieldEditor['revision'];
+    workflowAssert($call('save_entity_form_fields','a',$formSave)[1]['success'],'Chosen field ordering saves');
+    $orderedFields=$call('get_entity_form_fields','a',null,'entity_type=rental_object&entity_id=oa')[1]['fields'];
+    workflowAssert(array_column($orderedFields,'field_name')===['phone','email']
+        &&array_column($orderedFields,'sort_order')===[0,1],'Reopening follows saved sort_order');
+    workflowAssert((int)$orderedFields[0]['is_required']===1
+        &&$orderedFields[0]['validation_rules']['max_length']===20,'Reordering preserves required status and valid rules');
     $weekdayPrices=['monday'=>500,'tuesday'=>500,'wednesday'=>600,'thursday'=>600,'friday'=>800];
     workflowAssert($call('update_rental_object','a',['id'=>'oa','csrf_token'=>'form-token','weekday_prices_enabled'=>1,'weekday_prices'=>$weekdayPrices])[1]['success'],'Weekday prices and enable flag save on own object');
     $map=json_decode($db->query("SELECT weekday_prices FROM rental_objects WHERE id='oa'")->fetchColumn(),true);

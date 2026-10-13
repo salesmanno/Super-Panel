@@ -41,7 +41,7 @@ const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'entity-fields-'));
 const html = `<!doctype html><html lang="nb"><head><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="file://${path.join(root, 'assets/entity-form-fields.css')}"></head><body>
 <div id="event-create"></div><div id="event-edit"></div><div id="rental-create"></div><div id="rental-edit"></div>
-<div id="rental-empty"></div><div id="event-none"></div><div id="dynamic-registration-fields"></div>
+<div id="rental-empty"></div><div id="rental-repair"></div><div id="event-none"></div><div id="dynamic-registration-fields"></div>
 <form id="quick-guest-form"><label for="guest-fornavn">Fornavn *</label><input id="guest-fornavn"><label for="guest-etternavn">Etternavn *</label><input id="guest-etternavn"><label for="guest-email">E-post</label><input id="guest-email"></form>
 <script>
 window.testErrors=[]; window.confirmAnswer=false; window.confirmCount=0;
@@ -77,6 +77,10 @@ window.fetch=async(url,options={})=>{
    ];
    if(type==='event' && id==='event-none') registration_type='none';
    if(type==='rental_object' && id==='rental-a') fields=[{field_name:'city',field_label:'By',field_type:'text',is_visible:1}];
+   if(type==='rental_object' && id==='rental-repair') fields=[
+     {field_name:'email',field_label:'E-post',field_type:'email',is_visible:1,sort_order:0,validation_rules:[],_invalid_validation_rules_hash:'c'.repeat(64)},
+     {field_name:'city',field_label:'By',field_type:'text',is_visible:1,sort_order:1}
+   ];
    return {ok:true,json:async()=>({success:true,fields,revision:'a'.repeat(64),registration_type,csrf_token:'csrf-fixture',presets:[{key:'brief',label:'Kort',fields:[
      {field_name:'first_name',field_label:'Fornavn',field_type:'text',is_required:1,is_visible:1,sort_order:0},
      {field_name:'last_name',field_label:'Etternavn',field_type:'text',is_required:1,is_visible:1,sort_order:1},
@@ -170,6 +174,30 @@ const checks = `(async()=>{
  document.querySelector('#rental-empty [data-save]').click();await pause();
  check(window.fixtureSaveResults.at(-1).fields[0].field_name==='email','Quick selection saves through the same entity-scoped field endpoint');
  check(!document.querySelector('#rental-empty .entity-field-row'),'successful rental save closes the selected row');
+ const repairEditor=mount(document.getElementById('rental-repair'),{entityType:'rental_object',entityId:'rental-repair'});
+ await repairEditor.refresh();
+ check(!document.querySelector('#rental-repair [data-fields-notice]').hidden,'broken email has explicit repair notice');
+ check(!repairEditor.getFields()[0]._repair_invalid_validation_rules,'opening does not confirm repair');
+ document.querySelector('#rental-repair [data-preset]').value='brief';
+ document.querySelector('#rental-repair [data-apply-preset]').click();
+ check(repairEditor.getFields().find(f=>f.field_name==='email')._invalid_validation_rules_hash==='c'.repeat(64),'presets retain exact repair fingerprint');
+ const orderBefore=repairEditor.getFields().map(f=>f.field_name);
+ const move=document.querySelector('#rental-repair [data-field-name="email"][data-common-move="-1"]');
+ check(move&&!move.disabled,'field ordering available without opening details');
+ move.click();
+ const reordered=repairEditor.getFields();
+ check(reordered.map(f=>f.field_name).join()!==orderBefore.join()&&reordered.every((f,i)=>f.sort_order===i),'visible order controls update stored sort_order');
+ check([...document.querySelectorAll('#rental-repair [data-edit-field]')].map(b=>b.dataset.editField).slice(0,reordered.length).join()===reordered.map(f=>f.field_name).join(),'checkbox overview follows draft field order');
+ document.querySelector('#rental-repair [data-edit-field="email"]').click();
+ const repairChoice=document.querySelector('#rental-repair [data-repair-email]');
+ check(repairChoice&&!repairChoice.checked,'repair is explicit and off by default');
+ repairChoice.click();
+ check(repairEditor.getFields().find(f=>f.field_name==='email')._repair_invalid_validation_rules,'checkbox authorizes only the marked email row');
+ document.querySelector('#rental-repair [data-save]').click();await pause();
+ const repairPayload=fixtureSaveResults.at(-1);
+ check(repairPayload.entity_id==='rental-repair'&&repairPayload.fields.find(f=>f.field_name==='email')._invalid_validation_rules_hash==='c'.repeat(64),'repair save stays bound to object and rule fingerprint');
+ check(repairPayload.fields.every((f,i)=>f.sort_order===i),'save sends selected order');
+ check(repairPayload.fields.every(f=>f.default_value===null),'unchanged absent default values stay null');
  document.querySelector('#rental-empty [data-common-field="email"]').click();
  check(!emptyRental.getFields()[0].is_visible&&!document.querySelector('#rental-empty [data-fields-list] .entity-field-row'),'Unchecking a standard rental field hides it while retaining its definition');
  const noneEvent=mount(document.getElementById('event-none'),{entityType:'event',entityId:'event-none'});

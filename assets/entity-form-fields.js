@@ -41,7 +41,7 @@
             is_required: !!Number(field.is_required),
             is_visible: field.is_visible === undefined ? true : !!Number(field.is_visible),
             sort_order: Number.isFinite(Number(field.sort_order)) ? Number(field.sort_order) : index,
-            default_value: field.default_value ?? '',
+            default_value: field.default_value ?? null,
             options: Array.isArray(options) ? options : [],
             validation_rules: validationRules && typeof validationRules === 'object' && !Array.isArray(validationRules) ? validationRules : {}
         };
@@ -128,6 +128,21 @@
             const common = host.querySelector('[data-common-list]');
             common.replaceChildren();
             const definitions = new Map((presets[0]?.fields || []).map(field => [field.field_name,field]));
+            const rental = options.entityType === 'rental_object';
+            const brokenEmail = rental && fields.find(field => field._invalid_validation_rules_hash);
+            if (rental) {
+                const notice = host.querySelector('[data-fields-notice]');
+                notice.hidden = !brokenEmail;
+                notice.textContent = brokenEmail
+                    ? 'E-postfeltet har en ugyldig eldre valideringsregel. Trykk på E-post og bekreft erstatning med standard e-postvalidering før du lagrer. Ingen regel endres ved åpning.'
+                    : '';
+                // Include existing/custom fields in their saved order, followed
+                // by standard fields not yet added to this object's setup.
+                const ordered = fields.map(field => [field.field_name,definitions.get(field.field_name) || field]);
+                for (const entry of definitions) if (!fields.some(field => field.field_name === entry[0])) ordered.push(entry);
+                definitions.clear();
+                ordered.forEach(([name,field]) => definitions.set(name,field));
+            }
             host.querySelector('[data-common-fields]').hidden = !definitions.size || registrationType === 'none';
             for (const [name,definition] of definitions) {
                 const field=fields.find(item=>item.field_name===name);
@@ -166,6 +181,33 @@
                 requiredLabel.append(required,document.createTextNode('Påkrevd'));
                 if (options.entityType === 'rental_object') label.append(checkbox,text,requiredLabel);
                 else label.append(checkbox,text);
+                if (rental && field) {
+                    const order = document.createElement('div');
+                    order.className = 'entity-common-order';
+                    [-1,1].forEach(direction => {
+                        const button = document.createElement('button');
+                        button.type = 'button';
+                        button.className = 'btn btn-sm btn-light';
+                        button.dataset.commonMove = String(direction);
+                        button.dataset.fieldName = name;
+                        button.textContent = direction < 0 ? '↑' : '↓';
+                        button.setAttribute('aria-label',`Flytt ${field.field_label} ${direction < 0 ? 'opp' : 'ned'}`);
+                        const index = fields.indexOf(field);
+                        button.disabled = index + direction < 0 || index + direction >= fields.length;
+                        button.addEventListener('click',() => {
+                            if (busy || loading) return;
+                            const index = fields.indexOf(field), target = index + direction;
+                            if (target < 0 || target >= fields.length) return;
+                            [fields[index],fields[target]] = [fields[target],fields[index]];
+                            fields.forEach((item,position) => item.sort_order = position);
+                            dirty = true;
+                            render();
+                            host.querySelector(`[data-field-name="${name}"][data-common-move="${direction}"]`)?.focus();
+                        });
+                        order.append(button);
+                    });
+                    label.append(order);
+                }
                 common.append(label);
             }
             for(const field of fields) {
@@ -211,7 +253,19 @@
                     <label>Min. lengde<input class="form-control form-control-sm" data-rule="min_length" value="${esc(minLength)}" inputmode="numeric"></label>
                     <label>Maks. lengde<input class="form-control form-control-sm" data-rule="max_length" value="${esc(maxLength)}" inputmode="numeric"></label>
                     <label>Mønster<input class="form-control form-control-sm" data-rule="pattern" maxlength="256" value="${esc(rules.pattern ?? '')}" placeholder="f.eks. [A-Z]+"></label>
-                </div></details>`;
+                </div></details>
+                ${rental && field._invalid_validation_rules_hash ? `<div class="alert alert-warning py-2 small mt-2 mb-0">
+                    <label class="d-flex align-items-start gap-2"><input type="checkbox" data-repair-email ${field._repair_invalid_validation_rules ? 'checked' : ''}>
+                    Erstatt den ugyldige regelen med standard e-postvalidering ved lagring.</label>
+                    <span class="d-block mt-1">Dette gjelder bare E-post på dette utleieobjektet. Den gamle regelen beholdes til du bekrefter og lagrer.</span>
+                </div>` : ''}`;
+                row.querySelector('[data-repair-email]')?.addEventListener('change',event => {
+                    if (busy || loading) return;
+                    field._repair_invalid_validation_rules = event.currentTarget.checked;
+                    if (event.currentTarget.checked) field.validation_rules = {};
+                    dirty = true;
+                    render();
+                });
                 row.querySelectorAll('[data-prop]').forEach(control => {
                     control.addEventListener('input', () => {
                         if (busy) return;
@@ -267,7 +321,17 @@
             const preset = presets.find(item => String(item.key) === key);
             if (!preset) return;
             if (fields.length && !window.confirm('Dette erstatter dagens feltoppsett. Innsendte svar beholdes. Vil du fortsette?')) return;
-            fields = (preset.fields || []).map(normalize);
+            const brokenEmail = fields.find(field => field._invalid_validation_rules_hash);
+            fields = (preset.fields || []).map((field,index) => normalize(field,index));
+            // Applying a preset must never implicitly repair an existing bad
+            // rule or discard the fingerprint required for a scoped repair.
+            if (brokenEmail) {
+                const email = fields.find(field => field.field_name === brokenEmail.field_name);
+                if (email) {
+                    email._invalid_validation_rules_hash = brokenEmail._invalid_validation_rules_hash;
+                    email._repair_invalid_validation_rules = !!brokenEmail._repair_invalid_validation_rules;
+                } else fields.push(brokenEmail);
+            }
             selectedName = null;
             fields.forEach((field, index) => field.sort_order = index);
             dirty = true;
