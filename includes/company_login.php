@@ -7,6 +7,25 @@ function companyLoginIsPending(): bool {
 }
 function companyLoginContext(): string { return (string) ($_SESSION['company_context'] ?? ''); }
 
+function companyLoginClearSession(): void {
+    $_SESSION = [];
+    if (session_status() !== PHP_SESSION_ACTIVE) return;
+
+    if (ini_get('session.use_cookies')) {
+        $params = session_get_cookie_params();
+        $cookie = [
+            'expires' => time() - 42000,
+            'path' => $params['path'] ?: '/',
+            'secure' => (bool) $params['secure'],
+            'httponly' => (bool) $params['httponly'],
+        ];
+        if (!empty($params['domain'])) $cookie['domain'] = $params['domain'];
+        if (!empty($params['samesite'])) $cookie['samesite'] = $params['samesite'];
+        setcookie(session_name(), '', $cookie);
+    }
+    session_destroy();
+}
+
 function companyLoginAccount(PDO $db, string $id, bool $lock=false): array {
     $q = $db->prepare('SELECT a.*, c.name AS company_name,c.subdomain,c.is_active AS company_active,
         s.id AS staff_found,s.company_id AS staff_company,s.is_active AS staff_active,
@@ -112,6 +131,19 @@ function companyLoginGuardConnection(PDO $db): void {
     } catch (DomainException $e) {
         http_response_code($e->getCode()?:401);
         header('Cache-Control: no-store');
+        if ($e->getCode() === 401) {
+            $adminId = (string) ($_SESSION['tenant_admin_id'] ?? $_SESSION['verified_company_user'] ?? '');
+            if ($adminId !== '') {
+                try {
+                    $db->prepare('UPDATE tenant_admin_sessions SET is_active=0,logout_at=NOW()
+                        WHERE tenant_admin_id=? AND session_id=? AND is_active=1')
+                        ->execute([$adminId, session_id()]);
+                } catch (Throwable $cleanupError) {
+                    error_log('Unable to retire invalid company session.');
+                }
+            }
+            companyLoginClearSession();
+        }
         if (str_starts_with($path,'/api/')) {
             header('Content-Type: application/json');
             echo json_encode(['success'=>false,'message'=>$e->getMessage(),'error'=>'session_expired']);
