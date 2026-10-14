@@ -50,6 +50,7 @@ window.fixtureFields=['first_name','last_name','email','phone','custom_note'].ma
  field_type:name==='email'?'email':name==='phone'?'tel':'text',is_visible:index<3,is_required:index<2,sort_order:index,validation_rules:{},options:[]
 }));
 window.fixtureFailFields=false;window.fixtureFailFieldSave=false;window.fixtureFailEvents=false;window.fixtureFailEdit=false;
+window.fixtureMembershipPlans=[{id:'standard',name:'Standardmedlem'},{id:'premium',name:'Premiummedlem'}];
 window.fixturePending=['event-0','event-1'].map((event_id,i)=>({id:'reg-'+i,event_id,event_title:'Arrangement '+i,start_date:'2035-06-12',start_time:'19:00:00',
  entry_data:{first_name:'John',last_name:String(i),email:'john@example.test'},first_name:'John',last_name:String(i),price_info:{price:250,is_member:false},created_at:'2026-10-01',approval_status:'pending'}));
 window.fetch=async (url,options={})=>{
@@ -63,8 +64,8 @@ window.fetch=async (url,options={})=>{
   registration_type:fixtureEvents.find(e=>e.id===params.get('entity_id'))?.registration_type||'signup',
   fields:fixtureFields,presets:[{key:'contact',label:'Kontaktinformasjon',fields:fixtureFields}],message:'Fixture field-load failure'};}
  else if(route.includes('save_entity_form_fields.php')){fixtureFieldWrites.push(payload);result={success:!fixtureFailFieldSave,fields:payload.fields,revision:'revision-b',message:'Fixture conflict, draft retained'};if(fixtureFailFieldSave)status=409;}
- else if(route.includes('get_event_membership_pricing.php')){result={success:true,pricing:(fixtureEvents.find(e=>e.id===params.get('event_id'))?.membership_prices||[]).map(p=>({...p,ticket_price:p.price}))};}
- else if(route.includes('get_membership_plans.php')){result={success:true,plans:[{id:'standard',name:'Standardmedlem'},{id:'premium',name:'Premiummedlem'}]};}
+ else if(route.includes('get_event_membership_pricing.php')){result={success:true,pricing:[...(fixtureEvents.find(e=>e.id===params.get('event_id'))?.membership_prices||[]).map(p=>({...p,ticket_price:p.price})),{plan_id:'retired',plan_name:'Tidligere medlemsplan',ticket_price:175,public_display:0}]};}
+ else if(route.includes('get_membership_plans.php')){result={success:true,plans:fixtureMembershipPlans};}
  else if(route.includes('get_payment_methods.php')){result={success:true,payment_methods:[{method_type:'vipps',method_name:'Vipps'},{method_type:'cash',method_name:'Kontant'}]};}
  else if(route.includes('update_event.php')){fixtureEdits.push(payload);result={success:!fixtureFailEdit,message:'Fixture edit failure'};}
  else if(route.includes('set_event_visibility.php')){fixtureWrites.push(payload);fixtureEvents.find(e=>e.id===payload.event_id).is_active=payload.is_active;}
@@ -138,6 +139,8 @@ const checks = `(async()=>{
  check(document.getElementById('edit-memberverification').checked,'Membership flag preserved');
  check(!document.querySelector('#edit-event-form [data-method-type="cash"]')?.checked,'Binding never selects cash');
  const pricing=document.querySelector('#edit-membership-pricing-container [data-membership-price]');
+ check(document.querySelector('[data-retained-membership-prices]').textContent.includes('175'),'Inactive plan price displayed as retained, not silently omitted');
+ check(document.querySelectorAll('.edit-membership-plan-row').length===2,'Only active plans are editable');
  check(pricing,'Membership prices truly editable');
  typed(pricing,'125');fixtureFailEdit=true;
  await saveEventChanges();await settle();
@@ -145,6 +148,12 @@ const checks = `(async()=>{
  fixtureFailEdit=false;await saveEventChanges();await settle();
  check(fixtureEdits.at(-1).membership_prices.length===2&&fixtureEdits.at(-1).memberverification===1,'Basics submit membership prices/flags atomically');
  check(!document.getElementById('editEventModal').classList.contains('show'),'Successful basic save closes modal');
+ const activePlans=fixtureMembershipPlans;fixtureMembershipPlans=[];
+ await editEvent('event-0');await settle();
+ check(!document.querySelector('.edit-membership-plan-row')&&document.querySelector('[data-retained-membership-prices]'),'No-active-plan state retains historical price information');
+ await saveEventChanges();await settle();
+ check(fixtureEdits.at(-1).membership_prices.length===0,'Empty active list can save without submitting readonly retained plans');
+ fixtureMembershipPlans=activePlans;
  select(document.getElementById('eventsDashboardStatus'),'all');await settle();
  click(document.querySelector('[data-open-overview="upcoming"]'));await settle();
  check(document.querySelector('.events-upcoming-card'),'Upcoming events open in overview modal');

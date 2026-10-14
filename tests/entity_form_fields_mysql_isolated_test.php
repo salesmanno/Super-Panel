@@ -129,7 +129,7 @@ $setup->exec("CREATE TABLE economy_configuration_data(id CHAR(36),company_id CHA
 $setup->exec("CREATE TABLE economy_bank_accounts(company_id CHAR(36),is_active INT,account_number TEXT)");
 $setup->exec("INSERT INTO economy_configuration_data(id,company_id,gateway_type,config_name,is_active,test_mode) VALUES('active','a','vipps','Vipps',1,0),('other','b','stripe','Kort',1,0)");
 $setup->exec("CREATE TABLE event_membership_plans(event_id CHAR(36),membership_plan_id CHAR(36),ticket_price DECIMAL(12,2),public_display INT,created_at DATETIME DEFAULT CURRENT_TIMESTAMP)");
-$setup->exec("CREATE TABLE membership_plans(id CHAR(36),name VARCHAR(255),company_id CHAR(36))");
+$setup->exec("CREATE TABLE membership_plans(id CHAR(36),name VARCHAR(255),company_id CHAR(36),is_active INT DEFAULT 1)");
 $setup->exec("CREATE TABLE output_products(id CHAR(36) PRIMARY KEY,company_id CHAR(36),module_id CHAR(36),
  product_type VARCHAR(50),product_id CHAR(36),is_visible INT,is_public INT,is_marketplace_featured INT,
  marketplace_priority INT,discount_percent DECIMAL(12,2),created_by CHAR(36))");
@@ -229,7 +229,7 @@ try {
         $edit['default_payment_method'],$edit['memberverification'],$edit['is_member_exclusive']);
     $edit['event_id']=$id;$edit['title']='Endret tittel';
     $setup->exec("UPDATE events_eventdata SET min_attendees=2,registration_deadline='2070-05-31 18:45:12' WHERE id='$id'");
-    $setup->exec("INSERT INTO membership_plans VALUES('member-plan','Medlemskap','a')");
+    $setup->exec("INSERT INTO membership_plans(id,name,company_id) VALUES('member-plan','Medlemskap','a')");
     $setup->exec("INSERT INTO event_membership_plans(event_id,membership_plan_id,ticket_price,public_display) VALUES('$id','member-plan',50,1)");
     $edit['min_attendees']=2;$edit['registration_deadline']='31.05.2070';
     $setup->exec("DELETE FROM tenant_admin_modules WHERE module_id='membership-module'");

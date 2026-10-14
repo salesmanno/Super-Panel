@@ -22,6 +22,9 @@ lenker og visninger beholdes. Ingen ny app, databasekolonner eller migreringer.
   i `update_event.php` avstemmes i samme transaksjon som grunnopplysningene,
   krever Membership og kontrolleres mot firmaets medlemsplaner. Manglende felt
   bevarer eksisterende medlemspriser; et eksplisitt tomt oppsett krever tilgang.
+  Utelatte priser for inaktive eller tidligere manglende planer bevares selv ved
+  tomt aktivt prisutvalg og vises som historiske, ikke-redigerbare priser.
+  Fjerning av et aktivt prisvalg fungerer fortsatt.
 - `set_event_visibility.php` kontrollerer CSRF, Events-tilgang og låst
   firma-/arrangements-/katalogkobling. «Skjul» bevarer historikk. «Vis» gjenoppretter
   aktivt arrangement og offentlig katalogsynlighet. Permanent sletting bruker
@@ -50,6 +53,8 @@ lenker og visninger beholdes. Ingen ny app, databasekolonner eller migreringer.
 - `node tests/rental_dashboard_chromium_test.js` dekker tilbakefall i den delte
   feltredigeringen uten endringer i Rental-modulen.
 
-Den ekte innloggede flaten er ikke verifisert fra Replit: forbindelsen til
-ekstern MySQL avvises. Nettlesertestene bruker rendret modulmarkup i midlertidige
-fixtures, ikke en autentiseringsbypass i appen. Ingen produksjonsdata er skrevet.
+Den ekte innloggede flaten er ikke verifisert fra Replit. Nettlesertestene bruker
+rendret modulmarkup i midlertidige fixtures, ikke en autentiseringsbypass i appen.
+Forbindelsen til ekstern MySQL var avvist under den opprinnelige undersøkelsen;
+senere serverlogger rapporterer tilkobling. Det bekrefter ikke den innloggede
+UI-flyten. Arbeidets database-/skrivetester bruker bare isolerte fixtures.

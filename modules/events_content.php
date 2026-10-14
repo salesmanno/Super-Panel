@@ -4598,6 +4598,16 @@ async function loadEditMembershipPricing(eventId) {
                 enable.addEventListener('change',() => { price.disabled = !enable.checked;publicDisplay.disabled = !enable.checked; });
             });
         }
+        const editablePlans = new Set(plansResult.plans.map(plan => String(plan.plan_id ?? plan.id ?? '')));
+        const retainedPrices = [...existing].filter(([planId]) => !editablePlans.has(planId));
+        if (retainedPrices.length) {
+            container.insertAdjacentHTML('beforeend', `<div class="small text-muted p-2 border rounded" data-retained-membership-prices>
+                <strong>Tidligere medlemsplaner</strong>
+                <p class="mb-1">Disse prisene beholdes ved lagring og endres ikke her.</p>
+                ${retainedPrices.map(([,price]) => `<div>${safe(price.plan_name || 'Tidligere medlemsplan')}:
+                    ${safe(price.ticket_price ?? price.price ?? '–')} kr${price.public_display == 1 ? '' : ' · Ikke offentlig'}</div>`).join('')}
+            </div>`);
+        }
         container.dataset.membershipState = 'ready';
         editMembershipPricingLoaded = true;
     } catch (error) {

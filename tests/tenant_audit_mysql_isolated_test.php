@@ -17,6 +17,7 @@ $setup->exec("INSERT INTO tenant_admins VALUES ('owner','a','owner-person','owne
 foreach (['rental_objects','membership_plans','events_eventdata','economy_transactions','tenant_announcements','tenant_website_general'] as $table) {
     $setup->exec("CREATE TABLE `$table` (id CHAR(36) PRIMARY KEY,company_id CHAR(36),name VARCHAR(255),status VARCHAR(30),price DECIMAL(12,2),body TEXT) ENGINE=InnoDB");
 }
+$setup->exec("ALTER TABLE membership_plans ADD is_active INT DEFAULT 1");
 $setup->exec("CREATE TABLE tenant_admin_modules (tenant_admin_id CHAR(36),module_id INT,is_active INT,PRIMARY KEY(tenant_admin_id,module_id))");
 $setup->exec("CREATE TABLE event_membership_plans (event_id CHAR(36),membership_plan_id CHAR(36),ticket_price DECIMAL(12,2),
     public_display INT,created_at DATETIME DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(event_id,membership_plan_id))");
@@ -193,6 +194,19 @@ $db->prepare('UPDATE membership_plans SET price=? WHERE company_id=?')->execute(
 auditAssert($countLogs() === $count + 1, 'Multi-row save logs only the row actually changed');
 $db->prepare('UPDATE membership_plans SET price=? WHERE company_id=?')->execute(['100.00','a']);
 auditAssert($countLogs() === $count + 1, 'Repeated multi-row save writes no new audit');
+// An active-only selector omits inactive plans, but its omission is not a
+// deletion request and must not create a false audit event.
+$setup->exec("INSERT INTO events_eventdata(id,company_id,name) VALUES('retained-prices','a','Retained prices')");
+$setup->exec("INSERT INTO event_membership_plans(event_id,membership_plan_id,ticket_price,public_display) VALUES('retained-prices','plan-1',65,0),('retained-prices','missing-plan',10,1)");
+$setup->exec("UPDATE membership_plans SET is_active=0 WHERE id='plan-1'");
+$auditBeforeRetention = $countLogs();
+$db->beginTransaction();
+saveEventMembershipPrices($db,'a','retained-prices',[]);
+$db->commit();
+auditAssert((int)$setup->query("SELECT COUNT(*) FROM event_membership_plans WHERE event_id='retained-prices'")->fetchColumn()===2,
+    'Inactive and missing plan associations survive an empty editable price list');
+auditAssert($countLogs()===$auditBeforeRetention,'Retaining omitted historical prices emits no audit');
+$setup->exec("UPDATE membership_plans SET is_active=1 WHERE id='plan-1'");
 $setup->exec('DROP TABLE audit_logs');
 $db->prepare('UPDATE membership_plans SET price=? WHERE id=? AND company_id=?')->execute([100,'plan-1','a']);
 auditAssert(tenantAuditRecord($db,'a','membership','membership.save','membership_plans','plan-1','Plan',[],[],'noop') === '',

@@ -42,7 +42,12 @@ function saveEventMembershipPrices(PDO $db, string $company, string $event, arra
                 ->execute([$event, $plan, $price['ticket_price'], $price['public_display']]);
         }
     }
+    $activePlan = $db->prepare('SELECT is_active FROM membership_plans WHERE id=? AND company_id=? LOCK IN SHARE MODE');
     foreach ($stored as $plan => $row) {
+        // Editors list active plans only. Omission of a retired/missing plan
+        // is not a request to destroy its previously persisted price.
+        $activePlan->execute([$plan, $company]);
+        if ((int)$activePlan->fetchColumn() !== 1) continue;
         $db->prepare('DELETE FROM event_membership_plans WHERE event_id=? AND membership_plan_id=?')->execute([$event, $plan]);
     }
 }

@@ -1,6 +1,6 @@
 <?php
 // Included by the disposable MySQL/HTTP forms harness, never by the app.
-$setup->exec("INSERT INTO membership_plans VALUES('second-plan','Årsmedlem','a'),('foreign-plan','Annet firma','b')");
+$setup->exec("INSERT INTO membership_plans(id,name,company_id) VALUES('second-plan','Årsmedlem','a'),('foreign-plan','Annet firma','b')");
 $priceEdit = $edit;
 $priceEdit['title'] = 'Grunnopplysninger og to medlemspriser';
 $priceEdit['membership_prices'] = [
@@ -22,6 +22,35 @@ $badPrice['membership_prices'] = [];
 formsAssert(!formsHttp('update_event.php', $badPrice)['success'], 'Empty submitted pricing cannot erase hidden settings without Membership access');
 formsAssert(formsHttp('update_event.php', $edit)['success'], 'Unavailable membership prices omitted safely');
 $setup->exec("INSERT INTO tenant_admin_modules VALUES('admin','membership-module')");
+
+// The real selector omits inactive plans; ordinary saves must retain their
+// persisted association even when the submitted editable list is empty.
+$setup->exec("UPDATE membership_plans SET is_active=0 WHERE id='member-plan'");
+$inactiveEdit = $priceEdit;
+$inactiveEdit['title'] = 'Urelatert redigering med inaktiv medlemsplan';
+$inactiveEdit['membership_prices'] = [$priceEdit['membership_prices'][1]];
+formsAssert(formsHttp('update_event.php', $inactiveEdit)['success'], 'Ordinary basic edit succeeds with a soft-deleted plan absent from submitted prices');
+$inactiveRow = $setup->query("SELECT ticket_price,public_display FROM event_membership_plans WHERE event_id='$id' AND membership_plan_id='member-plan'")->fetch(PDO::FETCH_ASSOC);
+formsAssert($inactiveRow && (float)$inactiveRow['ticket_price'] === 40.0 && (int)$inactiveRow['public_display'] === 0,
+    'Soft-deleted plan keeps its existing price and private flag');
+formsAssert($setup->query("SELECT title FROM events_eventdata WHERE id='$id'")->fetchColumn() === $inactiveEdit['title'],
+    'Unrelated title update commits without dropping inactive pricing');
+$setup->exec("UPDATE membership_plans SET is_active=0 WHERE id='second-plan'");
+$inactiveEdit['membership_prices'] = [];
+formsAssert(formsHttp('update_event.php', $inactiveEdit)['success'], 'Basic edit succeeds with no active membership plans');
+formsAssert((int)$setup->query("SELECT COUNT(*) FROM event_membership_plans WHERE event_id='$id'")->fetchColumn() === 2,
+    'Empty active-plan list does not delete any inactive price association');
+$setup->exec("INSERT INTO event_membership_plans(event_id,membership_plan_id,ticket_price,public_display) VALUES('$id','missing-retired-plan',25,0)");
+formsAssert(formsHttp('update_event.php', $inactiveEdit)['success'], 'Legacy missing-plan price does not block ordinary save');
+formsAssert((int)$setup->query("SELECT COUNT(*) FROM event_membership_plans WHERE event_id='$id' AND membership_plan_id='missing-retired-plan'")->fetchColumn() === 1,
+    'Omitted orphaned price association is not silently deleted');
+$setup->exec("DELETE FROM event_membership_plans WHERE membership_plan_id='missing-retired-plan'");
+$setup->exec("UPDATE membership_plans SET is_active=1 WHERE company_id='a'");
+$inactiveEdit['membership_prices'] = [$priceEdit['membership_prices'][0]];
+formsAssert(formsHttp('update_event.php', $inactiveEdit)['success'], 'Explicit removal of an editable active-plan price remains supported');
+formsAssert((int)$setup->query("SELECT COUNT(*) FROM event_membership_plans WHERE event_id='$id'")->fetchColumn() === 1,
+    'Active unchecked plan is removed while selected plan remains');
+formsAssert(formsHttp('update_event.php', $priceEdit)['success'], 'Restoring the active pricing setup succeeds');
 
 $visibility = ['event_id' => $id, 'is_active' => 1, 'csrf_token' => $token];
 formsAssert(formsHttp('set_event_visibility.php', $visibility)['success'], 'Hidden event can be reactivated through real endpoint');
