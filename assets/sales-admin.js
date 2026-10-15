@@ -395,20 +395,40 @@
     } else {
       const methodConfig=selectedPayment();
       if(!methodConfig)return;
-        const body=`<p class="sales-muted">Betalingsforespørsel til kundens Vipps-nummer. Kontroller nummeret før du sender.</p><form id="sales-vipps-form" novalidate><label class="sales-form-label" for="sales-vipps-phone">Kundens mobilnummer</label><input id="sales-vipps-phone" class="form-control" type="tel" inputmode="tel" autocomplete="tel" placeholder="4xx xx xxx" aria-describedby="sales-vipps-total sales-vipps-error" required><div class="sales-vipps-total" id="sales-vipps-total"><span>Å betale</span><strong>${esc(money(total))}</strong></div><div id="sales-vipps-error" class="sales-error" role="alert" hidden></div></form>`;
+        const body=`<p class="sales-muted">Betalingsforespørsel til kundens Vipps-nummer. Kontroller nummeret før du sender.</p><div id="sales-vipps-form" class="sales-vipps-entry" role="group" aria-label="Vipps-telefonnummer"><label class="sales-form-label" for="sales-vipps-phone">Kundens mobilnummer</label><input id="sales-vipps-phone" class="sales-phone-display" type="text" inputmode="none" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="10" placeholder="8 sifre eller 47 + 8" aria-label="Kundens mobilnummer, bruk tastaturet på skjermen" aria-describedby="sales-vipps-total sales-vipps-error"><div id="sales-vipps-keypad" class="sales-vipps-keypad" role="group" aria-label="Tallfelt"><button type="button" data-vipps-digit="1" aria-label="1">1</button><button type="button" data-vipps-digit="2" aria-label="2">2</button><button type="button" data-vipps-digit="3" aria-label="3">3</button><button type="button" data-vipps-digit="4" aria-label="4">4</button><button type="button" data-vipps-digit="5" aria-label="5">5</button><button type="button" data-vipps-digit="6" aria-label="6">6</button><button type="button" data-vipps-digit="7" aria-label="7">7</button><button type="button" data-vipps-digit="8" aria-label="8">8</button><button type="button" data-vipps-digit="9" aria-label="9">9</button><button type="button" data-vipps-clear aria-label="Tøm nummeret">Tøm</button><button type="button" data-vipps-digit="0" aria-label="0">0</button><button type="button" data-vipps-backspace aria-label="Slett siste siffer"><span class="sales-backspace-glyph" aria-hidden="true">⌫</span><span>Slett</span></button></div><div class="sales-vipps-total" id="sales-vipps-total"><span>Å betale</span><strong>${esc(money(total))}</strong></div><div id="sales-vipps-error" class="sales-error" role="alert" hidden></div></div>`;
        modal('Vipps-betaling',body,{kind:'confirm-vipps',footer:'<button type="button" class="btn btn-outline-secondary" data-close-dialog>Tilbake</button><button type="button" class="btn btn-primary" id="sales-confirm-vipps" data-initial-focus>Send betalingsforespørsel</button>'});
+         const phoneInput=$('#sales-vipps-phone'), phoneError=$('#sales-vipps-error');
+         const setPhone=value=>{
+           phoneInput.value=String(value||'').replace(/\D/g,'').slice(0,10);
+           phoneError.hidden=true;phoneError.textContent='';
+         };
+         const appendDigit=digit=>setPhone(phoneInput.value+digit);
+         $('#sales-vipps-keypad').addEventListener('click',event=>{
+           const button=event.target.closest('button');if(!button)return;
+           if(button.hasAttribute('data-vipps-digit'))appendDigit(button.dataset.vippsDigit);
+           else if(button.hasAttribute('data-vipps-backspace'))setPhone(phoneInput.value.slice(0,-1));
+           else if(button.hasAttribute('data-vipps-clear'))setPhone('');
+         });
+         phoneInput.addEventListener('keydown',event=>{
+           if(/^\d$/.test(event.key)){event.preventDefault();appendDigit(event.key);}
+           else if(event.key==='Backspace'){event.preventDefault();setPhone(phoneInput.value.slice(0,-1));}
+           else if(event.key==='Delete'){event.preventDefault();setPhone('');}
+           else if(event.key==='Enter'){event.preventDefault();}
+           else if(event.key.length===1&&!event.ctrlKey&&!event.metaKey&&!event.altKey)event.preventDefault();
+         });
+         phoneInput.addEventListener('input',()=>setPhone(phoneInput.value));
         const submitVipps=event=>{
           event?.preventDefault();
-         const phone=$('#sales-vipps-phone').value.trim();
-          if(!phone){$('#sales-vipps-phone').focus();$('#sales-vipps-error').hidden=false;$('#sales-vipps-error').textContent='Skriv inn kundens mobilnummer.';return;}
+           if(state.checkoutSubmitting||state.cancelSubmitting||state.pending)return;
+          const phone=phoneInput.value.trim();
+           if(!phone){phoneInput.focus();phoneError.hidden=false;phoneError.textContent='Skriv inn kundens mobilnummer.';return;}
           const digits=phone.replace(/\D/g,'');
-          if(![8,10].includes(digits.length)||(digits.length===10&&!digits.startsWith('47'))){$('#sales-vipps-phone').focus();$('#sales-vipps-error').hidden=false;$('#sales-vipps-error').textContent='Skriv inn et gyldig norsk mobilnummer.';return;}
+           if(![8,10].includes(digits.length)||(digits.length===10&&!digits.startsWith('47'))){phoneInput.focus();phoneError.hidden=false;phoneError.textContent='Skriv inn et gyldig norsk mobilnummer.';return;}
           const currentCart=state.cart||emptyCart(),currentMethod=selectedPayment();
-          if(!currentMethod||!(currentCart.items||[]).length){$('#sales-vipps-error').hidden=false;$('#sales-vipps-error').textContent='Handlekurven eller Vipps-oppsettet er endret. Lukk og kontroller betalingen på nytt.';return;}
+           if(!currentMethod||!(currentCart.items||[]).length){phoneError.hidden=false;phoneError.textContent='Handlekurven eller Vipps-oppsettet er endret. Lukk og kontroller betalingen på nytt.';return;}
           $('#sales-vipps-total strong').textContent=money(currentCart.total_minor);
           sendCheckout({revision:currentCart.revision,payment_method:'vipps',gateway_id:currentMethod.id,phone,expected_total_minor:Number(currentCart.total_minor||0)});
         };
-        $('#sales-vipps-form').addEventListener('submit',submitVipps);
         $('#sales-confirm-vipps').addEventListener('click',submitVipps);
     }
   }
