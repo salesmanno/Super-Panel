@@ -17,6 +17,21 @@ Eksisterende 80-sekundersfrist, idempotens og gjenoppretting beholdes.
 Uavklart betaling beholder referanse og varereservasjon; det startes ikke
 en ny ordre og lageret frigjøres ikke på grunnlag av en feil eller lokal tidsfrist.
 
+### Avbrutt betalingsforsøk beholder handelen
+
+Bekreftet avvisning, kundeavbrytelse, kassereravbrytelse og utløp åpner den
+opprinnelige kurven igjen. Varer, antall, merknader og dynamiske svar beholdes.
+Bare betalingsforsøket blir avbrutt i historikken; det er ingen betalt handel
+og ingen salgskvittering før en ny betaling faktisk lykkes.
+
+Kassen henter først den gjenåpnede kurven og låser deretter opp betalingsvalg
+og varekontroller samlet. Hvis denne innlastingen feiler, beholdes låsen og
+«Hent handlekurven igjen» prøver bare å lese kurven, aldri å sende betaling.
+Kontant og et nytt, eksplisitt sendt Vipps-forsøk bruker den samme kurven.
+Det gamle forsøket og journalen slettes ikke. Et gjentatt statusvarsel for
+det gamle forsøket skal ikke frigjøre flere varer eller åpne en senere
+allerede betalt kurv.
+
 ## Diagnostikk
 
 Kassen viser fast, norsk veiledning om feilen skjedde ved tokenhenting,

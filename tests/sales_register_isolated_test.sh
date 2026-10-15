@@ -21,4 +21,4 @@ for _ in $(seq 1 500); do
   sleep .1
 done
 if [[ "$READY" != 1 ]]; then cat "$TEMP_ROOT/mysql.log"; exit 1; fi
-SALES_REGISTER_ONLY="${SALES_REGISTER_ONLY:-1}" php "$ROOT/tests/sales_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
+SALES_REGISTER_ONLY="${SALES_REGISTER_ONLY:-1}" php "$ROOT/tests/sales_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT" "$@"

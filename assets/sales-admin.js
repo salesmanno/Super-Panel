@@ -10,7 +10,9 @@
   };
   const money = minor => new Intl.NumberFormat('nb-NO', {style:'currency',currency:'NOK'}).format((Number(minor) || 0) / 100);
   const date = value => value ? new Intl.DateTimeFormat('nb-NO',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)) : '–';
-  const state = {csrf:'',taxRegistered:0,products:[],methods:[],methodError:'',cart:null,pending:null,selectedMethod:'cash',selectedGatewayId:null,mutationQueue:Promise.resolve(),busy:false,orders:[],pollTimer:0,pollAbort:null,statusRequest:false,cancelSubmitting:false,checkoutSubmitting:false,pollBackoff:6000,dialog:null,lastFocus:null,productController:null,checkoutUncertain:false,paymentNotice:'',deadlineTimer:0,serverOffset:0,fullscreenPlaceholder:null,fullscreenFallback:false,registerState:null,registerError:'',registerNotice:'',registerBusy:false,registerPrintedDocuments:new Set(),registerMutationKeys:new Map(),registerPrintBusy:false,registerPrintNotices:{}};
+  const state = {csrf:'',taxRegistered:0,products:[],methods:[],methodError:'',cart:null,pending:null,selectedMethod:'cash',selectedGatewayId:null,mutationQueue:Promise.resolve(),busy:false,orders:[],pollTimer:0,pollAbort:null,statusRequest:false,cancelSubmitting:false,checkoutSubmitting:false,pollBackoff:6000,dialog:null,lastFocus:null,productController:null,checkoutUncertain:false,cartRecovery:null,cartRecoveryBusy:false,paymentNotice:'',deadlineTimer:0,serverOffset:0,fullscreenPlaceholder:null,fullscreenFallback:false,registerState:null,registerError:'',registerNotice:'',registerBusy:false,registerPrintedDocuments:new Set(),registerMutationKeys:new Map(),registerPrintBusy:false,registerPrintNotices:{}};
+  const paymentLocked = () => !!(state.pending || state.cartRecovery || state.checkoutUncertain || state.checkoutSubmitting || state.cancelSubmitting);
+  const cartLocked = () => paymentLocked() || state.busy;
   const methodName = m => m?.method_type === 'cash' ? 'Kontant' : (m?.method_name || 'Betaling');
   root.addEventListener('error',event=>{
     const image=event.target;
@@ -69,7 +71,7 @@
     $('#sales-method-buttons').innerHTML = methods.map(m => {
       const active=m.method_type===state.selectedMethod && (m.method_type==='cash'||String(m.id)===String(state.selectedGatewayId));
       const symbol=m.method_type==='cash'?'<i class="bi bi-cash-coin" aria-hidden="true"></i>':'<span class="sales-vipps-mark" aria-hidden="true"><b>Vipps</b></span>';
-      return `<button type="button" class="sales-method-button${active?' is-selected':''}" data-method-key="${esc(paymentKey(m))}" aria-pressed="${active}" ${state.pending?'disabled':''}>${symbol}<span>${esc(methodName(m))}${m.is_demo?' · test':''}</span></button>`;
+      return `<button type="button" class="sales-method-button${active?' is-selected':''}" data-method-key="${esc(paymentKey(m))}" aria-pressed="${active}" ${cartLocked()?'disabled':''}>${symbol}<span>${esc(methodName(m))}${m.is_demo?' · test':''}</span></button>`;
     }).join('');
     const unavailable=(state.methods||[]).filter(m=>!methods.some(u=>paymentKey(u)===paymentKey(m)));
     $('#sales-method-note').innerHTML = [state.methodError,...unavailable.map(m=>`${methodName(m)}: ${m.reason || 'Betalingsmåten er ikke tilgjengelig.'}`)].filter(Boolean).map(esc).join('<br>');
@@ -88,7 +90,7 @@
       const img = safeUrl(p.img_product); const qty = Number(p.stock_quantity);
       const unavailable = Number(p.is_active) !== 1 || qty <= 0;
       const stock = !Number.isFinite(qty) ? '' : qty <= 0 ? 'Utsolgt' : qty <= Number(p.reorder_level || p.low_stock_threeshold || 0) ? `Lav beholdning · ${qty}` : `${qty} på lager`;
-      return `<button type="button" class="sales-product-tile${unavailable?' is-unavailable':''}" data-product="${esc(p.id)}" ${unavailable?'disabled':''} aria-label="${esc(p.name)}, ${esc(money(p.price_minor))}${stock?', '+esc(stock):''}">
+      return `<button type="button" class="sales-product-tile${unavailable?' is-unavailable':''}" data-product="${esc(p.id)}" ${unavailable||paymentLocked()?'disabled':''} aria-label="${esc(p.name)}, ${esc(money(p.price_minor))}${stock?', '+esc(stock):''}">
         <span class="sales-product-image">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : '<span class="sales-product-placeholder" aria-hidden="true"><i class="bi bi-box-seam"></i></span>'}${unavailable?'<span class="sales-stock-overlay">Utsolgt</span>':''}</span>
         <span class="sales-product-meta"><strong>${esc(p.name)}</strong><span class="sales-product-price">${esc(money(p.price_minor))}</span>${stock ? `<small class="${qty <= 0?'stock-out':qty <= Number(p.reorder_level || p.low_stock_threeshold || 0)?'stock-low':''}">${esc(stock)}</small>` : ''}</span>
       </button>`;
@@ -108,19 +110,33 @@
     $('#sales-change').textContent = money(change);
     const pending = !!state.pending;
     $('#sales-open-recovered-receipt').hidden = !state.completedOrder;
-    $('#sales-checkout').disabled = !items.length || state.busy || pending || state.checkoutUncertain || !selectedPayment() ||
+    $('#sales-checkout').disabled = !items.length || cartLocked() || !selectedPayment() ||
       (state.selectedMethod === 'cash' && (tender < Number(cart.total_minor || 0) || !$('#sales-tendered').value));
     $('#sales-checkout').textContent = state.checkoutUncertain ? 'Avventer betalingsstatus' : (state.selectedMethod === 'vipps' ? 'Fortsett med Vipps' : 'Bekreft kontantsalg');
     $('#sales-cash-panel').hidden = state.selectedMethod !== 'cash';
     $('#sales-next-customer').hidden = !state.completedOrder;
     $('#sales-open-payment').hidden = !pending;
     $('#sales-open-payment').textContent = state.dialog?.kind === 'vipps-pending' ? 'Betaling pågår' : 'Åpne betalingsvindu';
+    // All controls must follow the same lock, including while the restored
+    // cart is being fetched. A terminal provider reply alone is not a cart.
+    root.querySelectorAll('[data-method-key],[data-line-qty],[data-remove-line],[data-product]').forEach(button=>{
+      button.disabled=(button.hasAttribute('data-product')?paymentLocked():cartLocked()) || button.classList.contains('is-unavailable');
+    });
+    $('#sales-next-customer').disabled=cartLocked();
     updatePaymentStatus();
   }
   function updatePaymentStatus() {
     const box = $('#sales-payment-status'), order = state.pending || (state.completedOrder?.payment_method === 'vipps' ? state.completedOrder : null);
+    $('#sales-cancel-payment').hidden=!state.pending;
     if (!order) {
-      if(state.paymentNotice){box.hidden=false;box.className='sales-payment-status';box.textContent=state.paymentNotice;}
+      if(state.paymentNotice){
+        box.hidden=false;box.className='sales-payment-status';box.textContent=state.paymentNotice;
+        if(state.cartRecovery){
+          const retry=document.createElement('button');retry.type='button';retry.id='sales-recover-cart';
+          retry.disabled=state.cartRecoveryBusy;retry.textContent=state.cartRecoveryBusy?'Henter handlekurven…':'Hent handlekurven igjen';
+          box.append(retry);
+        }
+      }
       else box.hidden = true;
       return;
     }
@@ -140,16 +156,46 @@
     return ({pending:'Venter på betaling',unknown:'Ukjent status – sjekk igjen',awaiting:'Venter på Vipps',authorized:'Betaling godkjent – sluttfører',captured:'Betalt',paid:'Betalt',aborted:'Avbrutt',cancelled:'Avbrutt',expired:'Utløpt',declined:'Avvist',rejected:'Avvist'})[status] || `Status: ${status}`;
   }
   async function refreshCart() {
-    const r = await api('cart'); updateCart(r.cart);
+    const r = await api('cart');
+    state.cart=r.cart||emptyCart();
     if(r.pending_order&&isPaidPayment(r.pending_order)) {
       state.pending=null;state.completedOrder=r.pending_order;state.paymentNotice='';clearInterval(state.deadlineTimer);
     } else {
+      state.completedOrder=null;
       state.pending = r.pending_order && !isTerminalPayment(r.pending_order) ? r.pending_order : null;
       if(state.pending)syncServerClock(state.pending);else clearInterval(state.deadlineTimer);
     }
     if (state.pending || !(r.cart?.items || []).length) state.checkoutUncertain = false;
     if (state.pending) startPolling(); else stopPolling();
     renderMethods();renderCart();
+    return r;
+  }
+  async function recoverCancelledPayment(order) {
+    if(state.cartRecoveryBusy)return;
+    state.cartRecovery=order;state.cartRecoveryBusy=true;state.checkoutUncertain=true;
+    state.pending=null;state.completedOrder=null;
+    stopPolling();clearInterval(state.deadlineTimer);
+    if(['vipps-pending','confirm-vipps'].includes(state.dialog?.kind))closeDialog(true);
+    const status=String(order.payment_status||order.status).toLowerCase();
+    const outcome=['declined','rejected'].includes(status)?'avvist':status==='expired'?'utløpt':'avbrutt';
+    const notice=`Vipps-betalingsforsøket er ${outcome}. Varene er beholdt.`;
+    const detail=order.payment_error?` ${order.payment_error}`:'';
+    state.paymentNotice=`${notice} Henter handlekurven…${detail}`;
+    setError('');renderMethods();renderCart();
+    try {
+      const result=await refreshCart();
+      if(!state.pending&&!state.completedOrder&&!(result.cart?.id&&result.cart.items?.length))
+        throw new Error('Serveren har ikke bekreftet den gjenåpnede handlekurven. Ingen ny betaling er sendt.');
+      state.cartRecovery=null;state.checkoutUncertain=false;
+      state.paymentNotice=state.pending||state.completedOrder?'':`${notice} Velg kontant eller prøv Vipps igjen.${detail}`;
+    } catch(error) {
+      // Preserve the known terminal attempt so a failed cart read can be
+      // retried without sending a new payment or losing the original lines.
+      state.checkoutUncertain=true;
+      state.paymentNotice=`${notice} ${error.message}${detail}`;
+    } finally {
+      state.cartRecoveryBusy=false;renderMethods();renderCart();
+    }
   }
   function isTerminalPayment(order) {
     const status=String(order?.payment_status||'').toLowerCase(), orderStatus=String(order?.status||'').toLowerCase();
@@ -157,6 +203,7 @@
       ['cancelled','declined','expired','aborted','rejected'].includes(orderStatus);
   }
   function queueMutation(action, data) {
+    if(paymentLocked())return Promise.resolve(false);
     const mutationId = crypto.randomUUID();
     state.mutationQueue = state.mutationQueue.then(async () => {
       const payload = {...data,revision:state.cart?.revision || '',mutation_id:mutationId};
@@ -180,6 +227,7 @@
     return state.mutationQueue;
   }
   async function addProduct(product) {
+    if(paymentLocked())return;
     const controller = new AbortController(); state.productController?.abort(); state.productController = controller;
     let fields = [];
     try { if (product.has_fields) fields = (await api('fields',{query:{product_id:product.id},signal:controller.signal})).fields || []; }
@@ -740,6 +788,7 @@
     });
   }
   async function checkout() {
+    if(cartLocked()||!state.cart?.items?.length)return;
     const cart=state.cart||emptyCart(), method=state.selectedMethod, total=Number(cart.total_minor||0);
     if(state.registerState && (!state.registerState.selected_register_id || !state.registerState.period || state.registerState.readiness_error)) {
       setError(state.registerState.readiness_error || 'Velg et aktivt kassepunkt og åpne kassaperiode før betaling.');
@@ -793,8 +842,9 @@
     }
   }
   async function sendCheckout(payload) {
-    if(state.checkoutSubmitting || state.cancelSubmitting || state.pending)return;
+    if(cartLocked())return;
     state.checkoutSubmitting=true;
+    renderMethods();renderCart();
     const button=$('#sales-confirm-cash')||$('#sales-confirm-vipps');
     const buttonLabel=button?.textContent;
     const dialogKind=state.dialog?.kind;
@@ -811,11 +861,8 @@
         if(payload.payment_method==='cash')$('#sales-tendered').value='';
         setError('');await refreshCart();await refreshOrders();await showOrder(order.id);
       } else if(isTerminalPayment(order)) {
-        state.pending=null;clearInterval(state.deadlineTimer);state.completedOrder=null;
         closeDialog(true);
-        await refreshCart();
-        state.paymentNotice=order.payment_error || `${statusLabel(order.payment_status||order.status)}. Handlekurven er oppdatert fra serveren.`;
-        renderCart();await refreshOrders();
+        await recoverCancelledPayment(order);await refreshOrders();
       } else {
         state.pending=order;state.completedOrder=null;state.paymentNotice='';state.pollBackoff=6000;setError('');syncServerClock(order);
         renderMethods();renderCart();showPendingPayment();startPolling();
@@ -858,6 +905,7 @@
       });
     } finally {
       state.checkoutSubmitting=false;
+      renderMethods();renderCart();
     }
   }
   function isPaidPayment(order) {
@@ -953,11 +1001,7 @@
         if(state.dialog?.kind==='vipps-pending')closeDialog(true);
          await refreshCart();await refreshOrders();await showOrder(order.id);
       } else if(isTerminalPayment(order)) {
-        state.pending=null;clearInterval(state.deadlineTimer);state.completedOrder=null;
-        if(state.dialog?.kind==='vipps-pending')closeDialog(true);
-        await refreshCart();
-        state.paymentNotice=order.payment_error || `${statusLabel(order.payment_status || order.status)}. Den opprinnelige handlekurven er gjenopprettet; kontroller varene før du prøver igjen.`;
-        renderCart();
+        await recoverCancelledPayment(order);
       } else {
         state.pending=order;syncServerClock(order);renderMethods();renderCart();
         if(state.dialog?.kind==='vipps-pending')updatePendingDialog();
@@ -985,12 +1029,8 @@
       } else if(isTerminalPayment(r.order)) {
         // The backend has definitively cancelled the provider payment and reopened
         // the original lines. Refresh before enabling checkout again.
-        state.cancelSubmitting=false;state.pending=null;clearInterval(state.deadlineTimer);
-        if(state.dialog?.kind==='vipps-pending')closeDialog(true);
-        await refreshCart();
-        state.completedOrder=null;
-        state.paymentNotice=r.order.payment_error || `${statusLabel(r.order.payment_status || r.order.status)}. Den opprinnelige handlekurven er gjenopprettet; kontroller varene før du prøver igjen.`;
-        renderCart();
+        state.cancelSubmitting=false;
+        await recoverCancelledPayment(r.order);
       } else {
         state.pending=r.order;syncServerClock(r.order);renderMethods();renderCart();updatePendingDialog();startPolling();
       }
@@ -1058,7 +1098,7 @@
   $('#sales-search').addEventListener('input',renderProducts);
   $('#sales-admin-search').addEventListener('input',renderAdminProducts);
   $('#sales-method-buttons').addEventListener('click',e=>{
-    const button=e.target.closest('[data-method-key]');if(!button||state.pending)return;
+    const button=e.target.closest('[data-method-key]');if(!button||cartLocked())return;
     const method=usableMethods().find(m=>String(paymentKey(m))===String(button.dataset.methodKey));
     if(!method)return;
     state.selectedMethod=method.method_type;state.selectedGatewayId=method.method_type==='cash'?null:method.id;
@@ -1081,6 +1121,7 @@
     const quick=event.target.closest('[data-cash]');
     if(quick){$('#sales-tendered').value=(Number(quick.dataset.cash)/100).toFixed(2);renderCart();}
     if(event.target.closest('#sales-check-status'))checkPayment().catch(e=>setError(e.message));
+    if(event.target.closest('#sales-recover-cart')&&state.cartRecovery)recoverCancelledPayment(state.cartRecovery);
     if(event.target.closest('#sales-retry-mutation')){
       const box=$('#sales-cart-error');let payload;try{payload=JSON.parse(box.dataset.retryPayload||'{}')}catch(_){return}
       const action=box.dataset.retryAction;if(action){state.mutationQueue=state.mutationQueue.then(async()=>{state.busy=true;renderCart();let succeeded=false;try{const r=await api(action,{method:'POST',data:payload});updateCart(r.cart);setError('');succeeded=true;}catch(e){setError(e.message)}finally{state.busy=false;renderCart()}if(succeeded&&action==='add'&&state.dialog?.kind==='customize')closeDialog(true);});}

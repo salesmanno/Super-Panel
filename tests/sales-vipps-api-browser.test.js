@@ -83,9 +83,20 @@ const checks=`(async()=>{
    assert(notice.includes(rejected.payment_diagnostics.support_reference)&&!notice.includes('fixture-private-value'),'Safe reference reaches visible UI, no raw provider text');
    assert(document.documentElement.scrollWidth<=innerWidth+1,'Long diagnostic does not overflow screen');
    const restored=(await read('cart')).cart;
-   const clear=await fetch('/api/sales.php?action=remove',{method:'POST',headers:{'Content-Type':'application/json'},
-     body:JSON.stringify({csrf_token:afterLogin.csrf_token,revision:restored.revision,line_id:restored.items[0].id,mutation_id:crypto.randomUUID()})});
-   assert((await clear.json()).success,'Clear restored fixture cart');
+    assert(restored.items.length===1&&restored.items[0].product_id===saved.id,'Rejected payment preserves the actual product');
+    await wait(()=>!document.querySelector('[data-method-key="cash"]').disabled,'Cash enabled after rejection');
+    document.querySelector('[data-method-key="cash"]').click();
+    document.querySelector('[data-cash="10000"]').click();
+    await wait(()=>!document.querySelector('#sales-checkout').disabled,'Restored cart can be paid without deleting items');
+    document.querySelector('#sales-checkout').click();
+    await wait(()=>document.querySelector('#sales-confirm-cash'),'Cash confirmation after rejected push');
+    document.querySelector('#sales-confirm-cash').click();
+    await wait(()=>document.querySelector('.sales-receipt'),'Same trade completed in cash');
+    const cash=window.apiCalls.filter(c=>c.action==='checkout'&&c.result.order?.payment_method==='cash').pop().result.order;
+    assert(cash.payment_status==='paid'&&cash.items[0].product_id===saved.id,'Rejected Vipps can actually continue as a paid cash sale');
+    document.querySelector('#sales-dialog [data-close-dialog]').click();
+    document.querySelector('#sales-next-customer').click();
+    await wait(()=>document.querySelector('#sales-next-customer').hidden,'Next customer only after successful cash sale');
    return {passed:true,width:innerWidth,reason:'Real push keypad, early capture/recovery, next customer, safe rejection diagnostic and restored cart'};
 })()`;
 chromiumFixture('http://127.0.0.1:'+port+'/sales-e2e.html?company=a',checks,[390,1280],{outputDir}).catch(e=>{console.error(e);process.exitCode=1;});

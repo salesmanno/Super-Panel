@@ -370,11 +370,14 @@ try {
     if(($argv[3]??'')!=='--backend-only') {
     // Browser talks to the existing isolated HTTP fixture, never the app DB.
     // Release PDO owners before spawning the browser process.
+    require $root.'/tests/sales_retry_fixture.php';
     unset($sales,$blocked,$other,$signedSales,$callback,$databaseService,$db,$setup);
     passthru('node --experimental-websocket '.escapeshellarg($root.'/tests/sales-product-api-browser.test.js').' '.escapeshellarg((string)$port).' '.escapeshellarg($temp),$browserStatus);
     salesAssert($browserStatus===0,'Actual product form/API browser regression passed');
     passthru('node --experimental-websocket '.escapeshellarg($root.'/tests/sales-vipps-api-browser.test.js').' '.escapeshellarg((string)$port).' '.escapeshellarg($temp),$vippsBrowserStatus);
     salesAssert($vippsBrowserStatus===0,'Actual Vipps cashier/API browser regression passed');
+    passthru('node --experimental-websocket '.escapeshellarg($root.'/tests/sales-vipps-retry-api-browser.test.js').' '.escapeshellarg((string)$port).' '.escapeshellarg($temp),$retryBrowserStatus);
+    salesAssert($retryBrowserStatus===0,'Actual cancelled Vipps trade resumes and completes through UI');
     }
     echo "Isolated Sales MySQL, controller, ledger, dynamic fields, VAT and payment state checks passed\n";
 } finally {

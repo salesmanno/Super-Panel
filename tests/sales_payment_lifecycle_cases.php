@@ -85,4 +85,26 @@ $cronAuth=SalesWebhookAuth::forCron($db,$o['id']);$_SESSION=[];
 $cron=new SalesService($db,'a','','',$p,$cronAuth);
 salesAssert($cron->reconcile($o['id'])['payment_status']==='expired','Existing cron capability expires payment without a live cashier session');
 $_SESSION=['company_id'=>'a','tenant_admin_id'=>'admin'];
+foreach(['ABORTED','TERMINATED','EXPIRED'] as $terminalState) {
+    [$s,$p,$o]=$makeAttempt();$ref='sales-'.$o['id'];$reserved=$stockNow();
+    $p->payments[$ref]['state']=$terminalState;
+    $cancelled=$s->reconcile($o['id']);
+    $restored=$s->cartResult()['cart'];
+    salesAssert($cancelled['status']==='cancelled' && !$cancelled['register_document']
+        && $restored['items'][0]['quantity']===1 && $stockNow()===$reserved+1,
+        "$terminalState restores editable goods without a fiscal sale");
+    $s->reconcile($o['id']);salesAssert($stockNow()===$reserved+1,"$terminalState releases stock exactly once");
+    $cash=$s->checkout(['revision'=>$restored['revision'],'expected_total_minor'=>$restored['total_minor'],
+        'payment_method'=>'cash','received_minor'=>$restored['total_minor']])['order'];
+    salesAssert($cash['payment_status']==='paid' && $cash['register_document']
+        && $cash['items'][0]['product_id']===$lifecycleProduct['id'] && $stockNow()===$reserved,
+        "$terminalState can continue as the same goods paid in cash");
+    $s->reconcile($o['id']);$same=$s->reconcile($cash['id']);
+    salesAssert($same['register_document']['id']===$cash['register_document']['id']
+        && $stockNow()===$reserved && !$s->cartResult()['cart']['items'],
+        "$terminalState repeated old notification cannot reopen a paid cart or duplicate stock");
+    $q=$setup->prepare("SELECT COUNT(*) FROM sales_register_documents WHERE company_id='a' AND order_id IN (?,?) AND document_type='sale'");
+    $q->execute([$o['id'],$cash['id']]);
+    salesAssert((int)$q->fetchColumn()===1,"$terminalState plus cash retry issues exactly one sale document");
+}
 echo "Sales push/deadline/timeout/capture-race/diagnostic/concurrency/cron cases passed\n";
