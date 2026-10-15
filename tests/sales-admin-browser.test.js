@@ -137,7 +137,8 @@ const checks = `(async()=>{
    gateway.click();await new Promise(resolve=>setTimeout(resolve,5));
    const vippsModal=document.querySelector('#sales-dialog');
     const vippsModalAccessible=vippsModal.querySelector('[role="dialog"]')?.getAttribute('aria-modal')==='true'&&document.querySelector('#sales-vipps-phone')&&document.querySelector('#sales-vipps-total').textContent.includes('175,00');
-     const phoneInput=document.querySelector('#sales-vipps-phone'),sendVipps=document.querySelector('#sales-confirm-vipps');
+      const phoneInput=document.querySelector('#sales-vipps-phone'),sendVipps=document.querySelector('#sales-confirm-vipps');
+      if(sendVipps.textContent!=='Send Vipps ekstra kasse!')return {passed:false,reason:'Send button uses selected payment method name'};
      const checkoutCountBeforePhone=calls.filter(c=>c.action==='checkout').length;
      for(const digit of '123')document.querySelector('[data-vipps-digit="'+digit+'"]').click();
      phoneInput.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));

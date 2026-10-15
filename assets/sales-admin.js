@@ -396,7 +396,7 @@
       const methodConfig=selectedPayment();
       if(!methodConfig)return;
         const body=`<p class="sales-muted">Betalingsforespørsel til kundens Vipps-nummer. Kontroller nummeret før du sender.</p><div id="sales-vipps-form" class="sales-vipps-entry" role="group" aria-label="Vipps-telefonnummer"><label class="sales-form-label" for="sales-vipps-phone">Kundens mobilnummer</label><input id="sales-vipps-phone" class="sales-phone-display" type="text" inputmode="none" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="10" placeholder="8 sifre eller 47 + 8" aria-label="Kundens mobilnummer, bruk tastaturet på skjermen" aria-describedby="sales-vipps-total sales-vipps-error"><div id="sales-vipps-keypad" class="sales-vipps-keypad" role="group" aria-label="Tallfelt"><button type="button" data-vipps-digit="1" aria-label="1">1</button><button type="button" data-vipps-digit="2" aria-label="2">2</button><button type="button" data-vipps-digit="3" aria-label="3">3</button><button type="button" data-vipps-digit="4" aria-label="4">4</button><button type="button" data-vipps-digit="5" aria-label="5">5</button><button type="button" data-vipps-digit="6" aria-label="6">6</button><button type="button" data-vipps-digit="7" aria-label="7">7</button><button type="button" data-vipps-digit="8" aria-label="8">8</button><button type="button" data-vipps-digit="9" aria-label="9">9</button><button type="button" data-vipps-clear aria-label="Tøm nummeret">Tøm</button><button type="button" data-vipps-digit="0" aria-label="0">0</button><button type="button" data-vipps-backspace aria-label="Slett siste siffer"><span class="sales-backspace-glyph" aria-hidden="true">⌫</span><span>Slett</span></button></div><div class="sales-vipps-total" id="sales-vipps-total"><span>Å betale</span><strong>${esc(money(total))}</strong></div><div id="sales-vipps-error" class="sales-error" role="alert" hidden></div></div>`;
-       modal('Vipps-betaling',body,{kind:'confirm-vipps',footer:'<button type="button" class="btn btn-outline-secondary" data-close-dialog>Tilbake</button><button type="button" class="btn btn-primary" id="sales-confirm-vipps" data-initial-focus>Send betalingsforespørsel</button>'});
+       modal('Vipps-betaling',body,{kind:'confirm-vipps',footer:`<button type="button" class="btn btn-outline-secondary" data-close-dialog>Tilbake</button><button type="button" class="btn btn-primary" id="sales-confirm-vipps" data-initial-focus>Send ${esc(methodConfig.gateway_name || methodName(methodConfig))}!</button>`});
          const phoneInput=$('#sales-vipps-phone'), phoneError=$('#sales-vipps-error');
          const setPhone=value=>{
            phoneInput.value=String(value||'').replace(/\D/g,'').slice(0,10);
@@ -436,6 +436,7 @@
     if(state.checkoutSubmitting || state.cancelSubmitting || state.pending)return;
     state.checkoutSubmitting=true;
     const button=$('#sales-confirm-cash')||$('#sales-confirm-vipps');
+    const buttonLabel=button?.textContent;
     const dialogKind=state.dialog?.kind;
     if(button){button.disabled=true;button.textContent='Behandler…';}
     try {
@@ -473,7 +474,7 @@
         const errorBox=payload.payment_method==='vipps'?$('#sales-vipps-error'):null;
         if(errorBox){errorBox.hidden=false;errorBox.textContent=e.message;const total=$('#sales-vipps-total strong');if(total)total.textContent=money(state.cart?.total_minor||0);}
         else body.insertAdjacentHTML('beforeend',`<div class="sales-error" role="alert">${esc(e.message)}</div>`);
-        if(button?.isConnected){button.disabled=false;button.textContent=payload.payment_method==='vipps'?'Send betalingsforespørsel':'Registrer kontantsalg';}
+        if(button?.isConnected){button.disabled=false;button.textContent=buttonLabel;}
         renderCart();
         return;
       }

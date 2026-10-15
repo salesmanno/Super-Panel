@@ -28,6 +28,8 @@ const checks=`(async()=>{
   await wait(()=>document.querySelector('#sales-cart-count').textContent==='1','Product added through API');
   document.querySelector('[data-method-key="gateway-a"]').click();
   await wait(()=>document.querySelector('#sales-vipps-phone'),'Phone modal');
+  const method=window.apiCalls.find(c=>c.action==='bootstrap').result.methods.find(m=>m.id==='gateway-a');
+  assert(method.gateway_name&&document.querySelector('#sales-confirm-vipps').textContent==='Send '+method.gateway_name+'!','Send uses gateway name, not configuration name');
   const phone=document.querySelector('#sales-vipps-phone'),send=document.querySelector('#sales-confirm-vipps');
   const beforeCheckout=window.apiCalls.filter(c=>c.action==='checkout').length;
   for(const digit of '123')document.querySelector('[data-vipps-digit="'+digit+'"]').click();

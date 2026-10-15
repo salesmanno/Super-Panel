@@ -65,7 +65,7 @@ trait SalesProducts {
                 if ($reason===null) try {$this->paymentConfiguration($row['id']);}
                     catch(PDOException $e){throw $e;}
                     catch(InvalidArgumentException|DomainException|RuntimeException $e){$reason=$e->getMessage();}
-                $result[]=['id'=>$row['id'],'method_type'=>$type,'method_name'=>$row['config_name']?:($row['gateway_name']?:'Betalingsoppsett'),
+                $result[]=['id'=>$row['id'],'method_type'=>$type,'gateway_name'=>$row['gateway_name'],'method_name'=>$row['config_name']?:($row['gateway_name']?:'Betalingsoppsett'),
                     'available'=>$reason===null,'is_demo'=>(bool)$row['test_mode'],'reason'=>$reason];
             }
             return ['methods'=>$result,'method_error'=>null];
