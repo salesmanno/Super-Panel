@@ -13,4 +13,6 @@ node_modules/
 .replit
 replit.md
 *.sql
+# Reviewed schema source, not a database dump.
+!sql/sales_register_setup.sql
 *.log

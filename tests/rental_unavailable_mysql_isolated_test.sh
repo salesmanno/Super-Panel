@@ -53,6 +53,14 @@ elif [[ "${1:-}" == "--forms" ]]; then
     php "$ROOT/tests/entity_form_fields_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--sales" ]]; then
     php "$ROOT/tests/sales_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT" "${2:-}"
+elif [[ "${1:-}" == "--sales-register-schema" ]]; then
+    "$BASEDIR/bin/mysql" --no-defaults --protocol=SOCKET --host=localhost \
+        --socket="$TEMP_ROOT/mysql.sock" --user=root --password= \
+        -e 'CREATE DATABASE sales_register_schema_test CHARACTER SET utf8mb4 COLLATE utf8mb4_bin'
+    "$BASEDIR/bin/mysql" --no-defaults --protocol=SOCKET --host=localhost \
+        --socket="$TEMP_ROOT/mysql.sock" --user=root --password= \
+        sales_register_schema_test < "$ROOT/sql/sales_register_setup.sql"
+    php "$ROOT/tests/sales_register_schema_mysql_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--active-payments" ]]; then
     php "$ROOT/tests/active_payment_methods_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--email" ]]; then

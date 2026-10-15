@@ -13,9 +13,9 @@ Brukeren har valgt å videreutvikle Salesman som eget kassasystem. Eksisterende 
 - E-postkvittering er fortsatt en valgfri kanal med eksisterende automail- og malregler. Det må ikke styre om selve salgsdokumentasjonen produseres.
 - Ingen nye tabeller, endringer på produksjonsdata eller endring av betalingsflyt er gjennomført som del av dette utkastet.
 
-## 2. Foreslått datagrunnlag – må avklares før innføring
+## 2. Godkjent tabellforslag – manuell innføring
 
-Fire egne tabeller er foreslått. Dette er ikke kjørbar SQL og oppretter ingenting:
+Brukeren har godkjent fire nye tabeller som manuell SQL og valgt flyttbare kassapunkter. Kjørbar grunnmur finnes i `sql/sales_register_setup.sql`, med innføringsveiledning i `sales_register_setup.md`. Ingenting kjøres automatisk.
 
 | Foreslått tabell | Ansvar | Hvorfor ikke bare bruke eksisterende data |
 | --- | --- | --- |
