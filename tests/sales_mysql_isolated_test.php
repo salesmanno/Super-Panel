@@ -34,6 +34,7 @@ ob_start();include $root.'/modules/sales_content.php';$markup=ob_get_clean();
 $baseStyle='*{box-sizing:border-box}body{margin:8px}button,input,select,textarea{font:inherit}.form-control,.form-select{display:block;width:100%;min-height:38px;padding:.45rem;border:1px solid #cbd9e2;border-radius:8px}.input-group{display:flex}.input-group input{min-width:0}.btn{padding:.45rem .7rem;border:1px solid #cbd9e2;border-radius:8px}.btn-primary{color:white;background:#163b5c}.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}';
 $captureScript="document.cookie='PHPSESSID=salesfixture-e2e-'+(new URLSearchParams(location.search).get('company')==='b'?'b':'a')+'; path=/'; window.apiCalls=[]; const nativeFetch=window.fetch; window.fetch=async function(url,opts){const response=await nativeFetch(url,opts); if(String(url).includes('/api/sales.php')){window.apiCalls.push({action:new URL(url,location.href).searchParams.get('action'),payload:opts?.body?JSON.parse(opts.body):null,status:response.status,result:await response.clone().json()});}return response;};";
 file_put_contents($temp.'/sales-e2e.html','<!doctype html><html lang="nb"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:system-ui,sans-serif}'.$baseStyle.'</style><script>'.$captureScript.'</script></head><body>'.$markup.'</body></html>');
+file_put_contents($temp.'/product-wide.svg','<svg xmlns="http://www.w3.org/2000/svg" width="160" height="80"><rect width="160" height="80" fill="#d5e7e4"/><circle cx="80" cy="40" r="28" fill="#287c7b"/></svg>');
 $process=proc_open(['php','-d','session.save_path='.$temp,'-S','127.0.0.1:'.$port,'-t',$temp],
     [0=>['pipe','r'],1=>['file',$temp.'/sales-http.log','a'],2=>['file',$temp.'/sales-http.log','a']],$pipes);
 fclose($pipes[0]);
@@ -99,6 +100,10 @@ try {
             if($method==='POST' && ($parts[1]??'')==='cancel')$this->payments[$ref]['state']='TERMINATED';
             return ['code'=>200,'data'=>$this->payments[$ref]];
         }
+    }
+    if(getenv('SALES_REGISTER_ONLY')==='browser') {
+        require $root.'/tests/sales_browser_cases.php';
+        return;
     }
     if(getenv('SALES_REGISTER_ONLY')==='1') {
         require $root.'/tests/sales_register_lifecycle_cases.php';
@@ -360,6 +365,7 @@ try {
     salesAssert(salesHttp('bootstrap')['_status']===403,'Real HTTP controller enforces Sales module access');
     $setup->exec("INSERT INTO tenant_admin_modules VALUES('admin','sales-module',1),('admin','economy-module',1)");
     require $root.'/tests/sales_payment_lifecycle_cases.php';
+    require $root.'/tests/sales_vipps_diagnostics_cases.php';
     require $root.'/tests/sales_cart_persistence_cases.php';
     if(($argv[3]??'')!=='--backend-only') {
     // Browser talks to the existing isolated HTTP fixture, never the app DB.

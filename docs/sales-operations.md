@@ -27,9 +27,10 @@ Skriptet er **ikke** kjørt mot appens virkelige database av agenten.
   administrator i `sales_orders.created_by`, og kvitterings-API-et returnerer ID-en.
   Automatiske oppdateringer beholder initiativtakeren og har egen systemaktør i
   auditloggen. Historiske rader uten aktør får ikke en oppdiktet tilordning.
-- Dette er ikke et kontantoppgjørssystem med åpningsbeholdning, innskudd,
-  uttak og fysisk opptelling. Et slikt oppgjør må avklares separat før nye
-  tabeller eller kontostrukturer foreslås.
+- Kassapunkt, åpningsbeholdning, kontantbevegelser og fysisk opptelling ved
+  X-/Z-oppgjør bruker de avtalte kassetabellene. Se
+  [kasseintegrasjonen](sales-register-integration.md) for oppsett og avgrensninger;
+  fungerende betaling eller journal alene dokumenterer ikke full regelverksetterlevelse.
 - En fullført ordre gjenfinnes etter mistet svar eller omlasting frem til
   «Neste kunde» starter en ny kurv. Gjentatt bekreftelse bruker ikke ny ordre.
 
@@ -80,30 +81,15 @@ maler opprettes eller erstattes automatisk.
 Det er **ikke** kjørt reelle betalinger, refunds eller endringer av ekte kundedata
 under implementering. Betalingstestene bruker en isolert database og leverandør.
 
-Nøkler leses bare ved runtime fra den sikre miljøvariabelen
-`VIPPS_CREDENTIALS_JSON`. De skal ikke legges i kildekoden, `.env`-filer som
-eksporteres eller browserens JavaScript. Bruk hostingens sikre miljøoppsett.
-Gamle nøkkelverdier fra databasen brukes ikke som fallback.
+Sales leser betalingsnøkler på serveren fra valgt bedrifts
+`economy_configuration_data`, koblet via `economy_payment_gateways`.
+Betalingsoppsettet vedlikeholdes i det separate konfigurasjonsprosjektet.
+Det kreves ikke `VIPPS_CREDENTIALS_JSON` for Sales, og nøklene skal aldri
+sendes til nettleseren eller legges inn i kildekoden. Web-PHP og cron-PHP må
+bruke samme database og betalingskonfigurasjon.
 
-Variabelens struktur er et objekt indeksert med **configuration-ID**:
-
-```json
-{
-  "<economy_configuration_data.id>": {
-    "company_id": "<bedriftens id>",
-    "test_mode": 0,
-    "client_id": "<sikker verdi>",
-    "client_secret": "<sikker verdi>",
-    "subscription_key": "<sikker verdi>",
-    "merchant_serial_number": "<sikker verdi>",
-    "webhook_secret": "<sikker verdi>"
-  }
-}
-```
-
-Verdiene over er plassholdere, ikke virkelige nøkler. Bruk arbeidsområdets sikre
-nøkkelflyt ved konfigurering i Replit. På eksternt webhotell må verdien være
-tilgjengelig for **både web-PHP og cron-PHP**.
+Se [trygg Vipps-diagnostikk](sales-vipps-diagnostics.md) for de nye feilkategoriene,
+feilreferansene og hva de isolerte testene faktisk verifiserer.
 
 - Betalingsoppsettet må være aktivert i eksisterende Economy-oppsett og knyttet
   til riktig bedrift og konfigurasjon. `sales_orders.payment_gateway_id` peker på
@@ -122,7 +108,7 @@ tilgjengelig for **både web-PHP og cron-PHP**.
 ### Callback og avstemming
 
 Registrer en HTTPS-webhook hos leverandøren til
-`/api/sales_vipps_webhook.php`, med hemmeligheten i samme sikre oppsett.
+  `/api/sales_vipps_webhook.php`, med hemmeligheten i bedriftens betalingskonfigurasjon.
 Implementasjonen kontrollerer HMAC, body-hash, tidsstempel, host og sti.
 Webhookens hendelsesstatus brukes ikke til bokføring; aktuell leverandørstatus
 hentes på nytt. Forsinkede og gjentatte callbacks kan ikke reversere betalt ordre.

@@ -97,6 +97,8 @@ echo "Sales register lifecycle passed: real triggers, cash/change, capture/retri
 unset($sales,$other,$store,$db,$setup);gc_collect_cycles();
 passthru('node --experimental-websocket '.escapeshellarg($root.'/tests/sales-register-api-browser.test.js').' '.escapeshellarg((string)$port).' '.escapeshellarg($temp),$browserStatus);
 salesAssert($browserStatus===0,'Actual register UI/API browser checks passed');
+passthru('node --experimental-websocket '.escapeshellarg($root.'/tests/sales-responsive-api-browser.test.js').' '.escapeshellarg((string)$port).' '.escapeshellarg($temp),$responsiveStatus);
+salesAssert($responsiveStatus===0,'Responsive product cards in normal and fullscreen passed');
 if(getenv('SALES_CAPTURE_HOLD')==='1') {
     echo "Sales fixture ready for capture on port $port\n";
     sleep(150);

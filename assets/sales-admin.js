@@ -5,6 +5,7 @@
   const $ = (selector, scope = root) => scope.querySelector(selector);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const safeUrl = value => {
+    if (typeof value !== 'string' || !value.trim()) return '';
     try { const url = new URL(String(value || ''), location.origin); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; } catch (_) { return ''; }
   };
   const money = minor => new Intl.NumberFormat('nb-NO', {style:'currency',currency:'NOK'}).format((Number(minor) || 0) / 100);

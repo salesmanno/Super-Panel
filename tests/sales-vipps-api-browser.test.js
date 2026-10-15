@@ -70,6 +70,22 @@ const checks=`(async()=>{
   document.querySelector('#sales-next-customer').click();
   await wait(()=>document.querySelector('#sales-next-customer').hidden,'Next customer succeeds');
   assert(document.querySelector('#sales-cart-count').textContent==='0','Paid cart cleared exactly once');
-  return {passed:true,width:innerWidth,reason:'Real API Vipps push payload, phone validation, early polling capture, paid recovery and next customer'};
+   document.querySelector('[data-product="'+saved.id+'"]').click();
+   await wait(()=>document.querySelector('#sales-cart-count').textContent==='1','Add for rejection case');
+   document.querySelector('[data-method-key="gateway-a"]').click();
+   await wait(()=>document.querySelector('#sales-vipps-phone'),'Rejection keypad');
+   for(const digit of '40000000')document.querySelector('[data-vipps-digit="'+digit+'"]').click();
+   document.querySelector('#sales-confirm-vipps').click();
+   await wait(()=>document.querySelector('#sales-dialog').hidden&&document.querySelector('#sales-payment-status').textContent.includes('PUSH_MESSAGE'),'Actionable push rejection visible');
+   const rejected=window.apiCalls.filter(c=>c.action==='checkout'&&c.result.order).pop().result.order;
+   assert(rejected.payment_status==='declined'&&rejected.payment_diagnostics.error_code==='SALES_VIPPS_PUSH_NOT_ALLOWED','Real API returns structured safe diagnostic');
+   const notice=document.querySelector('#sales-payment-status').textContent;
+   assert(notice.includes(rejected.payment_diagnostics.support_reference)&&!notice.includes('fixture-private-value'),'Safe reference reaches visible UI, no raw provider text');
+   assert(document.documentElement.scrollWidth<=innerWidth+1,'Long diagnostic does not overflow screen');
+   const restored=(await read('cart')).cart;
+   const clear=await fetch('/api/sales.php?action=remove',{method:'POST',headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({csrf_token:afterLogin.csrf_token,revision:restored.revision,line_id:restored.items[0].id,mutation_id:crypto.randomUUID()})});
+   assert((await clear.json()).success,'Clear restored fixture cart');
+   return {passed:true,width:innerWidth,reason:'Real push keypad, early capture/recovery, next customer, safe rejection diagnostic and restored cart'};
 })()`;
 chromiumFixture('http://127.0.0.1:'+port+'/sales-e2e.html?company=a',checks,[390,1280],{outputDir}).catch(e=>{console.error(e);process.exitCode=1;});

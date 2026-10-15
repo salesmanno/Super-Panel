@@ -11,6 +11,8 @@ final class SalesHttpVippsFixture extends SalesVipps {
         $file=$this->directory.'/provider-'.hash('sha256',$reference).'.json';
         $payment=is_file($file)?json_decode(file_get_contents($file),true,32,JSON_THROW_ON_ERROR):null;
         if($method==='POST' && $path==='') {
+            if(($body['customer']['phoneNumber']??null)==='4740000000')
+                return ['code'=>403,'data'=>['extraDetails'=>[['name'=>'ErrorCode','reason'=>'5080']],'detail'=>'fixture-private-value']];
             if(($body['userFlow']??null)!=='PUSH_MESSAGE' || ($body['customer']['phoneNumber']??null)!=='4749999999')
                 return ['code'=>400,'data'=>['title'=>'Invalid fixture push']];
             $payment??=['reference'=>$reference,'amount'=>$body['amount'],'state'=>'CREATED','checks'=>0,

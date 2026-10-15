@@ -48,6 +48,7 @@ trait SalesOrders {
             'payment_method'=>$ledger[0]['payment_method']??null,'payment_status'=>$status==='completed'?'paid':$status,
             'provider_state'=>$control['provider_state']??'UNKNOWN','received_minor'=>$control['received_minor']??null,
             'payment_error'=>$control['payment_error']??null,
+            'payment_diagnostics'=>$control['payment_diagnostics']??null,
             'expires_at'=>isset($control['expires_at'])?gmdate('Y-m-d\TH:i:s\Z',(int)$control['expires_at']):null,
             'server_time'=>gmdate('Y-m-d\TH:i:s\Z'),
             'change_minor'=>$control['change_minor']??null,'total_minor'=>SalesMoney::minor($row['total']),
@@ -201,21 +202,40 @@ trait SalesOrders {
         try {return $this->reconcileLocked($id,$cancel);}
         finally {$this->q('SELECT RELEASE_LOCK(?)',[$lock]);}
     }
-    private function validatedPayment(array $remote,string $ref,int $total): array {
-        if($remote['code']!==200)throw new SalesVippsFailure($this->provider->paymentError($remote));
+    private function validatedPayment(array $remote,string $ref,int $total,string $environment='unknown'): array {
+        if($remote['code']!==200 || ($remote['json_valid']??true)!==true)
+            throw $this->provider->failure($remote,'payment_lookup',$environment);
         $body=$remote['data'];
         if(($body['reference']??null)!==$ref || ($body['amount']['currency']??null)!=='NOK'
-            || ($body['amount']['value']??null)!==$total)throw new RuntimeException('Betalingsreferanse eller beløp stemmer ikke');
+            || ($body['amount']['value']??null)!==$total)throw new SalesVippsFailure('payment_mismatch','payment_lookup',200,$environment);
         $captured=$body['aggregate']['capturedAmount']['value']??null;
         if(!is_int($captured) || $captured<0 || ($body['aggregate']['capturedAmount']['currency']??null)!=='NOK'
-            || ($body['aggregate']['refundedAmount']['value']??0)!==0)throw new RuntimeException('Uavklart regnskapsstatus');
+            || ($body['aggregate']['refundedAmount']['value']??0)!==0
+            || ($body['aggregate']['refundedAmount']['currency']??'NOK')!=='NOK')
+            throw new SalesVippsFailure('invalid_payment_state','payment_lookup',200,$environment);
         $state=$body['state']??'UNKNOWN';
         if(is_array($state))$state=count($state)===1?$state[0]:'UNKNOWN';
-        return [is_string($state)?$state:'UNKNOWN',$captured];
+        if(!in_array($state,['CREATED','AUTHORIZED','ABORTED','EXPIRED','TERMINATED'],true))
+            throw new SalesVippsFailure('invalid_payment_state','payment_lookup',200,$environment);
+        return [$state,$captured];
     }
-    private function paymentNote(string $id,?string $message): void {
-        $this->transaction(function()use($id,$message){
-            if($this->orderRow($id,true)['status']==='pending')$this->writeControl($id,['payment_error'=>$message]);
+    private function paymentNote(string $id,?SalesVippsFailure $failure,bool $preserveCreation=true): void {
+        $this->transaction(function()use($id,$failure,$preserveCreation){
+            if($this->orderRow($id,true)['status']!=='pending')return;
+            $old=$this->control($this->orderLedger($id,true))['payment_diagnostics']??null;
+            if($failure && is_array($old)) {
+                // Polling cannot erase the creation cause until a valid lookup
+                // establishes the payment's actual state.
+                if($preserveCreation && !in_array($failure->reason,['payment_mismatch','invalid_payment_state'],true)
+                    && in_array($failure->operation,['payment_lookup','access_token'],true)
+                    && ($old['operation']??null)==='payment_creation')
+                    $failure=SalesVippsFailure::fromDiagnostics($old)??$failure;
+                $current=$failure->diagnostics();unset($current['support_reference']);
+                $prior=$old;unset($prior['support_reference']);
+                ksort($current);ksort($prior);
+                if($current===$prior)$failure=$failure->withReference((string)($old['support_reference']??''));
+            }
+            $this->writeControl($id,['payment_error'=>$failure?->getMessage(),'payment_diagnostics'=>$failure?->diagnostics()]);
         });
     }
     private function reconcileLocked(string $id,bool $cancel): array {
@@ -233,8 +253,10 @@ trait SalesOrders {
         $cancel=$control['decision']==='cancel';
         $expired=$cancel && (int)$control['expires_at']<=time();
         $path='/'.rawurlencode($ref);
+        $environment='unknown';$operation='payment_lookup';$precedingFailure=null;$verifiedLookup=false;
         try {
             $config=$this->orderConfiguration($order,$control);
+            $environment=(int)$config['test_mode']===1?'test':'production';
             $remote=$this->provider->request($config,$this->company,'GET',$path);
             if($remote['code']===404 && $cancel && $control['init_state']==='prepared')
                 return $this->applyRemote($id,$expired?'EXPIRED':'TERMINATED',0,true);
@@ -246,48 +268,63 @@ trait SalesOrders {
                     throw new RuntimeException('Tidligere betalingsopprettelse må avstemmes');
                 }
                 $this->transaction(fn()=>$this->writeControl($id,['init_state'=>'creating']));
+                $operation='payment_creation';
                 $created=$this->provider->request($config,$this->company,'POST','',[
                     'amount'=>['currency'=>'NOK','value'=>$total],'paymentMethod'=>['type'=>'WALLET'],
                     'customer'=>['phoneNumber'=>$order['guest_phone']],'reference'=>$ref,'userFlow'=>'PUSH_MESSAGE',
                     'customerInteraction'=>'CUSTOMER_PRESENT','paymentDescription'=>'Salg '.$order['order_number']],'sales-create-'.$id);
+                if(!in_array($created['code'],[200,201],true) || ($created['json_valid']??true)!==true)
+                    $precedingFailure=$this->provider->failure($created,'payment_creation',$environment);
                 // Stable reference and key are persisted before any external call.
+                $operation='payment_lookup';
                 $remote=$this->provider->request($config,$this->company,'GET',$path);
                 if($remote['code']===404 && in_array($created['code'],[400,401,403,422],true)) {
-                    $this->paymentNote($id,$this->provider->paymentError($created));
+                    $this->paymentNote($id,$precedingFailure);
                     return $this->applyRemote($id,'REJECTED',0,true);
                 }
             }
-            [$state,$captured]=$this->validatedPayment($remote,$ref,$total);
+            [$state,$captured]=$this->validatedPayment($remote,$ref,$total,$environment);
+            $verifiedLookup=true;
+            // A valid authoritative lookup supersedes a failed/ambiguous POST.
+            $precedingFailure=null;
             if((int)$control['expires_at']<=time()) {
                 $this->decidePayment($id,'cancel');
                 $cancel=$this->control($this->orderLedger($id))['decision']==='cancel';
                 $expired=$cancel;
             }
             if($captured===$total)return $this->applyRemote($id,'CAPTURED',$captured);
-            if($captured!==0)throw new RuntimeException('Delvis belastning krever avstemming');
+            if($captured!==0)throw new SalesVippsFailure('invalid_payment_state','payment_lookup',200,$environment);
             if(in_array($state,['ABORTED','EXPIRED','TERMINATED'],true))return $this->applyRemote($id,$expired?'EXPIRED':$state,0,true);
             if($state==='AUTHORIZED' || ($cancel && $state==='CREATED')) {
                 $this->decidePayment($id,$cancel?'cancel':'capture');
                 $decision=$this->control($this->orderLedger($id))['decision'];
                 if(in_array($decision,['capture','cancel'],true)) {
                     $op=$decision;
-                    $this->provider->request($config,$this->company,'POST',$path.'/'.$op,
+                    $operation=$op==='capture'?'payment_capture':'payment_cancel';
+                    $modified=$this->provider->request($config,$this->company,'POST',$path.'/'.$op,
                         $op==='cancel'?null:['modificationAmount'=>['currency'=>'NOK','value'=>$total]],'sales-'.$op.'-'.$id);
+                    if($modified['code']<200 || $modified['code']>=300
+                        || (($modified['json_valid']??true)!==true && $modified['code']!==204))
+                        $precedingFailure=$this->provider->failure($modified,$operation,$environment);
                     // A 200/202 capture request is NOT final proof. Verify GET.
+                    $operation='payment_lookup';
                     $confirmed=$this->provider->request($config,$this->company,'GET',$path);
-                    [$state,$captured]=$this->validatedPayment($confirmed,$ref,$total);
+                    [$state,$captured]=$this->validatedPayment($confirmed,$ref,$total,$environment);
                     if($captured===$total)return $this->applyRemote($id,'CAPTURED',$total);
-                    if($captured!==0)throw new RuntimeException('Delvis belastning krever avstemming');
+                    if($captured!==0)throw new SalesVippsFailure('invalid_payment_state','payment_lookup',200,$environment);
                     if(in_array($state,['ABORTED','EXPIRED','TERMINATED'],true))
                         return $this->applyRemote($id,(int)$control['expires_at']<=time()?'EXPIRED':$state,0,true);
+                    if($precedingFailure)throw $precedingFailure;
                 }
             }
             $this->paymentNote($id,null);
             return $this->applyRemote($id,is_string($state)?$state:'UNKNOWN',0);
         } catch(Throwable $e) {
             // Unknown is resumable, not failed/paid. Never release its stock.
-            $this->paymentNote($id,$e instanceof SalesVippsFailure?$e->getMessage():
-                'Vipps-status kunne ikke bekreftes. Ikke start en ny betaling; status kontrolleres videre.');
+            $failure=$e instanceof SalesVippsFailure && in_array($e->reason,['payment_mismatch','invalid_payment_state'],true)?$e:
+                ($precedingFailure??($e instanceof SalesVippsFailure?$e:
+                new SalesVippsFailure('reconciliation_required',$operation==='payment_lookup'?'payment_reconciliation':$operation,0,$environment)));
+            $this->paymentNote($id,$failure,!$verifiedLookup);
             return $this->applyRemote($id,'UNKNOWN',0);
         }
     }
@@ -299,7 +336,7 @@ trait SalesOrders {
             if($captured===SalesMoney::minor($order['total']) && $state==='CAPTURED') {
                 $this->registerPaidOrder($id,array_replace($control,['provider_state'=>$state]));
                 $this->q("UPDATE sales_orders SET status='paid',updated_at=NOW() WHERE id=? AND company_id=?",[$id,$this->company]);
-                $this->writeControl($id,['provider_state'=>$state,'init_state'=>'created','payment_error'=>null],'completed');
+                $this->writeControl($id,['provider_state'=>$state,'init_state'=>'created','payment_error'=>null,'payment_diagnostics'=>null],'completed');
             } elseif($cancelled && $captured===0) {
                 if(!empty($control['register_binding'])) {
                     $b=$control['register_binding'];
