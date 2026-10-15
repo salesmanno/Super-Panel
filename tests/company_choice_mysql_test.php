@@ -236,15 +236,27 @@ try{
             $request('/auth/fixture_session.php','redirect',$changes);
         }
         [$terminal,$chain]=$follow('/','redirect');
-        check($terminal[0]===200&&str_contains($terminal[3],'Økten din har utløpt'),'Invalid root ends on explained login: '.$scenario);
+        $error=match($scenario){
+            'account-inactive','company-mismatch'=>'access_changed',
+            'missing-session-id'=>'session_missing',
+            'wrong-database'=>'database_changed',
+            default=>'session_expired',
+        };
+        $message=match($error){
+            'access_changed'=>'Tilgangen til kontoen eller bedriften er endret',
+            'session_missing'=>'Nettleseren eller serveren beholdt ikke innloggingen',
+            'database_changed'=>'Databasekonfigurasjonen ble endret',
+            default=>'Økten din har utløpt',
+        };
+        check($terminal[0]===200&&str_contains($terminal[3],$message),'Invalid root ends on explained login: '.$scenario);
         check(count($chain)===3&&$chain[0][2]==='pages/company_dashboard.php'
-            &&$chain[1][2]==='/index.php?error=session_expired','Redirect chain terminates without a loop: '.$scenario);
+            &&$chain[1][2]==='/index.php?error='.$error,'Redirect chain terminates without a loop: '.$scenario);
         check(str_contains(implode("\n",$terminal[4]),'Cache-Control: no-store'),'Login recovery is not cached');
         $q=$db->prepare('SELECT is_active FROM tenant_admin_sessions WHERE session_id=?');$q->execute([$oldCookie]);
         check((int)$q->fetchColumn()===0,'Only invalid current session is retired: '.$scenario);
         $q->execute([$foreignSession]);check((int)$q->fetchColumn()===1,'Same-account unrelated session preserved: '.$scenario);
         check($request('/api/probe.php','keeper')[0]===200,'Other browser remains authenticated: '.$scenario);
-        check($request('/pages/login_transition.php','redirect')[2]==='/index.php?error=session_expired','Cleared session cannot reuse transition: '.$scenario);
+        check($request('/pages/login_transition.php','redirect')[2]==='/index.php?error=session_missing','Cleared session cannot reuse transition: '.$scenario);
         $db->exec("UPDATE tenant_admins SET is_active=1 WHERE id='staff'");
         $db->prepare('DELETE FROM tenant_admin_sessions WHERE session_id=?')->execute([$foreignSession]);
     }

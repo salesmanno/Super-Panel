@@ -20,6 +20,8 @@ try {
     if (isset($db) && $db && $db->inTransaction()) $db->rollBack();
     error_log('Logout registry update failed; exception='.get_class($e));
 }
-companyLoginClearSession($db??null);
+// Logout retires this server session. A delayed logout response must never
+// expire a newer login's shared browser cookie; the next login rotates it.
+companyLoginClearSession($db??null,false);
 header('Location: /index.php?message=logged_out');
 exit;

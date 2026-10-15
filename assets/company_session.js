@@ -7,15 +7,16 @@
     let deadline=Date.now()+Number(script.dataset.expiresIn||0)*1000;
     let stopped=false,inFlight=null,timer=0,activityAt=0,acknowledgedAt=0,lastTouch=0;
     let mustValidate=true;
-    function finish(broadcast=true) {
+    function finish(broadcast=true,error='session_expired') {
         if(stopped)return;
+        if(!['session_expired','session_missing','access_changed','database_changed'].includes(error))error='session_expired';
         stopped=true;clearTimeout(timer);
         document.documentElement.style.visibility='hidden';
         try {
             sessionStorage.clear();
-            if(broadcast)localStorage.setItem(logoutKey,JSON.stringify({context,at:Date.now()}));
+            if(broadcast)localStorage.setItem(logoutKey,JSON.stringify({context,at:Date.now(),error}));
         }catch(_){}
-        location.replace('/index.php?error=session_expired');
+        location.replace('/index.php?error='+error);
     }
     function changed() {
         stopped=true;clearTimeout(timer);
@@ -44,7 +45,7 @@
                     ...(touch?{body:JSON.stringify({action:'activity'})}:{})
                 });
                 const data=await response.json();
-                if(response.status===401&&data.error==='session_expired')return finish();
+                if(response.status===401&&data.error==='session_expired')return finish(true,data.login_error);
                 if(response.status===409&&data.error==='context_changed')return changed();
                 if(!response.ok||!data.success||!Number.isFinite(Number(data.expires_in))){
                     mustValidate=true;return;
@@ -92,7 +93,7 @@
     addEventListener('online',()=>{mustValidate=true;check(false);});
     addEventListener('storage',event=>{
         if(event.key!==logoutKey||!event.newValue)return;
-        try{if(JSON.parse(event.newValue).context===context)finish(false);}catch(_){}
+        try{const ended=JSON.parse(event.newValue);if(ended.context===context)finish(false,ended.error);}catch(_){}
     });
     // A rejected business request should also leave the stale UI immediately.
     // Permission/module errors are not session expiry.
@@ -100,7 +101,7 @@
         const response=await fetchBase(input,options);
         const url=new URL(input instanceof Request?input.url:input,location.href);
         if(url.origin===location.origin&&response.status===401){
-            try{if((await response.clone().json()).error==='session_expired')finish();}catch(_){}
+            try{const data=await response.clone().json();if(data.error==='session_expired')finish(true,data.login_error);}catch(_){}
         }
         return response;
     };

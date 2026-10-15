@@ -1,24 +1,20 @@
 <?php
-session_start();
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['tenant_admin_id'])) {
-    echo json_encode(['success' => false, 'error' => 'Not logged in']);
-    exit;
-}
-
 try {
-    $db = getDBConnection();
+    require_once __DIR__.'/../includes/company_login.php';
+    companySessionStart();
+    if (empty($_SESSION['tenant_admin_id'])) throw new CompanySessionFailure('missing_identity');
+    $db = companyLoginDatabase();
     if (!$db) {
         echo json_encode(['success' => false, 'error' => 'Database unavailable']);
         exit;
     }
     
-    require_once __DIR__.'/../includes/company_login.php';
     $admin = companyLoginRequire($db);
     
     if ($admin) {
@@ -27,7 +23,6 @@ try {
         $_SESSION['admin_last_name'] = $admin['last_name'] ?? '';
         $_SESSION['admin_name'] = trim(($admin['first_name'] ?? '') . ' ' . ($admin['last_name'] ?? '')) ?: $admin['username'];
         $_SESSION['admin_role'] = $admin['role'];
-        companyLoginTouch($db);
         $_SESSION['company_name'] = $admin['company_name'];
         $_SESSION['subdomain'] = $admin['subdomain'];
         
@@ -40,12 +35,6 @@ try {
         echo json_encode(['success' => false, 'error' => 'Admin not found']);
     }
     
-} catch (DomainException $e) {
-    companyLoginClearSession($db??null,false);
-    http_response_code(401);
-    echo json_encode(['success'=>false,'error'=>'session_expired','message'=>'Økten din har utløpt. Logg inn på nytt.']);
 } catch (Throwable $e) {
-    error_log('Refresh session failed; exception='.get_class($e));
-    http_response_code(503);
-    echo json_encode(['success'=>false,'error'=>'System error']);
+    companySessionRespondFailure($e,$db??null,'refresh_session',true);
 }

@@ -1,16 +1,14 @@
 <?php
-session_start();
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/company_login.php';
 
 try {
-    $db = getDBConnection();
+    companySessionStart();
+    $db = companyLoginDatabase();
     $pending = companyLoginIsPending();
     companyLoginRequire($db, $pending);
 } catch (Throwable $e) {
-    companyLoginClearSession($db ?? null);
-    header('Location: /index.php?error=session_expired');
-    exit;
+    companySessionRespondFailure($e,$db??null,'login_transition');
 }
 
 $companyName = $pending ? 'Velg bedrift' : 'Velkommen';

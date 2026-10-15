@@ -1,20 +1,20 @@
 <?php
 declare(strict_types=1);
-session_start();
 require_once __DIR__.'/../includes/functions.php';
 require_once __DIR__.'/../includes/company_login.php';
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
 try {
+    companySessionStart();
     $method=$_SERVER['REQUEST_METHOD']??'GET';
     if(!in_array($method,['GET','POST'],true)){
         header('Allow: GET, POST');http_response_code(405);
         echo json_encode(['success'=>false,'error'=>'method_not_allowed']);exit;
     }
-    $db=getDBConnection();
+    $db=companyLoginDatabase();
     if(!$db)throw new RuntimeException('Database unavailable');
     $id=(string)($_SESSION['tenant_admin_id']??$_SESSION['verified_company_user']??'');
-    if($id==='')throw new DomainException('Økten din har utløpt. Logg inn på nytt.',401);
+    if($id==='')throw new CompanySessionFailure('missing_identity');
     companyLoginLock($db,$id);
     $pending=companyLoginIsPending();
     companyLoginRequire($db,$pending);
@@ -46,6 +46,8 @@ try {
     $remaining=max(0,$expires-time());
     session_write_close();
     echo json_encode(['success'=>true,'active'=>true,'expires_in'=>$remaining,'idle_seconds'=>COMPANY_LOGIN_IDLE_SECONDS]);
+} catch(CompanySessionFailure $e){
+    companySessionRespondFailure($e,$db??null,'session_api',true);
 } catch(DomainException $e){
     if($e->getCode()!==401){
         http_response_code($e->getCode()?:409);
@@ -60,7 +62,5 @@ try {
     http_response_code(400);echo json_encode(['success'=>false,'error'=>'invalid_request']);
 } catch(Throwable $e){
     // A temporary outage must not destroy a valid authenticated session.
-    error_log('Company session check failed; exception='.get_class($e));
-    http_response_code(503);
-    echo json_encode(['success'=>false,'error'=>'session_unavailable']);
+    companySessionRespondFailure($e,$db??null,'session_api',true);
 }

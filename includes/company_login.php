@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/company_session_support.php';
 
 /** Existing password auth, with a separate, non-tenant-authenticated choice stage. */
 function companyLoginIsPending(): bool {
@@ -7,6 +8,19 @@ function companyLoginIsPending(): bool {
 }
 function companyLoginContext(): string { return (string) ($_SESSION['company_context'] ?? ''); }
 const COMPANY_LOGIN_IDLE_SECONDS = 1800;
+
+/** The legacy connector may wrap PDO failures in a generic Exception. */
+function companyLoginDatabase(): PDO {
+    try {
+        $db=getDBConnection();
+        if (!$db instanceof PDO) throw new RuntimeException('Database unavailable');
+        return $db;
+    } catch (CompanySessionFailure $e) {
+        throw $e;
+    } catch (Throwable $e) {
+        throw new CompanySessionFailure('database_unavailable',503,false);
+    }
+}
 
 function companyLoginClearSession(?PDO $db = null, bool $expireCookie = true): void {
     $adminId = (string) ($_SESSION['tenant_admin_id'] ?? $_SESSION['verified_company_user'] ?? '');
@@ -59,17 +73,16 @@ function companyLoginValidAccount(array $a, bool $pending): bool {
 function companyLoginLock(PDO $db, string $id): void {
     $q=$db->prepare('SELECT GET_LOCK(?, 5)');
     $q->execute(['company-login:'.substr(hash('sha256',$id),0,40)]);
-    if ((int)$q->fetchColumn() !== 1) throw new DomainException('En forespørsel pågår. Prøv igjen.',409);
+    if ((int)$q->fetchColumn() !== 1) throw new CompanySessionFailure('request_busy',409,false);
 }
 
 function companyLoginRequire(PDO $db, bool $pending=false): array {
     $id=(string)($_SESSION[$pending?'verified_company_user':'tenant_admin_id']??'');
-    if ($id==='' || empty($_SESSION['session_id'])
-        || !hash_equals((string)$_SESSION['session_id'],session_id())
-        || ($pending && (time() >= (int)($_SESSION['company_choice_expires']??0)))
-        || (isset($_SESSION['db_type']) && $_SESSION['db_type'] !== 'mysql')) {
-        throw new DomainException('Økten din har utløpt. Logg inn på nytt.',401);
-    }
+    if ($id==='') throw new CompanySessionFailure('missing_identity');
+    if (empty($_SESSION['session_id'])) throw new CompanySessionFailure('missing_session_id');
+    if (!hash_equals((string)$_SESSION['session_id'],session_id())) throw new CompanySessionFailure('session_id_mismatch');
+    if ($pending && time() >= (int)($_SESSION['company_choice_expires']??0)) throw new CompanySessionFailure('choice_expired');
+    if (isset($_SESSION['db_type']) && $_SESSION['db_type'] !== 'mysql') throw new CompanySessionFailure('database_changed');
     $db->prepare('UPDATE tenant_admin_sessions SET is_active=0,logout_at=NOW()
         WHERE tenant_admin_id=? AND session_id=? AND is_active=1
         AND last_activity<=DATE_SUB(NOW(),INTERVAL '.COMPANY_LOGIN_IDLE_SECONDS.' SECOND)')
@@ -79,12 +92,11 @@ function companyLoginRequire(PDO $db, bool $pending=false): array {
     $q->execute([$id,session_id()]);
     $remaining=$q->fetchColumn();
     $a=companyLoginAccount($db,$id);
-    if ($remaining===false || (int)$remaining<=0 || !companyLoginValidAccount($a,$pending)
-        || (!$pending && ((string)$a['company_id'] !== (string)($_SESSION['company_id']??'')
-            || (isset($_SESSION['company_auth_version'])
-                && (string)($a['tenant_staff_id']??'') !== (string)($_SESSION['tenant_staff_id']??''))))) {
-        throw new DomainException('Tilgangen er endret eller økten har utløpt. Logg inn på nytt.',401);
-    }
+    if ($remaining===false || (int)$remaining<=0) throw new CompanySessionFailure('registry_expired_or_revoked');
+    if (!companyLoginValidAccount($a,$pending)) throw new CompanySessionFailure('account_changed');
+    if (!$pending && (string)$a['company_id'] !== (string)($_SESSION['company_id']??'')) throw new CompanySessionFailure('company_changed');
+    if (!$pending && isset($_SESSION['company_auth_version'])
+        && (string)($a['tenant_staff_id']??'') !== (string)($_SESSION['tenant_staff_id']??'')) throw new CompanySessionFailure('employee_changed');
     $_SESSION['company_idle_expires_at']=time()+min(COMPANY_LOGIN_IDLE_SECONDS,(int)$remaining);
     return $a;
 }
@@ -159,12 +171,15 @@ function companyLoginGuardConnection(PDO $db): void {
         }
         if (!str_starts_with($path,'/api/')) companyLoginInjectContext();
     } catch (DomainException $e) {
+        if (!$sessionValidated && $e instanceof CompanySessionFailure) {
+            companySessionRespondFailure($e,$db,'connection_guard',str_starts_with($path,'/api/'));
+        }
         http_response_code($e->getCode()?:401);
         header('Cache-Control: no-store');
         // A denied route is not an invalid login: keep verified company choices
         // and valid sessions rejected only for module/context permissions.
         if (!$sessionValidated && $e->getCode() === 401) {
-            companyLoginClearSession($db,!str_starts_with($path,'/api/'));
+            companySessionRespondFailure($e,$db,'connection_guard',str_starts_with($path,'/api/'));
         }
         if (str_starts_with($path,'/api/')) {
             header('Content-Type: application/json');
@@ -172,15 +187,14 @@ function companyLoginGuardConnection(PDO $db): void {
                 'error'=>!$sessionValidated && $e->getCode()===401?'session_expired':
                     ($e->getCode()===409?'context_changed':'access_denied')]);
         } elseif (!$sessionValidated && $e->getCode() === 409) {
-            // Retrying through the index would hit the same busy lock repeatedly.
-            header('Content-Type: text/plain; charset=utf-8');
-            header('Retry-After: 5');
-            echo $e->getMessage();
+            companySessionRespondFailure($e,$db,'connection_guard');
         } else {
             header('Location: '.($sessionValidated && $pending
                 ? '/pages/login_transition.php' : '/index.php?error=session_expired'));
         }
         exit;
+    } catch (Throwable $e) {
+        companySessionRespondFailure($e,$db,'connection_guard',str_starts_with($path,'/api/'));
     }
 }
 

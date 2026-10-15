@@ -7,7 +7,9 @@ if (strpos($request_uri, '/api/') !== false) {
     exit;
 }
 
-session_start();
+require_once __DIR__.'/includes/company_login.php';
+try { companySessionStart(); }
+catch (Throwable $e) { companySessionRespondFailure($e,null,'login_page'); }
 header('Cache-Control: no-store');
 
 // If already logged in, redirect to dashboard

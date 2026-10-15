@@ -63,6 +63,14 @@ async function browser(first={success:true,expires_in:1800}) {
   active.replies.push({status:401,body:{error:'session_expired'}});
   await active.sandbox.fetch('/api/example.php');
   assert.match(active.redirects[0],/session_expired/);
+  const changedAccess=await browser();
+  changedAccess.replies.push({status:401,body:{error:'session_expired',login_error:'access_changed'}});
+  await changedAccess.fire('focus');
+  assert.match(changedAccess.redirects[0],/error=access_changed$/,'Access changes are not displayed as idle expiry');
+  const invalidHint=await browser();
+  invalidHint.replies.push({status:401,body:{error:'session_expired',login_error:'https://outside.invalid/'}});
+  await invalidHint.fire('focus');
+  assert.match(invalidHint.redirects[0],/error=session_expired$/,'Unknown server error hints cannot control navigation');
   assert.equal(active.document.documentElement.style.visibility,'hidden','Protected content is hidden before redirect');
   assert.ok(active.cleared,'Old tab caches cleared');
   assert.equal(JSON.parse(active.storage.get('portalSessionEnded')).context,'context-a','Other same-context tabs notified');

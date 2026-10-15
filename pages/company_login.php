@@ -1,6 +1,8 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+    require_once __DIR__.'/../includes/company_login.php';
+    try { companySessionStart(); }
+    catch (Throwable $e) { companySessionRespondFailure($e,null,'login_page'); }
 }
 
 $error_message = '';
@@ -33,7 +35,16 @@ if (isset($_GET['error'])) {
             $error_message = 'Økten din har utløpt. Vennligst logg inn på nytt.';
             break;
         case 'session_error':
-            $error_message = 'Det oppstod en feil med økten din. Vennligst logg inn på nytt.';
+            $error_message = 'Innloggingen kunne ikke lagres riktig på serveren. Prøv igjen eller kontakt administrator.';
+            break;
+        case 'session_missing':
+            $error_message = 'Nettleseren eller serveren beholdt ikke innloggingen. Kontroller at informasjonskapsler er tillatt, og prøv igjen.';
+            break;
+        case 'access_changed':
+            $error_message = 'Tilgangen til kontoen eller bedriften er endret. Logg inn på nytt eller kontakt administrator.';
+            break;
+        case 'login_busy':
+            $error_message = 'En annen innloggingsforespørsel pågår. Vent noen sekunder og prøv igjen.';
             break;
         case 'database_changed':
             $error_message = 'Databasekonfigurasjonen ble endret. Vennligst logg inn på nytt.';

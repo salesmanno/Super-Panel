@@ -20,7 +20,10 @@ const messages = {
     database_unavailable: 'Databasen er ikke tilgjengelig.',
     already_logged_in: 'Brukeren er allerede innlogget.',
     session_expired: 'Økten din har utløpt.',
-    session_error: 'Det oppstod en feil med økten din.',
+    session_error: 'Innloggingen kunne ikke lagres riktig på serveren.',
+    session_missing: 'Nettleseren eller serveren beholdt ikke innloggingen.',
+    access_changed: 'Tilgangen til kontoen eller bedriften er endret.',
+    login_busy: 'En annen innloggingsforespørsel pågår.',
     database_changed: 'Databasekonfigurasjonen ble endret.',
     not_authenticated: 'Du må logge inn for å få tilgang.',
 };
@@ -91,8 +94,8 @@ document.addEventListener('DOMContentLoaded',async()=>{
         check($('news-content').querySelectorAll('.news-item').length===5,'News appears on mobile and desktop');
         check($('news-content').textContent.includes('<img src=x'),'News title escaped, not executed');
         check(!window.injected&&!$('news-content').querySelector('img,script'),'News markup is not executable');
-        for(const severity of ['critical','high','medium','low'])
-            check(!!$('news-content').querySelector('.news-badge.'+severity),'Severity '+severity+' retained');
+        // Current login feed renders type badges, not the retired severity tags.
+        check($('news-content').querySelectorAll('.news-type-badge').length===5,'Current news type badges retained');
         check($('news-content').textContent.includes('Vedlikehold')&&$('news-content').textContent.includes('02. okt.'),'News type/date retained');
         check(getComputedStyle(document.querySelector('.news-section')).display!=='none','Mobile news is not hidden');
         check(document.documentElement.scrollWidth<=innerWidth,'No horizontal page overflow');

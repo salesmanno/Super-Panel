@@ -1,14 +1,12 @@
 <?php
-if (session_status()===PHP_SESSION_NONE) session_start();
 require_once __DIR__.'/functions.php';
 require_once __DIR__.'/company_login.php';
 try {
-    $db=getDBConnection();
+    companySessionStart();
+    $db=companyLoginDatabase();
     if (!$db) throw new RuntimeException('Database unavailable');
     companyLoginRequire($db);
     companyLoginTouch($db);
 } catch (Throwable $e) {
-    companyLoginClearSession($db ?? null);
-    header('Location: /index.php?error=session_expired');
-    exit;
+    companySessionRespondFailure($e,$db??null,'session_guard');
 }
