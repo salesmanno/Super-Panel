@@ -27,8 +27,18 @@ const checks=`(async()=>{
   await wait(()=>document.querySelectorAll('.sales-product-tile').length===3,'Three responsive product cases');
   await wait(()=>document.querySelector('.sales-product-image img[src$="product-wide.svg"]')?.naturalWidth>0
     &&document.querySelector('.sales-product-image svg'),'Image and fallback actually rendered');
+  await wait(()=>document.querySelector('[data-method-key="gateway-a"] .sales-vipps-logo')?.naturalWidth>0,
+    'Actual local Vipps logo loaded');
+  assert(!document.querySelector('[data-method-key="gateway-a-2"] .sales-vipps-logo'),
+    'Other gateway names are not relabeled as Vipps');
   const check=mode=>{
     assert(document.documentElement.scrollWidth<=innerWidth+1,mode+' document has no horizontal overflow');
+    const logo=document.querySelector('[data-method-key="gateway-a"] .sales-vipps-logo');
+    const logoBox=logo.getBoundingClientRect(),buttonBox=logo.closest('button').getBoundingClientRect();
+    assert(logoBox.width>0&&logoBox.height>0&&logoBox.height<=25,mode+' Vipps logo is visible and compact');
+    assert(Math.abs(logoBox.width/logoBox.height-logo.naturalWidth/logo.naturalHeight)<.02,
+      mode+' Vipps logo is not stretched');
+    assert(logoBox.left>=buttonBox.left&&logoBox.right<=buttonBox.right,mode+' logo stays inside method button');
     const tiles=Array.from(document.querySelectorAll('.sales-product-tile'));
     const rows=new Map();
     for(const tile of tiles) {

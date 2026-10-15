@@ -79,6 +79,7 @@
 .sales-admin .sales-method-button.is-selected {border-color:var(--sale-teal);background:var(--sale-teal-wash);box-shadow:inset 0 0 0 1px var(--sale-teal);color:#145f68}
 .sales-admin .sales-method-button:disabled {opacity:.64;cursor:not-allowed}
 .sales-admin .sales-method-button>i {font-size:1.1rem;color:var(--sale-teal)}
+.sales-admin .sales-method-button>.sales-vipps-logo {display:block;flex:0 0 auto;width:auto;height:24px;max-width:40px;object-fit:contain;border-radius:4px}
 .sales-admin #sales-refresh-products {width:46px;height:46px;display:grid;place-items:center;border-radius:11px}
 .sales-admin #sales-tendered {min-height:50px;font-size:1rem;font-variant-numeric:tabular-nums}
 .sales-admin #sales-checkout {min-height:56px;border-radius:11px;font-size:.92rem;font-weight:800;letter-spacing:.005em;touch-action:manipulation}

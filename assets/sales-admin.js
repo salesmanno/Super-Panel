@@ -70,8 +70,10 @@
     if (!selectedPayment()) {state.selectedMethod='cash';state.selectedGatewayId=null;}
     $('#sales-method-buttons').innerHTML = methods.map(m => {
       const active=m.method_type===state.selectedMethod && (m.method_type==='cash'||String(m.id)===String(state.selectedGatewayId));
-      const symbol=m.method_type==='cash'?'<i class="bi bi-cash-coin" aria-hidden="true"></i>':'<span class="sales-vipps-mark" aria-hidden="true"><b>Vipps</b></span>';
-      return `<button type="button" class="sales-method-button${active?' is-selected':''}" data-method-key="${esc(paymentKey(m))}" aria-pressed="${active}" ${cartLocked()?'disabled':''}>${symbol}<span>${esc(methodName(m))}${m.is_demo?' · test':''}</span></button>`;
+      const displayName=methodName(m);
+      const isVipps=m.method_type!=='cash' && displayName.trim().toLowerCase()==='vipps';
+      const symbol=m.method_type==='cash'?'<i class="bi bi-cash-coin" aria-hidden="true"></i>':isVipps?'<img class="sales-vipps-logo" src="/assets/vipps-payment-logo.webp" alt="" aria-hidden="true">':'<i class="bi bi-credit-card" aria-hidden="true"></i>';
+      return `<button type="button" class="sales-method-button${active?' is-selected':''}" data-method-key="${esc(paymentKey(m))}" aria-pressed="${active}" ${cartLocked()?'disabled':''}>${symbol}<span>${esc(displayName)}${m.is_demo?' · test':''}</span></button>`;
     }).join('');
     const unavailable=(state.methods||[]).filter(m=>!methods.some(u=>paymentKey(u)===paymentKey(m)));
     $('#sales-method-note').innerHTML = [state.methodError,...unavailable.map(m=>`${methodName(m)}: ${m.reason || 'Betalingsmåten er ikke tilgjengelig.'}`)].filter(Boolean).map(esc).join('<br>');

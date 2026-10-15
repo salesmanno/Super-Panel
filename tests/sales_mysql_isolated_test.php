@@ -29,7 +29,7 @@ if(isset($csrfMatch[1]))$source=str_replace("'entity_form_csrf'=>'fixture-token'
 file_put_contents($temp.'/sales.php',$source);
 mkdir($temp.'/api');mkdir($temp.'/assets');
 file_put_contents($temp.'/api/sales.php',$source);
-foreach(['sales-admin.js','sales-admin.css','entity-form-fields.js'] as $asset)copy($root.'/assets/'.$asset,$temp.'/assets/'.$asset);
+foreach(['sales-admin.js','sales-admin.css','entity-form-fields.js','vipps-payment-logo.webp'] as $asset)copy($root.'/assets/'.$asset,$temp.'/assets/'.$asset);
 ob_start();include $root.'/modules/sales_content.php';$markup=ob_get_clean();
 $baseStyle='*{box-sizing:border-box}body{margin:8px}button,input,select,textarea{font:inherit}.form-control,.form-select{display:block;width:100%;min-height:38px;padding:.45rem;border:1px solid #cbd9e2;border-radius:8px}.input-group{display:flex}.input-group input{min-width:0}.btn{padding:.45rem .7rem;border:1px solid #cbd9e2;border-radius:8px}.btn-primary{color:white;background:#163b5c}.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}';
 $captureScript="document.cookie='PHPSESSID=salesfixture-e2e-'+(new URLSearchParams(location.search).get('company')==='b'?'b':'a')+'; path=/'; window.apiCalls=[]; const nativeFetch=window.fetch; window.fetch=async function(url,opts){const response=await nativeFetch(url,opts); if(String(url).includes('/api/sales.php')){window.apiCalls.push({action:new URL(url,location.href).searchParams.get('action'),payload:opts?.body?JSON.parse(opts.body):null,status:response.status,result:await response.clone().json()});}return response;};";
@@ -100,6 +100,10 @@ try {
             if($method==='POST' && ($parts[1]??'')==='cancel')$this->payments[$ref]['state']='TERMINATED';
             return ['code'=>200,'data'=>$this->payments[$ref]];
         }
+    }
+    if(getenv('SALES_REGISTER_ONLY')==='reset') {
+        require $root.'/tests/sales_test_reset_cases.php';
+        return;
     }
     if(getenv('SALES_REGISTER_ONLY')==='browser') {
         require $root.'/tests/sales_browser_cases.php';
