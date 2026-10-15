@@ -46,8 +46,11 @@ trait SalesCart {
     }
     private function createCart(): array {
         $id=self::uuid();
+        $register=$this->registerSelection();
+        $meta=['version'=>1,'revision'=>'new','mutations'=>[]];
+        if($register)$meta['register_id']=$register;
         $this->q("INSERT INTO sales_cart(id,company_id,session_token,channel,status,notes) VALUES(?,?,?,'kiosk','active',?)",
-            [$id,$this->company,$this->sessionToken,self::json(['version'=>1,'revision'=>'new','mutations'=>[]])]);
+            [$id,$this->company,$this->sessionToken,self::json($meta)]);
         return $this->activeCart(true);
     }
     private function cartMeta(array $cart): array {
@@ -150,6 +153,7 @@ trait SalesCart {
             $write=fn()=>$this->q('UPDATE sales_cart SET notes=?,updated_at=NOW() WHERE id=? AND company_id=?',[self::json($meta),$cart['id'],$this->company]);
             if(method_exists($this->db,'withExplicitAudit'))$this->db->withExplicitAudit($write);else$write();
             $cart['notes']=self::json($meta);
+            $this->registerCartEvent('cart.'.$action,$cart,'cart:'.$mutation,['action'=>$action,'revision'=>$meta['revision'],'items'=>$this->cartView($cart)['items']]);
             return ['cart'=>$this->cartView($cart)];
         });
     }

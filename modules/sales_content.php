@@ -1,9 +1,10 @@
-<link rel="stylesheet" href="/assets/sales-admin.css">
+<link rel="stylesheet" href="/assets/sales-admin.css?v=<?=substr(hash_file('sha256',__DIR__.'/../assets/sales-admin.css'),0,12)?>">
 <div class="module-content sales-admin" id="sales-admin">
   <section id="sales-varesalg" class="subtab-content active" aria-label="Kasse">
     <header class="sales-heading">
       <div><span class="sales-kicker">Salgsrom</span><h2>Kasse</h2><p>Raskt salg. Ryddig oppgjør.</p></div>
-      <button class="btn btn-outline-primary" type="button" id="sales-fullscreen" aria-pressed="false"><i class="bi bi-arrows-fullscreen" aria-hidden="true"></i> Fullskjerm</button>
+      <div class="sales-heading-actions"><button class="btn btn-outline-primary" type="button" id="sales-register-open"><i class="bi bi-shop-window" aria-hidden="true"></i> Kassepunkt <span id="sales-register-status" class="sales-register-status">Laster…</span></button>
+      <button class="btn btn-outline-primary" type="button" id="sales-fullscreen" aria-pressed="false"><i class="bi bi-arrows-fullscreen" aria-hidden="true"></i> Fullskjerm</button></div>
     </header>
     <div class="sales-checkout-layout">
       <section class="sales-catalog" aria-label="Produktkatalog">
@@ -16,7 +17,7 @@
         <div id="sales-products" class="sales-product-grid" aria-live="polite"><div class="sales-skeleton" aria-label="Laster produkter"></div><div class="sales-skeleton"></div><div class="sales-skeleton"></div><div class="sales-skeleton"></div></div>
       </section>
       <aside class="sales-cart-panel" id="sales-cart-panel" aria-label="Handlekurv">
-        <div class="sales-cart-head"><div><span class="sales-kicker">Aktivt salg</span><h3>Handlekurv <span id="sales-cart-count" class="sales-count">0</span></h3></div><button id="sales-fullscreen-exit" class="btn btn-sm btn-outline-secondary d-none" type="button">Lukk fullskjerm</button></div>
+        <div class="sales-cart-head"><div><span class="sales-kicker">Aktivt salg</span><h3>Handlekurv <span id="sales-cart-count" class="sales-count">0</span></h3><span class="sales-period-caption" id="sales-period-caption"></span></div><button id="sales-fullscreen-exit" class="btn btn-sm btn-outline-secondary d-none" type="button">Lukk fullskjerm</button></div>
         <div id="sales-cart-lines" class="sales-cart-lines" aria-live="polite"><div class="sales-empty"><strong>Ingen varer ennå</strong><span>Velg et produkt for å starte salget.</span></div></div>
         <div class="sales-totals"><div><span>Delsum</span><strong id="sales-subtotal">0,00 kr</strong></div><div id="sales-tax-row"><span>Mva</span><strong id="sales-tax">0,00 kr</strong></div><div class="sales-grand-total"><span>Å betale</span><strong id="sales-total">0,00 kr</strong></div></div>
         <div class="sales-payment">
@@ -62,4 +63,4 @@
   </div>
 </div>
 <script src="/assets/entity-form-fields.js"></script>
-<script src="/assets/sales-admin.js" defer></script>
+<script src="/assets/sales-admin.js?v=<?=substr(hash_file('sha256',__DIR__.'/../assets/sales-admin.js'),0,12)?>" defer></script>

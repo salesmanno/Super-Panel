@@ -38,6 +38,7 @@ try {
 } catch(SalesConflict $expected) {}
 salesAssert($relogin->cartResult()['cart']===$changed,'Stale-tab conflict preserves the newer saved cart');
 $request=['revision'=>$changed['revision'],'expected_total_minor'=>$changed['total_minor'],'payment_method'=>'vipps','gateway_id'=>'gateway-a','phone'=>'49999999'];
+salesFixtureRegister($service);
 $order=$service->checkout($request)['order'];
 $relogin=new SalesService($db,'a','persistent-admin',$owner,$p);
 $waiting=$relogin->cartResult();

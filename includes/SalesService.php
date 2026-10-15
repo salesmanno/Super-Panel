@@ -7,6 +7,7 @@ require_once __DIR__.'/SalesProducts.php';
 require_once __DIR__.'/SalesCart.php';
 require_once __DIR__.'/SalesOrders.php';
 require_once __DIR__.'/SalesReceipts.php';
+require_once __DIR__.'/SalesRegisterActions.php';
 require_once __DIR__.'/EmailService.php';
 require_once __DIR__.'/entity_form_input.php';
 require_once __DIR__.'/active_payment_methods.php';
@@ -16,7 +17,7 @@ require_once __DIR__.'/ProductCatalogService.php';
 class SalesConflict extends RuntimeException {}
 
 final class SalesService {
-    use SalesProducts, SalesCart, SalesOrders, SalesReceipts;
+    use SalesProducts, SalesCart, SalesOrders, SalesReceipts, SalesRegisterActions;
     private array $actor;
     private bool $taxRegistered;
     public function __construct(private PDO $db,private string $company,private string $admin,
@@ -73,7 +74,7 @@ final class SalesService {
     }
     public function bootstrap(): array {
         $this->checkSchema();
-        return $this->productList()+$this->cartResult()+['csrf_token'=>entityFormCsrfToken()];
+        return $this->productList()+$this->cartResult()+['csrf_token'=>entityFormCsrfToken(),'register_state'=>$this->registerState()];
     }
     public function nextCustomer(): array {
         return $this->transaction(function(){

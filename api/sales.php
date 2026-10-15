@@ -10,7 +10,7 @@ try {
         http_response_code(401);throw new TenantAuditException('Logg inn før du bruker kassen');
     }
     $action=(string)($_GET['action']??'');
-    $read=in_array($action,['bootstrap','products','cart','orders','order','fields'],true);
+    $read=in_array($action,['bootstrap','products','cart','orders','order','fields','register_state','register_document'],true);
     if(($_SERVER['REQUEST_METHOD']??'')!==($read?'GET':'POST')) {
         http_response_code(405);throw new InvalidArgumentException('Ugyldig forespørselsmetode');
     }
@@ -45,6 +45,13 @@ try {
         'cancel_payment'=>['order'=>$service->reconcile((string)($data['order_id']??''),true)],
         'receipt_email'=>$service->sendReceipt($data),
         'next_customer'=>$service->nextCustomer(),
+        'register_state'=>$service->registerState(),
+        'register_document'=>$service->registerDocument((string)($_GET['document_id']??'')),
+        'register_create','register_activate','register_select','register_open','register_cash'=>$service->registerAction($action,$data),
+        'register_report'=>$service->registerReport($data),
+        'register_copy'=>$service->registerCopy($data),
+        'register_return'=>$service->registerReturn($data),
+        'register_print'=>$service->registerPrint($data),
         default=>throw new InvalidArgumentException('Ukjent Sales-handling'),
     };
     echo json_encode(['success'=>true]+$result,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);

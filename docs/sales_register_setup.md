@@ -102,6 +102,15 @@ Registrenes `last_*`-felt er mutable kontrollhoder, ikke selve journalen. Tjenes
 
 ## Isolert verifikasjon
 
-Kjør `bash tests/rental_unavailable_mysql_isolated_test.sh --sales-register-schema`.
+Kjør `bash tests/sales_register_isolated_test.sh` for Sales-spesifikk integrasjons-
+og nettleserverifikasjon av det innførte oppsettet. Den eldre, rene skjematesten
+er ikke alene en test av den faktiske kassen.
 
 Testen starter en midlertidig MySQL med bare lokal Unix-socket. Den bruker ikke prosjektets databasekonfigurasjon eller produksjonsdata, og fjerner testdatabasen ved avslutning.
+
+## Applikasjonsintegrasjon
+
+Journal-, dokument- og oppgjørslaget er nå koblet inn i Sales. Se
+`sales-register-integration.md` for faktisk funksjonsdekning, oppdateringsfiler,
+overgang fra eldre salg og gjenstående regelverkskrav. Denne SQL-filen alene
+installerer fortsatt bare datagrunnlaget; ikke importer den på nytt på målserveren.

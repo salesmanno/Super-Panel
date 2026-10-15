@@ -9,8 +9,13 @@
   };
   const money = minor => new Intl.NumberFormat('nb-NO', {style:'currency',currency:'NOK'}).format((Number(minor) || 0) / 100);
   const date = value => value ? new Intl.DateTimeFormat('nb-NO',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)) : '–';
-  const state = {csrf:'',taxRegistered:0,products:[],methods:[],methodError:'',cart:null,pending:null,selectedMethod:'cash',selectedGatewayId:null,mutationQueue:Promise.resolve(),busy:false,orders:[],pollTimer:0,pollAbort:null,statusRequest:false,cancelSubmitting:false,checkoutSubmitting:false,pollBackoff:6000,dialog:null,lastFocus:null,productController:null,checkoutUncertain:false,paymentNotice:'',deadlineTimer:0,serverOffset:0,fullscreenPlaceholder:null,fullscreenFallback:false};
+  const state = {csrf:'',taxRegistered:0,products:[],methods:[],methodError:'',cart:null,pending:null,selectedMethod:'cash',selectedGatewayId:null,mutationQueue:Promise.resolve(),busy:false,orders:[],pollTimer:0,pollAbort:null,statusRequest:false,cancelSubmitting:false,checkoutSubmitting:false,pollBackoff:6000,dialog:null,lastFocus:null,productController:null,checkoutUncertain:false,paymentNotice:'',deadlineTimer:0,serverOffset:0,fullscreenPlaceholder:null,fullscreenFallback:false,registerState:null,registerError:'',registerNotice:'',registerBusy:false,registerPrintedDocuments:new Set(),registerMutationKeys:new Map(),registerPrintBusy:false,registerPrintNotices:{}};
   const methodName = m => m?.method_type === 'cash' ? 'Kontant' : (m?.method_name || 'Betaling');
+  root.addEventListener('error',event=>{
+    const image=event.target;
+    if(image?.tagName!=='IMG' || !image.closest('.sales-product-image'))return;
+    image.parentElement.innerHTML='<span class="sales-product-placeholder" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 7 9-4 9 4v10l-9 4-9-4V7Zm0 0 9 4 9-4M12 11v10"/></svg></span>';
+  },true);
   const usableMethods = () => (state.methods || []).filter(m => m.available && (m.is_active===undefined || Number(m.is_active)===1) && (m.method_type==='cash' || (m.method_type==='vipps' && !state.methodError)));
   const paymentKey = m => m.method_type==='cash'?'cash':m.id;
   const selectedPayment = () => usableMethods().find(m=>m.method_type===state.selectedMethod && (m.method_type==='cash' || m.id===state.selectedGatewayId));
@@ -348,16 +353,331 @@
     // Editor intentionally remains open until its save callback or explicit product dialog close.
     return true;
   }
+  const salesIdempotency = () => crypto.randomUUID();
+  function registerIntentSignature(payload) {
+    const intent={...(payload||{})};
+    delete intent.idempotency_key;
+    return JSON.stringify(intent);
+  }
+  function registerIdempotency(scope, payload) {
+    const signature=registerIntentSignature(payload), previous=state.registerMutationKeys.get(scope);
+    if(!previous || previous.signature!==signature) state.registerMutationKeys.set(scope,{signature,key:salesIdempotency()});
+    return state.registerMutationKeys.get(scope).key;
+  }
+  function clearRegisterIdempotency(scope, payload) {
+    const previous=state.registerMutationKeys.get(scope);
+    if(previous && previous.signature===registerIntentSignature(payload)) state.registerMutationKeys.delete(scope);
+  }
+  function registerPeriodLabel(period) {
+    if (!period) return 'Ingen åpen kassaperiode';
+    return `Periode ${period.period_number || period.id} · ${period.business_date || ''}`;
+  }
+  function updateRegisterSummary() {
+    const snapshot = state.registerState, selected = snapshot?.registers?.find(r => String(r.id) === String(snapshot.selected_register_id));
+    const status = $('#sales-register-status'), caption = $('#sales-period-caption');
+    if (status) status.textContent = selected ? selected.name : 'Ikke valgt';
+    if (caption) caption.textContent = snapshot?.period ? registerPeriodLabel(snapshot.period) : '';
+  }
+  async function openRegisterDialog() {
+    modal('Kassepunkt','<div class="sales-skeleton"></div>',{kind:'register'});
+    try { await loadRegisterState(); } catch (_) {}
+  }
+  async function loadRegisterState() {
+    try {
+      const result = await api('register_state');
+      state.registerState = result; state.registerError = result.readiness_error || '';
+      updateRegisterSummary();
+      if (state.dialog?.kind === 'register') renderRegisterDialog();
+      return result;
+    } catch (error) {
+      state.registerError = error.message; updateRegisterSummary();
+      if (state.dialog?.kind === 'register') renderRegisterDialog();
+      throw error;
+    }
+  }
+  function renderRegisterDialog() {
+    const snapshot = state.registerState, host = $('#sales-dialog-body');
+    if (!host || state.dialog?.kind !== 'register') return;
+    if (!snapshot) {
+      host.innerHTML = `<div class="sales-skeleton"></div>${state.registerError ? `<div class="sales-error" role="alert">${esc(state.registerError)}</div>` : ''}`;
+      $('#sales-dialog-foot').innerHTML = '<button type="button" class="btn btn-outline-secondary" data-close-dialog>Lukk</button><button type="button" class="btn btn-primary" id="sales-register-retry">Prøv igjen</button>';
+      $('#sales-register-retry')?.addEventListener('click', async () => { try { await loadRegisterState(); } catch (_) {} });
+      return;
+    }
+    const regs = snapshot.registers || [], selected = regs.find(r => String(r.id) === String(snapshot.selected_register_id));
+    const period = snapshot.period;
+    const statusName = value => ({draft:'Utkast',active:'Aktiv',inactive:'Deaktivert',closed:'Lukket'})[String(value || '').toLowerCase()] || String(value || 'Ukjent');
+    host.innerHTML = `
+      <div class="sales-register-overview">
+        <div><span class="sales-kicker">Valgt kassepunkt</span><strong>${esc(selected?.name || 'Ingen valgt')}</strong><small>${selected ? `${esc(statusName(selected.status))}${selected.register_code ? ` · ${esc(selected.register_code)}` : ''}` : 'Velg eller opprett et kassepunkt for å fortsette.'}</small></div>
+        <div class="sales-register-period"><span class="sales-kicker">Kassaperiode</span><strong>${esc(period ? registerPeriodLabel(period) : 'Ikke åpnet')}</strong>${period ? `<small>Åpningsbeløp ${esc(money(period.opening_float_minor))}</small>` : '<small>Åpne en periode før kontantsalg.</small>'}</div>
+      </div>
+      ${snapshot.readiness_error ? `<div class="sales-error" role="alert">${esc(snapshot.readiness_error)}</div>` : ''}
+      ${state.registerError ? `<div class="sales-error" role="alert">${esc(state.registerError)}</div>` : ''}
+      ${state.registerNotice ? `<div class="sales-register-notice" role="status">${esc(state.registerNotice)}</div>` : ''}
+      <div class="sales-register-list">${regs.length ? regs.map(reg => `<article class="sales-register-row"><div><strong>${esc(reg.name)}</strong><small>${esc(statusName(reg.status))}${reg.register_code ? ` · ${esc(reg.register_code)}` : ''}</small></div><div class="sales-register-row-actions">${String(reg.id) === String(snapshot.selected_register_id) ? '<span class="sales-register-current">Valgt</span>' : `<button class="btn btn-sm btn-outline-primary" type="button" data-register-select="${esc(reg.id)}">Velg</button>`}${String(reg.status).toLowerCase() === 'draft' ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-register-activate="${esc(reg.id)}">Aktiver</button>` : ''}</div></article>`).join('') : '<div class="sales-empty"><strong>Ingen kassepunkt</strong><span>Opprett første kassepunkt for dette salgsstedet.</span></div>'}</div>
+      <form id="sales-register-create-form" class="sales-register-create"><label>Navn på kassepunkt<input class="form-control" name="name" maxlength="100" required placeholder="For eksempel: Hovedkasse"></label><label>Kassekode<input class="form-control" name="register_code" maxlength="32" pattern="[A-Za-z0-9_-]{1,32}" autocomplete="off" required placeholder="For eksempel: HOVEDKASSE"></label><button class="btn btn-primary" type="submit">Opprett utkast</button></form>
+      ${selected && !period && String(selected.status).toLowerCase() === 'active' ? `<form id="sales-register-open-form" class="sales-register-open"><label>Åpningsbeløp<input class="form-control" name="opening_float" type="number" min="0" step=".01" inputmode="decimal" value="0.00" required></label><button class="btn btn-primary" type="submit">Åpne kassaperiode</button></form>` : ''}
+      ${period ? `<div class="sales-register-actions"><button type="button" class="btn btn-outline-primary" data-register-action="cash">Registrer kontant inn / ut</button><button type="button" class="btn btn-outline-primary" data-register-action="x_report">X-rapport</button><button type="button" class="btn btn-outline-secondary" data-register-action="z_report">Z-rapport</button></div>` : ''}
+      <div class="sales-error" id="sales-register-inline-error" role="alert" hidden></div>`;
+    $('#sales-dialog-foot').innerHTML = '<button type="button" class="btn btn-outline-secondary" data-close-dialog>Lukk</button><button type="button" class="btn btn-outline-secondary" id="sales-register-refresh">Oppdater</button>';
+    $('#sales-register-refresh')?.addEventListener('click', async () => { try { await loadRegisterState(); } catch (_) {} });
+    $('#sales-register-create-form')?.addEventListener('submit', async event => {
+      event.preventDefault(); const form = event.currentTarget, button = form.querySelector('button[type="submit"]');
+      if (!form.reportValidity() || state.registerBusy) return;
+      button.disabled = true; clearRegisterError();
+      const data={name:form.elements.name.value.trim(),register_code:form.elements.register_code.value.trim()};
+      data.idempotency_key=registerIdempotency('register_create',data);
+      try { await registerPost('register_create',data); clearRegisterIdempotency('register_create',data); }
+      catch (error) { showRegisterError(error.message); }
+      finally { if(button.isConnected) button.disabled=false; }
+    });
+    $('#sales-register-open-form')?.addEventListener('submit', async event => {
+      event.preventDefault(); const form=event.currentTarget, button=form.querySelector('button[type="submit"]');
+      if (!form.reportValidity() || state.registerBusy) return;
+      button.disabled=true; clearRegisterError();
+      const data={register_id:String(snapshot.selected_register_id),opening_float_minor:Math.round(Number(form.elements.opening_float.value)*100)};
+      data.idempotency_key=registerIdempotency('register_open',data);
+      try { await registerPost('register_open',data); clearRegisterIdempotency('register_open',data); }
+      catch(error) { showRegisterError(error.message); }
+      finally { if(button.isConnected)button.disabled=false; }
+    });
+    host.querySelectorAll('[data-register-select]').forEach(button=>button.addEventListener('click',async()=>{
+      button.disabled=true;clearRegisterError();
+      try { await registerPost('register_select',{register_id:button.dataset.registerSelect}); }
+      catch(error){showRegisterError(error.message);button.disabled=false;}
+    }));
+    host.querySelectorAll('[data-register-activate]').forEach(button=>button.addEventListener('click',async()=>{
+      button.disabled=true;clearRegisterError();
+      const data={register_id:button.dataset.registerActivate};
+      data.idempotency_key=registerIdempotency(`register_activate:${data.register_id}`,data);
+      try { await registerPost('register_activate',data); clearRegisterIdempotency(`register_activate:${data.register_id}`,data); }
+      catch(error){showRegisterError(error.message);button.disabled=false;}
+    }));
+    host.querySelectorAll('[data-register-action]').forEach(button=>button.addEventListener('click',()=>{
+      if(button.dataset.registerAction==='cash') registerCashDialog();
+      else registerReportDialog(button.dataset.registerAction);
+    }));
+    if(state.registerBusy)host.querySelectorAll('button,input,select,textarea').forEach(control=>{control.disabled=true;});
+  }
+  function clearRegisterError() { const box=$('#sales-register-inline-error'); if(box){box.hidden=true;box.textContent='';} }
+  function showRegisterError(message) { const box=$('#sales-register-inline-error');if(box){box.hidden=false;box.textContent=message;} }
+  async function registerPost(action, data) {
+    state.registerBusy=true;
+    try {
+      const result=await api(action,{method:'POST',data});
+      if(result.registers) { state.registerState=result;state.registerError=result.readiness_error||'';updateRegisterSummary();renderRegisterDialog(); }
+      else if(result.document) showRegisterDocument(result.document);
+      await refreshCart();
+      if(['register_cash','register_report','register_return'].includes(action)) {
+        try { await loadRegisterState(); } catch (_) {}
+      }
+      return result;
+    } catch(error) {
+      state.registerError=error.message;
+      if(state.dialog?.kind==='register') renderRegisterDialog();
+      throw error;
+    } finally {
+      state.registerBusy=false;
+      if(state.dialog?.kind==='register')renderRegisterDialog();
+    }
+  }
+  function registerCashDialog() {
+    const reg=state.registerState?.selected_register_id;
+    modal('Kontantbevegelse',`<p class="sales-muted">Registrer kontanter som går inn i eller ut av kassen. Beløpet føres på valgt åpen periode.</p><form id="sales-register-cash-form" class="sales-form-grid"><label>Retning<select class="form-select" name="direction"><option value="in">Kontant inn</option><option value="out">Kontant ut</option></select></label><label>Beløp<input class="form-control" name="amount" type="number" min=".01" step=".01" inputmode="decimal" required></label><label class="sales-span">Årsak<textarea class="form-control" name="reason" rows="3" maxlength="500" required></textarea></label><div id="sales-register-action-error" class="sales-error sales-span" role="alert" hidden></div></form>`,{kind:'register-cash',footer:'<button type="button" class="btn btn-outline-secondary" data-close-dialog>Avbryt</button><button type="button" class="btn btn-primary" id="sales-register-cash-submit">Registrer kontantbevegelse</button>'});
+    $('#sales-register-cash-submit').addEventListener('click',async()=>{
+      const form=$('#sales-register-cash-form');if(!form.reportValidity()||state.registerBusy)return;
+      const button=$('#sales-register-cash-submit'),error=$('#sales-register-action-error');button.disabled=true;error.hidden=true;
+      const data={register_id:String(reg),direction:form.elements.direction.value,amount_minor:Math.round(Number(form.elements.amount.value)*100),reason:form.elements.reason.value.trim()};
+      data.idempotency_key=registerIdempotency('register_cash',data);
+      try {
+        await registerPost('register_cash',data);clearRegisterIdempotency('register_cash',data);
+        state.registerNotice='Kontantbevegelsen er registrert.';
+        closeDialog(true);await openRegisterDialog();
+      }
+      catch(e){error.hidden=false;error.textContent=e.message;button.disabled=false;}
+    });
+  }
+  function registerReportDialog(kind) {
+    const isX=kind==='x_report';
+    modal(isX?'X-rapport':'Z-rapport',`<p class="sales-muted">${isX?'Vis opptelling for åpen periode uten å avslutte den.':'Z-rapporten avslutter oppgjøret for perioden. Kontroller opptellingen før du fortsetter.'}</p><form id="sales-register-report-form" class="sales-form-grid"><label class="sales-span"${isX?' hidden':''}>Opptalt kontantbeløp<input class="form-control" name="counted_cash" type="number" min="0" step=".01" inputmode="decimal" ${isX?'value="0" disabled':'required'}></label><label class="sales-span">Kommentar <span class="sales-muted">valgfritt</span><textarea class="form-control" name="reason" rows="2" maxlength="500"></textarea></label><div id="sales-register-action-error" class="sales-error sales-span" role="alert" hidden></div></form>`,{kind:'register-report',footer:`<button type="button" class="btn btn-outline-secondary" data-close-dialog>Tilbake</button><button type="button" class="btn ${isX?'btn-primary':'btn-outline-danger'}" id="sales-register-report-submit">${isX?'Opprett X-rapport':'Opprett Z-rapport'}</button>`});
+    $('#sales-register-report-submit').addEventListener('click',async()=>{
+      const form=$('#sales-register-report-form');if(!form.reportValidity()||state.registerBusy)return;
+      const button=$('#sales-register-report-submit'),error=$('#sales-register-action-error');button.disabled=true;error.hidden=true;
+      const data={register_id:String(state.registerState?.selected_register_id),kind,counted_cash_minor:Math.round(Number(form.elements.counted_cash.value)*100),reason:form.elements.reason.value.trim()};
+      data.idempotency_key=registerIdempotency('register_report',data);
+      try {await registerPost('register_report',data);clearRegisterIdempotency('register_report',data);}
+      catch(e){error.hidden=false;error.textContent=e.message;button.disabled=false;}
+    });
+  }
+  function registerValue(source, keys) {
+    for(const key of keys) if(source?.[key]!==undefined && source[key]!==null && source[key]!=='') return source[key];
+    return null;
+  }
+  function reportLabel(key) {
+    const labels={gross_total:'Bruttosalg',net_total:'Netto salg',subtotal:'Delsum',subtotal_minor:'Delsum',tax:'Mva',tax_minor:'Mva',total:'Sum',total_minor:'Sum',sales_count:'Antall salg',order_count:'Antall ordre',event_count:'Antall hendelser',refund_count:'Antall returer',returns_count:'Antall returer',cash:'Kontant',vipps:'Vipps',card:'Kort',other:'Annet',opening_float:'Åpningsbeløp',opening_float_minor:'Åpningsbeløp',counted_cash:'Opptalt kontant',counted_cash_minor:'Opptalt kontant',expected_cash:'Forventet kontant',expected_cash_minor:'Forventet kontant',cash_difference:'Avvik kontant',cash_difference_minor:'Avvik kontant',cash_in_minor:'Kontanter inn',cash_out_minor:'Kontanter ut',discount_minor:'Rabatt'};
+    const events={ 'period.opened':'Åpnet periode','order.prepared':'Klargjorte salg','cash.in':'Kontanter inn','cash.out':'Kontanter ut','document.sale':'Salgsdokumenter','document.return':'Returdokumenter','document.x_report':'X-rapporter','document.z_report':'Z-rapporter','document.print_requested':'Utskriftsforsøk' };
+    if(events[key])return events[key];
+    const normalized=String(key).replace(/_minor$/,'').replace(/[_-]+/g,' ').trim();
+    if(labels[key]||labels[String(key).replace(/_minor$/,'')])return labels[key]||labels[String(key).replace(/_minor$/,'')];
+    return normalized ? normalized.charAt(0).toLocaleUpperCase('nb')+normalized.slice(1) : 'Beløp';
+  }
+  function reportCountLike(key) { return /(?:^|_)(?:count|quantity|qty|events|orders|sales)(?:$|_)/i.test(String(key)) || /_count$/i.test(String(key)); }
+  function reportAmount(value, key, defaultMoney=false) {
+    if(value && typeof value==='object') {
+      const subRows=Object.entries(value).map(([subKey,subValue])=>reportAmount(subValue,subKey,/payment/i.test(key)));
+      return subRows.filter(Boolean).join('');
+    }
+    if(typeof value!=='number' && !/^-?\d+(?:\.\d+)?$/.test(String(value??'')))return '';
+    const number=Number(value);
+    const formatted=reportCountLike(key) ? new Intl.NumberFormat('nb-NO',{maximumFractionDigits:0}).format(number) : String(key).endsWith('_minor') || defaultMoney ? money(number) : new Intl.NumberFormat('nb-NO',{maximumFractionDigits:2}).format(number);
+    return `<div class="sales-doc-row"><span>${esc(reportLabel(key))}</span><strong>${esc(formatted)}</strong></div>`;
+  }
+  function reportSection(title, rows) {
+    if(!rows)return '';
+    return `<section class="sales-report-section"><h3>${esc(title)}</h3>${rows}</section>`;
+  }
+  function showRegisterDocument(documentData) {
+    const rawPayload=documentData.payload||{};
+    const sourceDocument=rawPayload.original && typeof rawPayload.original==='object' ? rawPayload.original : null;
+    const payload=sourceDocument?.payload || rawPayload;
+    const documentType=String(sourceDocument?.document_type||documentData.document_type||'');
+    const isReport=/report/i.test(documentType);
+    const isCopy=!!sourceDocument || String(rawPayload.label||'').toLocaleUpperCase('nb')==='KOPI';
+    const canCreateCopy=!isCopy && ['sale','return','delivery'].includes(String(documentData.document_type||''));
+    const isReturn=!!registerValue(payload,['refund_minor','return_minor']) || /return|refund/i.test(documentType);
+    const title=isReport?`${String(documentType||'Rapport').replace(/_/g,' ')} · ${documentData.sequence_number||''}`:`${isCopy?'Kopi · ':isReturn?'Retur · ':''}Kvittering ${documentData.receipt_number||documentData.sequence_number||''}`;
+    let content='';
+    if(isReport) {
+      const totals=payload.totals||Object.fromEntries(Object.entries(payload).filter(([key,value])=>
+        typeof value==='number' && !['sequence_number','document_count'].includes(key) ||
+        typeof value==='string' && /^-?\d+(?:\.\d+)?$/.test(value) && !['sequence_number','document_count'].includes(key)
+      ));
+      const paymentData=payload.payments||payload.payment_totals||payload.payment_distribution||{}, taxMap=payload.tax||payload.taxes||payload.tax_totals||{};
+      const totalRows=Object.entries(totals).map(([key,value])=>reportAmount(value,key)).join('');
+      const paymentRow=(entry,key)=>{
+        const label=reportLabel(entry?.method||entry?.payment_method||entry?.name||key);
+        if(entry&&typeof entry==='object') {
+          const amount=registerValue(entry,['amount_minor','total_minor','paid_minor','gross_minor']);
+          const count=registerValue(entry,['count','payment_count','transaction_count']);
+          const sub=[amount!==null?`<strong>${esc(money(amount))}</strong>`:'',count!==null?`<small>${esc(new Intl.NumberFormat('nb-NO',{maximumFractionDigits:0}).format(Number(count)))} betalinger</small>`:''].filter(Boolean).join(' ');
+          return `<div class="sales-doc-row"><span>${esc(label)}</span><span class="sales-report-value">${sub||esc('—')}</span></div>`;
+        }
+        return `<div class="sales-doc-row"><span>${esc(label)}</span><strong>${esc(money(Number(entry)||0))}</strong></div>`;
+      };
+      const paymentRows=Array.isArray(paymentData)
+        ? paymentData.map((entry,index)=>paymentRow(entry,`payment_${index}`)).join('')
+        : Object.entries(paymentData).map(([key,value])=>paymentRow(value,key)).join('');
+      const taxRows=Object.entries(taxMap).map(([rate,entry])=>{
+        if(!entry || typeof entry!=='object')return reportAmount(entry,`tax_${rate}_minor`);
+        return `<div class="sales-tax-rate"><strong>${esc(`MVA ${String(rate).replace(/%$/,'')} %`)}</strong>${reportAmount(entry.subtotal_minor,'subtotal_minor')}${reportAmount(entry.tax_minor,'tax_minor')}${reportAmount(entry.total_minor,'total_minor')}</div>`;
+      }).join('');
+      const grandRows=Array.isArray(payload.grand_totals) ? payload.grand_totals.map((entry,index)=>{
+        if(entry && typeof entry==='object') {
+          const documentType=entry.document_type==='sale'?'Salg':entry.document_type==='return'?'Retur':null;
+          const label=entry.label||entry.name||entry.key||documentType||`Sum ${index+1}`;
+          const amount=registerValue(entry,['amount_minor','total_minor','value_minor','value']);
+          const count=registerValue(entry,['document_count','count','sales_count']);
+          const formattedAmount=amount===null?'':String(['amount_minor','total_minor','value_minor'].some(key=>key in entry)?money(amount):new Intl.NumberFormat('nb-NO',{maximumFractionDigits:2}).format(Number(amount)));
+          const countText=count===null?'':` · ${new Intl.NumberFormat('nb-NO',{maximumFractionDigits:0}).format(Number(count))} dokumenter`;
+          return amount===null&&count===null?'':`<div class="sales-doc-row"><span>${esc(label)}</span><strong>${esc(`${formattedAmount}${countText}`.trim())}</strong></div>`;
+        }
+        return reportAmount(entry,`grand_total_${index}`,true);
+      }).join(''):'';
+      const events=payload.event_counts||payload.events||{};
+      const eventRows=typeof events==='number'?reportAmount(events,'event_count'):Array.isArray(events)?events.map((entry,index)=>reportAmount(entry.count??entry.value??0,entry.label||entry.name||`event_count_${index}`)).join(''):Object.entries(events).map(([key,value])=>reportAmount(value,key)).join('');
+      const rows=[reportSection('Sammendrag',totalRows),reportSection('Betalingsfordeling',paymentRows),reportSection('Mva per sats',taxRows),reportSection('Totalsummer',grandRows),reportSection('Hendelser',eventRows)].join('');
+      const reportRegister=payload.register||{},reportPeriod=payload.period||{};
+      content=`<div class="sales-receipt"><div class="sales-receipt-top"><strong>${esc(title)}</strong><span>${esc(date(documentData.issued_at_utc))}</span></div><div class="sales-doc-meta"><span>${esc(reportRegister.name||'')}</span><span>${esc(reportPeriod.business_date||'')}</span></div>${rows||'<p class="sales-muted">Rapporten inneholder ingen summerte felt som kan vises.</p>'}<p class="sales-receipt-foot">Dokument ${esc(documentData.id)}</p></div>`;
+    } else {
+      const order=payload.order||{}, seller=payload.seller||{}, register=payload.register||{}, period=payload.period||{}, items=payload.items||order.items||[];
+      const amount=order.total_minor??payload.total_minor??0;
+      let refund=registerValue(payload,['refund_minor','return_minor']);
+      const sellerAddress=registerValue(seller,['address','business_address','postal_address','street_address']);
+      const addressText=typeof sellerAddress==='object'&&sellerAddress ? [sellerAddress.address_line1||sellerAddress.street||sellerAddress.street_address,sellerAddress.postal_code,sellerAddress.city].filter(Boolean).join(', ') : [sellerAddress,seller.postal_code,seller.city].filter(Boolean).join(', ');
+      const orgNumber=registerValue(seller,['org_number','organization_number','organisation_number','orgnr','org_nr']);
+      const taxMarker=registerValue(seller,['tax_marker','tax_registered','vat_registered']) ?? registerValue(payload,['tax_marker','tax_registered']);
+      const taxMarkerText=taxMarker===null?null:(['1','true','yes','registered'].includes(String(taxMarker).toLowerCase())?'Registrert i Merverdiavgiftsregisteret':'Ikke registrert i Merverdiavgiftsregisteret');
+      const payment=payload.payment||{};
+      const cashierRaw=registerValue(payload,['cashier','cashier_name','operator']) ?? registerValue(order,['cashier','cashier_name','operator_name','tenant_admin_name']);
+      const cashier=typeof cashierRaw==='object'&&cashierRaw ? (cashierRaw.name||cashierRaw.display_name||cashierRaw.full_name||'') : cashierRaw;
+      const paymentMethod=String(payload.payment_method||payment.method||order.payment_method||'');
+      const tendered=registerValue(order,['received_minor','cash_received_minor','tendered_minor']) ?? registerValue(payment,['received_minor','cash_received_minor','tendered_minor']) ?? registerValue(payload,['received_minor','cash_received_minor','tendered_minor']);
+      const change=registerValue(order,['change_minor','cash_change_minor']) ?? registerValue(payment,['change_minor','cash_change_minor']) ?? registerValue(payload,['change_minor','cash_change_minor']);
+      const vippsReference=registerValue(order,['vipps_reference','payment_reference','provider_reference','transaction_reference']) ?? registerValue(payment,['reference','vipps_reference','payment_reference','provider_reference','transaction_reference']) ?? registerValue(payload,['vipps_reference','payment_reference','provider_reference','transaction_reference']);
+      refund ??= registerValue(payment,['refund_minor','return_minor']);
+      const sellerLines=[orgNumber?`Org.nr. ${orgNumber}`:null,addressText,taxMarkerText].filter(Boolean).map(line=>`<small>${esc(line)}</small>`).join('');
+      const saleSums=isReturn
+        ? `<div class="total"><span>Tilbakebetalt kontant</span><strong>${esc(money(refund??Math.abs(Number(amount))))}</strong></div>`
+        : `<div><span>Delsum</span><strong>${esc(money(order.subtotal_minor??payload.subtotal_minor??0))}</strong></div>${order.tax_minor!==undefined||payload.tax_minor!==undefined?`<div><span>Mva</span><strong>${esc(money(order.tax_minor??payload.tax_minor))}</strong></div>`:''}<div class="total"><span>Sum</span><strong>${esc(money(amount))}</strong></div>${paymentMethod==='cash'&&tendered!==null?`<div><span>Mottatt kontant</span><strong>${esc(money(tendered))}</strong></div>`:''}${paymentMethod==='cash'&&change!==null?`<div><span>Vekslepenger</span><strong>${esc(money(change))}</strong></div>`:''}`;
+      content=`<div class="sales-receipt sales-fiscal-document${isReturn?' is-return':''}"><div class="sales-receipt-top"><span><strong>${esc(seller.name||seller.company_name||'Salgssted')}</strong>${sellerLines}<small>${esc(register.name||'')}</small></span><span>${esc(date(documentData.issued_at_utc))}</span></div><div class="sales-doc-meta"><span>${esc(title)}</span><span>${esc(period.business_date||'')}</span></div>${isCopy?'<div class="sales-copy-mark">KOPI</div>':''}<div class="sales-receipt-lines">${items.map(item=>`<div><span>${esc(item.description||item.name||'Vare')} <small>× ${esc(isReturn?Math.abs(Number(item.quantity)||0):(item.quantity??1))}</small></span><strong>${esc(money(item.total_minor??item.line_total_minor??0))}</strong></div>`).join('')}</div><div class="sales-receipt-sums">${saleSums}</div>${isReturn&&payload.reason?`<p class="sales-receipt-foot">Returårsak: ${esc(payload.reason)}</p>`:''}<p class="sales-receipt-foot">${esc(isReturn?'Retur · kontant':(paymentMethod==='cash'?'Kontant':paymentMethod==='vipps'?'Vipps':paymentMethod||'Betaling'))}${vippsReference&&paymentMethod==='vipps'?` · Vipps-ref. ${esc(vippsReference)}`:''}${cashier?` · Kassemedarbeider: ${esc(cashier)}`:order.tenant_admin_id?` · Kassemedarbeider: ${esc(order.tenant_admin_id)}`:''}</p><p class="sales-receipt-foot">Dokument ${esc(documentData.id)}</p></div>`;
+    }
+    modal(title,content,{kind:'register-document',footer:`<button type="button" class="btn btn-outline-secondary" data-close-dialog>Lukk</button>${canCreateCopy?'<button type="button" class="btn btn-outline-primary" id="sales-register-copy">Opprett utskriftskopi</button>':''}<button type="button" class="btn btn-primary" id="sales-register-print">${isReport?'Skriv ut rapport':isCopy?'Skriv ut kopi':'Skriv ut original'}</button>`});
+    $('#sales-register-copy')?.addEventListener('click',async event=>{
+      const button=event.currentTarget;button.disabled=true;
+      const data={document_id:String(documentData.id)}, keyScope=`register_copy:${documentData.id}`;
+      data.idempotency_key=registerIdempotency(keyScope,data);
+      try {const response=await api('register_copy',{method:'POST',data});if(!response.document)throw new Error('Serveren returnerte ikke kopidokumentet. Opprett ikke en ny kopi før statusen er kontrollert.');clearRegisterIdempotency(keyScope,data);showRegisterDocument(response.document);}
+      catch(error){button.disabled=false;const box=document.createElement('div');box.className='sales-error';box.setAttribute('role','alert');box.textContent=error.message;$('#sales-dialog-body').append(box);}
+    });
+    const printButton=$('#sales-register-print'), documentId=String(documentData.id);
+    const originalAlreadyAttempted=!isReport&&state.registerPrintedDocuments.has(documentId);
+    if(originalAlreadyAttempted){printButton.disabled=true;printButton.textContent='Opprett kopi for ny utskrift';}
+    printButton?.addEventListener('click',async()=>{
+      if(state.registerPrintBusy||originalAlreadyAttempted||(!isReport&&state.registerPrintedDocuments.has(documentId)))return;
+      state.registerPrintBusy=true;printButton.disabled=true;
+      const printData={document_id:documentId}, keyScope=`register_print:${documentId}`;
+      printData.idempotency_key=registerIdempotency(keyScope,printData);
+      let response;
+      try {
+        response=await api('register_print',{method:'POST',data:printData});
+        if(response.print_attempt_recorded!==true)throw new Error('Utskriftsforsøket ble ikke bekreftet av serveren. Dokumentet er ikke sendt til utskrift.');
+      } catch(error) {
+        printButton.disabled=false;
+        const box=document.createElement('div');box.className='sales-error';box.setAttribute('role','alert');box.textContent=`${error.message} Originalutskriften kan ikke gjentas uten bekreftelse. Opprett én utskriftskopi hvis utskriftsdialogen ble avbrutt.`;$('#sales-dialog-body').prepend(box);
+        state.registerPrintBusy=false;
+        return;
+      }
+      clearRegisterIdempotency(keyScope,printData);
+      if(!isReport)state.registerPrintedDocuments.add(documentId);
+      if(!isReport)printButton.textContent='Utskriftsforsøk journalført';
+      try {
+        window.print();
+      } catch(error) {
+        // The print intent is already recorded; another original request is unsafe.
+      } finally {
+        const box=document.createElement('div');box.className='sales-print-notice';box.setAttribute('role','status');
+        box.textContent=isReport?'Utskriftsdialogen ble åpnet. Systemet kan ikke bekrefte om rapporten faktisk ble skrevet ut.':'Utskriftsforsøket er journalført. Systemet kan ikke bekrefte fysisk utskrift. Hvis dialogen ble avbrutt, opprett en utskriftskopi.';
+        $('#sales-dialog-body').prepend(box);
+        if(isReport)printButton.disabled=false;
+        else printButton.disabled=true;
+        state.registerPrintBusy=false;
+      }
+    });
+  }
+  async function showRegisterDocumentById(id) {
+    modal('Laster dokument…','<div class="sales-skeleton"></div>',{kind:'loading'});
+    try {const result=await api('register_document',{query:{document_id:String(id)}});if(result.document){showRegisterDocument(result.document);return true;}throw new Error('Serveren returnerte ikke kassedokumentet.');}
+    catch(error){$('#sales-dialog-title').textContent='Dokumentet kunne ikke lastes';$('#sales-dialog-body').innerHTML=`<div class="sales-error" role="alert">${esc(error.message)}</div>`;$('#sales-dialog-foot').innerHTML='<button type="button" class="btn btn-outline-secondary" data-close-dialog>Lukk</button>';return false;}
+  }
   function receipt(order) {
+    if(order.register_document) {
+      const addActions=()=>{
+        if(order.payment_status==='paid') addReceiptEmailAction(order);
+        if(order.payment_method==='cash' && order.payment_status==='paid') addCashReturnAction(order);
+      };
+      if(typeof order.register_document==='object') { showRegisterDocument(order.register_document); addActions(); }
+      else showRegisterDocumentById(order.register_document).then(loaded=>{if(loaded)addActions();});
+      return;
+    }
     const items=order.items||[];
-    modal(`Kvittering ${order.order_number||''}`,`<div class="sales-receipt"><div class="sales-receipt-top"><strong>${esc(order.order_number||'Salg')}</strong><span>${esc(date(order.created_at))}</span></div><div class="sales-receipt-lines">${items.map(item=>`<div><span>${esc(item.description)} <small>× ${esc(item.quantity)}</small>${item.sku?`<small class="d-block">${esc(item.sku)}</small>`:''}${item.notes?`<small class="d-block">${esc(item.notes)}</small>`:''}${item.form_data?`<small class="d-block">${Object.entries(item.form_data).map(([k,v])=>`${esc(k)}: ${esc(v)}`).join(' · ')}</small>`:''}</span><strong>${esc(money(item.total_minor))}</strong></div>`).join('')}</div><div class="sales-receipt-sums"><div><span>Delsum</span><strong>${esc(money(order.subtotal_minor))}</strong></div>${state.taxRegistered?`<div><span>Mva</span><strong>${esc(money(order.tax_minor))}</strong></div>`:''}<div class="total"><span>Sum</span><strong>${esc(money(order.total_minor))}</strong></div>${order.received_minor!=null?`<div><span>Mottatt</span><strong>${esc(money(order.received_minor))}</strong></div><div><span>Vekslepenger</span><strong>${esc(money(order.change_minor))}</strong></div>`:''}</div><p class="sales-receipt-foot">${esc(methodName({method_type:order.payment_method,method_name:order.payment_method}))} · ${esc(statusLabel(order.payment_status))}</p></div>`,{kind:'receipt',footer:'<button class="btn btn-outline-secondary" type="button" data-close-dialog>Lukk</button><button class="btn btn-primary" type="button" id="sales-print-receipt">Skriv ut</button>'});
+    modal(`Historisk kvittering ${order.order_number||''}`,`<div class="sales-receipt"><div class="sales-legacy-notice"><strong>Historisk salg</strong><span>Dette salget har ikke et registrert kassedokument. Visningen er historisk og kan ikke brukes som original kassakvittering.</span></div><div class="sales-receipt-top"><strong>${esc(order.order_number||'Salg')}</strong><span>${esc(date(order.created_at))}</span></div><div class="sales-receipt-lines">${items.map(item=>`<div><span>${esc(item.description)} <small>× ${esc(item.quantity)}</small>${item.sku?`<small class="d-block">${esc(item.sku)}</small>`:''}${item.notes?`<small class="d-block">${esc(item.notes)}</small>`:''}${item.form_data?`<small class="d-block">${Object.entries(item.form_data).map(([k,v])=>`${esc(k)}: ${esc(v)}`).join(' · ')}</small>`:''}</span><strong>${esc(money(item.total_minor))}</strong></div>`).join('')}</div><div class="sales-receipt-sums"><div><span>Delsum</span><strong>${esc(money(order.subtotal_minor))}</strong></div>${state.taxRegistered?`<div><span>Mva</span><strong>${esc(money(order.tax_minor))}</strong></div>`:''}<div class="total"><span>Sum</span><strong>${esc(money(order.total_minor))}</strong></div>${order.received_minor!=null?`<div><span>Mottatt</span><strong>${esc(money(order.received_minor))}</strong></div><div><span>Vekslepenger</span><strong>${esc(money(order.change_minor))}</strong></div>`:''}</div><p class="sales-receipt-foot">${esc(methodName({method_type:order.payment_method,method_name:order.payment_method}))} · ${esc(statusLabel(order.payment_status))}</p></div>`,{kind:'receipt',footer:'<button class="btn btn-outline-secondary" type="button" data-close-dialog>Lukk</button><button class="btn btn-outline-secondary" type="button" disabled title="Historisk salg har ikke originalt kassadokument">Ingen originalkvittering</button>'});
     if(order.tenant_admin_id) {
       const actor=document.createElement('p');actor.className='sales-receipt-foot';
       actor.style.overflowWrap='anywhere';
       actor.textContent=`Registrert av: ${order.tenant_admin_name || order.tenant_admin_id}`;
       $('.sales-receipt').append(actor);
     }
-    $('#sales-print-receipt').addEventListener('click',()=>window.print());
     if(order.payment_status==='paid') {
       const send=document.createElement('button');send.type='button';send.className='btn btn-outline-primary';
       send.id='sales-email-receipt';
@@ -384,8 +704,47 @@
       });
     }
   }
+  function addReceiptEmailAction(order) {
+    if(!order.receipt_email_enabled)return;
+    const send=document.createElement('button');send.type='button';send.className='btn btn-outline-primary';send.textContent='E-postkvittering';
+    $('#sales-dialog-foot').append(send);
+    send.addEventListener('click',()=>{
+      if($('#sales-receipt-email-form'))return;
+      const form=document.createElement('form');form.id='sales-receipt-email-form';form.className='sales-form-grid sales-receipt-email-form';
+      form.innerHTML='<label class="sales-span">Mottakerens e-postadresse<input class="form-control" type="email" name="sales_receipt_recipient" autocomplete="off" maxlength="254" required></label><button class="btn btn-primary" type="submit">Send kvittering</button><p class="sales-span sales-muted" role="status" aria-live="polite"></p>';
+      $('#sales-dialog-body').append(form);form.elements.sales_receipt_recipient.focus();
+      const mutation=salesIdempotency(),submit=form.querySelector('button'),notice=form.querySelector('[role="status"]');
+      form.addEventListener('submit',async event=>{
+        event.preventDefault();if(!form.reportValidity()||submit.disabled)return;
+        submit.disabled=true;form.elements.sales_receipt_recipient.disabled=true;notice.textContent='Legger kvitteringen i e-postkøen …';
+        try {const result=await api('receipt_email',{method:'POST',data:{order_id:order.id,email:form.elements.sales_receipt_recipient.value.trim(),mutation_id:mutation}});notice.textContent=result.message||'Kvitteringen er lagt i e-postkøen';submit.textContent='Lagt i kø';}
+        catch(error){notice.textContent=error.message;submit.disabled=false;form.elements.sales_receipt_recipient.disabled=false;}
+      });
+    });
+  }
+  function addCashReturnAction(order) {
+    const button=document.createElement('button');button.type='button';button.className='btn btn-outline-danger';button.textContent='Returner kontantsalg';
+    $('#sales-dialog-foot').append(button);
+    button.addEventListener('click',()=>{
+      modal('Returner kontantsalg',`<p class="sales-muted">Dette registrerer full kontantretur av ordre ${esc(order.order_number||'')}. Delvis retur støttes ikke her. Vipps-refusjon er ikke tilgjengelig.</p><form id="sales-register-return-form"><label class="sales-span">Årsak<textarea class="form-control" name="reason" rows="3" maxlength="500" required></textarea></label><div id="sales-register-action-error" class="sales-error" role="alert" hidden></div></form>`,{kind:'register-return',footer:'<button type="button" class="btn btn-outline-secondary" data-close-dialog>Avbryt</button><button type="button" class="btn btn-outline-danger" id="sales-register-return-submit">Registrer full retur</button>'});
+      $('#sales-register-return-submit').addEventListener('click',async()=>{
+        const form=$('#sales-register-return-form');if(!form.reportValidity()||state.registerBusy)return;
+        const submit=$('#sales-register-return-submit'),error=$('#sales-register-action-error');submit.disabled=true;error.hidden=true;state.registerBusy=true;
+        const data={order_id:String(order.id),reason:form.elements.reason.value.trim()},keyScope=`register_return:${order.id}`;
+        data.idempotency_key=registerIdempotency(keyScope,data);
+        try {const result=await api('register_return',{method:'POST',data});if(!result.document)throw new Error('Serveren returnerte ikke returdokumentet. Kontroller salget før du prøver igjen.');clearRegisterIdempotency(keyScope,data);showRegisterDocument(result.document);await refreshOrders();try{await loadRegisterState();}catch(_){}}
+        catch(e){error.hidden=false;error.textContent=e.message;submit.disabled=false;}
+        finally{state.registerBusy=false;}
+      });
+    });
+  }
   async function checkout() {
     const cart=state.cart||emptyCart(), method=state.selectedMethod, total=Number(cart.total_minor||0);
+    if(state.registerState && (!state.registerState.selected_register_id || !state.registerState.period || state.registerState.readiness_error)) {
+      setError(state.registerState.readiness_error || 'Velg et aktivt kassepunkt og åpne kassaperiode før betaling.');
+      $('#sales-register-open').focus();
+      return;
+    }
     if(method==='cash'){
       const received=Math.round((Number($('#sales-tendered').value)||0)*100);
       if(received<total || !$('#sales-tendered').value)return;
@@ -396,7 +755,7 @@
       const methodConfig=selectedPayment();
       if(!methodConfig)return;
         const body=`<p class="sales-muted">Betalingsforespørsel til kundens Vipps-nummer. Kontroller nummeret før du sender.</p><div id="sales-vipps-form" class="sales-vipps-entry" role="group" aria-label="Vipps-telefonnummer"><label class="sales-form-label" for="sales-vipps-phone">Kundens mobilnummer</label><input id="sales-vipps-phone" class="sales-phone-display" type="text" inputmode="none" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="10" placeholder="8 sifre eller 47 + 8" aria-label="Kundens mobilnummer, bruk tastaturet på skjermen" aria-describedby="sales-vipps-total sales-vipps-error"><div id="sales-vipps-keypad" class="sales-vipps-keypad" role="group" aria-label="Tallfelt"><button type="button" data-vipps-digit="1" aria-label="1">1</button><button type="button" data-vipps-digit="2" aria-label="2">2</button><button type="button" data-vipps-digit="3" aria-label="3">3</button><button type="button" data-vipps-digit="4" aria-label="4">4</button><button type="button" data-vipps-digit="5" aria-label="5">5</button><button type="button" data-vipps-digit="6" aria-label="6">6</button><button type="button" data-vipps-digit="7" aria-label="7">7</button><button type="button" data-vipps-digit="8" aria-label="8">8</button><button type="button" data-vipps-digit="9" aria-label="9">9</button><button type="button" data-vipps-clear aria-label="Tøm nummeret">Tøm</button><button type="button" data-vipps-digit="0" aria-label="0">0</button><button type="button" data-vipps-backspace aria-label="Slett siste siffer"><span class="sales-backspace-glyph" aria-hidden="true">⌫</span><span>Slett</span></button></div><div class="sales-vipps-total" id="sales-vipps-total"><span>Å betale</span><strong>${esc(money(total))}</strong></div><div id="sales-vipps-error" class="sales-error" role="alert" hidden></div></div>`;
-       modal('Vipps-betaling',body,{kind:'confirm-vipps',footer:`<button type="button" class="btn btn-outline-secondary" data-close-dialog>Tilbake</button><button type="button" class="btn btn-primary" id="sales-confirm-vipps" data-initial-focus>Send ${esc(methodConfig.gateway_name || methodName(methodConfig))}!</button>`});
+        modal('Vipps-betaling',body,{kind:'confirm-vipps',footer:'<button type="button" class="btn btn-outline-secondary" data-close-dialog>Tilbake</button><button type="button" class="btn btn-primary" id="sales-confirm-vipps" data-initial-focus>Send '+esc(methodConfig.gateway_name||methodName(methodConfig))+'!</button>'});
          const phoneInput=$('#sales-vipps-phone'), phoneError=$('#sales-vipps-error');
          const setPhone=value=>{
            phoneInput.value=String(value||'').replace(/\D/g,'').slice(0,10);
@@ -449,7 +808,7 @@
         state.pending=null;clearInterval(state.deadlineTimer);state.paymentNotice='';state.completedOrder=order;
         closeDialog(true);
         if(payload.payment_method==='cash')$('#sales-tendered').value='';
-        setError('');await refreshCart();await refreshOrders();receipt(order);
+        setError('');await refreshCart();await refreshOrders();await showOrder(order.id);
       } else if(isTerminalPayment(order)) {
         state.pending=null;clearInterval(state.deadlineTimer);state.completedOrder=null;
         closeDialog(true);
@@ -591,7 +950,7 @@
       if(isPaidPayment(order)) {
         state.pending=null;clearInterval(state.deadlineTimer);state.paymentNotice='';state.completedOrder=order;
         if(state.dialog?.kind==='vipps-pending')closeDialog(true);
-        await refreshCart();await refreshOrders();receipt(order);
+         await refreshCart();await refreshOrders();await showOrder(order.id);
       } else if(isTerminalPayment(order)) {
         state.pending=null;clearInterval(state.deadlineTimer);state.completedOrder=null;
         if(state.dialog?.kind==='vipps-pending')closeDialog(true);
@@ -621,7 +980,7 @@
         state.cancelSubmitting=false;state.pending=null;clearInterval(state.deadlineTimer);
         state.completedOrder=r.order;state.paymentNotice='';
         if(state.dialog?.kind==='vipps-pending')closeDialog(true);
-        await refreshCart();await refreshOrders();receipt(r.order);
+         await refreshCart();await refreshOrders();await showOrder(r.order.id);
       } else if(isTerminalPayment(r.order)) {
         // The backend has definitively cancelled the provider payment and reopened
         // the original lines. Refresh before enabling checkout again.
@@ -670,6 +1029,7 @@
       renderMethods();renderProducts();renderAdminProducts();renderCart();
       if(state.pending)startPolling();
       refreshOrders();
+      loadRegisterState().catch(()=>{});
     } catch(e) {
       $('#sales-products').innerHTML=`<div class="sales-error sales-grid-empty" role="alert">${esc(e.message)} <button type="button" id="sales-bootstrap-retry">Prøv igjen</button></div>`;
       $('#sales-bootstrap-retry').addEventListener('click',bootstrap);
@@ -689,6 +1049,10 @@
     const order=event.target.closest('[data-order]');
     if(order)showOrder(order.dataset.order);
     if(event.target.closest('[data-close-dialog]'))closeDialog();
+  });
+  $('#sales-register-open').addEventListener('click',async()=>{
+    state.registerNotice='';
+    await openRegisterDialog();
   });
   $('#sales-search').addEventListener('input',renderProducts);
   $('#sales-admin-search').addEventListener('input',renderAdminProducts);

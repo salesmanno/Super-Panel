@@ -241,3 +241,136 @@ body.sales-fullscreen-open {overflow:hidden}
   .sales-dialog {position:absolute!important;inset:0!important;background:#fff!important}
   .sales-dialog-backdrop,.sales-dialog-head,.sales-dialog-foot {display:none!important}
 }
+
+/* Sales room refresh — compact counter layout, with the tenant's deep teal/navy identity. */
+.sales-admin {
+  --sale-ink:#18394b;
+  --sale-navy:#163b5c;
+  --sale-teal:#087f80;
+  --sale-teal-wash:#e7f3f1;
+  --sale-paper:#eff5f5;
+  --sale-line:#d4e2e2;
+  --sale-muted:#637b84;
+  --sale-coral:#d66b52;
+  padding:clamp(.7rem,1.35vw,1.15rem);
+  border:1px solid #d9e5e4;
+  border-radius:19px;
+  background:
+    radial-gradient(ellipse at 4% 0%,rgba(8,127,128,.055),transparent 31rem),
+    var(--sale-paper);
+}
+.sales-admin .sales-heading {margin-bottom:.75rem;padding:.18rem 0 .8rem}
+.sales-admin .sales-heading h2 {font-size:clamp(1.4rem,2vw,1.75rem);letter-spacing:-.045em}
+.sales-admin .sales-heading-actions {display:flex;align-items:center;gap:.5rem}
+.sales-admin .sales-heading-actions .btn {min-height:42px;border-radius:10px;font-size:.79rem;font-weight:700}
+.sales-admin .sales-register-status {display:inline-flex;align-items:center;margin-left:.25rem;padding:.19rem .45rem;border-radius:30px;background:#e8f2f1;color:#24696b;font-size:.67rem;font-weight:750}
+.sales-admin .sales-checkout-layout {grid-template-columns:minmax(0,1fr) minmax(330px,370px);gap:.8rem}
+.sales-admin .sales-catalog {padding:.75rem;background:#fcfefe;border-color:#d6e2e2;border-radius:14px;box-shadow:0 5px 18px rgba(23,56,71,.035)}
+.sales-admin .sales-catalog-tools {gap:.45rem;margin-bottom:.4rem}
+.sales-admin .sales-search input {min-height:43px;border-radius:9px;background:#f4f8f8;font-size:.84rem}
+.sales-admin .sales-scan input {font-size:.78rem}
+.sales-admin #sales-refresh-products {width:43px;height:43px}
+.sales-admin .sales-product-grid {grid-template-columns:repeat(auto-fill,minmax(142px,1fr));gap:.58rem}
+.sales-admin .sales-product-tile {border-color:#dce7e6;border-radius:10px;box-shadow:0 2px 6px rgba(26,58,69,.035)}
+.sales-admin .sales-product-tile:hover:not(:disabled) {transform:translateY(-2px);border-color:#68a7a4;box-shadow:0 9px 18px rgba(25,75,78,.105)}
+.sales-admin .sales-product-image {height:clamp(94px,10vw,132px);background:#eaf1f1}
+.sales-admin .sales-product-meta {gap:.12rem;padding:.52rem .6rem .58rem}
+.sales-admin .sales-product-meta strong {font-size:.82rem;line-height:1.22}
+.sales-admin .sales-product-price {font-size:.9rem}
+.sales-admin .sales-cart-panel {top:.75rem;border-radius:14px;border-color:#cfdddd;box-shadow:0 10px 27px rgba(19,56,70,.085)}
+.sales-admin .sales-cart-head {padding:.78rem .9rem;background:linear-gradient(105deg,#e4f0ef,#f7fafa)}
+.sales-admin .sales-cart-head h3 {font-size:1rem}
+.sales-admin .sales-period-caption {display:block;margin-top:.18rem;color:var(--sale-muted);font-size:.67rem;min-height:.85rem}
+.sales-admin .sales-cart-lines {padding:.18rem .9rem;max-height:32vh}
+.sales-admin .sales-cart-line {padding:.63rem 0;gap:.5rem}
+.sales-admin .sales-line-main strong {font-size:.8rem}
+.sales-admin .sales-line-main span,.sales-admin .sales-line-main small {font-size:.69rem}
+.sales-admin .sales-quantity button {width:36px;height:36px}
+.sales-admin .sales-remove {width:36px;height:36px}
+.sales-admin .sales-totals {padding:.55rem .9rem .62rem}
+.sales-admin .sales-grand-total strong {font-size:1.25rem}
+.sales-admin .sales-payment {padding:.75rem .9rem .9rem;background:#f5f9f8}
+.sales-admin .sales-payment .form-label {font-size:.73rem}
+.sales-admin .sales-method-buttons {gap:.4rem}
+.sales-admin .sales-method-button {min-height:48px;padding:.5rem .6rem;border-radius:9px;font-size:.75rem}
+.sales-admin #sales-tendered {min-height:45px}
+.sales-admin #sales-checkout {min-height:50px;border-radius:9px}
+.sales-admin .sales-cash-shortcuts button {min-height:36px}
+.sales-admin .sales-dialog-card {border-radius:16px;border-color:#cbdcdd;box-shadow:0 28px 85px rgba(14,41,54,.3)}
+.sales-admin .sales-dialog-head {padding:.9rem 1.1rem;background:linear-gradient(110deg,#e7f2f1,#f7fafa)}
+.sales-admin .sales-dialog-head h2 {font-size:1.12rem}
+.sales-admin .sales-dialog-body {padding:1rem 1.1rem}
+.sales-admin .sales-dialog-foot {gap:.45rem;padding:.7rem 1.1rem}
+.sales-admin .sales-dialog-foot .btn {min-height:40px;border-radius:9px;font-size:.79rem}
+.sales-admin .sales-register-overview {display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.9rem}
+.sales-admin .sales-register-overview>div {display:flex;flex-direction:column;gap:.22rem;padding:.75rem;border:1px solid var(--sale-line);border-radius:11px;background:#f5f9f8}
+.sales-admin .sales-register-overview strong {font-size:.9rem;overflow-wrap:anywhere}
+.sales-admin .sales-register-overview small,.sales-admin .sales-register-row small {font-size:.7rem;color:var(--sale-muted)}
+.sales-admin .sales-register-list {display:flex;flex-direction:column;gap:.4rem;margin:.65rem 0 .85rem}
+.sales-admin .sales-register-row {display:flex;justify-content:space-between;align-items:center;gap:.65rem;padding:.6rem .7rem;border:1px solid var(--sale-line);border-radius:10px;background:#fff}
+.sales-admin .sales-register-row>div:first-child {display:flex;flex-direction:column;gap:.1rem;min-width:0}
+.sales-admin .sales-register-row strong {font-size:.82rem;overflow-wrap:anywhere}
+.sales-admin .sales-register-row-actions {display:flex;align-items:center;gap:.35rem}
+.sales-admin .sales-register-row-actions .btn {white-space:nowrap}
+.sales-admin .sales-register-current {padding:.27rem .48rem;border-radius:20px;background:var(--sale-teal-wash);color:#17666a;font-size:.68rem;font-weight:750}
+.sales-admin .sales-register-create,.sales-admin .sales-register-open {display:flex;align-items:end;gap:.5rem;padding:.75rem 0;border-top:1px solid var(--sale-line)}
+.sales-admin .sales-register-create label,.sales-admin .sales-register-open label {display:flex;flex:1;flex-direction:column;gap:.28rem;font-size:.75rem;font-weight:700}
+.sales-admin .sales-register-create input,.sales-admin .sales-register-open input {min-height:40px;font-size:.82rem}
+.sales-admin .sales-register-create .btn,.sales-admin .sales-register-open .btn {min-height:40px;white-space:nowrap}
+.sales-admin .sales-register-actions {display:flex;flex-wrap:wrap;gap:.45rem;margin:.5rem 0 .75rem;padding-top:.7rem;border-top:1px solid var(--sale-line)}
+.sales-admin .sales-register-actions .btn {min-height:39px;border-radius:8px;font-size:.75rem}
+.sales-admin .sales-doc-row {display:flex;justify-content:space-between;gap:1rem;padding:.6rem 0;border-bottom:1px solid #e5eded;font-size:.8rem;text-transform:capitalize}
+.sales-admin .sales-doc-row strong {white-space:nowrap;font-variant-numeric:tabular-nums}
+.sales-admin .sales-doc-meta {display:flex;justify-content:space-between;gap:1rem;padding:.6rem 0;border-bottom:1px solid #e5eded;color:var(--sale-muted);font-size:.75rem}
+.sales-admin .sales-report-section {margin:.75rem 0}
+.sales-admin .sales-report-section h3 {margin:0;padding:.36rem 0;border-bottom:1px solid var(--sale-line);color:var(--sale-teal);font-size:.73rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.sales-admin .sales-report-section .sales-doc-row {text-transform:none}
+.sales-admin .sales-report-value {display:flex;flex-direction:column;align-items:flex-end;gap:.08rem;text-align:right}
+.sales-admin .sales-report-value small {color:var(--sale-muted);font-size:.68rem}
+.sales-admin .sales-tax-rate {padding:.3rem 0;border-bottom:1px solid #e8eeee}
+.sales-admin .sales-tax-rate>strong {display:block;padding:.3rem 0;color:var(--sale-ink);font-size:.76rem}
+.sales-admin .sales-tax-rate .sales-doc-row {padding:.35rem 0 .35rem .65rem;font-size:.75rem}
+.sales-admin .sales-copy-mark {display:inline-block;margin:.65rem 0 .2rem;padding:.28rem .65rem;border:1px solid #b7d2d1;border-radius:5px;color:#17686a;font-size:.72rem;font-weight:850;letter-spacing:.15em}
+.sales-admin .sales-print-notice {margin:.65rem 0;padding:.65rem .75rem;border:1px solid #c8dedd;border-radius:8px;background:#edf7f6;color:#275e61;font-size:.76rem}
+.sales-admin .sales-register-notice {margin:.55rem 0;padding:.6rem .7rem;border:1px solid #c3dfd3;border-radius:8px;background:#edf7f2;color:#28684f;font-size:.76rem;font-weight:650}
+.sales-admin .sales-fiscal-document .sales-receipt-top small {display:block}
+.sales-admin .sales-fiscal-document.is-return .sales-receipt-sums .total {color:#9a4841}
+.sales-admin .sales-fiscal-document .sales-receipt-top span {display:flex;flex-direction:column;gap:.15rem}
+.sales-admin .sales-fiscal-document .sales-receipt-top small {color:var(--sale-muted);font-size:.72rem}
+.sales-admin .sales-legacy-notice {display:flex;flex-direction:column;gap:.18rem;margin-bottom:.7rem;padding:.65rem .75rem;border:1px solid #ead7a8;border-radius:9px;background:#fff8e9;color:#725b2e;font-size:.76rem}
+.sales-admin .sales-legacy-notice strong {font-size:.8rem}
+.sales-admin .sales-receipt-email-form {margin-top:1rem;padding-top:.8rem;border-top:1px solid var(--sale-line)}
+@media(max-width:767.98px) {
+  .sales-admin {padding:.55rem;border-radius:13px}
+  .sales-admin .sales-heading {align-items:center;flex-wrap:wrap;gap:.45rem;padding:.12rem 0 .65rem}
+  .sales-admin .sales-heading p {font-size:.77rem}
+  .sales-admin .sales-heading-actions {gap:.32rem;flex:1 1 100%;justify-content:flex-end}
+  .sales-admin .sales-heading-actions .btn {min-height:38px;padding:.35rem .5rem;font-size:.7rem}
+  .sales-admin .sales-heading-actions #sales-register-open {max-width:145px;overflow:hidden}
+  .sales-admin .sales-checkout-layout {gap:.65rem;grid-template-columns:minmax(0,1fr)}
+  .sales-admin .sales-catalog {padding:.55rem;border-radius:11px}
+  .sales-admin .sales-product-grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem}
+  .sales-admin .sales-product-image {height:clamp(88px,27vw,125px)}
+  .sales-admin .sales-product-meta {padding:.48rem}
+  .sales-admin .sales-product-meta strong {font-size:.78rem}
+  .sales-admin .sales-cart-panel {border-radius:12px}
+  .sales-admin .sales-cart-lines {max-height:30vh}
+  .sales-admin .sales-cart-line {grid-template-columns:minmax(0,1fr) auto;gap:.45rem}
+  .sales-admin .sales-line-actions {grid-template-columns:auto auto;justify-items:end;width:auto}
+  .sales-admin .sales-line-actions>strong {grid-column:1/-1;grid-row:1}
+  .sales-admin .sales-line-actions .sales-remove {grid-column:2;grid-row:2}
+  .sales-admin .sales-register-overview {grid-template-columns:1fr}
+  .sales-admin .sales-register-create {display:grid;grid-template-columns:1fr 1fr}
+  .sales-admin .sales-register-create label:first-child {grid-column:1/-1}
+  .sales-admin .sales-register-create .btn {grid-column:1/-1}
+  .sales-admin .sales-register-open {align-items:stretch}
+  .sales-admin .sales-dialog {padding:.35rem}
+  .sales-admin .sales-dialog-card {max-height:95dvh;border-radius:14px 14px 9px 9px}
+}
+.sales-admin .d-none {display:none!important}
+@media print {
+  .sales-admin .sales-receipt {color:#18394b!important}
+  .sales-admin .sales-dialog-card {width:100%!important;max-height:none!important;border:0!important;box-shadow:none!important}
+  .sales-admin .sales-dialog-body {overflow:visible!important}
+  .sales-admin .sales-print-notice,.sales-admin .sales-error,.sales-admin .sales-register-notice {display:none!important}
+}

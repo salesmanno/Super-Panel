@@ -42,6 +42,8 @@ trait SalesReceipts {
         });
     }
     private function receiptEmailVariables(array $order): array {
+        $frozen=$order['register_document']['payload']??null;
+        if($frozen)$order=array_replace($order,$frozen['order'],['items'=>$frozen['items']]);
         $escape=static fn($value)=>htmlspecialchars((string)$value,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');
         $money=static fn($minor)=>number_format($minor/100,2,',',' ').' kr';
         $rows='';
@@ -52,7 +54,8 @@ trait SalesReceipts {
             $rows.='<tr><td style="padding:8px;border-bottom:1px solid #ddd">'.$escape($item['description']).$details.'</td><td style="padding:8px;text-align:center">'.$item['quantity'].'</td><td style="padding:8px;text-align:right">'.$money($item['total_minor']).'</td></tr>';
         }
         $table='<table style="width:100%;border-collapse:collapse"><thead><tr><th align="left">Vare</th><th>Antall</th><th align="right">Sum</th></tr></thead><tbody>'.$rows.'</tbody></table>';
-        $company=$this->q('SELECT name FROM tenant_companies WHERE id=?',[$this->company])->fetchColumn();
+        $company=$frozen?($frozen['seller']['name']??$frozen['seller']['company_name']??''):
+            $this->q('SELECT name FROM tenant_companies WHERE id=?',[$this->company])->fetchColumn();
         return ['company_name'=>$escape($company),'order_id'=>$escape($order['id']),'order_number'=>$escape($order['order_number']),
             'order_date'=>(new DateTimeImmutable($order['created_at']))->format('d.m.Y H:i'),
             'payment_method'=>$order['payment_method']==='cash'?'Kontant':'Vipps','payment_status'=>'Betalt',

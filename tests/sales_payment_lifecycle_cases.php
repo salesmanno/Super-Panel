@@ -21,6 +21,7 @@ $lifecycleProduct=$sales->saveProduct(['name'=>'Payment lifecycle','selling_pric
 $makeAttempt=function(?SalesLifecycleVipps $p=null)use($db,$lifecycleProduct,$newMutation):array{
     $p??=new SalesLifecycleVipps();
     $service=new SalesService($db,'a','admin','lifecycle-'.bin2hex(random_bytes(8)),$p);
+    salesFixtureRegister($service);
     $cart=$service->cartResult()['cart'];
     $cart=$service->mutateCart('add',['product_id'=>$lifecycleProduct['id'],'quantity'=>1,'form_data'=>[],
         'revision'=>$cart['revision'],'mutation_id'=>$newMutation()])['cart'];

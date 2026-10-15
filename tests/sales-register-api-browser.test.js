@@ -1,0 +1,64 @@
+// Real Sales markup/controller, disposable DB and actual Chromium.
+const fs=require('node:fs'),path=require('node:path');
+const chromiumFixture=require('./chromium_fixture');
+if(typeof WebSocket==='undefined') {
+  const r=require('node:child_process').spawnSync(process.execPath,['--experimental-websocket',__filename,...process.argv.slice(2)],{stdio:'inherit'});
+  process.exit(r.status??1);
+}
+const [port,temp]=process.argv.slice(2);
+const outputDir=path.join(temp,'register-browser');fs.mkdirSync(outputDir,{recursive:true});
+const checks=`(async()=>{
+  const $=s=>document.querySelector(s),calls=window.apiCalls;
+  const wait=async(fn,label)=>{for(let n=0;n<400;n++){const v=fn();if(v)return v;await new Promise(r=>setTimeout(r,20));}throw new Error(label+' '+$('#sales-dialog-body')?.textContent+' '+$('#sales-cart-error')?.textContent);};
+  const assert=(v,label)=>{if(!v)throw new Error(label);};
+  const callAfter=(action,n)=>wait(()=>calls.slice(n).find(c=>c.action===action),action);
+  await wait(()=>calls.some(c=>c.action==='register_state'),'Register ready');
+  const catalog=$('.sales-catalog').getBoundingClientRect(),cartPanel=$('.sales-cart-panel').getBoundingClientRect();
+  assert(catalog.width>innerWidth*.6,'Product catalogue has usable width, not hidden behind cart');
+  if(innerWidth<768)assert(cartPanel.top>=catalog.bottom-1,'Mobile catalogue and cart do not overlap');
+  $('#sales-register-open').click();
+  await wait(()=>$('#sales-register-create-form'),'Create form');
+  let form=$('#sales-register-create-form');
+  form.elements.name.value='Touchkasse '+innerWidth;form.elements.register_code.value='TOUCH'+innerWidth;
+  let before=calls.length;form.requestSubmit();let result=await callAfter('register_create',before);
+  assert(result.result.success,'Actual create API: '+JSON.stringify(result.result));
+  await wait(()=>document.querySelector('[data-register-activate]')&&!document.querySelector('[data-register-activate]').disabled,'Activate button ready');
+  before=calls.length;document.querySelector('[data-register-activate]').click();
+  result=await callAfter('register_activate',before);assert(result.result.success,'Activate');
+  await wait(()=>$('#sales-register-open-form')&&!$('#sales-register-open-form button[type="submit"]').disabled,'Open period form ready');
+  form=$('#sales-register-open-form');form.elements.opening_float.value='500.00';
+  before=calls.length;form.requestSubmit();result=await callAfter('register_open',before);
+  assert(result.result.success && result.result.period,'Real period opened');
+  await wait(()=>document.querySelector('[data-register-action="x_report"]')&&!document.querySelector('[data-register-action="x_report"]').disabled,'Period controls ready');
+  $('#sales-dialog [data-close-dialog]').click();
+  const tile=await wait(()=>document.querySelector('[data-product]:not([disabled])'),'Product tile');
+  before=calls.length;tile.click();result=await callAfter('add',before);assert(result.result.success,'Actual cart mutation');
+  $('#sales-tendered').value='200.00';$('#sales-tendered').dispatchEvent(new Event('input',{bubbles:true}));
+  await wait(()=>!$('#sales-checkout').disabled,'Checkout ready');
+  $('#sales-checkout').click();await wait(()=>$('#sales-confirm-cash'),'Cash confirm');
+  before=calls.length;$('#sales-confirm-cash').click();result=await callAfter('checkout',before);
+  assert(result.result.success && result.result.order.register_document,'Cash sale creates real frozen document');
+  await wait(()=>$('#sales-register-print'),'Fiscal receipt shown');
+  window.print=()=>{window.fixturePrintCalls=(window.fixturePrintCalls||0)+1;};
+  before=calls.length;$('#sales-register-print').click();result=await callAfter('register_print',before);
+  assert(result.result.success && result.result.print_attempt_recorded,'Print intent actually journalled');
+  await wait(()=>window.fixturePrintCalls===1,'Browser print requested after server confirmation');
+  before=calls.length;$('#sales-register-copy').click();result=await callAfter('register_copy',before);
+  assert(result.result.success && result.result.document.document_type==='copy','One marked copy created');
+  await wait(()=>$('#sales-dialog-title').textContent.toUpperCase().includes('KOPI'),'Copy marked');
+  assert(document.documentElement.scrollWidth<=innerWidth+1,'No horizontal overflow');
+  $('#sales-dialog [data-close-dialog]').click();
+  before=calls.length;$('#sales-next-customer').click();await callAfter('next_customer',before);
+  await wait(()=>$('#sales-next-customer').hidden,'Next customer ready');
+  $('#sales-register-open').click();
+  await wait(()=>document.querySelector('[data-register-action="x_report"]')&&!document.querySelector('[data-register-action="x_report"]').disabled,'Report controls ready');
+  document.querySelector('[data-register-action="x_report"]').click();
+  before=calls.length;$('#sales-register-report-submit').click();result=await callAfter('register_report',before);
+  assert(result.result.success && result.result.document.document_type==='x_report','Actual X report');
+  await wait(()=>$('#sales-dialog-body').textContent.includes('Kontant'),'Report payment breakdown');
+  assert(document.documentElement.scrollWidth<=innerWidth+1,'No overflow on report');
+  $('#sales-dialog [data-close-dialog]').click();
+  return {passed:true,width:innerWidth,reason:'Real point setup, activation/open, cash sale, fiscal receipt, print intent, copy, X report'};
+})()`;
+chromiumFixture('http://127.0.0.1:'+port+'/sales-e2e.html',checks,[390,1280],{outputDir})
+ .catch(e=>{console.error(e);process.exitCode=1;});

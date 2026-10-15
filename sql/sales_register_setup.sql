@@ -110,8 +110,7 @@ CREATE TABLE sales_register_documents (
     receipt_number BIGINT UNSIGNED DEFAULT NULL,
     training_number BIGINT UNSIGNED DEFAULT NULL,
     z_number BIGINT UNSIGNED DEFAULT NULL,
-    z_period_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin GENERATED ALWAYS AS
-        (CASE WHEN document_type = 'z_report' THEN period_id ELSE NULL END) STORED,
+    z_period_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,
     order_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,
     source_document_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,
     copy_of_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL
@@ -324,6 +323,7 @@ BEGIN
     SET NEW.receipt_number = NULL;
     SET NEW.training_number = NULL;
     SET NEW.z_number = NULL;
+    SET NEW.z_period_id = NULL;
     SET NEW.copy_of_id = NULL;
     IF NEW.document_type IN ('sale','return') THEN
         SET NEW.receipt_number = v_receipt + 1;
@@ -331,6 +331,7 @@ BEGIN
         SET NEW.training_number = v_training + 1;
     ELSEIF NEW.document_type = 'z_report' THEN
         SET NEW.z_number = v_z + 1;
+        SET NEW.z_period_id = NEW.period_id;
     ELSEIF NEW.document_type = 'copy' THEN
         IF NEW.source_document_id IS NULL THEN
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Copy needs an original document';

@@ -171,6 +171,8 @@ trait SalesProducts {
                 $this->q('INSERT INTO sales_products (`'.implode('`,`',$keys).'`) VALUES ('.implode(',',array_fill(0,count($keys),'?')).')',array_values($row));
             }
             if(!$old || !empty($changes)) {
+                $this->registerProductEvent($old?'product.changed':'product.created',
+                    ['product_id'=>$row['id'],'before'=>$old?array_intersect_key($old,$changes):null,'after'=>$old?$changes:$row]);
                 $catalogId=$this->q("SELECT id FROM output_products WHERE company_id=? AND product_id=? AND product_type IN('product','sales_item') ORDER BY id LIMIT 1",[$this->company,$row['id']])->fetchColumn();
                 if(!$catalogId)$catalogId=(new ProductCatalogService($this->db))->createProductEntry($this->company,'sales',$row['id'],
                     ['is_visible'=>(int)$row['is_active'],'is_public'=>(int)$row['is_active']===1 && $row['visibility']!=='kiosk'],$this->admin);
@@ -193,6 +195,7 @@ trait SalesProducts {
                 if(method_exists($this->db,'withExplicitAudit'))$this->db->withExplicitAudit($write);else$write();
                 tenantAuditChange($this->db,$this->company,'sales','sales.stock_adjusted','sales_products',$old['id'],$old['name'],
                     ['stock_quantity'=>$expected],['stock_quantity'=>$quantity,'stock_adjustment_reason'=>$reason],[],$this->actor);
+                $this->registerProductEvent('product.stock_adjusted',['product_id'=>$old['id'],'before'=>$expected,'after'=>$quantity,'reason'=>$reason]);
             }
             return ['product'=>$this->productView($this->product($old['id']))];
         });

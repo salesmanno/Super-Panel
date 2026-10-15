@@ -4,6 +4,7 @@ $root=$argv[1];$temp=$argv[2];
 require_once $root.'/includes/AuditedPDO.php';
 require_once $root.'/includes/SalesService.php';
 require_once $root.'/includes/SalesCode128.php';
+require_once $root.'/tests/sales_register_fixture.php';
 function salesAssert(bool $condition,string $message): void {if(!$condition)throw new RuntimeException($message);}
 function salesReject(callable $fn,string $message): void {
     try{$fn();}catch(Throwable $e){return;}throw new RuntimeException($message);
@@ -19,6 +20,8 @@ $source=str_replace("require_once __DIR__.'/../config/database.php';","require_o
 $source=str_replace("require_once __DIR__.'/../includes/SalesService.php';","require_once ".var_export($root.'/includes/SalesService.php',true).';',$source);
 $source=str_replace('$service=new SalesService(getDBConnection(),(string)$_SESSION[\'company_id\'],(string)$_SESSION[\'tenant_admin_id\'],$cartToken);',
     'require_once '.var_export($root.'/tests/sales_http_vipps_fixture.php',true).'; $service=new SalesService(getDBConnection(),(string)$_SESSION[\'company_id\'],(string)$_SESSION[\'tenant_admin_id\'],$cartToken,new SalesHttpVippsFixture(__DIR__));',$source);
+if(getenv('SALES_REGISTER_ONLY')!=='1')$source=str_replace('$service->adoptSessionCart($legacyCartToken);',
+    '$service->adoptSessionCart($legacyCartToken); require_once '.var_export($root.'/tests/sales_register_fixture.php',true).'; salesFixtureRegister($service);',$source);
 $source=str_replace('session_start();',"session_start(); \$fixtureB=str_starts_with(session_id(),'salesfixture-e2e-b'); \$_SESSION=['tenant_admin_id'=>\$fixtureB?'admin-b':'admin','company_id'=>\$fixtureB?'b':'a','entity_form_csrf'=>'fixture-token'];",$source);
 // Use the real shared CSRF token's key, discovered below rather than bypassing it.
 preg_match("/\\\$_SESSION\\['([^']+)'\\].*random_bytes/",file_get_contents($root.'/includes/entity_form_fields.php'),$csrfMatch);
@@ -30,7 +33,7 @@ foreach(['sales-admin.js','sales-admin.css','entity-form-fields.js'] as $asset)c
 ob_start();include $root.'/modules/sales_content.php';$markup=ob_get_clean();
 $baseStyle='*{box-sizing:border-box}body{margin:8px}button,input,select,textarea{font:inherit}.form-control,.form-select{display:block;width:100%;min-height:38px;padding:.45rem;border:1px solid #cbd9e2;border-radius:8px}.input-group{display:flex}.input-group input{min-width:0}.btn{padding:.45rem .7rem;border:1px solid #cbd9e2;border-radius:8px}.btn-primary{color:white;background:#163b5c}.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}';
 $captureScript="document.cookie='PHPSESSID=salesfixture-e2e-'+(new URLSearchParams(location.search).get('company')==='b'?'b':'a')+'; path=/'; window.apiCalls=[]; const nativeFetch=window.fetch; window.fetch=async function(url,opts){const response=await nativeFetch(url,opts); if(String(url).includes('/api/sales.php')){window.apiCalls.push({action:new URL(url,location.href).searchParams.get('action'),payload:opts?.body?JSON.parse(opts.body):null,status:response.status,result:await response.clone().json()});}return response;};";
-file_put_contents($temp.'/sales-e2e.html','<!doctype html><html lang="nb"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'.$baseStyle.'</style><script>'.$captureScript.'</script></head><body>'.$markup.'</body></html>');
+file_put_contents($temp.'/sales-e2e.html','<!doctype html><html lang="nb"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:system-ui,sans-serif}'.$baseStyle.'</style><script>'.$captureScript.'</script></head><body>'.$markup.'</body></html>');
 $process=proc_open(['php','-d','session.save_path='.$temp,'-S','127.0.0.1:'.$port,'-t',$temp],
     [0=>['pipe','r'],1=>['file',$temp.'/sales-http.log','a'],2=>['file',$temp.'/sales-http.log','a']],$pipes);
 fclose($pipes[0]);
@@ -97,7 +100,13 @@ try {
             return ['code'=>200,'data'=>$this->payments[$ref]];
         }
     }
+    if(getenv('SALES_REGISTER_ONLY')==='1') {
+        require $root.'/tests/sales_register_lifecycle_cases.php';
+        return;
+    }
+    salesInstallRegisterFixture($setup,$root);
     $provider=new SalesFixtureVipps();$sales=new SalesService($db,'a','admin','fixture-cart',$provider);
+    salesFixtureRegister($sales);
     // Sales must use the configuration's type, not its user-facing gateway
     // label. Payment credentials live in this configuration, not the environment.
     $setup->exec("UPDATE economy_configuration_data SET gateway_type=' VIPPS ' WHERE id='cfg-a'");
@@ -124,6 +133,7 @@ try {
     salesAssert($same['barcode']===$product['barcode'],'No regeneration on save');
     $setup->exec("UPDATE economy_configuration_data SET client_secret_encrypted=NULL WHERE id='cfg-a'");
     $blocked=new SalesService($db,'a','admin','blocked-cart',new SalesVipps());
+    salesFixtureRegister($blocked);
     salesAssert($blocked->paymentMethods()['methods'][0]['available'],'Cash default even when global cash=0 and Vipps configuration is incomplete');
     salesReject(fn()=>$blocked->saveProduct($base+['visibility'=>'online']),'Online product blocked without usable database configuration');
     $setup->exec("UPDATE economy_configuration_data SET client_id='fixture-db-client',client_secret_encrypted='fixture-db-secret',subscription_key='fixture-db-subscription',merchant_serial_number='fixture-db-merchant' WHERE id='cfg-a'");
@@ -138,6 +148,7 @@ try {
     }
     $databaseProvider=new SalesFixtureDatabaseVipps();
     $databaseService=new SalesService($db,'a','admin','fixture-database-keys',$databaseProvider);
+    salesFixtureRegister($databaseService);
     $databaseMethods=array_column($databaseService->paymentMethods()['methods'],null,'id');
     salesAssert($databaseMethods['gateway-a']['available'],'Actual loader accepts selected database configuration without environment payment keys');
     $config=$setup->query("SELECT *,id AS configuration_id FROM economy_configuration_data WHERE id='cfg-a'")->fetch(PDO::FETCH_ASSOC);

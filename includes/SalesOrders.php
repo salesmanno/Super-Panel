@@ -60,6 +60,8 @@ trait SalesOrders {
                 'discount_percent'=>$item['discount_percent'],'tax_rate'=>$item['tax_rate'],'tax_minor'=>SalesMoney::minor($item['tax_amount']),
                 'subtotal_minor'=>SalesMoney::minor($item['line_subtotal']),'total_minor'=>SalesMoney::minor($item['line_total'])];
         }
+        $view['register_document']=!empty($control['register_binding'])?$this->registerStore()->orderDocument($id):null;
+        if($row['status']==='refunded')$view['payment_status']='refunded';
         return $view+$this->receiptEmailCapability();
     }
     public function orders(): array {
@@ -95,6 +97,7 @@ trait SalesOrders {
                 throw new SalesConflict('Kurven er endret. Kontroller oppdatert kurv før betaling.');
             $lines=$this->cartRows($cart['id'],true);
             if(!$lines)throw new InvalidArgumentException('Handlekurven er tom');
+            $binding=$this->checkoutRegister($cart);
             $method=$data['payment_method']??'cash';
             if(!in_array($method,['cash','vipps'],true))throw new InvalidArgumentException('Betalingsmetoden støttes ikke i kassen');
             $config=$method==='vipps'?$this->paymentConfiguration(self::text($data['gateway_id']??'',36)):null;
@@ -136,6 +139,7 @@ trait SalesOrders {
                 [$id,$this->company,$number,$phone?:null,'kiosk',$method==='cash'?'paid':'pending',$config['id']??null,'cart:'.$cart['id'],
                     SalesMoney::decimal($net),SalesMoney::decimal($tax),SalesMoney::decimal($total),'NOK',$this->admin]);
             $control=['version'=>1,'cart_id'=>$cart['id'],'reference'=>'sales-'.$id,'configuration_id'=>$config['configuration_id']??null,
+                'register_binding'=>['register_id'=>$binding['register_id'],'period_id'=>$binding['period_id']],
                 'account_binding'=>$config?$this->provider->binding($config,$this->company):null,'decision'=>null,
                 'provider_state'=>$method==='cash'?'CASH_CONFIRMED':'PREPARED','init_state'=>'prepared',
                 'expires_at'=>$method==='vipps'?time()+80:null,
@@ -156,6 +160,11 @@ trait SalesOrders {
                     'metadata'=>['sales'=>$control+['product_id'=>$p['id'],'reserved_quantity'=>$snapshot['quantity']],'tax_minor'=>$m['tax_minor']]]);
                 if(empty($result['success']))throw new RuntimeException('Regnskapsføringen feilet. Salget er ikke fullført.');
             }
+            $control['register_snapshot']=$this->registerSaleSnapshot($binding,$this->orderView($id));
+            $this->writeControl($id,['register_snapshot'=>$control['register_snapshot']]);
+            $this->registerStore()->event($binding['register_id'],$binding['period_id'],'order.prepared','order:'.$id,
+                ['order_id'=>$id,'total_minor'=>$total,'method'=>$method,'cart_id'=>$cart['id']],$id);
+            if($method==='cash')$this->registerPaidOrder($id,$control);
             $meta['checkout_revision']=$meta['revision'];
             $this->q("UPDATE sales_cart SET status='converted',converted_order_id=?,converted_at=NOW(),notes=?,updated_at=NOW() WHERE id=? AND company_id=?",
                 [$id,self::json($meta),$cart['id'],$this->company]);
@@ -288,9 +297,14 @@ trait SalesOrders {
             if($order['status']!=='pending')return $this->orderView($id);
             $control=$this->control($this->orderLedger($id,true));
             if($captured===SalesMoney::minor($order['total']) && $state==='CAPTURED') {
+                $this->registerPaidOrder($id,array_replace($control,['provider_state'=>$state]));
                 $this->q("UPDATE sales_orders SET status='paid',updated_at=NOW() WHERE id=? AND company_id=?",[$id,$this->company]);
                 $this->writeControl($id,['provider_state'=>$state,'init_state'=>'created','payment_error'=>null],'completed');
             } elseif($cancelled && $captured===0) {
+                if(!empty($control['register_binding'])) {
+                    $b=$control['register_binding'];
+                    $this->registerStore()->event($b['register_id'],$b['period_id'],'payment.cancelled','cancel:'.$id,['state'=>$state,'order_id'=>$id],$id);
+                }
                 // The order row lock makes release terminal and exactly-once.
                 foreach($this->orderItems($id) as $item) {
                     $product=$this->product($item['product_id'],true);
