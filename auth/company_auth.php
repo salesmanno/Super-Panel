@@ -44,20 +44,10 @@ try {
             $db->prepare('SELECT id FROM tenant_companies WHERE id=? LOCK IN SHARE MODE')->execute([$a['company_id']]);
             if (!companyLoginValidAccount(companyLoginAccount($db,$id),false)) throw new DomainException('Tilgangen er endret.',401);
         }
+        // Only after password/account revalidation, replace all previous
+        // sessions atomically. The account lock prevents old writes racing in.
         $db->prepare('UPDATE tenant_admin_sessions SET is_active=0,logout_at=NOW()
-            WHERE tenant_admin_id=? AND is_active=1 AND last_activity<DATE_SUB(NOW(),INTERVAL 30 MINUTE)')->execute([$id]);
-        $q=$db->prepare('SELECT session_id FROM tenant_admin_sessions WHERE tenant_admin_id=? AND is_active=1 FOR UPDATE');
-        $q->execute([$id]);
-        $active=$q->fetchAll(PDO::FETCH_COLUMN);
-        // A choice abandoned in this browser may be restarted; never take over another session.
-        $ownPending=companyLoginIsPending() && (string)$_SESSION['verified_company_user']===$id;
-        foreach ($active as $sid) {
-            if (!$ownPending || !hash_equals(session_id(),(string)$sid)) {
-                $db->rollBack(); companyLoginFail('already_logged_in');
-            }
-        }
-        if ($ownPending) $db->prepare('UPDATE tenant_admin_sessions SET is_active=0,logout_at=NOW()
-            WHERE tenant_admin_id=? AND session_id=?')->execute([$id,session_id()]);
+            WHERE tenant_admin_id=? AND is_active=1')->execute([$id]);
         $db->prepare('UPDATE tenant_admins SET last_login=NOW()'.($pending?',company_id=NULL':'').' WHERE id=?')->execute([$id]);
         session_regenerate_id(true);
         $_SESSION=[];

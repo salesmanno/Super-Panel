@@ -6,14 +6,15 @@ function companyLoginIsPending(): bool {
     return !empty($_SESSION['verified_company_user']) && empty($_SESSION['tenant_admin_id']);
 }
 function companyLoginContext(): string { return (string) ($_SESSION['company_context'] ?? ''); }
+const COMPANY_LOGIN_IDLE_SECONDS = 1800;
 
-function companyLoginClearSession(?PDO $db = null): void {
+function companyLoginClearSession(?PDO $db = null, bool $expireCookie = true): void {
     $adminId = (string) ($_SESSION['tenant_admin_id'] ?? $_SESSION['verified_company_user'] ?? '');
-    if ($db && $adminId !== '') {
+    if ($db && session_id() !== '') {
         try {
             $db->prepare('UPDATE tenant_admin_sessions SET is_active=0,logout_at=NOW()
-                WHERE tenant_admin_id=? AND session_id=? AND is_active=1')
-                ->execute([$adminId, session_id()]);
+                WHERE session_id=? AND is_active=1'.($adminId!==''?' AND tenant_admin_id=?':''))
+                ->execute($adminId!==''?[session_id(),$adminId]:[session_id()]);
         } catch (Throwable $cleanupError) {
             error_log('Unable to retire invalid company session.');
         }
@@ -21,7 +22,8 @@ function companyLoginClearSession(?PDO $db = null): void {
     $_SESSION = [];
     if (session_status() !== PHP_SESSION_ACTIVE) return;
 
-    if (ini_get('session.use_cookies')) {
+    // An old API response must not delete a newer login's shared cookie.
+    if ($expireCookie && ini_get('session.use_cookies')) {
         $params = session_get_cookie_params();
         $cookie = [
             'expires' => time() - 42000,
@@ -68,17 +70,33 @@ function companyLoginRequire(PDO $db, bool $pending=false): array {
         || (isset($_SESSION['db_type']) && $_SESSION['db_type'] !== 'mysql')) {
         throw new DomainException('Økten din har utløpt. Logg inn på nytt.',401);
     }
-    $q=$db->prepare('SELECT 1 FROM tenant_admin_sessions WHERE tenant_admin_id=? AND session_id=?
-        AND is_active=1 AND last_activity >= DATE_SUB(NOW(), INTERVAL 30 MINUTE)');
+    $db->prepare('UPDATE tenant_admin_sessions SET is_active=0,logout_at=NOW()
+        WHERE tenant_admin_id=? AND session_id=? AND is_active=1
+        AND last_activity<=DATE_SUB(NOW(),INTERVAL '.COMPANY_LOGIN_IDLE_SECONDS.' SECOND)')
+        ->execute([$id,session_id()]);
+    $q=$db->prepare('SELECT '.COMPANY_LOGIN_IDLE_SECONDS.'-TIMESTAMPDIFF(SECOND,last_activity,NOW())
+        FROM tenant_admin_sessions WHERE tenant_admin_id=? AND session_id=? AND is_active=1');
     $q->execute([$id,session_id()]);
+    $remaining=$q->fetchColumn();
     $a=companyLoginAccount($db,$id);
-    if (!$q->fetchColumn() || !companyLoginValidAccount($a,$pending)
+    if ($remaining===false || (int)$remaining<=0 || !companyLoginValidAccount($a,$pending)
         || (!$pending && ((string)$a['company_id'] !== (string)($_SESSION['company_id']??'')
             || (isset($_SESSION['company_auth_version'])
                 && (string)($a['tenant_staff_id']??'') !== (string)($_SESSION['tenant_staff_id']??''))))) {
         throw new DomainException('Tilgangen er endret eller økten har utløpt. Logg inn på nytt.',401);
     }
+    $_SESSION['company_idle_expires_at']=time()+min(COMPANY_LOGIN_IDLE_SECONDS,(int)$remaining);
     return $a;
+}
+
+/** Only navigation or genuine client activity extends idle time, never polling. */
+function companyLoginTouch(PDO $db): void {
+    $id=(string)($_SESSION['tenant_admin_id']??$_SESSION['verified_company_user']??'');
+    $db->prepare('UPDATE tenant_admin_sessions SET last_activity=NOW()
+        WHERE tenant_admin_id=? AND session_id=? AND is_active=1
+        AND last_activity>DATE_SUB(NOW(),INTERVAL '.COMPANY_LOGIN_IDLE_SECONDS.' SECOND)')
+        ->execute([$id,session_id()]);
+    companyLoginRequire($db,companyLoginIsPending());
 }
 
 function companyLoginComplete(array $a): void {
@@ -119,7 +137,7 @@ function companyLoginGuardConnection(PDO $db): void {
         || (empty($_SESSION['tenant_admin_id']) && !companyLoginIsPending())) return;
     $path=(string)(parse_url($_SERVER['REQUEST_URI']??'',PHP_URL_PATH)??'');
     // Password login and logout manage the state themselves (including expired choice).
-    if (in_array($path,['/auth/company_auth.php','/auth/logout.php'],true)) return;
+    if (in_array($path,['/auth/company_auth.php','/auth/logout.php','/api/company_session.php'],true)) return;
     $sessionValidated = false;
     $pending = companyLoginIsPending();
     try {
@@ -138,19 +156,21 @@ function companyLoginGuardConnection(PDO $db): void {
             header('Cache-Control: no-store');
             $_SESSION['admin_role']=companyLoginAccount($db,(string)$_SESSION['tenant_admin_id'])['role'];
             companyLoginRequireRouteModule($db,$path);
-            if (!str_starts_with($path,'/api/')) companyLoginInjectContext();
         }
+        if (!str_starts_with($path,'/api/')) companyLoginInjectContext();
     } catch (DomainException $e) {
         http_response_code($e->getCode()?:401);
         header('Cache-Control: no-store');
         // A denied route is not an invalid login: keep verified company choices
         // and valid sessions rejected only for module/context permissions.
         if (!$sessionValidated && $e->getCode() === 401) {
-            companyLoginClearSession($db);
+            companyLoginClearSession($db,!str_starts_with($path,'/api/'));
         }
         if (str_starts_with($path,'/api/')) {
             header('Content-Type: application/json');
-            echo json_encode(['success'=>false,'message'=>$e->getMessage(),'error'=>'session_expired']);
+            echo json_encode(['success'=>false,'message'=>$e->getMessage(),
+                'error'=>!$sessionValidated && $e->getCode()===401?'session_expired':
+                    ($e->getCode()===409?'context_changed':'access_denied')]);
         } elseif (!$sessionValidated && $e->getCode() === 409) {
             // Retrying through the index would hit the same busy lock repeatedly.
             header('Content-Type: text/plain; charset=utf-8');
@@ -212,7 +232,12 @@ function companyLoginInjectContext(): void {
     static $started=false;
     if ($started) return;
     $started=true;
-    $context=htmlspecialchars(companyLoginContext(),ENT_QUOTES,'UTF-8');
+    $pending=companyLoginIsPending();
+    $context=htmlspecialchars($pending?(string)($_SESSION['company_choice_csrf']??''):companyLoginContext(),ENT_QUOTES,'UTF-8');
+    $scripts=$pending?'':'<script src="/assets/company_context.js" data-context="'.$context.'"></script>';
+    $remaining=max(0,(int)($_SESSION['company_idle_expires_at']??time())-time());
+    $version=filemtime(__DIR__.'/../assets/company_session.js');
+    $scripts.='<script src="/assets/company_session.js?v='.$version.'" data-context="'.$context.'" data-expires-in="'.$remaining.'" defer></script>';
     ob_start(static fn(string $html): string => preg_replace('/<head(\s[^>]*)?>/i',
-        '$0<script src="/assets/company_context.js" data-context="'.$context.'"></script>',$html,1));
+        '$0'.$scripts,$html,1));
 }

@@ -20,7 +20,6 @@ try {
     if (isset($db) && $db && $db->inTransaction()) $db->rollBack();
     error_log('Logout registry update failed; exception='.get_class($e));
 }
-$_SESSION=[];
-session_destroy();
+companyLoginClearSession($db??null);
 header('Location: /index.php?message=logged_out');
 exit;

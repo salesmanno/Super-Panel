@@ -27,7 +27,7 @@ try {
         $_SESSION['admin_last_name'] = $admin['last_name'] ?? '';
         $_SESSION['admin_name'] = trim(($admin['first_name'] ?? '') . ' ' . ($admin['last_name'] ?? '')) ?: $admin['username'];
         $_SESSION['admin_role'] = $admin['role'];
-        updateSessionActivity(session_id());
+        companyLoginTouch($db);
         $_SESSION['company_name'] = $admin['company_name'];
         $_SESSION['subdomain'] = $admin['subdomain'];
         
@@ -40,7 +40,12 @@ try {
         echo json_encode(['success' => false, 'error' => 'Admin not found']);
     }
     
-} catch (Exception $e) {
-    error_log("Refresh session error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'error' => 'System error']);
+} catch (DomainException $e) {
+    companyLoginClearSession($db??null,false);
+    http_response_code(401);
+    echo json_encode(['success'=>false,'error'=>'session_expired','message'=>'Økten din har utløpt. Logg inn på nytt.']);
+} catch (Throwable $e) {
+    error_log('Refresh session failed; exception='.get_class($e));
+    http_response_code(503);
+    echo json_encode(['success'=>false,'error'=>'System error']);
 }
