@@ -109,6 +109,13 @@ trait SalesCart {
                 if(!hash_equals($signature,$meta['mutations'][$mutation]))throw new SalesConflict('Handlingsreferansen er allerede brukt');
                 return ['cart'=>$this->cartView($cart)];
             }
+            // Only full VAT-registered mode adds the start-register barrier.
+            // Payment reconciliation is deliberately outside this mutation path.
+            if($this->taxRegistered) {
+                $register=$meta['register_id']??null;
+                if(!$register)throw new SalesConflict('Start kassen før du legger til eller endrer varer.');
+                $this->registerStore()->openContext($register);
+            }
             if(!is_string($data['revision']??null) || !hash_equals($meta['revision'],$data['revision']))
                 throw new SalesConflict('Kurven er endret i en annen fane. Last inn oppdatert kurv.');
             $rows=$this->cartRows($cart['id'],true);

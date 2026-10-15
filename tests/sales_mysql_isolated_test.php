@@ -20,7 +20,7 @@ $source=str_replace("require_once __DIR__.'/../config/database.php';","require_o
 $source=str_replace("require_once __DIR__.'/../includes/SalesService.php';","require_once ".var_export($root.'/includes/SalesService.php',true).';',$source);
 $source=str_replace('$service=new SalesService(getDBConnection(),(string)$_SESSION[\'company_id\'],(string)$_SESSION[\'tenant_admin_id\'],$cartToken);',
     'require_once '.var_export($root.'/tests/sales_http_vipps_fixture.php',true).'; $service=new SalesService(getDBConnection(),(string)$_SESSION[\'company_id\'],(string)$_SESSION[\'tenant_admin_id\'],$cartToken,new SalesHttpVippsFixture(__DIR__));',$source);
-if(getenv('SALES_REGISTER_ONLY')!=='1')$source=str_replace('$service->adoptSessionCart($legacyCartToken);',
+if(!in_array(getenv('SALES_REGISTER_ONLY'),['1','dashboard'],true))$source=str_replace('$service->adoptSessionCart($legacyCartToken);',
     '$service->adoptSessionCart($legacyCartToken); require_once '.var_export($root.'/tests/sales_register_fixture.php',true).'; salesFixtureRegister($service);',$source);
 $source=str_replace('session_start();',"session_start(); \$fixtureB=str_starts_with(session_id(),'salesfixture-e2e-b'); \$_SESSION=['tenant_admin_id'=>\$fixtureB?'admin-b':'admin','company_id'=>\$fixtureB?'b':'a','entity_form_csrf'=>'fixture-token'];",$source);
 // Use the real shared CSRF token's key, discovered below rather than bypassing it.
@@ -103,6 +103,10 @@ try {
     }
     if(getenv('SALES_REGISTER_ONLY')==='reset') {
         require $root.'/tests/sales_test_reset_cases.php';
+        return;
+    }
+    if(getenv('SALES_REGISTER_ONLY')==='dashboard') {
+        require $root.'/tests/sales_dashboard_cases.php';
         return;
     }
     if(getenv('SALES_REGISTER_ONLY')==='browser') {

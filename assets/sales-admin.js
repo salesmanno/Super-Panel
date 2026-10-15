@@ -10,9 +10,40 @@
   };
   const money = minor => new Intl.NumberFormat('nb-NO', {style:'currency',currency:'NOK'}).format((Number(minor) || 0) / 100);
   const date = value => value ? new Intl.DateTimeFormat('nb-NO',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)) : '–';
-  const state = {csrf:'',taxRegistered:0,products:[],methods:[],methodError:'',cart:null,pending:null,selectedMethod:'cash',selectedGatewayId:null,mutationQueue:Promise.resolve(),busy:false,orders:[],pollTimer:0,pollAbort:null,statusRequest:false,cancelSubmitting:false,checkoutSubmitting:false,pollBackoff:6000,dialog:null,lastFocus:null,productController:null,checkoutUncertain:false,cartRecovery:null,cartRecoveryBusy:false,paymentNotice:'',deadlineTimer:0,serverOffset:0,fullscreenPlaceholder:null,fullscreenFallback:false,registerState:null,registerError:'',registerNotice:'',registerBusy:false,registerPrintedDocuments:new Set(),registerMutationKeys:new Map(),registerPrintBusy:false,registerPrintNotices:{}};
+  const state = {csrf:'',taxRegistered:0,cashierName:'',products:[],methods:[],methodError:'',cart:null,pending:null,selectedMethod:'cash',selectedGatewayId:null,mutationQueue:Promise.resolve(),busy:false,orders:[],pollTimer:0,pollAbort:null,statusRequest:false,cancelSubmitting:false,checkoutSubmitting:false,pollBackoff:6000,dialog:null,lastFocus:null,productController:null,checkoutUncertain:false,cartRecovery:null,cartRecoveryBusy:false,paymentNotice:'',deadlineTimer:0,serverOffset:0,fullscreenPlaceholder:null,fullscreenFallback:false,registerState:null,registerError:'',registerNotice:'',registerBusy:false,registerPrintedDocuments:new Set(),registerMutationKeys:new Map(),registerPrintBusy:false,registerPrintNotices:{},registerDocuments:[],registerDocumentsLoading:false,registerDocumentsRequest:0,registerDocumentsRegisterId:null,registerDocumentsNext:null,productNotice:''};
   const paymentLocked = () => !!(state.pending || state.cartRecovery || state.checkoutUncertain || state.checkoutSubmitting || state.cancelSubmitting);
   const cartLocked = () => paymentLocked() || state.busy;
+  function taxRegisterReady() {
+    if(Number(state.taxRegistered)!==1)return true;
+    if(state.registerError)return false;
+    if(!state.registerState)return false;
+    const snapshot=state.registerState;
+    const selected=snapshot.registers?.find(r=>String(r.id)===String(snapshot.selected_register_id));
+    return !snapshot.readiness_error && !!snapshot.period &&
+      String(snapshot.period.status||'open').toLowerCase()==='open' &&
+      String(selected?.status||'').toLowerCase()==='active';
+  }
+  function taxRegisterReason() {
+    const snapshot=state.registerState;
+    if(state.registerError)return state.registerError;
+    if(!snapshot)return 'Kassepunktstatus er ikke tilgjengelig. Åpne Kassepunkt og kontroller oppsettet før varesalg.';
+    if(snapshot?.readiness_error)return snapshot.readiness_error;
+    if(!snapshot?.registers?.length)return 'Opprett et kassepunkt før du registrerer varesalg.';
+    const selected=snapshot.registers.find(r=>String(r.id)===String(snapshot.selected_register_id));
+    if(!selected)return 'Velg et kassapunkt før du registrerer varesalg.';
+    if(String(selected.status||'').toLowerCase()==='draft')return 'Kassapunktet er et utkast. Aktiver det i Kassepunkt før du starter salget.';
+    if(String(selected.status||'').toLowerCase()!=='active')return 'Valgt kassapunkt er ikke aktivt. Velg et aktivt kassapunkt.';
+    if(!snapshot.period)return 'Åpne en kassaperiode før du legger varer i handlekurven.';
+    if(String(snapshot.period.status||'open').toLowerCase()!=='open')return 'Kassaperioden er ikke åpen. Avklar perioden i Kassepunkt før du fortsetter.';
+    return 'Kasseoppsettet er ikke klart. Kontroller Kassepunkt.';
+  }
+  function renderRegisterGate() {
+    const box=$('#sales-register-gate');
+    if(!box)return;
+    const gated=Number(state.taxRegistered)===1 && !taxRegisterReady() && !state.pending && !state.cartRecovery;
+    box.hidden=!gated;
+    if(gated)box.innerHTML=`<strong>Kasse ikke klar</strong><span>${esc(taxRegisterReason())}</span><button class="btn btn-sm btn-outline-primary" type="button" id="sales-gate-register">Åpne Kassepunkt</button>`;
+  }
   const methodName = m => m?.method_type === 'cash' ? 'Kontant' : (m?.method_name || 'Betaling');
   root.addEventListener('error',event=>{
     const image=event.target;
@@ -80,6 +111,7 @@
     if (!methods.length) $('#sales-method-note').textContent='Ingen aktiv betalingsmåte er konfigurert.';
   }
   function renderProducts() {
+    renderRegisterGate();
     const term = ($('#sales-search').value || '').trim().toLocaleLowerCase('nb');
     const products = state.products.filter(p => Number(p.is_active) === 1 && ['kiosk','both'].includes(p.visibility || 'kiosk') &&
       (!term || `${p.name} ${p.sku || ''} ${p.barcode || ''}`.toLocaleLowerCase('nb').includes(term)));
@@ -92,11 +124,12 @@
       const img = safeUrl(p.img_product); const qty = Number(p.stock_quantity);
       const unavailable = Number(p.is_active) !== 1 || qty <= 0;
       const stock = !Number.isFinite(qty) ? '' : qty <= 0 ? 'Utsolgt' : qty <= Number(p.reorder_level || p.low_stock_threeshold || 0) ? `Lav beholdning · ${qty}` : `${qty} på lager`;
-      return `<button type="button" class="sales-product-tile${unavailable?' is-unavailable':''}" data-product="${esc(p.id)}" ${unavailable||paymentLocked()?'disabled':''} aria-label="${esc(p.name)}, ${esc(money(p.price_minor))}${stock?', '+esc(stock):''}">
+      return `<button type="button" class="sales-product-tile${unavailable?' is-unavailable':''}" data-product="${esc(p.id)}" ${unavailable||paymentLocked()||!taxRegisterReady()?'disabled':''} aria-label="${esc(p.name)}, ${esc(money(p.price_minor))}${stock?', '+esc(stock):''}">
         <span class="sales-product-image">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : '<span class="sales-product-placeholder" aria-hidden="true"><i class="bi bi-box-seam"></i></span>'}${unavailable?'<span class="sales-stock-overlay">Utsolgt</span>':''}</span>
         <span class="sales-product-meta"><strong>${esc(p.name)}</strong><span class="sales-product-price">${esc(money(p.price_minor))}</span>${stock ? `<small class="${qty <= 0?'stock-out':qty <= Number(p.reorder_level || p.low_stock_threeshold || 0)?'stock-low':''}">${esc(stock)}</small>` : ''}</span>
       </button>`;
     }).join('');
+    renderRegisterGate();
   }
   function renderCart() {
     const cart = state.cart || emptyCart(), items = cart.items || [];
@@ -113,6 +146,7 @@
     const pending = !!state.pending;
     $('#sales-open-recovered-receipt').hidden = !state.completedOrder;
     $('#sales-checkout').disabled = !items.length || cartLocked() || !selectedPayment() ||
+      (Number(state.taxRegistered)===1 && !taxRegisterReady() && !state.pending && !state.cartRecovery) ||
       (state.selectedMethod === 'cash' && (tender < Number(cart.total_minor || 0) || !$('#sales-tendered').value));
     $('#sales-checkout').textContent = state.checkoutUncertain ? 'Avventer betalingsstatus' : (state.selectedMethod === 'vipps' ? 'Fortsett med Vipps' : 'Bekreft kontantsalg');
     $('#sales-cash-panel').hidden = state.selectedMethod !== 'cash';
@@ -122,10 +156,13 @@
     // All controls must follow the same lock, including while the restored
     // cart is being fetched. A terminal provider reply alone is not a cart.
     root.querySelectorAll('[data-method-key],[data-line-qty],[data-remove-line],[data-product]').forEach(button=>{
-      button.disabled=(button.hasAttribute('data-product')?paymentLocked():cartLocked()) || button.classList.contains('is-unavailable');
+      const fiscalGate=Number(state.taxRegistered)===1 && !taxRegisterReady() && !state.pending && !state.cartRecovery;
+      button.disabled=(button.hasAttribute('data-product')?(paymentLocked()||fiscalGate):cartLocked()||fiscalGate) || button.classList.contains('is-unavailable');
     });
+    $('#sales-scanner').disabled=Number(state.taxRegistered)===1 && !taxRegisterReady() && !state.pending && !state.cartRecovery;
     $('#sales-next-customer').disabled=cartLocked();
     updatePaymentStatus();
+    renderRegisterGate();
   }
   function updatePaymentStatus() {
     const box = $('#sales-payment-status'), order = state.pending || (state.completedOrder?.payment_method === 'vipps' ? state.completedOrder : null);
@@ -205,7 +242,7 @@
       ['cancelled','declined','expired','aborted','rejected'].includes(orderStatus);
   }
   function queueMutation(action, data) {
-    if(paymentLocked())return Promise.resolve(false);
+    if(paymentLocked() || (Number(state.taxRegistered)===1 && !taxRegisterReady()))return Promise.resolve(false);
     const mutationId = crypto.randomUUID();
     state.mutationQueue = state.mutationQueue.then(async () => {
       const payload = {...data,revision:state.cart?.revision || '',mutation_id:mutationId};
@@ -229,7 +266,7 @@
     return state.mutationQueue;
   }
   async function addProduct(product) {
-    if(paymentLocked())return;
+    if(paymentLocked() || (Number(state.taxRegistered)===1 && !taxRegisterReady()))return;
     const controller = new AbortController(); state.productController?.abort(); state.productController = controller;
     let fields = [];
     try { if (product.has_fields) fields = (await api('fields',{query:{product_id:product.id},signal:controller.signal})).fields || []; }
@@ -278,7 +315,7 @@
         <div class="sales-field-tools"><div><strong>Tilpasningsfelt</strong><small>Kundespørsmål før varen legges i kassen.</small></div><button type="button" class="btn btn-sm btn-outline-primary" id="sales-open-fields" ${p.id?'':'disabled'}>Rediger felt</button></div><div id="sales-fields-host" hidden></div>` : '<p class="sales-muted small mb-0">SKU og strekkode opprettes automatisk når produktet lagres.</p>'}
       <div class="sales-error" id="sales-product-error" role="alert" hidden></div>
     </form>`;
-    modal(product ? 'Rediger produkt' : 'Nytt produkt',body,{kind:'product',footer:`<button type="button" class="btn btn-outline-secondary" data-close-dialog>Avbryt</button><button type="button" class="btn btn-primary" id="sales-save-product">${product?'Lagre endringer':'Opprett produkt'}</button>`});
+    modal(product ? 'Rediger produkt' : 'Nytt produkt',body,{kind:'product',footer:`${product?'<button type="button" class="btn btn-outline-danger me-auto" id="sales-remove-product">Fjern produkt</button>':''}<button type="button" class="btn btn-outline-secondary" data-close-dialog>Avbryt</button><button type="button" class="btn btn-primary" id="sales-save-product">${product?'Lagre endringer':'Opprett produkt'}</button>`});
     const form = $('#sales-product-form');
     if (state.taxRegistered) {
       const taxClass=form.elements.tax_class,rate=form.elements.tax_rate,taxable=form.elements.item_taxable;
@@ -341,6 +378,20 @@
       finally { if(button.isConnected){button.disabled=false;button.textContent=product?'Lagre endringer':'Opprett produkt';} }
     });
     if (product) {
+      $('#sales-remove-product').addEventListener('click',async()=>{
+        if(!window.confirm(`Fjerne «${product.name}»? Fysisk sletting krever både 0 på lager og ingen salgshistorikk. Hvis ett av vilkårene ikke er oppfylt, deaktiveres varen for å bevare historikken.`))return;
+        const button=$('#sales-remove-product'),errorBox=$('#sales-product-error');
+        button.disabled=true;errorBox.hidden=true;
+        try {
+          const removed=await api('product_remove',{method:'POST',data:{id:product.id,expected_revision:String(product.revision||'')}});
+          const result=await api('products');
+          state.products=result.products||[];state.productNotice=removed.message||'Produktet ble fjernet eller deaktivert.';closeDialog(true);renderProducts();renderAdminProducts();
+        } catch(error) {
+          errorBox.hidden=false;errorBox.textContent=error.message;
+          button.disabled=false;
+          try {const result=await api('products');state.products=result.products||[];renderProducts();renderAdminProducts();} catch(_){}
+        }
+      });
       $('#sales-open-fields').addEventListener('click',()=>{
         if(state.dialog?.kind==='fields') {
           if(closeFields()){$('#sales-fields-host').hidden=true;$('#sales-open-fields').textContent='Rediger felt';}
@@ -372,8 +423,9 @@
     const products = state.products.filter(p=>!term || `${p.name} ${p.sku||''} ${p.barcode||''}`.toLocaleLowerCase('nb').includes(term));
     $('#sales-product-total').textContent = `${products.length} produkt${products.length===1?'':'er'}`;
     const host = $('#sales-admin-list');
-    if (!products.length) {host.innerHTML='<div class="sales-empty"><strong>Ingen produkter funnet</strong><span>Opprett et produkt, eller prøv et annet søk.</span></div>';return;}
-    host.innerHTML=products.map(p=>`<article class="sales-admin-row"><div class="sales-admin-photo">${safeUrl(p.img_product)?`<img src="${esc(safeUrl(p.img_product))}" alt="" loading="lazy">`:'<i class="bi bi-box-seam" aria-hidden="true"></i>'}</div><div class="sales-admin-name"><strong>${esc(p.name)}</strong><small>${esc(p.sku||'SKU opprettes ved lagring')} ${p.barcode?`· ${esc(p.barcode)}`:''}</small></div><div class="sales-admin-price"><strong>${esc(money(p.price_minor))}</strong><small>Kost ${esc(money(Math.round(Number(p.cost_price||0)*100)))}</small></div><div class="sales-stock-cell"><strong>${esc(p.stock_quantity ?? '—')}</strong><small>på lager</small></div><span class="sales-status-pill ${Number(p.is_active)?'is-active':'is-inactive'}">${Number(p.is_active)?'Aktiv':'Pauset'}</span><div class="sales-admin-actions"><button class="btn btn-sm btn-outline-primary" type="button" data-edit-product="${esc(p.id)}">Rediger</button><button class="btn btn-sm btn-outline-secondary" type="button" data-stock-product="${esc(p.id)}">Juster lager</button></div></article>`).join('');
+    const notice=state.productNotice?`<div class="sales-register-notice" role="status">${esc(state.productNotice)}</div>`:'';
+    if (!products.length) {host.innerHTML=`${notice}<div class="sales-empty"><strong>Ingen produkter funnet</strong><span>Opprett et produkt, eller prøv et annet søk.</span></div>`;return;}
+    host.innerHTML=notice+products.map(p=>`<article class="sales-admin-row"><div class="sales-admin-photo">${safeUrl(p.img_product)?`<img src="${esc(safeUrl(p.img_product))}" alt="" loading="lazy">`:'<i class="bi bi-box-seam" aria-hidden="true"></i>'}</div><div class="sales-admin-name"><strong>${esc(p.name)}</strong><small>${esc(p.sku||'SKU opprettes ved lagring')} ${p.barcode?`· ${esc(p.barcode)}`:''}</small></div><div class="sales-admin-price"><strong>${esc(money(p.price_minor))}</strong><small>Kost ${esc(money(Math.round(Number(p.cost_price||0)*100)))}</small></div><div class="sales-stock-cell"><strong>${esc(p.stock_quantity ?? '—')}</strong><small>på lager</small></div><span class="sales-status-pill ${Number(p.is_active)?'is-active':'is-inactive'}">${Number(p.is_active)?'Aktiv':'Pauset'}</span><div class="sales-admin-actions"><button class="btn btn-sm btn-outline-primary" type="button" data-edit-product="${esc(p.id)}">Rediger</button><button class="btn btn-sm btn-outline-secondary" type="button" data-stock-product="${esc(p.id)}">Juster lager</button></div></article>`).join('');
   }
   function stockDialog(product) {
     modal('Juster lager',`<p class="sales-muted">${esc(product.name)} · nå ${esc(product.stock_quantity)} på lager.</p><form id="sales-stock-form" class="sales-form-grid"><label>Nytt lagerantall<input class="form-control" name="quantity" type="number" min="0" step="1" required value="${esc(product.stock_quantity)}"></label><label class="sales-span">Årsak til justering<textarea class="form-control" name="reason" rows="3" required maxlength="500" placeholder="For eksempel: varetelling 14. juni"></textarea></label><div id="sales-stock-error" class="sales-error sales-span" role="alert" hidden></div></form>`,{kind:'stock',footer:'<button class="btn btn-outline-secondary" type="button" data-close-dialog>Avbryt</button><button class="btn btn-primary" type="button" id="sales-save-stock">Lagre lagerantall</button>'});
@@ -428,6 +480,11 @@
     const status = $('#sales-register-status'), caption = $('#sales-period-caption');
     if (status) status.textContent = selected ? selected.name : 'Ikke valgt';
     if (caption) caption.textContent = snapshot?.period ? registerPeriodLabel(snapshot.period) : '';
+    const cashier=$('#sales-cashier-caption');
+    if(cashier)cashier.textContent=snapshot?.cashier_name ? `Kassemedarbeider · ${snapshot.cashier_name}` : '';
+    renderRegisterGate();
+    renderProducts();
+    renderCart();
   }
   async function openRegisterDialog() {
     modal('Kassepunkt','<div class="sales-skeleton"></div>',{kind:'register'});
@@ -467,17 +524,18 @@
       ${state.registerError ? `<div class="sales-error" role="alert">${esc(state.registerError)}</div>` : ''}
       ${state.registerNotice ? `<div class="sales-register-notice" role="status">${esc(state.registerNotice)}</div>` : ''}
       <div class="sales-register-list">${regs.length ? regs.map(reg => `<article class="sales-register-row"><div><strong>${esc(reg.name)}</strong><small>${esc(statusName(reg.status))}${reg.register_code ? ` · ${esc(reg.register_code)}` : ''}</small></div><div class="sales-register-row-actions">${String(reg.id) === String(snapshot.selected_register_id) ? '<span class="sales-register-current">Valgt</span>' : `<button class="btn btn-sm btn-outline-primary" type="button" data-register-select="${esc(reg.id)}">Velg</button>`}${String(reg.status).toLowerCase() === 'draft' ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-register-activate="${esc(reg.id)}">Aktiver</button>` : ''}</div></article>`).join('') : '<div class="sales-empty"><strong>Ingen kassepunkt</strong><span>Opprett første kassepunkt for dette salgsstedet.</span></div>'}</div>
-      <form id="sales-register-create-form" class="sales-register-create"><label>Navn på kassepunkt<input class="form-control" name="name" maxlength="100" required placeholder="For eksempel: Hovedkasse"></label><label>Kassekode<input class="form-control" name="register_code" maxlength="32" pattern="[A-Za-z0-9_-]{1,32}" autocomplete="off" required placeholder="For eksempel: HOVEDKASSE"></label><button class="btn btn-primary" type="submit">Opprett utkast</button></form>
+      <div class="sales-register-create"><div><strong>Nytt kassepunkt</strong><small>Kassepunktet får automatisk neste kassekode og knyttes til innlogget kassemedarbeider.</small></div><button class="btn btn-primary" type="button" id="sales-register-create">Opprett kassepunkt</button></div>
       ${selected && !period && String(selected.status).toLowerCase() === 'active' ? `<form id="sales-register-open-form" class="sales-register-open"><label>Åpningsbeløp<input class="form-control" name="opening_float" type="number" min="0" step=".01" inputmode="decimal" value="0.00" required></label><button class="btn btn-primary" type="submit">Åpne kassaperiode</button></form>` : ''}
-      ${period ? `<div class="sales-register-actions"><button type="button" class="btn btn-outline-primary" data-register-action="cash">Registrer kontant inn / ut</button><button type="button" class="btn btn-outline-primary" data-register-action="x_report">X-rapport</button><button type="button" class="btn btn-outline-secondary" data-register-action="z_report">Z-rapport</button></div>` : ''}
+      <div class="sales-register-actions"><button type="button" class="btn btn-outline-primary" data-register-action="cash" ${period?'':'disabled'}>Registrer kontant inn / ut</button><button type="button" class="btn btn-outline-primary" data-register-action="reports">Rapporter</button><button type="button" class="btn btn-outline-secondary" data-register-action="settlement" ${period?'':'disabled'}>Oppgjør</button></div>
+      ${!period?`<p class="sales-muted">Rapporter kan åpnes for historiske perioder. Ny X-rapport og Z-oppgjør krever en aktiv, åpen periode.</p>`:''}
       <div class="sales-error" id="sales-register-inline-error" role="alert" hidden></div>`;
     $('#sales-dialog-foot').innerHTML = '<button type="button" class="btn btn-outline-secondary" data-close-dialog>Lukk</button><button type="button" class="btn btn-outline-secondary" id="sales-register-refresh">Oppdater</button>';
     $('#sales-register-refresh')?.addEventListener('click', async () => { try { await loadRegisterState(); } catch (_) {} });
-    $('#sales-register-create-form')?.addEventListener('submit', async event => {
-      event.preventDefault(); const form = event.currentTarget, button = form.querySelector('button[type="submit"]');
-      if (!form.reportValidity() || state.registerBusy) return;
-      button.disabled = true; clearRegisterError();
-      const data={name:form.elements.name.value.trim(),register_code:form.elements.register_code.value.trim()};
+    $('#sales-register-create')?.addEventListener('click', async event => {
+      const button=event.currentTarget;
+      if(state.registerBusy)return;
+      button.disabled=true; clearRegisterError();
+      const data={};
       data.idempotency_key=registerIdempotency('register_create',data);
       try { await registerPost('register_create',data); clearRegisterIdempotency('register_create',data); }
       catch (error) { showRegisterError(error.message); }
@@ -507,7 +565,8 @@
     }));
     host.querySelectorAll('[data-register-action]').forEach(button=>button.addEventListener('click',()=>{
       if(button.dataset.registerAction==='cash') registerCashDialog();
-      else registerReportDialog(button.dataset.registerAction);
+      else if(button.dataset.registerAction==='reports') registerReportsDialog('x_report');
+      else if(button.dataset.registerAction==='settlement') registerReportDialog('z_report');
     }));
     if(state.registerBusy)host.querySelectorAll('button,input,select,textarea').forEach(control=>{control.disabled=true;});
   }
@@ -525,7 +584,8 @@
       }
       return result;
     } catch(error) {
-      state.registerError=error.message;
+      // A rejected report/cash action is not a failed readiness lookup.
+      // In particular an unfinished-cart Z rejection must leave that cart editable.
       if(state.dialog?.kind==='register') renderRegisterDialog();
       throw error;
     } finally {
@@ -549,13 +609,115 @@
       catch(e){error.hidden=false;error.textContent=e.message;button.disabled=false;}
     });
   }
+  async function loadRegisterDocuments(registerId, requestToken, beforeSequence=null, append=false) {
+    state.registerDocumentsLoading=true;
+    if(!append){state.registerDocuments=[];state.registerDocumentsNext=null;}
+    const query={register_id:String(registerId)};
+    if(beforeSequence!==null&&beforeSequence!=='')query.before_sequence=String(beforeSequence);
+    try {
+      const result=await api('register_reports',{query});
+      const current=requestToken===state.registerDocumentsRequest &&
+        state.dialog?.kind==='register-reports' &&
+        String(state.registerDocumentsRegisterId)===String(registerId);
+      if(current) {
+        const incoming=result.documents||[];
+        const merged=append?[...state.registerDocuments,...incoming]:incoming;
+        const unique=new Map(merged.map(document=>[String(document.id),document]));
+        state.registerDocuments=[...unique.values()].sort((a,b)=>Number(b.sequence_number||0)-Number(a.sequence_number||0));
+        state.registerDocumentsNext=result.next_before_sequence??null;
+      }
+      return state.registerDocuments;
+    } catch(error) {
+      if(requestToken===state.registerDocumentsRequest && String(state.registerDocumentsRegisterId)===String(registerId) && !append)state.registerDocuments=[];
+      throw error;
+    } finally {
+      if(requestToken===state.registerDocumentsRequest)state.registerDocumentsLoading=false;
+    }
+  }
+  function registerReportRows(docs) {
+    return docs.length?docs.map(doc=>`<article class="sales-register-row"><div><strong>${doc.document_type==='x_report'?'X-rapport':'Z-rapport'} · nr. ${esc(doc.sequence_number)}</strong><small>${esc(date(doc.created_at))}${doc.z_number?` · Z ${esc(doc.z_number)}`:''} · Periode ${esc(doc.period_id||'')}</small></div><button class="btn btn-sm btn-outline-primary" type="button" data-open-register-document="${esc(doc.id)}">Vis rapport</button></article>`).join(''):'<div class="sales-empty"><strong>Ingen rapporter ennå</strong><span>Historiske rapporter vises her, også fra avsluttede perioder.</span></div>';
+  }
+  function bindOlderRegisterReports(registerId,kind,requestToken) {
+    const button=$('#sales-register-older');if(!button)return;
+    button.addEventListener('click',async()=>{
+      if(state.registerDocumentsLoading||requestToken!==state.registerDocumentsRequest)return;
+      const history=$('.sales-report-history'),cursor=state.registerDocumentsNext;
+      if(cursor===null||cursor==='')return;
+      button.disabled=true;button.textContent='Henter eldre rapporter…';
+      try {
+        await loadRegisterDocuments(registerId,requestToken,cursor,true);
+        if(requestToken!==state.registerDocumentsRequest||state.dialog?.kind!=='register-reports'||String(state.registerDocumentsRegisterId)!==String(registerId))return;
+        history.innerHTML=`<h3>Rapporthistorikk</h3>${registerReportRows(state.registerDocuments)}${state.registerDocumentsNext!==null&&state.registerDocumentsNext!==''?'<button type="button" class="btn btn-sm btn-outline-primary mt-2" id="sales-register-older">Vis eldre rapporter</button>':''}`;
+        bindOlderRegisterReports(registerId,kind,requestToken);
+        $('#sales-dialog-body').querySelectorAll('[data-open-register-document]').forEach(item=>item.addEventListener('click',()=>showRegisterDocumentById(item.dataset.openRegisterDocument)));
+      } catch(error) {
+        const box=document.createElement('div');box.className='sales-error mt-2';box.setAttribute('role','alert');box.textContent=error.message;
+        history.append(box);button.disabled=false;button.textContent='Prøv eldre rapporter igjen';
+      }
+    });
+  }
+  async function registerReportsDialog(kind='x_report', registerId=null) {
+    const snapshot=state.registerState;
+    const selected=snapshot?.registers?.find(r=>String(r.id)===String(registerId||snapshot.selected_register_id)) ||
+      snapshot?.registers?.[0] || null;
+    const requestToken=++state.registerDocumentsRequest;
+    state.registerDocuments=[];
+    state.registerDocumentsNext=null;
+    state.registerDocumentsRegisterId=selected?.id??null;
+    if(!selected) {
+      modal('Rapporter',`<div class="sales-error" role="status">${esc(state.registerError||snapshot?.readiness_error||'Ingen kassapunkt er tilgjengelig for rapporthistorikk.')}</div><p class="sales-muted">Opprett eller kontroller kassapunktet før historikk kan vises.</p>`,{kind:'register-reports-empty',footer:'<button type="button" class="btn btn-outline-secondary" data-close-dialog>Lukk</button><button type="button" class="btn btn-primary" id="sales-open-register-setup">Åpne Kassepunkt</button>'});
+      $('#sales-open-register-setup').addEventListener('click',()=>openRegisterDialog());
+      return;
+    }
+    modal('Rapporter','<div class="sales-skeleton"></div>',{kind:'register-reports'});
+    let loadError='';
+    try {await loadRegisterDocuments(selected.id,requestToken);} catch(error){loadError=error.message;}
+    if(requestToken!==state.registerDocumentsRequest || state.dialog?.kind!=='register-reports')return;
+    const docs=state.registerDocuments.filter(doc=>['x_report','z_report'].includes(doc.document_type));
+    const activeSelection=snapshot.registers?.find(r=>String(r.id)===String(snapshot.selected_register_id));
+    const period=(String(activeSelection?.id)===String(selected.id))?snapshot.period:null;
+    const isX=kind==='x_report', canCreate=String(activeSelection?.id)===String(selected.id)&&String(selected.status).toLowerCase()==='active'&&!!period&&!snapshot.readiness_error&&!state.registerError;
+    const selectedCurrent=activeSelection&&String(activeSelection.id)===String(selected.id);
+    const readinessReason=snapshot.readiness_error || state.registerError ||
+      (!activeSelection?'Velg et aktivt kassapunkt i Kassepunkt før du oppretter en rapport.':
+      String(activeSelection.status).toLowerCase()==='draft'?'Kassapunktet er et utkast. Aktiver det i Kassepunkt før rapportering.':
+      String(activeSelection.status).toLowerCase()!=='active'?'Valgt kassapunkt er avsluttet eller deaktivert. Velg et aktivt kassapunkt i Kassepunkt.':
+      !snapshot.period?'Ingen åpen kassaperiode. Åpne en periode i Kassepunkt før du oppretter X-rapport eller Z-oppgjør.':
+      !selectedCurrent?'Historikk vises uten å endre valgt kassapunkt. Velg det aktive kassapunktet i Kassepunkt for å opprette en ny rapport.':'');
+    $('#sales-dialog-body').innerHTML=`<p class="sales-muted">Historiske X- og Z-rapporter kan åpnes også fra avsluttede perioder og pensjonerte kassapunkt. Historikkvalget endrer ikke valgt kassapunkt.</p><label class="sales-span">Kassapunkt for historikk<select class="form-select" id="sales-report-register">${(snapshot.registers||[]).map(reg=>`<option value="${esc(reg.id)}" ${String(reg.id)===String(selected.id)?'selected':''}>${esc(reg.name)} · ${esc(reg.register_code||reg.status||'')}</option>`).join('')}</select></label>${loadError?`<div class="sales-error" role="alert">${esc(loadError)}<button type="button" class="btn btn-sm btn-outline-primary ms-2" id="sales-retry-register-docs">Prøv igjen</button></div>`:''}<div class="sales-form-grid"><label class="sales-span">Ny rapport<select class="form-select" id="sales-report-kind"><option value="x_report" ${isX?'selected':''}>X-rapport · viser status, holder perioden åpen</option><option value="z_report" ${!isX?'selected':''}>Z-rapport · avslutter oppgjøret</option></select></label></div>${!canCreate?`<div class="sales-register-blocker" role="status"><span>${esc(readinessReason||'Rapportering krever et aktivt kassapunkt og åpen periode.')}</span><button type="button" class="btn btn-sm btn-outline-primary" id="sales-open-register-setup">Kassepunkt</button></div>`:''}<section class="sales-report-history"><h3>Rapporthistorikk</h3>${registerReportRows(docs)}${state.registerDocumentsNext!==null&&state.registerDocumentsNext!==''?'<button type="button" class="btn btn-sm btn-outline-primary mt-2" id="sales-register-older">Vis eldre rapporter</button>':''}</section><div class="sales-error" id="sales-register-report-error" role="alert" hidden></div>`;
+    $('#sales-dialog-foot').innerHTML=`<button type="button" class="btn btn-outline-secondary" data-close-dialog>Lukk</button><button type="button" class="btn btn-primary" id="sales-create-report" ${canCreate?'':'disabled'}>Opprett X-rapport</button>`;
+    $('#sales-report-register')?.addEventListener('change',event=>registerReportsDialog(kind,event.currentTarget.value));
+    $('#sales-report-kind')?.addEventListener('change',event=>{
+      const selectedKind=event.currentTarget.value, button=$('#sales-create-report');
+      button.textContent=selectedKind==='x_report'?'Opprett X-rapport':'Opprett Z-rapport';
+      button.className=`btn ${selectedKind==='x_report'?'btn-primary':'btn-outline-danger'}`;
+      button.disabled=!canCreate;
+    });
+    $('#sales-retry-register-docs')?.addEventListener('click',()=>registerReportsDialog(kind,selected.id));
+    $('#sales-open-register-setup')?.addEventListener('click',()=>openRegisterDialog());
+    $('#sales-dialog-body').querySelectorAll('[data-open-register-document]').forEach(button=>button.addEventListener('click',()=>showRegisterDocumentById(button.dataset.openRegisterDocument)));
+    bindOlderRegisterReports(selected.id,kind,requestToken);
+    $('#sales-create-report')?.addEventListener('click',()=>{
+      const selectedKind=$('#sales-report-kind').value;
+      if(!canCreate){const box=$('#sales-register-report-error');box.hidden=false;box.textContent=snapshot.readiness_error||'Velg et aktivt kassepunkt og åpne periode for å opprette rapport.';return;}
+      registerReportDialog(selectedKind);
+    });
+  }
   function registerReportDialog(kind) {
     const isX=kind==='x_report';
+    const selectedRegister=state.registerState?.registers?.find(r=>String(r.id)===String(state.registerState?.selected_register_id));
+    if(!isX && (!state.registerState?.period || state.registerState.readiness_error || String(selectedRegister?.status||'').toLowerCase()!=='active')) {
+      const reason=state.registerState?.readiness_error||'Oppgjør krever et aktivt kassapunkt med åpen periode.';
+      modal('Oppgjør',`<div class="sales-error" role="status">${esc(reason)}</div><p class="sales-muted">Åpne eller velg kassaperiode i Kassepunkt. Et oppgjør kan ikke startes før kassen er klar.</p>`,{kind:'register-setup-needed',footer:'<button type="button" class="btn btn-outline-secondary" data-close-dialog>Lukk</button><button type="button" class="btn btn-primary" id="sales-open-register-setup">Åpne Kassepunkt</button>'});
+      $('#sales-open-register-setup').addEventListener('click',()=>{state.registerNotice='';openRegisterDialog();});
+      return;
+    }
     modal(isX?'X-rapport':'Z-rapport',`<p class="sales-muted">${isX?'Vis opptelling for åpen periode uten å avslutte den.':'Z-rapporten avslutter oppgjøret for perioden. Kontroller opptellingen før du fortsetter.'}</p><form id="sales-register-report-form" class="sales-form-grid"><label class="sales-span"${isX?' hidden':''}>Opptalt kontantbeløp<input class="form-control" name="counted_cash" type="number" min="0" step=".01" inputmode="decimal" ${isX?'value="0" disabled':'required'}></label><label class="sales-span">Kommentar <span class="sales-muted">valgfritt</span><textarea class="form-control" name="reason" rows="2" maxlength="500"></textarea></label><div id="sales-register-action-error" class="sales-error sales-span" role="alert" hidden></div></form>`,{kind:'register-report',footer:`<button type="button" class="btn btn-outline-secondary" data-close-dialog>Tilbake</button><button type="button" class="btn ${isX?'btn-primary':'btn-outline-danger'}" id="sales-register-report-submit">${isX?'Opprett X-rapport':'Opprett Z-rapport'}</button>`});
     $('#sales-register-report-submit').addEventListener('click',async()=>{
       const form=$('#sales-register-report-form');if(!form.reportValidity()||state.registerBusy)return;
       const button=$('#sales-register-report-submit'),error=$('#sales-register-action-error');button.disabled=true;error.hidden=true;
-      const data={register_id:String(state.registerState?.selected_register_id),kind,counted_cash_minor:Math.round(Number(form.elements.counted_cash.value)*100),reason:form.elements.reason.value.trim()};
+      const data={register_id:String(state.registerState?.selected_register_id),kind};
+      if(!isX){data.counted_cash_minor=Math.round(Number(form.elements.counted_cash.value)*100);data.reason=form.elements.reason.value.trim();}
       data.idempotency_key=registerIdempotency('register_report',data);
       try {await registerPost('register_report',data);clearRegisterIdempotency('register_report',data);}
       catch(e){error.hidden=false;error.textContent=e.message;button.disabled=false;}
@@ -729,48 +891,28 @@
       actor.textContent=`Registrert av: ${order.tenant_admin_name || order.tenant_admin_id}`;
       $('.sales-receipt').append(actor);
     }
-    if(order.payment_status==='paid') {
-      const send=document.createElement('button');send.type='button';send.className='btn btn-outline-primary';
-      send.id='sales-email-receipt';
-      send.textContent=order.receipt_email_enabled?'E-postkvittering':'E-post ikke aktivert';
-      send.disabled=!order.receipt_email_enabled;
-      send.title=order.receipt_email_reason || 'Send kvittering ved behov';
-      $('#sales-dialog-foot').append(send);
-      send.addEventListener('click',()=>{
-        if($('#sales-receipt-email-form'))return;
-        const form=document.createElement('form');form.id='sales-receipt-email-form';form.className='sales-form-grid sales-receipt-email-form';
-        form.innerHTML='<label class="sales-span">Mottakerens e-postadresse<input class="form-control" type="email" name="sales_receipt_recipient" autocomplete="off" maxlength="254" required></label><button class="btn btn-primary" type="submit">Send kvittering</button><p class="sales-span sales-muted" role="status" aria-live="polite"></p>';
-        $('#sales-dialog-body').append(form);form.elements.sales_receipt_recipient.focus();
-        const mutation=crypto.randomUUID(),submit=form.querySelector('button'),notice=form.querySelector('[role="status"]');
-        form.addEventListener('submit',async event=>{
-          event.preventDefault();if(!form.reportValidity() || submit.disabled)return;
-          submit.disabled=true;form.elements.sales_receipt_recipient.disabled=true;notice.textContent='Legger kvitteringen i e-postkøen …';
-          try {
-            const result=await api('receipt_email',{method:'POST',data:{order_id:order.id,email:form.elements.sales_receipt_recipient.value.trim(),mutation_id:mutation}});
-            notice.textContent=result.message || 'Kvitteringen er lagt i e-postkøen';submit.textContent='Lagt i kø';
-          } catch(error) {
-            notice.textContent=error.message;submit.disabled=false;form.elements.sales_receipt_recipient.disabled=false;
-          }
-        });
-      });
-    }
+    if(order.payment_status==='paid')addReceiptEmailAction(order);
   }
   function addReceiptEmailAction(order) {
-    if(!order.receipt_email_enabled)return;
-    const send=document.createElement('button');send.type='button';send.className='btn btn-outline-primary';send.textContent='E-postkvittering';
+    const send=document.createElement('button');send.type='button';send.className='btn btn-outline-primary';send.id='sales-email-receipt';send.textContent=order.receipt_email_enabled?'E-postkvittering':'E-post ikke tilgjengelig';send.disabled=!order.receipt_email_enabled;send.title=order.receipt_email_reason||'Send kvittering ved behov';
     $('#sales-dialog-foot').append(send);
-    send.addEventListener('click',()=>{
-      if($('#sales-receipt-email-form'))return;
-      const form=document.createElement('form');form.id='sales-receipt-email-form';form.className='sales-form-grid sales-receipt-email-form';
-      form.innerHTML='<label class="sales-span">Mottakerens e-postadresse<input class="form-control" type="email" name="sales_receipt_recipient" autocomplete="off" maxlength="254" required></label><button class="btn btn-primary" type="submit">Send kvittering</button><p class="sales-span sales-muted" role="status" aria-live="polite"></p>';
-      $('#sales-dialog-body').append(form);form.elements.sales_receipt_recipient.focus();
-      const mutation=salesIdempotency(),submit=form.querySelector('button'),notice=form.querySelector('[role="status"]');
-      form.addEventListener('submit',async event=>{
-        event.preventDefault();if(!form.reportValidity()||submit.disabled)return;
-        submit.disabled=true;form.elements.sales_receipt_recipient.disabled=true;notice.textContent='Legger kvitteringen i e-postkøen …';
-        try {const result=await api('receipt_email',{method:'POST',data:{order_id:order.id,email:form.elements.sales_receipt_recipient.value.trim(),mutation_id:mutation}});notice.textContent=result.message||'Kvitteringen er lagt i e-postkøen';submit.textContent='Lagt i kø';}
-        catch(error){notice.textContent=error.message;submit.disabled=false;form.elements.sales_receipt_recipient.disabled=false;}
-      });
+    const form=document.createElement('form');form.id='sales-receipt-email-form';form.className='sales-form-grid sales-receipt-email-form';
+    form.innerHTML=`<label class="sales-span">E-postkvittering · valgfritt<input class="form-control" type="email" name="sales_receipt_recipient" autocomplete="off" maxlength="254" placeholder="kunde@eksempel.no" required ${order.receipt_email_enabled?'':'disabled'}></label>${!order.receipt_email_enabled&&order.receipt_email_reason?`<p class="sales-span sales-muted" role="status">${esc(order.receipt_email_reason)}</p>`:''}<button class="btn btn-primary" type="submit" ${order.receipt_email_enabled?'':'disabled'}>Send kvittering</button><p class="sales-span sales-muted" role="status" aria-live="polite"></p>`;
+    $('#sales-dialog-body').append(form);
+    send.addEventListener('click',()=>form.elements.sales_receipt_recipient.focus());
+    let mutation='',mutationEmail='';
+    const submit=form.querySelector('button'),input=form.elements.sales_receipt_recipient,notice=form.querySelector('[aria-live]');
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();if(!form.reportValidity()||submit.disabled||!order.receipt_email_enabled)return;
+      const email=input.value.trim();
+      if(email!==mutationEmail){mutationEmail=email;mutation=salesIdempotency();}
+      submit.disabled=true;input.disabled=true;notice.textContent='Legger kvitteringen i e-postkøen …';
+      try {
+        const result=await api('receipt_email',{method:'POST',data:{order_id:order.id,email,mutation_id:mutation}});
+        notice.textContent=result.message||'Kvitteringen er lagt i e-postkøen';submit.textContent='Lagt i kø';
+      } catch(error) {
+        notice.textContent=error.message;submit.disabled=false;input.disabled=false;
+      }
     });
   }
   function addCashReturnAction(order) {
@@ -792,6 +934,11 @@
   async function checkout() {
     if(cartLocked()||!state.cart?.items?.length)return;
     const cart=state.cart||emptyCart(), method=state.selectedMethod, total=Number(cart.total_minor||0);
+    if(Number(state.taxRegistered)===1 && !taxRegisterReady() && !state.pending && !state.cartRecovery) {
+      setError(taxRegisterReason());
+      $('#sales-register-open').focus();
+      return;
+    }
     if(state.registerState && (!state.registerState.selected_register_id || !state.registerState.period || state.registerState.readiness_error)) {
       setError(state.registerState.readiness_error || 'Velg et aktivt kassepunkt og åpne kassaperiode før betaling.');
       $('#sales-register-open').focus();
@@ -1063,7 +1210,7 @@
   }
   async function bootstrap() {
     try {
-      const r=await api('bootstrap');state.csrf=r.csrf_token||'';state.taxRegistered=Number(r.tax_registered)===1?1:0;state.methodError=r.method_error||'';
+      const r=await api('bootstrap');state.csrf=r.csrf_token||'';state.taxRegistered=Number(r.tax_registered)===1?1:0;state.methodError=r.method_error||'';state.cashierName=r.register_state?.cashier_name||'';
       $('#sales-new-product').disabled=false;
       state.products=r.products||[];state.methods=r.methods||[];state.cart=r.cart||emptyCart();
       if(r.pending_order&&isPaidPayment(r.pending_order)){state.pending=null;state.completedOrder=r.pending_order;state.paymentNotice='';}
@@ -1072,6 +1219,7 @@
       renderMethods();renderProducts();renderAdminProducts();renderCart();
       if(state.pending)startPolling();
       refreshOrders();
+      if(r.register_state){state.registerState=r.register_state;state.registerError=r.register_state.readiness_error||'';updateRegisterSummary();}
       loadRegisterState().catch(()=>{});
     } catch(e) {
       $('#sales-products').innerHTML=`<div class="sales-error sales-grid-empty" role="alert">${esc(e.message)} <button type="button" id="sales-bootstrap-retry">Prøv igjen</button></div>`;
@@ -1079,6 +1227,9 @@
     }
   }
   root.addEventListener('click',event=>{
+    if(event.target.closest('#sales-gate-register')){openRegisterDialog();return;}
+    if(event.target.closest('#sales-quick-reports')){registerReportsDialog('x_report');return;}
+    if(event.target.closest('#sales-quick-settlement')){registerReportDialog('z_report');return;}
     const productTile=event.target.closest('[data-product]');
     if(productTile){const product=state.products.find(p=>p.id===productTile.dataset.product);if(product)addProduct(product);return;}
     const qty=event.target.closest('[data-line-qty]');
@@ -1202,6 +1353,7 @@
   root.querySelectorAll('[data-cash]').forEach(button=>button.addEventListener('click',()=>{$('#sales-tendered').value=(Number(button.dataset.cash)/100).toFixed(2);renderCart();}));
   $('#sales-scanner').addEventListener('keydown',event=>{
     if(event.key!=='Enter')return;event.preventDefault();
+    if(Number(state.taxRegistered)===1 && !taxRegisterReady()){const msg=$('#sales-scan-message');msg.textContent=taxRegisterReason();msg.className='sales-inline-message is-error';return;}
     const code=event.currentTarget.value.trim();event.currentTarget.value='';
     const product=state.products.find(p=>Number(p.is_active)===1 && (String(p.barcode||'')===code || String(p.sku||'')===code));
     const msg=$('#sales-scan-message');

@@ -184,6 +184,69 @@ trait SalesProducts {
             return ['product'=>$this->productView($this->product($row['id']))];
         });
     }
+    public function removeProduct(array $data): array {
+        return $this->transaction(function()use($data){
+            $id=self::text($data['id']??'',36);$old=$this->product($id,true);
+            if(!is_string($data['expected_revision']??null) || !hash_equals($this->productRevision($old),$data['expected_revision']))
+                throw new SalesConflict('Varen er endret. Åpne redigeringen på nytt før fjerning.');
+            if($this->q("SELECT i.id FROM sales_cart_items i JOIN sales_cart c ON c.id=i.cart_id
+                WHERE i.product_id=? AND c.company_id=? AND c.status='active' LIMIT 1",[$id,$this->company])->fetchColumn()
+                || $this->q("SELECT i.id FROM sales_orders_items i JOIN sales_orders o ON o.id=i.order_id
+                WHERE i.product_id=? AND o.company_id=? AND o.status='pending' LIMIT 1",[$id,$this->company])->fetchColumn())
+                throw new SalesConflict('Varen er i en aktiv kurv eller ventende betaling. Avklar salget før varen fjernes.');
+            $catalog=$this->q("SELECT id FROM output_products WHERE company_id=? AND product_id=? AND product_type IN('product','sales_item')",
+                [$this->company,$id])->fetchAll(PDO::FETCH_COLUMN);
+            $retained=(int)$old['stock_quantity']!==0;
+            // Check both logical references and declared FKs before any physical
+            // removal. In particular ON DELETE CASCADE must never erase history.
+            $references=$this->q("SELECT DISTINCT c.TABLE_NAME,c.COLUMN_NAME FROM information_schema.COLUMNS c
+                JOIN information_schema.TABLES t ON t.TABLE_SCHEMA=c.TABLE_SCHEMA AND t.TABLE_NAME=c.TABLE_NAME AND t.TABLE_TYPE='BASE TABLE'
+                LEFT JOIN information_schema.KEY_COLUMN_USAGE k ON k.TABLE_SCHEMA=c.TABLE_SCHEMA AND k.TABLE_NAME=c.TABLE_NAME AND k.COLUMN_NAME=c.COLUMN_NAME
+                WHERE c.TABLE_SCHEMA=DATABASE() AND (c.COLUMN_NAME IN ('product_id','output_product_id','sales_product_id')
+                OR k.REFERENCED_TABLE_NAME IN ('sales_products','output_products'))")->fetchAll(PDO::FETCH_ASSOC);
+            $ids=array_values(array_unique([$id,...$catalog]));
+            foreach($references as $reference) {
+                $table=$reference['TABLE_NAME'];$column=$reference['COLUMN_NAME'];
+                if(in_array($table,['sales_products','output_products'],true))continue;
+                $quoted=fn(string $v)=>'`'.str_replace('`','``',$v).'`';
+                if($this->q('SELECT 1 FROM '.$quoted($table).' WHERE '.$quoted($column).' IN ('.implode(',',array_fill(0,count($ids),'?')).') LIMIT 1',$ids)->fetchColumn())
+                    $retained=true;
+            }
+            if($this->q("SELECT id FROM audit_logs WHERE company_id=? AND resource_id=? AND action='sales.stock_adjusted' LIMIT 1",
+                [$this->company,$id])->fetchColumn())$retained=true;
+            if($this->q('SELECT id FROM unified_ledger WHERE company_id=? AND source_id=? LIMIT 1',[$this->company,$id])->fetchColumn())$retained=true;
+            if(!$retained) {
+                // No other catalogue reference may be removed accidentally.
+                if($this->q("SELECT id FROM output_products WHERE product_id=? AND (company_id<>? OR product_type NOT IN('product','sales_item')) LIMIT 1",
+                    [$id,$this->company])->fetchColumn())$retained=true;
+            }
+            $catalogVisible=(bool)$this->q("SELECT id FROM output_products WHERE company_id=? AND product_id=?
+                AND product_type IN('product','sales_item') AND (is_visible<>0 OR is_public<>0) LIMIT 1",[$this->company,$id])->fetchColumn();
+            $changed=!$retained || (int)$old['is_active']!==0 || $catalogVisible;
+            $write=function()use($retained,$id,$catalog){
+                if($retained)$this->q('UPDATE sales_products SET is_active=0,updated_at=NOW() WHERE company_id=? AND id=? AND is_active<>0',[$this->company,$id]);
+                else {
+                    $this->q("DELETE FROM dynamic_form_fields WHERE company_id=? AND entity_type='sales_product' AND entity_id=?",[$this->company,$id]);
+                    // Break the source-to-catalogue link before deleting either end.
+                    $this->q('UPDATE sales_products SET output_product_id=NULL WHERE company_id=? AND id=?',[$this->company,$id]);
+                }
+                foreach($catalog as $entry) {
+                    if($retained)$this->q('UPDATE output_products SET is_visible=0,is_public=0 WHERE company_id=? AND id=? AND (is_visible<>0 OR is_public<>0)',[$this->company,$entry]);
+                    else $this->q('DELETE FROM output_products WHERE company_id=? AND id=?',[$this->company,$entry]);
+                }
+                if(!$retained)$this->q('DELETE FROM sales_products WHERE company_id=? AND id=?',[$this->company,$id]);
+            };
+            if(method_exists($this->db,'withExplicitAudit'))$this->db->withExplicitAudit($write);else$write();
+            if($changed) {
+                tenantAuditChange($this->db,$this->company,'sales',$retained?'sales.product_deactivated':'sales.product_deleted','sales_products',$id,$old['name'],
+                    ['is_active'=>(int)$old['is_active'],'is_visible'=>$catalogVisible?1:0],$retained?['is_active'=>0,'is_visible'=>0]:[],[],$this->actor);
+                $this->registerProductEvent($retained?'product.deactivated':'product.deleted',['product_id'=>$id,'name'=>$old['name']]);
+            }
+            return ['mode'=>$retained?'deactivated':'deleted','message'=>$retained
+                ?'Varen er deaktivert og skjult. Beholdning, koblinger og historikk er bevart.'
+                :'Varen uten beholdning eller historikk er slettet.'];
+        });
+    }
     public function adjustStock(array $data): array {
         return $this->transaction(function()use($data){
             $old=$this->product(self::text($data['product_id']??'',36),true);

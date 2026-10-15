@@ -14,10 +14,11 @@
           <button class="btn btn-sm btn-outline-secondary" type="button" id="sales-refresh-products" aria-label="Last produkter på nytt"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button>
         </div>
         <div id="sales-scan-message" class="sales-inline-message" role="status" aria-live="polite"></div>
+        <div id="sales-register-gate" class="sales-register-gate" role="status" hidden></div>
         <div id="sales-products" class="sales-product-grid" aria-live="polite"><div class="sales-skeleton" aria-label="Laster produkter"></div><div class="sales-skeleton"></div><div class="sales-skeleton"></div><div class="sales-skeleton"></div></div>
       </section>
       <aside class="sales-cart-panel" id="sales-cart-panel" aria-label="Handlekurv">
-        <div class="sales-cart-head"><div><span class="sales-kicker">Aktivt salg</span><h3>Handlekurv <span id="sales-cart-count" class="sales-count">0</span></h3><span class="sales-period-caption" id="sales-period-caption"></span></div><button id="sales-fullscreen-exit" class="btn btn-sm btn-outline-secondary d-none" type="button">Lukk fullskjerm</button></div>
+        <div class="sales-cart-head"><div><span class="sales-kicker">Aktivt salg</span><h3>Handlekurv <span id="sales-cart-count" class="sales-count">0</span></h3><span class="sales-period-caption" id="sales-period-caption"></span><span class="sales-cashier-caption" id="sales-cashier-caption"></span></div><button id="sales-fullscreen-exit" class="btn btn-sm btn-outline-secondary d-none" type="button">Lukk fullskjerm</button></div>
         <div id="sales-cart-lines" class="sales-cart-lines" aria-live="polite"><div class="sales-empty"><strong>Ingen varer ennå</strong><span>Velg et produkt for å starte salget.</span></div></div>
         <div class="sales-totals"><div><span>Delsum</span><strong id="sales-subtotal">0,00 kr</strong></div><div id="sales-tax-row"><span>Mva</span><strong id="sales-tax">0,00 kr</strong></div><div class="sales-grand-total"><span>Å betale</span><strong id="sales-total">0,00 kr</strong></div></div>
         <div class="sales-payment">
@@ -39,6 +40,11 @@
           <div id="sales-cart-error" class="sales-error" role="alert" hidden></div>
         </div>
       </aside>
+    </div>
+    <div class="sales-quick-actions" aria-label="Kasseverktøy">
+      <span>Kasseverktøy</span>
+      <button type="button" class="btn btn-outline-primary" id="sales-quick-reports"><i class="bi bi-journal-text" aria-hidden="true"></i> Rapporter</button>
+      <button type="button" class="btn btn-outline-secondary" id="sales-quick-settlement"><i class="bi bi-calculator" aria-hidden="true"></i> Oppgjør</button>
     </div>
   </section>
 

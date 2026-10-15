@@ -12,7 +12,8 @@ trait SalesRegisterActions {
         return $cart?($this->cartMeta($cart)['register_id']??null):null;
     }
     public function registerState(): array {
-        $state=['registers'=>[],'selected_register_id'=>null,'period'=>null,'readiness_error'=>null];
+        $state=['registers'=>[],'selected_register_id'=>null,'period'=>null,'readiness_error'=>null,
+            'cashier_name'=>$this->actor['name']??''];
         try {
             $s=$this->registerStore();$s->ready();
             $state['registers']=$s->q('SELECT id,name,register_code,status FROM sales_registers WHERE company_id=? ORDER BY name,id',[$this->company])->fetchAll(PDO::FETCH_ASSOC);
@@ -46,13 +47,24 @@ trait SalesRegisterActions {
             $s=$this->registerStore();$s->ready();
             $id=self::text($data['register_id']??'',36);
             if($action==='register_create') {
-                $key=$this->registerKey($data);$name=self::text($data['name']??'',100);$code=self::text($data['register_code']??'',32);
-                if($code==='')$code='MOB-'.strtoupper(substr(hash('sha256',$key),0,8));
-                if($name==='' || !preg_match('/^[A-Za-z0-9_-]{1,32}$/D',$code))throw new InvalidArgumentException('Oppgi kassenavn og en kort unik kassekode');
+                $key=$this->registerKey($data);
                 $id=substr(hash('sha256',$this->company.'register'.$key),0,36);
-                $old=$s->q('SELECT * FROM sales_registers WHERE company_id=? AND id=?',[$this->company,$id])->fetch(PDO::FETCH_ASSOC);
-                if($old && ($old['name']!==$name || $old['register_code']!==$code))throw new SalesConflict('Referansen er brukt med andre kasseopplysninger');
+                $old=$s->q('SELECT * FROM sales_registers WHERE company_id=? AND id=? FOR UPDATE',[$this->company,$id])->fetch(PDO::FETCH_ASSOC);
                 if(!$old) {
+                    // transaction() holds the company row: concurrent creates cannot
+                    // allocate the same number. Use a current/locking read as
+                    // permission checks may already have opened an older RR snapshot.
+                    // Retired points still reserve their numbers.
+                    $max=0;
+                    foreach($s->q('SELECT register_code FROM sales_registers WHERE company_id=? FOR UPDATE',[$this->company])->fetchAll(PDO::FETCH_COLUMN) as $historical) {
+                        if(!ctype_digit((string)$historical))continue;
+                        $number=ltrim((string)$historical,'0')?:'0';
+                        $limit=(string)(PHP_INT_MAX-1);
+                        if(strlen($number)>strlen($limit) || (strlen($number)===strlen($limit) && strcmp($number,$limit)>0))
+                            throw new DomainException('Eksisterende kassenummer er for stort til automatisk nummerering.');
+                        $max=max($max,(int)$number);
+                    }
+                    $code=(string)($max+1);$name='Kasse '.$code;
                     $s->q("INSERT INTO sales_registers(id,company_id,register_code,name,system_identifier,system_model,system_version,created_at_utc) VALUES(?,?,?,?,?,'Salesman Mobile POS','1.0',UTC_TIMESTAMP(6))",
                         [$id,$this->company,$code,$name,'salesman-'.SalesRegisterStore::id()]);
                     $s->event($id,null,'register.created','create:'.$key,['name'=>$name,'register_code'=>$code]);
@@ -91,6 +103,18 @@ trait SalesRegisterActions {
             } else throw new InvalidArgumentException('Ukjent kassehandling');
             return $this->registerState();
         });
+    }
+    public function registerReports(string $id,?string $before=null): array {
+        $s=$this->registerStore();$s->ready();$s->register($id);
+        if($before!==null && (!ctype_digit($before) || strlen($before)>20 || ltrim($before,'0')===''))
+            throw new InvalidArgumentException('Ugyldig referanse for eldre rapporter.');
+        $args=[$this->company,$id];$filter='';
+        if($before!==null){$filter=' AND sequence_number<?';$args[]=$before;}
+        $rows=$s->q("SELECT id,document_type,sequence_number,z_number,period_id,issued_at_utc AS created_at
+            FROM sales_register_documents WHERE company_id=? AND register_id=? AND document_type IN ('x_report','z_report')
+            $filter ORDER BY sequence_number DESC LIMIT 101",$args)->fetchAll(PDO::FETCH_ASSOC);
+        $more=count($rows)>100;if($more)array_pop($rows);
+        return ['register_id'=>$id,'documents'=>$rows,'next_before_sequence'=>$more?(string)end($rows)['sequence_number']:null];
     }
     private function checkoutRegister(array $cart): array {
         $id=$this->cartMeta($cart)['register_id']??null;

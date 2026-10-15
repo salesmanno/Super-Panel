@@ -10,7 +10,7 @@ try {
         http_response_code(401);throw new TenantAuditException('Logg inn før du bruker kassen');
     }
     $action=(string)($_GET['action']??'');
-    $read=in_array($action,['bootstrap','products','cart','orders','order','fields','register_state','register_document'],true);
+    $read=in_array($action,['bootstrap','products','cart','orders','order','fields','register_state','register_document','register_reports'],true);
     if(($_SERVER['REQUEST_METHOD']??'')!==($read?'GET':'POST')) {
         http_response_code(405);throw new InvalidArgumentException('Ugyldig forespørselsmetode');
     }
@@ -38,6 +38,7 @@ try {
         'order'=>['order'=>$service->orderView((string)($_GET['order_id']??''))],
         'fields'=>['fields'=>$service->fields((string)($_GET['product_id']??''))],
         'product_save'=>$service->saveProduct($data),
+        'product_remove'=>$service->removeProduct($data),
         'stock'=>$service->adjustStock($data),
         'add','quantity','remove'=>$service->mutateCart($action,$data),
         'checkout'=>$service->checkout($data),
@@ -47,6 +48,7 @@ try {
         'next_customer'=>$service->nextCustomer(),
         'register_state'=>$service->registerState(),
         'register_document'=>$service->registerDocument((string)($_GET['document_id']??'')),
+        'register_reports'=>$service->registerReports((string)($_GET['register_id']??''),isset($_GET['before_sequence'])?(string)$_GET['before_sequence']:null),
         'register_create','register_activate','register_select','register_open','register_cash'=>$service->registerAction($action,$data),
         'register_report'=>$service->registerReport($data),
         'register_copy'=>$service->registerCopy($data),

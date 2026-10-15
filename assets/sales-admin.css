@@ -437,3 +437,121 @@ body.sales-fullscreen-open {overflow:hidden}
     grid-template-columns:repeat(auto-fill,minmax(min(100%,128px),1fr));
   }
 }
+
+/* Counter-first refinements: generous white work surface, flat controls, always-nearby tools. */
+.sales-admin .sales-catalog {
+  min-height:clamp(420px,62vh,780px);
+  background:#fff;
+  border:1px solid #bdcfce;
+  box-shadow:0 2px 0 rgba(22,59,92,.035);
+}
+.sales-admin .sales-product-grid {align-content:start}
+.sales-admin #sales-search,
+.sales-admin #sales-scanner,
+.sales-admin #sales-admin-search {
+  box-shadow:none!important;
+  background:#f8fbfb;
+  border:1px solid #b9cdce;
+  outline-offset:2px;
+}
+.sales-admin #sales-search:focus,
+.sales-admin #sales-scanner:focus,
+.sales-admin #sales-admin-search:focus {
+  box-shadow:none!important;
+  border-color:var(--sale-teal);
+}
+.sales-admin .sales-register-gate {
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:.55rem .8rem;
+  margin:.35rem 0 .65rem;
+  padding:.65rem .75rem;
+  border:1px solid #d9c38c;
+  border-left:4px solid #b48736;
+  border-radius:7px;
+  background:#fff8e8;
+  color:#725b2e;
+  font-size:.78rem;
+}
+.sales-admin .sales-register-gate[hidden] {display:none!important}
+.sales-admin .sales-register-gate strong {color:#624b22}
+.sales-admin .sales-register-gate span {flex:1 1 240px}
+.sales-admin .sales-cashier-caption {
+  display:block;
+  margin-top:.2rem;
+  color:var(--sale-muted);
+  font-size:.68rem;
+}
+.sales-admin .sales-quick-actions {
+  position:sticky;
+  bottom:.35rem;
+  z-index:3;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:.45rem;
+  margin:.65rem 0 0;
+  padding:.48rem .6rem;
+  border:1px solid #cbdcdb;
+  border-radius:9px;
+  background:rgba(247,250,249,.97);
+  box-shadow:0 3px 12px rgba(19,56,70,.08);
+}
+.sales-admin .sales-quick-actions>span {
+  margin-right:auto;
+  color:var(--sale-muted);
+  font-size:.68rem;
+  font-weight:750;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.sales-admin .sales-quick-actions .btn {min-height:38px;padding:.38rem .72rem;font-size:.76rem;font-weight:750}
+.sales-admin .sales-report-history {margin-top:.8rem}
+.sales-admin .sales-report-history>h3 {
+  margin:0 0 .45rem;
+  padding:.35rem 0;
+  border-bottom:1px solid var(--sale-line);
+  color:var(--sale-teal);
+  font-size:.74rem;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.sales-admin .sales-report-history .sales-register-row {margin:.35rem 0}
+.sales-admin .sales-register-blocker {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.65rem;
+  margin:.55rem 0;
+  padding:.6rem .7rem;
+  border:1px solid #ddc98e;
+  border-left:4px solid #b48736;
+  border-radius:7px;
+  background:#fff8e8;
+  color:#725b2e;
+  font-size:.77rem;
+}
+.sales-admin .sales-register-blocker>span {flex:1}
+.sales-admin.sales-fullscreen .sales-quick-actions {bottom:0}
+@media(max-width:900px) {
+  .sales-admin .sales-checkout-layout,
+  .sales-admin.sales-fullscreen .sales-checkout-layout {grid-template-columns:minmax(0,1fr)}
+  .sales-admin .sales-catalog {min-height:clamp(340px,58vh,640px)}
+  .sales-admin .sales-cart-panel {position:relative;top:auto}
+}
+@media(max-width:767.98px) {
+  .sales-admin .sales-catalog {min-height:clamp(290px,38vh,430px)}
+  .sales-admin .sales-quick-actions {bottom:.2rem;padding:.38rem}
+  .sales-admin .sales-quick-actions>span {font-size:.6rem}
+  .sales-admin .sales-quick-actions .btn {min-height:38px;padding:.35rem .48rem;font-size:.69rem}
+  .sales-admin .sales-register-gate {align-items:flex-start;font-size:.73rem}
+  .sales-admin .sales-register-row {align-items:flex-start}
+}
+@media(max-width:360px) {
+  .sales-admin .sales-catalog {min-height:280px}
+  .sales-admin .sales-quick-actions {gap:.28rem}
+  .sales-admin .sales-quick-actions>span {max-width:52px;line-height:1.15}
+  .sales-admin .sales-quick-actions .btn {padding:.32rem .38rem;font-size:.66rem}
+}
