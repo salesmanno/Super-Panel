@@ -94,6 +94,10 @@ const checks = `(async()=>{
  const offenders=[...document.querySelectorAll('body *')].map(e=>({tag:e.tagName,id:e.id,cls:String(e.className).slice(0,80),right:Math.round(e.getBoundingClientRect().right),left:Math.round(e.getBoundingClientRect().left),width:Math.round(e.getBoundingClientRect().width),anc:[e.parentElement,e.parentElement?.parentElement,e.parentElement?.parentElement?.parentElement].map(p=>p?{cls:String(p.className).slice(0,55),left:Math.round(p.getBoundingClientRect().left),right:Math.round(p.getBoundingClientRect().right),width:Math.round(p.getBoundingClientRect().width)}:null)})).filter(e=>e.right>innerWidth+2).slice(0,8);
  const card=document.querySelector('[data-product="prod-1"]');
  if(!root||!card||overflow) return {passed:false,reason:'render/overflow',width:innerWidth,scroll:document.documentElement.scrollWidth,offenders};
+  const searchBounds=document.querySelector('#sales-search').getBoundingClientRect(),scanBounds=document.querySelector('#sales-scanner').getBoundingClientRect();
+  if(Math.min(searchBounds.right,scanBounds.right)-Math.max(searchBounds.left,scanBounds.left)>1
+    && Math.min(searchBounds.bottom,scanBounds.bottom)-Math.max(searchBounds.top,scanBounds.top)>1)
+    return {passed:false,reason:'Search and barcode inputs overlap',width:innerWidth};
  card.click(); await new Promise(resolve=>setTimeout(resolve,5));
  const select=document.querySelector('#sales-dialog select[name="farge"]');
  if(!select)return {passed:false,reason:'custom fields missing'};
@@ -138,6 +142,7 @@ const checks = `(async()=>{
    const vippsModal=document.querySelector('#sales-dialog');
     const vippsModalAccessible=vippsModal.querySelector('[role="dialog"]')?.getAttribute('aria-modal')==='true'&&document.querySelector('#sales-vipps-phone')&&document.querySelector('#sales-vipps-total').textContent.includes('175,00');
       const phoneInput=document.querySelector('#sales-vipps-phone'),sendVipps=document.querySelector('#sales-confirm-vipps');
+     const keypadTouchTargets=document.querySelectorAll('#sales-vipps-keypad [data-vipps-digit]').length===10&&[...document.querySelectorAll('#sales-vipps-keypad button')].every(button=>button.getBoundingClientRect().height>=56)&&phoneInput.inputMode==='none'&&phoneInput.autocomplete==='off';
       if(sendVipps.textContent!=='Send Vipps ekstra kasse!')return {passed:false,reason:'Send button uses selected payment method name'};
      const checkoutCountBeforePhone=calls.filter(c=>c.action==='checkout').length;
      for(const digit of '123')document.querySelector('[data-vipps-digit="'+digit+'"]').click();
@@ -264,7 +269,7 @@ const checks = `(async()=>{
   document.querySelector('#sales-new-product').click();
   const onlineBlocked=document.querySelector('#sales-product-form [name="visibility"] option[value="online"]').disabled;
   document.querySelector('#sales-dialog [data-close-dialog]').click();
-   const results={fallbackWorks,fallbackRestored,deniedFallback,fallbackEscapeCleared,nativeOn,nativeExitCleared,belowBlocked,exactAllowed,typedChange,denominationBelowBlocked,denominationChange,restored,nextBlocked,nextCustomerWorks,unknown,selectedGatewaySent,vippsContract,vippsModalAccessible:!!vippsModalAccessible,phoneGuard,keypadAndEnterSafe,completedNumberSafe,enterSafe,duplicateSendBlocked,countdown,countdownsUnique,countdownBothTick,autoEarlyPoll,pendingCloseSafe:!!pendingCloseSafe,pendingEscapeSafe:!!pendingEscapeSafe,paymentOpenerFocused,pendingReopened,pendingOpenerRestored,pendingDialogPreserved,statusDuplicateBlocked,cancelDuplicateBlocked,earlyPaymentCartRecovery,terminalRejected,knownFailureRecoverable,cancelCapture,checkoutError,uncertainNoRetry,unavailableExplained,ledger,draftKept,revisionSent,dirtyGuardStayedOpen,editorClosed,onlineBlocked,dialogClosed:document.querySelector('#sales-dialog').hidden,noOverflow:document.documentElement.scrollWidth<=innerWidth+1};
+   const results={fallbackWorks,fallbackRestored,deniedFallback,fallbackEscapeCleared,nativeOn,nativeExitCleared,belowBlocked,exactAllowed,typedChange,denominationBelowBlocked,denominationChange,restored,nextBlocked,nextCustomerWorks,unknown,selectedGatewaySent,vippsContract,vippsModalAccessible:!!vippsModalAccessible,keypadTouchTargets,phoneGuard,keypadAndEnterSafe,completedNumberSafe,enterSafe,duplicateSendBlocked,countdown,countdownsUnique,countdownBothTick,autoEarlyPoll,pendingCloseSafe:!!pendingCloseSafe,pendingEscapeSafe:!!pendingEscapeSafe,paymentOpenerFocused,pendingReopened,pendingOpenerRestored,pendingDialogPreserved,statusDuplicateBlocked,cancelDuplicateBlocked,earlyPaymentCartRecovery,terminalRejected,knownFailureRecoverable,cancelCapture,checkoutError,uncertainNoRetry,unavailableExplained,ledger,draftKept,revisionSent,dirtyGuardStayedOpen,editorClosed,onlineBlocked,dialogClosed:document.querySelector('#sales-dialog').hidden,noOverflow:document.documentElement.scrollWidth<=innerWidth+1};
     return {passed:Object.values(results).every(Boolean),reason:'fullscreen fallback/native exit, cash, gateway identity, Vipps countdown/status/late capture, unavailable reasons and existing admin flows',width:innerWidth,results};
 })()`;
 

@@ -40,12 +40,17 @@ final class SalesService {
         $this->db->beginTransaction();
         try {
             $this->actor=$this->systemAuth?tenantAuditSystemActor($this->db,$this->company,$this->systemAuth->job):entityFormRequireModuleAccess($this->db,$this->company,'sales_product');
-            // Also serialises creation of the per-session cart and stock/product
+            // Also serialises creation of the per-user/company cart and stock/product
             // operations. No external HTTP call is made while this lock is held.
             if (!$this->q('SELECT id FROM tenant_companies WHERE id=? FOR UPDATE',[$this->company])->fetchColumn()) throw new OutOfBoundsException('Firma ikke funnet');
             $result=$this->systemAuth && method_exists($this->db,'withExplicitAudit')?$this->db->withExplicitAudit($operation):$operation();
             $this->db->commit();return $result;
         } catch(Throwable $e) {if($this->db->inTransaction())$this->db->rollBack();throw $e;}
+    }
+    public static function cartOwnerToken(string $company,string $admin): string {
+        if($company==='' || $admin==='')throw new InvalidArgumentException('Kassen mangler bruker eller bedrift');
+        // This is an internal lookup key, never an authentication credential.
+        return 'sales-admin-v2:'.hash('sha256',self::json([$company,$admin]));
     }
     private static function uuid(): string {
         $h=bin2hex(random_bytes(16));return substr($h,0,8).'-'.substr($h,8,4).'-4'.substr($h,13,3).'-a'.substr($h,17,3).'-'.substr($h,20,12);

@@ -349,6 +349,8 @@ try {
     salesAssert(salesHttp('bootstrap')['_status']===403,'Real HTTP controller enforces Sales module access');
     $setup->exec("INSERT INTO tenant_admin_modules VALUES('admin','sales-module',1),('admin','economy-module',1)");
     require $root.'/tests/sales_payment_lifecycle_cases.php';
+    require $root.'/tests/sales_cart_persistence_cases.php';
+    if(($argv[3]??'')!=='--backend-only') {
     // Browser talks to the existing isolated HTTP fixture, never the app DB.
     // Release PDO owners before spawning the browser process.
     unset($sales,$blocked,$other,$signedSales,$callback,$databaseService,$db,$setup);
@@ -356,6 +358,7 @@ try {
     salesAssert($browserStatus===0,'Actual product form/API browser regression passed');
     passthru('node --experimental-websocket '.escapeshellarg($root.'/tests/sales-vipps-api-browser.test.js').' '.escapeshellarg((string)$port).' '.escapeshellarg($temp),$vippsBrowserStatus);
     salesAssert($vippsBrowserStatus===0,'Actual Vipps cashier/API browser regression passed');
+    }
     echo "Isolated Sales MySQL, controller, ledger, dynamic fields, VAT and payment state checks passed\n";
 } finally {
     proc_terminate($process);proc_close($process);

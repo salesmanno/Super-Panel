@@ -26,6 +26,15 @@ const checks=`(async()=>{
   const saved=window.apiCalls.filter(c=>c.action==='product_save'&&c.result.success).pop().result.product;
   document.querySelector('[data-product="'+saved.id+'"]').click();
   await wait(()=>document.querySelector('#sales-cart-count').textContent==='1','Product added through API');
+  const read=async action=>(await fetch('/api/sales.php?action='+action)).json();
+  const beforeLogin=await read('cart');
+  document.cookie='PHPSESSID=salesfixture-e2e-a-relogin-'+innerWidth+'; path=/';
+  const afterLogin=await read('bootstrap');
+  assert(afterLogin.success&&JSON.stringify(afterLogin.cart)===JSON.stringify(beforeLogin.cart),'New authenticated PHP session restores the same cart');
+  document.cookie='PHPSESSID=salesfixture-e2e-b-other-'+innerWidth+'; path=/';
+  const otherCompany=await read('bootstrap');
+  assert(otherCompany.success&&!otherCompany.cart.items.length&&otherCompany.cart.id!==beforeLogin.cart.id,'Company switch cannot expose the original cart');
+  document.cookie='PHPSESSID=salesfixture-e2e-a-relogin-'+innerWidth+'; path=/';
   document.querySelector('[data-method-key="gateway-a"]').click();
   await wait(()=>document.querySelector('#sales-vipps-phone'),'Phone modal');
   const method=window.apiCalls.find(c=>c.action==='bootstrap').result.methods.find(m=>m.id==='gateway-a');
@@ -48,6 +57,9 @@ const checks=`(async()=>{
   await wait(()=>window.apiCalls.some(c=>c.action==='checkout'&&c.result.order?.payment_status==='pending'),'Actual pending order');
   const created=window.apiCalls.filter(c=>c.action==='checkout'&&c.result.order).pop().result.order;
   assert(Date.parse(created.expires_at)>Date.parse(created.server_time),'Server owns persisted deadline');
+  document.cookie='PHPSESSID=salesfixture-e2e-a-payment-resume-'+innerWidth+'; path=/';
+  const resumedPayment=await read('bootstrap');
+  assert(resumedPayment.success&&resumedPayment.pending_order?.id===created.id,'Another authenticated session finds the same pending payment');
   await wait(()=>document.querySelector('.sales-receipt'),'Automatic early confirmation without clicking status');
   const checked=window.apiCalls.filter(c=>c.action==='payment_status').pop().result.order;
   assert(checked.payment_status==='paid'&&checked.total_minor===10000,'Authoritative capture returns paid');

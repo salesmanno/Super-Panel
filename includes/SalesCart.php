@@ -2,6 +2,43 @@
 declare(strict_types=1);
 
 trait SalesCart {
+    public function adoptSessionCart(string $legacyToken): void {
+        // Only the controller may supply its own current-session legacy key.
+        // Past logged-out sessions cannot safely be attributed from hashes alone.
+        if($this->systemAuth || hash_equals($this->sessionToken,$legacyToken)
+            || !preg_match('/^sales-admin:[a-f0-9]{64}$/D',$legacyToken))return;
+        if(!$this->q("SELECT id FROM sales_cart c WHERE company_id=? AND session_token=? AND
+            (status='converted' OR (status='active' AND EXISTS(SELECT 1 FROM sales_cart_items i WHERE i.cart_id=c.id))) LIMIT 1",
+            [$this->company,$legacyToken])->fetchColumn())return;
+        $this->transaction(function()use($legacyToken){
+            $rows=$this->q("SELECT id,session_token,status FROM sales_cart WHERE company_id=? AND session_token IN (?,?) AND status IN ('active','converted') ORDER BY id FOR UPDATE",
+                [$this->company,$legacyToken,$this->sessionToken])->fetchAll(PDO::FETCH_ASSOC);
+            $oldActive=[];$ownedActive=[];$oldRows=[];
+            foreach($rows as $row) {
+                if($row['session_token']===$legacyToken) {
+                    $oldRows[]=$row;
+                    if($row['status']==='active')$oldActive[]=$row;
+                } elseif($row['status']==='active')$ownedActive[]=$row;
+            }
+            if(!$oldRows)return;
+            if(count($oldActive)>1 || count($ownedActive)>1)
+                throw new SalesConflict('Flere aktive kurver må avklares. Ingen varer er flyttet eller slettet.');
+            $pending=$this->q("SELECT c.session_token FROM sales_cart c JOIN sales_orders o ON o.id=c.converted_order_id AND o.company_id=c.company_id
+                WHERE c.company_id=? AND c.session_token IN (?,?) AND o.status='pending' FOR UPDATE",
+                [$this->company,$legacyToken,$this->sessionToken])->fetchAll(PDO::FETCH_COLUMN);
+            $oldPending=in_array($legacyToken,$pending,true);$ownedPending=in_array($this->sessionToken,$pending,true);
+            $oldHasItems=$oldActive && (bool)$this->q('SELECT id FROM sales_cart_items WHERE cart_id=? LIMIT 1',[$oldActive[0]['id']])->fetchColumn();
+            if(($oldPending && ($ownedPending || $ownedActive)) || ($oldHasItems && ($ownedActive || $ownedPending)))
+                throw new SalesConflict('Det finnes både en lagret kurv og en kurv eller betaling fra denne eldre økten. De må avklares hver for seg; ingen varer eller betalinger er overskrevet.');
+            foreach($oldRows as $row) {
+                // An unused empty legacy cart must not conceal a recovered receipt
+                // or create a second active cart beside the persistent one.
+                if($row['status']==='active' && !$oldHasItems)continue;
+                $this->q('UPDATE sales_cart SET session_token=? WHERE id=? AND company_id=? AND session_token=?',
+                    [$this->sessionToken,$row['id'],$this->company,$legacyToken]);
+            }
+        });
+    }
     private function activeCart(bool $lock=false): ?array {
         $rows=$this->q("SELECT * FROM sales_cart WHERE company_id=? AND session_token=? AND status='active' ORDER BY created_at,id".($lock?' FOR UPDATE':''),[$this->company,$this->sessionToken])->fetchAll(PDO::FETCH_ASSOC);
         if(count($rows)>1)throw new SalesConflict('Flere aktive kurver må avklares før kassen kan brukes');

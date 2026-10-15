@@ -23,11 +23,13 @@ try {
         if(!is_array($data))throw new InvalidArgumentException('Ugyldig forespørsel');
         entityFormRequireCsrf($data);
     }
-    // Binding is per PHP session, company AND actor. Never accept a client cart
-    // token, and never hold the PHP session lock during provider HTTP.
-    $cartToken='sales-admin:'.hash('sha256',session_id().'|'.$_SESSION['company_id'].'|'.$_SESSION['tenant_admin_id']);
+    // The same authenticated actor/company resumes its cart after login. A cart
+    // key is never accepted from the client, and provider HTTP holds no session lock.
+    $cartToken=SalesService::cartOwnerToken((string)$_SESSION['company_id'],(string)$_SESSION['tenant_admin_id']);
+    $legacyCartToken='sales-admin:'.hash('sha256',session_id().'|'.$_SESSION['company_id'].'|'.$_SESSION['tenant_admin_id']);
     session_write_close();
     $service=new SalesService(getDBConnection(),(string)$_SESSION['company_id'],(string)$_SESSION['tenant_admin_id'],$cartToken);
+    $service->adoptSessionCart($legacyCartToken);
     $result=match($action) {
         'bootstrap'=>$service->bootstrap(),
         'products'=>$service->productList(),
