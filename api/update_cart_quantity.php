@@ -1,4 +1,5 @@
 <?php
+require __DIR__.'/sales_legacy_disabled.php';
 session_start();
 require_once '../config/database.php';
 

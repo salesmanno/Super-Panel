@@ -1,4 +1,8 @@
 <?php
+// All writes share the same module, CSRF, VAT, visibility and concurrency rules.
+$_GET['action']='product_save';
+require __DIR__.'/sales.php';
+exit;
 session_start();
 require_once '../config/database.php';
 

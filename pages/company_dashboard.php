@@ -630,22 +630,13 @@ try {
             <!-- Sales subtabs -->
             <ul class="nav nav-pills py-2 subtabs" id="subtabs-sales" style="display: none;">
                 <li class="nav-item">
-                    <a class="nav-link active" href="#sales-varesalg">Varesalg</a>
+                    <a class="nav-link active" href="#sales-varesalg">Kasse</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#sales-purchases">Innkjøp</a>
+                    <a class="nav-link" href="#sales-items">Produkter og lager</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#sales-items">Produkter</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#sales-transactions">Transaksjoner</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#sales-orders">Ordrer</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#sales-statistics">Salgsstatistikk</a>
+                    <a class="nav-link" href="#sales-transactions">Salg</a>
                 </li>
             </ul>
             

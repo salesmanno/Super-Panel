@@ -99,7 +99,7 @@ function tenantAuditCanRead(PDO $db, string $companyId): bool {
 }
 
 function tenantAuditSystemActor(PDO $db, string $companyId, string $job): array {
-    $allowed = ['email_queue','rental_checkin','membership_renewal','membership_reminder'];
+    $allowed = ['email_queue','rental_checkin','membership_renewal','membership_reminder','sales_vipps_webhook','sales_payment_reconcile'];
     if (!in_array($job, $allowed, true)) throw new TenantAuditException('Ukjent automatisk auditkilde.');
     $query = $db->prepare('SELECT name FROM tenant_companies WHERE id = ?');
     $query->execute([$companyId]);

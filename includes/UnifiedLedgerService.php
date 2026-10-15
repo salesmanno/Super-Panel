@@ -55,10 +55,18 @@ class UnifiedLedgerService {
             // Generate ledger ID
             $ledgerId = $this->generateUUID();
             
-            // Prepare metadata (can include customer_name/email for display purposes)
-            $metadata = isset($params['metadata']) && is_array($params['metadata']) 
-                ? json_encode($params['metadata']) 
-                : null;
+            // Identity is resolved from the verified session, never a client-
+            // supplied metadata value. Anonymous/system work has no clerk ID.
+            $values=isset($params['metadata']) && is_array($params['metadata'])?$params['metadata']:[];
+            $values['tenant_admin_id']=null;
+            $values['tenant_admin_name']=null;
+            if(!empty($_SESSION['tenant_admin_id']) && (string)($_SESSION['company_id']??'')===(string)$this->companyId) {
+                require_once __DIR__.'/tenant_audit.php';
+                $actor=tenantAuditActor($this->db,(string)$this->companyId);
+                $values['tenant_admin_id']=$actor['id'];
+                $values['tenant_admin_name']=$actor['name'];
+            }
+            $metadata=json_encode($values,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);
             
             // Set defaults
             $quantity = $params['quantity'] ?? 1;

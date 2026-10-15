@@ -51,6 +51,8 @@ elif [[ "${1:-}" == "--workflow" ]]; then
     php "$ROOT/tests/rental_workflow_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--forms" ]]; then
     php "$ROOT/tests/entity_form_fields_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
+elif [[ "${1:-}" == "--sales" ]]; then
+    php "$ROOT/tests/sales_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--active-payments" ]]; then
     php "$ROOT/tests/active_payment_methods_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--email" ]]; then

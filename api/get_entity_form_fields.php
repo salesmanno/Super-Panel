@@ -7,7 +7,7 @@ try {
     $company=(string)($_SESSION['company_id']??'');
     $db=getDBConnection();
     $type=(string)($_GET['entity_type']??'');
-    if(!in_array($type,['event','rental_object'],true))throw new InvalidArgumentException('Ugyldig skjematype');
+    if(!in_array($type,['event','rental_object','sales_product'],true))throw new InvalidArgumentException('Ugyldig skjematype');
     entityFormRequireModuleAccess($db,$company,$type);
     $id=(string)($_GET['entity_id']??'');
     if (($_GET['csrf_only'] ?? '') === '1') {

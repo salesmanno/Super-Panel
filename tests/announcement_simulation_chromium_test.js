@@ -61,6 +61,11 @@ const checks = `
         await settle();
         check(order()==='one,two,three,four,six','Initial saved order');
         edit('target');setPriority('4');
+        const writingBox=document.getElementById('announcement-content-editor');
+        const writingStyle=getComputedStyle(writingBox);
+        check(parseFloat(writingStyle.minHeight)>=260,'News writing surface is sufficiently tall');
+        check(parseFloat(writingStyle.borderLeftWidth)>=2,'News writing surface has a defined border');
+        check(writingBox.getAttribute('contenteditable')==='true','News editor remains editable');
         check(order()==='one,two,three,target,four','9 to 4 simulation leaves top three alone');
         check(impact().includes('six → 7')&&impact().includes('eight → 9'),'Impact crosses gaps and caps at nine');
         check(manage('four').includes('Prioritet 4'),'Simulation does not mutate management rows');

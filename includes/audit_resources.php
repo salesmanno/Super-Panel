@@ -15,7 +15,7 @@ function tenantAuditResourceSpec(string $table): ?array {
         'event_membership_plans' => 'events', 'event_membership_pricing' => 'events',
     ];
     $module = $exact[$table] ?? null;
-    foreach (['rental_' => 'rental','membership_' => 'membership','events_' => 'events',
+    foreach (['sales_products' => 'sales','sales_orders' => 'sales','rental_' => 'rental','membership_' => 'membership','events_' => 'events',
         'economy_' => 'economy','tenant_website_' => 'settings'] as $prefix => $candidate) {
         if (str_starts_with($table, $prefix)) $module = $candidate;
     }
@@ -37,6 +37,11 @@ function tenantAuditResourceSpec(string $table): ?array {
         'cash_payment','card_payment','vipps_enabled','memberships_enabled','events_enabled','rental_enabled',
         'billing_interval','currency','max_members','published_at','valid_from','valid_until',
         'ticket_price','public_display',
+        'sku','selling_price','cost_price','stock_quantity','reorder_level','low_stock_threeshold',
+        'discount_percent','discount_starts_at','discount_ends_at','visibility','is_backorder',
+        'tax_class','tax_rate','item_taxable','unit','order_number','subtotal','tax_total','total',
+        'list_price','unit_price','line_subtotal','line_total','tax_amount','barcode',
+        'stock_adjustment_reason','order_id','cart_id','product_id',
         'background_color','header_bg_color','text_color','theme','font_family',
     ])));
     return ['module' => $module, 'fields' => $fields];
@@ -56,6 +61,7 @@ function tenantAuditScopeExpression(string $table, array $columns): string {
         'membership_plan_id' => 'membership_plans',
         'object_id' => 'rental_objects', 'rental_object_id' => 'rental_objects',
     ];
+    if(str_starts_with($table,'sales_'))$parents=['cart_id'=>'sales_cart','order_id'=>'sales_orders','product_id'=>'sales_products']+$parents;
     foreach ($parents as $foreignKey => $parent) {
         if (in_array($foreignKey, $columns, true)) {
             return "(SELECT audit_parent.company_id FROM `$parent` audit_parent"

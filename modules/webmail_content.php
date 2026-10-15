@@ -1268,7 +1268,7 @@ const wmColToTemplate = {
     automail_events_confirm:      'event_confirmation',
     automail_events_reminder_3d:  'event_confirmation',
     automail_events_thankyou:     'event_confirmation',
-    automail_sales_order:         'sale_receipt',
+    automail_sales_order:         'sales_receipt',
     automail_membership_welcome:  'membership_confirmation',
     automail_membership_renewal:  'membership_renewal',
     automail_membership_expired:  'membership_expired',

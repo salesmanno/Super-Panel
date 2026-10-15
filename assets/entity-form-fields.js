@@ -77,7 +77,7 @@
         host.innerHTML = `<section class="entity-fields-editor${options.rentalLayout === true ? ' entity-fields-editor-rental' : ''}${options.eventLayout === true ? ' entity-fields-editor-event' : ''}" aria-label="Skjemafelt">
             <div class="entity-fields-head">
                 <div><span class="entity-fields-kicker">Deltakerinformasjon</span><h6 class="mb-1">Skjemafelt</h6>
-                <p class="small text-muted mb-0">Feltene følger dette ${options.entityType === 'event' ? 'arrangementet' : 'utleieobjektet'}.</p></div>
+                <p class="small text-muted mb-0">Feltene følger dette ${options.entityType === 'event' ? 'arrangementet' : options.entityType === 'sales_product' ? 'produktet' : 'utleieobjektet'}.</p></div>
                 <div class="entity-fields-presets"><label class="visually-hidden" for="${host.id}-preset">Forhåndsoppsett</label>
                     <select class="form-select form-select-sm" id="${host.id}-preset" data-preset disabled><option value="">Forhåndsoppsett</option></select>
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-apply-preset disabled>Bruk</button>

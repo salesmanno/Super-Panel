@@ -36,6 +36,15 @@ try {
 @media(max-width:800px){.news-workspace{grid-template-columns:1fr}.hero-story{grid-template-columns:1fr}.secondary-grid{grid-template-columns:1fr}.preview-frame{padding:.8rem}.news-heading{align-items:flex-start;flex-direction:column}}@media(prefers-reduced-motion:reduce){.news-control-room *{transition:none!important}}
 }
 .news-control-room-modal .modal-content{border:0;border-radius:14px}.news-control-room-modal .form-label{font-size:.78rem;font-weight:700}.news-control-room-modal textarea{min-height:130px}.news-control-room-modal .modal-dialog{max-width:680px}
+/* Keep the writing surface clearly distinct from the surrounding dialog. */
+.news-control-room-modal #announcement-content-editor,
+.news-control-room #announcement-content-editor{width:100%;min-height:clamp(17rem,36vh,24rem);max-height:65vh;padding:1rem 1.1rem;border:2px solid #78919b;border-radius:0 0 10px 10px;background:#fff;box-shadow:inset 0 1px 3px rgba(18,45,59,.07);font-size:1rem;line-height:1.65;overflow:auto;resize:vertical;overflow-wrap:anywhere}
+.news-control-room-modal .announcement-editor-toolbar,
+.news-control-room .announcement-editor-toolbar{border:2px solid #78919b;border-bottom:0;background:#edf3f4;padding:.6rem;border-radius:10px 10px 0 0}
+.news-control-room-modal #announcement-content-editor:focus,
+.news-control-room #announcement-content-editor:focus{border-color:#176b69;outline:3px solid rgba(23,107,105,.2);outline-offset:2px}
+#announcement-content-editor:empty::before{content:"Skriv nyhetssaken her …";color:#627780;pointer-events:none}
+@media(max-width:575px){.news-control-room-modal #announcement-content-editor,.news-control-room #announcement-content-editor{min-height:17rem;padding:.9rem;max-height:65svh}}
 </style>
 <div class="container-fluid py-3"><section class="news-control-room" aria-labelledby="news-title">
 <div class="news-heading"><div><h2 id="news-title">Nyhetsrom</h2><p>Endringer vises med en gang i simuleringen. Prioritet 1 er høyest; høyere tall rangeres lavere.</p></div><div class="news-actions"><button class="btn btn-primary btn-sm" id="newAnnouncementButton">Ny sak</button><button class="btn btn-outline-secondary btn-sm" id="refreshAnnouncements">Oppdater</button></div></div>
