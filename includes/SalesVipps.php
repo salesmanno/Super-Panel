@@ -2,20 +2,22 @@
 declare(strict_types=1);
 
 /**
- * Credentials are server-environment only, keyed by configuration UUID and
- * bound to company + test mode. No legacy database-key fallback.
+ * Payment credentials come from the selected economy configuration.
+ * Despite its historical name, client_secret_encrypted stores the plain
+ * client secret in this project. Never return these values to the browser.
  */
 class SalesVipps {
     protected function credentials(array $configuration,string $company): array {
-        try {$map=json_decode(getenv('VIPPS_CREDENTIALS_JSON')?:'{}',true,64,JSON_THROW_ON_ERROR);}
-        catch (JsonException $e) {throw new RuntimeException('Vipps sitt sikre serveroppsett er ugyldig');}
-        $keys=$map[$configuration['configuration_id']]??null;
-        if (!is_array($keys) || ($keys['company_id']??'')!==$company
-            || (int)($keys['test_mode']??-1)!==(int)$configuration['test_mode'])
-            throw new RuntimeException('Vipps-nøkler mangler i serverens sikre miljø for dette betalingsoppsettet');
-        foreach (['client_id','client_secret','subscription_key','merchant_serial_number'] as $field) {
-            if (!is_string($keys[$field]??null) || $keys[$field]==='' || preg_match('/[\r\n]/',$keys[$field]))
-                throw new RuntimeException('Hele Vipps-nøkkelsettet må konfigureres på serveren');
+        if (($configuration['company_id']??null)!==$company || empty($configuration['configuration_id'])
+            || !in_array($configuration['test_mode']??null,[0,1,'0','1'],true))
+            throw new RuntimeException('Vipps-konfigureringen tilhører ikke firmaet eller har ugyldig driftsmodus');
+        $keys=[];
+        foreach (['client_id'=>'client_id','client_secret'=>'client_secret_encrypted',
+            'subscription_key'=>'subscription_key','merchant_serial_number'=>'merchant_serial_number'] as $field=>$column) {
+            $value=$configuration[$column]??null;
+            if (!is_string($value) || trim($value)==='' || preg_match('/[\r\n\x00]/',$value))
+                throw new RuntimeException('Vipps-nøkkelsettet i Økonomi er ufullstendig eller ugyldig');
+            $keys[$field]=$value;
         }
         return $keys;
     }
@@ -57,7 +59,19 @@ class SalesVipps {
         return $this->send($base.'/epayment/v1/payments'.$path,$method,$headers,$body);
     }
     public function verifyWebhook(array $config,string $company,string $body,array $server): bool {
-        try {$secret=$this->credentials($config,$company)['webhook_secret']??'';}catch(Throwable $e){return false;}
+        try {
+            $secret=$this->credentials($config,$company)['webhook_secret']??'';
+            // A webhook's signing secret is separate from payment credentials.
+            // Preserve existing optional webhook setup; it is never required
+            // to list the gateway, initiate payment or poll payment status.
+            if($secret==='') {
+                $map=json_decode(getenv('VIPPS_CREDENTIALS_JSON')?:'{}',true,64,JSON_THROW_ON_ERROR);
+                $entry=$map[$config['configuration_id']]??null;
+                if(is_array($entry) && ($entry['company_id']??null)===$company
+                    && (int)($entry['test_mode']??-1)===(int)$config['test_mode'])
+                    $secret=is_string($entry['webhook_secret']??null)?$entry['webhook_secret']:'';
+            }
+        }catch(Throwable $e){return false;}
         $date=$server['HTTP_X_MS_DATE']??'';$host=$server['HTTP_HOST']??'';$path=$server['REQUEST_URI']??'';
         $hash=base64_encode(hash('sha256',$body,true));
         if ($secret==='' || abs(time()-(strtotime($date)?:0))>300

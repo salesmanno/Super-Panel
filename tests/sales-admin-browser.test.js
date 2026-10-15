@@ -32,7 +32,7 @@ window.fetch=async (url,opts={})=>{
  const u=new URL(url,location.href), action=u.searchParams.get('action'), method=opts.method||'GET';
  calls.push({action,method,body:opts.body?JSON.parse(opts.body):null});
  let result={success:true};
- if(action==='bootstrap'||action==='products') result={...result,csrf_token:'stub-token',tax_registered:1,method_error:methodError,products:[product],methods:[{id:null,method_type:'cash',method_name:'Kontant',available:true},{id:'gw-1',method_type:'vipps',method_name:'Vipps',available:true}],cart,pending_order:null};
+ if(action==='bootstrap'||action==='products') result={...result,csrf_token:'stub-token',tax_registered:1,method_error:methodError,products:[product],methods:[{id:null,method_type:'cash',method_name:'Kontant',available:true},{id:'gw-1',method_type:'vipps',method_name:'Vipps',available:true},{id:'gw-2',method_type:'vipps',method_name:'Vipps ekstra kasse',available:true},{id:'gw-off',method_type:'vipps',method_name:'Ufullstendig Vipps',available:false,reason:'Fyll ut nøkkelsettet i Økonomi'}],cart,pending_order:null};
  if(action==='cart') result={...result,cart,pending_order:null};
  if(action==='fields') result={...result,fields:[{field_name:'farge',field_label:'Velg farge',field_type:'select',is_required:1,options:['Blå','Rød'],sort_order:0}]};
  if(action==='add'){cart={...cart,revision:'r2',items:[{id:'line-1',product_id:'prod-1',name:'Leirdyr',quantity:1,notes:opts.body?JSON.parse(opts.body).notes:'',form_data:{farge:'Blå'},unit_price_minor:17500,total_minor:17500,subtotal_minor:14000,tax_minor:3500,available:true}],subtotal_minor:14000,tax_minor:3500,total_minor:17500};result={...result,cart};}
@@ -107,7 +107,8 @@ const checks = `(async()=>{
  card.click(); await new Promise(resolve=>setTimeout(resolve,5));
  document.querySelector('#sales-dialog select[name="farge"]').value='Blå';
  document.querySelector('#sales-customize-add').click(); await new Promise(resolve=>setTimeout(resolve,50));
-  document.querySelector('#sales-method').value='gw-1';document.querySelector('#sales-method').dispatchEvent(new Event('change',{bubbles:true}));
+  const unavailableExplained=document.querySelector('#sales-method option[value="gw-off"]').disabled&&document.querySelector('#sales-method-note').textContent.includes('Fyll ut nøkkelsettet');
+  document.querySelector('#sales-method').value='gw-2';document.querySelector('#sales-method').dispatchEvent(new Event('change',{bubbles:true}));
  document.querySelector('#sales-phone').value='41234567';document.querySelector('#sales-phone').dispatchEvent(new Event('input',{bubbles:true}));
  document.querySelector('#sales-checkout').click();await new Promise(resolve=>setTimeout(resolve,5));
  document.querySelector('#sales-confirm-vipps').click();await new Promise(resolve=>setTimeout(resolve,50));
@@ -119,6 +120,7 @@ const checks = `(async()=>{
   document.querySelector('#sales-confirm-vipps').click();await new Promise(resolve=>setTimeout(resolve,50));
  document.querySelector('#sales-check-status').click();await new Promise(resolve=>setTimeout(resolve,30));
  const unknown=document.querySelector('#sales-payment-status').textContent.includes('Ukjent');
+ const selectedGatewaySent=calls.filter(c=>c.action==='checkout'&&c.body?.payment_method==='vipps').pop()?.body.gateway_id==='gw-2';
  document.querySelector('#sales-check-status').click();await new Promise(resolve=>setTimeout(resolve,80));
  if(!document.querySelector('.sales-receipt'))return {passed:false,reason:'Vipps resolution',width:innerWidth};
  document.querySelector('[data-close-dialog]').click();
@@ -151,7 +153,7 @@ const checks = `(async()=>{
   document.querySelector('#sales-new-product').click();
   const onlineBlocked=document.querySelector('#sales-product-form [name="visibility"] option[value="online"]').disabled;
   document.querySelector('#sales-dialog [data-close-dialog]').click();
-  return {passed:belowBlocked&&exactAllowed&&typedChange&&denominationBelowBlocked&&denominationChange&&restored&&nextBlocked&&unknown&&ledger&&draftKept&&revisionSent&&dirtyGuardStayedOpen&&editorClosed&&onlineBlocked&&document.querySelector('#sales-dialog').hidden&&document.documentElement.scrollWidth<=innerWidth+1,reason:'cash denominations/tendered/cancel restore/revision conflict/field dirty guard',width:innerWidth};
+  return {passed:belowBlocked&&exactAllowed&&typedChange&&denominationBelowBlocked&&denominationChange&&restored&&nextBlocked&&unknown&&selectedGatewaySent&&unavailableExplained&&ledger&&draftKept&&revisionSent&&dirtyGuardStayedOpen&&editorClosed&&onlineBlocked&&document.querySelector('#sales-dialog').hidden&&document.documentElement.scrollWidth<=innerWidth+1,reason:'cash denominations/tendered/multiple gateways/unavailable reasons/cancel restore/revision conflict/field dirty guard',width:innerWidth};
 })()`;
 
 chromiumFixture(fixture,checks,[320,390,768,1024,1280]).finally(()=>setTimeout(()=>{try{fs.rmSync(dir,{recursive:true,force:true})}catch(_){}},350));

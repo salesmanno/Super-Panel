@@ -161,7 +161,8 @@ trait SalesOrders {
         return ['order'=>$view['status']==='pending'?$this->reconcile($id):$view];
     }
     private function orderConfiguration(array $order,array $control): array {
-        $config=$this->q('SELECT id AS configuration_id,company_id,gateway_type,test_mode FROM economy_configuration_data WHERE id=? AND company_id=?',
+        $config=$this->q('SELECT id AS configuration_id,company_id,gateway_type,test_mode,
+            client_id,client_secret_encrypted,subscription_key,merchant_serial_number FROM economy_configuration_data WHERE id=? AND company_id=?',
             [$control['configuration_id'],$this->company])->fetch(PDO::FETCH_ASSOC);
         if(!$config || self::salesPaymentType($config['gateway_type'])!=='vipps' || !hash_equals((string)$control['account_binding'],$this->provider->binding($config,$this->company)))
             throw new RuntimeException('Vipps-kontoen for den ventende betalingen er endret. Avstemming kreves.');

@@ -16,7 +16,8 @@ final class SalesWebhookAuth {
         if(!$row)throw new RuntimeException('Ugyldig webhook');
         $control=json_decode($row['metadata'],true,32,JSON_THROW_ON_ERROR)['sales']??[];
         if(($control['version']??null)!==1 || ($control['reference']??null)!==$reference)throw new RuntimeException('Ugyldig webhook');
-        $q=$db->prepare('SELECT id AS configuration_id,company_id,gateway_type,test_mode FROM economy_configuration_data WHERE id=? AND company_id=?');
+        $q=$db->prepare('SELECT id AS configuration_id,company_id,gateway_type,test_mode,
+            client_id,client_secret_encrypted,subscription_key,merchant_serial_number FROM economy_configuration_data WHERE id=? AND company_id=?');
         $q->execute([$control['configuration_id'],$row['company_id']]);$config=$q->fetch(PDO::FETCH_ASSOC);
         if(!$config || strtolower(trim($config['gateway_type']))!=='vipps' || !$provider->verifyWebhook($config,$row['company_id'],$body,$server)
             || !hash_equals((string)$control['account_binding'],$provider->binding($config,$row['company_id'])))throw new RuntimeException('Ugyldig webhook');

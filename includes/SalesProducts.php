@@ -35,7 +35,8 @@ trait SalesProducts {
     }
     private function paymentConfiguration(string $id,bool $forNewPayment=true): array {
         $row=$this->q('SELECT g.id,g.gateway_name,g.is_active AS gateway_active,g.configuration_id,
-            c.gateway_type,c.test_mode,c.is_active AS configuration_active,c.config_name
+            c.company_id,c.gateway_type,c.test_mode,c.is_active AS configuration_active,c.config_name,
+            c.client_id,c.client_secret_encrypted,c.subscription_key,c.merchant_serial_number
             FROM economy_payment_gateways g JOIN economy_configuration_data c ON c.id=g.configuration_id AND c.company_id=g.company_id
             WHERE g.id=? AND g.company_id=?',[$id,$this->company])->fetch(PDO::FETCH_ASSOC);
         if (!$row || self::salesPaymentType($row['gateway_type'])!=='vipps')
@@ -46,7 +47,7 @@ trait SalesProducts {
             if ((int)$row['gateway_active']!==1 || (int)$row['configuration_active']!==1)
                 throw new InvalidArgumentException('Vipps-oppsettet eller den tilknyttede konfigureringen er deaktivert');
         }
-        if (!$this->provider->configured($row,$this->company)) throw new RuntimeException('Vipps-nøkler mangler i serverens sikre miljø');
+        if (!$this->provider->configured($row,$this->company)) throw new RuntimeException('Vipps-nøkkelsettet i Økonomi er ufullstendig eller ugyldig');
         return $row;
     }
     public function paymentMethods(): array {

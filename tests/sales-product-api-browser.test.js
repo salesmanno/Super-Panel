@@ -22,7 +22,8 @@ async function run(company){
     if(!registered) {
       const disabled=[...document.querySelector('#sales-method').options].filter(o=>o.disabled);
       assert(disabled.length>=5,'Incomplete and unsupported active gateways remain visible');
-      assert(document.querySelector('#sales-method-note').textContent.includes('Vipps-nøkler'),'Missing secure keys have an explicit reason');
+      assert(!document.querySelector('#sales-method option[value="gateway-a"]').disabled,'Actual database credentials enable Vipps without environment payment keys');
+      assert(!JSON.stringify(boot).includes('fixture-db-secret'),'Payment credentials never appear in bootstrap response');
       assert(![...document.querySelector('#sales-method').options].some(o=>o.value==='gateway-b'||o.value==='gateway-inactive'),'No foreign/inactive gateway');
     }
     const variants=registered?['standard','custom','exempt']:['exempt'];

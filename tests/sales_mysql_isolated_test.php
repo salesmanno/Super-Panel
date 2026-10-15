@@ -97,11 +97,11 @@ try {
     }
     $provider=new SalesFixtureVipps();$sales=new SalesService($db,'a','admin','fixture-cart',$provider);
     // Sales must use the configuration's type, not its user-facing gateway
-    // label or the obsolete presence of database secrets.
-    $setup->exec("UPDATE economy_configuration_data SET gateway_type=' VIPPS ',client_id=NULL,client_secret_encrypted=NULL,subscription_key=NULL,merchant_serial_number=NULL WHERE id='cfg-a'");
+    // label. Payment credentials live in this configuration, not the environment.
+    $setup->exec("UPDATE economy_configuration_data SET gateway_type=' VIPPS ' WHERE id='cfg-a'");
     $setup->exec("UPDATE economy_payment_gateways SET gateway_name='Resepsjonen' WHERE id='gateway-a'");
     $methods=array_column($sales->paymentMethods()['methods'],null,'id');
-    salesAssert($methods['gateway-a']['available'] && $methods['gateway-a']['method_type']==='vipps','Authoritative normalized type and secure provider configuration enable Vipps without legacy DB credentials');
+    salesAssert($methods['gateway-a']['available'] && $methods['gateway-a']['method_type']==='vipps','Authoritative normalized configuration type identifies Vipps regardless of gateway display name');
     $setup->exec("INSERT INTO economy_configuration_data(id,company_id,config_name,gateway_type,test_mode,is_active) VALUES('cfg-off','a','Deaktivert','vipps',0,0),('cfg-test','a','Test','vipps',1,1),('cfg-card','a','Kort','card',0,1)");
     $setup->exec("INSERT INTO economy_payment_gateways(id,company_id,configuration_id,gateway_name,is_active) VALUES('gateway-missing','a','missing','Mangler',1),('gateway-foreign','a','cfg-b','Feilkoblet',1),('gateway-off','a','cfg-off','Av',1),('gateway-test','a','cfg-test','Test',1),('gateway-card','a','cfg-card','Terminal',1),('gateway-inactive','a','cfg-a','Inaktiv',0),('gateway-a-2','a','cfg-a','Andre kasse',1)");
     $methods=array_column($sales->paymentMethods()['methods'],null,'id');
@@ -120,9 +120,30 @@ try {
     $same=$sales->saveProduct(['id'=>$pid,'expected_revision'=>$product['revision']]+$base)['product'];
     salesAssert((int)$setup->query('SELECT COUNT(*) FROM audit_logs')->fetchColumn()===$before,'No audit for unchanged product save');
     salesAssert($same['barcode']===$product['barcode'],'No regeneration on save');
+    $setup->exec("UPDATE economy_configuration_data SET client_secret_encrypted=NULL WHERE id='cfg-a'");
     $blocked=new SalesService($db,'a','admin','blocked-cart',new SalesVipps());
-    salesAssert($blocked->paymentMethods()['methods'][0]['available'],'Cash default even when global cash=0 and no secure Vipps keys');
-    salesReject(fn()=>$blocked->saveProduct($base+['visibility'=>'online']),'Online product blocked without usable server configuration');
+    salesAssert($blocked->paymentMethods()['methods'][0]['available'],'Cash default even when global cash=0 and Vipps configuration is incomplete');
+    salesReject(fn()=>$blocked->saveProduct($base+['visibility'=>'online']),'Online product blocked without usable database configuration');
+    $setup->exec("UPDATE economy_configuration_data SET client_id='fixture-db-client',client_secret_encrypted='fixture-db-secret',subscription_key='fixture-db-subscription',merchant_serial_number='fixture-db-merchant' WHERE id='cfg-a'");
+    class SalesFixtureDatabaseVipps extends SalesVipps {
+        public array $sent=[];
+        protected function send(string $url,string $method,array $headers,?array $body): array {
+            $this->sent[]=['url'=>$url,'headers'=>$headers];
+            return str_ends_with($url,'/accesstoken/get')
+                ?['code'=>200,'data'=>['access_token'=>'fixture-access-token']]
+                :['code'=>200,'data'=>['state'=>'CREATED']];
+        }
+    }
+    $databaseProvider=new SalesFixtureDatabaseVipps();
+    $databaseService=new SalesService($db,'a','admin','fixture-database-keys',$databaseProvider);
+    $databaseMethods=array_column($databaseService->paymentMethods()['methods'],null,'id');
+    salesAssert($databaseMethods['gateway-a']['available'],'Actual loader accepts selected database configuration without environment payment keys');
+    $config=$setup->query("SELECT *,id AS configuration_id FROM economy_configuration_data WHERE id='cfg-a'")->fetch(PDO::FETCH_ASSOC);
+    salesAssert(!$databaseProvider->configured($config,'b'),'Database credentials cannot cross company boundaries');
+    salesAssert(!$databaseProvider->configured(array_replace($config,['client_secret_encrypted'=>"bad\r\nheader"]),'a'),'Credential header injection is rejected');
+    $databaseProvider->request($config,'a','GET','/fixture');
+    salesAssert(in_array('client_secret: fixture-db-secret',$databaseProvider->sent[0]['headers'],true)
+        && in_array('Ocp-Apim-Subscription-Key: fixture-db-subscription',$databaseProvider->sent[1]['headers'],true),'Token and payment requests use database values directly, without decryption');
     $online=$sales->saveProduct($base+['visibility'=>'online'])['product'];
     salesAssert($online['visibility']==='online','Configured actual gateway binding enables declared web channel');
     $setup->exec("UPDATE economy_payment_gateways SET is_active=0 WHERE id='gateway-a'");
@@ -317,7 +338,7 @@ try {
     $setup->exec("INSERT INTO tenant_admin_modules VALUES('admin','sales-module',1),('admin','economy-module',1)");
     // Browser talks to the existing isolated HTTP fixture, never the app DB.
     // Release PDO owners before spawning the browser process.
-    unset($sales,$blocked,$other,$signedSales,$callback,$db,$setup);
+    unset($sales,$blocked,$other,$signedSales,$callback,$databaseService,$db,$setup);
     passthru('node --experimental-websocket '.escapeshellarg($root.'/tests/sales-product-api-browser.test.js').' '.escapeshellarg((string)$port).' '.escapeshellarg($temp),$browserStatus);
     salesAssert($browserStatus===0,'Actual product form/API browser regression passed');
     echo "Isolated Sales MySQL, controller, ledger, dynamic fields, VAT and payment state checks passed\n";
