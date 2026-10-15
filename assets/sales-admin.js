@@ -9,9 +9,11 @@
   };
   const money = minor => new Intl.NumberFormat('nb-NO', {style:'currency',currency:'NOK'}).format((Number(minor) || 0) / 100);
   const date = value => value ? new Intl.DateTimeFormat('nb-NO',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)) : '–';
-  const state = {csrf:'',taxRegistered:1,products:[],methods:[],methodError:'',cart:null,pending:null,selectedMethod:'cash',mutationQueue:Promise.resolve(),busy:false,orders:[],pollTimer:0,pollAbort:null,dialog:null,lastFocus:null,productController:null,checkoutUncertain:false,paymentNotice:''};
+  const state = {csrf:'',taxRegistered:0,products:[],methods:[],methodError:'',cart:null,pending:null,selectedMethod:'cash',selectedGatewayId:null,mutationQueue:Promise.resolve(),busy:false,orders:[],pollTimer:0,pollAbort:null,dialog:null,lastFocus:null,productController:null,checkoutUncertain:false,paymentNotice:''};
   const methodName = m => m?.method_type === 'cash' ? 'Kontant' : (m?.method_name || 'Betaling');
-  const usableMethods = () => (state.methods || []).filter(m => m.available && ['cash','vipps'].includes(m.method_type));
+  const usableMethods = () => (state.methods || []).filter(m => m.available && (m.method_type==='cash' || (m.method_type==='vipps' && !state.methodError)));
+  const paymentKey = m => m.method_type==='cash'?'cash':m.id;
+  const selectedPayment = () => usableMethods().find(m=>m.method_type===state.selectedMethod && (m.method_type==='cash' || m.id===state.selectedGatewayId));
   function modal(title, content, opts = {}) {
     if (state.dialog?.kind === 'fields' && !closeFields()) return false;
     const dialog = $('#sales-dialog'); state.lastFocus = document.activeElement;
@@ -56,11 +58,12 @@
       $('#sales-checkout').disabled = true; $('#sales-method-note').textContent = 'Ingen aktiv betalingsmåte er konfigurert.';
       return;
     }
-    if (!methods.some(m => m.method_type === state.selectedMethod)) state.selectedMethod = 'cash';
-    select.innerHTML = methods.map(m => `<option value="${esc(m.method_type)}" ${m.method_type === state.selectedMethod ? 'selected' : ''}>${esc(methodName(m))}${m.is_demo ? ' · test' : ''}</option>`).join('');
-    const onlineRequested = state.products.some(p => ['online','both'].includes(p.visibility) && Number(p.is_active) === 1);
-    $('#sales-method-note').textContent = onlineRequested && (!methods.some(m => m.method_type === 'vipps') || state.methodError) ?
-      `Nettbetaling er ikke tilgjengelig: ${state.methodError || 'ingen brukbar Vipps-tilkobling er konfigurert.'}` : '';
+    if (!selectedPayment()) {state.selectedMethod='cash';state.selectedGatewayId=null;}
+    select.innerHTML = (state.methods||[]).map(m => {
+      const available=methods.some(u=>paymentKey(u)===paymentKey(m));
+      return `<option value="${esc(paymentKey(m))}" ${available?'':'disabled'} ${paymentKey(m)===paymentKey(selectedPayment())?'selected':''}>${esc(methodName(m))}${m.is_demo?' · test':''}${available?'':' · utilgjengelig'}</option>`;
+    }).join('');
+    $('#sales-method-note').textContent = [state.methodError,...(state.methods||[]).filter(m=>!m.available).map(m=>`${methodName(m)}: ${m.reason || 'Oppsettet kan ikke brukes'}`)].filter(Boolean).join('\n');
   }
   function renderProducts() {
     const term = ($('#sales-search').value || '').trim().toLocaleLowerCase('nb');
@@ -94,7 +97,7 @@
     const change = Math.max(0,tender - Number(cart.total_minor || 0));
     $('#sales-change').textContent = money(change);
     const pending = !!state.pending;
-    $('#sales-checkout').disabled = !items.length || state.busy || pending || state.checkoutUncertain || !usableMethods().some(m => m.method_type === state.selectedMethod) ||
+    $('#sales-checkout').disabled = !items.length || state.busy || pending || state.checkoutUncertain || !selectedPayment() ||
       (state.selectedMethod === 'cash' && (tender < Number(cart.total_minor || 0) || !$('#sales-tendered').value)) ||
       (state.selectedMethod === 'vipps' && !$('#sales-phone').value.trim());
     $('#sales-checkout').textContent = state.checkoutUncertain ? 'Avventer betalingsstatus' : (state.selectedMethod === 'vipps' ? 'Send Vipps-betalingsforespørsel' : 'Bekreft kontantsalg');
@@ -189,10 +192,10 @@
       if(Number.isNaN(d.getTime()))return '';
       return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
     };
-    const tax = state.taxRegistered ? `<details class="sales-form-details"><summary>Mva og avgift</summary><div class="sales-form-grid"><label>Mva-klasse<select class="form-select" name="tax_class"><option value="standard">Standard</option><option value="exempt">Unntatt</option><option value="zero">Nullsats</option></select></label><label>Mva-sats (%)<input class="form-control" name="tax_rate" type="number" min="0" max="100" step=".01" value="${esc(p.tax_rate ?? '')}"></label><label class="sales-check"><input type="checkbox" name="item_taxable" ${Number(p.item_taxable) ? 'checked' : ''}> Mva-pliktig</label></div></details>` : '';
+    const tax = state.taxRegistered ? `<details class="sales-form-details"><summary>Mva og avgift</summary><div class="sales-form-grid"><label>Mva-klasse<select class="form-select" name="tax_class"><option value="standard">Standard</option><option value="food">Næringsmidler</option><option value="transport">Transport</option><option value="exempt">Unntatt</option><option value="custom">Egen sats / nullsats</option></select></label><label>Mva-sats (%)<input class="form-control" name="tax_rate" type="number" min="0" max="100" step=".01" required value="${esc(p.tax_rate ?? (product?0:25))}"></label><label class="sales-check"><input type="checkbox" name="item_taxable" ${Number(p.item_taxable ?? (product?0:1)) ? 'checked' : ''}> Mva-pliktig</label></div></details>` : '';
     const body = `<form id="sales-product-form" class="sales-product-form">
       <label class="sales-span">Produktnavn <input class="form-control" name="name" required maxlength="180" value="${esc(p.name)}" autocomplete="off"></label>
-      <div class="sales-form-grid"><label>Salgspris inkl. mva <div class="input-group"><input class="form-control" name="selling_price" type="number" min="0" step=".01" required value="${esc(p.selling_price ?? (Number(p.price_minor||0)/100||''))}"><span class="input-group-text">kr</span></div></label><label>Kostpris <div class="input-group"><input class="form-control" name="cost_price" type="number" min="0" step=".01" value="${esc(p.cost_price ?? '')}"><span class="input-group-text">kr</span></div></label>${product ? '' : '<label>Startbeholdning<input class="form-control" name="stock_quantity" type="number" min="0" step="1" value="0"></label>'}</div>
+      <div class="sales-form-grid"><label>${state.taxRegistered?'Salgspris inkl. MVA':'Salgspris'} <div class="input-group"><input class="form-control" name="selling_price" type="number" min="0" step=".01" required value="${esc(p.selling_price ?? (Number(p.price_minor||0)/100||''))}"><span class="input-group-text">kr</span></div></label><label>Kostpris <div class="input-group"><input class="form-control" name="cost_price" type="number" min="0" step=".01" value="${esc(p.cost_price ?? '')}"><span class="input-group-text">kr</span></div></label>${product ? '' : '<label>Startbeholdning<input class="form-control" name="stock_quantity" type="number" min="0" step="1" value="0"></label>'}</div>
       <details class="sales-form-details"><summary>Flere produktoplysninger</summary><div class="sales-form-grid"><label class="sales-span">Beskrivelse<textarea class="form-control" name="description" rows="2">${esc(p.description)}</textarea></label><label>Bildeadresse<input class="form-control" type="url" name="img_product" placeholder="https://…" value="${esc(p.img_product)}" autocomplete="off"></label><label>Enhet<input class="form-control" name="unit" value="${esc(p.unit || 'stk.')}"></label><label>Varsel ved lav beholdning<input class="form-control" name="reorder_level" type="number" min="0" step="1" value="${esc(p.reorder_level ?? '')}"></label><label>Lavlagergrense<input class="form-control" name="low_stock_threeshold" type="number" min="0" step="1" value="${esc(p.low_stock_threeshold ?? '')}"></label><label>Rabatt (%)<input class="form-control" name="discount_percent" type="number" min="0" max="100" step=".01" value="${esc(p.discount_percent ?? '')}"></label><label>Rabatt starter<input class="form-control" name="discount_starts_at" type="datetime-local" value="${esc(localDateTime(p.discount_starts_at))}"></label><label>Rabatt slutter<input class="form-control" name="discount_ends_at" type="datetime-local" value="${esc(localDateTime(p.discount_ends_at))}"></label></div></details>
       ${onlineConflict?'<div class="sales-error" id="sales-online-warning" role="alert">Nettbetaling er ikke tilgjengelig uten aktiv Vipps. Dette produktet kan ikke lagres før du velger «Kasse og kiosk».</div>':''}
       <label>Synlighet<select class="form-select" name="visibility"><option value="kiosk" ${visibility==='kiosk'?'selected':''}>Kasse og kiosk</option><option value="online" ${visibility==='online'?'selected':''} ${!onlineUsable&&!product?'disabled':''}>Nettbutikk${!onlineUsable?' · Vipps mangler':''}</option><option value="both" ${visibility==='both'?'selected':''} ${!onlineUsable&&!product?'disabled':''}>Kasse og nettbutikk${!onlineUsable?' · Vipps mangler':''}</option></select></label>
@@ -204,7 +207,22 @@
     </form>`;
     modal(product ? 'Rediger produkt' : 'Nytt produkt',body,{kind:'product',footer:`<button type="button" class="btn btn-outline-secondary" data-close-dialog>Avbryt</button><button type="button" class="btn btn-primary" id="sales-save-product">${product?'Lagre endringer':'Opprett produkt'}</button>`});
     const form = $('#sales-product-form');
-    if (product && state.taxRegistered) {form.elements.tax_class.value = product.tax_class || 'standard';}
+    if (state.taxRegistered) {
+      const taxClass=form.elements.tax_class,rate=form.elements.tax_rate,taxable=form.elements.item_taxable;
+      taxClass.value=product?.tax_class || 'standard';
+      const syncTax=()=>{rate.disabled=taxClass.value==='exempt' || !taxable.checked;rate.required=!rate.disabled;};
+      syncTax();
+      taxClass.addEventListener('change',()=>{
+        taxable.checked=taxClass.value!=='exempt';
+        rate.value=({standard:25,food:15,transport:12,exempt:0,custom:0})[taxClass.value];
+        syncTax();
+      });
+      taxable.addEventListener('change',()=>{
+        if(!taxable.checked){taxClass.value='exempt';rate.value='0';}
+        else if(taxClass.value==='exempt'){taxClass.value='standard';rate.value='25';}
+        syncTax();
+      });
+    }
     form.elements.visibility.addEventListener('change',e => {
       const online = ['online','both'].includes(e.target.value), ok = usableMethods().some(m => m.method_type === 'vipps') && !state.methodError;
       if (online && !ok) { $('#sales-product-error').hidden = false; $('#sales-product-error').textContent = 'Nettbutikk kan ikke aktiveres uten en brukbar Vipps-betalingsmåte. Velg kun kasse eller konfigurer Vipps først.'; e.target.value = product?.visibility || 'kiosk'; }
@@ -223,7 +241,11 @@
       }
       const fd = new FormData(form), payload = Object.fromEntries(fd.entries());
       ['is_active','item_taxable'].forEach(key => payload[key] = fd.has(key) ? 1 : 0);
-      ['selling_price','cost_price','stock_quantity','tax_rate','reorder_level','low_stock_threeshold','discount_percent'].forEach(key => {if (payload[key] !== undefined && payload[key] !== '') payload[key] = Number(payload[key]);});
+      ['selling_price','cost_price','stock_quantity','tax_rate','reorder_level','low_stock_threeshold','discount_percent'].forEach(key => {
+        if(payload[key]===undefined)return;
+        payload[key]=String(payload[key]).trim();
+        if(payload[key]==='' && ['cost_price','reorder_level','low_stock_threeshold','discount_percent'].includes(key))payload[key]='0';
+      });
       ['discount_starts_at','discount_ends_at'].forEach(key=>{if(payload[key])payload[key]=payload[key].replace('T',' ')+':00';});
       if (!state.taxRegistered) ['tax_class','tax_rate','item_taxable'].forEach(k=>delete payload[k]);
       if (product) {
@@ -354,7 +376,7 @@
       modal('Bekreft kontantsalg',`<div class="sales-confirm-total"><span>Å betale</span><strong>${esc(money(total))}</strong></div><div class="sales-confirm-row"><span>Mottatt</span><strong>${esc(money(received))}</strong></div><div class="sales-confirm-row"><span>Vekslepenger</span><strong>${esc(money(change))}</strong></div><p class="sales-muted mt-3">Kontroller beløpene før salget registreres.</p>`,{kind:'confirm-cash',footer:'<button type="button" class="btn btn-outline-secondary" data-close-dialog>Tilbake</button><button type="button" class="btn btn-success" id="sales-confirm-cash">Registrer kontantsalg</button>'});
       $('#sales-confirm-cash').addEventListener('click',()=>sendCheckout({revision:cart.revision,payment_method:'cash',received_minor:received,expected_total_minor:total}));
     } else {
-      const methodConfig=usableMethods().find(m=>m.method_type==='vipps');
+      const methodConfig=selectedPayment();
       if(!methodConfig)return;
       const phone=$('#sales-phone').value.trim();
       if(!phone)return;
@@ -446,7 +468,8 @@
   }
   async function bootstrap() {
     try {
-      const r=await api('bootstrap');state.csrf=r.csrf_token||'';state.taxRegistered=Number(r.tax_registered)!==0?1:0;state.methodError=r.method_error||'';
+      const r=await api('bootstrap');state.csrf=r.csrf_token||'';state.taxRegistered=Number(r.tax_registered)===1?1:0;state.methodError=r.method_error||'';
+      $('#sales-new-product').disabled=false;
       state.products=r.products||[];state.methods=r.methods||[];state.cart=r.cart||emptyCart();state.pending=r.pending_order&&!isTerminalPayment(r.pending_order)?r.pending_order:null;
       renderMethods();renderProducts();renderAdminProducts();renderCart();
       if(state.pending)startPolling();
@@ -473,7 +496,11 @@
   });
   $('#sales-search').addEventListener('input',renderProducts);
   $('#sales-admin-search').addEventListener('input',renderAdminProducts);
-  $('#sales-method').addEventListener('change',e=>{state.selectedMethod=e.target.value;renderCart();});
+  $('#sales-method').addEventListener('change',e=>{
+    const method=usableMethods().find(m=>paymentKey(m)===e.target.value);
+    state.selectedMethod=method?.method_type || 'cash';state.selectedGatewayId=method?.id || null;
+    renderMethods();renderCart();
+  });
   $('#sales-tendered').addEventListener('input',renderCart);
   $('#sales-phone').addEventListener('input',renderCart);
   $('#sales-checkout').addEventListener('click',checkout);
@@ -495,7 +522,7 @@
     }
   });
   $('#sales-new-product').addEventListener('click',()=>productForm());
-  $('#sales-refresh-products').addEventListener('click',async()=>{try{const r=await api('products');state.products=r.products||[];state.methods=r.methods||state.methods;state.methodError=r.method_error||'';state.taxRegistered=Number(r.tax_registered)!==0?1:0;renderMethods();renderProducts();renderAdminProducts();}catch(e){setError(e.message)}});
+  $('#sales-refresh-products').addEventListener('click',async()=>{try{const r=await api('products');state.products=r.products||[];state.methods=r.methods||state.methods;state.methodError=r.method_error||'';state.taxRegistered=Number(r.tax_registered)===1?1:0;renderMethods();renderProducts();renderAdminProducts();}catch(e){setError(e.message)}});
   $('#sales-refresh-orders').addEventListener('click',refreshOrders);
   document.addEventListener('shown.bs.tab',event=>{const target=event.target?.getAttribute('href')||event.target?.dataset?.bsTarget;if(target==='#sales-transactions')refreshOrders();if(target==='#sales-varesalg'&&state.pending)startPolling();if(target!=='#sales-varesalg'&&state.pending)stopPolling();});
   document.addEventListener('shown.bs.tab',()=>setTimeout(()=>{if(!state.pending)return;if(paymentPanelShown())startPolling();else stopPolling();},0));
@@ -526,5 +553,6 @@
   });
   $('#sales-scanner').addEventListener('input',()=>{$('#sales-scan-message').textContent='';});
   // Explicitly protect against browser back/navigation while an unresolved provider payment exists.
+  $('#sales-new-product').disabled=true;
   bootstrap();
 })();

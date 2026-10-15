@@ -163,7 +163,7 @@ trait SalesOrders {
     private function orderConfiguration(array $order,array $control): array {
         $config=$this->q('SELECT id AS configuration_id,company_id,gateway_type,test_mode FROM economy_configuration_data WHERE id=? AND company_id=?',
             [$control['configuration_id'],$this->company])->fetch(PDO::FETCH_ASSOC);
-        if(!$config || $config['gateway_type']!=='vipps' || !hash_equals((string)$control['account_binding'],$this->provider->binding($config,$this->company)))
+        if(!$config || self::salesPaymentType($config['gateway_type'])!=='vipps' || !hash_equals((string)$control['account_binding'],$this->provider->binding($config,$this->company)))
             throw new RuntimeException('Vipps-kontoen for den ventende betalingen er endret. Avstemming kreves.');
         return $config;
     }

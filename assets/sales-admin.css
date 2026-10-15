@@ -69,6 +69,7 @@
 .sales-admin .sales-grand-total strong {font-size:1.18rem;color:var(--sale-teal);letter-spacing:-.025em}
 .sales-admin .sales-payment {padding:.8rem 1rem 1rem;background:#fafcfc;border-top:1px solid var(--sale-line)}
 .sales-admin .sales-payment .form-label {font-size:.77rem;font-weight:700;margin-bottom:.3rem}
+.sales-admin #sales-method-note {white-space:pre-line;overflow-wrap:anywhere}
 .sales-admin .sales-cash-shortcuts {display:flex;gap:.35rem;margin-top:.45rem}
 .sales-admin .sales-cash-shortcuts button {flex:1;border:1px solid #c8dddf;background:#f1f8f8;color:#17646c;border-radius:6px;min-height:30px;font-size:.72rem;font-weight:700}
 .sales-admin .sales-change {margin-top:.35rem;padding:.3rem .5rem;background:var(--sale-teal-wash);border-radius:6px;color:var(--sale-teal)}

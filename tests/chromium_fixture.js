@@ -2,8 +2,8 @@
 const {spawn} = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
-module.exports = async function chromiumFixture(fixture, checks, widths) {
-    const dir = path.dirname(fixture);
+module.exports = async function chromiumFixture(fixture, checks, widths, options={}) {
+    const dir = options.outputDir || path.dirname(fixture);
     let browser, socket;
     try {
         browser = spawn('/repl/tools/bin/chromium', ['--headless','--no-sandbox','--disable-dev-shm-usage',
@@ -37,7 +37,7 @@ module.exports = async function chromiumFixture(fixture, checks, widths) {
         for (const width of widths) {
             await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false},sessionId);
             await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]},sessionId);
-            await send('Page.navigate',{url:'file://'+fixture},sessionId);
+            await send('Page.navigate',{url:/^https?:\/\//.test(fixture)?fixture:'file://'+fixture},sessionId);
             await new Promise(resolve => setTimeout(resolve,600));
             const result = await send('Runtime.evaluate',{expression:checks,awaitPromise:true,returnByValue:true},sessionId);
             if (result.exceptionDetails) throw new Error(JSON.stringify(result.exceptionDetails));

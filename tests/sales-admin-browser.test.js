@@ -107,7 +107,7 @@ const checks = `(async()=>{
  card.click(); await new Promise(resolve=>setTimeout(resolve,5));
  document.querySelector('#sales-dialog select[name="farge"]').value='Blå';
  document.querySelector('#sales-customize-add').click(); await new Promise(resolve=>setTimeout(resolve,50));
- document.querySelector('#sales-method').value='vipps';document.querySelector('#sales-method').dispatchEvent(new Event('change',{bubbles:true}));
+  document.querySelector('#sales-method').value='gw-1';document.querySelector('#sales-method').dispatchEvent(new Event('change',{bubbles:true}));
  document.querySelector('#sales-phone').value='41234567';document.querySelector('#sales-phone').dispatchEvent(new Event('input',{bubbles:true}));
  document.querySelector('#sales-checkout').click();await new Promise(resolve=>setTimeout(resolve,5));
  document.querySelector('#sales-confirm-vipps').click();await new Promise(resolve=>setTimeout(resolve,50));
