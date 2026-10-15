@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+final class SalesVippsFailure extends RuntimeException {}
+
 /**
  * Payment credentials come from the selected economy configuration.
  * Despite its historical name, client_secret_encrypted stores the plain
@@ -51,7 +53,7 @@ class SalesVipps {
             'Vipps-System-Name: Salesman','Vipps-System-Version: 1.0'];
         $auth=$this->send($base.'/accesstoken/get','POST',$headers,[]);
         if ($auth['code']!==200 || !is_string($auth['data']['access_token']??null))
-            throw new RuntimeException('Vipps kunne ikke autentisere serverens betalingsoppsett');
+            throw new SalesVippsFailure('Vipps avviste innloggingen for bedriftens betalingsoppsett. Kontroller nøklene og at de tilhører valgt test-/produksjonsmiljø.');
         $headers=['Content-Type: application/json','Authorization: Bearer '.$auth['data']['access_token'],
             'Ocp-Apim-Subscription-Key: '.$keys['subscription_key'],'Merchant-Serial-Number: '.$keys['merchant_serial_number'],
             'Vipps-System-Name: Salesman','Vipps-System-Version: 1.0'];
@@ -60,17 +62,12 @@ class SalesVipps {
     }
     public function verifyWebhook(array $config,string $company,string $body,array $server): bool {
         try {
-            $secret=$this->credentials($config,$company)['webhook_secret']??'';
+            $this->credentials($config,$company);
+            $secret=is_string($config['webhook_secret']??null)?trim($config['webhook_secret']):'';
             // A webhook's signing secret is separate from payment credentials.
-            // Preserve existing optional webhook setup; it is never required
+            // Use the selected company's configuration, never an unrelated
+            // server-wide fallback. The signing secret is never required
             // to list the gateway, initiate payment or poll payment status.
-            if($secret==='') {
-                $map=json_decode(getenv('VIPPS_CREDENTIALS_JSON')?:'{}',true,64,JSON_THROW_ON_ERROR);
-                $entry=$map[$config['configuration_id']]??null;
-                if(is_array($entry) && ($entry['company_id']??null)===$company
-                    && (int)($entry['test_mode']??-1)===(int)$config['test_mode'])
-                    $secret=is_string($entry['webhook_secret']??null)?$entry['webhook_secret']:'';
-            }
         }catch(Throwable $e){return false;}
         $date=$server['HTTP_X_MS_DATE']??'';$host=$server['HTTP_HOST']??'';$path=$server['REQUEST_URI']??'';
         $hash=base64_encode(hash('sha256',$body,true));
@@ -78,5 +75,19 @@ class SalesVipps {
             || !hash_equals($hash,$server['HTTP_X_MS_CONTENT_SHA256']??'')) return false;
         $signature=base64_encode(hash_hmac('sha256',"POST\n$path\n$date;$host;$hash",$secret,true));
         return hash_equals('HMAC-SHA256 SignedHeaders=x-ms-date;host;x-ms-content-sha256&Signature='.$signature,$server['HTTP_AUTHORIZATION']??'');
+    }
+    public function paymentError(array $response): string {
+        // Inspect provider diagnostics only to classify them. Never return or
+        // log raw responses: they may contain phone numbers and other secrets.
+        $text=json_encode($response['data']??[]);
+        if(is_string($text) && preg_match('/PUSH[_ ]?MESSAGE/i',$text)
+            && preg_match('/not allowed|not permitted|not approved|forbidden|approval/i',$text))
+            return 'Vipps har ikke godkjent salgsstedet for PUSH_MESSAGE. Be Vipps aktivere telefonbaserte betalingsforespørsler for dette salgsstedet.';
+        return match((int)($response['code']??0)) {
+            401,403=>'Vipps avviste tilgangen. Kontroller betalingsnøklene, test-/produksjonsmiljøet og at salgsstedet er godkjent for PUSH_MESSAGE.',
+            400,422=>'Vipps avviste betalingsforespørselen. Kontroller mobilnummeret og at salgsstedet er godkjent for PUSH_MESSAGE.',
+            429=>'Vipps mottar for mange forespørsler. Status kontrolleres videre; ikke start en ny betaling.',
+            default=>'Vipps-betalingen kunne ikke avklares. Kontroller status før du forsøker en ny betaling.'
+        };
     }
 }

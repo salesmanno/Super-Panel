@@ -17,6 +17,8 @@ file_put_contents($temp.'/sales-db.php',$fixtureConfig);
 $source=file_get_contents($root.'/api/sales.php');
 $source=str_replace("require_once __DIR__.'/../config/database.php';","require_once ".var_export($temp.'/sales-db.php',true).';',$source);
 $source=str_replace("require_once __DIR__.'/../includes/SalesService.php';","require_once ".var_export($root.'/includes/SalesService.php',true).';',$source);
+$source=str_replace('$service=new SalesService(getDBConnection(),(string)$_SESSION[\'company_id\'],(string)$_SESSION[\'tenant_admin_id\'],$cartToken);',
+    'require_once '.var_export($root.'/tests/sales_http_vipps_fixture.php',true).'; $service=new SalesService(getDBConnection(),(string)$_SESSION[\'company_id\'],(string)$_SESSION[\'tenant_admin_id\'],$cartToken,new SalesHttpVippsFixture(__DIR__));',$source);
 $source=str_replace('session_start();',"session_start(); \$fixtureB=str_starts_with(session_id(),'salesfixture-e2e-b'); \$_SESSION=['tenant_admin_id'=>\$fixtureB?'admin-b':'admin','company_id'=>\$fixtureB?'b':'a','entity_form_csrf'=>'fixture-token'];",$source);
 // Use the real shared CSRF token's key, discovered below rather than bypassing it.
 preg_match("/\\\$_SESSION\\['([^']+)'\\].*random_bytes/",file_get_contents($root.'/includes/entity_form_fields.php'),$csrfMatch);
@@ -201,6 +203,11 @@ try {
     $pending=$sales->checkout($vipps)['order'];$ref='sales-'.$pending['id'];
     salesAssert($pending['payment_status']==='pending','Created request is not paid');
     salesAssert($provider->requests[1][2]==='sales-create-'.$pending['id'],'Create key fixed to durable attempt');
+    salesAssert($provider->requests[1][3]['userFlow']==='PUSH_MESSAGE'
+        && $provider->requests[1][3]['customer']['phoneNumber']==='4749999999'
+        && $provider->requests[1][3]['customerInteraction']==='CUSTOMER_PRESENT','On-site checkout sends Norwegian phone push instead of redirect flow');
+    $remaining=strtotime($pending['expires_at'])-strtotime($pending['server_time']);
+    salesAssert($remaining>0 && $remaining<=80,'Server supplies one durable 80-second deadline in UTC');
     salesReject(fn()=>$sales->nextCustomer(),'Unresolved payment blocks next customer');
     $provider->outage=true;
     $unknown=$sales->reconcile($pending['id']);$provider->outage=false;
@@ -258,9 +265,9 @@ try {
     salesReject(fn()=>$sales->adjustStock(['product_id'=>$pid,'quantity'=>4,'expected_quantity'=>999,'reason'=>'Stale count']),'Stale available-stock adjustment cannot overwrite a sale');
     // Real HMAC verification, then a signed callback with a deliberately stale
     // payload state. Only GET provider state may complete the financial record.
-    class SalesFixtureSignedVipps extends SalesFixtureVipps {
-        protected function credentials(array $config,string $company): array{return ['webhook_secret'=>'fixture-hmac-secret'];}
-    }
+    $setup->exec('ALTER TABLE economy_configuration_data ADD COLUMN webhook_secret TEXT DEFAULT NULL');
+    $setup->exec("UPDATE economy_configuration_data SET webhook_secret='fixture-hmac-secret' WHERE id='cfg-a'");
+    class SalesFixtureSignedVipps extends SalesFixtureVipps {}
     $signed=new SalesFixtureSignedVipps();
     $signedSales=new SalesService($db,'a','admin','fixture-cart',$signed);
     $restored=$signedSales->cartResult()['cart'];$vipps['revision']=$restored['revision'];$vipps['expected_total_minor']=$restored['total_minor'];
@@ -272,6 +279,11 @@ try {
     $signature=base64_encode(hash_hmac('sha256',"POST\n/api/sales_vipps_webhook.php\n$date;fixture.example;$hash",'fixture-hmac-secret',true));
     $server['HTTP_AUTHORIZATION']='HMAC-SHA256 SignedHeaders=x-ms-date;host;x-ms-content-sha256&Signature='.$signature;
     salesReject(fn()=>SalesWebhookAuth::verify($db,$signed,$body.' ',$server),'Tampered signed body rejected');
+    $badServer=$server;$badServer['HTTP_HOST']='wrong-host.invalid';
+    salesReject(fn()=>SalesWebhookAuth::verify($db,$signed,$body,$badServer),'Signature bound to webhook host');
+    $setup->exec("UPDATE economy_configuration_data SET webhook_secret='wrong-company-secret' WHERE id='cfg-a'");
+    salesReject(fn()=>SalesWebhookAuth::verify($db,$signed,$body,$server),'Wrong configuration secret rejected');
+    $setup->exec("UPDATE economy_configuration_data SET webhook_secret='fixture-hmac-secret' WHERE id='cfg-a'");
     $auth=SalesWebhookAuth::verify($db,$signed,$body,$server);
     $_SESSION=[];
     $callback=new SalesService($db,'a','','',$signed,$auth);
@@ -336,11 +348,14 @@ try {
     $setup->exec("DELETE FROM tenant_admin_modules WHERE tenant_admin_id='admin'");
     salesAssert(salesHttp('bootstrap')['_status']===403,'Real HTTP controller enforces Sales module access');
     $setup->exec("INSERT INTO tenant_admin_modules VALUES('admin','sales-module',1),('admin','economy-module',1)");
+    require $root.'/tests/sales_payment_lifecycle_cases.php';
     // Browser talks to the existing isolated HTTP fixture, never the app DB.
     // Release PDO owners before spawning the browser process.
     unset($sales,$blocked,$other,$signedSales,$callback,$databaseService,$db,$setup);
     passthru('node --experimental-websocket '.escapeshellarg($root.'/tests/sales-product-api-browser.test.js').' '.escapeshellarg((string)$port).' '.escapeshellarg($temp),$browserStatus);
     salesAssert($browserStatus===0,'Actual product form/API browser regression passed');
+    passthru('node --experimental-websocket '.escapeshellarg($root.'/tests/sales-vipps-api-browser.test.js').' '.escapeshellarg((string)$port).' '.escapeshellarg($temp),$vippsBrowserStatus);
+    salesAssert($vippsBrowserStatus===0,'Actual Vipps cashier/API browser regression passed');
     echo "Isolated Sales MySQL, controller, ledger, dynamic fields, VAT and payment state checks passed\n";
 } finally {
     proc_terminate($process);proc_close($process);

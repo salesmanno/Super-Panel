@@ -20,20 +20,20 @@
         <div id="sales-cart-lines" class="sales-cart-lines" aria-live="polite"><div class="sales-empty"><strong>Ingen varer ennå</strong><span>Velg et produkt for å starte salget.</span></div></div>
         <div class="sales-totals"><div><span>Delsum</span><strong id="sales-subtotal">0,00 kr</strong></div><div id="sales-tax-row"><span>Mva</span><strong id="sales-tax">0,00 kr</strong></div><div class="sales-grand-total"><span>Å betale</span><strong id="sales-total">0,00 kr</strong></div></div>
         <div class="sales-payment">
-          <label class="form-label" for="sales-method">Betalingsmåte</label><select id="sales-method" class="form-select"></select>
-          <div id="sales-method-note" class="form-text"></div>
+          <span class="form-label" id="sales-payment-label">Betalingsmåte</span>
+          <div id="sales-method-buttons" class="sales-method-buttons" role="group" aria-labelledby="sales-payment-label"></div>
+          <div id="sales-method-note" class="sales-method-note" aria-live="polite"></div>
           <div id="sales-cash-panel">
             <label class="form-label mt-3" for="sales-tendered">Mottatt kontant</label>
             <div class="input-group"><input id="sales-tendered" class="form-control" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0,00" autocomplete="off"><span class="input-group-text">kr</span></div>
             <div class="sales-cash-shortcuts" aria-label="Hurtigbeløp"><button type="button" data-cash="5000">50</button><button type="button" data-cash="10000">100</button><button type="button" data-cash="20000">200</button><button type="button" data-cash="50000">500</button><button type="button" data-cash="100000">1000</button></div>
             <div class="sales-change"><span>Vekslepenger</span><strong id="sales-change">0,00 kr</strong></div>
           </div>
-          <div id="sales-vipps-panel" hidden>
-            <label class="form-label mt-3" for="sales-phone">Vipps-nummer</label><input id="sales-phone" class="form-control" type="tel" inputmode="tel" placeholder="4xx xx xxx" autocomplete="off">
-          </div>
           <div id="sales-payment-status" class="sales-payment-status" role="status" aria-live="polite" hidden></div>
+          <button id="sales-open-payment" type="button" class="btn btn-outline-primary w-100 mt-2" hidden>Åpne betalingsvindu</button>
           <button id="sales-checkout" type="button" class="btn btn-success w-100 mt-3" disabled>Bekreft kontantsalg</button>
           <button id="sales-cancel-payment" type="button" class="btn btn-outline-danger w-100 mt-2" hidden>Be om avbryt betaling</button>
+          <button id="sales-open-recovered-receipt" type="button" class="btn btn-outline-primary w-100 mt-2" hidden>Vis siste kvittering</button>
           <button id="sales-next-customer" type="button" class="btn btn-outline-secondary w-100 mt-2" hidden>Neste kunde</button>
           <div id="sales-cart-error" class="sales-error" role="alert" hidden></div>
         </div>
@@ -53,8 +53,8 @@
   </section>
 
   <div class="sales-dialog" id="sales-dialog" hidden role="presentation">
-    <div class="sales-dialog-backdrop" data-close-dialog></div>
-    <section class="sales-dialog-card" role="dialog" aria-modal="true" aria-labelledby="sales-dialog-title">
+    <div class="sales-dialog-backdrop"></div>
+    <section class="sales-dialog-card" role="dialog" aria-modal="true" aria-labelledby="sales-dialog-title" tabindex="-1">
       <header class="sales-dialog-head"><div><span class="sales-kicker" id="sales-dialog-kicker">Salg</span><h2 id="sales-dialog-title"></h2></div><button type="button" class="sales-dialog-close" data-close-dialog aria-label="Lukk">×</button></header>
       <div id="sales-dialog-body" class="sales-dialog-body"></div>
       <footer id="sales-dialog-foot" class="sales-dialog-foot"></footer>

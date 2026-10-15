@@ -69,7 +69,24 @@
 .sales-admin .sales-grand-total strong {font-size:1.18rem;color:var(--sale-teal);letter-spacing:-.025em}
 .sales-admin .sales-payment {padding:.8rem 1rem 1rem;background:#fafcfc;border-top:1px solid var(--sale-line)}
 .sales-admin .sales-payment .form-label {font-size:.77rem;font-weight:700;margin-bottom:.3rem}
-.sales-admin #sales-method-note {white-space:pre-line;overflow-wrap:anywhere}
+.sales-admin .sales-method-note {white-space:pre-line;overflow-wrap:anywhere;color:var(--sale-muted);font-size:.7rem;margin-top:.45rem}
+.sales-admin .sales-method-buttons {display:grid;grid-template-columns:repeat(auto-fit,minmax(116px,1fr));gap:.45rem;margin-top:.35rem}
+.sales-admin .sales-method-button {display:flex;align-items:center;justify-content:flex-start;gap:.55rem;min-height:48px;padding:.55rem .65rem;border:1px solid var(--sale-line);border-radius:9px;background:#fff;color:var(--sale-ink);font-size:.79rem;font-weight:750;text-align:left;transition:transform .15s ease,border-color .15s ease,background-color .15s ease}
+.sales-admin .sales-method-button:hover:not(:disabled) {transform:translateY(-1px);border-color:#83b9bd}
+.sales-admin .sales-method-button.is-selected {border-color:var(--sale-teal);background:var(--sale-teal-wash);box-shadow:inset 0 0 0 1px var(--sale-teal);color:#145f68}
+.sales-admin .sales-method-button:disabled {opacity:.64;cursor:not-allowed}
+.sales-admin .sales-method-button>i {font-size:1.1rem;color:var(--sale-teal)}
+.sales-admin .sales-vipps-mark {display:inline-grid;place-items:center;flex:0 0 auto;min-width:48px;height:24px;padding:0 .38rem;border-radius:7px;background:#ff5b24;color:#fff;font-size:.72rem;font-weight:850;font-style:normal;letter-spacing:-.035em}
+.sales-admin .sales-vipps-mark b {font-weight:850}
+.sales-admin .sales-vipps-total {display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:.95rem 0;padding:.8rem .9rem;border:1px solid var(--sale-line);border-radius:9px;background:var(--sale-paper);color:var(--sale-muted);font-size:.82rem}
+.sales-admin .sales-vipps-total strong {color:var(--sale-teal);font-size:1.2rem;font-variant-numeric:tabular-nums}
+.sales-admin .sales-form-label {display:block;margin-bottom:.35rem;font-size:.8rem;font-weight:750}
+.sales-admin .sales-dialog:focus {outline:none}
+.sales-admin .sales-pending-summary {display:flex;align-items:center;gap:.75rem;padding:.3rem 0 .8rem}
+.sales-admin .sales-pending-summary>div {display:flex;flex-direction:column;gap:.18rem}
+.sales-admin .sales-pending-summary>div span {color:var(--sale-muted);font-size:.77rem}
+.sales-admin .sales-countdown {font-variant-numeric:tabular-nums;font-weight:750;color:var(--sale-ink)}
+.sales-admin .sales-payment-error {color:#803b3b}
 .sales-admin .sales-cash-shortcuts {display:flex;gap:.35rem;margin-top:.45rem}
 .sales-admin .sales-cash-shortcuts button {flex:1;border:1px solid #c8dddf;background:#f1f8f8;color:#17646c;border-radius:6px;min-height:30px;font-size:.72rem;font-weight:700}
 .sales-admin .sales-change {margin-top:.35rem;padding:.3rem .5rem;background:var(--sale-teal-wash);border-radius:6px;color:var(--sale-teal)}
@@ -147,6 +164,7 @@
 .sales-admin.sales-fullscreen .sales-product-grid {grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
 .sales-admin.sales-fullscreen .sales-cart-lines {max-height:43vh}
 body.sales-dialog-open {overflow:hidden}
+body.sales-fullscreen-open {overflow:hidden}
 @media(max-width:1050px) {
   .sales-admin .sales-admin-row {grid-template-columns:48px minmax(120px,1fr) 95px 65px auto}
   .sales-admin .sales-admin-row>.sales-status-pill {display:none}

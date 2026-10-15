@@ -9,24 +9,30 @@
   };
   const money = minor => new Intl.NumberFormat('nb-NO', {style:'currency',currency:'NOK'}).format((Number(minor) || 0) / 100);
   const date = value => value ? new Intl.DateTimeFormat('nb-NO',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)) : '–';
-  const state = {csrf:'',taxRegistered:0,products:[],methods:[],methodError:'',cart:null,pending:null,selectedMethod:'cash',selectedGatewayId:null,mutationQueue:Promise.resolve(),busy:false,orders:[],pollTimer:0,pollAbort:null,dialog:null,lastFocus:null,productController:null,checkoutUncertain:false,paymentNotice:''};
+  const state = {csrf:'',taxRegistered:0,products:[],methods:[],methodError:'',cart:null,pending:null,selectedMethod:'cash',selectedGatewayId:null,mutationQueue:Promise.resolve(),busy:false,orders:[],pollTimer:0,pollAbort:null,statusRequest:false,cancelSubmitting:false,checkoutSubmitting:false,pollBackoff:6000,dialog:null,lastFocus:null,productController:null,checkoutUncertain:false,paymentNotice:'',deadlineTimer:0,serverOffset:0,fullscreenPlaceholder:null,fullscreenFallback:false};
   const methodName = m => m?.method_type === 'cash' ? 'Kontant' : (m?.method_name || 'Betaling');
-  const usableMethods = () => (state.methods || []).filter(m => m.available && (m.method_type==='cash' || (m.method_type==='vipps' && !state.methodError)));
+  const usableMethods = () => (state.methods || []).filter(m => m.available && (m.is_active===undefined || Number(m.is_active)===1) && (m.method_type==='cash' || (m.method_type==='vipps' && !state.methodError)));
   const paymentKey = m => m.method_type==='cash'?'cash':m.id;
   const selectedPayment = () => usableMethods().find(m=>m.method_type===state.selectedMethod && (m.method_type==='cash' || m.id===state.selectedGatewayId));
   function modal(title, content, opts = {}) {
     if (state.dialog?.kind === 'fields' && !closeFields()) return false;
-    const dialog = $('#sales-dialog'); state.lastFocus = document.activeElement;
+    const dialog = $('#sales-dialog'); if(dialog.hidden)state.lastFocus = document.activeElement;
     $('#sales-dialog-title').textContent = title; $('#sales-dialog-kicker').textContent = opts.kicker || 'Salgsrom';
     $('#sales-dialog-body').innerHTML = content; $('#sales-dialog-foot').innerHTML = opts.footer || '';
     dialog.hidden = false; document.body.classList.add('sales-dialog-open'); state.dialog = opts;
-    dialog.querySelector('[data-close-dialog]')?.focus(); return true;
+    const initial = dialog.querySelector('[data-initial-focus]') || dialog.querySelector('.sales-dialog-close') || dialog.querySelector('.sales-dialog-card');
+    initial?.focus(); return true;
   }
   function closeDialog(force = false) {
+    if(state.checkoutSubmitting || state.cancelSubmitting)return false;
     if (!force && state.dialog?.kind === 'fields' && !closeFields()) return;
     const dialog = $('#sales-dialog'); dialog.hidden = true; document.body.classList.remove('sales-dialog-open'); state.dialog = null;
     state.productController?.abort(); state.productController = null;
     state.lastFocus?.focus?.();
+  }
+  function focusableDialogItems() {
+    return [...$('#sales-dialog').querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')]
+      .filter(el=>!el.hidden && el.getClientRects().length);
   }
   async function api(action, {method='GET',data,signal,query={}} = {}) {
     const params = new URLSearchParams({action,...query});
@@ -52,18 +58,16 @@
   }
   function cartCount() { return (state.cart?.items || []).reduce((sum,item) => sum + Number(item.quantity || 0),0); }
   function renderMethods() {
-    const select = $('#sales-method'); const methods = usableMethods();
-    if (!methods.some(m => m.method_type === 'cash')) {
-      select.innerHTML = '<option value="">Ingen betalingsmåte tilgjengelig</option>';
-      $('#sales-checkout').disabled = true; $('#sales-method-note').textContent = 'Ingen aktiv betalingsmåte er konfigurert.';
-      return;
-    }
+    const methods = usableMethods();
     if (!selectedPayment()) {state.selectedMethod='cash';state.selectedGatewayId=null;}
-    select.innerHTML = (state.methods||[]).map(m => {
-      const available=methods.some(u=>paymentKey(u)===paymentKey(m));
-      return `<option value="${esc(paymentKey(m))}" ${available?'':'disabled'} ${paymentKey(m)===paymentKey(selectedPayment())?'selected':''}>${esc(methodName(m))}${m.is_demo?' · test':''}${available?'':' · utilgjengelig'}</option>`;
+    $('#sales-method-buttons').innerHTML = methods.map(m => {
+      const active=m.method_type===state.selectedMethod && (m.method_type==='cash'||String(m.id)===String(state.selectedGatewayId));
+      const symbol=m.method_type==='cash'?'<i class="bi bi-cash-coin" aria-hidden="true"></i>':'<span class="sales-vipps-mark" aria-hidden="true"><b>Vipps</b></span>';
+      return `<button type="button" class="sales-method-button${active?' is-selected':''}" data-method-key="${esc(paymentKey(m))}" aria-pressed="${active}" ${state.pending?'disabled':''}>${symbol}<span>${esc(methodName(m))}${m.is_demo?' · test':''}</span></button>`;
     }).join('');
-    $('#sales-method-note').textContent = [state.methodError,...(state.methods||[]).filter(m=>!m.available).map(m=>`${methodName(m)}: ${m.reason || 'Oppsettet kan ikke brukes'}`)].filter(Boolean).join('\n');
+    const unavailable=(state.methods||[]).filter(m=>!methods.some(u=>paymentKey(u)===paymentKey(m)));
+    $('#sales-method-note').innerHTML = [state.methodError,...unavailable.map(m=>`${methodName(m)}: ${m.reason || 'Betalingsmåten er ikke tilgjengelig.'}`)].filter(Boolean).map(esc).join('<br>');
+    if (!methods.length) $('#sales-method-note').textContent='Ingen aktiv betalingsmåte er konfigurert.';
   }
   function renderProducts() {
     const term = ($('#sales-search').value || '').trim().toLocaleLowerCase('nb');
@@ -97,13 +101,14 @@
     const change = Math.max(0,tender - Number(cart.total_minor || 0));
     $('#sales-change').textContent = money(change);
     const pending = !!state.pending;
+    $('#sales-open-recovered-receipt').hidden = !state.completedOrder;
     $('#sales-checkout').disabled = !items.length || state.busy || pending || state.checkoutUncertain || !selectedPayment() ||
-      (state.selectedMethod === 'cash' && (tender < Number(cart.total_minor || 0) || !$('#sales-tendered').value)) ||
-      (state.selectedMethod === 'vipps' && !$('#sales-phone').value.trim());
-    $('#sales-checkout').textContent = state.checkoutUncertain ? 'Avventer betalingsstatus' : (state.selectedMethod === 'vipps' ? 'Send Vipps-betalingsforespørsel' : 'Bekreft kontantsalg');
+      (state.selectedMethod === 'cash' && (tender < Number(cart.total_minor || 0) || !$('#sales-tendered').value));
+    $('#sales-checkout').textContent = state.checkoutUncertain ? 'Avventer betalingsstatus' : (state.selectedMethod === 'vipps' ? 'Fortsett med Vipps' : 'Bekreft kontantsalg');
     $('#sales-cash-panel').hidden = state.selectedMethod !== 'cash';
-    $('#sales-vipps-panel').hidden = state.selectedMethod !== 'vipps';
     $('#sales-next-customer').hidden = !state.completedOrder;
+    $('#sales-open-payment').hidden = !pending;
+    $('#sales-open-payment').textContent = state.dialog?.kind === 'vipps-pending' ? 'Betaling pågår' : 'Åpne betalingsvindu';
     updatePaymentStatus();
   }
   function updatePaymentStatus() {
@@ -115,23 +120,35 @@
     }
     const status = order.payment_status || order.status || 'unknown';
     box.hidden = false; box.className = `sales-payment-status status-${esc(status)}`;
-    box.innerHTML = `<strong>${esc(statusLabel(status))}</strong><span>${esc(order.order_number ? `Ordre ${order.order_number}` : 'Betalingsstatus synkroniseres')}</span>${state.pending ? '<button type="button" id="sales-check-status">Sjekk status</button>' : ''}`;
-    $('#sales-cancel-payment').hidden = !state.pending || ['paid','captured'].includes(status);
+     const provider=order.provider_state?`<span>${esc(`Vipps: ${order.provider_state}`)}</span>`:'';
+     const error=order.payment_error?`<span class="sales-payment-error">${esc(order.payment_error)}</span>`:'';
+      const timer=state.pending?'<span id="sales-cart-pending-countdown" class="sales-countdown"></span>':'';
+     const remaining=state.pending?remainingSeconds(order):null;
+     box.innerHTML = `<strong>${esc(statusLabel(status))}</strong><span>${esc(order.order_number ? `Ordre ${order.order_number}` : 'Betalingsstatus synkroniseres')}</span>${provider}${error}${timer}${state.pending?`<button type="button" id="sales-check-status" ${remaining!==null&&remaining>0?'hidden':''}>Sjekk status</button>`:''}`;
+      $('#sales-cancel-payment').hidden = !state.pending || ['paid','captured'].includes(status);
+      $('#sales-cancel-payment').disabled = state.cancelSubmitting || state.statusRequest;
+      const checkButton=$('#sales-check-status');if(checkButton)checkButton.disabled=state.statusRequest||state.cancelSubmitting;
+     if(state.pending) updateCountdown();
   }
   function statusLabel(status) {
-    return ({pending:'Venter på betaling',unknown:'Ukjent status – sjekk igjen',awaiting:'Venter på Vipps',authorized:'Betaling godkjent – sluttfører',captured:'Betalt',paid:'Betalt',aborted:'Avbrutt',cancelled:'Avbrutt',expired:'Utløpt',declined:'Avvist'})[status] || `Status: ${status}`;
+    return ({pending:'Venter på betaling',unknown:'Ukjent status – sjekk igjen',awaiting:'Venter på Vipps',authorized:'Betaling godkjent – sluttfører',captured:'Betalt',paid:'Betalt',aborted:'Avbrutt',cancelled:'Avbrutt',expired:'Utløpt',declined:'Avvist',rejected:'Avvist'})[status] || `Status: ${status}`;
   }
   async function refreshCart() {
     const r = await api('cart'); updateCart(r.cart);
-    state.pending = r.pending_order && !isTerminalPayment(r.pending_order) ? r.pending_order : null;
+    if(r.pending_order&&isPaidPayment(r.pending_order)) {
+      state.pending=null;state.completedOrder=r.pending_order;state.paymentNotice='';clearInterval(state.deadlineTimer);
+    } else {
+      state.pending = r.pending_order && !isTerminalPayment(r.pending_order) ? r.pending_order : null;
+      if(state.pending)syncServerClock(state.pending);else clearInterval(state.deadlineTimer);
+    }
     if (state.pending || !(r.cart?.items || []).length) state.checkoutUncertain = false;
     if (state.pending) startPolling(); else stopPolling();
-    renderCart();
+    renderMethods();renderCart();
   }
   function isTerminalPayment(order) {
     const status=String(order?.payment_status||'').toLowerCase(), orderStatus=String(order?.status||'').toLowerCase();
-    return ['cancelled','aborted','declined','expired'].includes(status) ||
-      ['cancelled','declined','expired','aborted'].includes(orderStatus);
+    return ['cancelled','aborted','declined','expired','rejected'].includes(status) ||
+      ['cancelled','declined','expired','aborted','rejected'].includes(orderStatus);
   }
   function queueMutation(action, data) {
     const mutationId = crypto.randomUUID();
@@ -378,80 +395,235 @@
     } else {
       const methodConfig=selectedPayment();
       if(!methodConfig)return;
-      const phone=$('#sales-phone').value.trim();
-      if(!phone)return;
-      modal('Send Vipps-forespørsel',`<p>En betalingsforespørsel på <strong>${esc(money(total))}</strong> sendes til <strong>${esc(phone)}</strong>.</p><p class="sales-muted">Betalingsstatus vises her. Ikke lukk kassen mens betalingen avklares.</p>`,{kind:'confirm-vipps',footer:'<button type="button" class="btn btn-outline-secondary" data-close-dialog>Tilbake</button><button type="button" class="btn btn-primary" id="sales-confirm-vipps">Send forespørsel</button>'});
-      $('#sales-confirm-vipps').addEventListener('click',()=>sendCheckout({revision:cart.revision,payment_method:'vipps',gateway_id:methodConfig.id,phone,expected_total_minor:total}));
+        const body=`<p class="sales-muted">Betalingsforespørsel til kundens Vipps-nummer. Kontroller nummeret før du sender.</p><form id="sales-vipps-form" novalidate><label class="sales-form-label" for="sales-vipps-phone">Kundens mobilnummer</label><input id="sales-vipps-phone" class="form-control" type="tel" inputmode="tel" autocomplete="tel" placeholder="4xx xx xxx" aria-describedby="sales-vipps-total sales-vipps-error" required><div class="sales-vipps-total" id="sales-vipps-total"><span>Å betale</span><strong>${esc(money(total))}</strong></div><div id="sales-vipps-error" class="sales-error" role="alert" hidden></div></form>`;
+       modal('Vipps-betaling',body,{kind:'confirm-vipps',footer:'<button type="button" class="btn btn-outline-secondary" data-close-dialog>Tilbake</button><button type="button" class="btn btn-primary" id="sales-confirm-vipps" data-initial-focus>Send betalingsforespørsel</button>'});
+        const submitVipps=event=>{
+          event?.preventDefault();
+         const phone=$('#sales-vipps-phone').value.trim();
+          if(!phone){$('#sales-vipps-phone').focus();$('#sales-vipps-error').hidden=false;$('#sales-vipps-error').textContent='Skriv inn kundens mobilnummer.';return;}
+          const digits=phone.replace(/\D/g,'');
+          if(![8,10].includes(digits.length)||(digits.length===10&&!digits.startsWith('47'))){$('#sales-vipps-phone').focus();$('#sales-vipps-error').hidden=false;$('#sales-vipps-error').textContent='Skriv inn et gyldig norsk mobilnummer.';return;}
+          const currentCart=state.cart||emptyCart(),currentMethod=selectedPayment();
+          if(!currentMethod||!(currentCart.items||[]).length){$('#sales-vipps-error').hidden=false;$('#sales-vipps-error').textContent='Handlekurven eller Vipps-oppsettet er endret. Lukk og kontroller betalingen på nytt.';return;}
+          $('#sales-vipps-total strong').textContent=money(currentCart.total_minor);
+          sendCheckout({revision:currentCart.revision,payment_method:'vipps',gateway_id:currentMethod.id,phone,expected_total_minor:Number(currentCart.total_minor||0)});
+        };
+        $('#sales-vipps-form').addEventListener('submit',submitVipps);
+        $('#sales-confirm-vipps').addEventListener('click',submitVipps);
     }
   }
   async function sendCheckout(payload) {
-    const button=$('#sales-confirm-cash')||$('#sales-confirm-vipps'); if(button){button.disabled=true;button.textContent='Behandler…';}
+    if(state.checkoutSubmitting || state.cancelSubmitting || state.pending)return;
+    state.checkoutSubmitting=true;
+    const button=$('#sales-confirm-cash')||$('#sales-confirm-vipps');
+    const dialogKind=state.dialog?.kind;
+    if(button){button.disabled=true;button.textContent='Behandler…';}
     try {
       const r=await api('checkout',{method:'POST',data:payload});
-      closeDialog(true);
-      state.paymentNotice='';
-      if(payload.payment_method==='cash' && r.order?.payment_status==='paid') {
-        state.cart=emptyCart();state.completedOrder=r.order;$('#sales-tendered').value='';setError('');renderCart();await refreshOrders();receipt(r.order);
-      } else {state.pending=r.order;state.completedOrder=null;setError('');renderCart();startPolling();}
+      state.checkoutSubmitting=false;
+      if(state.dialog?.kind!==dialogKind)return;
+      const order=r.order||{};
+      if(!order.id)throw new Error('Serveren bekreftet ikke ordrestatus. Handlekurv og ordre kontrolleres før et nytt forsøk.');
+      if(isPaidPayment(order)) {
+        state.pending=null;clearInterval(state.deadlineTimer);state.paymentNotice='';state.completedOrder=order;
+        closeDialog(true);
+        if(payload.payment_method==='cash')$('#sales-tendered').value='';
+        setError('');await refreshCart();await refreshOrders();receipt(order);
+      } else if(isTerminalPayment(order)) {
+        state.pending=null;clearInterval(state.deadlineTimer);state.completedOrder=null;
+        closeDialog(true);
+        await refreshCart();
+        state.paymentNotice=order.payment_error || `${statusLabel(order.payment_status||order.status)}. Handlekurven er oppdatert fra serveren.`;
+        renderCart();await refreshOrders();
+      } else {
+        state.pending=order;state.completedOrder=null;state.paymentNotice='';state.pollBackoff=6000;setError('');syncServerClock(order);
+        renderMethods();renderCart();showPendingPayment();startPolling();
+      }
     } catch(e) {
+      state.checkoutSubmitting=false;
+      if(state.dialog?.kind!==dialogKind)return;
+      const knownRejected=[400,403,409,422].includes(Number(e.status));
+      try {await refreshCart();} catch(_) {}
+      if(state.pending) {
+        closeDialog(true);showPendingPayment();return;
+      }
+      const body=$('#sales-dialog-body');
+      if(knownRejected) {
+        state.checkoutUncertain=false;
+        const errorBox=payload.payment_method==='vipps'?$('#sales-vipps-error'):null;
+        if(errorBox){errorBox.hidden=false;errorBox.textContent=e.message;const total=$('#sales-vipps-total strong');if(total)total.textContent=money(state.cart?.total_minor||0);}
+        else body.insertAdjacentHTML('beforeend',`<div class="sales-error" role="alert">${esc(e.message)}</div>`);
+        if(button?.isConnected){button.disabled=false;button.textContent=payload.payment_method==='vipps'?'Send betalingsforespørsel':'Registrer kontantsalg';}
+        renderCart();
+        return;
+      }
       state.checkoutUncertain=true;
-      const body=$('#sales-dialog-body'); body.insertAdjacentHTML('beforeend',`<div class="sales-error" role="alert">${esc(e.message)} Vi undersøker om betalingen ble registrert. Ikke send betalingen på nytt.</div><button type="button" class="btn btn-outline-primary mt-2" id="sales-refresh-after-checkout">Sjekk kasse og betalingsstatus</button>`);
+      renderCart();
+      const errorNode=document.createElement('div');errorNode.className='sales-error';errorNode.setAttribute('role','alert');
+      errorNode.textContent=`${e.message} Vi undersøker ordre og handlekurv før et nytt forsøk. Ikke send betalingen på nytt.`;
+      body.append(errorNode);
+      const refreshButton=document.createElement('button');refreshButton.type='button';refreshButton.className='btn btn-outline-primary mt-2';refreshButton.id='sales-refresh-after-checkout';refreshButton.textContent='Kontroller ordre og handlekurv';
+      body.append(refreshButton);
       if(button?.isConnected){button.disabled=true;button.textContent='Venter på avklaring';}
-      try { await refreshCart(); } catch (_) {}
-      $('#sales-refresh-after-checkout').addEventListener('click',async()=>{try{await refreshCart();if(state.pending){state.checkoutUncertain=false;closeDialog(true);renderCart();}else if(!(state.cart?.items||[]).length){state.checkoutUncertain=false;closeDialog(true);renderCart();await refreshOrders();}else{$('#sales-dialog-body').insertAdjacentHTML('beforeend','<p class="sales-muted mt-2">Salget står fortsatt i kassen. Kontroller Salg før et nytt betalingsforsøk.</p>');}}catch(err){setError(err.message);}});
+      try {await refreshOrders();} catch(_) {}
+      refreshButton.addEventListener('click',async()=>{
+        refreshButton.disabled=true;
+        try {
+          await refreshCart();await refreshOrders();
+          if(state.pending){state.checkoutUncertain=false;closeDialog(true);showPendingPayment();renderCart();}
+          else if(!(state.cart?.items||[]).length){state.checkoutUncertain=false;closeDialog(true);renderCart();}
+          else {const note=document.createElement('p');note.className='sales-muted mt-2';note.textContent='Ordrestatus er oppdatert. Handlekurven beholdes, men et nytt Vipps-forsøk er låst til statusen er avklart.';body.append(note);}
+        } catch(err) {setError(err.message);refreshButton.disabled=false;}
+      });
+    } finally {
+      state.checkoutSubmitting=false;
     }
+  }
+  function isPaidPayment(order) {
+    const status=String(order?.payment_status||order?.status||'').toLowerCase();
+    return ['paid','captured'].includes(status);
+  }
+  function syncServerClock(order) {
+    const server=Date.parse(order?.server_time||'');
+    state.serverOffset=Number.isFinite(server)?server-Date.now():0;
+    clearInterval(state.deadlineTimer);
+    if(state.pending)state.deadlineTimer=setInterval(updateCountdown,1000);
+  }
+  function remainingSeconds(order=state.pending) {
+    const deadline=Date.parse(order?.expires_at||'');
+    if(!Number.isFinite(deadline))return null;
+    return Math.max(0,Math.ceil((deadline-(Date.now()+state.serverOffset))/1000));
+  }
+  function updateCountdown() {
+    if(!state.pending)return;
+    const remaining=remainingSeconds(), text=remaining===null?'Utløpstidspunkt ukjent – status må bekreftes':remaining>0?`Forespørselen utløper om ${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,'0')}`:'Fristen er passert – kontrollerer status';
+    ['#sales-cart-pending-countdown','#sales-dialog-pending-countdown'].forEach(selector=>{const target=$(selector);if(target)target.textContent=text;});
+    const check=$('#sales-check-status'),dialogCheck=$('#sales-pending-check');
+    if(check)check.hidden=remaining!==null&&remaining>0;
+    if(dialogCheck)dialogCheck.hidden=remaining!==null&&remaining>0;
+  }
+  function showPendingPayment(trigger=null) {
+    if(!state.pending)return;
+    if(state.dialog?.kind==='vipps-pending'){if(trigger)state.lastFocus=trigger;updatePendingDialog();return;}
+    const order=state.pending, status=order.payment_status||order.status||'unknown';
+    const total=order.total_minor??state.cart?.total_minor??0;
+    const remaining=remainingSeconds(order);
+    const countdown=remaining===null?'Utløpstidspunkt ukjent':remaining>0?`Forespørselen utløper om ${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,'0')}`:'Fristen er passert – status kontrolleres med Vipps';
+    modal('Betaling avventer',`<div class="sales-pending-summary"><span class="sales-vipps-mark" aria-hidden="true"><b>Vipps</b></span><div><strong id="sales-pending-status">${esc(statusLabel(status))}</strong><span id="sales-pending-order">${esc(order.order_number?`Ordre ${order.order_number}`:'Betalingen behandles')}</span></div></div><div class="sales-vipps-total"><span>Ordresum</span><strong id="sales-pending-total">${esc(money(total))}</strong></div><p class="sales-countdown" id="sales-dialog-pending-countdown" role="timer" aria-live="off">${esc(countdown)}</p><p id="sales-pending-payment-error" class="sales-error" role="status" ${order.payment_error?'':'hidden'}>${esc(order.payment_error||'')}</p><p class="sales-muted">Hold kassen åpen mens Vipps bekrefter betalingen. Du kan lukke dette vinduet; statusen og handlekurven beholdes.</p><div id="sales-pending-error" role="alert" class="sales-error" hidden></div>`,{kind:'vipps-pending',footer:`<button type="button" class="btn btn-outline-secondary" data-close-dialog>Lukk vindu</button><button type="button" class="btn btn-outline-primary" id="sales-pending-check" ${remaining!==null&&remaining>0?'hidden':''}>Sjekk status</button><button type="button" class="btn btn-outline-danger" id="sales-pending-cancel" ${state.statusRequest||state.cancelSubmitting?'disabled':''}>Avbryt betaling</button>`});
+    if(trigger)state.lastFocus=trigger;
+    $('#sales-pending-check')?.addEventListener('click',()=>checkPayment().catch(e=>{const box=$('#sales-pending-error');if(box){box.hidden=false;box.textContent=e.message;}}));
+    $('#sales-pending-cancel')?.addEventListener('click',cancelPayment);
+    updatePendingDialog();
+  }
+  function updatePendingDialog() {
+    if(!state.pending)return;
+    const order=state.pending,status=order.payment_status||order.status||'unknown';
+    const statusEl=$('#sales-pending-status'),orderEl=$('#sales-pending-order'),totalEl=$('#sales-pending-total');
+    if(statusEl)statusEl.textContent=statusLabel(status);
+    if(orderEl)orderEl.textContent=order.order_number?`Ordre ${order.order_number}`:'Betalingen behandles';
+    if(totalEl)totalEl.textContent=money(order.total_minor??state.cart?.total_minor??0);
+    const errorEl=$('#sales-pending-payment-error');
+    if(errorEl){errorEl.hidden=!order.payment_error;errorEl.textContent=order.payment_error||'';}
+    const cancel=$('#sales-pending-cancel');
+    if(cancel)cancel.disabled=state.cancelSubmitting||state.statusRequest;
+    const check=$('#sales-pending-check');if(check)check.disabled=state.statusRequest||state.cancelSubmitting;
+    updateCountdown();
   }
   function stopPolling() {clearTimeout(state.pollTimer);state.pollTimer=0;state.pollAbort?.abort();state.pollAbort=null;}
   function paymentPanelShown() {
     const view=$('#sales-varesalg');
     return !document.hidden && root.getClientRects().length>0 && !!view && !view.hidden && getComputedStyle(view).display!=='none';
   }
-  function startPolling() {
-    stopPolling(); if(!state.pending || !paymentPanelShown())return;
-    state.pollTimer=setTimeout(pollPayment,2500);
+  function startPolling(immediate=false) {
+    clearTimeout(state.pollTimer);state.pollTimer=0;
+    if(!state.pending || !paymentPanelShown() || state.pollAbort || state.statusRequest)return;
+    const remaining=remainingSeconds();
+    state.pollTimer=setTimeout(pollPayment,immediate?0:(remaining!==null&&remaining>0?3000:0));
   }
   async function pollPayment() {
-    if(!state.pending || !paymentPanelShown() || state.pollAbort)return;
+    if(!state.pending || !paymentPanelShown() || state.pollAbort || state.statusRequest)return;
+    clearTimeout(state.pollTimer);state.pollTimer=0;
     const controller=new AbortController();state.pollAbort=controller;
     try {await checkPayment(controller.signal);} catch(e){if(e.name!=='AbortError')$('#sales-payment-status').dataset.pollError='1';}
-    finally {if(state.pollAbort===controller)state.pollAbort=null;if(state.pending&&paymentPanelShown())state.pollTimer=setTimeout(pollPayment,6000);}
+    finally {
+      if(state.pollAbort===controller)state.pollAbort=null;
+      scheduleNextPoll();
+    }
+  }
+  function scheduleNextPoll() {
+    if(!state.pending||!paymentPanelShown()||state.pollAbort||state.statusRequest)return;
+    clearTimeout(state.pollTimer);
+    const remaining=remainingSeconds(),beforeDeadline=remaining!==null&&remaining>0;
+    state.pollTimer=setTimeout(pollPayment,beforeDeadline?3000:state.pollBackoff);
+    state.pollBackoff=beforeDeadline?6000:Math.min(30000,state.pollBackoff*2);
   }
   async function checkPayment(signal) {
-    if(!state.pending?.id)return;
+    if(!state.pending?.id||state.statusRequest)return;
     if(state.pollAbort && signal !== state.pollAbort.signal)return;
-    const r=await api('payment_status',{method:'POST',data:{order_id:state.pending.id},signal});
-    const order=r.order;state.pending=null;
-    if(order.payment_status==='paid') {state.paymentNotice='';state.completedOrder=order;await refreshCart();await refreshOrders();receipt(order);}
-    else if(isTerminalPayment(order)) {
-      state.completedOrder=null;
-      await refreshCart();
-      state.paymentNotice=`${statusLabel(order.payment_status || order.status)}. Den opprinnelige handlekurven er gjenopprettet; kontroller varene før du prøver igjen.`;
-      renderCart();
-    }
-    else {state.pending=order;renderCart();}
-    if(state.pending&&!signal)startPolling();
-  }
-  async function cancelPayment() {
-    if(!state.pending)return;
-    stopPolling();
-    const button=$('#sales-cancel-payment');button.disabled=true;
+    state.statusRequest=true;
+    const orderId=state.pending.id;
+    renderCart();
+    if(state.dialog?.kind==='vipps-pending')updatePendingDialog();
     try {
-      const r=await api('cancel_payment',{method:'POST',data:{order_id:state.pending.id}});
-      if(isTerminalPayment(r.order)) {
-        // The backend has definitively cancelled the provider payment and reopened
-        // the original lines. Refresh before enabling checkout again.
-        state.pending=r.order;
-        renderCart();
+      const r=await api('payment_status',{method:'POST',data:{order_id:orderId},signal});
+      const order=r.order;
+      if(isPaidPayment(order)) {
+        state.pending=null;clearInterval(state.deadlineTimer);state.paymentNotice='';state.completedOrder=order;
+        if(state.dialog?.kind==='vipps-pending')closeDialog(true);
+        await refreshCart();await refreshOrders();receipt(order);
+      } else if(isTerminalPayment(order)) {
+        state.pending=null;clearInterval(state.deadlineTimer);state.completedOrder=null;
+        if(state.dialog?.kind==='vipps-pending')closeDialog(true);
         await refreshCart();
-        state.completedOrder=null;
-        state.paymentNotice=`${statusLabel(r.order.payment_status || r.order.status)}. Den opprinnelige handlekurven er gjenopprettet; kontroller varene før du prøver igjen.`;
+        state.paymentNotice=order.payment_error || `${statusLabel(order.payment_status || order.status)}. Den opprinnelige handlekurven er gjenopprettet; kontroller varene før du prøver igjen.`;
         renderCart();
       } else {
-        state.pending=r.order;renderCart();if(state.pending)startPolling();
+        state.pending=order;syncServerClock(order);renderMethods();renderCart();
+        if(state.dialog?.kind==='vipps-pending')updatePendingDialog();
+      }
+    } finally {
+      state.statusRequest=false;
+      if(state.pending){renderCart();if(state.dialog?.kind==='vipps-pending')updatePendingDialog();}
+      if(state.pending&&!signal)scheduleNextPoll();
+    }
+  }
+  async function cancelPayment() {
+    if(!state.pending||state.cancelSubmitting||state.statusRequest)return;
+    state.cancelSubmitting=true;
+    stopPolling();
+    const orderId=state.pending.id;
+    const button=$('#sales-cancel-payment');button.disabled=true;
+    const dialogButton=$('#sales-pending-cancel');if(dialogButton)dialogButton.disabled=true;
+    try {
+      const r=await api('cancel_payment',{method:'POST',data:{order_id:orderId}});
+      if(isPaidPayment(r.order)) {
+        state.cancelSubmitting=false;state.pending=null;clearInterval(state.deadlineTimer);
+        state.completedOrder=r.order;state.paymentNotice='';
+        if(state.dialog?.kind==='vipps-pending')closeDialog(true);
+        await refreshCart();await refreshOrders();receipt(r.order);
+      } else if(isTerminalPayment(r.order)) {
+        // The backend has definitively cancelled the provider payment and reopened
+        // the original lines. Refresh before enabling checkout again.
+        state.cancelSubmitting=false;state.pending=null;clearInterval(state.deadlineTimer);
+        if(state.dialog?.kind==='vipps-pending')closeDialog(true);
+        await refreshCart();
+        state.completedOrder=null;
+        state.paymentNotice=r.order.payment_error || `${statusLabel(r.order.payment_status || r.order.status)}. Den opprinnelige handlekurven er gjenopprettet; kontroller varene før du prøver igjen.`;
+        renderCart();
+      } else {
+        state.pending=r.order;syncServerClock(r.order);renderMethods();renderCart();updatePendingDialog();startPolling();
       }
     }
-    catch(e){$('#sales-payment-status').insertAdjacentHTML('beforeend',`<span role="alert">${esc(e.message)}</span>`);}
-    finally{button.disabled=false;}
+    catch(e){
+      const alert=$('#sales-pending-error');
+      if(alert){alert.hidden=false;alert.textContent=e.message;}
+      else $('#sales-payment-status').insertAdjacentHTML('beforeend',`<span role="alert">${esc(e.message)}</span>`);
+    }
+    finally{
+      state.cancelSubmitting=false;
+      if(state.pending){renderCart();updatePendingDialog();startPolling();}
+      if(button)button.disabled=!state.pending||state.statusRequest;
+    }
   }
   async function refreshOrders() {
     const host=$('#sales-orders');host.innerHTML='<tr><td colspan="6"><div class="sales-skeleton"></div></td></tr>';
@@ -470,7 +642,10 @@
     try {
       const r=await api('bootstrap');state.csrf=r.csrf_token||'';state.taxRegistered=Number(r.tax_registered)===1?1:0;state.methodError=r.method_error||'';
       $('#sales-new-product').disabled=false;
-      state.products=r.products||[];state.methods=r.methods||[];state.cart=r.cart||emptyCart();state.pending=r.pending_order&&!isTerminalPayment(r.pending_order)?r.pending_order:null;
+      state.products=r.products||[];state.methods=r.methods||[];state.cart=r.cart||emptyCart();
+      if(r.pending_order&&isPaidPayment(r.pending_order)){state.pending=null;state.completedOrder=r.pending_order;state.paymentNotice='';}
+      else {state.pending=r.pending_order&&!isTerminalPayment(r.pending_order)?r.pending_order:null;if(!state.pending)state.completedOrder=null;}
+      if(state.pending)syncServerClock(state.pending);
       renderMethods();renderProducts();renderAdminProducts();renderCart();
       if(state.pending)startPolling();
       refreshOrders();
@@ -496,22 +671,26 @@
   });
   $('#sales-search').addEventListener('input',renderProducts);
   $('#sales-admin-search').addEventListener('input',renderAdminProducts);
-  $('#sales-method').addEventListener('change',e=>{
-    const method=usableMethods().find(m=>paymentKey(m)===e.target.value);
-    state.selectedMethod=method?.method_type || 'cash';state.selectedGatewayId=method?.id || null;
+  $('#sales-method-buttons').addEventListener('click',e=>{
+    const button=e.target.closest('[data-method-key]');if(!button||state.pending)return;
+    const method=usableMethods().find(m=>String(paymentKey(m))===String(button.dataset.methodKey));
+    if(!method)return;
+    state.selectedMethod=method.method_type;state.selectedGatewayId=method.method_type==='cash'?null:method.id;
     renderMethods();renderCart();
+    if(method.method_type==='vipps')checkout();
   });
   $('#sales-tendered').addEventListener('input',renderCart);
-  $('#sales-phone').addEventListener('input',renderCart);
   $('#sales-checkout').addEventListener('click',checkout);
+  $('#sales-open-payment').addEventListener('click',event=>{if(state.pending)showPendingPayment(event.currentTarget);});
   $('#sales-cancel-payment').addEventListener('click',cancelPayment);
   $('#sales-next-customer').addEventListener('click',async()=>{
     if(state.pending || (state.cart?.items||[]).length)return;
     const button=$('#sales-next-customer');button.disabled=true;
-    try {const r=await api('next_customer',{method:'POST',data:{}});updateCart(r.cart);state.pending=null;state.completedOrder=null;state.paymentNotice='';state.selectedMethod='cash';$('#sales-tendered').value='';$('#sales-phone').value='';renderMethods();renderCart();setError('');}
+    try {const r=await api('next_customer',{method:'POST',data:{}});updateCart(r.cart);state.pending=null;state.completedOrder=null;state.paymentNotice='';state.selectedMethod='cash';$('#sales-tendered').value='';renderMethods();renderCart();setError('');}
     catch(e){setError(e.message);try{await refreshCart();}catch(_){}}
     finally{button.disabled=false;}
   });
+  $('#sales-open-recovered-receipt').addEventListener('click',()=>{if(state.completedOrder?.id)showOrder(state.completedOrder.id);});
   root.addEventListener('click',event=>{
     const quick=event.target.closest('[data-cash]');
     if(quick){$('#sales-tendered').value=(Number(quick.dataset.cash)/100).toFixed(2);renderCart();}
@@ -524,23 +703,73 @@
   $('#sales-new-product').addEventListener('click',()=>productForm());
   $('#sales-refresh-products').addEventListener('click',async()=>{try{const r=await api('products');state.products=r.products||[];state.methods=r.methods||state.methods;state.methodError=r.method_error||'';state.taxRegistered=Number(r.tax_registered)===1?1:0;renderMethods();renderProducts();renderAdminProducts();}catch(e){setError(e.message)}});
   $('#sales-refresh-orders').addEventListener('click',refreshOrders);
-  document.addEventListener('shown.bs.tab',event=>{const target=event.target?.getAttribute('href')||event.target?.dataset?.bsTarget;if(target==='#sales-transactions')refreshOrders();if(target==='#sales-varesalg'&&state.pending)startPolling();if(target!=='#sales-varesalg'&&state.pending)stopPolling();});
-  document.addEventListener('shown.bs.tab',()=>setTimeout(()=>{if(!state.pending)return;if(paymentPanelShown())startPolling();else stopPolling();},0));
-  document.addEventListener('click',event=>{const tab=event.target.closest('a[href="#sales-transactions"],[data-bs-target="#sales-transactions"],a[href="#sales-varesalg"],[data-bs-target="#sales-varesalg"]');if(tab)setTimeout(()=>{const target=tab.getAttribute('href')||tab.dataset.bsTarget;if(target==='#sales-transactions')refreshOrders();if(target==='#sales-varesalg'&&state.pending)startPolling();if(target!=='#sales-varesalg'&&state.pending)stopPolling();},0);});
+  document.addEventListener('shown.bs.tab',event=>{const target=event.target?.getAttribute('href')||event.target?.dataset?.bsTarget;if(target==='#sales-transactions')refreshOrders();if(target==='#sales-varesalg'&&state.pending)startPolling(true);if(target!=='#sales-varesalg'&&state.pending)stopPolling();});
+  document.addEventListener('shown.bs.tab',()=>setTimeout(()=>{if(!state.pending)return;if(paymentPanelShown())startPolling(true);else stopPolling();},0));
+  document.addEventListener('click',event=>{const tab=event.target.closest('a[href="#sales-transactions"],[data-bs-target="#sales-transactions"],a[href="#sales-varesalg"],[data-bs-target="#sales-varesalg"]');if(tab)setTimeout(()=>{const target=tab.getAttribute('href')||tab.dataset.bsTarget;if(target==='#sales-transactions')refreshOrders();if(target==='#sales-varesalg'&&state.pending)startPolling(true);if(target!=='#sales-varesalg'&&state.pending)stopPolling();},0);});
   document.querySelectorAll('.sales-admin [data-cash]').forEach(()=>{});
   root.addEventListener('click',event=>{if(event.target.closest('#sales-fullscreen'))toggleFullscreen(true);if(event.target.closest('#sales-fullscreen-exit'))toggleFullscreen(false);});
   async function toggleFullscreen(open) {
-    try {if(open && root.requestFullscreen)await root.requestFullscreen();else if(!open&&document.fullscreenElement)await document.exitFullscreen();}catch(_){root.classList.toggle('sales-fullscreen',open);}
+    if(open) {
+      if(document.fullscreenElement===root||state.fullscreenFallback){syncFullscreen();return;}
+      if(typeof root.requestFullscreen==='function') {
+        try {await root.requestFullscreen();state.fullscreenFallback=false;syncFullscreen();return;} catch(_){}
+      }
+      enterFullscreenFallback();
+    } else {
+      if(document.fullscreenElement===root) {
+        try {await document.exitFullscreen();} catch(_) {}
+      } else if(state.fullscreenFallback) exitFullscreenFallback();
+    }
     syncFullscreen();
   }
+  function enterFullscreenFallback() {
+    if(state.fullscreenFallback)return;
+    const placeholder=document.createComment('sales fullscreen position');
+    root.parentNode?.insertBefore(placeholder,root);
+    state.fullscreenPlaceholder=placeholder;
+    document.body.appendChild(root);
+    state.fullscreenFallback=true;
+    root.classList.add('sales-fullscreen');
+    syncFullscreen();
+    $('#sales-fullscreen-exit').focus();
+  }
+  function exitFullscreenFallback() {
+    if(!state.fullscreenFallback)return;
+    const placeholder=state.fullscreenPlaceholder;
+    if(placeholder?.parentNode)placeholder.parentNode.insertBefore(root,placeholder);
+    placeholder?.remove();
+    state.fullscreenPlaceholder=null;state.fullscreenFallback=false;
+    root.classList.remove('sales-fullscreen');
+    $('#sales-fullscreen').focus();
+  }
   function syncFullscreen() {
-    const on=document.fullscreenElement===root||root.classList.contains('sales-fullscreen');
+    const on=document.fullscreenElement===root||state.fullscreenFallback;
+    document.body.classList.toggle('sales-fullscreen-open',on);
     root.classList.toggle('sales-fullscreen',on);$('#sales-fullscreen').setAttribute('aria-pressed',String(on));$('#sales-fullscreen-exit').classList.toggle('d-none',!on);
   }
-  document.addEventListener('fullscreenchange',syncFullscreen);
-  document.addEventListener('visibilitychange',()=>{if(document.hidden||!paymentPanelShown()){stopPolling();}else if(state.pending)startPolling();});
+  document.addEventListener('fullscreenchange',()=>{
+    if(state.fullscreenFallback&&document.fullscreenElement!==root)exitFullscreenFallback();
+    syncFullscreen();
+  });
+  document.addEventListener('visibilitychange',()=>{if(document.hidden||!paymentPanelShown()){stopPolling();}else if(state.pending)startPolling(true);});
   window.addEventListener('beforeunload',event=>{if(state.pending){event.preventDefault();event.returnValue='';}});
-  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('#sales-dialog').hidden)closeDialog();});
+  document.addEventListener('keydown',event=>{
+    const dialog=$('#sales-dialog');
+    if(event.key==='Escape'&&!dialog.hidden) {
+      event.preventDefault();event.stopPropagation();
+      closeDialog();
+      return;
+    }
+    if(event.key==='Escape'&&dialog.hidden&&state.fullscreenFallback) {
+      event.preventDefault();exitFullscreenFallback();syncFullscreen();return;
+    }
+    if(event.key==='Tab'&&!dialog.hidden) {
+      const items=focusableDialogItems(),first=items[0],last=items[items.length-1];
+      if(!items.length){event.preventDefault();$('.sales-dialog-card').focus();}
+      else if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+      else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+    }
+  },true);
   root.querySelectorAll('[data-cash]').forEach(button=>button.addEventListener('click',()=>{$('#sales-tendered').value=(Number(button.dataset.cash)/100).toFixed(2);renderCart();}));
   $('#sales-scanner').addEventListener('keydown',event=>{
     if(event.key!=='Enter')return;event.preventDefault();

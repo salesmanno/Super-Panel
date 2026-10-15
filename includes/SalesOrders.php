@@ -47,6 +47,9 @@ trait SalesOrders {
             'tenant_admin_name'=>($origin['tenant_admin_id']??null)===$row['created_by']?($origin['tenant_admin_name']??null):null,
             'payment_method'=>$ledger[0]['payment_method']??null,'payment_status'=>$status==='completed'?'paid':$status,
             'provider_state'=>$control['provider_state']??'UNKNOWN','received_minor'=>$control['received_minor']??null,
+            'payment_error'=>$control['payment_error']??null,
+            'expires_at'=>isset($control['expires_at'])?gmdate('Y-m-d\TH:i:s\Z',(int)$control['expires_at']):null,
+            'server_time'=>gmdate('Y-m-d\TH:i:s\Z'),
             'change_minor'=>$control['change_minor']??null,'total_minor'=>SalesMoney::minor($row['total']),
             'subtotal_minor'=>SalesMoney::minor($row['subtotal']),'tax_minor'=>SalesMoney::minor($row['tax_total']),'items'=>[]];
         if(!$safe)$view['warning']='Ordren mangler fullstendig regnskapsføring. Avstemming kreves.';
@@ -135,6 +138,7 @@ trait SalesOrders {
             $control=['version'=>1,'cart_id'=>$cart['id'],'reference'=>'sales-'.$id,'configuration_id'=>$config['configuration_id']??null,
                 'account_binding'=>$config?$this->provider->binding($config,$this->company):null,'decision'=>null,
                 'provider_state'=>$method==='cash'?'CASH_CONFIRMED':'PREPARED','init_state'=>'prepared',
+                'expires_at'=>$method==='vipps'?time()+80:null,
                 'received_minor'=>$received,'change_minor'=>$received===null?null:$received-$total];
             $ledger=new UnifiedLedgerService($this->db,$this->company);
             foreach($snapshots as $snapshot) {
@@ -172,6 +176,7 @@ trait SalesOrders {
         return $this->transaction(function()use($id,$decision){
             $order=$this->orderRow($id,true);if($order['status']!=='pending')return false;
             $control=$this->control($this->orderLedger($id,true));
+            if($decision==='capture' && ($control['expires_at']??PHP_INT_MAX)<=time())$decision='cancel';
             if($control['decision']!==null && $control['decision']!==$decision)return false;
             if($control['decision']===null)$this->writeControl($id,['decision'=>$decision]);
             return true;
@@ -179,55 +184,101 @@ trait SalesOrders {
     }
     public function reconcile(string $id,bool $cancel=false): array {
         if($this->systemAuth && $this->systemAuth->orderId!==$id)throw new TenantAuditException('Systemtilgang gjelder en annen ordre');
+        $this->orderRow($id);
+        // Serialise HTTP operations across poll/callback/cron without keeping a
+        // transaction open. A timed-out create must not race a cancellation.
+        $lock='sales:'.substr(hash('sha256',$this->company.'|'.$id),0,58);
+        if((int)$this->q('SELECT GET_LOCK(?,0)',[$lock])->fetchColumn()!==1)return $this->orderView($id);
+        try {return $this->reconcileLocked($id,$cancel);}
+        finally {$this->q('SELECT RELEASE_LOCK(?)',[$lock]);}
+    }
+    private function validatedPayment(array $remote,string $ref,int $total): array {
+        if($remote['code']!==200)throw new SalesVippsFailure($this->provider->paymentError($remote));
+        $body=$remote['data'];
+        if(($body['reference']??null)!==$ref || ($body['amount']['currency']??null)!=='NOK'
+            || ($body['amount']['value']??null)!==$total)throw new RuntimeException('Betalingsreferanse eller beløp stemmer ikke');
+        $captured=$body['aggregate']['capturedAmount']['value']??null;
+        if(!is_int($captured) || $captured<0 || ($body['aggregate']['capturedAmount']['currency']??null)!=='NOK'
+            || ($body['aggregate']['refundedAmount']['value']??0)!==0)throw new RuntimeException('Uavklart regnskapsstatus');
+        $state=$body['state']??'UNKNOWN';
+        if(is_array($state))$state=count($state)===1?$state[0]:'UNKNOWN';
+        return [is_string($state)?$state:'UNKNOWN',$captured];
+    }
+    private function paymentNote(string $id,?string $message): void {
+        $this->transaction(function()use($id,$message){
+            if($this->orderRow($id,true)['status']==='pending')$this->writeControl($id,['payment_error'=>$message]);
+        });
+    }
+    private function reconcileLocked(string $id,bool $cancel): array {
         $order=$this->orderRow($id);if($order['status']!=='pending')return $this->orderView($id);
-        if($cancel)$this->decidePayment($id,'cancel');
+        $this->transaction(function()use($id){
+            if($this->orderRow($id,true)['status']!=='pending')return;
+            $control=$this->control($this->orderLedger($id,true));
+            if(!isset($control['expires_at']))$this->writeControl($id,['expires_at'=>time()+80]);
+        });
         $control=$this->control($this->orderLedger($id));$ref=$control['reference'];$total=SalesMoney::minor($order['total']);
-        $cancel=$cancel || $control['decision']==='cancel';
+        if($cancel || (int)$control['expires_at']<=time())$this->decidePayment($id,'cancel');
+        $control=$this->control($this->orderLedger($id));
+        // Respect a capture committed before timeout. Never overwrite it with
+        // cancellation while Vipps may already be debiting the customer.
+        $cancel=$control['decision']==='cancel';
+        $expired=$cancel && (int)$control['expires_at']<=time();
         $path='/'.rawurlencode($ref);
         try {
             $config=$this->orderConfiguration($order,$control);
             $remote=$this->provider->request($config,$this->company,'GET',$path);
-            if($remote['code']===404 && $control['decision']!=='cancel') {
+            if($remote['code']===404 && $cancel && $control['init_state']==='prepared')
+                return $this->applyRemote($id,$expired?'EXPIRED':'TERMINATED',0,true);
+            if($remote['code']===404 && !$cancel) {
+                // The status lookup itself can consume the remaining window.
+                if((int)$control['expires_at']<=time()) {
+                    $this->decidePayment($id,'cancel');
+                    if($control['init_state']==='prepared')return $this->applyRemote($id,'EXPIRED',0,true);
+                    throw new RuntimeException('Tidligere betalingsopprettelse må avstemmes');
+                }
+                $this->transaction(fn()=>$this->writeControl($id,['init_state'=>'creating']));
                 $created=$this->provider->request($config,$this->company,'POST','',[
                     'amount'=>['currency'=>'NOK','value'=>$total],'paymentMethod'=>['type'=>'WALLET'],
                     'customer'=>['phoneNumber'=>$order['guest_phone']],'reference'=>$ref,'userFlow'=>'PUSH_MESSAGE',
                     'customerInteraction'=>'CUSTOMER_PRESENT','paymentDescription'=>'Salg '.$order['order_number']],'sales-create-'.$id);
                 // Stable reference and key are persisted before any external call.
                 $remote=$this->provider->request($config,$this->company,'GET',$path);
-                if($remote['code']===404 && in_array($created['code'],[400,401,403,422],true))
+                if($remote['code']===404 && in_array($created['code'],[400,401,403,422],true)) {
+                    $this->paymentNote($id,$this->provider->paymentError($created));
                     return $this->applyRemote($id,'REJECTED',0,true);
+                }
             }
-            if($remote['code']!==200)throw new RuntimeException('Uavklart betalingsstatus');
-            $body=$remote['data'];
-            if(($body['reference']??null)!==$ref || ($body['amount']['currency']??null)!=='NOK'
-                || ($body['amount']['value']??null)!==$total)throw new RuntimeException('Betalingsreferanse eller beløp stemmer ikke');
-            $captured=$body['aggregate']['capturedAmount']['value']??null;
-            if(!is_int($captured) || $captured<0 || ($body['aggregate']['capturedAmount']['currency']??null)!=='NOK'
-                || ($body['aggregate']['refundedAmount']['value']??0)!==0)throw new RuntimeException('Uavklart regnskapsstatus');
-            $state=$body['state']??'UNKNOWN';if(is_array($state))$state=count($state)===1?$state[0]:'UNKNOWN';
+            [$state,$captured]=$this->validatedPayment($remote,$ref,$total);
+            if((int)$control['expires_at']<=time()) {
+                $this->decidePayment($id,'cancel');
+                $cancel=$this->control($this->orderLedger($id))['decision']==='cancel';
+                $expired=$cancel;
+            }
             if($captured===$total)return $this->applyRemote($id,'CAPTURED',$captured);
             if($captured!==0)throw new RuntimeException('Delvis belastning krever avstemming');
-            if(in_array($state,['ABORTED','EXPIRED','TERMINATED'],true))return $this->applyRemote($id,$state,0,true);
-            if($state==='AUTHORIZED') {
-                if($this->decidePayment($id,$cancel?'cancel':'capture')) {
-                    $op=$cancel?'cancel':'capture';
+            if(in_array($state,['ABORTED','EXPIRED','TERMINATED'],true))return $this->applyRemote($id,$expired?'EXPIRED':$state,0,true);
+            if($state==='AUTHORIZED' || ($cancel && $state==='CREATED')) {
+                $this->decidePayment($id,$cancel?'cancel':'capture');
+                $decision=$this->control($this->orderLedger($id))['decision'];
+                if(in_array($decision,['capture','cancel'],true)) {
+                    $op=$decision;
                     $this->provider->request($config,$this->company,'POST',$path.'/'.$op,
-                        $cancel?[]:['modificationAmount'=>['currency'=>'NOK','value'=>$total]],'sales-'.$op.'-'.$id);
+                        $op==='cancel'?null:['modificationAmount'=>['currency'=>'NOK','value'=>$total]],'sales-'.$op.'-'.$id);
                     // A 200/202 capture request is NOT final proof. Verify GET.
                     $confirmed=$this->provider->request($config,$this->company,'GET',$path);
-                    if($confirmed['code']===200 && ($confirmed['data']['reference']??null)===$ref
-                        && ($confirmed['data']['amount']['value']??null)===$total
-                        && ($confirmed['data']['amount']['currency']??null)==='NOK'
-                        && ($confirmed['data']['aggregate']['capturedAmount']['currency']??null)==='NOK'
-                        && ($confirmed['data']['aggregate']['capturedAmount']['value']??null)===$total
-                        && ($confirmed['data']['aggregate']['refundedAmount']['value']??0)===0)return $this->applyRemote($id,'CAPTURED',$total);
+                    [$state,$captured]=$this->validatedPayment($confirmed,$ref,$total);
+                    if($captured===$total)return $this->applyRemote($id,'CAPTURED',$total);
+                    if($captured!==0)throw new RuntimeException('Delvis belastning krever avstemming');
+                    if(in_array($state,['ABORTED','EXPIRED','TERMINATED'],true))
+                        return $this->applyRemote($id,(int)$control['expires_at']<=time()?'EXPIRED':$state,0,true);
                 }
-            } elseif($cancel && $state==='CREATED') {
-                $this->provider->request($config,$this->company,'POST',$path.'/cancel',[],'sales-cancel-'.$id);
             }
+            $this->paymentNote($id,null);
             return $this->applyRemote($id,is_string($state)?$state:'UNKNOWN',0);
         } catch(Throwable $e) {
             // Unknown is resumable, not failed/paid. Never release its stock.
+            $this->paymentNote($id,$e instanceof SalesVippsFailure?$e->getMessage():
+                'Vipps-status kunne ikke bekreftes. Ikke start en ny betaling; status kontrolleres videre.');
             return $this->applyRemote($id,'UNKNOWN',0);
         }
     }
@@ -238,7 +289,7 @@ trait SalesOrders {
             $control=$this->control($this->orderLedger($id,true));
             if($captured===SalesMoney::minor($order['total']) && $state==='CAPTURED') {
                 $this->q("UPDATE sales_orders SET status='paid',updated_at=NOW() WHERE id=? AND company_id=?",[$id,$this->company]);
-                $this->writeControl($id,['provider_state'=>$state,'init_state'=>'created'],'completed');
+                $this->writeControl($id,['provider_state'=>$state,'init_state'=>'created','payment_error'=>null],'completed');
             } elseif($cancelled && $captured===0) {
                 // The order row lock makes release terminal and exactly-once.
                 foreach($this->orderItems($id) as $item) {

@@ -18,13 +18,15 @@ async function run(company){
     await wait(()=>!document.querySelector('#sales-new-product').disabled,'Product creation ready');
     const boot=calls.find(c=>c.action==='bootstrap').result;
     assert(Number(boot.tax_registered)===(registered?1:0),'Company VAT status comes from actual API');
-    assert(document.querySelector('#sales-method').value==='cash','Cash is default');
+    assert(document.querySelector('[data-method-key="cash"]').getAttribute('aria-pressed')==='true','Cash is default');
+    assert(!document.querySelector('select#sales-method'),'No legacy payment dropdown');
     if(!registered) {
-      const disabled=[...document.querySelector('#sales-method').options].filter(o=>o.disabled);
-      assert(disabled.length>=5,'Incomplete and unsupported active gateways remain visible');
-      assert(!document.querySelector('#sales-method option[value="gateway-a"]').disabled,'Actual database credentials enable Vipps without environment payment keys');
+      const notes=document.querySelector('#sales-method-note').textContent;
+      const unavailable=boot.methods.filter(m=>!m.available);
+      assert(unavailable.length>=5&&unavailable.every(m=>notes.includes(m.method_name)),'Incomplete and unsupported gateways are explained');
+      assert(document.querySelector('[data-method-key="gateway-a"]'),'Actual database credentials enable Vipps without environment payment keys');
       assert(!JSON.stringify(boot).includes('fixture-db-secret'),'Payment credentials never appear in bootstrap response');
-      assert(![...document.querySelector('#sales-method').options].some(o=>o.value==='gateway-b'||o.value==='gateway-inactive'),'No foreign/inactive gateway');
+      assert(!document.querySelector('[data-method-key="gateway-b"],[data-method-key="gateway-inactive"]'),'No foreign/inactive gateway');
     }
     const variants=registered?['standard','custom','exempt']:['exempt'];
     for(const variant of variants) {
