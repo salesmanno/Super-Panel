@@ -415,6 +415,9 @@
         const idAndName = `${element.id || ''} ${element.getAttribute('name') || ''}`.toLowerCase();
         const text = (element.textContent || '').trim().toLowerCase();
         const handler = element.getAttribute('onclick') || '';
+        // Rental's create button builds a summary snapshot. Treat it as save-relevant
+        // before the preview-label exclusions so it cannot capture a stale image URL.
+        if (/\bshowCreateSummary\s*\(/i.test(handler)) return true;
         if (/\b(?:cancel|avbryt|close|lukk|back|tilbake|preview|forhåndsvis|delete|slett|remove|fjern)\b/i.test(`${idAndName} ${text} ${handler}`)) return false;
         const saveHandler = /\b(?:save|lagre|update|oppdater|publish|publiser|submit|bekreft)[A-Za-z0-9_$]*\s*\(/i.test(handler) ||
             /\bcreateWebsiteSettings\s*\(/i.test(handler);
@@ -424,7 +427,7 @@
     }
 
     function scopeFor(element) {
-        return element.closest('form') || element.closest('.modal') ||
+        return element.closest('form') || element.closest('.modal') || element.closest('.subtab-content') ||
             element.closest('.tab-pane, [role="tabpanel"], .module-content, #sales-admin') || null;
     }
 

@@ -23,3 +23,19 @@ Etter opplasting må objektet/skjemaet lagres som vanlig. Hvis skjemaet avbrytes
 ## Feilhåndtering
 
 Manglende nøkkel eller PHP-støtte gir en tydelig feil. Systemet faller ikke tilbake til lokal permanent bildelagring. Opplastinger krever gyldig administrator, valgt bedrift, modulrettighet og CSRF-token; firma-/nettsidebilder krever også eksisterende opplåsing av innstillingene. En økt kan forsøke opptil 20 opplastinger per ti minutter.
+
+## Kontroll etter konfigurering
+
+`php tests/image_upload_test.php` tester bildebehandlingen uten eksterne kall.
+`node tests/image_upload_browser_test.js` tester felleskontrollen med isolerte nettleserdata.
+`node tests/announcement_image_preview_browser_test.js` kontrollerer størrelsesbegrensningene i nyhetsmodalen på mobil og desktop.
+
+En eksplisitt leverandørprøve kan kjøres med:
+
+```sh
+php tests/image_upload_live_smoke.php --upload-generated-public-images
+```
+
+Denne sender **to genererte, upersonlige testbilder** til den konfigurerte ImgBB-kontoen og leser de offentlige direktelenkene tilbake. Den verifiserer JPEG-dimensjoner, PNG og gjennomsiktighet, men skriver ingenting i databasen. Lokale midlertidige filer fjernes; de to offentlige testbildene blir liggende hos ImgBB. Prøven kjøres ikke automatisk som del av vanlige tester. Den skriver aldri ut API-nøkkel eller slettelenker.
+
+Etter eksport må det eksterne webhotellets PHP-prosess konfigureres separat. En nøkkel lagt inn i Replit følger ikke automatisk med i eksporten.

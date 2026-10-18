@@ -35,11 +35,17 @@ window.XMLHttpRequest=FakeXHR;
 `;
 fs.writeFileSync(fixture, `<!doctype html><html lang="nb"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
 body{font:15px system-ui;background:#edf2f5;color:#223b4c;margin:0;padding:18px}main{max-width:900px;margin:auto}form,.modal{background:white;border:1px solid #d5e1e5;border-radius:10px;margin:12px 0;padding:14px}input:not([type=file]):not([type=radio]){box-sizing:border-box;max-width:100%;display:block;border:1px solid #c6d2d8;border-radius:5px;padding:9px;width:100%}button{padding:8px;margin:3px}label{display:block}${css}</style>
-<body data-company-id="company-a"><main><h1>Bilder i skjemaene</h1><p>Samme bildeopplasting i opprettelse og redigering.</p>
-${fixtures.map(([module, fields])=>`<form id="${module}-form"><h2>${module}</h2>${fields}<button type="submit">Lagre</button></form>`).join('')}
+ <body data-company-id="company-a"><main><h1>Bilder i skjemaene</h1><p>Samme bildeopplasting i opprettelse og redigering.</p>
+ ${fixtures.map(([module, fields])=>`<form id="${module}-form"><h2>${module}</h2>${fields}<button type="submit">Lagre</button></form>`).join('')}
+ <div class="module-content" id="rental-module"><section class="subtab-content" id="rental-create"><form id="createRentalForm"><input class="image-url-input" name="create_image_url" value="https://old.example/image.jpg"><button type="button" onclick="showCreateSummary()">Forhåndsvis og opprett</button></form><div id="createSummarySection"><span id="summary-image"></span><button type="button" onclick="confirmSaveNewRentalObject()">Bekreft og opprett</button></div></section></div>
+ <div class="modal show" id="rental-edit-modal"><form id="rentalForm"><input class="image-url-input" name="edit_image_url"><button type="button" onclick="saves++">Lagre</button></form></div>
 <div class="modal show" id="edit-modal"><h2>Rediger arrangement</h2><input name="event_image_url"><button type="button" id="modal-save" onclick="saves++">Lagre</button></div>
 <form id="unrelated-form"><button type="submit">Lagre annet</button></form>
-</main><script>${mock}</script><script>${script}</script><script>document.addEventListener('submit',e=>{e.preventDefault();saves++});</script></body></html>`);
+ </main><script>${mock}</script><script>
+ window.rentalSnapshot='';window.rentalFinalSave='';
+ window.showCreateSummary=function(){rentalSnapshot=document.querySelector('[name=create_image_url]').value;document.querySelector('#summary-image').textContent=rentalSnapshot};
+ window.confirmSaveNewRentalObject=function(){rentalFinalSave=document.querySelector('#summary-image').textContent;saves++};
+ </script><script>${script}</script><script>document.addEventListener('submit',e=>{e.preventDefault();saves++});</script></body></html>`);
 const checks = `(async()=>{
  const check=(ok,m)=>{if(!ok)throw Error(m)};
  const tick=()=>new Promise(r=>setTimeout(r,30));
@@ -49,7 +55,7 @@ const checks = `(async()=>{
    input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));await tick();return input;
  };
  const good={success:true,url:'https://i.ibb.co/ExampleHash/image.png',width:320,height:200};
- check(document.querySelectorAll('.shared-image-upload').length===11,'every module and modal enhanced');
+  check(document.querySelectorAll('.shared-image-upload').length===13,'every module and modal enhanced');
  check(!document.querySelector('[name=general_hero_button_url]').dataset.sharedImageUpload,'ordinary URL not enhanced');
  check(!document.querySelector('label .shared-image-upload'),'no nested labels');
  check(!document.querySelector('[capture]'),'mobile photo library available');
@@ -88,10 +94,39 @@ const checks = `(async()=>{
  r=requests.at(-1);check(r.body.get('purpose')==='favicon','favicon processing requested');
  r.respond(good);await tick();
  await select('#rental-form');r=requests.at(-1);
+  const rentalGalleryRequest=r;
  check(document.querySelector('#rental-form .image-caption-input').value==='Behold bildetekst'&&document.querySelector('#rental-form input[type=radio]').checked,'rental gallery metadata preserved');
+  const createRental=document.querySelector('#createRentalForm');
+  const createImage=createRental.querySelector('[name=create_image_url]');
+  await select('#createRentalForm');r=requests.at(-1);
+   createRental.querySelector('button[onclick="showCreateSummary()"]').click();
+  check(rentalSnapshot===''&&document.querySelector('#summary-image').textContent==='','rental create preview snapshot blocked during pending upload');
+  document.querySelector('#rental-create #summary-image + button').click();
+  check(rentalFinalSave===''&&saves===count,'rental final confirmation blocked while create upload pending');
+   r.respond(good);await tick();
+  check(createImage.value===good.url,'rental create upload writes resolved URL');
+  check(new FormData(createRental).get('create_image_url')===good.url,'rental create form serialization includes resolved URL');
+  createRental.querySelector('button[onclick="showCreateSummary()"]').click();
+  check(rentalSnapshot===good.url,'rental create preview snapshots resolved URL');
+  document.querySelector('#rental-create #summary-image + button').click();
+  check(rentalFinalSave===good.url,'rental final save uses resolved URL snapshot');
+  const editRental=document.querySelector('#rentalForm');
+  await select('#rentalForm');r=requests.at(-1);r.respond(good);await tick();
+  check(editRental.querySelector('[name=edit_image_url]').value===good.url,'rental edit upload writes resolved URL');
+  check(new FormData(editRental).get('edit_image_url')===good.url,'rental edit form serialization includes resolved URL');
+  await select('#createRentalForm','text/plain');
+   createRental.querySelector('button[onclick="showCreateSummary()"]').click();
+  check(rentalSnapshot===good.url,'rental create preview snapshot blocked on upload error');
+  const savesBeforeErrorConfirm=saves;
+  document.querySelector('#rental-create #summary-image + button').click();
+  check(saves===savesBeforeErrorConfirm,'rental final confirmation blocked while create upload is in error');
+  createRental.reset();await tick();
+  check(createImage.value==='https://old.example/image.jpg','rental create reset restores its baseline URL');
+   createRental.querySelector('button[onclick="showCreateSummary()"]').click();
+  check(rentalSnapshot==='https://old.example/image.jpg','rental preview can reopen with reset URL');
  document.querySelector('#rental-form .image-row button').click();await tick();
  check(!document.querySelector('#rental-form .shared-image-upload'),'no orphan upload after row removed');
- r.respond(good);await tick();
+  rentalGalleryRequest.respond(good);await tick();
  const newInput=document.createElement('input');newInput.className='image-url-input';document.querySelector('#rental-form').append(newInput);await tick();
  check(newInput.dataset.sharedImageUpload==='ready','dynamic gallery row enhanced');
  await select('#reservation-form');r=requests.at(-1);document.body.dataset.companyId='company-b';r.respond(good);await tick();
