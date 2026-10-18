@@ -1,0 +1,19 @@
+kind = "design"
+previewPath = "/__mockup/"
+title = "Portal · oppmerksomhetsoversikt"
+description = "Isolert designskisse av området over modulfanene, med eksempeldata og sammenligning på mobil og desktop. Ingen endringer i den aktive portalen."
+version = "1.0.0"
+id = "artifacts/mockup-sandbox"
+router = "path"
+
+[[services]]
+name = "Component Preview Server"
+paths = [ "/__mockup/" ]
+localPort = 23636
+
+[services.development]
+run = "npm run dev"
+
+[services.env]
+PORT = "23636"
+BASE_PATH = "/__mockup/"
