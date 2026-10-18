@@ -51,6 +51,13 @@
         if (!(input instanceof HTMLInputElement) || controls.has(input)) return;
         const module = moduleFor(input);
         if (!module) return;
+        const originalIdAttribute = input.getAttribute('id');
+        const generatedUrlId = input.id ? '' : `shared-image-url-${Math.random().toString(36).slice(2, 10)}`;
+        if (generatedUrlId) {
+            let uniqueId = generatedUrlId;
+            while (document.getElementById(uniqueId)) uniqueId = `shared-image-url-${Math.random().toString(36).slice(2, 10)}`;
+            input.id = uniqueId;
+        }
 
         const container = document.createElement('div');
         container.className = 'shared-image-upload';
@@ -59,8 +66,16 @@
         pickButton.type = 'button';
         pickButton.className = 'shared-image-upload__pick';
         const pickerId = `shared-image-file-${Math.random().toString(36).slice(2, 10)}`;
-        pickButton.textContent = 'Last opp bilde';
+        pickButton.textContent = 'Last opp bildefil';
         pickButton.setAttribute('aria-label', 'Velg bilde fra enheten');
+
+        const modeButton = document.createElement('button');
+        modeButton.type = 'button';
+        modeButton.className = 'shared-image-upload__mode';
+        modeButton.setAttribute('aria-controls', input.id);
+        modeButton.setAttribute('aria-expanded', 'false');
+        const modeText = document.createElement('em');
+        modeButton.append(modeText);
 
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
@@ -94,21 +109,34 @@
         progress.hidden = true;
         const progressBar = document.createElement('span');
         progress.append(progressBar);
-        container.append(pickButton, fileInput, clearButton, hint, preview, status, progress);
+        container.append(pickButton, modeButton, fileInput, clearButton, hint, preview, status, progress);
         const rentalRow = input.matches('.image-url-input') ? input.closest('.image-row') : null;
         const enclosingLabel = input.closest('label');
         if (rentalRow) rentalRow.insertAdjacentElement('afterend', container);
         else if (enclosingLabel && enclosingLabel.contains(input)) enclosingLabel.insertAdjacentElement('afterend', container);
         else input.insertAdjacentElement('afterend', container);
 
+        const hiddenLabel = !input.matches('.image-url-input') && enclosingLabel &&
+            enclosingLabel.contains(input) &&
+            enclosingLabel.querySelectorAll('input, select, textarea, button').length === 1
+            ? enclosingLabel : null;
         const record = {
             input, module, container, fileInput, pickButton, clearButton, status, preview, progress, progressBar,
+            modeButton, modeText, hint, hiddenLabel, urlMode: false,
+            generatedUrlId, originalIdAttribute,
+            hadUrlClass: input.classList.contains('shared-image-url'),
+            hadHiddenUrlClass: input.classList.contains('shared-image-url-hidden'),
+            hadLabelClass: Boolean(hiddenLabel?.classList.contains('shared-image-url-label')),
+            hadHiddenLabelClass: Boolean(hiddenLabel?.classList.contains('shared-image-url-hidden')),
             state: 'idle', generation: 0, valueAtStart: '', request: null, lastValue: input.value,
             owner: input.closest('form, .modal, .tab-pane') || input.parentElement
         };
         controls.set(input, record);
         records.add(record);
         input.dataset.sharedImageUpload = 'ready';
+        input.classList.add('shared-image-url');
+        if (hiddenLabel) hiddenLabel.classList.add('shared-image-url-label');
+        renderMode(record);
         input.addEventListener('input', () => {
             syncValue(record);
             if (record.state === 'error' || record.state === 'success') setState(record, 'idle', '');
@@ -120,8 +148,23 @@
             syncValue(record);
             refreshPreview(record);
         });
+        input.addEventListener('invalid', () => {
+            if (!record.urlMode) {
+                record.urlMode = true;
+                renderMode(record);
+            }
+        });
         pickButton.addEventListener('click', () => {
             if (!pickButton.disabled) fileInput.click();
+        });
+        modeButton.addEventListener('click', () => {
+            invalidate(record, '');
+            if (record.state === 'error') setState(record, 'idle', '');
+            record.urlMode = !record.urlMode;
+            renderMode(record);
+            refreshPreview(record);
+            if (record.urlMode) input.focus();
+            else modeButton.focus();
         });
         clearButton.addEventListener('click', () => {
             invalidate(record, '');
@@ -132,7 +175,8 @@
             setState(record, 'idle', '');
             refreshPreview(record);
             clearButton.hidden = true;
-            input.focus();
+            if (record.urlMode) input.focus();
+            else record.pickButton.focus();
         });
         fileInput.addEventListener('change', () => {
             const file = fileInput.files && fileInput.files[0];
@@ -141,7 +185,11 @@
         const form = input.closest('form');
         form?.addEventListener('reset', () => {
             invalidate(record, '');
-            window.setTimeout(() => refreshRecord(record), 0);
+            window.setTimeout(() => {
+                record.urlMode = false;
+                renderMode(record);
+                refreshRecord(record);
+            }, 0);
         }, true);
         refreshPreview(record);
     }
@@ -169,9 +217,32 @@
     function dispose(record) {
         invalidate(record, '');
         record.container.remove();
+        if (!record.hadUrlClass) record.input.classList.remove('shared-image-url');
+        if (!record.hadHiddenUrlClass) record.input.classList.remove('shared-image-url-hidden');
+        if (record.hiddenLabel && !record.hadLabelClass) record.hiddenLabel.classList.remove('shared-image-url-label');
+        if (record.hiddenLabel && !record.hadHiddenLabelClass) record.hiddenLabel.classList.remove('shared-image-url-hidden');
+        if (record.generatedUrlId) {
+            if (record.originalIdAttribute === null) record.input.removeAttribute('id');
+            else record.input.setAttribute('id', record.originalIdAttribute);
+        }
         records.delete(record);
         controls.delete(record.input);
         delete record.input.dataset.sharedImageUpload;
+    }
+
+    function renderMode(record) {
+        const urlMode = record.urlMode;
+        record.container.classList.toggle('is-url-mode', urlMode);
+        record.input.classList.toggle('shared-image-url-hidden', !urlMode);
+        record.hiddenLabel?.classList.toggle('shared-image-url-hidden', !urlMode);
+        record.pickButton.hidden = urlMode;
+        record.hint.hidden = urlMode;
+        record.fileInput.setAttribute('aria-hidden', String(urlMode));
+        if (urlMode) record.fileInput.setAttribute('tabindex', '-1');
+        else record.fileInput.removeAttribute('tabindex');
+        record.modeText.textContent = urlMode ? 'eller last opp bildefil' : 'eller bruk bildelenke';
+        record.modeButton.setAttribute('aria-expanded', String(urlMode));
+        record.modeButton.setAttribute('aria-label', urlMode ? 'Bytt til opplasting av bildefil' : 'Bytt til å skrive inn bildelenke');
     }
 
     function cleanAfterDomMove(candidates) {

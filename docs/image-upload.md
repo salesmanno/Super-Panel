@@ -14,7 +14,7 @@ Bildene oppbevares hos **ImgBB**. Prosjektet lagrer bare den direkte HTTPS-adres
 
 ## Bruk og personvern
 
-Velg «Last opp bilde» i bildefeltet. Bildet valideres og re-enkodes for å fjerne metadata, og store bilder skaleres ned. Foto har maksimalt 1600 piksler på lengste side, logo 800 og favicon 256. Transparent PNG bevares. Opplasting av SVG, GIF, HEIC, dokumenter eller andre filtyper avvises; bruk JPEG, PNG eller WebP.
+Velg «Last opp bildefil» i bildefeltet. «eller bruk bildelenke» bytter til det eksisterende URL-feltet i stedet for filopplasting; «eller last opp bildefil» bytter tilbake. Byttet beholder bildelenken og krever ingen konfigurert ImgBB-nøkkel for manuelle lenker. Bildet valideres og re-enkodes for å fjerne metadata, og store bilder skaleres ned. Foto har maksimalt 1600 piksler på lengste side, logo 800 og favicon 256. Transparent PNG bevares. Opplasting av SVG, GIF, HEIC, dokumenter eller andre filtyper avvises; bruk JPEG, PNG eller WebP.
 
 Bildene blir tilgjengelige gjennom en offentlig URL. Ikke last opp private dokumenter eller sensitive bilder. Bare det valgte bildet sendes til ImgBB; ingen kunde-, betalings- eller objektdata sendes som metadata. Tilfeldige filnavn brukes.
 

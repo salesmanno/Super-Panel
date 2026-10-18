@@ -23,7 +23,8 @@
 }
 
 .shared-image-upload__pick,
-.shared-image-upload__clear {
+.shared-image-upload__clear,
+.shared-image-upload__mode {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -40,13 +41,15 @@
 }
 
 .shared-image-upload__pick:hover,
-.shared-image-upload__clear:hover {
+.shared-image-upload__clear:hover,
+.shared-image-upload__mode:hover {
     border-color: #7eaaa8;
     background: #e9f3f1;
 }
 
 .shared-image-upload__pick:focus-visible,
-.shared-image-upload__clear:focus-visible {
+.shared-image-upload__clear:focus-visible,
+.shared-image-upload__mode:focus-visible {
     outline: 3px solid rgba(28, 117, 119, .22);
     outline-offset: 2px;
 }
@@ -55,6 +58,34 @@
 .shared-image-upload__clear[disabled] {
     cursor: wait;
     opacity: .6;
+}
+
+.shared-image-url-hidden,
+.shared-image-url-label.shared-image-url-hidden {
+    display: none !important;
+}
+
+.shared-image-upload [hidden] {
+    display: none !important;
+}
+
+.shared-image-upload__mode {
+    min-height: 32px;
+    padding: .25rem .1rem;
+    border: 0;
+    background: transparent;
+    color: #416b70;
+    font: inherit;
+    cursor: pointer;
+}
+
+.shared-image-upload__mode em {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.shared-image-upload.is-url-mode {
+    border-color: #c8d9d8;
 }
 
 .shared-image-upload__file {
@@ -141,7 +172,8 @@
     }
 
     .shared-image-upload__pick,
-    .shared-image-upload__clear {
+    .shared-image-upload__clear,
+    .shared-image-upload__mode {
         min-height: 38px;
     }
 

@@ -16,7 +16,7 @@ const fixtures = [
     ['events', '<input name="event_image_url">'],
     ['membership', '<input name="plan_image_url">'],
     ['announcements', '<input id="announcement-image-url">'],
-    ['reservation', '<input id="service-img-url">'],
+    ['reservation', '<input id="service-img-url" name="service_img_url" type="url" required>'],
     ['company', '<input name="logo_url">'],
     ['website', '<input name="general_logo_url"><input name="general_favicon_url"><input name="general_hero_image_url"><input name="general_hero_button_url" type="url">'],
 ];
@@ -56,10 +56,38 @@ const checks = `(async()=>{
  };
  const good={success:true,url:'https://i.ibb.co/ExampleHash/image.png',width:320,height:200};
   check(document.querySelectorAll('.shared-image-upload').length===13,'every module and modal enhanced');
+ const urlFields=[...document.querySelectorAll('input.shared-image-url')];
+ check(urlFields.length===13&&urlFields.every(input=>getComputedStyle(input).display==='none'),'all shared URL controls start visually and accessibly hidden');
+ check(urlFields.every(input=>!input.disabled),'hidden URL controls remain enabled for native serialization');
+ check(document.querySelector('#announcement-image-url').id==='announcement-image-url','pre-existing URL input IDs remain unchanged');
+ check([...document.querySelectorAll('.shared-image-upload__mode em')].every(text=>text.textContent==='eller bruk bildelenke'),'upload mode uses the required italic link-switch phrase');
+ check([...document.querySelectorAll('.shared-image-upload__pick')].every(button=>button.textContent==='Last opp bildefil'),'upload controls use the required primary label');
  check(!document.querySelector('[name=general_hero_button_url]').dataset.sharedImageUpload,'ordinary URL not enhanced');
  check(!document.querySelector('label .shared-image-upload'),'no nested labels');
  check(!document.querySelector('[capture]'),'mobile photo library available');
  check(configRequests.length===0,'no configuration requests on render');
+ const salesUrl=document.querySelector('[name=img_product]');
+ const salesControl=salesUrl.closest('label').nextElementSibling;
+ const salesMode=salesControl.querySelector('.shared-image-upload__mode');
+ check(salesUrl.id&&salesMode.getAttribute('aria-controls')===salesUrl.id,'toggle aria-controls targets the external URL input');
+ salesMode.click();
+ const salesPick=salesControl.querySelector('.shared-image-upload__pick');
+ const salesHint=salesControl.querySelector('.shared-image-upload__hint');
+ const salesFile=salesControl.querySelector('.shared-image-upload__file');
+ check(getComputedStyle(salesUrl).display!=='none'&&salesPick.hidden&&getComputedStyle(salesPick).display==='none'&&salesHint.hidden&&getComputedStyle(salesHint).display==='none','URL mode swaps controls and CSS hides picker/hints');
+ check(salesFile.getAttribute('aria-hidden')==='true'&&salesFile.tabIndex===-1,'file picker is removed from URL-mode accessibility and keyboard flow');
+ check(salesMode.querySelector('em').textContent==='eller last opp bildefil'&&salesMode.getAttribute('aria-expanded')==='true'&&salesMode.type==='button','URL mode has accessible italic switch-back control');
+ salesUrl.value='https://example.org/manual.jpg';salesUrl.dispatchEvent(new Event('input',{bubbles:true}));
+ check(salesControl.querySelector('.shared-image-upload__preview').src==='https://example.org/manual.jpg','manual URL previews in URL mode');
+ check(new FormData(document.querySelector('#sales-form')).get('img_product')==='https://example.org/manual.jpg','hidden/visible URL field remains included in native FormData');
+ salesMode.click();
+ check(getComputedStyle(salesUrl).display==='none'&&salesUrl.value==='https://example.org/manual.jpg','switching back preserves URL and hides its input');
+ check(!salesPick.hidden&&getComputedStyle(salesPick).display!=='none'&&!salesHint.hidden&&getComputedStyle(salesHint).display!=='none'&&salesFile.getAttribute('aria-hidden')==='false','upload controls and hints return on switch back');
+ const createImageAtOpen=document.querySelector('[name=create_image_url]');
+ check(getComputedStyle(createImageAtOpen).display==='none'&&createImageAtOpen.value==='https://old.example/image.jpg','edit URL stays preserved in default upload mode');
+ check(document.querySelector('#createRentalForm .shared-image-upload__preview').src==='https://old.example/image.jpg','existing saved URL preview remains available in upload mode');
+ const rentalRow=document.querySelector('#rental-form .image-row');
+ check(rentalRow.querySelector('input[type=radio]').checked&&rentalRow.querySelector('.image-caption-input').value==='Behold bildetekst'&&rentalRow.querySelector('button').textContent==='Fjern rad','rental radio, caption and delete row remain unaffected');
  await select('#sales-form');check(requests.length===1,'upload started');
  check(requests[0].body.get('module')==='sales'&&requests[0].body.get('company_id')==='company-a','correct module/company');
  check(!SharedImageUpload.canSave(document.querySelector('#sales-form')),'pending upload blocks save');
@@ -122,13 +150,42 @@ const checks = `(async()=>{
   check(saves===savesBeforeErrorConfirm,'rental final confirmation blocked while create upload is in error');
   createRental.reset();await tick();
   check(createImage.value==='https://old.example/image.jpg','rental create reset restores its baseline URL');
+  check(getComputedStyle(createImage).display==='none'&&createRental.querySelector('.shared-image-upload__mode').getAttribute('aria-expanded')==='false','reset restores default upload mode without losing baseline URL');
    createRental.querySelector('button[onclick="showCreateSummary()"]').click();
   check(rentalSnapshot==='https://old.example/image.jpg','rental preview can reopen with reset URL');
+  await select('#reservation-form');r=requests.at(-1);
+  const pendingManual=document.querySelector('#service-img-url');
+  check(pendingManual.type==='url'&&pendingManual.required,'native URL type and required semantics are retained');
+  const reservationMode=document.querySelector('#reservation-form .shared-image-upload__mode');
+  reservationMode.click();
+  pendingManual.value='https://example.org/typed-while-uploading.jpg';pendingManual.dispatchEvent(new Event('input',{bubbles:true}));
+  check(r.readyState===4&&pendingManual.value==='https://example.org/typed-while-uploading.jpg','switching to URL mode aborts pending upload before manual entry');
+  r.respond(good);await tick();
+  check(pendingManual.value==='https://example.org/typed-while-uploading.jpg'&&new FormData(document.querySelector('#reservation-form')).get('service_img_url')===pendingManual.value,'late upload completion cannot overwrite URL or break serialization');
+  check(SharedImageUpload.canSave(document.querySelector('#reservation-form')),'explicit URL switch clears failed/pending upload state for manual save');
+  pendingManual.value='not a URL';pendingManual.dispatchEvent(new Event('input',{bubbles:true}));
+  reservationMode.click();
+  check(getComputedStyle(pendingManual).display==='none','switch-back hides malformed native URL');
+  check(document.querySelector('#reservation-form').reportValidity()===false&&getComputedStyle(pendingManual).display!=='none'&&document.activeElement===pendingManual,'native validation reveals and focuses malformed URL input while still blocking save');
+  pendingManual.value='https://example.org/repaired.jpg';pendingManual.dispatchEvent(new Event('input',{bubbles:true}));
+  const noKeyUrl=document.querySelector('[name=general_hero_image_url]');
+  const noKeyMode=noKeyUrl.nextElementSibling.querySelector('.shared-image-upload__mode');
+  badConfig=true;
+  const configCountBeforeManual=configRequests.length;
+  noKeyMode.click();
+  noKeyUrl.value='https://example.org/manual-without-key.jpg';noKeyUrl.dispatchEvent(new Event('input',{bubbles:true}));
+  check(SharedImageUpload.canSave(document.querySelector('#website-form'))&&new FormData(document.querySelector('#website-form')).get('general_hero_image_url')===noKeyUrl.value,'manual URL entry works without upload configuration');
+  check(configRequests.length===configCountBeforeManual,'manual mode makes no configuration request');
+  badConfig=false;
  document.querySelector('#rental-form .image-row button').click();await tick();
  check(!document.querySelector('#rental-form .shared-image-upload'),'no orphan upload after row removed');
   rentalGalleryRequest.respond(good);await tick();
  const newInput=document.createElement('input');newInput.className='image-url-input';document.querySelector('#rental-form').append(newInput);await tick();
  check(newInput.dataset.sharedImageUpload==='ready','dynamic gallery row enhanced');
+ check(newInput.id&&newInput.nextElementSibling.querySelector('.shared-image-upload__mode').getAttribute('aria-controls')===newInput.id,'generated input ID is the toggle aria-controls target');
+ newInput.remove();await tick();
+ check(newInput.id==='','generated URL input ID is removed during clean disposal');
+ document.querySelector('#service-img-url').value='';document.querySelector('#service-img-url').dispatchEvent(new Event('input',{bubbles:true}));
  await select('#reservation-form');r=requests.at(-1);document.body.dataset.companyId='company-b';r.respond(good);await tick();
  check(document.querySelector('#service-img-url').value==='','different company never receives URL');
  document.body.dataset.companyId='company-a';
