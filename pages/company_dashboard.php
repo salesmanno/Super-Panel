@@ -152,6 +152,7 @@ try {
     <link rel="icon" type="image/png" href="<?= htmlspecialchars($appleIconUrl) ?>">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/image-upload.css">
     <style>
         :root {
             --primary-start: #667eea;
@@ -402,7 +403,7 @@ try {
     </style>
     <link rel="stylesheet" href="../assets/dashboard-module-theme.css">
 </head>
-<body>
+<body data-company-id="<?= htmlspecialchars((string)($_SESSION['company_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
     <!-- Navigation -->
     <nav class="navbar navbar-gradient navbar-dark">
         <div class="container-fluid">
@@ -1895,5 +1896,6 @@ try {
     
     <?php include __DIR__ . '/../includes/norwegian_datetime_inputs.php'; ?>
     <?php include __DIR__ . '/../includes/toast_notification.php'; ?>
+    <script src="/assets/image-upload.js" defer></script>
 </body>
 </html>

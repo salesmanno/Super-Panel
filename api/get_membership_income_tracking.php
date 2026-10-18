@@ -25,7 +25,7 @@ try {
             c.last_name,
             c.email,
             c.phone,
-            c.address,
+            c.address_street as address,
             c.address_city as poststed,
             c.date_of_birth as dateofbirth,
             mm.join_date,
@@ -39,22 +39,23 @@ try {
             payment_summary.last_payment_date,
             payment_summary.payment_count
         FROM membership_members mm
-        LEFT JOIN tenant_customers c ON mm.customer_id = c.id
+        LEFT JOIN tenant_customers c ON mm.customer_id = c.id AND c.company_id = mm.company_id
         LEFT JOIN membership_plans mp 
-            ON mm.membership_plan_id = mp.id
+            ON mm.membership_plan_id = mp.id AND mp.company_id = mm.company_id
         LEFT JOIN (
             SELECT 
-                email,
-                SUM(selling_price * quantity) as total_paid,
+                customer_id,
+                SUM(selling_price) as total_paid,
                 MAX(transaction_date) as last_payment_date,
                 COUNT(*) as payment_count
             FROM unified_ledger
             WHERE company_id = ?
             AND module_source = 'membership'
             AND payment_status = 'completed'
+            AND status = 'active'
             AND YEAR(transaction_date) = ?
-            GROUP BY email
-        ) payment_summary ON c.email = payment_summary.email
+            GROUP BY customer_id
+        ) payment_summary ON mm.customer_id = payment_summary.customer_id
         WHERE mm.company_id = ?
         ORDER BY c.last_name, c.first_name
     ");

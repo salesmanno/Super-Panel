@@ -36,6 +36,18 @@ try {
 @media(max-width:800px){.news-workspace{grid-template-columns:1fr}.hero-story{grid-template-columns:1fr}.secondary-grid{grid-template-columns:1fr}.preview-frame{padding:.8rem}.news-heading{align-items:flex-start;flex-direction:column}}@media(prefers-reduced-motion:reduce){.news-control-room *{transition:none!important}}
 }
 .news-control-room-modal .modal-content{border:0;border-radius:14px}.news-control-room-modal .form-label{font-size:.78rem;font-weight:700}.news-control-room-modal textarea{min-height:130px}.news-control-room-modal .modal-dialog{max-width:680px}
+/* Image previews are replaced elements: their intrinsic dimensions must never
+   become the minimum size of the modal's flex/grid content. */
+.news-control-room-modal .modal-dialog{max-height:calc(100dvh - 1rem);min-width:0}
+.news-control-room-modal .modal-content{max-height:calc(100dvh - 1rem);min-width:0}
+.news-control-room-modal .modal-body{flex:1 1 auto;min-width:0;min-height:0;max-height:max(8rem,calc(100dvh - 16rem));overflow-y:auto}
+.news-control-room-modal .announcement-image-editor,
+.news-control-room-modal .announcement-image-url,
+.news-control-room-modal .shared-image-upload{box-sizing:border-box;min-width:0;max-width:100%}
+.news-control-room-modal .announcement-image-preview{display:block;width:100%;max-width:100%;min-width:0;height:auto;max-height:230px;object-fit:contain}
+.news-control-room-modal .announcement-image-preview[hidden],
+.news-control-room-modal .announcement-image-placeholder[hidden]{display:none!important}
+.news-control-room-modal .modal-footer{flex-wrap:wrap}
 /* Keep the writing surface clearly distinct from the surrounding dialog. */
 .news-control-room-modal #announcement-content-editor,
 .news-control-room #announcement-content-editor{width:100%;min-height:clamp(17rem,36vh,24rem);max-height:65vh;padding:1rem 1.1rem;border:2px solid #78919b;border-radius:0 0 10px 10px;background:#fff;box-shadow:inset 0 1px 3px rgba(18,45,59,.07);font-size:1rem;line-height:1.65;overflow:auto;resize:vertical;overflow-wrap:anywhere}

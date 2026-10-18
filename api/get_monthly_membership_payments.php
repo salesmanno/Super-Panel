@@ -21,6 +21,7 @@ try {
     $stmt = $db->prepare("
         SELECT 
             mm.id as member_id,
+            mm.customer_id,
             c.first_name,
             c.last_name,
             c.email,
@@ -32,8 +33,8 @@ try {
             COALESCE(mp.price, 0) as yearly_price,
             mp.billing_cycle
         FROM membership_members mm
-        LEFT JOIN tenant_customers c ON mm.customer_id = c.id
-        LEFT JOIN membership_plans mp ON mm.membership_plan_id = mp.id
+        LEFT JOIN tenant_customers c ON mm.customer_id = c.id AND c.company_id = mm.company_id
+        LEFT JOIN membership_plans mp ON mm.membership_plan_id = mp.id AND mp.company_id = mm.company_id
         WHERE mm.company_id = ?
         AND (mm.status = 'active' OR mm.status = 'pending')
         ORDER BY c.last_name, c.first_name
@@ -42,28 +43,28 @@ try {
     $stmt->execute([$company_id]);
     $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Get all payments for the year - join with tenant_customers to get email
+    // Match stable customer IDs, never shared/empty e-mail addresses.
     $paymentStmt = $db->prepare("
         SELECT 
-            c.email as customer_email,
-            SUM(ul.selling_price * ul.quantity) as total_paid,
+            ul.customer_id,
+            SUM(ul.selling_price) as total_paid,
             MONTH(ul.transaction_date) as payment_month
         FROM unified_ledger ul
-        LEFT JOIN tenant_customers c ON ul.customer_id = c.id
         WHERE ul.company_id = ?
         AND ul.module_source = 'membership'
         AND ul.payment_status = 'completed'
+        AND ul.status = 'active'
         AND YEAR(ul.transaction_date) = ?
-        GROUP BY c.email, MONTH(ul.transaction_date)
+        GROUP BY ul.customer_id, MONTH(ul.transaction_date)
     ");
     
     $paymentStmt->execute([$company_id, $year]);
     $payments = $paymentStmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Create payment lookup by email and month
+    // Create payment lookup by customer and month.
     $paymentLookup = [];
     foreach ($payments as $p) {
-        $key = strtolower($p['customer_email'] ?? '') . '_' . $p['payment_month'];
+        $key = (string)($p['customer_id'] ?? '') . '_' . $p['payment_month'];
         $paymentLookup[$key] = floatval($p['total_paid']);
     }
     
@@ -119,8 +120,7 @@ try {
             $monthlyData[$paymentMonth]['expected_amount'] += $amountPerPayment;
             
             // Check if paid
-            $email = strtolower($member['email'] ?? '');
-            $paymentKey = $email . '_' . $paymentMonth;
+            $paymentKey = (string)$member['customer_id'] . '_' . $paymentMonth;
             $paidAmount = $paymentLookup[$paymentKey] ?? 0;
             
             $isPaid = $paidAmount >= $amountPerPayment * 0.9; // 90% threshold

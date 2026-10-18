@@ -21,6 +21,9 @@
 .transaction-row.expense {
     border-left-color: #dc3545;
 }
+.transaction-row.not-posted {
+    border-left-color: #adb5bd;
+}
 .transaction-row:focus-visible {
     outline: 3px solid #087f8c;
     outline-offset: -3px;
@@ -61,7 +64,7 @@
                 <div class="row g-3 mb-4" id="overview-stats">
                     <div class="col-md-3">
                         <div class="economy-stat-card bg-success text-white">
-                            <small>Total inntekt</small>
+                            <small>Betalte inntekter</small>
                             <h4 class="mb-0" id="stat-total-income">-</h4>
                         </div>
                     </div>
@@ -101,7 +104,7 @@
                         <div class="card bg-light">
                             <div class="card-body">
                                 <h6 class="mb-2"><i class="bi bi-graph-up me-2"></i>Transaksjoner</h6>
-                                <span>Totalt: <strong id="stat-count">-</strong> transaksjoner</span>
+                                <span>Betalte transaksjoner: <strong id="stat-count">-</strong></span>
                             </div>
                         </div>
                     </div>
@@ -110,6 +113,14 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h6 class="mb-0">Transaksjoner</h6>
+                        <div class="d-flex align-items-center gap-2">
+                            <label for="economy-payment-filter" class="small mb-0">Vis</label>
+                            <select id="economy-payment-filter" class="form-select form-select-sm" aria-label="Vis betalingshistorikk" style="width:auto;max-width:100%;">
+                                <option value="completed">Gjennomførte betalinger</option>
+                                <option value="attempts">Øvrig betalingshistorikk</option>
+                                <option value="all">Alle</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -120,11 +131,12 @@
                                         <th>Beskrivelse</th>
                                         <th>Modul</th>
                                         <th>Betaling</th>
+                                        <th>Status</th>
                                         <th class="text-end">Beløp</th>
                                     </tr>
                                 </thead>
                                 <tbody id="recent-transactions" aria-live="polite" aria-atomic="true">
-                                    <tr><td colspan="5" class="text-center py-3 text-muted">Laster...</td></tr>
+                                    <tr><td colspan="6" class="text-center py-3 text-muted">Laster...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -917,15 +929,40 @@ let economyTransactionIndex = 0;
 let economyTransactionTotal = 0;
 let economyTransactionLoading = false;
 let economyTransactionRequest = 0;
+let economyPaymentFilter = 'completed';
+let economyRenderedPaymentFilter = 'completed';
 let economyModalNavigationLoading = false;
 let economyCurrentLedgerId = null;
 const economyEsc = value => String(value ?? '-').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const economyPaymentStatusLabels = {
+    completed: 'Gjennomført', succeeded: 'Gjennomført', paid: 'Betalt',
+    pending: 'Venter', payment_pending: 'Venter på betaling', awaiting_payment: 'Venter på betaling',
+    failed: 'Mislykket', unsuccessful: 'Mislykket', declined: 'Avvist',
+    cancelled: 'Avbrutt', canceled: 'Avbrutt', refunded: 'Refundert',
+    partially_refunded: 'Delvis refundert', unpaid: 'Ubetalt', not_paid: 'Ubetalt',
+    processing: 'Behandles', initiated: 'Påbegynt', authorized: 'Autorisert',
+    expired: 'Utløpt', requires_action: 'Handling kreves', incomplete: 'Ufullført'
+};
+const economyPaymentStatusLabel = status => {
+    const value = String(status || '').toLowerCase();
+    return economyPaymentStatusLabels[value] || value.replace(/[_-]+/g, ' ').replace(/^./, first => first.toLocaleUpperCase('nb-NO')) || 'Ukjent';
+};
+const economyLedgerStatusLabel = status => {
+    const value = String(status || '').toLowerCase();
+    const labels = { active: 'Aktiv', refunded: 'Refundert', cancelled: 'Avbrutt', canceled: 'Avbrutt', inactive: 'Inaktiv', deleted: 'Slettet' };
+    return labels[value] || value.replace(/[_-]+/g, ' ').replace(/^./, first => first.toLocaleUpperCase('nb-NO')) || 'Ukjent';
+};
+const economyCountsAsPaid = transaction => transaction.counts_as_paid === true || transaction.counts_as_paid === 1 || transaction.counts_as_paid === '1';
+const economyIsCurrentLedger = transaction => !transaction.ledger_status || String(transaction.ledger_status).toLowerCase() === 'active';
+const economyIsPosted = transaction => economyCountsAsPaid(transaction) && economyIsCurrentLedger(transaction);
 
 async function loadEconomyOverview(requestedPage = economyTransactionPage) {
     const request = ++economyTransactionRequest;
+    const paymentFilter = document.getElementById('economy-payment-filter')?.value || economyPaymentFilter;
+    economyPaymentFilter = paymentFilter;
     const previous = { page: economyTransactionPage, totalPages: economyTransactionTotalPages, total: economyTransactionTotal, rows: economyTransactionRows.slice() };
     try {
-        const response = await fetch(`/api/get_economy_data.php?view=overview&page=${requestedPage}&per_page=10`);
+        const response = await fetch(`/api/get_economy_data.php?view=overview&page=${requestedPage}&per_page=10&payment_filter=${encodeURIComponent(paymentFilter)}`);
         const result = await response.json();
         if (request !== economyTransactionRequest) return false;
         if (result.success && result.data) {
@@ -942,6 +979,8 @@ async function loadEconomyOverview(requestedPage = economyTransactionPage) {
             economyTransactionTotalPages = Number(d.total_pages || 1);
             economyTransactionTotal = Number(d.total || 0);
             economyTransactionRows = d.transactions || d.recent_transactions || [];
+            economyPaymentFilter = d.payment_filter || paymentFilter;
+            economyRenderedPaymentFilter = paymentFilter;
             renderRecentTransactions(economyTransactionRows);
             return true;
         } else {
@@ -950,10 +989,22 @@ async function loadEconomyOverview(requestedPage = economyTransactionPage) {
     } catch (error) {
         if (request !== economyTransactionRequest) return false;
         console.error('Load overview error:', error);
-        economyTransactionPage = previous.page; economyTransactionTotalPages = previous.totalPages;
-        economyTransactionTotal = previous.total; economyTransactionRows = previous.rows;
+        if (paymentFilter !== economyRenderedPaymentFilter) {
+            economyTransactionPage = 1;
+            economyTransactionTotalPages = 1;
+            economyTransactionTotal = 0;
+            economyTransactionRows = [];
+        } else {
+            economyTransactionPage = previous.page; economyTransactionTotalPages = previous.totalPages;
+            economyTransactionTotal = previous.total; economyTransactionRows = previous.rows;
+        }
         renderRecentTransactions(economyTransactionRows);
-        document.getElementById('recent-transactions').insertAdjacentHTML('afterbegin', '<tr><td colspan="5" class="text-center py-3 text-danger">Feil ved lasting av transaksjoner</td></tr>');
+        const tbody = document.getElementById('recent-transactions');
+        if (paymentFilter !== economyRenderedPaymentFilter) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3 text-danger">Feil ved lasting av transaksjoner. Prøv å laste på nytt.</td></tr>';
+        } else {
+            tbody.insertAdjacentHTML('afterbegin', '<tr><td colspan="6" class="text-center py-3 text-danger">Feil ved lasting av transaksjoner. Prøv å laste på nytt.</td></tr>');
+        }
         return false;
     }
 }
@@ -962,23 +1013,37 @@ function renderRecentTransactions(transactions) {
     const tbody = document.getElementById('recent-transactions');
     
     if (!transactions.length) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Ingen transaksjoner funnet</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3 text-muted">Ingen transaksjoner funnet</td></tr>';
         updateEconomyTransactionPager(0);
         return;
     }
     
     tbody.innerHTML = transactions.map((t, index) => {
-        const isIncome = parseFloat(t.selling_price) > 0;
-        const amount = Math.abs(parseFloat(t.selling_price));
+        const isPaid = economyIsPosted(t);
+        const isHistorical = !economyIsCurrentLedger(t);
+        const incomeAmount = Number(t.income_amount || 0);
+        const expenseAmount = Number(t.expense_amount || 0);
+        const attemptAmount = Math.abs(Number(t.selling_price || 0));
+        const isIncome = isPaid && incomeAmount > 0;
+        const isExpense = isPaid && expenseAmount > 0;
+        const statusLabel = isHistorical ? economyLedgerStatusLabel(t.ledger_status) : economyPaymentStatusLabel(t.payment_status);
+        const amountCell = isHistorical
+            ? `<span class="text-muted">${formatCurrency(attemptAmount)} <small class="d-block">Historisk beløp · ikke medregnet</small></span>`
+            : !isPaid
+            ? `<span class="text-muted">${formatCurrency(attemptAmount)} <small class="d-block">Forsøk · ikke betalt</small></span>`
+            : isIncome
+                ? `<span class="text-success">+${formatCurrency(incomeAmount)}</span>`
+                : isExpense
+                    ? `<span class="text-danger">−${formatCurrency(expenseAmount)}</span>`
+                    : `<span>${formatCurrency(0)}</span>`;
         return `
-            <tr class="transaction-row ${isIncome ? 'income' : 'expense'}">
+            <tr class="transaction-row ${!isPaid ? 'not-posted' : isIncome ? 'income' : 'expense'}">
                 <td>${economyEsc(formatDate(t.transaction_date))}</td>
                 <td><button type="button" class="btn btn-link p-0 text-start economy-transaction-detail" aria-label="Åpne detaljer for ${economyEsc(t.item_name)}" data-transaction-index="${index}">${economyEsc(t.item_name)}</button></td>
                 <td><span class="badge bg-secondary module-badge">${economyEsc(moduleLabels[t.module_source] || t.module_source)}</span></td>
                 <td>${economyEsc(paymentLabels[t.payment_method] || t.payment_method)}</td>
-                <td class="text-end ${isIncome ? 'text-success' : 'text-danger'}">
-                    ${isIncome ? '+' : '-'}${formatCurrency(amount)}
-                </td>
+                <td><span class="badge ${isPaid ? 'bg-success' : 'bg-secondary'}" aria-label="${isHistorical ? 'Ledgerstatus' : 'Betalingsstatus'}: ${economyEsc(statusLabel)}">${economyEsc(statusLabel)}</span></td>
+                <td class="text-end">${amountCell}</td>
             </tr>
         `;
     }).join('');
@@ -998,11 +1063,17 @@ function updateEconomyTransactionPager(count) {
     if (next) next.disabled = economyTransactionLoading || economyTransactionPage >= economyTransactionTotalPages;
 }
 
+document.getElementById('economy-payment-filter')?.addEventListener('change', event => {
+    economyPaymentFilter = event.target.value;
+    economyTransactionPage = 1;
+    loadEconomyOverview(1);
+});
+
 async function loadEconomyTransactionPage(page, focusIndex) {
     if (economyTransactionLoading || page < 1 || page > economyTransactionTotalPages) return;
     economyTransactionLoading = true;
     const tbody = document.getElementById('recent-transactions');
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Laster transaksjoner…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3 text-muted">Laster transaksjoner…</td></tr>';
     updateEconomyTransactionPager(0);
     const success = await loadEconomyOverview(page);
     economyTransactionLoading = false;
@@ -1018,8 +1089,12 @@ function openEconomyTransaction(index) {
     economyTransactionIndex = index;
     const t = economyTransactionRows[index] || {};
     economyCurrentLedgerId = t.ledger_id || null;
-    const fields = [['Transaksjons-ID', t.ledger_id], ['Dato og tid', formatDateTime(t.transaction_date)], ['Beskrivelse', t.item_name], ['Modul', moduleLabels[t.module_source] || t.module_source], ['Type', t.item_type], ['Transaksjonstype', t.transaction_type], ['Kategori', t.category], ['Antall', t.quantity], ['Kunde', t.customer_name], ['Kundefirma', t.customer_company], ['E-post', t.customer_email], ['Telefon', t.customer_phone], ['Kundekode', t.customer_code], ['Ordre-ID', t.order_id], ['Kilde-ID', t.source_id], ['Betaling', paymentLabels[t.payment_method] || t.payment_method], ['Betalingsstatus', t.payment_status], ['Status', t.ledger_status], ['Salgspris', t.selling_price == null ? null : formatCurrency(t.selling_price)], ['Kostpris', t.cost_price == null ? null : formatCurrency(t.cost_price)], ['Resultat', t.profit == null ? null : formatCurrency(t.profit)], ['Metadata', t.metadata && Object.keys(t.metadata).length ? JSON.stringify(t.metadata) : null]];
-    document.getElementById('economyTransactionDetails').innerHTML = '<dl class="row mb-0">' + fields.map(([label, value]) => `<dt class="col-sm-4">${economyEsc(label)}</dt><dd class="col-sm-8">${economyEsc(value)}</dd>`).join('') + '</dl>';
+    const isPaid = economyIsPosted(t);
+    const isHistorical = !economyIsCurrentLedger(t);
+    const translatedStatus = isHistorical ? economyLedgerStatusLabel(t.ledger_status) : economyPaymentStatusLabel(t.payment_status);
+    const fields = [['Transaksjons-ID', t.ledger_id], ['Dato og tid', formatDateTime(t.transaction_date)], ['Beskrivelse', t.item_name], ['Modul', moduleLabels[t.module_source] || t.module_source], ['Type', t.item_type], ['Transaksjonstype', t.transaction_type], ['Kategori', t.category], ['Antall', t.quantity], ['Kunde', t.customer_name], ['Kundefirma', t.customer_company], ['E-post', t.customer_email], ['Telefon', t.customer_phone], ['Kundekode', t.customer_code], ['Ordre-ID', t.order_id], ['Kilde-ID', t.source_id], ['Betaling', paymentLabels[t.payment_method] || t.payment_method], ['Betalingsstatus', translatedStatus], ['Ledger-status', t.ledger_status], [isHistorical ? 'Historisk beløp' : isPaid ? 'Salgspris' : 'Forsøksbeløp', t.selling_price == null ? null : formatCurrency(t.selling_price)], ['Kostpris', t.cost_price == null ? null : formatCurrency(t.cost_price)], ['Resultat', isPaid && t.profit != null ? formatCurrency(t.profit) : null], ['Metadata', t.metadata && Object.keys(t.metadata).length ? JSON.stringify(t.metadata) : null]];
+    const exclusionNote = isPaid ? '' : `<p class="alert alert-secondary py-2 mb-3" role="note">${isHistorical ? 'Historisk oppføring – ' : ''}Ikke medregnet i inntekter/resultat</p>`;
+    document.getElementById('economyTransactionDetails').innerHTML = exclusionNote + '<dl class="row mb-0">' + fields.filter(([label, value]) => label !== 'Resultat' || (isPaid && value != null)).map(([label, value]) => `<dt class="col-sm-4">${economyEsc(label)}</dt><dd class="col-sm-8">${economyEsc(value)}</dd>`).join('') + '</dl>';
     document.getElementById('economy-transaction-prev').disabled = economyTransactionIndex === 0 && economyTransactionPage === 1;
     document.getElementById('economy-transaction-next').disabled = economyTransactionIndex === economyTransactionRows.length - 1 && economyTransactionPage === economyTransactionTotalPages;
     bootstrap.Modal.getOrCreateInstance(document.getElementById('economyTransactionModal')).show();

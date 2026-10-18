@@ -2,6 +2,7 @@
 session_start();
 session_write_close();
 require_once '../config/database.php';
+require_once __DIR__ . '/../includes/ledger_reporting.php';
 
 header('Content-Type: application/json');
 
@@ -45,6 +46,9 @@ try {
     $vipps = getVippsFees($db, $company_id);
     $vippsFixed = $vipps['fee_fixed'];
     $vippsPct   = $vipps['fee_percent'];
+    $paidSql = ledger_reporting_paid_sql();
+    $incomeSql = ledger_reporting_income_sql();
+    $expenseSql = ledger_reporting_expense_sql();
 
     switch ($view) {
         case 'overview':
@@ -55,7 +59,13 @@ try {
             $perPage = filter_var($_GET['per_page'] ?? 10, FILTER_VALIDATE_INT, ['options' => ['default' => 10]]);
             $page = max(1, min(100000, (int) $page));
             $perPage = max(1, min(100, (int) $perPage));
-            $countStmt = $db->prepare("SELECT COUNT(*) FROM unified_ledger WHERE company_id = ? AND status = 'active'");
+            $paymentFilter = $_GET['payment_filter'] ?? 'completed';
+            if (!is_string($paymentFilter) || !in_array($paymentFilter, ['completed', 'attempts', 'all'], true)) {
+                http_response_code(400);
+                throw new InvalidArgumentException('Ugyldig betalingsfilter');
+            }
+            $listFilter = ledger_reporting_filter_sql($paymentFilter, 'ul');
+            $countStmt = $db->prepare("SELECT COUNT(*) FROM unified_ledger ul WHERE ul.company_id = ? AND {$listFilter}");
             $countStmt->execute([$company_id]);
             $transactionTotal = (int) $countStmt->fetchColumn();
             $totalPages = max(1, (int) ceil($transactionTotal / $perPage));
@@ -67,44 +77,40 @@ try {
                     COALESCE(SUM(
                         CASE
                             WHEN LOWER(payment_method) = 'vipps'
-                            THEN selling_price - ? - (selling_price * ? / 100)
-                            ELSE selling_price
+                            THEN ({$incomeSql}) - ? - (({$incomeSql}) * ? / 100)
+                            ELSE ({$incomeSql})
                         END
                     ), 0) as total_income,
                     COUNT(*) as transaction_count
                 FROM unified_ledger
                 WHERE company_id = ?
-                  AND status = 'active'
-                  AND payment_status = 'completed'
-                  AND selling_price > 0
+                  AND {$paidSql}
+                  AND ({$incomeSql}) > 0
             ");
             $stmt->execute([$vippsFixed, $vippsPct, $company_id]);
             $income = $stmt->fetch(PDO::FETCH_ASSOC);
 
             $stmt = $db->prepare("
-                SELECT COALESCE(SUM(ABS(selling_price)), 0) as total_expenses
+                SELECT COALESCE(SUM({$expenseSql}), 0) as total_expenses
                 FROM unified_ledger
                 WHERE company_id = ?
-                  AND status = 'active'
-                  AND payment_status = 'completed'
-                  AND selling_price < 0
+                  AND {$paidSql}
             ");
             $stmt->execute([$company_id]);
             $expenses = $stmt->fetch(PDO::FETCH_ASSOC);
 
             $stmt = $db->prepare("
                 SELECT
-                    COALESCE(SUM(CASE WHEN selling_price > 0 THEN
+                    COALESCE(SUM(CASE WHEN ({$incomeSql}) > 0 THEN
                         CASE WHEN LOWER(payment_method) = 'vipps'
-                            THEN selling_price - ? - (selling_price * ? / 100)
-                            ELSE selling_price
+                            THEN ({$incomeSql}) - ? - (({$incomeSql}) * ? / 100)
+                            ELSE ({$incomeSql})
                         END
                     ELSE 0 END), 0) as month_income,
-                    COALESCE(SUM(CASE WHEN selling_price < 0 THEN ABS(selling_price) ELSE 0 END), 0) as month_expenses
+                    COALESCE(SUM({$expenseSql}), 0) as month_expenses
                 FROM unified_ledger
                 WHERE company_id = ?
-                  AND status = 'active'
-                  AND payment_status = 'completed'
+                  AND {$paidSql}
                   AND YEAR(transaction_date) = YEAR(CURRENT_DATE)
                   AND MONTH(transaction_date) = MONTH(CURRENT_DATE)
             ");
@@ -113,17 +119,16 @@ try {
 
             $stmt = $db->prepare("
                 SELECT
-                    COALESCE(SUM(CASE WHEN selling_price > 0 THEN
+                    COALESCE(SUM(CASE WHEN ({$incomeSql}) > 0 THEN
                         CASE WHEN LOWER(payment_method) = 'vipps'
-                            THEN selling_price - ? - (selling_price * ? / 100)
-                            ELSE selling_price
+                            THEN ({$incomeSql}) - ? - (({$incomeSql}) * ? / 100)
+                            ELSE ({$incomeSql})
                         END
                     ELSE 0 END), 0) as year_income,
-                    COALESCE(SUM(CASE WHEN selling_price < 0 THEN ABS(selling_price) ELSE 0 END), 0) as year_expenses
+                    COALESCE(SUM({$expenseSql}), 0) as year_expenses
                 FROM unified_ledger
                 WHERE company_id = ?
-                  AND status = 'active'
-                  AND payment_status = 'completed'
+                  AND {$paidSql}
                   AND YEAR(transaction_date) = YEAR(CURRENT_DATE)
             ");
             $stmt->execute([$vippsFixed, $vippsPct, $company_id]);
@@ -145,7 +150,7 @@ try {
                 FROM unified_ledger ul
                 LEFT JOIN tenant_customers tc
                     ON tc.id = ul.customer_id AND tc.company_id = ul.company_id
-                WHERE ul.company_id = ? AND ul.status = 'active'
+                WHERE ul.company_id = ? AND {$listFilter}
                 ORDER BY ul.transaction_date DESC, ul.id DESC
                 LIMIT {$perPage} OFFSET {$offset}
             ");
@@ -158,6 +163,9 @@ try {
                     if (is_array($decoded)) $metadata = $decoded;
                 }
                 $transaction['metadata'] = $metadata;
+                $amounts = ledger_reporting_amounts($transaction + ['status' => $transaction['ledger_status']]);
+                $transaction += $amounts;
+                if (!$amounts['counts_as_paid']) $transaction['profit'] = null;
                 if (!$transaction['customer_name']) {
                     $transaction['customer_name'] = $metadata['customer_name'] ?? null;
                 }
@@ -169,6 +177,8 @@ try {
 
             $totalIncome = floatval($income['total_income']);
             $totalExp    = floatval($expenses['total_expenses']);
+            $paidCount = $db->prepare("SELECT COUNT(*) FROM unified_ledger WHERE company_id = ? AND {$paidSql}");
+            $paidCount->execute([$company_id]);
             $response['data'] = [
                 'total_income'        => $totalIncome,
                 'total_expenses'      => $totalExp,
@@ -177,7 +187,8 @@ try {
                 'month_expenses'      => floatval($monthData['month_expenses']),
                 'year_income'         => floatval($yearData['year_income']),
                 'year_expenses'       => floatval($yearData['year_expenses']),
-                'transaction_count'   => intval($income['transaction_count']),
+                'transaction_count'   => (int)$paidCount->fetchColumn(),
+                'payment_filter'      => $paymentFilter,
                 'recent_transactions' => $recentTransactions,
                 'transactions'        => $recentTransactions,
                 'page'                => $page,
@@ -208,9 +219,8 @@ try {
                     payment_method
                 FROM unified_ledger
                 WHERE company_id = ?
-                  AND status = 'active'
-                  AND payment_status = 'completed'
-                  AND selling_price > 0
+                  AND {$paidSql}
+                  AND ({$incomeSql}) > 0
                   {$dateFilter}
                 ORDER BY transaction_date DESC
             ");
@@ -264,13 +274,12 @@ try {
                     transaction_date,
                     item_name,
                     module_source as category,
-                    ABS(selling_price) as amount,
+                    ({$expenseSql}) as amount,
                     payment_method
                 FROM unified_ledger
                 WHERE company_id = ?
-                  AND status = 'active'
-                  AND payment_status = 'completed'
-                  AND selling_price < 0
+                  AND {$paidSql}
+                  AND ({$expenseSql}) > 0
                   {$dateFilter}
                 ORDER BY transaction_date DESC
             ");
@@ -279,13 +288,12 @@ try {
 
             $stmt = $db->prepare("
                 SELECT
-                    COALESCE(SUM(ABS(selling_price)), 0) as total,
-                    COALESCE(AVG(ABS(selling_price)), 0) as average
+                    COALESCE(SUM({$expenseSql}), 0) as total,
+                    COALESCE(AVG({$expenseSql}), 0) as average
                 FROM unified_ledger
                 WHERE company_id = ?
-                  AND status = 'active'
-                  AND payment_status = 'completed'
-                  AND selling_price < 0
+                  AND {$paidSql}
+                  AND ({$expenseSql}) > 0
                   {$dateFilter}
             ");
             $stmt->execute($params);
@@ -303,14 +311,13 @@ try {
             $stmt = $db->prepare("
                 SELECT
                     module_source,
-                    COALESCE(SUM(CASE WHEN selling_price > 0 THEN selling_price ELSE 0 END), 0) as total_income,
-                    COALESCE(SUM(CASE WHEN selling_price < 0 THEN ABS(selling_price) ELSE 0 END), 0) as total_expenses,
-                    COALESCE(SUM(selling_price), 0) as total_profit,
+                    COALESCE(SUM({$incomeSql}), 0) as total_income,
+                    COALESCE(SUM({$expenseSql}), 0) as total_expenses,
+                    COALESCE(SUM(({$incomeSql}) - ({$expenseSql})), 0) as total_profit,
                     COUNT(*) as transaction_count
                 FROM unified_ledger
                 WHERE company_id = ?
-                  AND status = 'active'
-                  AND payment_status = 'completed'
+                  AND {$paidSql}
                 GROUP BY module_source
                 ORDER BY total_income DESC
             ");

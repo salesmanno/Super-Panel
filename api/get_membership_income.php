@@ -2,6 +2,7 @@
 session_start();
 session_write_close();
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/ledger_reporting.php';
 
 header('Content-Type: application/json');
 
@@ -14,21 +15,23 @@ $company_id = $_SESSION['company_id'];
 
 try {
     $db = getDBConnection();
+    $paidSql = ledger_reporting_paid_sql();
+    $netSql = '(' . ledger_reporting_income_sql() . ') - (' . ledger_reporting_expense_sql() . ')';
     
     // Get total membership income (MYSQL ONLY)
     $stmt = $db->prepare("
         SELECT 
             COUNT(*) as total_transactions,
-            COALESCE(SUM(selling_price * quantity), 0) as total_income,
+            COALESCE(SUM({$netSql}), 0) as total_income,
             COALESCE(SUM(CASE WHEN MONTH(transaction_date) = MONTH(CURRENT_DATE) 
                          AND YEAR(transaction_date) = YEAR(CURRENT_DATE) 
-                         THEN selling_price * quantity ELSE 0 END), 0) as month_income,
+                         THEN {$netSql} ELSE 0 END), 0) as month_income,
             COALESCE(SUM(CASE WHEN YEAR(transaction_date) = YEAR(CURRENT_DATE) 
-                         THEN selling_price * quantity ELSE 0 END), 0) as year_income
+                         THEN {$netSql} ELSE 0 END), 0) as year_income
         FROM unified_ledger
         WHERE company_id = ? 
         AND module_source = 'membership'
-        AND payment_status IN ('completed', 'pending')
+        AND {$paidSql}
     ");
     $stmt->execute([$company_id]);
     $stats = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -39,7 +42,7 @@ try {
         FROM membership_members
         WHERE company_id = ?
         AND status = 'active'
-        AND (expiry_date IS NULL OR expiry_date >= CURRENT_DATE)
+        AND (expiration_date IS NULL OR expiration_date >= CURRENT_DATE)
     ");
     $stmt->execute([$company_id]);
     $memberCount = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -54,14 +57,16 @@ try {
             c.email as email,
             ul.quantity,
             ul.selling_price,
-            (ul.selling_price * ul.quantity) as total,
+            ul.selling_price as total,
             ul.payment_method,
             ul.payment_status,
             ul.transaction_date
         FROM unified_ledger ul
-        LEFT JOIN tenant_customers c ON ul.customer_id = c.id
+        LEFT JOIN tenant_customers c ON ul.customer_id = c.id AND c.company_id = ul.company_id
         WHERE ul.company_id = ?
         AND ul.module_source = 'membership'
+        AND ul.status = 'active'
+        AND ul.payment_status = 'completed'
         ORDER BY ul.transaction_date DESC
         LIMIT 50
     ");
@@ -73,11 +78,11 @@ try {
         SELECT 
             item_name,
             COUNT(*) as sales_count,
-            COALESCE(SUM(selling_price * quantity), 0) as plan_income
+            COALESCE(SUM({$netSql}), 0) as plan_income
         FROM unified_ledger
         WHERE company_id = ?
         AND module_source = 'membership'
-        AND payment_status IN ('completed', 'pending')
+        AND {$paidSql}
         GROUP BY item_name
         ORDER BY plan_income DESC
     ");
