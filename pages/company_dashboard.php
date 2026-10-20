@@ -1924,8 +1924,8 @@ try {
         }
         
     </script>
-    <script src="/assets/portal-overview.js"></script>
-    <script src="/assets/tenant_notifications.js"></script>
+    <script src="/assets/portal-overview.js?v=20261020-1"></script>
+    <script src="/assets/tenant_notifications.js?v=20261020-2"></script>
     
     <?php include __DIR__ . '/../includes/norwegian_datetime_inputs.php'; ?>
     <?php include __DIR__ . '/../includes/toast_notification.php'; ?>

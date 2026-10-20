@@ -44,6 +44,8 @@
 .po-password-form input{flex:1;min-width:150px}
 .po-users .modal-body{background:#f7fafb}
 .po-users [hidden]{display:none!important}
+.po-retry-notifications{margin:8px 0 0 10px}
+.po-retry-notifications[hidden]{display:none!important}
 .portal-overview button:focus-visible,.po-users button:focus-visible{outline:3px solid #087f8c80;outline-offset:2px}
 body>.navbar-gradient{background:#163b5c}
 @media(max-width:600px){.po-columns{grid-template-columns:1fr;gap:12px}.portal-overview{padding:12px 0}.portal-overview .po-heading>a{max-width:45%;font-size:10px}.portal-overview .po-heading h1{font-size:18px}.po-notice-open{padding-left:12px}.po-users .modal-dialog{margin:10px}.po-activity{margin-top:12px}}

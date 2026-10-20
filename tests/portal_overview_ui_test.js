@@ -24,7 +24,8 @@ const source = fs.readFileSync(path.join(root,'assets/portal-overview.js'),'utf8
 const notices = fs.readFileSync(path.join(root,'assets/tenant_notifications.js'),'utf8');
 const setup = `
 window.errors=[];window.addEventListener('error',e=>errors.push(e.message));
-window.calls=[];window.navigations=[];window.failAck=false;window.failGrant=false;
+window.calls=[];window.navigations=[];window.failAck=false;window.failGrant=false;window.failPoll=false;window.hangPoll=false;
+window.PORTAL_NOTICE_TIMEOUT_MS=60;
 window.rawPolls=[
  {id:'old',module_source:'events',created_at:'2026-10-19 09:00:00',action_type:'event_registration',metadata:{customer_name:'Kari'}},
  {id:'new',module_source:'rental',created_at:'2026-10-20 10:00:00',action_type:'rental_booking',metadata:{event_type:'rental.request.created',customer_name:'John',resource_type:'rental_schedule',resource_id:'req-1'}},
@@ -34,7 +35,11 @@ window.bootstrap={Tab:{getOrCreateInstance:button=>({show:()=>navigations.push(b
 window.fetch=async(url,options={})=>{
  const body=options.body?JSON.parse(options.body):null;calls.push({url,body});
  let data,status=200;
- if(url.includes('check_refresh_flag'))data={success:true,polls:rawPolls,csrf_token:'notice-csrf'};
+ if(url.includes('check_refresh_flag')){
+  if(hangPoll)return new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new DOMException('Aborted','AbortError')),{once:true}));
+  if(failPoll){status=503;data={success:false,message:'Varseltjenesten er midlertidig utilgjengelig.'};}
+  else data={success:true,polls:rawPolls,csrf_token:'notice-csrf'};
+ }
  else if(url.includes('set_polling_complete')){
   if(failAck){status=500;data={success:false,message:'Lukking feilet'};}
   else{rawPolls=rawPolls.filter(p=>p.id!==body.poll_id);data={success:true};}
@@ -80,6 +85,17 @@ const checks = `(async()=>{
  check(document.querySelectorAll('.po-notice-card').length===0,'Empty state');
  await TenantNotifications.check();
  check(document.querySelectorAll('.po-notice-card').length===0,'Dismissed notifications do not reappear');
+ failPoll=true;await TenantNotifications.check();
+ check(document.querySelector('.po-notice-stack').textContent.includes('midlertidig utilgjengelig'),'API errors are visible');
+  check(document.querySelector('.po-retry-notifications')&&document.querySelector('.po-notice-stack').getAttribute('aria-busy')==='false','API error offers retry and clears busy state');
+ failPoll=false;rawPolls=[];document.querySelector('.po-retry-notifications').click();await wait();
+ check(document.querySelector('.po-empty').textContent.includes('Ingen nye varsler'),'Retry recovers to empty state');
+ rawPolls=[{id:'retry-me',module_source:'rental',created_at:'2026-10-22 10:00:00',action_type:'rental_booking'}];
+ hangPoll=true;await TenantNotifications.check();await new Promise(r=>setTimeout(r,90));
+ check(document.querySelector('.po-notice-stack').textContent.includes('for lang tid'),'Hanging API request times out visibly');
+ check(document.querySelector('.po-retry-notifications'),'Timeout state allows retry');
+ hangPoll=false;document.querySelector('.po-retry-notifications').click();await wait();
+ check(document.querySelector('[data-notification-id="retry-me"]'),'Retry recovers from timeout');
  const modal=document.getElementById('company-users-modal');
  modal.dispatchEvent(new Event('show.bs.modal'));await wait();
  check(document.querySelector('.po-user-card h3').textContent==='Ansatt Navn','Real staff label');
@@ -102,6 +118,6 @@ const checks = `(async()=>{
  check(document.documentElement.scrollWidth<=innerWidth,'No horizontal page overflow');
  modal.dispatchEvent(new Event('hidden.bs.modal'));
  check(document.querySelector('#company-users-list').children.length===0,'Close clears private editor state');
- return {passed:true,width:innerWidth,checks:'role visibility, single-card stack, exact request routing, failed ack/grant, CSRF and password clearing'};
+ return {passed:true,width:innerWidth,checks:'loading, empty, API failure, timeout/retry, role visibility, single-card stack, request routing, failed ack/grant and password clearing'};
 })()`;
 chromiumFixture(fixture,checks,[390,1280],{outputDir:dir}).catch(error=>{console.error(error);process.exitCode=1;});

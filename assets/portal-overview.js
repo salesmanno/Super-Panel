@@ -191,7 +191,11 @@ window.PortalOverview = (() => {
     modal?.addEventListener('hidden.bs.modal',() => {
         list.replaceChildren(); usersData = undefined; feedback.textContent = '';
     });
+    function loadNotifications() {
+        if (window.TenantNotifications?.check) return window.TenantNotifications.check();
+        window.location.reload();
+    }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded',load);
     else load();
-    return {open,load,tab,moduleNames};
+    return {open,load,loadNotifications,tab,moduleNames};
 })();

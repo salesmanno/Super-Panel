@@ -24,15 +24,34 @@ window.TenantNotifications = (() => {
         if (className) n.className = className;
         return n;
     }
+    function renderMessage(message, retry = false, isError = false) {
+        const container = host();
+        if (!container) return;
+        container.replaceChildren();
+        container.dataset.count = String(polls.length);
+        container.setAttribute('aria-busy', 'false');
+        const count = document.getElementById('po-notice-count');
+        if (count) count.textContent = polls.length ? String(polls.length) : '';
+        const state = node('p',message,'po-empty');
+        if (isError) state.setAttribute('role','alert');
+        container.append(state);
+        if (retry) {
+            const button = node('button','Prøv igjen','btn btn-sm btn-outline-primary po-retry-notifications');
+            button.type = 'button';
+            button.onclick = () => check();
+            container.append(button);
+        }
+    }
     function render() {
         const container = host();
         if (!container) return;
         container.replaceChildren();
         container.dataset.count = String(polls.length);
+        container.setAttribute('aria-busy', 'false');
         const count = document.getElementById('po-notice-count');
         if (count) count.textContent = String(polls.length);
         const poll = polls[0];
-        if (!poll) { container.append(node('p','Ingen nye varsler. Du er oppdatert.','po-empty')); return; }
+        if (!poll) { renderMessage('Ingen nye varsler. Du er oppdatert.'); return; }
         const card = node('article',undefined,'po-notice-card');
         card.dataset.notificationId = poll.id;
         const open = node('button',undefined,'po-notice-open'); open.type = 'button';
@@ -69,9 +88,15 @@ window.TenantNotifications = (() => {
         if (busy || acting || !host()) return;
         busy = true;
         const version = revision;
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), window.PORTAL_NOTICE_TIMEOUT_MS || 8000);
         try {
-            const response = await fetch('/api/check_refresh_flag.php',{cache:'no-store'});
-            const result = await response.json();
+            const response = await fetch('/api/check_refresh_flag.php',{cache:'no-store',signal:controller.signal});
+            let result;
+            try { result = await response.json(); }
+            catch { throw new Error('Varseltjenesten svarte med et ugyldig svar.'); }
+            if (response.status === 401) throw new Error('Innloggingen er utløpt. Last siden på nytt.');
+            if (response.status === 403) throw new Error(result.message || 'Du har ikke tilgang til disse varslene.');
             if (!response.ok || !result.success) throw new Error(result.message || 'Kunne ikke hente varsler.');
             if (version !== revision || acting) return;
             csrf = result.csrf_token;
@@ -81,13 +106,15 @@ window.TenantNotifications = (() => {
                 .sort((a,b) => String(b.created_at).localeCompare(String(a.created_at)) || String(b.id).localeCompare(String(a.id)));
             if (!acting) render();
         } catch(e) {
-            // Don't silently convert a failed read into an empty / "all caught up" state.
-            if (!polls.length) host()?.replaceChildren(node('p',e.message + ' Prøver igjen automatisk.','po-empty'));
+            // Don't silently convert an unavailable API into an empty / "all caught up" state.
+            if (!polls.length) renderMessage(e.name === 'AbortError'
+                ? 'Det tar for lang tid å hente varsler. Kontroller forbindelsen og prøv igjen.'
+                : (e.message || 'Kunne ikke hente varsler. Kontroller forbindelsen og prøv igjen.'), true, true);
             console.error('Varsler:',e.message);
-        } finally { busy = false; }
+        } finally { window.clearTimeout(timeout); busy = false; }
     }
     function start() { check(); if (!timer) timer = setInterval(check,10000); }
-    return {start,check,describe};
+    return {start,check,describe,render};
 })();
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded',TenantNotifications.start);
 else TenantNotifications.start();

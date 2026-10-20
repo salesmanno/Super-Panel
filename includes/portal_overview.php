@@ -6,7 +6,10 @@
         <div class="po-columns">
             <section aria-labelledby="po-notices-label">
                 <h2 id="po-notices-label"><i class="bi bi-bell"></i> Varsler <span id="po-notice-count"></span></h2>
-                <div id="tenant-notifications" class="po-notice-stack" aria-live="polite"><p class="po-empty">Henter varsler …</p></div>
+                <div id="tenant-notifications" class="po-notice-stack" aria-live="polite" aria-busy="true">
+                    <p class="po-empty" data-notification-loading>Henter varsler …</p>
+                    <button type="button" class="btn btn-sm btn-outline-primary po-retry-notifications" hidden onclick="window.PortalOverview?.loadNotifications()">Prøv igjen</button>
+                </div>
             </section>
             <section aria-labelledby="po-agenda-label">
                 <h2 id="po-agenda-label"><i class="bi bi-calendar3"></i> Neste på planen</h2>
@@ -31,3 +34,15 @@
     </div>
 </div>
 <?php endif; ?>
+<script>
+// Keep the notice area recoverable even if its external script never loads.
+window.setTimeout(() => {
+    const host = document.getElementById('tenant-notifications');
+    const loading = host?.querySelector('[data-notification-loading]');
+    if (!loading) return;
+    loading.textContent = 'Varslene svarer ikke ennå.';
+    const retry = host.querySelector('.po-retry-notifications');
+    if (retry) retry.hidden = false;
+    host.setAttribute('aria-busy', 'false');
+}, 8000);
+</script>

@@ -14,6 +14,7 @@ const subtab=dashboard.slice(dashboard.indexOf('function showSubTabContent('),da
 const stubs=`
 window.errors=[];window.calls=[];window.messages=[];window.failSave=false;window.failDecision=false;
 window.failAck=false;window.opened=[];window.refreshes=0;
+window.PORTAL_NOTICE_TIMEOUT_MS=60;
 window.addEventListener('error',e=>errors.push(e.message));
 window.addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));
 window.toast={loading:()=>1,error:(...args)=>messages.push(args),success:(...args)=>messages.push(args)};
@@ -24,9 +25,11 @@ window.requestFixture={id:'request-a',company_id:'a',rental_object_id:'oa',statu
  start_date:'2031-05-04',end_date:'2031-05-05',end_time:'18:00:00',cleaning:0,cleaning_fee:20,
  created_at:'2031-01-01',decision_version:'v1',price_adjustment_cents:0};
 window.pollFixtures=[
- {id:'p1',module_source:'rental',metadata:{event_type:'rental.request.created',resource_type:'rental_schedule',resource_id:'request-a',customer_name:'John <img src=x>',object_name:'Sal A'}},
- {id:'p2',module_source:'rental',action_type:'rental_booking',items_count:4,metadata:null}
+ {id:'p1',module_source:'rental',created_at:'2031-05-03 12:00:00',metadata:{event_type:'rental.request.created',resource_type:'rental_schedule',resource_id:'request-a',customer_name:'John <img src=x>',object_name:'Sal A'}},
+ {id:'p2',module_source:'rental',created_at:'2031-05-02 12:00:00',action_type:'rental_booking',items_count:4,metadata:null},
+ {id:'p3',module_source:'economy',created_at:'2031-05-04 12:00:00',action_type:'payment_received',metadata:null}
 ];
+window.openRentalRequestNotification=async id=>{opened.push(id);return true};
 window.fetch=async(url,options={})=>{
  const payload=options.body?JSON.parse(options.body):null;calls.push({url:String(url),payload});
  let result={success:true},status=200;
@@ -44,6 +47,7 @@ window.fetch=async(url,options={})=>{
    result={success:true,status:payload.status||'pending',email_queued:Boolean(payload.status),rental_fee:300,request:{...requestFixture}};
   }
  } else if(String(url).includes('check_refresh_flag'))result={success:true,polls:pollFixtures,csrf_token:'notifications-fixture'};
+ else if(String(url).includes('portal_overview'))result={success:true,agenda:[],activity:[],errors:[]};
  else if(String(url).includes('set_polling_complete')){
   if(failAck){status=500;result={success:false,message:'Kunne ikke kvittere'};}
   else pollFixtures=pollFixtures.filter(p=>p.id!==payload.poll_id);
@@ -54,8 +58,9 @@ ${subtab}
 `;
 const file=path.join(dir,'fixture.html');
 fs.writeFileSync(file,'<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><script>'+stubs+'</script>'+
-    '<button data-bs-target="#content-rental">Utleie</button><div id="subtabs-rental"></div><div id="content-rental">'+html+'</div>'+
+    '<div class="module-tabs"><button data-bs-target="#content-rental">Utleie</button></div><div id="subtabs-rental"></div><div id="tenant-notifications" class="po-notice-stack"><p class="po-empty">Henter varsler …</p></div><div id="po-agenda"></div><div id="content-rental">'+html+'</div>'+
     spawnSync('php',['-r','include "includes/norwegian_datetime_inputs.php";'],{cwd:root,encoding:'utf8'}).stdout+
+    '<script>'+fs.readFileSync(path.join(root,'assets/portal-overview.js'),'utf8')+'</script>'+
     '<script>'+fs.readFileSync(path.join(root,'assets/tenant_notifications.js'),'utf8')+'</script>');
 const checks=`(async()=>{
 const check=(ok,message)=>{if(!ok)throw new Error(message)};
@@ -115,23 +120,23 @@ const decisions=calls.filter(c=>c.url.includes('update_rental_schedule')&&c.payl
 check(decisions.length===2,'double click submits only one successful decision');
 check(decisions.at(-1).payload.status==='rejected'&&decisions.at(-1).payload.expected_version==='v2'&&!Object.hasOwn(decisions.at(-1).payload,'end_date'),'decision has saved version, no field edits');
 await TenantNotifications.check();
-check(document.querySelectorAll('[data-notification-id]').length===2,'multiple notifications');
+check(document.querySelectorAll('[data-notification-id]').length===1,'exactly one foreground notification');
 check(document.querySelector('[data-notification-id="p1"]').textContent.includes('John <img src=x> har sendt en utleieforespørsel om Sal A'),'specific literal notification');
 check(!document.querySelector('#tenant-notifications img'),'notification names are text');
-check(document.querySelector('[data-notification-id="p2"]').textContent.includes('4 hendelser'),'legacy count supported');
+check(document.querySelector('#po-notice-count').textContent==='2','unauthorized module notification is filtered');
 await TenantNotifications.check();
-check(document.querySelectorAll('[data-notification-id]').length===2,'no repeated display');
-const legacy=document.querySelector('[data-notification-id="p2"]');
-failAck=true;legacy.querySelector('button').click();await delay();
-check(legacy.isConnected&&legacy.textContent.includes('Kunne ikke kvittere'),'ack failure retains notification');
-failAck=false;legacy.querySelector('button').click();await delay();
-check(!legacy.isConnected,'explicit acknowledgement');
-window.openRentalRequestNotification=async id=>{opened.push(id);return true};
+check(document.querySelectorAll('[data-notification-id]').length===1,'no repeated display');
 const first=document.querySelector('[data-notification-id="p1"]');
-first.querySelector('button').click();await delay();
-check(opened[0]==='request-a'&&!first.isConnected,'open follows saved resource');
+failAck=true;first.querySelector('.po-notice-open').click();await delay();
+check(first.isConnected&&first.textContent.includes('Kunne ikke kvittere'),'failed acknowledgement retains the current notice');
+check(opened[0]==='request-a','opening uses the existing exact rental-request flow');
+failAck=false;first.querySelector('.po-notice-open').click();await delay();
+check(!first.isConnected&&document.querySelector('[data-notification-id="p2"]'),'confirmed open advances to the next notice');
+check(document.querySelector('[data-notification-id="p2"]').textContent.includes('4 hendelser'),'event count remains readable');
+document.querySelector('[data-notification-id="p2"] .po-notice-dismiss').click();await delay();
+check(!document.querySelector('[data-notification-id]')&&document.querySelector('.po-empty').textContent.includes('Ingen nye varsler'),'empty state replaces the loading placeholder');
 await TenantNotifications.check();
-check(!document.querySelector('[data-notification-id]'),'acknowledged event stays gone');
+check(!document.querySelector('[data-notification-id]'),'acknowledged events stay gone');
 check(!document.querySelector('#polling-countdown-toast'),'no auto reload countdown');
 check(errors.length===0,'browser errors: '+errors.join(';'));
 return {passed:true,width:innerWidth};
