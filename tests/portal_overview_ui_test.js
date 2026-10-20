@@ -22,6 +22,7 @@ const fixture = path.join(dir,'fixture.html');
 const css = fs.readFileSync(path.join(root,'assets/portal-overview.css'),'utf8');
 const source = fs.readFileSync(path.join(root,'assets/portal-overview.js'),'utf8');
 const notices = fs.readFileSync(path.join(root,'assets/tenant_notifications.js'),'utf8');
+const systemToast = fs.readFileSync(path.join(root,'includes/toast_notification.php'),'utf8');
 const setup = `
 window.errors=[];window.addEventListener('error',e=>errors.push(e.message));
 window.calls=[];window.navigations=[];window.failAck=false;window.failGrant=false;window.failPoll=false;window.hangPoll=false;
@@ -55,7 +56,7 @@ const html = '<!doctype html><meta name="viewport" content="width=device-width,i
     + css + '</style><body data-admin-id="current">'
     + render('true')
     + '<div class="module-tabs"><button data-bs-target="#content-rental">Rental</button><button data-bs-target="#content-events">Events</button></div>'
-    + '<script>' + setup + '</script><script>' + source + '</script><script>' + notices + '</script>';
+    + '<script>' + setup + '</script><script>' + source + '</script><script>' + notices + '</script>' + systemToast;
 fs.writeFileSync(fixture,html);
 const ordinary = render('false');
 if (ordinary.includes('Aktivitetslogg') || ordinary.includes('Sessions') || ordinary.includes('id="po-activity"') || ordinary.includes('id="company-users-modal"')) {
@@ -74,6 +75,17 @@ const checks = `(async()=>{
  check(document.querySelector('.po-notice-card').dataset.notificationId==='new','Newest first');
  check(document.querySelector('#po-notice-count').textContent==='2','Unauthorized module excluded');
  check(document.querySelector('.po-notice-open').textContent.includes('John'),'Concrete customer notification');
+  for (const items_count of [0,1,8]) {
+   const text=TenantNotifications.describe({module_source:'events',action_type:'new_reservation',
+    metadata:{event_title:'Sommerfest'},items_count});
+   check(text==='Ny reservasjon — Sommerfest','Event reservation has no misleading aggregate count for items_count='+items_count);
+  }
+  check(TenantNotifications.describe({module_source:'rental',action_type:'rental_booking',items_count:4})
+   .includes('(4 hendelser)'),'Non-event aggregate counts remain unchanged');
+  check(document.querySelector('#po-notice-count').textContent==='2','Pending notice badge remains independent of event aggregate count');
+  toast.quickInfo('Test','Samme popup');
+  toast.quickInfo('Test','Samme popup');
+  check(document.querySelector('.toast-notification-count')?.textContent==='2','Repeated identical system toast count remains unchanged');
  failAck=true;document.querySelector('.po-notice-open').click();await wait();
  check(document.querySelector('.po-error').textContent==='Lukking feilet','Acknowledgement failure visible');
  check(document.querySelector('.po-notice-card').dataset.notificationId==='new','Failed acknowledgement does not lose notification');

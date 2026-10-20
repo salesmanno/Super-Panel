@@ -12,10 +12,12 @@ window.TenantNotifications = (() => {
             return (meta.customer_name || 'En kunde') + ' har sendt en utleieforespørsel'
                 + (meta.object_name ? ' om ' + meta.object_name : '') + '.';
         }
+        const isEventReservation = poll.module_source === 'events' && poll.action_type === 'new_reservation';
         return (actions[poll.action_type] || 'Ny oppdatering')
             + (meta.customer_name ? ' — ' + meta.customer_name : '')
             + (meta.event_title ? ' — ' + meta.event_title : '')
-            + (Number(poll.items_count) > 1 ? ' (' + Number(poll.items_count) + ' hendelser)' : '');
+            + (!isEventReservation && Number(poll.items_count) > 1
+                ? ' (' + Number(poll.items_count) + ' hendelser)' : '');
     }
     function host() { return document.getElementById('tenant-notifications'); }
     function node(tag,text,className) {
