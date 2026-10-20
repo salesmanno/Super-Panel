@@ -11,6 +11,11 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/session_manager.php';
+require_once __DIR__ . '/../includes/tenant_supervisor.php';
+if (!tenantIsSupervisor(getDBConnection(), (string) ($_SESSION['company_id'] ?? ''))) {
+    http_response_code(403);
+    exit('Du har ikke tilgang til sesjonsoversikten.');
+}
 
 $adminName = $_SESSION['admin_name'] ?? 'Bruker';
 $companyName = $_SESSION['company_name'] ?? 'Firma';

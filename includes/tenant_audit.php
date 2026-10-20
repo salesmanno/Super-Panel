@@ -29,7 +29,7 @@ function tenantAuditFields(): array {
         'economy_transactions' => ['id','amount','type','category_id','payment_method','status','transaction_date'],
         'economy_bank_accounts' => ['id','bank_name','is_active'],
         'tenant_staff' => ['id','first_name','last_name','job_title','department','is_active'],
-        'tenant_admins' => ['id','username','role','is_active','tenant_staff_id'],
+        'tenant_admins' => ['id','username','role','is_active','tenant_staff_id','operation','module_id'],
         'tenant_admin_modules' => ['tenant_admin_id','module_id','is_active'],
         'tenant_companies' => ['id','name','legal_name','is_active','industry','subdomain'],
         'announcements' => ['id','title','is_published','is_pinned','priority','publish_at','expire_at'],

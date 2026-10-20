@@ -62,7 +62,7 @@ function tenantPendingNotifications(PDO $db, string $company): array {
         polling_interval_seconds, items_processed_last_poll, metadata, created_at
         FROM tenant_polling_tracker WHERE company_id = ? AND polling_status = \'pending\'
         AND module_source IN (' . implode(',', array_fill(0, count($modules), '?')) . ')
-        ORDER BY created_at ASC, id ASC LIMIT 50');
+        ORDER BY created_at DESC, id DESC LIMIT 50');
     $q->execute(array_merge([$company], $modules));
     return array_map(static function($row) {
         $metadata = json_decode((string) ($row['metadata'] ?? ''), true);

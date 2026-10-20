@@ -5,6 +5,7 @@ header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-store');
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/tenant_audit.php';
+require_once __DIR__ . '/../includes/tenant_supervisor.php';
 if (empty($_SESSION['tenant_admin_id']) || empty($_SESSION['company_id'])) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
@@ -13,7 +14,7 @@ if (empty($_SESSION['tenant_admin_id']) || empty($_SESSION['company_id'])) {
 $companyId = (string) $_SESSION['company_id'];
 try {
     $db = getDBConnection();
-    if (!tenantAuditCanRead($db, $companyId)) {
+    if (!tenantIsSupervisor($db, $companyId)) {
         http_response_code(403);
         echo json_encode(['success' => false, 'message' => 'Du har ikke tilgang til aktivitetsloggen.']);
         exit;

@@ -1,100 +1,93 @@
-/* Existing polling transport, with event descriptions and explicit acknowledgement. */
+/* Existing tenant-scoped polling and acknowledgement, presented as one newest-first stack. */
 window.TenantNotifications = (() => {
-    const visible = new Map();
-    let csrf = '', busy = false, timer;
+    let polls = [], csrf = '', busy = false, acting = false, timer, revision = 0;
     const actions = {
-        new_booking:'Ny booking', payment_received:'Betaling mottatt', cancellation:'Kansellering',
-        new_reservation:'Ny reservasjon', ticket_purchase:'Nytt billettkjøp',
-        new_member:'Nytt medlem', rental_booking:'Ny utleiebooking', event_registration:'Ny påmelding'
+        new_booking:'Ny booking',payment_received:'Betaling mottatt',cancellation:'Kansellering',
+        new_reservation:'Ny reservasjon',ticket_purchase:'Nytt billettkjøp',new_member:'Nytt medlem',
+        rental_booking:'Ny utleieforespørsel',event_registration:'Ny påmelding'
     };
     function describe(poll) {
         const meta = poll.metadata || {};
         if (poll.module_source === 'rental' && meta.event_type === 'rental.request.created') {
-            return (meta.customer_name || 'En kunde')+' har sendt en utleieforespørsel'
-                +(meta.object_name ? ' om '+meta.object_name : '')+'.';
+            return (meta.customer_name || 'En kunde') + ' har sendt en utleieforespørsel'
+                + (meta.object_name ? ' om ' + meta.object_name : '') + '.';
         }
-        const count = Number(poll.items_count)>1 ? ' ('+Number(poll.items_count)+' hendelser)' : '';
-        return (actions[poll.action_type] || poll.action_type || 'Ny oppdatering')+count
-            +(meta.customer_name ? ' — '+meta.customer_name : '')
-            +(meta.event_title ? ' — '+meta.event_title : '');
+        return (actions[poll.action_type] || 'Ny oppdatering')
+            + (meta.customer_name ? ' — ' + meta.customer_name : '')
+            + (meta.event_title ? ' — ' + meta.event_title : '')
+            + (Number(poll.items_count) > 1 ? ' (' + Number(poll.items_count) + ' hendelser)' : '');
     }
-    function host() {
-        let container = document.getElementById('tenant-notifications');
-        if (!container) {
-            container = document.createElement('section');
-            container.id='tenant-notifications';
-            container.className='position-fixed bottom-0 end-0 p-3';
-            container.style.cssText='z-index:1090;max-height:65vh;overflow:auto;max-width:100vw';
-            container.setAttribute('aria-label','Hendelsesvarsler');
-            document.body.append(container);
-        }
-        return container;
+    function host() { return document.getElementById('tenant-notifications'); }
+    function node(tag,text,className) {
+        const n = document.createElement(tag);
+        if (text !== undefined) n.textContent = text;
+        if (className) n.className = className;
+        return n;
     }
-    async function acknowledge(poll, card, dismissed) {
-        const response = await fetch('/api/set_polling_complete.php',{
-            method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({poll_id:poll.id,csrf_token:csrf,dismissed})
-        });
-        const result = await response.json();
-        if (!response.ok || !result.success) throw new Error(result.message || 'Kunne ikke kvittere varselet');
-        visible.delete(poll.id); card.remove();
-    }
-    function render(poll) {
-        if (visible.has(poll.id)) return;
-        const card = document.createElement('article');
-        card.className='toast show mb-2';
-        card.setAttribute('role','status');
-        card.dataset.notificationId=poll.id;
-        const body=document.createElement('div');
-        body.className='toast-body';
-        const description=document.createElement('p');
-        description.className='mb-2'; description.textContent=describe(poll);
-        body.append(description);
-        const error=document.createElement('p');
-        error.className='text-danger small mb-1'; error.setAttribute('role','alert');
-        body.append(error);
-        const dismiss=document.createElement('button');
-        dismiss.className='btn btn-sm btn-outline-secondary'; dismiss.type='button';
-        dismiss.textContent='Lukk varsel';
-        const buttons=[dismiss];
-        async function run(fn) {
-            if (buttons.some(button=>button.disabled)) return;
-            buttons.forEach(button=>button.disabled=true);
-            error.textContent='';
-            try { await fn(); } catch(e) { error.textContent=e.message; }
-            finally { buttons.forEach(button=>button.disabled=false); }
+    function render() {
+        const container = host();
+        if (!container) return;
+        container.replaceChildren();
+        container.dataset.count = String(polls.length);
+        const count = document.getElementById('po-notice-count');
+        if (count) count.textContent = String(polls.length);
+        const poll = polls[0];
+        if (!poll) { container.append(node('p','Ingen nye varsler. Du er oppdatert.','po-empty')); return; }
+        const card = node('article',undefined,'po-notice-card');
+        card.dataset.notificationId = poll.id;
+        const open = node('button',undefined,'po-notice-open'); open.type = 'button';
+        const module = window.PortalOverview.moduleNames[poll.module_source] || poll.module_source;
+        const stamp = new Date(String(poll.created_at).replace(' ','T'));
+        const date = Number.isNaN(stamp.getTime()) ? '' : stamp.toLocaleString('nb-NO',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+        open.append(node('small',module + (date ? ' · ' + date : '')),
+            node('strong',describe(poll)),node('span','Åpne i ' + module + ' →' + (polls.length > 1 ? ' · ' + (polls.length - 1) + ' varsler til' : '')));
+        const dismiss = node('button','×','po-notice-dismiss'); dismiss.type = 'button';
+        dismiss.setAttribute('aria-label','Lukk varsel: ' + describe(poll));
+        const error = node('p','','po-error'); error.setAttribute('role','alert');
+        async function run(dismissed) {
+            if (acting) return;
+            acting = true; revision++; open.disabled = dismiss.disabled = true; error.textContent = '';
+            try {
+                if (!dismissed && await window.PortalOverview.open(poll.module_source,poll) === false) return;
+                const response = await fetch('/api/set_polling_complete.php',{
+                    method:'POST',headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({poll_id:poll.id,csrf_token:csrf,dismissed})
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) throw new Error(result.message || 'Kunne ikke lukke varselet.');
+                polls = polls.filter(item => item.id !== poll.id);
+                render();
+                host()?.querySelector('button')?.focus();
+            } catch(e) { error.textContent = e.message; }
+            finally { acting = false; open.disabled = dismiss.disabled = false; }
         }
-        dismiss.onclick=()=>run(()=>acknowledge(poll,card,true));
-        if (poll.module_source==='rental' && poll.metadata?.resource_type==='rental_schedule'
-            && poll.metadata?.resource_id && typeof window.openRentalRequestNotification==='function') {
-            const open=document.createElement('button');
-            open.type='button'; open.className='btn btn-sm btn-primary me-2'; open.textContent='Åpne forespørsel';
-            open.onclick=()=>run(async()=>{
-                const opened=await window.openRentalRequestNotification(poll.metadata.resource_id);
-                if (opened !== false) await acknowledge(poll,card,false);
-            });
-            buttons.push(open); body.append(open);
-        }
-        body.append(dismiss); card.append(body); host().append(card); visible.set(poll.id,card);
+        open.onclick = () => run(false);
+        dismiss.onclick = () => run(true);
+        card.append(open,dismiss,error); container.append(card);
     }
     async function check() {
-        if (busy) return;
-        busy=true;
+        if (busy || acting || !host()) return;
+        busy = true;
+        const version = revision;
         try {
-            const response=await fetch('/api/check_refresh_flag.php',{cache:'no-store'});
-            const result=await response.json();
-            if (!response.ok || !result.success) throw new Error(result.message || 'Kunne ikke hente varsler');
-            csrf=result.csrf_token;
-            const polls=result.polls || (result.poll ? [result.poll] : []);
-            const ids=new Set(polls.map(poll=>poll.id));
-            // Acknowledgements are company-wide, as in the existing transport.
-            for (const [id,card] of visible) if (!ids.has(id)) { card.remove(); visible.delete(id); }
-            polls.forEach(render);
-        } catch(error) { console.error('Varsler:',error.message); }
-        finally { busy=false; }
+            const response = await fetch('/api/check_refresh_flag.php',{cache:'no-store'});
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.message || 'Kunne ikke hente varsler.');
+            if (version !== revision || acting) return;
+            csrf = result.csrf_token;
+            // Server scopes the rows; also require a current, real module tab before displaying them.
+            polls = (result.polls || (result.poll ? [result.poll] : []))
+                .filter(poll => window.PortalOverview.tab(poll.module_source))
+                .sort((a,b) => String(b.created_at).localeCompare(String(a.created_at)) || String(b.id).localeCompare(String(a.id)));
+            if (!acting) render();
+        } catch(e) {
+            // Don't silently convert a failed read into an empty / "all caught up" state.
+            if (!polls.length) host()?.replaceChildren(node('p',e.message + ' Prøver igjen automatisk.','po-empty'));
+            console.error('Varsler:',e.message);
+        } finally { busy = false; }
     }
-    function start() { check(); if (!timer) timer=setInterval(check,10000); }
+    function start() { check(); if (!timer) timer = setInterval(check,10000); }
     return {start,check,describe};
 })();
-if (document.readyState==='loading') document.addEventListener('DOMContentLoaded',TenantNotifications.start);
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded',TenantNotifications.start);
 else TenantNotifications.start();

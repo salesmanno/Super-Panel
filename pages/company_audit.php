@@ -4,6 +4,7 @@ declare(strict_types=1);
 session_start();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/tenant_audit.php';
+require_once __DIR__ . '/../includes/tenant_supervisor.php';
 
 if (empty($_SESSION['tenant_admin_id']) || empty($_SESSION['company_id'])) {
     header('Location: ../index.php');
@@ -12,7 +13,7 @@ if (empty($_SESSION['tenant_admin_id']) || empty($_SESSION['company_id'])) {
 
 $companyId = (string) $_SESSION['company_id'];
 $db = getDBConnection();
-if (!tenantAuditCanRead($db, $companyId)) {
+if (!tenantIsSupervisor($db, $companyId)) {
     http_response_code(403);
     exit('Du har ikke tilgang til aktivitetsloggen.');
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import "./Overview.css";
 
-type DetailKey = "requests" | "access" | "events" | "rental" | "next-event";
+type DetailKey = "requests" | "access" | "events" | "rental" | "next-event" | "activity-log" | "sessions";
 type IconName = "building" | "user" | "list" | "clock" | "logout" | "home" | "calendar" | "cart" | "people" | "wallet" | "megaphone" | "arrow" | "chevron" | "close" | "key" | "file" | "bell" | "spark";
 
 const iconPaths: Record<IconName, string> = {
@@ -64,6 +64,20 @@ const detailContent: Record<DetailKey, { eyebrow: string; title: string; descrip
     description: "Neste arrangement i kalenderen.",
     facts: [["Dato", "Fredag 23. oktober"], ["Tid", "19:00"], ["Status", "Utkast – trenger oppmerksomhet"]],
     note: "Eksempeldata for konseptskissen.",
+  },
+  "activity-log": {
+    eyebrow: "FIRMAADMINISTRASJON",
+    title: "Aktivitetslogg",
+    description: "Se hvem som gjorde hva i bedriftens moduler.",
+    facts: [["Nyeste hendelse", "John sendte en utleieforespørsel"], ["Tidspunkt", "19. oktober · 10:42"], ["Omfang", "Fjordvik Kulturhus"]],
+    note: "Dette er en skisse med eksempeldata. Ingen reell aktivitetslogg er koblet til.",
+  },
+  sessions: {
+    eyebrow: "FIRMAADMINISTRASJON",
+    title: "Sessions",
+    description: "Administrer aktive innlogginger for firmaet.",
+    facts: [["Aktive sesjoner", "2 · eksempeldata"], ["Siste innlogging", "Alex · i dag kl. 09:18"], ["Sikkerhet", "Ingen reelle sesjoner vises"]],
+    note: "Dette er bare en forhåndsvisning. Ingen kontoer eller sesjoner kan endres her.",
   },
 };
 
@@ -202,6 +216,12 @@ export function Overview() {
     setProfileOpen(false);
     setManagementOpen(true);
   };
+  const openProfileDetail = (key: "activity-log" | "sessions") => {
+    if (currentAdmin.tenant_supervisor !== 1) return;
+    returnFocusRef.current = profileTriggerRef.current;
+    setProfileOpen(false);
+    setDetail(key);
+  };
   const closeManagement = () => {
     setManagementOpen(false);
     setPasswords({});
@@ -262,6 +282,14 @@ export function Overview() {
                 {currentAdmin.tenant_supervisor === 1 && <button type="button" className="pa-menu-action" onClick={(event) => openManagement(event.currentTarget)}>
                   <Icon name="people" size={16} /><span>Administrer firmabrukere</span><Icon name="chevron" size={15} />
                 </button>}
+                {currentAdmin.tenant_supervisor === 1 && <>
+                  <button type="button" className="pa-menu-action" onClick={() => openProfileDetail("activity-log")}>
+                    <Icon name="list" size={16} /><span>Aktivitetslogg</span><Icon name="chevron" size={15} />
+                  </button>
+                  <button type="button" className="pa-menu-action" onClick={() => openProfileDetail("sessions")}>
+                    <Icon name="clock" size={16} /><span>Sessions</span><Icon name="chevron" size={15} />
+                  </button>
+                </>}
                 <p className="pa-menu-demo">Kun demonstrasjon · ingen kontoer endres</p>
               </div>}
             </div>

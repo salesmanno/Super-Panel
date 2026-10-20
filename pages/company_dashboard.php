@@ -12,7 +12,9 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/session_manager.php';
 require_once __DIR__ . '/../includes/tenant_audit.php';
+require_once __DIR__ . '/../includes/tenant_supervisor.php';
 $auditVisible = false;
+$isSupervisor = false;
 
 $adminName = $_SESSION['admin_name'] ?? 'Bruker';
 $companyName = $_SESSION['company_name'] ?? 'Firma';
@@ -25,7 +27,8 @@ $companyIsActive = false;
 try {
     $db = getDBConnection();
     if ($db && isset($_SESSION['company_id'])) {
-        $auditVisible = tenantAuditCanRead($db, (string) $_SESSION['company_id']);
+        $isSupervisor = tenantIsSupervisor($db, (string) $_SESSION['company_id']);
+        $auditVisible = $isSupervisor;
     }
     if ($db && isset($_SESSION['subdomain'])) {
         // Prøv først tenant_companies.logo_url, subdomain og is_active
@@ -402,8 +405,9 @@ try {
         }
     </style>
     <link rel="stylesheet" href="../assets/dashboard-module-theme.css">
+    <link rel="stylesheet" href="/assets/portal-overview.css">
 </head>
-<body data-company-id="<?= htmlspecialchars((string)($_SESSION['company_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+<body data-company-id="<?= htmlspecialchars((string)($_SESSION['company_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" data-admin-id="<?= htmlspecialchars((string)($_SESSION['tenant_admin_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
     <!-- Navigation -->
     <nav class="navbar navbar-gradient navbar-dark">
         <div class="container-fluid">
@@ -416,20 +420,30 @@ try {
                 <?= htmlspecialchars($companyName) ?>
             </a>
             <div class="d-flex align-items-center gap-2">
-                <span class="navbar-text">
+                <div class="dropdown">
+                <button class="btn btn-nav btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Åpne profilmeny">
                     <i class="bi bi-person-circle me-1"></i>
                     <span class="d-none d-sm-inline"><?= htmlspecialchars($adminName) ?></span>
-                </span>
-                <?php if ($auditVisible): ?>
-                <a href="company_audit.php" class="btn btn-nav btn-sm" title="Se bedriftens endringshistorikk">
-                    <i class="bi bi-list-check me-1"></i>
-                    <span class="d-none d-sm-inline">Aktivitetslogg</span>
-                </a>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                <?php if ($isSupervisor): ?>
+                <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#company-users-modal"><i class="bi bi-people me-2"></i>Administrer firmabrukere</button></li>
                 <?php endif; ?>
-                <a href="admin_sessions.php" class="btn btn-nav btn-sm">
+                <?php if ($auditVisible): ?>
+                <li><a href="company_audit.php" class="dropdown-item" title="Se bedriftens endringshistorikk">
+                    <i class="bi bi-list-check me-1"></i>
+                    Aktivitetslogg
+                </a></li>
+                <?php endif; ?>
+                <?php if ($isSupervisor): ?>
+                <li><a href="admin_sessions.php" class="dropdown-item">
                     <i class="bi bi-clock-history me-1"></i>
-                    <span class="d-none d-sm-inline">Sessions</span>
-                </a>
+                    Sessions
+                </a></li>
+                <?php endif; ?>
+                <li><a class="dropdown-item" href="/auth/logout.php">Logg ut</a></li>
+                </ul>
+                </div>
                 <a href="/auth/logout.php" class="btn btn-nav btn-sm">
                     <i class="bi bi-box-arrow-right me-1"></i>
                     <span class="d-none d-sm-inline">Logg ut</span>
@@ -439,7 +453,8 @@ try {
     </nav>
     
     <!-- Header -->
-    <div class="dashboard-header">
+    <?php include __DIR__ . '/../includes/portal_overview.php'; ?>
+    <div class="dashboard-header" hidden>
         <div class="container">
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
                 <div class="header-text-content" style="flex: 1; min-width: 200px;">
@@ -746,6 +761,7 @@ try {
                                 });
                                 </script>
                                 
+                                <?php if ($isSupervisor): ?>
                                 <!-- Admin Activity Log -->
                                 <div class="row mt-4">
                                     <div class="col-md-12">
@@ -832,6 +848,7 @@ try {
                                         </div>
                                     </div>
                                 </div>
+                                <?php endif; ?>
                                 <?php
                                 break;
                             case 'ditt_nettsted':
@@ -1010,11 +1027,13 @@ try {
                                                 <i class="bi bi-people me-2"></i>Stillinger
                                             </button>
                                         </li>
+                                        <?php if ($isSupervisor): ?>
                                         <li class="nav-item" role="presentation">
                                             <button class="nav-link" id="firma-tab-modules" data-bs-toggle="tab" data-bs-target="#firma-modules" type="button" role="tab">
                                                 <i class="bi bi-grid-3x3-gap me-2"></i>Moduler
                                             </button>
                                         </li>
+                                        <?php endif; ?>
                                         <li class="nav-item" role="presentation">
                                             <button class="nav-link" id="firma-tab-4" data-bs-toggle="tab" data-bs-target="#firma-webside" type="button" role="tab">
                                                 <i class="bi bi-palette me-2"></i>Webside
@@ -1536,6 +1555,17 @@ try {
         }
         
         async function loadStaffModules() {
+            const usersModal = document.getElementById('company-users-modal');
+            if (usersModal) {
+                const parent = document.getElementById('dittNettstedPasswordModal');
+                if (parent?.classList.contains('show')) {
+                    parent.addEventListener('hidden.bs.modal', () => bootstrap.Modal.getOrCreateInstance(usersModal).show(), {once:true});
+                    bootstrap.Modal.getOrCreateInstance(parent).hide();
+                } else {
+                    bootstrap.Modal.getOrCreateInstance(usersModal).show();
+                }
+            }
+            return; // All user delegation now uses the single, supervisor-only interface.
             try {
                 const response = await fetch('/api/get_staff_modules.php');
                 const data = await response.json();
@@ -1680,6 +1710,7 @@ try {
         
         // Load activity summary on page load
         async function loadActivitySummary() {
+            return; // Replaced by the permission-gated, concrete overview activity feed.
             try {
                 const response = await fetchWithPreload('/api/get_activity_summary.php');
                 const data = await response.json();
@@ -1707,6 +1738,7 @@ try {
         
         // Load output products summary
         async function loadProductsSummary() {
+            return; // The redundant catalog summary is no longer part of the overview.
             try {
                 const response = await fetchWithPreload('/api/get_output_products.php');
                 const data = await response.json();
@@ -1892,6 +1924,7 @@ try {
         }
         
     </script>
+    <script src="/assets/portal-overview.js"></script>
     <script src="/assets/tenant_notifications.js"></script>
     
     <?php include __DIR__ . '/../includes/norwegian_datetime_inputs.php'; ?>
