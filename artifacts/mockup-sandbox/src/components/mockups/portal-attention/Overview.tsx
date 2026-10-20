@@ -76,12 +76,48 @@ const modules: { label: string; icon: IconName }[] = [
   { label: "News", icon: "megaphone" },
 ];
 
+const companyId = 42;
+const staffDirectory = [
+  { id: 11, companyId, name: "Mari Nilsen" },
+  { id: 12, companyId, name: "Eirik Solberg" },
+  { id: 13, companyId, name: "Sofie Dahl" },
+  { id: 90, companyId: 77, name: "Ukjent ansatt" },
+];
+const initialTenantStaff = [
+  { id: 201, staffId: 11, companyId, modules: ["Rental", "Events"] },
+  { id: 202, staffId: 12, companyId, modules: ["Rental"] },
+  { id: 203, staffId: 13, companyId, modules: [] },
+  { id: 204, staffId: 90, companyId: 77, modules: ["Sales"] },
+  { id: 205, staffId: null, companyId, modules: ["News"] },
+];
+const delegatedModules = ["Rental", "Events", "Sales", "Medlemskap"];
+const activityItems = [
+  { id: "rental-request", timestamp: "2026-10-19T10:42:00", actor: "John", action: "sendte forespørsel om", target: "Klubbhuset · 24. okt.", shortTime: "Man. 19. okt. · 10:42" },
+  { id: "event-draft", timestamp: "2026-10-19T09:18:00", actor: "Sofie", action: "lagret utkastet", target: "Høstfest · fre. 23. okt.", shortTime: "Man. 19. okt. · 09:18" },
+  { id: "rental-updated", timestamp: "2026-10-18T16:05:00", actor: "Mari", action: "oppdaterte tidspunkt for", target: "Møterommet · 25. okt.", shortTime: "Søn. 18. okt. · 16:05" },
+  { id: "access-ready", timestamp: "2026-10-18T13:32:00", actor: "Eirik", action: "bekreftet klargjøring av", target: "Klubbhuset · utleie", shortTime: "Søn. 18. okt. · 13:32" },
+].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
 export function Overview() {
   const [activeModule, setActiveModule] = useState("Rental");
   const [detail, setDetail] = useState<DetailKey | null>(null);
-  const [activityOpen, setActivityOpen] = useState(true);
+  const [activityIndex, setActivityIndex] = useState(0);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [managementOpen, setManagementOpen] = useState(false);
+  const [currentAdmin, setCurrentAdmin] = useState({ tenant_supervisor: 1 });
+  const [tenantStaff, setTenantStaff] = useState(initialTenantStaff);
+  const [moduleChoices, setModuleChoices] = useState<Record<number, string>>({});
+  const [modulePickerOpen, setModulePickerOpen] = useState<Record<number, boolean>>({});
+  const [passwords, setPasswords] = useState<Record<number, string>>({});
+  const [feedback, setFeedback] = useState("");
   const dialogRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+  const profileTriggerRef = useRef<HTMLButtonElement>(null);
+  const linkedTenantUsers = tenantStaff.flatMap((entry) => {
+    const staff = staffDirectory.find((person) => person.id === entry.staffId && person.companyId === entry.companyId);
+    return entry.companyId === companyId && staff?.companyId === companyId ? [{ ...entry, name: staff.name }] : [];
+  });
 
   const openDetail = (key: DetailKey, trigger: HTMLElement) => {
     returnFocusRef.current = trigger;
@@ -94,16 +130,17 @@ export function Overview() {
   };
 
   useEffect(() => {
-    if (!detail) return;
+    if (!detail && !managementOpen) return;
     const dialog = dialogRef.current;
     dialog?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        closeDetail();
+        if (managementOpen) closeManagement();
+        else closeDetail();
       }
       if (event.key === "Tab" && dialog) {
-        const focusable = Array.from(dialog.querySelectorAll<HTMLElement>("button, [href], [tabindex]:not([tabindex='-1'])"))
+        const focusable = Array.from(dialog.querySelectorAll<HTMLElement>("button, input, select, [href], [tabindex]:not([tabindex='-1'])"))
           .filter((el) => !el.hasAttribute("disabled"));
         if (!focusable.length) return;
         const first = focusable[0];
@@ -119,10 +156,69 @@ export function Overview() {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [detail]);
+  }, [detail, managementOpen]);
+
+  useEffect(() => {
+    if (!profileOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setProfileOpen(false);
+        window.setTimeout(() => profileRef.current?.querySelector("button")?.focus(), 0);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [profileOpen]);
 
   const showDetail = (key: DetailKey) => (event: MouseEvent<HTMLElement>) => openDetail(key, event.currentTarget);
   const currentDetail = detail ? detailContent[detail] : null;
+  const openManagement = (trigger: HTMLElement) => {
+    returnFocusRef.current = profileTriggerRef.current ?? trigger;
+    setFeedback("");
+    setPasswords({});
+    setProfileOpen(false);
+    setManagementOpen(true);
+  };
+  const closeManagement = () => {
+    setManagementOpen(false);
+    setPasswords({});
+    setModuleChoices({});
+    setModulePickerOpen({});
+    window.setTimeout(() => returnFocusRef.current?.focus(), 0);
+  };
+  const canManageTenantUser = (userId: number) => currentAdmin.tenant_supervisor === 1
+    && linkedTenantUsers.some((user) => user.id === userId && user.companyId === companyId);
+  const revokeModule = (userId: number, module: string) => {
+    if (!canManageTenantUser(userId)) return;
+    setTenantStaff((current) => current.map((entry) => entry.id === userId
+      && entry.companyId === companyId
+      ? { ...entry, modules: entry.modules.filter((assigned) => assigned !== module) }
+      : entry));
+    setFeedback(`${module} er fjernet fra brukeren.`);
+  };
+  const addModule = (userId: number) => {
+    const selected = moduleChoices[userId];
+    const user = tenantStaff.find((entry) => entry.id === userId);
+    if (!canManageTenantUser(userId) || !selected || !user || user.companyId !== companyId
+      || !delegatedModules.includes(selected) || user.modules.includes(selected)) return;
+    setTenantStaff((current) => current.map((entry) => entry.id === userId
+      && entry.companyId === companyId
+      ? { ...entry, modules: [...entry.modules, selected] }
+      : entry));
+    setModuleChoices((current) => ({ ...current, [userId]: "" }));
+    setModulePickerOpen((current) => ({ ...current, [userId]: false }));
+    setFeedback(`${selected} er lagt til.`);
+  };
+  const saveDemoPassword = (userId: number) => {
+    if (!canManageTenantUser(userId)) return;
+    const password = passwords[userId] ?? "";
+    if (password.length < 12) {
+      setFeedback("Demopassord må være minst 12 tegn.");
+      return;
+    }
+    setPasswords((current) => ({ ...current, [userId]: "" }));
+    setFeedback("Demopassordet er simulert og ikke lagret.");
+  };
 
   return (
     <main className="pa-shell">
@@ -130,7 +226,22 @@ export function Overview() {
         <div className="pa-top-inner">
           <div className="pa-brand"><Icon name="building" size={19} /><span>Fjordvik Kulturhus</span></div>
           <div className="pa-top-actions">
-            <span className="pa-user"><Icon name="user" size={16} /><span>Alex</span></span>
+            <div className="pa-profile-wrap" ref={profileRef}>
+              <button type="button" className="pa-profile-trigger" aria-label="Åpne profilmeny" aria-expanded={profileOpen} ref={profileTriggerRef} onClick={() => setProfileOpen((open) => !open)}>
+                <Icon name="user" size={16} /><span>Alex</span><span className="pa-profile-chevron">⌄</span>
+              </button>
+              {profileOpen && <div className="pa-profile-menu" aria-label="Profilmeny">
+                <div className="pa-menu-heading">Alex · Fjordvik Kulturhus</div>
+                <label className="pa-role-switch">
+                  <span><strong>Demorolle</strong><small>{currentAdmin.tenant_supervisor === 1 ? "Firmaveileder" : "Vanlig bruker"}</small></span>
+                  <input aria-label="Bytt demorolle mellom firmaveileder og vanlig bruker" type="checkbox" checked={currentAdmin.tenant_supervisor === 1} onChange={(event) => setCurrentAdmin({ tenant_supervisor: event.target.checked ? 1 : 0 })} />
+                </label>
+                {currentAdmin.tenant_supervisor === 1 && <button type="button" className="pa-menu-action" onClick={(event) => openManagement(event.currentTarget)}>
+                  <Icon name="people" size={16} /><span>Administrer firmabrukere</span><Icon name="chevron" size={15} />
+                </button>}
+                <p className="pa-menu-demo">Kun demonstrasjon · ingen kontoer endres</p>
+              </div>}
+            </div>
             <span className="pa-top-button"><Icon name="list" size={15} /><span>Aktivitetslogg</span></span>
             <span className="pa-top-button"><Icon name="clock" size={15} /><span>Sessions</span></span>
             <span className="pa-top-button pa-logout"><Icon name="logout" size={15} /><span>Logg ut</span></span>
@@ -143,7 +254,6 @@ export function Overview() {
           <div className="pa-overview-head">
             <div>
               <div className="pa-greeting">God morgen, Alex <span className="pa-dot" /></div>
-              <p className="pa-context">Her er det som trenger deg i dag.</p>
             </div>
             <span className="pa-example">Designskisse · eksempeldata</span>
           </div>
@@ -194,14 +304,20 @@ export function Overview() {
             </section>
           </div>
 
-          <div className={`pa-activity ${activityOpen ? "is-open" : ""}`}>
-            <div className="pa-activity-main">
-              <span className="pa-activity-icon"><Icon name="spark" size={16} /></span>
-              {activityOpen && <><span className="pa-activity-label">Sist nytt</span><p><strong>John</strong> har sendt en utleieforespørsel for <strong>Klubbhuset</strong>, 24. oktober.</p><time>For 18 min siden</time></>}
+          <div className="pa-activity" aria-label="Siste aktivitet, nyeste først">
+            <div className="pa-activity-heading"><span className="pa-activity-icon"><Icon name="spark" size={15} /></span><strong>Aktivitet</strong><span>Nyeste først</span></div>
+            <div className="pa-activity-cards" aria-live="polite">
+              {activityItems.slice(activityIndex, activityIndex + 3).map((item, index) => <article className={`pa-activity-card ${index === 0 ? "pa-activity-latest" : ""}`} key={item.id}>
+                <time dateTime={item.timestamp}>{item.shortTime}</time>
+                <p><strong>{item.actor}</strong> {item.action} <b>{item.target}</b></p>
+              </article>)}
             </div>
-            <button type="button" className="pa-activity-toggle" aria-expanded={activityOpen} onClick={() => setActivityOpen((open) => !open)}>
-              <span>{activityOpen ? "Skjul" : "Vis siste aktivitet"}</span><span className={`pa-toggle-chevron ${activityOpen ? "turned" : ""}`}><Icon name="chevron" size={15} /></span>
-            </button>
+            <div className="pa-activity-controls" aria-label="Bla i aktivitetskort">
+              <button type="button" aria-label="Vis nyere aktivitet" disabled={activityIndex === 0} onClick={() => setActivityIndex((index) => Math.max(0, index - 1))}>‹</button>
+              <span className="pa-activity-count-desktop">{activityIndex + 1}–{Math.min(activityIndex + 3, activityItems.length)} av {activityItems.length}</span>
+              <span className="pa-activity-count-mobile">{activityIndex + 1} av {activityItems.length}</span>
+              <button type="button" aria-label="Vis eldre aktivitet" disabled={activityIndex >= activityItems.length - 3} onClick={() => setActivityIndex((index) => Math.min(activityItems.length - 3, index + 1))}>›</button>
+            </div>
           </div>
         </div>
       </section>
@@ -235,6 +351,44 @@ export function Overview() {
             <dl className="pa-facts">{currentDetail.facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
             <p className="pa-dialog-note"><Icon name="spark" size={16} />{currentDetail.note}</p>
             <div className="pa-dialog-footer"><span>Kun forhåndsvisning</span><button type="button" onClick={closeDetail}>Ferdig <Icon name="arrow" size={16} /></button></div>
+          </section>
+        </div>
+      )}
+      {managementOpen && currentAdmin.tenant_supervisor === 1 && (
+        <div className="pa-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeManagement(); }}>
+          <section className="pa-dialog pa-users-dialog" role="dialog" aria-modal="true" aria-labelledby="pa-users-title" tabIndex={-1} ref={dialogRef}>
+            <div className="pa-dialog-top"><span>DEMO · FIRMAADMINISTRASJON</span><button type="button" aria-label="Lukk brukerdialog" onClick={closeManagement}><Icon name="close" size={19} /></button></div>
+            <h2 id="pa-users-title">Firmabrukere</h2>
+            <p className="pa-dialog-description">Viser ansatte som er knyttet til Fjordvik Kulturhus. Endringer gjelder bare denne skissen.</p>
+            <div className="pa-demo-warning"><Icon name="spark" size={15} /><span>Demomodus · passord lagres ikke og moduler endres kun lokalt.</span></div>
+            {linkedTenantUsers.length > 0 ? <div className="pa-user-list">
+              {linkedTenantUsers.map((user) => {
+                const availableModules = delegatedModules.filter((module) => !user.modules.includes(module));
+                return <article className="pa-managed-user" key={user.id}>
+                  <div className="pa-managed-user-head"><span className="pa-initials" aria-hidden="true">{user.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}</span><div><strong>{user.name}</strong><small>Firmabruker · eksempeldata</small></div></div>
+                  <div className="pa-assigned-modules" aria-label={`Moduler for ${user.name}`}>
+                    {user.modules.map((module) => <span className="pa-module-pill" key={module}>{module}<button type="button" aria-label={`Fjern ${module} fra ${user.name}`} onClick={() => revokeModule(user.id, module)}>×</button></span>)}
+                    {availableModules.length > 0 ? <div className="pa-add-module">
+                      {!modulePickerOpen[user.id] ? <button type="button" className="pa-add-module-pill" onClick={() => setModulePickerOpen((current) => ({ ...current, [user.id]: true }))}>+ modul</button> : <>
+                      <label className="sr-only" htmlFor={`module-choice-${user.id}`}>Velg modul for {user.name}</label>
+                      <select id={`module-choice-${user.id}`} value={moduleChoices[user.id] ?? ""} onChange={(event) => setModuleChoices((current) => ({ ...current, [user.id]: event.target.value }))}>
+                        <option value="">Velg delegert modul</option>
+                        {availableModules.map((module) => <option value={module} key={module}>{module}</option>)}
+                      </select>
+                      <button type="button" aria-label={`Legg til valgt modul for ${user.name}`} disabled={!moduleChoices[user.id]} onClick={() => addModule(user.id)}>Legg til</button>
+                      <button type="button" className="pa-picker-cancel" aria-label={`Lukk modulvalg for ${user.name}`} onClick={() => { setModulePickerOpen((current) => ({ ...current, [user.id]: false })); setModuleChoices((current) => ({ ...current, [user.id]: "" })); }}>Avbryt</button>
+                      </>}
+                    </div> : <span className="pa-no-modules">Ingen flere delegerte moduler</span>}
+                  </div>
+                  <form className="pa-password-form" onSubmit={(event) => { event.preventDefault(); saveDemoPassword(user.id); }}>
+                    <label htmlFor={`demo-password-${user.id}`}>Nytt demopassord <small>minst 12 tegn</small></label>
+                    <div><input id={`demo-password-${user.id}`} type="password" autoComplete="new-password" minLength={12} value={passwords[user.id] ?? ""} onChange={(event) => setPasswords((current) => ({ ...current, [user.id]: event.target.value }))} placeholder="Skriv inn nytt passord" /><button type="submit">Simuler tilbakestilling</button></div>
+                  </form>
+                </article>;
+              })}
+            </div> : <div className="pa-empty-users"><strong>Ingen firmabrukere ennå</strong><span>Kun ansatte koblet til denne virksomheten vises her.</span></div>}
+            <p className="pa-feedback" role="status" aria-live="polite">{feedback}</p>
+            <div className="pa-dialog-footer"><span>{linkedTenantUsers.length} brukere · demo</span><button type="button" onClick={closeManagement}>Ferdig <Icon name="arrow" size={16} /></button></div>
           </section>
         </div>
       )}

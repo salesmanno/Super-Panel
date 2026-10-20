@@ -26,11 +26,18 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/email_delivery_safety.php';
 
 try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     $data = json_decode(file_get_contents('php://input'), true);
+    $requestId = $data['idempotency_key'] ?? null;
+    if ($requestId !== null && (!is_string($requestId)
+        || !preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i', $requestId))) {
+        throw new InvalidArgumentException('Ugyldig utsendingsreferanse.');
+    }
+    if ($requestId !== null) $requestId = strtolower($requestId);
 
     if (empty($data['subject']) || empty($data['body'])) {
         ob_end_clean();
@@ -90,6 +97,10 @@ try {
             fn($r) => is_string($r) && filter_var(trim($r), FILTER_VALIDATE_EMAIL)
         )
     )));
+    // Treat address case/whitespace variants as one recipient within this send.
+    $byAddress = [];
+    foreach ($validRecipients as $address) $byAddress[strtolower($address)] = $address;
+    $validRecipients = array_values($byAddress);
     if (empty($validRecipients)) {
         ob_end_clean();
         echo json_encode(['success' => false, 'error' => 'Ingen gyldige e-postadresser']);
@@ -131,9 +142,9 @@ try {
     $insertStmt = $db->prepare("
         INSERT INTO email_queue
             (id, company_id, recipient_email, from_email, subject, body,
-             template_id, module_source, status, priority, scheduled_at, created_at, updated_at)
+             template_id, module_source, source_id, status, priority, scheduled_at, created_at, updated_at)
         VALUES
-            (UUID(), ?, ?, ?, ?, ?, ?, 'webmail', 'queued', 5, NOW(), NOW(), NOW())
+            (UUID(), ?, ?, ?, ?, ?, ?, 'webmail', ?, 'queued', 5, NOW(), NOW(), NOW())
     ");
 
     $customerStmt = $db->prepare("
@@ -144,7 +155,14 @@ try {
     ");
 
     $queued = 0;
+    $duplicates = 0;
     $db->beginTransaction();
+    // Serialize queue creation for this company, including simultaneous requests.
+    // A locking read is essential under MySQL REPEATABLE READ.
+    $companyLock = $db->prepare("SELECT name FROM tenant_companies WHERE id = ? FOR UPDATE");
+    $companyLock->execute([$companyId]);
+    $companyName = $companyLock->fetchColumn();
+    if ($companyName === false) throw new RuntimeException('Bedriften finnes ikke.');
 
     if ($memberRecipients) {
         $memberPlaceholders = implode(',', array_fill(0, count($memberRecipients), '?'));
@@ -188,19 +206,26 @@ try {
         $customerStmt->execute([$recipient, $companyId]);
         $customer = $customerStmt->fetch(PDO::FETCH_ASSOC);
 
-        $personalBody = str_replace(
-            ['{{cus_first_name}}', '{{cus_last_name}}'],
-            [$customer['first_name'] ?? '', $customer['last_name'] ?? ''],
-            $body
-        );
+        $rendered = renderWebmailMessage($subject, $body, $customer ?: [], (string) $companyName);
+        $previous = existingWebmailRequest($db, [
+            'company_id' => $companyId, 'recipient_email' => $recipient,
+            'from_email' => $fromEmail, 'subject' => $rendered['subject'],
+            'body' => $rendered['body'], 'template_id' => $templateId,
+            'module_source' => 'webmail', 'source_id' => $requestId,
+        ]);
+        if ($previous !== null) {
+            $duplicates++;
+            continue;
+        }
 
         $insertStmt->execute([
             $companyId,
             $recipient,
             $fromEmail,
-            $subject,
-            $personalBody,
+            $rendered['subject'],
+            $rendered['body'],
             $templateId,
+            $requestId,
         ]);
         $queued++;
     }
@@ -210,13 +235,16 @@ try {
     echo json_encode([
         'success' => true,
         'queued_count' => $queued,
+        'duplicate_count' => $duplicates,
         'message' => "{$queued} e-post(er) lagt i kø"
+            . ($duplicates ? ". {$duplicates} duplikat(er) ble ikke lagt til på nytt." : '')
     ]);
 
 } catch (\Throwable $e) {
     if (isset($db) && $db->inTransaction()) {
         $db->rollBack();
     }
+    if ($e instanceof InvalidArgumentException) http_response_code(400);
     ob_end_clean();
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }

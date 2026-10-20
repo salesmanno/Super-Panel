@@ -2,7 +2,7 @@
 
 require_once __DIR__ . '/../includes/SMTPClient.php';
 
-function runFixtureSmtpServer(): void {
+function runFixtureSmtpServer(string $scenario = 'normal'): void {
     $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
     if (!$server) throw new RuntimeException('Could not create fixture SMTP server');
     $port = (int) substr(strrchr(stream_socket_get_name($server, false), ':'), 1);
@@ -30,9 +30,12 @@ function runFixtureSmtpServer(): void {
                 while (($part = fgets($client)) !== false && $part !== ".\r\n") {
                     $data .= str_starts_with($part, '..') ? substr($part, 1) : $part;
                 }
-                fwrite($client, "250 fixture accepted\r\n");
+                if ($scenario === 'disconnect-after-data') break;
+                fwrite($client, $scenario === 'temporary-reject'
+                    ? "451 temporary failure\r\n" : "250 fixture accepted\r\n");
+                if ($scenario === 'disconnect-after-acceptance') break;
             } elseif (trim($line) === 'QUIT') {
-                fwrite($client, "221 bye\r\n");
+                fwrite($client, $scenario === 'reject-quit' ? "500 QUIT rejected\r\n" : "221 bye\r\n");
                 break;
             } else {
                 fwrite($client, "500 unexpected command\r\n");
@@ -45,8 +48,13 @@ function runFixtureSmtpServer(): void {
 
 // A new PHP process avoids inheriting/closing the parent's live PDO sockets.
 // Loopback only; never uses application SMTP settings or an external server.
-function captureFixtureSmtp(string $body, string $subject = 'Godkjent leie – æøå'): string {
-    $process = proc_open([PHP_BINARY, __FILE__, '--smtp-capture-worker'], [
+function captureFixtureSmtp(
+    string $body,
+    string $subject = 'Godkjent leie – æøå',
+    string $scenario = 'normal',
+    ?array &$sendResult = null
+): string {
+    $process = proc_open([PHP_BINARY, __FILE__, '--smtp-capture-worker', $scenario], [
         0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w'],
     ], $pipes);
     if (!is_resource($process)) throw new RuntimeException('Could not start fixture SMTP server');
@@ -57,9 +65,10 @@ function captureFixtureSmtp(string $body, string $subject = 'Godkjent leie – �
         $result = (new SMTPClient('127.0.0.1', $port, 'fixture-user', 'fixture-password'))->send(
             'admin@example.invalid', 'Testbedrift æøå', 'admin@example.invalid', $subject, $body
         );
+        $sendResult = $result;
         $captured = stream_get_contents($pipes[1]);
         $errors = stream_get_contents($pipes[2]);
-        if (!$result['success'] || $errors !== '') {
+        if (($scenario === 'normal' && !$result['success']) || $errors !== '') {
             throw new RuntimeException('Fixture SMTP failed: ' . ($result['error'] ?? $errors));
         }
         return $captured;
@@ -97,5 +106,5 @@ function checkFixtureSmtp(string $message, string $expectedBody): void {
 
 if (PHP_SAPI === 'cli' && realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__
     && ($argv[1] ?? '') === '--smtp-capture-worker') {
-    runFixtureSmtpServer();
+    runFixtureSmtpServer($argv[2] ?? 'normal');
 }

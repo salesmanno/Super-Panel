@@ -8,6 +8,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/SMTPClient.php';
 require_once __DIR__ . '/../includes/EmailTemplate.php';
 require_once __DIR__ . '/../includes/tenant_audit.php';
+require_once __DIR__ . '/../includes/email_delivery_safety.php';
 
 define('MAX_EMAILS_PER_HOUR_PER_COMPANY', 100);
 
@@ -46,6 +47,7 @@ function getCompaniesWithQueuedEmails($db) {
         FROM email_queue
         WHERE status = 'queued'
           AND scheduled_at <= NOW()
+          AND (next_retry_at IS NULL OR next_retry_at <= NOW())
         ORDER BY company_id
     ");
     $stmt->execute();
@@ -84,6 +86,7 @@ function getEmailsToSend($db, $companyId) {
         WHERE company_id = ?
           AND status = 'queued'
           AND scheduled_at <= NOW()
+          AND (next_retry_at IS NULL OR next_retry_at <= NOW())
         ORDER BY priority ASC, scheduled_at ASC
         LIMIT ?
     ");
@@ -97,7 +100,9 @@ function emailQueueBodyForDelivery(
     string $logoUrl,
     string $headerBgColor
 ): string {
-    $rawBody = (string) ($email['body'] ?? '');
+    $rawBody = emailBodyWithSubject(
+        (string) ($email['body'] ?? ''), (string) ($email['subject'] ?? '')
+    );
     if (!empty($email['template_id'])) {
         return $rawBody;
     }
@@ -110,13 +115,33 @@ function emailQueueBodyForDelivery(
 }
 
 function processEmail($db, $email) {
+    $lockName = emailDeliveryLockName($email);
+    $lock = $db->prepare('SELECT GET_LOCK(?, 0)');
+    $lock->execute([$lockName]);
+    if ((int) $lock->fetchColumn() !== 1) return;
+    try {
+        processEmailWithDeliveryLock($db, $email);
+    } finally {
+        try {
+            $release = $db->prepare('SELECT RELEASE_LOCK(?)');
+            $release->execute([$lockName]);
+        } catch (Throwable $releaseError) {
+            error_log('E-post: tilkoblingen kunne ikke frigi sendelåsen.');
+        }
+    }
+}
+
+function processEmailWithDeliveryLock($db, $email) {
     global $RETRY_DELAYS;
     $smtpAccepted = false;
+    $deliveryUncertain = false;
 
     $claim = $db->prepare("
         UPDATE email_queue
         SET status = 'sending', updated_at = NOW()
         WHERE id = ? AND company_id = ? AND status = 'queued'
+          AND scheduled_at <= NOW()
+          AND (next_retry_at IS NULL OR next_retry_at <= NOW())
     ");
     $claim->execute([$email['id'], $email['company_id']]);
     if ($claim->rowCount() !== 1) {
@@ -124,6 +149,12 @@ function processEmail($db, $email) {
     }
 
     try {
+        $duplicateId = findRecentIdenticalEmail($db, $email);
+        if ($duplicateId !== null) {
+            throw new EmailDeliveryDuplicateException(
+                'Duplikat blokkert: samme melding er allerede sendt eller påbegynt. Køreferanse: ' . $duplicateId
+            );
+        }
         $smtpConfig = getSMTPConfig($db, $email['company_id']);
         if (!$smtpConfig) {
             throw new Exception("SMTP-konfigurasjon ikke funnet for firma {$email['company_id']}");
@@ -238,6 +269,7 @@ function processEmail($db, $email) {
                 . " | Message-ID: {$messageId} | Svar: {$smtpResponse}\n";
 
         } else {
+            $deliveryUncertain = !empty($result['delivery_uncertain']);
             throw new Exception($result['error'] ?? 'Ukjent SMTP-feil');
         }
 
@@ -254,7 +286,10 @@ function processEmail($db, $email) {
 
         // 5xx SMTP-koder = permanent feil (ugyldig adresse, bruker finnes ikke, osv.)
         // Ikke forsøk på nytt — sett direkte til 'failed'
-        $isPermanentSmtpError = (bool)preg_match('/fikk:\s*5\d\d/i', $errorMsg);
+        $isPermanentSmtpError = (bool)preg_match('/fikk:\s*5\d\d/i', $errorMsg)
+            || $deliveryUncertain
+            || $e instanceof EmailDeliveryTemplateException
+            || $e instanceof EmailDeliveryDuplicateException;
 
         if (!$isPermanentSmtpError && $attempts < $maxAttempts) {
             $delayIndex   = min($attempts - 1, count($RETRY_DELAYS) - 1);
@@ -281,7 +316,7 @@ function processEmail($db, $email) {
                 WHERE id = ?
             ");
             $stmt->execute([$attempts, $errorMsg, $email['id']]);
-            $reason = $isPermanentSmtpError ? 'Permanent SMTP-feil (5xx)' : 'Maks forsøk nådd';
+            $reason = $isPermanentSmtpError ? 'Stoppet – ingen automatisk ny sending' : 'Maks forsøk nådd';
             echo "✗✗ {$reason}: {$email['id']} - {$errorMsg}\n";
         }
 

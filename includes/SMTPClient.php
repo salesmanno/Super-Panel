@@ -17,6 +17,7 @@ class SMTPClient {
     }
     
     public function send($from, $fromName, $to, $subject, $body) {
+        $dataSubmitted = false;
         try {
             if (!filter_var($from, FILTER_VALIDATE_EMAIL) || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
                 throw new Exception('Ugyldig avsender- eller mottakeradresse');
@@ -77,9 +78,15 @@ class SMTPClient {
             $msgId = '<' . uniqid('', true) . '@salesman.no>';
             $message = buildSmtpHtmlMessage($from, $fromName, $to, $subject, $body, $msgId);
             // Base64 cannot start a line with '.', so no body dot-stuffing is needed.
+            $dataSubmitted = true;
             $acceptanceResponse = $this->sendCommand($message . '.', 250);
             
-            $this->sendCommand("QUIT", 221);
+            // A 250 after DATA is acceptance. QUIT failure must never cause a resend.
+            try {
+                $this->sendCommand("QUIT", 221);
+            } catch (Exception $quitError) {
+                error_log('SMTP: meldingen ble akseptert; avslutning av forbindelsen feilet.');
+            }
             
             fclose($this->socket);
             return [
@@ -92,17 +99,32 @@ class SMTPClient {
             if ($this->socket) {
                 @fclose($this->socket);
             }
-            return ['success' => false, 'error' => $e->getMessage()];
+            $uncertain = $dataSubmitted && ($e->getCode() < 400 || $e->getCode() > 599);
+            return [
+                'success' => false,
+                'error' => $uncertain
+                    ? 'SMTP-levering er uavklart etter overføring. Kontroller levering manuelt før eventuell ny sending.'
+                    : $e->getMessage(),
+                'delivery_uncertain' => $uncertain,
+            ];
         }
     }
     
     private function sendCommand($command, $expectedCode) {
-        fwrite($this->socket, $command . "\r\n");
+        $wire = $command . "\r\n";
+        $offset = 0;
+        while ($offset < strlen($wire)) {
+            $written = @fwrite($this->socket, substr($wire, $offset));
+            if ($written === false || $written === 0) {
+                throw new Exception('SMTP-forbindelsen brøt under overføring.');
+            }
+            $offset += $written;
+        }
         $response = $this->getResponse();
         $code = (int)substr($response, 0, 3);
         
         if ($code !== $expectedCode) {
-            throw new Exception("SMTP-feil: Forventet $expectedCode, fikk: $response");
+            throw new Exception("SMTP-feil: Forventet $expectedCode, fikk: $response", $code);
         }
         
         return $response;

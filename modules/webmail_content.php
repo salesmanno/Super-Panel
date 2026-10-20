@@ -675,6 +675,8 @@ let wmActiveTemplateId = null;
 let wmActiveTemplateName = null;
 let wmActiveTemplateBody = null;
 let wmActiveRenderedTemplateBody = null;
+let wmSendInFlight = false;
+let wmSendReplay = {fingerprint: null, key: null};
 let wmTemplateEditorDirty = false;
 let wmTemplateLoadSequence = 0;
 let wmTemplatesLoaded = false;
@@ -754,6 +756,7 @@ function wmStartManualCompose() {
 }
 
 async function wmSend() {
+    if (wmSendInFlight) return;
     const input = document.getElementById('wm-to-input').value.trim().replace(/,$/, '');
     if (input && input.includes('@')) {
         wmAddTag(input);
@@ -789,7 +792,18 @@ async function wmSend() {
     alertEl.style.display = '';
     alertEl.innerHTML = '<div class="alert alert-info"><div class="spinner-border spinner-border-sm me-2"></div>Legger i kø...</div>';
 
+    wmSendInFlight = true;
+    const sendButtons = document.querySelectorAll('[onclick="wmSend()"]');
+    sendButtons.forEach(button => { button.disabled = true; });
     try {
+        const fingerprint = JSON.stringify({
+            to: [...wmToList].map(email => email.trim().toLowerCase()).sort(),
+            member_recipients: [...wmMemberRecipients].sort(), subject, body,
+            template_id: wmActiveTemplateId
+        });
+        if (wmSendReplay.fingerprint !== fingerprint) {
+            wmSendReplay = {fingerprint, key: crypto.randomUUID()};
+        }
         const resp = await fetch('/api/queue_email.php', {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
@@ -799,23 +813,28 @@ async function wmSend() {
                 member_recipients: [...wmMemberRecipients].filter(email => wmToList.includes(email)),
                 subject,
                 body,
-                template_id: wmActiveTemplateId
+                template_id: wmActiveTemplateId,
+                idempotency_key: wmSendReplay.key
             })
         });
         const data = JSON.parse(await resp.text());
 
         if (data.success) {
-            alertEl.innerHTML = `<div class="alert alert-success"><i class="bi bi-check-circle me-2"></i>${data.message}</div>`;
+            alertEl.innerHTML = `<div class="alert alert-success"><i class="bi bi-check-circle me-2"></i>${escapeH(data.message)}</div>`;
             document.getElementById('wm-subject').value = '';
             wmToList = [];
             wmMemberRecipients.clear();
             renderTags();
             wmClearTemplate();
+            wmSendReplay = {fingerprint: null, key: null};
         } else {
             alertEl.innerHTML = `<div class="alert alert-danger">${escapeH(data.error)}</div>`;
         }
     } catch(err) {
         alertEl.innerHTML = `<div class="alert alert-danger">Feil: ${escapeH(err.message)}</div>`;
+    } finally {
+        wmSendInFlight = false;
+        sendButtons.forEach(button => { button.disabled = false; });
     }
 }
 
