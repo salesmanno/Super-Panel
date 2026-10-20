@@ -8,7 +8,7 @@
                 <h2 id="po-notices-label"><i class="bi bi-bell"></i> Varsler <span id="po-notice-count"></span></h2>
                 <div id="tenant-notifications" class="po-notice-stack" aria-live="polite" aria-busy="true">
                     <p class="po-empty" data-notification-loading>Henter varsler …</p>
-                    <button type="button" class="btn btn-sm btn-outline-primary po-retry-notifications" hidden onclick="window.PortalOverview?.loadNotifications()">Prøv igjen</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary po-retry-notifications" hidden onclick="if(window.PortalOverview?.loadNotifications) window.PortalOverview.loadNotifications(); else window.location.reload()">Prøv igjen</button>
                 </div>
             </section>
             <section aria-labelledby="po-agenda-label">

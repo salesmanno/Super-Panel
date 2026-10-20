@@ -30,6 +30,14 @@ window.pollFixtures=[
  {id:'p3',module_source:'economy',created_at:'2031-05-04 12:00:00',action_type:'payment_received',metadata:null}
 ];
 window.openRentalRequestNotification=async id=>{opened.push(id);return true};
+window.PortalOverview={
+ moduleNames:{rental:'Rental',events:'Events'},
+ tab:module=>document.querySelector('.module-tabs [data-bs-target="#content-'+module+'"]'),
+ open:async(module,poll={})=>{
+  if(module==='rental'&&poll.metadata?.resource_id)return window.openRentalRequestNotification(poll.metadata.resource_id);
+  bootstrap.Tab.getOrCreateInstance(window.PortalOverview.tab(module)).show();return true;
+ }
+};
 window.fetch=async(url,options={})=>{
  const payload=options.body?JSON.parse(options.body):null;calls.push({url:String(url),payload});
  let result={success:true},status=200;
@@ -60,7 +68,6 @@ const file=path.join(dir,'fixture.html');
 fs.writeFileSync(file,'<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><script>'+stubs+'</script>'+
     '<div class="module-tabs"><button data-bs-target="#content-rental">Utleie</button></div><div id="subtabs-rental"></div><div id="tenant-notifications" class="po-notice-stack"><p class="po-empty">Henter varsler …</p></div><div id="po-agenda"></div><div id="content-rental">'+html+'</div>'+
     spawnSync('php',['-r','include "includes/norwegian_datetime_inputs.php";'],{cwd:root,encoding:'utf8'}).stdout+
-    '<script>'+fs.readFileSync(path.join(root,'assets/portal-overview.js'),'utf8')+'</script>'+
     '<script>'+fs.readFileSync(path.join(root,'assets/tenant_notifications.js'),'utf8')+'</script>');
 const checks=`(async()=>{
 const check=(ok,message)=>{if(!ok)throw new Error(message)};
