@@ -28,6 +28,18 @@
         'email.update': 'E-postkø oppdatert',
         'email.delete': 'E-post fjernet fra kø'
     };
+    const auditRoleLabels = {
+        admin: 'Administrator',
+        owner: 'Eier',
+        super_admin: 'Superadministrator',
+        staff: 'Ansatt',
+        employee: 'Ansatt'
+    };
+    const auditActorTypeLabels = {
+        tenant_admin: 'Brukerkonto',
+        system: 'Systemprosess',
+        api: 'API'
+    };
     const auditModuleLabels = { email: 'E-post' };
     const auditResourceLabels = { email_queue: 'E-postkø' };
     const auditFieldLabels = {
@@ -60,6 +72,18 @@
     const auditModuleLabel = value => auditModuleLabels[String(value)] || text(value);
     const auditResourceLabel = value => auditResourceLabels[String(value)] || text(value);
     const auditFieldLabel = value => auditFieldLabels[String(value)] || String(value);
+    const auditActorRoleLabel = value => {
+        const role = String(value || '').trim();
+        if (!role || role === 'Ikke registrert') return '';
+        return auditRoleLabels[role.toLowerCase()] || role;
+    };
+    const auditActorName = log => {
+        const name = text(log.actor_name, 'Ukjent administrator');
+        if (log.actor_type === 'system' || String(log.actor_role || '').toLowerCase() === 'system') return name;
+        const role = auditActorRoleLabel(log.actor_role);
+        return [role, name].filter(Boolean).join(' ');
+    };
+    const auditActorTypeLabel = value => auditActorTypeLabels[String(value)] || text(value, 'Type ikke registrert');
     const safeJson = value => {
         try {
             const encoded = JSON.stringify(value, null, 2);
@@ -236,8 +260,8 @@
 
         const actorCell = document.createElement('td');
         addCellLabel(actorCell, 'Utført av');
-        actorCell.appendChild(node('span', 'actor-name', text(log.actor_name, 'Ukjent administrator')));
-        actorCell.appendChild(node('span', 'actor-meta', [text(log.actor_role, ''), text(log.actor_type, '')].filter(Boolean).join(' · ') || 'Rolle ikke registrert'));
+        actorCell.appendChild(node('span', 'actor-name', `${auditActorName(log)} utførte`));
+        actorCell.appendChild(node('span', 'actor-meta', auditActorTypeLabel(log.actor_type)));
 
         const actionCell = document.createElement('td');
         addCellLabel(actionCell, 'Hendelse');
@@ -441,8 +465,10 @@
         const grid = node('div', 'detail-grid');
         const stamp = formatDate(log.performed_at);
         appendDetailItem(grid, 'Tidspunkt', [stamp.date, stamp.time].filter(Boolean).join(' · '));
-        appendDetailItem(grid, 'Utført av', log.actor_name);
-        appendDetailItem(grid, 'Rolle / type', [text(log.actor_role, ''), text(log.actor_type, '')].filter(Boolean).join(' · '));
+        appendDetailItem(grid, 'Utført av', auditActorName(log));
+        appendDetailItem(grid, 'Rolle', auditActorRoleLabel(log.actor_role) || 'Ikke registrert');
+        appendDetailItem(grid, 'Kontotype', auditActorTypeLabel(log.actor_type));
+        appendDetailItem(grid, 'Handling', auditActionLabel(log.action));
         appendDetailItem(grid, 'Område', auditModuleLabel(log.module));
         appendDetailItem(grid, 'Ressurs', auditResourceLabel(log.resource_type));
         appendDetailItem(grid, 'Resultat', formatOutcome(log.outcome));

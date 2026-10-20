@@ -90,6 +90,7 @@ emailAuditAssert(count($queued) === 1 && $queued[0]['action'] === 'email.insert'
     'A queue insert creates exactly one automatic audit event.');
 $queuedPublic = tenantAuditPublicRow($queued[0]);
 emailAuditAssert($queuedPublic['actor_name'] === 'Ada Ansatt'
+    && $queuedPublic['actor_role'] === 'admin'
     && $queuedPublic['after']['status'] === 'queued'
     && $queuedPublic['after']['template_id'] === 'template-a'
     && $queuedPublic['links']['correlation_id'] === $requestId
