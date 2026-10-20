@@ -98,10 +98,18 @@ const activityItems = [
   { id: "access-ready", timestamp: "2026-10-18T13:32:00", actor: "Eirik", action: "bekreftet klargjøring av", target: "Klubbhuset · utleie", shortTime: "Søn. 18. okt. · 13:32" },
 ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
+const attentionItems = [
+  { id: "rental-request", timestamp: "2026-10-19T10:42:00", actor: "John", title: "Ny utleieforespørsel", detail: "Klubbhuset · 24. oktober", module: "Rental", icon: "file" as const },
+  { id: "event-draft", timestamp: "2026-10-19T09:18:00", actor: "Sofie", title: "Arrangement trenger en siste sjekk", detail: "Høstfest · 23. oktober", module: "Events", icon: "calendar" as const },
+  { id: "access-ready", timestamp: "2026-10-19T08:50:00", actor: "Utleie", title: "Bekreft adgangskode", detail: "Klubbhuset · utleie i morgen", module: "Rental", icon: "key" as const },
+  { id: "event-draft-old", timestamp: "2026-10-18T16:05:00", actor: "Mari", title: "Utkast venter på gjennomgang", detail: "Åpent hus · 7. november", module: "Events", icon: "calendar" as const },
+].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
 export function Overview() {
   const [activeModule, setActiveModule] = useState("Rental");
   const [detail, setDetail] = useState<DetailKey | null>(null);
   const [activityIndex, setActivityIndex] = useState(0);
+  const [dismissedAttentionIds, setDismissedAttentionIds] = useState<string[]>([]);
   const [profileOpen, setProfileOpen] = useState(false);
   const [managementOpen, setManagementOpen] = useState(false);
   const [currentAdmin, setCurrentAdmin] = useState({ tenant_supervisor: 1 });
@@ -118,6 +126,21 @@ export function Overview() {
     const staff = staffDirectory.find((person) => person.id === entry.staffId && person.companyId === entry.companyId);
     return entry.companyId === companyId && staff?.companyId === companyId ? [{ ...entry, name: staff.name }] : [];
   });
+  const visibleModules = currentAdmin.tenant_supervisor === 1
+    ? modules
+    : modules.filter((module) => module.label === "Rental");
+  const visibleAttentionItems = attentionItems.filter((item) =>
+    visibleModules.some((module) => module.label === item.module)
+      && !dismissedAttentionIds.includes(item.id)
+  );
+  const openAttention = (item: (typeof attentionItems)[number]) => {
+    if (!visibleModules.some((module) => module.label === item.module)) return;
+    setActiveModule(item.module);
+    setDismissedAttentionIds((current) => [...current, item.id]);
+  };
+  const dismissAttention = (itemId: string) => {
+    setDismissedAttentionIds((current) => current.includes(itemId) ? current : [...current, itemId]);
+  };
 
   const openDetail = (key: DetailKey, trigger: HTMLElement) => {
     returnFocusRef.current = trigger;
@@ -242,8 +265,6 @@ export function Overview() {
                 <p className="pa-menu-demo">Kun demonstrasjon · ingen kontoer endres</p>
               </div>}
             </div>
-            <span className="pa-top-button"><Icon name="list" size={15} /><span>Aktivitetslogg</span></span>
-            <span className="pa-top-button"><Icon name="clock" size={15} /><span>Sessions</span></span>
             <span className="pa-top-button pa-logout"><Icon name="logout" size={15} /><span>Logg ut</span></span>
           </div>
         </div>
@@ -262,26 +283,53 @@ export function Overview() {
             <section className="pa-followup" aria-labelledby="pa-followup-title">
               <div className="pa-section-title">
                 <span className="pa-title-mark"><Icon name="bell" size={15} /></span>
-                <h1 id="pa-followup-title">Må følges opp</h1>
-                <span className="pa-total">6</span>
+                <h1 id="pa-followup-title">Varsler</h1>
+                <span className="pa-total">{visibleAttentionItems.length}</span>
               </div>
-              <div className="pa-task-list">
-                <button type="button" className="pa-task" onClick={showDetail("requests")}>
-                  <span className="pa-task-icon pa-warm"><Icon name="file" size={17} /></span>
-                  <span className="pa-task-copy"><strong>Utleieforespørsler</strong><small>3 venter på svar</small></span>
-                  <span className="pa-task-count">3</span><Icon name="chevron" size={16} />
-                </button>
-                <button type="button" className="pa-task" onClick={showDetail("access")}>
-                  <span className="pa-task-icon pa-teal"><Icon name="key" size={17} /></span>
-                  <span className="pa-task-copy"><strong>Adgangskode</strong><small>Bekreftelse før utleie i morgen</small></span>
-                  <span className="pa-task-count pa-one">1</span><Icon name="chevron" size={16} />
-                </button>
-                <button type="button" className="pa-task" onClick={showDetail("events")}>
-                  <span className="pa-task-icon pa-blue"><Icon name="calendar" size={17} /></span>
-                  <span className="pa-task-copy"><strong>Arrangementer</strong><small>2 utkast trenger en siste sjekk</small></span>
-                  <span className="pa-task-count">2</span><Icon name="chevron" size={16} />
-                </button>
-              </div>
+              {visibleAttentionItems.length > 0 ? (
+                <div className="pa-notice-stack" aria-label={`${visibleAttentionItems.length} varsler, nyeste først`}>
+                  {visibleAttentionItems.length > 2 && <>
+                    <span className="pa-notice-stack-edge pa-notice-stack-back" aria-hidden="true" />
+                    <span className="pa-notice-stack-edge pa-notice-stack-middle" aria-hidden="true" />
+                  </>}
+                  <article className="pa-notice-card">
+                    <span className="pa-notice-mark" aria-hidden="true">
+                      <Icon name={visibleAttentionItems[0].icon} size={19} />
+                    </span>
+                    <button
+                      type="button"
+                      className="pa-notice-open"
+                      aria-label={`Åpne ${visibleAttentionItems[0].title} i ${visibleAttentionItems[0].module}`}
+                      onClick={() => openAttention(visibleAttentionItems[0])}
+                    >
+                      <span className="pa-notice-meta">
+                        {visibleAttentionItems[0].module}<span aria-hidden="true">·</span>
+                        {new Intl.DateTimeFormat("nb-NO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+                          .format(new Date(visibleAttentionItems[0].timestamp))}
+                      </span>
+                      <strong>{visibleAttentionItems[0].title}</strong>
+                      <span className="pa-notice-detail">{visibleAttentionItems[0].actor} · {visibleAttentionItems[0].detail}</span>
+                      <span className="pa-notice-cta">Åpne i {visibleAttentionItems[0].module}<Icon name="arrow" size={15} /></span>
+                    </button>
+                    <button
+                      type="button"
+                      className="pa-notice-dismiss"
+                      aria-label={`Lukk varselet: ${visibleAttentionItems[0].title}`}
+                      onClick={() => dismissAttention(visibleAttentionItems[0].id)}
+                    ><Icon name="close" size={16} /></button>
+                  </article>
+                  {visibleAttentionItems.length > 1 && (
+                    <span className="pa-notice-stack-count" aria-live="polite">
+                      {visibleAttentionItems.length - 1} {visibleAttentionItems.length === 2 ? "varsel til" : "varsler til"}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="pa-notice-empty" role="status">
+                  <span>Alt fulgt opp</span>
+                  <small>Ingen nye varsler for dine moduler.</small>
+                </div>
+              )}
             </section>
 
             <section className="pa-next" aria-labelledby="pa-next-title">
@@ -304,7 +352,7 @@ export function Overview() {
             </section>
           </div>
 
-          <div className="pa-activity" aria-label="Siste aktivitet, nyeste først">
+          {currentAdmin.tenant_supervisor === 1 && <div className="pa-activity" aria-label="Siste aktivitet, nyeste først">
             <div className="pa-activity-heading"><span className="pa-activity-icon"><Icon name="spark" size={15} /></span><strong>Aktivitet</strong><span>Nyeste først</span></div>
             <div className="pa-activity-cards" aria-live="polite">
               {activityItems.slice(activityIndex, activityIndex + 3).map((item, index) => <article className={`pa-activity-card ${index === 0 ? "pa-activity-latest" : ""}`} key={item.id}>
@@ -318,13 +366,13 @@ export function Overview() {
               <span className="pa-activity-count-mobile">{activityIndex + 1} av {activityItems.length}</span>
               <button type="button" aria-label="Vis eldre aktivitet" disabled={activityIndex >= activityItems.length - 3} onClick={() => setActivityIndex((index) => Math.min(activityItems.length - 3, index + 1))}>›</button>
             </div>
-          </div>
+          </div>}
         </div>
       </section>
 
       <nav className="pa-module-nav" aria-label="Moduler">
         <div className="pa-module-inner" role="tablist" aria-label="Velg modul">
-          {modules.map((module) => (
+          {visibleModules.map((module) => (
             <button
               type="button"
               role="tab"

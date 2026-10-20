@@ -496,6 +496,150 @@
   .pa-users-dialog .pa-dialog-footer { margin-top: 7px; }
 }
 
+/* One live alert at a time; offset outlines hint at the queued alerts behind it. */
+.pa-notice-stack {
+  position: relative;
+  min-width: 0;
+  min-height: 132px;
+  padding: 0 9px 11px 0;
+}
+.pa-notice-stack-edge {
+  position: absolute;
+  inset: 4px 8px 7px 4px;
+  border: 1px solid #cfdee5;
+  border-radius: 10px;
+  background: #f9fbfc;
+  pointer-events: none;
+}
+.pa-notice-stack-back {
+  inset: 10px 3px 1px 9px;
+  border-color: #e1e9ed;
+  background: #f2f6f8;
+}
+.pa-notice-stack-middle {
+  inset: 5px 6px 5px 5px;
+  background: #fff;
+}
+.pa-notice-card {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  min-height: 112px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 28px;
+  align-items: start;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid #dce6eb;
+  border-top: 2px solid var(--pa-teal);
+  border-radius: 10px;
+  color: var(--pa-ink);
+  background: #fff;
+  box-shadow: 0 4px 11px rgba(25,60,78,.09);
+}
+.pa-notice-mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #e2ecee;
+  border-radius: 9px;
+  color: var(--pa-teal);
+  background: #eff7f6;
+}
+.pa-notice-open {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  color: var(--pa-ink);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.pa-notice-open:focus-visible { outline-offset: 3px; }
+.pa-notice-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #708592;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .015em;
+}
+.pa-notice-open > strong {
+  color: #1d3d53;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.3;
+}
+.pa-notice-detail { color: #627988; font-size: 11px; line-height: 1.35; }
+.pa-notice-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  color: var(--pa-teal);
+  font-size: 10px;
+  font-weight: 750;
+}
+.pa-notice-open:hover .pa-notice-cta { color: #086570; }
+.pa-notice-open:hover .pa-notice-cta svg { transform: translateX(2px); }
+.pa-notice-cta svg { transition: transform .15s ease; }
+.pa-notice-dismiss {
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #e2e9ec;
+  border-radius: 7px;
+  color: #768b96;
+  background: #f8fafb;
+  cursor: pointer;
+}
+.pa-notice-dismiss:hover { border-color: #b8cbcf; color: #34586c; background: #eef4f5; }
+.pa-notice-stack-count {
+  position: absolute;
+  z-index: 3;
+  right: 13px;
+  bottom: 0;
+  padding: 2px 7px;
+  border: 1px solid #dce6eb;
+  border-radius: 999px;
+  color: #687f8d;
+  background: #fff;
+  font-size: 9px;
+  line-height: 1.35;
+}
+.pa-notice-empty {
+  min-height: 112px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 14px;
+  border: 1px dashed #cfdee4;
+  border-radius: 10px;
+  color: #315369;
+  background: #f8fbfb;
+  font-size: 12px;
+  font-weight: 700;
+}
+.pa-notice-empty small { color: #728793; font-size: 10px; font-weight: 400; }
+.pa-activity { margin-top: 5px; }
+
+@media (max-width: 600px) {
+  .pa-notice-stack { min-height: 130px; padding: 0 7px 10px 0; }
+  .pa-notice-card { min-height: 110px; grid-template-columns: 30px minmax(0, 1fr) 26px; gap: 8px; padding: 11px; }
+  .pa-notice-mark { width: 30px; height: 30px; }
+  .pa-notice-open > strong { font-size: 12px; }
+  .pa-notice-detail { font-size: 10px; }
+  .pa-notice-dismiss { width: 25px; height: 25px; }
+}
+
 /* Compact action cards keep the overview and its plan visible together. */
 .pa-overview-inner { padding-top: 13px; padding-bottom: 10px; }
 .pa-overview-head { align-items: center; margin-bottom: 8px; }
