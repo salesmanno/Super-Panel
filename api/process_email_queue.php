@@ -136,15 +136,53 @@ function processEmailWithDeliveryLock($db, $email) {
     $smtpAccepted = false;
     $deliveryUncertain = false;
 
-    $claim = $db->prepare("
-        UPDATE email_queue
-        SET status = 'sending', updated_at = NOW()
-        WHERE id = ? AND company_id = ? AND status = 'queued'
-          AND scheduled_at <= NOW()
-          AND (next_retry_at IS NULL OR next_retry_at <= NOW())
-    ");
-    $claim->execute([$email['id'], $email['company_id']]);
-    if ($claim->rowCount() !== 1) {
+    $db->beginTransaction();
+    try {
+        $claim = $db->prepare("
+            UPDATE email_queue
+            SET status = 'sending', updated_at = NOW()
+            WHERE id = ? AND company_id = ? AND status = 'queued'
+              AND scheduled_at <= NOW()
+              AND (next_retry_at IS NULL OR next_retry_at <= NOW())
+        ");
+        $claim->execute([$email['id'], $email['company_id']]);
+        if ($claim->rowCount() !== 1) {
+            $db->rollBack();
+            return;
+        }
+        $auditActor = tenantAuditSystemActor($db, (string) $email['company_id'], 'email_queue');
+        tenantAuditRecord(
+            $db,
+            (string) $email['company_id'],
+            'email',
+            'email.processing_started',
+            'email_queue',
+            (string) $email['id'],
+            'E-postbehandling startet',
+            [
+                'status' => 'queued',
+                'attempts' => (int) ($email['attempts'] ?? 0),
+                'attempt_number' => (int) ($email['attempts'] ?? 0) + 1,
+                'max_attempts' => (int) ($email['max_attempts'] ?? 3),
+                'scheduled_at' => $email['scheduled_at'] ?? null,
+                'next_retry_at' => $email['next_retry_at'] ?? null,
+            ],
+            [
+                'status' => 'sending',
+                'attempts' => (int) ($email['attempts'] ?? 0),
+                'attempt_number' => (int) ($email['attempts'] ?? 0) + 1,
+                'max_attempts' => (int) ($email['max_attempts'] ?? 3),
+                'scheduled_at' => $email['scheduled_at'] ?? null,
+                'next_retry_at' => $email['next_retry_at'] ?? null,
+            ],
+            'success',
+            emailQueueAuditLinks($db, $email),
+            $auditActor
+        );
+        $db->commit();
+    } catch (Throwable $claimAuditError) {
+        if ($db->inTransaction()) $db->rollBack();
+        error_log('CRITICAL: Email claim audit unavailable; queue_ref=' . ($email['id'] ?? 'unknown'));
         return;
     }
 
@@ -257,7 +295,16 @@ function processEmailWithDeliveryLock($db, $email) {
                 $db->beginTransaction();
                 tenantAuditRecord($db, (string) $email['company_id'], 'email', 'email.smtp_accepted', 'email_queue',
                     (string) $email['id'], 'SMTP akseptert – ikke bekreftet mottakerlevering',
-                    ['status' => 'sending'], ['status' => 'sent', 'sent_at' => date('Y-m-d H:i:s')],
+                    ['status' => 'sending', 'attempts' => (int) ($email['attempts'] ?? 0)],
+                    [
+                        'status' => 'sent',
+                        'attempts' => (int) ($email['attempts'] ?? 0),
+                        'attempt_number' => (int) ($email['attempts'] ?? 0) + 1,
+                        'max_attempts' => (int) ($email['max_attempts'] ?? 3),
+                        'scheduled_at' => $email['scheduled_at'] ?? null,
+                        'next_retry_at' => null,
+                        'sent_at' => date('Y-m-d H:i:s'),
+                    ],
                     'smtp_accepted', $links, $actor);
                 $db->commit();
             } catch (Throwable $auditError) {
@@ -322,10 +369,25 @@ function processEmailWithDeliveryLock($db, $email) {
 
         error_log("E-post sendefeil (ID: {$email['id']}): " . $errorMsg);
         try {
+            $stateStmt = $db->prepare("
+                SELECT status, attempts, next_retry_at, scheduled_at
+                FROM email_queue
+                WHERE id = ? AND company_id = ?
+                LIMIT 1
+            ");
+            $stateStmt->execute([$email['id'], $email['company_id']]);
+            $queueState = $stateStmt->fetch(PDO::FETCH_ASSOC) ?: [];
             $actor = tenantAuditSystemActor($db, (string) $email['company_id'], 'email_queue');
             tenantAuditRecord($db, (string) $email['company_id'], 'email', 'email.smtp_failed', 'email_queue',
                 (string) $email['id'], 'SMTP-forsøket feilet', [],
-                ['status' => $isPermanentSmtpError || $attempts >= $maxAttempts ? 'failed' : 'queued', 'attempts' => $attempts],
+                [
+                    'status' => $queueState['status'] ?? ($isPermanentSmtpError || $attempts >= $maxAttempts ? 'failed' : 'queued'),
+                    'attempts' => (int) ($queueState['attempts'] ?? $attempts),
+                    'attempt_number' => $attempts,
+                    'max_attempts' => (int) $maxAttempts,
+                    'scheduled_at' => $queueState['scheduled_at'] ?? ($email['scheduled_at'] ?? null),
+                    'next_retry_at' => $queueState['next_retry_at'] ?? null,
+                ],
                 'failed', emailQueueAuditLinks($db, $email), $actor);
         } catch (Throwable $auditError) {
             error_log('CRITICAL: SMTP failure audit unavailable; queue_ref=' . $email['id']);
@@ -345,7 +407,10 @@ function emailQueueAuditLinks(PDO $db, array $email): array {
     if ($row = $query->fetch(PDO::FETCH_ASSOC)) {
         $values = json_decode($row['new_values'], true);
         $links['initiator_audit_id'] = $row['id'];
-        foreach (['correlation_id','template_body_sha256','template_subject_sha256'] as $key) {
+        foreach ([
+            'correlation_id','template_body_sha256','template_subject_sha256',
+            'message_body_sha256','message_subject_sha256',
+        ] as $key) {
             if (!empty($values['_audit']['links'][$key])) $links[$key] = $values['_audit']['links'][$key];
         }
     }

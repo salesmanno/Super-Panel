@@ -52,7 +52,12 @@ class SafetyPDO extends PDO {
     public bool $due = true;
     public string $status = 'queued';
     public ?string $duplicateId = null;
+    public bool $transaction = false;
     public function __construct() {}
+    public function beginTransaction(): bool { $this->transaction = true; return true; }
+    public function commit(): bool { $this->transaction = false; return true; }
+    public function rollBack(): bool { $this->transaction = false; return true; }
+    public function inTransaction(): bool { return $this->transaction; }
     public function prepare(string $query, array $options = []): PDOStatement|false {
         return new SafetyStatement($this, $query);
     }
@@ -79,6 +84,7 @@ class SafetyStatement extends PDOStatement {
             if (str_contains($this->query, 'SELECT GET_LOCK')) return $this->db->lockAvailable ? 1 : 0;
             if (str_contains($this->query, 'SELECT RELEASE_LOCK')) return 1;
             if (str_contains($this->query, 'SELECT id FROM email_queue')) return $this->db->duplicateId ?? false;
+            if (str_contains($this->query, 'SELECT name FROM tenant_companies')) return 'Fixture Company';
         }
         return $this->db->nextRow;
     }

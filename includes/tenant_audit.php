@@ -34,7 +34,8 @@ function tenantAuditFields(): array {
         'tenant_companies' => ['id','name','legal_name','is_active','industry','subdomain'],
         'announcements' => ['id','title','is_published','is_pinned','priority','publish_at','expire_at'],
         'email_templates' => ['id','name','template_key','is_active'],
-        'email_queue' => ['id','template_id','module_source','source_id','status','priority','attempts','scheduled_at','sent_at'],
+        'email_queue' => ['id','template_id','module_source','source_id','status','priority','attempts','attempt_number','max_attempts',
+            'scheduled_at','next_retry_at','sent_at'],
         'email_configs' => ['id','display_name','is_active'],
     ];
 }
@@ -207,7 +208,7 @@ function tenantAuditRecord(
     $safeAfter = tenantAuditSafeValues($resource, $after);
     $safeLinks = [];
     foreach (['queue_id','template_id','source_id','source_module','correlation_id','initiator_audit_id',
-        'template_body_sha256','template_subject_sha256'] as $key) {
+        'template_body_sha256','template_subject_sha256','message_body_sha256','message_subject_sha256'] as $key) {
         if (isset($links[$key]) && is_scalar($links[$key])) {
             $safeLinks[$key] = mb_substr((string) $links[$key], 0, 100);
         }
@@ -261,6 +262,6 @@ function tenantAuditPublicRow(array $row): array {
         'after' => tenantAuditSafeValues((string) $row['resource_type'], $after),
         'links' => array_intersect_key((array) ($meta['links'] ?? []),
             array_flip(['queue_id','template_id','source_id','source_module','correlation_id','initiator_audit_id',
-                'template_body_sha256','template_subject_sha256'])),
+                'template_body_sha256','template_subject_sha256','message_body_sha256','message_subject_sha256'])),
     ];
 }

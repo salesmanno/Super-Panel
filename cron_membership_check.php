@@ -110,9 +110,9 @@ try {
         $insertStmt = $db->prepare("
             INSERT INTO email_queue
                 (id, company_id, recipient_email, from_email, subject, body,
-                 template_id, module_source, status, priority, scheduled_at, created_at, updated_at)
+                 template_id, module_source, source_id, status, priority, scheduled_at, created_at, updated_at)
             VALUES
-                (UUID(), ?, ?, ?, ?, ?, ?, 'membership', 'queued', 5, NOW(), NOW(), NOW())
+                (UUID(), ?, ?, ?, ?, ?, ?, 'membership', ?, 'queued', 5, NOW(), NOW(), NOW())
         ");
 
         $updateStmt = $db->prepare("
@@ -167,14 +167,29 @@ try {
             );
 
             // Queue the email
-            $insertStmt->execute([
+            $queueBindings = [
                 $companyId,
                 $m['email'],
                 $fromEmail,
                 $subject,
                 $body,
-                $template['id']
-            ]);
+                $template['id'],
+                $m['member_id'],
+            ];
+            $auditLinks = [
+                'source_module' => 'membership',
+                'source_id' => (string) $m['member_id'],
+                'correlation_id' => 'membership-expired:' . (string) $m['member_id'],
+                'template_subject_sha256' => hash('sha256', (string) $template['subject_template']),
+                'template_body_sha256' => hash('sha256', (string) $template['body_template']),
+                'message_subject_sha256' => hash('sha256', (string) $subject),
+                'message_body_sha256' => hash('sha256', (string) $body),
+            ];
+            if (method_exists($db, 'withAuditLinks')) {
+                $db->withAuditLinks($auditLinks, static fn() => $insertStmt->execute($queueBindings));
+            } else {
+                $insertStmt->execute($queueBindings);
+            }
 
             // Mark as notified
             $updateStmt->execute([$m['member_id']]);

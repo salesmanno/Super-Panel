@@ -19,6 +19,47 @@
         if (typeof value === 'object') return safeJson(value);
         return String(value);
     };
+    const auditActionLabels = {
+        'email.insert': 'E-post lagt i kø',
+        'email.queued': 'E-post lagt i kø',
+        'email.processing_started': 'E-postbehandling startet',
+        'email.smtp_accepted': 'SMTP aksepterte e-posten',
+        'email.smtp_failed': 'SMTP-forsøk feilet',
+        'email.update': 'E-postkø oppdatert',
+        'email.delete': 'E-post fjernet fra kø'
+    };
+    const auditModuleLabels = { email: 'E-post' };
+    const auditResourceLabels = { email_queue: 'E-postkø' };
+    const auditFieldLabels = {
+        id: 'Kø-ID',
+        template_id: 'Mal-ID',
+        module_source: 'Kildemodul',
+        source_id: 'Kilde-ID',
+        status: 'Status',
+        priority: 'Prioritet',
+        attempts: 'Forsøk',
+        attempt_number: 'Forsøksnummer',
+        max_attempts: 'Maksimalt antall forsøk',
+        scheduled_at: 'Planlagt tidspunkt',
+        next_retry_at: 'Neste forsøk',
+        sent_at: 'SMTP-akseptert tidspunkt'
+    };
+    const auditLinkLabels = {
+        queue_id: 'Kø-ID',
+        template_id: 'Mal-ID',
+        source_id: 'Kilde-ID',
+        source_module: 'Kildemodul',
+        correlation_id: 'Sporingsreferanse',
+        initiator_audit_id: 'Opprinnelig handling',
+        template_body_sha256: 'Hash av malinnhold',
+        template_subject_sha256: 'Hash av maleemne',
+        message_body_sha256: 'Hash av kølagt innhold',
+        message_subject_sha256: 'Hash av kølagt emne'
+    };
+    const auditActionLabel = value => auditActionLabels[String(value)] || text(value);
+    const auditModuleLabel = value => auditModuleLabels[String(value)] || text(value);
+    const auditResourceLabel = value => auditResourceLabels[String(value)] || text(value);
+    const auditFieldLabel = value => auditFieldLabels[String(value)] || String(value);
     const safeJson = value => {
         try {
             const encoded = JSON.stringify(value, null, 2);
@@ -142,7 +183,9 @@
                 option.value = String(value && typeof value === 'object' ? value.id : value);
                 option.textContent = selectId === 'filter-admin'
                     ? (value && typeof value === 'object' ? String(value.name) : `Administrator #${String(value)}`)
-                    : String(value);
+                    : (selectId === 'filter-action'
+                        ? auditActionLabel(value)
+                        : selectId === 'filter-module' ? auditModuleLabel(value) : String(value));
                 select.appendChild(option);
             });
         }
@@ -198,12 +241,12 @@
 
         const actionCell = document.createElement('td');
         addCellLabel(actionCell, 'Hendelse');
-        actionCell.appendChild(node('span', 'action-name', text(log.action)));
-        actionCell.appendChild(node('span', 'resource-meta', `${text(log.resource_type, 'Ressurs')} · ${text(log.resource_name || log.resource_id, 'Uten navn')}`));
+        actionCell.appendChild(node('span', 'action-name', auditActionLabel(log.action)));
+        actionCell.appendChild(node('span', 'resource-meta', `${auditResourceLabel(log.resource_type || 'Ressurs')} · ${text(log.resource_name || log.resource_id, 'Uten navn')}`));
 
         const moduleCell = document.createElement('td');
         addCellLabel(moduleCell, 'Område');
-        moduleCell.appendChild(node('span', 'module-tag', text(log.module)));
+        moduleCell.appendChild(node('span', 'module-tag', auditModuleLabel(log.module)));
 
         const outcomeCell = document.createElement('td');
         addCellLabel(outcomeCell, 'Resultat');
@@ -213,7 +256,7 @@
         addCellLabel(detailsCell, 'Detaljer');
         const button = node('button', 'btn btn-outline-primary details-button', 'Vis detaljer');
         button.type = 'button';
-        button.setAttribute('aria-label', `Vis detaljer for ${text(log.action, 'hendelse')} – ${text(log.resource_name || log.resource_id, 'ressurs')}`);
+        button.setAttribute('aria-label', `Vis detaljer for ${auditActionLabel(log.action || 'hendelse')} – ${text(log.resource_name || log.resource_id, 'ressurs')}`);
         button.addEventListener('click', () => openDetails(log.id, button));
         detailsCell.appendChild(button);
         row.append(dateCell, actorCell, actionCell, moduleCell, outcomeCell, detailsCell);
@@ -339,7 +382,7 @@
                 changed.forEach(key => {
                     const item = document.createElement('li');
                     const shownValue = Object.prototype.hasOwnProperty.call(values, key) ? formatSqlDetailValue(key, values[key]) : '—';
-                    item.append(node('span', 'change-key', key), node('span', 'change-value', shownValue));
+                    item.append(node('span', 'change-key', auditFieldLabel(key)), node('span', 'change-value', shownValue));
                     list.appendChild(item);
                 });
                 box.appendChild(list);
@@ -386,22 +429,22 @@
                 return;
             }
             const chip = node('span', 'link-chip');
-            chip.append(node('strong', '', `${key}:`), document.createTextNode(text(links[key])));
+            chip.append(node('strong', '', `${auditLinkLabels[key] || key}:`), document.createTextNode(text(links[key])));
             linkList.appendChild(chip);
         });
         if (linkList.childNodes.length) parent.appendChild(linkList);
     }
 
     function renderDetail(log) {
-        dialogTitle.textContent = `${text(log.action, 'Hendelse')} · ${text(log.resource_name || log.resource_type, 'Ressurs')}`;
+        dialogTitle.textContent = `${auditActionLabel(log.action || 'Hendelse')} · ${text(log.resource_name || auditResourceLabel(log.resource_type), 'Ressurs')}`;
         dialogContent.replaceChildren();
         const grid = node('div', 'detail-grid');
         const stamp = formatDate(log.performed_at);
         appendDetailItem(grid, 'Tidspunkt', [stamp.date, stamp.time].filter(Boolean).join(' · '));
         appendDetailItem(grid, 'Utført av', log.actor_name);
         appendDetailItem(grid, 'Rolle / type', [text(log.actor_role, ''), text(log.actor_type, '')].filter(Boolean).join(' · '));
-        appendDetailItem(grid, 'Område', log.module);
-        appendDetailItem(grid, 'Ressurs', log.resource_type);
+        appendDetailItem(grid, 'Område', auditModuleLabel(log.module));
+        appendDetailItem(grid, 'Ressurs', auditResourceLabel(log.resource_type));
         appendDetailItem(grid, 'Resultat', formatOutcome(log.outcome));
         appendDetailItem(grid, 'Ressurs-ID', log.resource_id);
         appendDetailItem(grid, 'Bedrift', log.company_name);

@@ -218,7 +218,7 @@ try {
             continue;
         }
 
-        $insertStmt->execute([
+        $queueBindings = [
             $companyId,
             $recipient,
             $fromEmail,
@@ -226,7 +226,17 @@ try {
             $rendered['body'],
             $templateId,
             $requestId,
-        ]);
+        ];
+        $auditLinks = [
+            'correlation_id' => $requestId,
+            'message_subject_sha256' => hash('sha256', (string) $rendered['subject']),
+            'message_body_sha256' => hash('sha256', (string) $rendered['body']),
+        ];
+        if (method_exists($db, 'withAuditLinks')) {
+            $db->withAuditLinks($auditLinks, static fn() => $insertStmt->execute($queueBindings));
+        } else {
+            $insertStmt->execute($queueBindings);
+        }
         $queued++;
     }
 
