@@ -460,6 +460,53 @@ try {
     color: #6b7280;
 }
 
+.manual-participant-row > td {
+    background: #f8fafc;
+    padding: 1rem !important;
+}
+
+.manual-participant-editor {
+    border: 1px solid #dbe3ef;
+    border-left: 4px solid #4f6bed;
+    border-radius: 10px;
+    background: #fff;
+    padding: 1rem;
+}
+
+.manual-participant-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: .75rem;
+}
+
+.manual-participant-field .form-label {
+    display: block;
+    margin-bottom: .25rem;
+    color: #475569;
+    font-size: .82rem;
+    font-weight: 600;
+}
+
+.manual-participant-field .form-check {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.manual-participant-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: .5rem;
+    margin-top: .9rem;
+}
+
+.manual-participant-error {
+    color: #b42318;
+    font-size: .875rem;
+    margin-top: .6rem;
+}
+
 .ticket-badge {
     display: inline-flex;
     align-items: center;
@@ -1498,8 +1545,11 @@ try {
                         <!-- Checked In Tab -->
                         <div class="tab-pane fade show active" id="checkin-confirmed-tab" role="tabpanel">
                             <div class="card checkin-list-card">
-                                <div class="card-header bg-success text-white">
-                                    <i class="bi bi-check-circle-fill me-2"></i>Ankommet / Innsjekket
+                                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-check-circle-fill me-2"></i>Ankommet / Innsjekket</span>
+                                    <button type="button" class="btn btn-sm btn-light" onclick="beginManualEventParticipant(true, 'checkin-confirmed-list')" aria-label="Legg til innsjekket deltaker" title="Legg til deltaker">
+                                        <i class="bi bi-plus-lg"></i>
+                                    </button>
                                 </div>
                                 <div class="card-body p-0">
                                     <div class="table-responsive" id="checkin-confirmed-container">
@@ -1534,9 +1584,14 @@ try {
                             <div class="card checkin-list-card">
                                 <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
                                     <span><i class="bi bi-clock-fill me-2"></i>Venter på innsjekking</span>
-                                    <button id="create-group-btn" class="btn btn-sm btn-light" style="display: none;" onclick="openGroupCheckoutModal()">
-                                        <i class="bi bi-people-fill me-1"></i>Gruppesjekk <span class="badge bg-warning text-dark">0</span>
-                                    </button>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <button type="button" class="btn btn-sm btn-light" onclick="beginManualEventParticipant(false, 'checkin-pending-list')" aria-label="Legg til deltaker som venter" title="Legg til deltaker">
+                                            <i class="bi bi-plus-lg"></i>
+                                        </button>
+                                        <button id="create-group-btn" class="btn btn-sm btn-light" style="display: none;" onclick="openGroupCheckoutModal()">
+                                            <i class="bi bi-people-fill me-1"></i>Gruppesjekk <span class="badge bg-warning text-dark">0</span>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="card-body p-0">
                                     <div class="table-responsive" id="checkin-pending-container">
@@ -1639,7 +1694,12 @@ try {
             <div class="card checkin-list-card">
                 <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-clock-fill me-2"></i>Ikke innsjekket</span>
-                    <span class="badge bg-light text-dark" id="fullscreen-pending-badge">0</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-sm btn-light" onclick="beginManualEventParticipant(false, 'fullscreen-pending-list')" aria-label="Legg til deltaker som venter i fullskjerm" title="Legg til deltaker">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                        <span class="badge bg-light text-dark" id="fullscreen-pending-badge">0</span>
+                    </div>
                 </div>
                 <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
                     <div class="table-responsive">
@@ -1672,7 +1732,12 @@ try {
             <div class="card checkin-list-card">
                 <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-check-circle-fill me-2"></i>Innsjekket</span>
-                    <span class="badge bg-light text-dark" id="fullscreen-confirmed-badge">0</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-sm btn-light" onclick="beginManualEventParticipant(true, 'fullscreen-checked-list')" aria-label="Legg til innsjekket deltaker i fullskjerm" title="Legg til deltaker">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                        <span class="badge bg-light text-dark" id="fullscreen-confirmed-badge">0</span>
+                    </div>
                 </div>
                 <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
                     <div class="table-responsive">
@@ -3335,6 +3400,10 @@ let currentEventTitle = '';
 let currentEventDate = '';
 
 async function openEventDetail(eventId, eventTitle, eventDate) {
+    if (eventManualParticipantDraft && String(eventManualParticipantDraft.dataset.manualEventId) !== String(eventId)) {
+        eventManualParticipantDraft.remove();
+        eventManualParticipantDraft = null;
+    }
     selectedEventId = eventId;
     currentEventTitle = eventTitle;
     currentEventDate = eventDate || '';
@@ -3353,10 +3422,14 @@ async function openEventDetail(eventId, eventTitle, eventDate) {
     await loadPaymentMethods(eventId);
     loadCheckins(eventId);
     loadEventDetailsForCheckin(eventId);
-    loadEventRegistrationFields(eventId);
+    await loadEventRegistrationFields(eventId);
 }
 
 function goBackToEventList() {
+    if (eventManualParticipantDraft) {
+        eventManualParticipantDraft.remove();
+        eventManualParticipantDraft = null;
+    }
     selectedEventId = null;
     currentEventTitle = '';
     currentEventDate = '';
@@ -3565,7 +3638,13 @@ document.getElementById('quick-guest-form')?.addEventListener('submit', async fu
 });
 
 // Load and display dynamic registration fields
+let eventManualParticipantFieldDefinitions = [];
+let eventManualParticipantCsrfToken = '';
+let eventManualParticipantDraft = null;
+
 async function loadEventRegistrationFields(eventId) {
+    eventManualParticipantFieldDefinitions = [];
+    eventManualParticipantCsrfToken = '';
     const builtIns = {
         first_name: {control: document.getElementById('guest-fornavn'), label: 'Fornavn', required: true},
         last_name: {control: document.getElementById('guest-etternavn'), label: 'Etternavn', required: true},
@@ -3590,7 +3669,24 @@ async function loadEventRegistrationFields(eventId) {
         const container = document.getElementById('dynamic-registration-fields');
         if (!container || String(selectedEventId) !== String(eventId)) return;
         container.replaceChildren();
-        if (!response.ok || !result?.success || !Array.isArray(result.fields)) return;
+        if (!response.ok || !result?.success || !Array.isArray(result.fields)) {
+            eventManualParticipantFieldDefinitions = [];
+            eventManualParticipantCsrfToken = '';
+            return;
+        }
+        eventManualParticipantFieldDefinitions = result.fields;
+        try {
+            const tokenResponse = await fetch(
+                `/api/get_entity_form_fields.php?entity_type=event&entity_id=${encodeURIComponent(eventId)}&csrf_only=1`
+            );
+            const tokenResult = await tokenResponse.json();
+            if (String(selectedEventId) === String(eventId) && tokenResponse.ok && tokenResult?.success) {
+                eventManualParticipantCsrfToken = typeof tokenResult.csrf_token === 'string' ? tokenResult.csrf_token : '';
+            }
+        } catch (tokenError) {
+            eventManualParticipantCsrfToken = '';
+            console.error('Error loading manual participant security token:', tokenError);
+        }
 
         const definitions = result.fields.filter(field => {
             const visibility = field.is_visible;
@@ -3694,6 +3790,8 @@ async function loadEventRegistrationFields(eventId) {
         });
         container.appendChild(row);
     } catch (error) {
+        eventManualParticipantFieldDefinitions = [];
+        eventManualParticipantCsrfToken = '';
         console.error('Error loading event fields:', error);
     }
 }
@@ -3839,6 +3937,254 @@ function eventSubmittedFieldDetails(fields) {
     return `<details class="small mt-1"><summary>Skjemasvar</summary><dl class="mb-0">${entries}</dl></details>`;
 }
 
+function eventManualFieldMarkup(fieldName, label, fieldType, options = [], rules = {}, defaultValue = '', index = 0, required = false) {
+    const safeName = eventFormEscapeText(fieldName);
+    const safeLabel = eventFormEscapeText(label || fieldName);
+    const safeValue = eventFormEscapeText(defaultValue ?? '');
+    const id = `manual-event-field-${index}`;
+    const dataAttribute = `data-manual-participant-field="${safeName}"`;
+    const allowedTypes = ['text', 'email', 'tel', 'number', 'date', 'textarea', 'select', 'checkbox'];
+    const type = allowedTypes.includes(fieldType) ? fieldType : 'text';
+    const requiredMark = required ? ' <span class="text-danger">*</span>' : '';
+
+    if (type === 'checkbox') {
+        const checked = defaultValue === true || defaultValue === 1 ||
+            ['1', 'true', 'yes', 'on'].includes(String(defaultValue).toLowerCase());
+        return `<div class="manual-participant-field"><div class="form-check">
+            <input class="form-check-input" type="checkbox" id="${id}" ${dataAttribute} value="1" ${checked ? 'checked' : ''}>
+            <label class="form-check-label" for="${id}">${safeLabel}</label>
+        </div></div>`;
+    }
+
+    let control;
+    if (type === 'textarea') {
+        control = `<textarea class="form-control form-control-sm" id="${id}" ${dataAttribute}>${safeValue}</textarea>`;
+    } else if (type === 'select') {
+        const choices = Array.isArray(options) ? options : [];
+        control = `<select class="form-select form-select-sm" id="${id}" ${dataAttribute}>
+            <option value="">Velg …</option>
+            ${choices.map(option => {
+                const value = String(option && typeof option === 'object' ? (option.value ?? option.label ?? '') : option ?? '');
+                const optionLabel = String(option && typeof option === 'object' ? (option.label ?? value) : value);
+                const selected = value === String(defaultValue ?? '') ? ' selected' : '';
+                return `<option value="${eventFormEscapeText(value)}"${selected}>${eventFormEscapeText(optionLabel)}</option>`;
+            }).join('')}
+        </select>`;
+    } else {
+        const min = rules.min !== undefined ? ` min="${eventFormEscapeText(rules.min)}"` : '';
+        const max = rules.max !== undefined ? ` max="${eventFormEscapeText(rules.max)}"` : '';
+        const maxLength = Number(rules.max_length ?? rules.maxLength);
+        const maxLengthAttribute = Number.isInteger(maxLength) && maxLength > 0 ? ` maxlength="${maxLength}"` : '';
+        control = `<input class="form-control form-control-sm" type="${type}" id="${id}" ${dataAttribute} value="${safeValue}"${min}${max}${maxLengthAttribute}>`;
+    }
+
+    return `<div class="manual-participant-field">
+        <label class="form-label" for="${id}">${safeLabel}${requiredMark}</label>
+        ${control}
+    </div>`;
+}
+
+async function beginManualEventParticipant(checkedIn, listId) {
+    if (!selectedEventId) {
+        toast.quickWarning('Deltaker', 'Velg et arrangement først.');
+        return;
+    }
+    if (!eventManualParticipantCsrfToken) {
+        toast.quickWarning('Deltaker', 'Skjemainformasjon lastes ennå. Prøv igjen om et øyeblikk.');
+        return;
+    }
+
+    if (eventManualParticipantDraft) {
+        if (eventManualParticipantDraft.querySelector('[data-manual-participant-save]')?.disabled) {
+            toast.quickWarning('Deltaker', 'Vent til deltakerlinjen er ferdig lagret.');
+            return;
+        }
+        const previousEventId = eventManualParticipantDraft.dataset.manualEventId;
+        eventManualParticipantDraft.remove();
+        eventManualParticipantDraft = null;
+        if (String(previousEventId) === String(selectedEventId)) await loadCheckins(selectedEventId);
+    }
+
+    const target = document.getElementById(listId);
+    if (!target) return;
+    target.querySelectorAll('.checkin-empty-state').forEach(emptyState => emptyState.closest('tr')?.remove());
+
+    const definitions = eventManualParticipantFieldDefinitions.filter(field => {
+        const visible = field.is_visible;
+        return visible === undefined || ![false, 0, '0', 'false'].includes(visible);
+    });
+    const byName = Object.fromEntries(definitions.map(field => [String(field.field_name), field]));
+    const row = document.createElement('tr');
+    row.className = 'manual-participant-row';
+    row.dataset.manualEventId = String(selectedEventId);
+    row.dataset.manualCheckedIn = checkedIn ? '1' : '0';
+
+    const coreFields = [
+        ['first_name', 'Fornavn', 'text', true],
+        ['last_name', 'Etternavn', 'text', true],
+        ['email', 'E-post', 'email', false],
+        ['phone', 'Telefon', 'tel', false],
+    ];
+    const fieldsMarkup = coreFields.map(([name, fallback, type, required], index) => {
+        const definition = byName[name];
+        return eventManualFieldMarkup(
+            name,
+            definition?.field_label || fallback,
+            type,
+            [],
+            definition?.validation_rules || {},
+            definition?.default_value || '',
+            index,
+            required
+        );
+    }).join('');
+
+    const customFields = definitions.filter(field =>
+        !['first_name', 'last_name', 'email', 'phone'].includes(String(field.field_name))
+    );
+    const customMarkup = customFields.map((field, index) => {
+        let options = field.options;
+        if (typeof options === 'string') {
+            try { options = JSON.parse(options); } catch (_) { options = []; }
+        }
+        let rules = field.validation_rules;
+        if (typeof rules === 'string') {
+            try { rules = JSON.parse(rules); } catch (_) { rules = {}; }
+        }
+        return eventManualFieldMarkup(
+            String(field.field_name || ''),
+            String(field.field_label || field.field_name || ''),
+            String(field.field_type || 'text'),
+            Array.isArray(options) ? options : [],
+            rules && typeof rules === 'object' ? rules : {},
+            field.default_value ?? '',
+            index + coreFields.length,
+            false
+        );
+    }).join('');
+
+    row.innerHTML = `<td colspan="5">
+        <div class="manual-participant-editor">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                    <strong>Ny deltaker</strong>
+                    <div class="small text-muted">Fornavn og etternavn må fylles ut. Ingen betaling registreres.</div>
+                </div>
+                <span class="badge ${checkedIn ? 'bg-success' : 'bg-warning text-dark'}">${checkedIn ? 'Innsjekket' : 'Venter'}</span>
+            </div>
+            <div class="manual-participant-fields">${fieldsMarkup}${customMarkup}</div>
+            <div class="manual-participant-error" data-manual-participant-error role="alert" aria-live="polite"></div>
+            <div class="manual-participant-actions">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-manual-participant-cancel>Avbryt</button>
+                <button type="button" class="btn btn-sm btn-primary" data-manual-participant-save><i class="bi bi-check-lg me-1"></i>Lagre deltaker</button>
+            </div>
+        </div>
+    </td>`;
+    target.prepend(row);
+    eventManualParticipantDraft = row;
+    row.querySelector('[data-manual-participant-field="first_name"]')?.focus();
+}
+
+function cancelManualEventParticipant(button) {
+    const row = button.closest('tr.manual-participant-row');
+    if (!row) return;
+    const eventId = row.dataset.manualEventId;
+    row.remove();
+    if (eventManualParticipantDraft === row) eventManualParticipantDraft = null;
+    if (String(selectedEventId) === String(eventId)) {
+        loadCheckins(selectedEventId);
+        if (document.getElementById('fullscreen-checkin-overlay')?.classList.contains('active')) {
+            syncCheckinToFullscreen();
+        }
+    }
+}
+
+async function saveManualEventParticipant(button) {
+    const row = button.closest('tr.manual-participant-row');
+    if (!row || button.disabled) return;
+    const error = row.querySelector('[data-manual-participant-error]');
+    const controls = Array.from(row.querySelectorAll('[data-manual-participant-field]'));
+    const valueFor = name => controls.find(control => control.dataset.manualParticipantField === name);
+    const first = valueFor('first_name');
+    const last = valueFor('last_name');
+    const firstName = first?.value.trim() || '';
+    const lastName = last?.value.trim() || '';
+
+    if (!firstName || !lastName) {
+        if (error) error.textContent = 'Fornavn og etternavn er påkrevd. Deltakeren er ikke lagret.';
+        const missing = !firstName ? first : last;
+        missing?.focus();
+        return;
+    }
+    const invalidEmail = controls.find(control => control.type === 'email' && !control.checkValidity());
+    if (invalidEmail) {
+        if (error) error.textContent = 'Kontroller e-postadressen før du lagrer.';
+        invalidEmail.focus();
+        return;
+    }
+
+    const optionalFields = {};
+    for (const control of controls) {
+        const name = control.dataset.manualParticipantField;
+        if (['first_name', 'last_name', 'email', 'phone'].includes(name)) continue;
+        optionalFields[name] = control.type === 'checkbox' ? (control.checked ? '1' : '0') : control.value;
+    }
+
+    const payload = {
+        event_id: row.dataset.manualEventId,
+        checked_in: row.dataset.manualCheckedIn === '1',
+        attendee_first_name: firstName,
+        attendee_last_name: lastName,
+        attendee_email: valueFor('email')?.value.trim() || '',
+        attendee_phone: valueFor('phone')?.value.trim() || '',
+        optional_fields: optionalFields,
+        csrf_token: eventManualParticipantCsrfToken
+    };
+
+    const draftControls = Array.from(row.querySelectorAll('input, select, textarea, button'));
+    draftControls.forEach(control => { control.disabled = true; });
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Lagrer…';
+    if (error) error.textContent = '';
+    try {
+        const response = await fetch('/api/create_manual_event_participant.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': eventManualParticipantCsrfToken
+            },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            if (error) error.textContent = result.message || 'Kunne ikke lagre deltakeren.';
+            return;
+        }
+        const eventId = row.dataset.manualEventId;
+        row.remove();
+        if (eventManualParticipantDraft === row) eventManualParticipantDraft = null;
+        toast.quickSuccess('Deltaker', result.message || 'Deltakeren er lagt til.');
+        if (String(selectedEventId) === String(eventId)) await loadCheckins(eventId);
+        if (document.getElementById('fullscreen-checkin-overlay')?.classList.contains('active')) {
+            await syncCheckinToFullscreen();
+        }
+    } catch (requestError) {
+        console.error('Error saving manual event participant:', requestError);
+        if (error) error.textContent = 'Kunne ikke lagre deltakeren. Prøv igjen.';
+    } finally {
+        if (row.isConnected) {
+            draftControls.forEach(control => { control.disabled = false; });
+            button.innerHTML = '<i class="bi bi-check-lg me-1"></i>Lagre deltaker';
+        }
+    }
+}
+
+document.addEventListener('click', event => {
+    const saveButton = event.target.closest('[data-manual-participant-save]');
+    const cancelButton = event.target.closest('[data-manual-participant-cancel]');
+    if (saveButton) saveManualEventParticipant(saveButton);
+    if (cancelButton) cancelManualEventParticipant(cancelButton);
+});
+
 async function loadCheckins(eventId) {
     try {
         const response = await fetch(`/api/get_event_checkins.php?event_id=${eventId}`);
@@ -3902,6 +4248,7 @@ async function loadCheckins(eventId) {
                             <td>
                                 <div class="attendee-name">${eventFormEscapeText(customerName)}</div>
                                 ${customerEmail ? `<div class="attendee-email">${eventFormEscapeText(customerEmail)}</div>` : ''}
+                                ${checkin.customer_phone ? `<div class="attendee-email">${eventFormEscapeText(checkin.customer_phone)}</div>` : ''}
                                 ${eventSubmittedFieldDetails(checkin.submitted_fields)}
                             </td>
                             <td>${typeBadge}</td>
@@ -3970,6 +4317,7 @@ async function loadCheckins(eventId) {
                                     <div>
                                         <div class="attendee-name">${eventFormEscapeText(customerName)}</div>
                                         ${customerEmail ? `<div class="attendee-email">${eventFormEscapeText(customerEmail)}</div>` : ''}
+                                        ${checkin.customer_phone ? `<div class="attendee-email">${eventFormEscapeText(checkin.customer_phone)}</div>` : ''}
                                         ${eventSubmittedFieldDetails(checkin.submitted_fields)}
                                     </div>
                                 </div>
@@ -6155,6 +6503,8 @@ async function syncCheckinToFullscreen() {
             document.getElementById('fullscreen-revenue').textContent = result.summary.checkin_revenue.toFixed(0) + ' kr';
             document.getElementById('fullscreen-expected').textContent = result.summary.expected_revenue.toFixed(0) + ' kr';
             document.getElementById('fullscreen-total-attendees').textContent = result.summary.total_attendees;
+            document.getElementById('fullscreen-confirmed-badge').textContent = result.summary.checked_in_count;
+            document.getElementById('fullscreen-pending-badge').textContent = result.summary.not_checked_in_count;
             
             // Payment method names
             const paymentMethodNames = {
@@ -6177,7 +6527,7 @@ async function syncCheckinToFullscreen() {
                         '<span class="badge bg-warning text-dark">Venter</span>';
                     
                     return `<tr class="${isNoShow ? 'table-secondary' : ''}">
-                        <td><div class="attendee-name">${c.customer_name || 'Ukjent'}</div>${c.customer_email ? `<div class="attendee-email">${c.customer_email}</div>` : ''}</td>
+                        <td><div class="attendee-name">${eventFormEscapeText(c.customer_name || 'Ukjent')}</div>${c.customer_email ? `<div class="attendee-email">${eventFormEscapeText(c.customer_email)}</div>` : ''}${c.customer_phone ? `<div class="attendee-email">${eventFormEscapeText(c.customer_phone)}</div>` : ''}${eventSubmittedFieldDetails(c.submitted_fields)}</td>
                         <td>${typeBadge}</td>
                         <td>${isNoShow ? `<s class="text-muted">${c.ticket_price} kr</s>` : `${c.ticket_price} kr`}</td>
                         <td>${paymentBadge}</td>
@@ -6205,7 +6555,7 @@ async function syncCheckinToFullscreen() {
                     const paymentButtons = getFullscreenPaymentButtons(c.id, c.customer_name || 'Ukjent', isPaid);
                     
                     return `<tr>
-                        <td><div class="attendee-name">${c.customer_name || 'Ukjent'}</div>${c.customer_email ? `<div class="attendee-email">${c.customer_email}</div>` : ''}</td>
+                        <td><div class="attendee-name">${eventFormEscapeText(c.customer_name || 'Ukjent')}</div>${c.customer_email ? `<div class="attendee-email">${eventFormEscapeText(c.customer_email)}</div>` : ''}${c.customer_phone ? `<div class="attendee-email">${eventFormEscapeText(c.customer_phone)}</div>` : ''}${eventSubmittedFieldDetails(c.submitted_fields)}</td>
                         <td>${typeBadge}</td>
                         <td>${c.ticket_price} kr</td>
                         <td>${paymentStatusBadge}</td>

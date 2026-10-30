@@ -86,6 +86,7 @@ try {
             $checkin['first_name']=$submitted['guest']['first_name']??$checkin['first_name'];
             $checkin['last_name']=$submitted['guest']['last_name']??$checkin['last_name'];
             $checkin['customer_email']=$submitted['guest']['email']??$checkin['customer_email'];
+            $checkin['customer_phone']=$submitted['guest']['phone']??$checkin['customer_phone'];
         }
         // Build full name for display
         $checkin['customer_name'] = trim(($checkin['first_name'] ?? '') . ' ' . ($checkin['last_name'] ?? ''));

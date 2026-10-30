@@ -22,6 +22,50 @@ function eventGuestFormNotes(PDO $db,string $company,string $eventId,array $inpu
     return $notes;
 }
 
+/**
+ * Build the same stable answer snapshot for an administrator-added participant,
+ * while keeping the event's configured fields optional for this manual flow.
+ */
+function eventManualGuestFormNotes(
+    PDO $db,
+    string $company,
+    string $eventId,
+    string $first,
+    string $last,
+    ?string $email,
+    ?string $phone,
+    array $input
+): string {
+    $fields=entityFormLoad($db,$company,'event',$eventId)['fields'];
+    $submitted=$input['optional_fields']??[];
+    if(!is_array($submitted))throw new InvalidArgumentException('Ugyldige skjemasvar');
+
+    $core=['first_name'=>$first,'last_name'=>$last,'email'=>$email??'','phone'=>$phone??''];
+    $visible=[];
+    foreach($fields as $field) {
+        if(empty($field['is_visible']))continue;
+        $name=(string)$field['field_name'];
+        if(array_key_exists($name,$core))$submitted[$name]=$core[$name];
+        $field['is_required']=0;
+        $visible[]=$field;
+    }
+    $values=validateEntityFormValues($visible,$submitted);
+    $snapshot=[];
+    foreach($visible as $field)$snapshot[]=[
+        'field_name'=>$field['field_name'],
+        'field_label'=>$field['field_label'],
+        'field_type'=>$field['field_type'],
+        'value'=>$values[$field['field_name']],
+    ];
+    $notes=json_encode([
+        'format'=>'entity_form_v1',
+        'guest'=>$core,
+        'form_fields'=>$snapshot,
+    ],JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);
+    if(strlen($notes)>60000)throw new InvalidArgumentException('Skjemasvarene er samlet for lange');
+    return $notes;
+}
+
 function eventGuestFormSnapshot(?string $notes): array {
     // Existing no-show handling appends a newline; retain the original snapshot.
     $value=json_decode(explode("\n",(string)$notes,2)[0],true);

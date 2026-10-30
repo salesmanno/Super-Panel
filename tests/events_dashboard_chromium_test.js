@@ -32,6 +32,7 @@ let moduleHtml = render.stdout
     .replace(/<link[^>]*href="(\/assets\/[^"]+)"[^>]*>/g,(_,src) => '<style>'+fs.readFileSync(path.join(root,src),'utf8')+'</style>');
 const stubs = `
 window.testErrors=[];window.fixtureCalls=[];window.fixtureWrites=[];window.fixtureFieldWrites=[];window.fixtureEdits=[];
+window.fixtureManualWrites=[];window.fixtureManualCheckins=[];
 window.addEventListener('error',e=>testErrors.push(e.message));
 window.addEventListener('unhandledrejection',e=>testErrors.push(String(e.reason)));
 window.confirmAnswer=true;window.confirm=()=>confirmAnswer;window.prompt=()=> 'Testbegrunnelse';
@@ -49,6 +50,7 @@ window.fixtureFields=['first_name','last_name','email','phone','custom_note'].ma
  field_name:name,field_label:{first_name:'Fornavn',last_name:'Etternavn',email:'E-post',phone:'Telefon',custom_note:'Kommentar'}[name],
  field_type:name==='email'?'email':name==='phone'?'tel':'text',is_visible:index<3,is_required:index<2,sort_order:index,validation_rules:{},options:[]
 }));
+window.fixtureManualFields=[...fixtureFields,{field_name:'dietary',field_label:'Matbehov',field_type:'textarea',is_visible:1,is_required:1,sort_order:5,validation_rules:{max_length:300},options:[]}];
 window.fixtureFailFields=false;window.fixtureFailFieldSave=false;window.fixtureFailEvents=false;window.fixtureFailEdit=false;
 window.fixtureMembershipPlans=[{id:'standard',name:'Standardmedlem'},{id:'premium',name:'Premiummedlem'}];
 window.fixturePending=['event-0','event-1'].map((event_id,i)=>({id:'reg-'+i,event_id,event_title:'Arrangement '+i,start_date:'2035-06-12',start_time:'19:00:00',
@@ -58,6 +60,30 @@ window.fetch=async (url,options={})=>{
  const route=String(url);const params=new URL(route,'https://fixture.test').searchParams;
  const payload=options.body?JSON.parse(options.body):null;
  let result={success:true,data:[],plans:[],registrations:[],checkins:[]},status=200;
+ if(route.includes('get_event_checkins.php')){
+  const rows=fixtureManualCheckins.filter(row=>row.event_id===params.get('event_id'));
+  const checked=rows.filter(row=>row.checked_in===1),pending=rows.filter(row=>row.checked_in===0);
+  result={success:true,checked_in:checked,not_checked_in:pending,summary:{
+   total_attendees:rows.length,checked_in_count:checked.length,not_checked_in_count:pending.length,no_show_count:0,
+   checkin_revenue:0,expected_revenue:0,paid_count:0,checkin_paid_count:0,pending_count:rows.length
+  }};
+ }
+ else if(route.includes('get_event_fields.php')){result={success:true,fields:fixtureManualFields};}
+ else if(route.includes('create_manual_event_participant.php')){
+  fixtureManualWrites.push(payload);
+  const checkin={id:'manual-'+fixtureManualCheckins.length,event_id:payload.event_id,
+   checked_in:payload.checked_in?1:0,check_in_time:payload.checked_in?'2026-10-30 12:00:00':null,
+   customer_name:payload.attendee_first_name+' '+payload.attendee_last_name,customer_email:payload.attendee_email,
+   customer_phone:payload.attendee_phone,membership_plan_name:null,ticket_price:0,payment_status:'pending',
+   payment_method:null,submitted_fields:fixtureManualFields.filter(field=>field.is_visible).map(field=>({
+    field_name:field.field_name,field_label:field.field_label,field_type:field.field_type,
+    value:({first_name:payload.attendee_first_name,last_name:payload.attendee_last_name,email:payload.attendee_email,
+     phone:payload.attendee_phone,...payload.optional_fields})[field.field_name]??''
+   }))};
+  fixtureManualCheckins.push(checkin);
+  result={success:true,message:'Deltakeren er lagt til',checkin_id:checkin.id,checked_in:payload.checked_in,
+   payment_status:'pending',ticket_price:0};
+ }
  if(route.includes('get_events.php')){result={success:!fixtureFailEvents,events:fixtureEvents,message:'Fixture event-load failure'};}
  else if(route.includes('get_event.php')){result={success:true,event:fixtureEvents.find(e=>e.id===params.get('id'))};}
  else if(route.includes('get_entity_form_fields.php')){result={success:!fixtureFailFields,csrf_token:'fixture-csrf',revision:'revision-a',
@@ -177,6 +203,44 @@ const checks = `(async()=>{
  check(document.getElementById('events-registrations').style.display==='block'&&!document.querySelector('#eventsOverviewModalBody #events-registrations'),'Original registration subtab restored and usable');
  nav('events-my');await settle();check(document.getElementById('events-my').style.display==='block','Old event list retained');
  nav('events-dashboard');await settle();
+ await openEventDetail('event-0','Arrangement 0','12.06.2035');await settle();await settle();
+ check(eventManualParticipantCsrfToken==='fixture-csrf','Manual participant editor receives the event-scoped CSRF token');
+ check(document.querySelector('#checkin-confirmed-tab .card-header button[aria-label="Legg til innsjekket deltaker"]')
+  &&document.querySelector('#checkin-pending-tab .card-header button[aria-label="Legg til deltaker som venter"]')
+  &&document.querySelector('#fullscreen-checkin-overlay button[aria-label="Legg til innsjekket deltaker i fullskjerm"]')
+  &&document.querySelector('#fullscreen-checkin-overlay button[aria-label="Legg til deltaker som venter i fullskjerm"]'),
+  'Both participant lists have add controls in normal and fullscreen views');
+ await beginManualEventParticipant(false,'checkin-pending-list');
+ let manualRow=document.querySelector('#checkin-pending-list .manual-participant-row');
+ check(manualRow&&manualRow.querySelectorAll('[data-manual-participant-field]').length>=5,'Inline row exposes core and configured participant fields');
+ check(document.documentElement.scrollWidth<=innerWidth+1,'Inline participant editor fits the viewport');
+ click(manualRow.querySelector('[data-manual-participant-save]'));await settle();
+ check(fixtureManualWrites.length===0&&manualRow.querySelector('[data-manual-participant-error]').textContent.includes('Fornavn og etternavn'),
+  'Missing names prevent the API call and keep an inline validation message');
+ typed(manualRow.querySelector('[data-manual-participant-field="first_name"]'),'Ada');
+ typed(manualRow.querySelector('[data-manual-participant-field="phone"]'),'12345678');
+ click(manualRow.querySelector('[data-manual-participant-save]'));await settle();
+ check(fixtureManualWrites.length===0,'Missing surname remains blocked after partial entry');
+ typed(manualRow.querySelector('[data-manual-participant-field="last_name"]'),'Nord');
+ click(manualRow.querySelector('[data-manual-participant-save]'));await settle();
+ check(fixtureManualWrites.length===1&&fixtureManualWrites[0].checked_in===false
+  &&fixtureManualWrites[0].attendee_first_name==='Ada'&&fixtureManualWrites[0].attendee_last_name==='Nord'
+  &&fixtureManualWrites[0].attendee_phone==='12345678'&&fixtureManualWrites[0].optional_fields.dietary==='',
+  'Waiting-list save submits optional blank fields and keeps the selected status');
+ check(document.querySelector('#checkin-pending-list').textContent.includes('Ada Nord')
+  &&document.getElementById('checkin-total-attendees').textContent==='1','Successful save refreshes the list and count');
+ document.getElementById('open-fullscreen-checkin').click();await settle();
+ check(document.getElementById('fullscreen-checkin-overlay').classList.contains('active'),'Fullscreen participant list opens');
+ await beginManualEventParticipant(true,'fullscreen-checked-list');
+ manualRow=document.querySelector('#fullscreen-checked-list .manual-participant-row');
+ typed(manualRow.querySelector('[data-manual-participant-field="first_name"]'),'Liv');
+ typed(manualRow.querySelector('[data-manual-participant-field="last_name"]'),'Berg');
+ click(manualRow.querySelector('[data-manual-participant-save]'));await settle();
+ check(fixtureManualWrites.length===2&&fixtureManualWrites[1].checked_in===true
+  &&document.querySelector('#fullscreen-checked-list').textContent.includes('Liv Berg')
+  &&document.getElementById('fullscreen-total-attendees').textContent==='2',
+  'Fullscreen save assigns the checked-in list and refreshes fullscreen counts');
+ closeFullscreenCheckin();await settle();
  fixtureFailEvents=true;await loadEvents();await settle();
  check(document.getElementById('eventsDashboardNotice').textContent.toLowerCase().includes('feil'),'Source error is explicit');
  fixtureFailEvents=false;await loadEvents();await settle();

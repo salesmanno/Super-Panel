@@ -4,6 +4,7 @@ set -euo pipefail
 # Disposable socket-only MySQL. Never use the app's database configuration.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MYSQLD="$(command -v mysqld || true)"
+PDO_MYSQL_AVAILABLE="$(php -m | grep -i '^pdo_mysql$' || true)"
 TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/rental-unavailable-mysql.XXXXXX")"
 SERVER_PID=''
 cleanup() {
@@ -14,7 +15,7 @@ cleanup() {
     rm -rf "$TEMP_ROOT"
 }
 trap cleanup EXIT INT TERM
-if [[ -z "$MYSQLD" ]] || ! php -m | grep -qi '^pdo_mysql$'; then
+if [[ -z "$MYSQLD" ]] || [[ -z "$PDO_MYSQL_AVAILABLE" ]]; then
     echo "mysqld and PHP pdo_mysql are required for the isolated rental test" >&2
     exit 2
 fi
@@ -71,6 +72,8 @@ elif [[ "${1:-}" == "--audit" ]]; then
     php "$ROOT/tests/tenant_audit_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--event-payment-audit" ]]; then
     php "$ROOT/tests/event_payment_audit_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
+elif [[ "${1:-}" == "--manual-event-participant" ]]; then
+    php "$ROOT/tests/manual_event_participant_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--audit-all" ]]; then
     php "$ROOT/tests/tenant_audit_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
     php "$ROOT/tests/rental_confirmation_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
