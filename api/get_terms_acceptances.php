@@ -2,6 +2,7 @@
 session_start();
 session_write_close();
 require_once '../config/database.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 header('Content-Type: application/json');
 
@@ -32,6 +33,8 @@ try {
     }
     
     // Get acceptances with customer data from tenant_customers
+    $customerEmailSql = tenantCustomerContactSql('c', 'email');
+    $customerPhoneSql = tenantCustomerContactSql('c', 'phone');
     $stmt = $db->prepare("
         SELECT 
             ta.id,
@@ -39,15 +42,15 @@ try {
             ta.module_context,
             c.first_name,
             c.last_name,
-            c.email,
-            c.phone
+            {$customerEmailSql} AS email,
+            {$customerPhoneSql} AS phone
         FROM tenant_terms_acceptances ta
-        LEFT JOIN tenant_customers c ON ta.customer_id = c.id
+        LEFT JOIN tenant_customers c ON ta.customer_id = c.id AND c.company_id = ?
         WHERE ta.terms_conditions_id = ?
         ORDER BY ta.accepted_at DESC
         LIMIT 100
     ");
-    $stmt->execute([$terms_id]);
+    $stmt->execute([$company_id, $terms_id]);
     $acceptances = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     echo json_encode(['success' => true, 'data' => $acceptances]);

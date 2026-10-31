@@ -3,6 +3,7 @@ session_start();
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 require_once __DIR__ . '/../includes/rental_customer_fields.php';
 require_once __DIR__ . '/../includes/rental_request.php';
 require_once __DIR__ . '/../includes/rental_request_fields.php';
@@ -149,16 +150,24 @@ try {
         $lookup = ['phone', $fields['phone']];
     }
     if ($lookup) {
-        $customerStmt = $db->prepare(
-            "SELECT id, first_name, last_name, email, phone
-             FROM tenant_customers
-             WHERE company_id = ? AND {$lookup[0]} = ?
-             ORDER BY created_at ASC
-             LIMIT 1
-             FOR UPDATE"
+        $customer = tenantCustomerFindByContact(
+            $db,
+            (string) $object['company_id'],
+            $lookup[0],
+            (string) $lookup[1],
+            true
         );
-        $customerStmt->execute([$object['company_id'], $lookup[1]]);
-        $customer = $customerStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        if ($customer) {
+            $customerEmailSql = tenantCustomerContactSql('tc', 'email');
+            $customerPhoneSql = tenantCustomerContactSql('tc', 'phone');
+            $contactStmt = $db->prepare("
+                SELECT {$customerEmailSql} AS email, {$customerPhoneSql} AS phone
+                FROM tenant_customers tc
+                WHERE tc.id = ? AND tc.company_id = ?
+            ");
+            $contactStmt->execute([$customer['id'], $object['company_id']]);
+            $customer = array_merge($customer, $contactStmt->fetch(PDO::FETCH_ASSOC) ?: []);
+        }
     }
 
     $customerColumnMap = [
@@ -197,10 +206,24 @@ try {
             $db->prepare(
                 'INSERT INTO tenant_customers (' . implode(', ', $columns) . ') VALUES (' . $placeholders . ')'
             )->execute($values);
-            $customer = array_merge(
-                ['id' => $customerId, 'first_name' => null, 'last_name' => null, 'email' => null, 'phone' => null],
-                $fields
-            );
+            foreach (['email', 'phone'] as $contactType) {
+                if (!empty($fields[$contactType])) {
+                    tenantCustomerSetPrimaryContact(
+                        $db,
+                        (string) $object['company_id'],
+                        (string) $customerId,
+                        $contactType,
+                        (string) $fields[$contactType]
+                    );
+                }
+            }
+            $customer = [
+                'id' => $customerId,
+                'first_name' => $fields['first_name'] ?? null,
+                'last_name' => $fields['last_name'] ?? null,
+                'email' => $fields['email'] ?? null,
+                'phone' => $fields['phone'] ?? null,
+            ];
         }
     }
 

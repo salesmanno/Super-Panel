@@ -9,10 +9,13 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 try {
     $db        = getDBConnection();
     $companyId = $_SESSION['company_id'];
+    $customerEmailSql = tenantCustomerContactSql('c', 'email');
+    $customerPhoneSql = tenantCustomerContactSql('c', 'phone');
 
     if (isset($_GET['stats']) && $_GET['stats'] == '1') {
         $totalStmt = $db->prepare("
@@ -75,8 +78,8 @@ try {
             c.id as customer_id,
             c.first_name,
             c.last_name,
-            c.email,
-            c.phone,
+            {$customerEmailSql} AS email,
+            {$customerPhoneSql} AS phone,
             c.address_street as address,
             c.address_city as poststed,
             c.date_of_birth as dateofbirth,
@@ -85,7 +88,7 @@ try {
             p.price as plan_price,
             p.share_code
         FROM membership_members mm
-        LEFT JOIN tenant_customers c ON mm.customer_id = c.id
+        LEFT JOIN tenant_customers c ON mm.customer_id = c.id AND c.company_id = mm.company_id
         LEFT JOIN membership_plans p ON mm.membership_plan_id = p.id
         WHERE mm.company_id = ?
           {$cancelFilter}

@@ -3,6 +3,7 @@ session_start();
 session_write_close();
 require_once '../config/database.php';
 require_once __DIR__ . '/../includes/ledger_reporting.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 header('Content-Type: application/json');
 
@@ -72,6 +73,8 @@ try {
             $page = min($page, $totalPages);
             $offset = ($page - 1) * $perPage;
 
+            $customerEmailSql = tenantCustomerContactSql('tc', 'email');
+            $customerPhoneSql = tenantCustomerContactSql('tc', 'phone');
             $stmt = $db->prepare("
                 SELECT
                     COALESCE(SUM(
@@ -145,8 +148,9 @@ try {
                     ul.payment_method, ul.payment_status, ul.status AS ledger_status,
                     ul.transaction_date, ul.metadata,
                     NULLIF(TRIM(CONCAT(COALESCE(tc.first_name, ''), ' ', COALESCE(tc.last_name, ''))), '') AS customer_name,
-                    tc.company_name AS customer_company, tc.email AS customer_email,
-                    tc.phone AS customer_phone, tc.customer_code
+                    tc.company_name AS customer_company,
+                    {$customerEmailSql} AS customer_email,
+                    {$customerPhoneSql} AS customer_phone, tc.customer_code
                 FROM unified_ledger ul
                 LEFT JOIN tenant_customers tc
                     ON tc.id = ul.customer_id AND tc.company_id = ul.company_id

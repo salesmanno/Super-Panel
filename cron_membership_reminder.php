@@ -13,6 +13,7 @@
  */
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/tenant_customer_contacts.php';
 require_once __DIR__ . '/includes/email_template_tags.php';
 
 $startTime = date('Y-m-d H:i:s');
@@ -80,6 +81,7 @@ try {
         //   - Automailer_Sent = 1 (utløpsvarsel sendt)
         //   - CURDATE() > expiration_date + 14 dager
         //   - Ikke kansellert
+        $customerEmailSql = tenantCustomerContactSql('c', 'email');
         $memberStmt = $db->prepare("
             SELECT
                 mm.id          AS member_id,
@@ -87,7 +89,7 @@ try {
                 mm.member_code,
                 c.first_name,
                 c.last_name,
-                c.email,
+                {$customerEmailSql} AS email,
                 p.name         AS plan_name,
                 p.share_code
             FROM membership_members mm
@@ -97,8 +99,8 @@ try {
               AND mm.Automailer_Sent = 1
               AND CURDATE() > DATE_ADD(mm.expiration_date, INTERVAL 14 DAY)
               AND (mm.cancellation_active IS NULL OR mm.cancellation_active = 0)
-              AND c.email IS NOT NULL
-              AND c.email != ''
+              AND {$customerEmailSql} IS NOT NULL
+              AND {$customerEmailSql} != ''
         ");
         $memberStmt->execute([$companyId]);
         $members = $memberStmt->fetchAll(PDO::FETCH_ASSOC);

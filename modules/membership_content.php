@@ -537,6 +537,49 @@
     </div>
 </div>
 
+<div class="modal fade" id="customerContactManagerModal" tabindex="-1" aria-labelledby="customerContactManagerTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <div class="small text-muted">Kundekontakter</div>
+                    <h5 class="modal-title" id="customerContactManagerTitle">Administrer kontakter</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Lukk"></button>
+            </div>
+            <div class="modal-body">
+                <div id="customer-contact-manager-status" class="small mb-3" role="status"></div>
+                <div id="customer-contact-list" class="list-group mb-3">
+                    <div class="text-muted small py-2">Velg en kunde for å vise kontakter.</div>
+                </div>
+                <form id="customer-contact-add-form" class="border rounded p-3">
+                    <div class="fw-semibold small mb-2">Legg til kontakt</div>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-4">
+                            <label class="form-label small" for="customer-contact-type">Type</label>
+                            <select class="form-select form-select-sm" id="customer-contact-type" name="contact_type">
+                                <option value="email">E-post</option>
+                                <option value="phone">Telefon</option>
+                            </select>
+                        </div>
+                        <div class="col-8">
+                            <label class="form-label small" for="customer-contact-value">Kontaktverdi</label>
+                            <input class="form-control form-control-sm" id="customer-contact-value" name="contact_value" required>
+                        </div>
+                    </div>
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="customer-contact-primary" name="is_primary">
+                        <label class="form-check-label small" for="customer-contact-primary">Sett som hovedkontakt</label>
+                    </div>
+                    <button class="btn btn-primary btn-sm mt-3" type="submit">
+                        <i class="bi bi-plus-lg me-1"></i>Legg til
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal for opprett medlemskapsplan -->
 <div class="modal fade" id="createPlanModal" tabindex="-1">
     <div class="modal-dialog">
@@ -1273,7 +1316,7 @@ function renderMembersTable(members) {
             const shortRef = member.member_id ? String(member.member_id).substring(0, 8).toUpperCase() : '-';
             
             return `
-                <tr data-member-id="${member.member_id}" data-plan-id="${member.membership_plan_id || ''}" data-address="${escapeH(member.address || '')}" data-poststed="${escapeH(member.poststed || '')}">
+                <tr data-member-id="${member.member_id}" data-customer-id="${escapeH(member.customer_id || '')}" data-plan-id="${member.membership_plan_id || ''}" data-address="${escapeH(member.address || '')}" data-poststed="${escapeH(member.poststed || '')}">
                     <td>
                         <code class="d-block">${member.member_code || shortRef}</code>
                         <span class="badge ${statusBadge} mt-1" style="font-size:0.65rem;">${statusText}</span>
@@ -1289,6 +1332,12 @@ function renderMembersTable(members) {
                         <div class="editable-member-cell small" data-field="email">
                             <i class="bi bi-envelope me-1 text-muted"></i>${escapeH(member.email)}
                         </div>
+                        <button type="button" class="btn btn-link btn-sm px-0 py-1"
+                                data-open-customer-contacts
+                                data-customer-id="${escapeH(member.customer_id || '')}"
+                                data-customer-name="${escapeH((member.first_name || '') + ' ' + (member.last_name || ''))}">
+                            <i class="bi bi-person-lines-fill me-1"></i>Administrer kontakter
+                        </button>
                     </td>
                     <td class="small text-nowrap">
                         <div class="text-muted">Fra: ${fmtDate(member.join_date)}</div>
@@ -2257,4 +2306,108 @@ function downloadMembersExcel() {
     const url = '../api/export_members_excel.php?fields=' + encodeURIComponent(fields.join(','));
     window.location.href = url;
 }
+
+let activeContactManagerCustomerId = '';
+
+async function openCustomerContactManager(customerId, customerName) {
+    if (!customerId) {
+        alert('Fant ikke kundekoblingen for dette medlemmet.');
+        return;
+    }
+    activeContactManagerCustomerId = String(customerId);
+    document.getElementById('customerContactManagerTitle').textContent =
+        customerName ? `Kontakter · ${customerName}` : 'Administrer kontakter';
+    document.getElementById('customer-contact-manager-status').textContent = '';
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('customerContactManagerModal')).show();
+    await loadCustomerContacts();
+}
+
+async function loadCustomerContacts() {
+    const list = document.getElementById('customer-contact-list');
+    const status = document.getElementById('customer-contact-manager-status');
+    list.innerHTML = '<div class="text-muted small py-2">Laster kontakter …</div>';
+    try {
+        const response = await fetch(`/api/get_customer_contacts.php?customer_id=${encodeURIComponent(activeContactManagerCustomerId)}`);
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'Kunne ikke hente kontakter.');
+        if (!result.contacts.length) {
+            list.innerHTML = '<div class="text-muted small py-2">Ingen kontakter er lagret ennå.</div>';
+            return;
+        }
+        list.innerHTML = result.contacts.map(contact => {
+            const label = contact.contact_type === 'email' ? 'E-post' : 'Telefon';
+            const verified = contact.verified_at
+                ? '<span class="badge text-bg-light border ms-2">Bekreftet</span>'
+                : '';
+            const primary = Number(contact.is_primary) === 1;
+            return `<div class="list-group-item d-flex align-items-center gap-2">
+                <div class="flex-grow-1 min-w-0">
+                    <div class="small text-muted">${label}${primary ? '<span class="badge text-bg-primary ms-2">Hovedkontakt</span>' : ''}${verified}</div>
+                    <div class="text-break">${escapeH(contact.contact_value)}</div>
+                </div>
+                <div class="d-flex gap-1 flex-shrink-0">
+                    ${primary ? '' : `<button type="button" class="btn btn-sm btn-outline-primary" data-contact-action="primary" data-contact-id="${escapeH(contact.id)}" title="Sett som hovedkontakt"><i class="bi bi-star"></i></button>`}
+                    <button type="button" class="btn btn-sm btn-outline-danger" data-contact-action="delete" data-contact-id="${escapeH(contact.id)}" title="Fjern kontakt"><i class="bi bi-trash"></i></button>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (error) {
+        list.innerHTML = '<div class="text-danger small py-2">Kontaktene kunne ikke lastes.</div>';
+        status.textContent = error.message;
+    }
+}
+
+async function submitCustomerContactAction(payload) {
+    const status = document.getElementById('customer-contact-manager-status');
+    status.textContent = '';
+    try {
+        const response = await fetch('/api/manage_customer_contact.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({...payload, customer_id: activeContactManagerCustomerId})
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'Kunne ikke lagre kontaktopplysningen.');
+        status.textContent = result.message;
+        await loadCustomerContacts();
+        await loadMembers();
+        return true;
+    } catch (error) {
+        status.textContent = error.message;
+        status.className = 'small mb-3 text-danger';
+        return false;
+    }
+}
+
+document.getElementById('customer-contact-add-form')?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const value = form.elements.contact_value.value.trim();
+    const saved = await submitCustomerContactAction({
+        action: 'add',
+        contact_type: form.elements.contact_type.value,
+        contact_value: value,
+        is_primary: form.elements.is_primary.checked
+    });
+    if (saved) {
+        form.elements.contact_value.value = '';
+        form.elements.is_primary.checked = false;
+    }
+});
+
+document.addEventListener('click', async event => {
+    const openButton = event.target.closest('[data-open-customer-contacts]');
+    if (openButton) {
+        await openCustomerContactManager(openButton.dataset.customerId, openButton.dataset.customerName);
+        return;
+    }
+    const actionButton = event.target.closest('[data-contact-action]');
+    if (!actionButton) return;
+    const action = actionButton.dataset.contactAction;
+    if (action === 'delete' && !confirm('Fjerne denne kontaktopplysningen fra kundeprofilen?')) return;
+    await submitCustomerContactAction({
+        action,
+        contact_id: actionButton.dataset.contactId
+    });
+});
 </script>

@@ -9,6 +9,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -38,6 +39,8 @@ if (empty($selectedFields)) {
 try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
+    $customerEmailSql = tenantCustomerContactSql('c', 'email');
+    $customerPhoneSql = tenantCustomerContactSql('c', 'phone');
 
     $stmt = $db->prepare("
         SELECT
@@ -47,12 +50,12 @@ try {
             mm.payment_status,
             c.first_name,
             c.last_name,
-            c.email,
-            c.phone,
+            {$customerEmailSql} AS email,
+            {$customerPhoneSql} AS phone,
             c.address_street AS address,
             p.name AS membership_type
         FROM membership_members mm
-        LEFT JOIN tenant_customers c ON mm.customer_id = c.id
+        LEFT JOIN tenant_customers c ON mm.customer_id = c.id AND c.company_id = mm.company_id
         LEFT JOIN membership_plans p ON mm.membership_plan_id = p.id
         WHERE mm.company_id = ?
           AND (mm.cancellation_active IS NULL OR mm.cancellation_active = 0)

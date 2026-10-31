@@ -11,6 +11,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 require_once __DIR__ . '/../includes/rental_request_fields.php';
 require_once __DIR__ . '/../includes/tenant_notifications.php';
 require_once __DIR__ . '/../includes/rental_schedule_editing.php';
@@ -50,6 +51,8 @@ try {
 
     $weekdaySelect = rentalWeekdayPriceSelect($db, 'ro');
     $weekdayEnabledSelect = rentalWeekdayPricingEnabledSelect($db, 'ro');
+    $customerEmailSql = tenantCustomerContactSql('tc', 'email');
+    $customerPhoneSql = tenantCustomerContactSql('tc', 'phone');
     $stmt = $db->prepare("
         SELECT
             rs.*,
@@ -67,8 +70,8 @@ try {
                 NULLIF(TRIM(CONCAT(COALESCE(tc.first_name,''), ' ', COALESCE(tc.last_name,''))), ''),
                 'Ukjent kunde'
             )                AS display_customer_name,
-            COALESCE(NULLIF(TRIM(rs.customer_email), ''), NULLIF(TRIM(tc.email), '')) AS display_email,
-            COALESCE(NULLIF(TRIM(rs.customer_phone), ''), NULLIF(TRIM(tc.phone), '')) AS display_phone,
+            COALESCE(NULLIF(TRIM(rs.customer_email), ''), {$customerEmailSql}) AS display_email,
+            COALESCE(NULLIF(TRIM(rs.customer_phone), ''), {$customerPhoneSql}) AS display_phone,
             tc.date_of_birth AS date_of_birth,
             (SELECT eq.status FROM email_queue eq
              WHERE eq.company_id = rs.company_id AND eq.source_id = rs.id

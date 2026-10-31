@@ -9,6 +9,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/request_date_time.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 $body = json_decode(file_get_contents('php://input'), true);
 $invoiceType        = $body['invoice_type'] ?? 'general';
@@ -26,6 +27,7 @@ try {
     $dueDate = normalizeRequestDate($dueDate, 'Forfallsdato');
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
+    $db->beginTransaction();
 
     if ($bankAccountId) {
         $baCheck = $db->prepare("SELECT id FROM economy_bank_accounts WHERE id = ? AND company_id = ? AND is_active = 1");
@@ -110,13 +112,10 @@ try {
         $firstName = trim($manualCustomer['first_name']);
         $lastName  = trim($manualCustomer['last_name'] ?? '');
         $email     = trim($manualCustomer['email'] ?? '');
-        $existingStmt = $db->prepare("
-            SELECT id FROM tenant_customers
-            WHERE company_id = ? AND email = ? AND email != ''
-            LIMIT 1
-        ");
-        $existingStmt->execute([$companyId, $email]);
-        $existing = $existingStmt->fetchColumn();
+        $existingCustomer = $email !== ''
+            ? tenantCustomerFindByContact($db, (string) $companyId, 'email', $email, true)
+            : null;
+        $existing = $existingCustomer['id'] ?? null;
         if ($existing) {
             $customerId = $existing;
         } else {
@@ -127,10 +126,11 @@ try {
                 VALUES (?, ?, ?, ?, ?, ?, 'invoice_manual', NOW())
             ")->execute([$newCustomerId, $companyId, $customerCode, $firstName, $lastName, $email ?: null]);
             $customerId = $newCustomerId;
+            if ($email !== '') {
+                tenantCustomerSetPrimaryContact($db, (string) $companyId, (string) $customerId, 'email', $email);
+            }
         }
     }
-
-    $db->beginTransaction();
 
     $numStmt = $db->prepare("
         SELECT COALESCE(
@@ -208,6 +208,7 @@ try {
     ]);
 
 } catch (InvalidArgumentException $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 } catch (Exception $e) {

@@ -21,11 +21,13 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     $source = $_GET['source'] ?? 'customers';
+    $customerEmailSql = tenantCustomerContactSql('tc', 'email');
 
     if ($source === 'members') {
         $stmt = $db->prepare("
@@ -33,7 +35,7 @@ try {
                 tc.id,
                 tc.first_name,
                 tc.last_name,
-                tc.email
+                {$customerEmailSql} AS email
             FROM membership_members mm
             JOIN tenant_customers tc
               ON tc.id = mm.customer_id
@@ -42,20 +44,20 @@ try {
               AND mm.status = 'active'
               AND (mm.cancellation_active IS NULL OR mm.cancellation_active = 0)
               AND (mm.expiration_date IS NULL OR mm.expiration_date >= CURDATE())
-              AND tc.email IS NOT NULL
-              AND tc.email != ''
+              AND {$customerEmailSql} IS NOT NULL
+              AND {$customerEmailSql} != ''
             ORDER BY tc.last_name, tc.first_name
         ");
         $stmt->execute([$companyId]);
     } else {
         $stmt = $db->prepare("
-            SELECT id, first_name, last_name, email
-            FROM tenant_customers
-            WHERE company_id = ?
-              AND email IS NOT NULL
-              AND email != ''
-              AND status = 'active'
-            ORDER BY last_name, first_name
+            SELECT tc.id, tc.first_name, tc.last_name, {$customerEmailSql} AS email
+            FROM tenant_customers tc
+            WHERE tc.company_id = ?
+              AND {$customerEmailSql} IS NOT NULL
+              AND {$customerEmailSql} != ''
+              AND tc.status = 'active'
+            ORDER BY tc.last_name, tc.first_name
         ");
         $stmt->execute([$companyId]);
     }

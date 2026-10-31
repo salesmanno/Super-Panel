@@ -8,6 +8,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -29,6 +30,7 @@ try {
     $member = $memberStmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$member) {
+        $db->rollBack();
         echo json_encode(['success' => false, 'message' => 'Medlem ikke funnet']);
         exit;
     }
@@ -36,12 +38,9 @@ try {
     $customerId = $member['customer_id'];
     
     // Fields that belong to tenant_customers
-    $customerFields = ['first_name', 'last_name', 'email', 'phone', 'notes'];
     $customerFieldMapping = [
         'first_name' => 'first_name',
         'last_name' => 'last_name',
-        'email' => 'email',
-        'phone' => 'phone',
         'address' => 'address_street',
         'poststed' => 'address_city',
         'dateofbirth' => 'date_of_birth',
@@ -85,6 +84,19 @@ try {
         $stmt->execute($customerParams);
         $updatedCustomer = true;
     }
+
+    foreach (['email', 'phone'] as $contactType) {
+        if (array_key_exists($contactType, $data)) {
+            tenantCustomerSetPrimaryContact(
+                $db,
+                (string) $companyId,
+                (string) $customerId,
+                $contactType,
+                (string) ($data[$contactType] ?? '')
+            );
+            $updatedCustomer = true;
+        }
+    }
     
     // Update membership_members if there are member field changes
     if (!empty($memberUpdates)) {
@@ -98,6 +110,7 @@ try {
     }
     
     if (!$updatedCustomer && !$updatedMember) {
+        $db->rollBack();
         echo json_encode(['success' => false, 'message' => 'Ingen felt å oppdatere']);
         exit;
     }

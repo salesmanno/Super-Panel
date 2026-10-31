@@ -11,6 +11,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/EmailService.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
 require_once __DIR__ . '/../includes/active_payment_methods.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -42,9 +43,14 @@ try {
     // Load customer data if available
     $customerData = null;
     if (!empty($customerId)) {
+        $customerEmailSql = tenantCustomerContactSql('tc', 'email');
+        $customerPhoneSql = tenantCustomerContactSql('tc', 'phone');
         $custStmt = $db->prepare("
-            SELECT first_name, last_name, email, phone FROM tenant_customers
-            WHERE id = ? AND company_id = ?
+            SELECT tc.first_name, tc.last_name,
+                   {$customerEmailSql} AS email,
+                   {$customerPhoneSql} AS phone
+            FROM tenant_customers tc
+            WHERE tc.id = ? AND tc.company_id = ?
         ");
         $custStmt->execute([$customerId, $_SESSION['company_id']]);
         $customerData = $custStmt->fetch(PDO::FETCH_ASSOC);

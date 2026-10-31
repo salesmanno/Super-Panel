@@ -2,6 +2,7 @@
 session_start();
 session_write_close();
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 header('Content-Type: application/json');
 
@@ -16,6 +17,8 @@ $month = isset($_GET['month']) ? intval($_GET['month']) : null;
 
 try {
     $db = getDBConnection();
+    $customerEmailSql = tenantCustomerContactSql('c', 'email');
+    $customerPhoneSql = tenantCustomerContactSql('c', 'phone');
     
     // Get all active members with their membership plans
     $stmt = $db->prepare("
@@ -24,8 +27,8 @@ try {
             mm.customer_id,
             c.first_name,
             c.last_name,
-            c.email,
-            c.phone,
+            {$customerEmailSql} AS email,
+            {$customerPhoneSql} AS phone,
             mm.join_date,
             mm.expiration_date as expiry_date,
             mm.status as member_status,

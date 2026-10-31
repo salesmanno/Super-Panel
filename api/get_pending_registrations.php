@@ -10,10 +10,13 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/entity_form_fields.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
+    $customerEmailSql = tenantCustomerContactSql('c', 'email');
+    $customerPhoneSql = tenantCustomerContactSql('c', 'phone');
     
     // Get pending registrations with event, customer, and pricing info
     // Customer data from tenant_customers used for dynamic field display
@@ -27,8 +30,8 @@ try {
             r.approval_status,
             c.first_name,
             c.last_name,
-            c.email,
-            c.phone,
+            {$customerEmailSql} AS email,
+            {$customerPhoneSql} AS phone,
             c.customer_code,
             c.customer_type,
             c.address_street,

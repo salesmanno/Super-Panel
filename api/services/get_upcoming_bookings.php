@@ -8,6 +8,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/tenant_customer_contacts.php';
 
 try {
     $db = getDBConnection();
@@ -15,6 +16,8 @@ try {
     
     $today = date('Y-m-d');
     $currentTime = date('H:i:s');
+    $customerEmailSql = tenantCustomerContactSql('tc', 'email');
+    $customerPhoneSql = tenantCustomerContactSql('tc', 'phone');
     
     $sql = "
         SELECT 
@@ -34,8 +37,8 @@ try {
             CONCAT(ts.first_name, ' ', ts.last_name) as staff_name,
             tc.first_name as customer_first_name,
             tc.last_name as customer_last_name,
-            tc.email as customer_email,
-            tc.phone as customer_phone
+            {$customerEmailSql} as customer_email,
+            {$customerPhoneSql} as customer_phone
         FROM service_bookings b
         LEFT JOIN reservation_services rs ON b.service_id = rs.id
         LEFT JOIN tenant_staff ts ON b.staff_id = ts.id

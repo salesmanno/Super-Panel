@@ -9,11 +9,13 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 try {
     $db        = getDBConnection();
     $companyId = $_SESSION['company_id'];
     $context   = $_GET['context'] ?? 'all';
+    $customerEmailSql = tenantCustomerContactSql('tc', 'email');
 
     $where = "tc.company_id = ? AND tc.status = 'active'";
     $params = [$companyId];
@@ -32,7 +34,7 @@ try {
             SELECT
                 tc.id,
                 TRIM(CONCAT(COALESCE(tc.first_name,''), ' ', COALESCE(tc.last_name,''))) AS name,
-                tc.email,
+                {$customerEmailSql} AS email,
                 tc.customer_code,
                 mm.id          AS mm_id,
                 mm.member_code,
@@ -67,7 +69,7 @@ try {
     $stmt = $db->prepare("
         SELECT tc.id,
                TRIM(CONCAT(COALESCE(tc.first_name, ''), ' ', COALESCE(tc.last_name, ''))) AS name,
-               tc.email,
+               {$customerEmailSql} AS email,
                tc.customer_code
         FROM tenant_customers tc
         WHERE $where

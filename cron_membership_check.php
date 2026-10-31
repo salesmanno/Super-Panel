@@ -13,6 +13,7 @@
  */
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/tenant_customer_contacts.php';
 require_once __DIR__ . '/includes/email_template_tags.php';
 
 $startTime = date('Y-m-d H:i:s');
@@ -72,6 +73,7 @@ try {
         $template = $tplStmt->fetch(PDO::FETCH_ASSOC);
 
         // Step 2: Find inactive expired members not yet notified
+        $customerEmailSql = tenantCustomerContactSql('c', 'email');
         $memberStmt = $db->prepare("
             SELECT
                 mm.id          AS member_id,
@@ -79,7 +81,7 @@ try {
                 mm.member_code,
                 c.first_name,
                 c.last_name,
-                c.email,
+                {$customerEmailSql} AS email,
                 p.name         AS plan_name,
                 p.share_code
             FROM membership_members mm
@@ -90,8 +92,8 @@ try {
               AND mm.expiration_date < CURDATE()
               AND mm.Automailer_Sent = 0
               AND (mm.cancellation_active IS NULL OR mm.cancellation_active = 0)
-              AND c.email IS NOT NULL
-              AND c.email != ''
+              AND {$customerEmailSql} IS NOT NULL
+              AND {$customerEmailSql} != ''
         ");
         $memberStmt->execute([$companyId]);
         $members = $memberStmt->fetchAll(PDO::FETCH_ASSOC);

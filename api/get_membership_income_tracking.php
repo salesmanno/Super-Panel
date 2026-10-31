@@ -2,6 +2,7 @@
 session_start();
 session_write_close();
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 header('Content-Type: application/json');
 
@@ -16,6 +17,8 @@ $currentYear = date('Y');
 
 try {
     $db = getDBConnection();
+    $customerEmailSql = tenantCustomerContactSql('c', 'email');
+    $customerPhoneSql = tenantCustomerContactSql('c', 'phone');
     
     // MYSQL ONLY - Join with tenant_customers for personal data
     $stmt = $db->prepare("
@@ -23,8 +26,8 @@ try {
             mm.id as member_id,
             c.first_name,
             c.last_name,
-            c.email,
-            c.phone,
+            {$customerEmailSql} AS email,
+            {$customerPhoneSql} AS phone,
             c.address_street as address,
             c.address_city as poststed,
             c.date_of_birth as dateofbirth,

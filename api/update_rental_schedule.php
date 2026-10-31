@@ -9,6 +9,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 require_once __DIR__ . '/../includes/request_date_time.php';
 require_once __DIR__ . '/../includes/rental_confirmation_email.php';
 require_once __DIR__ . '/../includes/rental_schedule_editing.php';
@@ -63,6 +64,7 @@ try {
 
     $weekdaySelect = rentalWeekdayPriceSelect($db, 'ro');
     $weekdayEnabledSelect = rentalWeekdayPricingEnabledSelect($db, 'ro');
+    $customerEmailSql = tenantCustomerContactSql('tc', 'email');
     $stmt = $db->prepare("
         SELECT rs.id, rs.company_id, rs.rental_object_id, rs.approved, rs.status,
                rs.start_date, rs.end_date, rs.rental_fee, rs.customer_id,
@@ -78,7 +80,7 @@ try {
                $weekdaySelect AS weekday_prices,
                $weekdayEnabledSelect AS weekday_prices_enabled,
                COALESCE(rv.cleaning_fee, 0) AS cleaning_fee,
-               tc.email AS profile_customer_email,
+                {$customerEmailSql} AS profile_customer_email,
                tc.first_name AS profile_first_name,
                tc.last_name AS profile_last_name,
                company.name AS company_name,

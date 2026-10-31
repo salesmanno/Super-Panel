@@ -23,6 +23,7 @@ foreach ($argv as $arg) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 $startTime = date('Y-m-d H:i:s');
 echo "[{$startTime}] Ledger backfill started" . ($isDryRun ? ' [DRY RUN]' : '') . "\n";
@@ -47,6 +48,7 @@ try {
         echo "[" . date('Y-m-d H:i:s') . "] Begrenset til company_id: {$companyId}\n";
     }
 
+    $customerEmailSql = tenantCustomerContactSql('c', 'email');
     $stmt = $db->prepare("
         SELECT
             mmr.id             AS renewal_id,
@@ -62,11 +64,11 @@ try {
             p.price            AS plan_price,
             c.first_name,
             c.last_name,
-            c.email
+            {$customerEmailSql} AS email
         FROM membership_members_renew mmr
         JOIN membership_members mm ON mm.id   = mmr.membership_member_id
         JOIN membership_plans   p  ON p.id    = mm.membership_plan_id
-        JOIN tenant_customers   c  ON c.id    = mm.customer_id
+        JOIN tenant_customers   c  ON c.id    = mm.customer_id AND c.company_id = mm.company_id
         LEFT JOIN unified_ledger ul
             ON ul.module_source = 'membership'
            AND ul.source_id     = mmr.id

@@ -9,10 +9,12 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 try {
     $db        = getDBConnection();
     $companyId = $_SESSION['company_id'];
+    $customerEmailSql = tenantCustomerContactSql('c', 'email');
 
     $stmt = $db->prepare("
         SELECT
@@ -36,9 +38,9 @@ try {
             i.membership_plan_id,
             i.membership_member_id,
             TRIM(CONCAT(COALESCE(c.first_name, ''), ' ', COALESCE(c.last_name, ''))) AS customer_name,
-            c.email AS customer_email
+            {$customerEmailSql} AS customer_email
         FROM economy_invoices i
-        LEFT JOIN tenant_customers c ON c.id = i.customer_id
+        LEFT JOIN tenant_customers c ON c.id = i.customer_id AND c.company_id = i.company_id
         WHERE i.company_id = ?
           AND i.status != 'dismantled'
         ORDER BY i.created_at DESC

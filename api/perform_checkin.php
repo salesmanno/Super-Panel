@@ -13,6 +13,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
 require_once __DIR__ . '/../includes/tenant_audit.php';
 require_once __DIR__ . '/../includes/active_payment_methods.php';
@@ -57,6 +58,7 @@ try {
     
     // Get checkin record with customer and event info
     // Use membership_plan_id FK instead of ticket_type column
+    $customerEmailSql = tenantCustomerContactSql('tc', 'email');
     $stmt = $db->prepare("
         SELECT 
             c.id,
@@ -71,12 +73,13 @@ try {
             tc.id as tenant_customer_id,
             tc.first_name,
             tc.last_name,
-            tc.email as customer_email,
+            {$customerEmailSql} as customer_email,
             ee.title as event_title,
             ee.company_id,
             mp.name as membership_plan_name
         FROM events_checkin c
-        LEFT JOIN tenant_customers tc ON c.customer_id = tc.id
+        LEFT JOIN tenant_customers tc
+          ON c.customer_id = tc.id AND tc.company_id = ee.company_id
         JOIN events_eventdata ee ON c.event_id = ee.id
         LEFT JOIN membership_plans mp ON c.membership_plan_id = mp.id
         WHERE c.id = ? AND ee.company_id = ?

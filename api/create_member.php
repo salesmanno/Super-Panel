@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id'],$_SESSION['company_id'])) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
 require_once __DIR__ . '/../includes/active_payment_methods.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -34,43 +35,25 @@ try {
         $paymentMethod = requireActivePaymentMethod($db,(string)$companyId,$data['paymentMethod']??null);
     }
     
-    // Check if customer with this phone already exists (if phone provided)
-    if (!empty($data['phone'])) {
-        $phoneCheck = $db->prepare("
-            SELECT tc.id, tc.first_name, tc.last_name, mm.id as member_id 
-            FROM tenant_customers tc
-            LEFT JOIN membership_members mm ON mm.customer_id = tc.id AND mm.company_id = tc.company_id
-            WHERE tc.company_id = ? AND tc.phone = ?
-        ");
-        $phoneCheck->execute([$companyId, $data['phone']]);
-        $existingPhone = $phoneCheck->fetch(PDO::FETCH_ASSOC);
-        
-        if ($existingPhone) {
-            $name = trim($existingPhone['first_name'] . ' ' . $existingPhone['last_name']);
-            if ($existingPhone['member_id']) {
-                echo json_encode(['success' => false, 'message' => "Mobilnummer er allerede registrert på medlem: $name"]);
-            } else {
-                echo json_encode(['success' => false, 'message' => "Mobilnummer er allerede registrert på kunde: $name"]);
-            }
-            exit;
+    foreach (['email' => 'E-postadressen', 'phone' => 'Telefonnummeret'] as $type => $label) {
+        $value = trim((string) ($data[$type] ?? ''));
+        if ($value === '') continue;
+        if ($type === 'email' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
+            throw new InvalidArgumentException('E-postadressen er ugyldig.');
         }
-    }
-    
-    // Check if customer with this email already exists (if email provided) — block if found
-    if (!empty($data['email'])) {
-        $checkStmt = $db->prepare("SELECT id, first_name, last_name FROM tenant_customers WHERE company_id = ? AND email = ?");
-        $checkStmt->execute([$companyId, $data['email']]);
-        $existingEmail = $checkStmt->fetch(PDO::FETCH_ASSOC);
-        if ($existingEmail) {
-            $name = trim($existingEmail['first_name'] . ' ' . $existingEmail['last_name']);
-            // Check if already a member
-            $memberCheck = $db->prepare("SELECT id FROM membership_members WHERE company_id = ? AND customer_id = ?");
-            $memberCheck->execute([$companyId, $existingEmail['id']]);
-            if ($memberCheck->fetch()) {
-                echo json_encode(['success' => false, 'message' => "E-post er allerede registrert på eksisterende medlem: $name"]);
-            } else {
-                echo json_encode(['success' => false, 'message' => "E-post er allerede registrert på kunde: $name"]);
-            }
+        $existing = tenantCustomerFindByContact($db, (string) $companyId, $type, $value, true);
+        if ($existing) {
+            $name = trim(($existing['first_name'] ?? '') . ' ' . ($existing['last_name'] ?? ''));
+            $memberCheck = $db->prepare(
+                'SELECT id FROM membership_members WHERE company_id = ? AND customer_id = ? LIMIT 1'
+            );
+            $memberCheck->execute([$companyId, $existing['id']]);
+            $isMember = (bool) $memberCheck->fetchColumn();
+            $message = $type === 'email'
+                ? ($isMember ? "E-post er allerede registrert på eksisterende medlem: $name" : "E-post er allerede registrert på kunde: $name")
+                : ($isMember ? "Mobilnummer er allerede registrert på medlem: $name" : "Mobilnummer er allerede registrert på kunde: $name");
+            $db->rollBack();
+            echo json_encode(['success' => false, 'message' => $message]);
             exit;
         }
     }
@@ -102,6 +85,15 @@ try {
             ($data['dateofbirth'] ?? '') ?: null,
             $data['notes'] ?? null
         ]);
+        foreach (['email', 'phone'] as $contactType) {
+            tenantCustomerSetPrimaryContact(
+                $db,
+                (string) $companyId,
+                (string) $customerId,
+                $contactType,
+                (string) ($data[$contactType] ?? '')
+            );
+        }
     }
     
     // Handle join date - validate and use provided date or default to today

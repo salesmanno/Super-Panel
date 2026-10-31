@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
 require_once __DIR__ . '/../includes/request_date_time.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -25,17 +26,18 @@ try {
     activePaymentMethodsLock($db,(string)$_SESSION['company_id']);
     
     // Get member details (MYSQL ONLY)
+    $customerEmailSql = tenantCustomerContactSql('c', 'email');
     $stmt = $db->prepare("
         SELECT 
             mm.*,
             c.first_name,
             c.last_name,
-            c.email,
+            {$customerEmailSql} AS email,
             p.billing_cycle,
             p.price,
             p.name as plan_name
         FROM membership_members mm
-        LEFT JOIN tenant_customers c ON mm.customer_id = c.id
+        LEFT JOIN tenant_customers c ON mm.customer_id = c.id AND c.company_id = mm.company_id
         LEFT JOIN membership_plans p ON mm.membership_plan_id = p.id AND p.company_id=mm.company_id
         WHERE mm.id = ? AND mm.company_id = ?
     ");

@@ -9,6 +9,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 require_once __DIR__.'/../includes/event_form_submission.php';
 
 try {
@@ -20,6 +21,8 @@ try {
     }
 
     $db = getDBConnection();
+    $customerEmailSql = tenantCustomerContactSql('tc', 'email');
+    $customerPhoneSql = tenantCustomerContactSql('tc', 'phone');
     
     // Verify event belongs to user's company and get event details
     $stmt = $db->prepare("
@@ -56,14 +59,15 @@ try {
             c.created_at,
             tc.first_name,
             tc.last_name,
-            tc.email as customer_email,
-            tc.phone as customer_phone,
+            {$customerEmailSql} as customer_email,
+            {$customerPhoneSql} as customer_phone,
             ts.first_name as admin_first_name,
             ts.last_name as admin_last_name,
             mp.name as membership_plan_name,
             emp.ticket_price as membership_ticket_price
         FROM events_checkin c
-        LEFT JOIN tenant_customers tc ON c.customer_id = tc.id
+        LEFT JOIN tenant_customers tc
+          ON c.customer_id = tc.id AND tc.company_id = ?
         LEFT JOIN tenant_admins ta ON c.checked_in_by = ta.id
         LEFT JOIN tenant_staff ts ON ta.tenant_staff_id = ts.id
         LEFT JOIN membership_plans mp ON c.membership_plan_id = mp.id
@@ -72,7 +76,7 @@ try {
         ORDER BY c.checked_in DESC, c.check_in_time DESC, c.created_at DESC
     ");
     
-    $stmt->execute([$eventId]);
+    $stmt->execute([$_SESSION['company_id'], $eventId]);
     $allCheckins = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Split into checked_in and not checked_in

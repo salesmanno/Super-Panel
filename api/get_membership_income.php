@@ -3,6 +3,7 @@ session_start();
 session_write_close();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/ledger_reporting.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 header('Content-Type: application/json');
 
@@ -15,6 +16,7 @@ $company_id = $_SESSION['company_id'];
 
 try {
     $db = getDBConnection();
+    $customerEmailSql = tenantCustomerContactSql('c', 'email');
     $paidSql = ledger_reporting_paid_sql();
     $netSql = '(' . ledger_reporting_income_sql() . ') - (' . ledger_reporting_expense_sql() . ')';
     
@@ -54,7 +56,7 @@ try {
             ul.item_name,
             ul.item_type,
             CONCAT(COALESCE(c.first_name, ''), ' ', COALESCE(c.last_name, '')) as customer_name,
-            c.email as email,
+            {$customerEmailSql} as email,
             ul.quantity,
             ul.selling_price,
             ul.selling_price as total,

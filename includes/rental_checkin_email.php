@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/tenant_customer_contacts.php';
 require_once __DIR__ . '/tenant_audit.php';
 
 require_once __DIR__ . '/rental_confirmation_email.php';
@@ -41,10 +42,11 @@ function queueRentalCheckinEmails(
     }
     $today = $today ?: rentalCodeToday();
     $companyScope = $companyId === null ? '' : ' AND rs.company_id = ?';
+    $customerEmailSql = tenantCustomerContactSql('tc', 'email');
     $find = $db->prepare("
         SELECT rs.*, ro.object_name, ro.rental_text,
                COALESCE(rv.cleaning_fee, 0) AS cleaning_fee,
-               tc.email AS profile_customer_email, tc.first_name, tc.last_name,
+                {$customerEmailSql} AS profile_customer_email, tc.first_name, tc.last_name,
                company.name AS company_name, company.contact_phone,
                ec.display_name AS contact_person,
                company.address_street, company.address_zip, company.address_city,

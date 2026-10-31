@@ -27,10 +27,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/email_delivery_safety.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
+    $customerEmailSql = tenantCustomerContactSql('tc', 'email');
     $data = json_decode(file_get_contents('php://input'), true);
     $requestId = $data['idempotency_key'] ?? null;
     if ($requestId !== null && (!is_string($requestId)
@@ -148,9 +150,9 @@ try {
     ");
 
     $customerStmt = $db->prepare("
-        SELECT first_name, last_name
-        FROM tenant_customers
-        WHERE email = ? AND company_id = ?
+        SELECT tc.first_name, tc.last_name
+        FROM tenant_customers tc
+        WHERE tc.company_id = ? AND {$customerEmailSql} = ?
         LIMIT 1
     ");
 
@@ -167,7 +169,7 @@ try {
     if ($memberRecipients) {
         $memberPlaceholders = implode(',', array_fill(0, count($memberRecipients), '?'));
         $activeMembersStmt = $db->prepare("
-            SELECT mm.id, LOWER(TRIM(tc.email)) AS email
+            SELECT mm.id, LOWER(TRIM({$customerEmailSql})) AS email
             FROM membership_members mm
             INNER JOIN tenant_customers tc
               ON tc.id = mm.customer_id
@@ -176,9 +178,9 @@ try {
               AND mm.status = 'active'
               AND (mm.cancellation_active IS NULL OR mm.cancellation_active = 0)
               AND (mm.expiration_date IS NULL OR mm.expiration_date >= CURDATE())
-              AND tc.email IS NOT NULL
-              AND tc.email != ''
-              AND LOWER(TRIM(tc.email)) IN ($memberPlaceholders)
+              AND {$customerEmailSql} IS NOT NULL
+              AND {$customerEmailSql} != ''
+              AND LOWER(TRIM({$customerEmailSql})) IN ($memberPlaceholders)
             FOR UPDATE
         ");
         $activeMembersStmt->execute(array_merge([$companyId], $memberRecipients));
@@ -203,7 +205,7 @@ try {
     }
 
     foreach ($validRecipients as $recipient) {
-        $customerStmt->execute([$recipient, $companyId]);
+        $customerStmt->execute([$companyId, $recipient]);
         $customer = $customerStmt->fetch(PDO::FETCH_ASSOC);
 
         $rendered = renderWebmailMessage($subject, $body, $customer ?: [], (string) $companyName);

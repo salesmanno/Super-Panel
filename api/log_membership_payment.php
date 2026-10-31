@@ -5,6 +5,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
 require_once __DIR__ . '/../includes/active_payment_methods.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -45,16 +46,17 @@ try {
     $memberId = $data['member_id'] ?? null;
     
     if ($memberId) {
+        $customerEmailSql = tenantCustomerContactSql('c', 'email');
         $stmt = $db->prepare("
             SELECT 
                 mm.id as member_id,
                 c.first_name,
                 c.last_name,
-                c.email,
+                {$customerEmailSql} AS email,
                 mp.name as plan_name,
                 mp.price as plan_price
             FROM membership_members mm
-            LEFT JOIN tenant_customers c ON mm.customer_id = c.id
+            LEFT JOIN tenant_customers c ON mm.customer_id = c.id AND c.company_id = mm.company_id
             LEFT JOIN membership_plans mp ON mm.membership_plan_id = mp.id
             WHERE mm.id = ? AND mm.company_id = ?
         ");

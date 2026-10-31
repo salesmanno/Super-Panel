@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/BarcodeService.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -24,6 +25,8 @@ try {
     $companyId = $_SESSION['company_id'];
     $adminId = $_SESSION['tenant_admin_id'];
     $approvalReason = $data['approval_reason'] ?? 'manual approval';
+    $customerEmailSql = tenantCustomerContactSql('c', 'email');
+    $customerPhoneSql = tenantCustomerContactSql('c', 'phone');
     
     // Fetch registration data with customer info (base data)
     // Note: event_registrations only has: id, event_id, company_id, customer_id, approval_status, approved_by, approved_at, created_at
@@ -31,12 +34,13 @@ try {
     $regStmt = $db->prepare("
         SELECT er.id, er.event_id, er.customer_id, er.approval_status, er.created_at,
                ee.ticket_price AS event_ticket_price, ee.default_payment_method,
-               c.first_name, c.last_name, c.email, c.phone,
+                c.first_name, c.last_name,
+                {$customerEmailSql} AS email, {$customerPhoneSql} AS phone,
                CASE WHEN mm.membership_plan_id IS NOT NULL THEN 1 ELSE 0 END AS is_member,
                mm.membership_plan_id AS customer_membership_plan_id
         FROM event_registrations er
         JOIN events_eventdata ee ON er.event_id = ee.id
-        JOIN tenant_customers c ON er.customer_id = c.id
+        JOIN tenant_customers c ON er.customer_id = c.id AND c.company_id = er.company_id
         LEFT JOIN membership_members mm ON mm.customer_id = c.id AND mm.company_id = er.company_id AND mm.status = 'active'
         WHERE er.id = ? AND er.company_id = ? AND er.approval_status = 'pending'
     ");

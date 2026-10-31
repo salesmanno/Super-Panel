@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 $companyId = $_SESSION['company_id'];
 
@@ -41,6 +42,7 @@ try {
     $whereClause = implode(' AND ', $where);
 
     try {
+        $customerEmailSql = tenantCustomerContactSql('tc', 'email');
         $stmt = $db->prepare("
             SELECT
                 rc.*,
@@ -51,7 +53,7 @@ try {
                     TRIM(CONCAT(COALESCE(tc.first_name,''), ' ', COALESCE(tc.last_name,''))),
                     'Ukjent kunde'
                 ) AS display_customer_name,
-                tc.email         AS customer_email,
+                {$customerEmailSql} AS customer_email,
                 DATEDIFF(rc.end_date, CURDATE()) AS days_remaining
             FROM rental_contracts rc
             INNER JOIN rental_objects ro  ON ro.id = rc.rental_object_id AND ro.company_id = rc.company_id

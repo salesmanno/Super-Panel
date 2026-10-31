@@ -9,6 +9,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 try {
     $db        = getDBConnection();
@@ -22,6 +23,7 @@ try {
     )->fetchColumn();
 
     $expirySelect = $hasNewExpiry ? 'mmr.new_expiry_date,' : '';
+    $customerEmailSql = tenantCustomerContactSql('c', 'email');
 
     $stmt = $db->prepare("
         SELECT
@@ -38,7 +40,7 @@ try {
             p.price            AS plan_price,
             c.first_name,
             c.last_name,
-            c.email
+            {$customerEmailSql} AS email
         FROM membership_members_renew mmr
         JOIN membership_members mm ON mm.id   = mmr.membership_member_id
         JOIN membership_plans   p  ON p.id    = mm.membership_plan_id

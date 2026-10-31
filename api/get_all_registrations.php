@@ -9,9 +9,12 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 try {
     $db = getDBConnection();
+    $customerEmailSql = tenantCustomerContactSql('c', 'email');
+    $customerPhoneSql = tenantCustomerContactSql('c', 'phone');
     
     // Customer data from tenant_customers used for display
     // Membership info is in membership_members table
@@ -24,8 +27,8 @@ try {
             r.customer_id,
             c.first_name,
             c.last_name,
-            c.email,
-            c.phone,
+            {$customerEmailSql} AS email,
+            {$customerPhoneSql} AS phone,
             c.customer_code,
             c.address_street,
             c.address_zip,

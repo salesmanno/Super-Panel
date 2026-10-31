@@ -2,6 +2,7 @@
 session_start();
 require_once '../config/database.php';
 require_once __DIR__.'/../includes/event_form_submission.php';
+require_once __DIR__.'/../includes/tenant_customer_contacts.php';
 
 header('Content-Type: application/json');
 
@@ -56,13 +57,17 @@ try {
     
     // Check for duplicate registration by email (if email provided and only one person)
     if ($email && $number_of_people === 1) {
+        $emailSql = tenantCustomerContactSql('tc', 'email');
         $dupStmt = $db->prepare("
             SELECT ec.id, ec.checked_in, ec.payment_status
             FROM events_checkin ec
-            LEFT JOIN tenant_customers tc ON ec.customer_id = tc.id
-            WHERE ec.event_id = ? AND (tc.email = ? OR ec.notes LIKE ?)
+            JOIN events_eventdata ev ON ev.id = ec.event_id AND ev.company_id = ?
+            LEFT JOIN tenant_customers tc
+              ON ec.customer_id = tc.id AND tc.company_id = ev.company_id
+            WHERE ec.event_id = ?
+              AND ({$emailSql} = ? OR ec.notes LIKE ?)
         ");
-        $dupStmt->execute([$event_id, $email, "%{$email}%"]);
+        $dupStmt->execute([$company_id, $event_id, $email, "%{$email}%"]);
         $existingCheckin = $dupStmt->fetch(PDO::FETCH_ASSOC);
         
         if ($existingCheckin) {

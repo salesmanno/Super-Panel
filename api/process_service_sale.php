@@ -3,6 +3,7 @@ session_start();
 require_once '../config/database.php';
 require_once '../includes/UnifiedLedgerService.php';
 require_once '../includes/request_date_time.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 header('Content-Type: application/json');
 
@@ -132,9 +133,13 @@ try {
     
     // Check if customer exists in tenant_customers, if not create
     $customer_id = null;
-    $stmt = $db->prepare("SELECT id FROM tenant_customers WHERE company_id = ? AND email = ? LIMIT 1");
-    $stmt->execute([$company_id, $customer_email]);
-    $existing_customer = $stmt->fetch();
+    $existing_customer = tenantCustomerFindByContact(
+        $db,
+        (string) $company_id,
+        'email',
+        $customer_email,
+        true
+    );
     
     if ($existing_customer) {
         $customer_id = $existing_customer['id'];
@@ -157,6 +162,10 @@ try {
             $customer_email,
             $customer_phone
         ]);
+        tenantCustomerSetPrimaryContact($db, (string) $company_id, (string) $customer_id, 'email', $customer_email);
+        if ($customer_phone !== '') {
+            tenantCustomerSetPrimaryContact($db, (string) $company_id, (string) $customer_id, 'phone', $customer_phone);
+        }
     }
     
     // Create appropriate transaction based on service type

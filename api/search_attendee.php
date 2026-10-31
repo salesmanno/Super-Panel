@@ -8,6 +8,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 
 try {
     $query = $_GET['query'] ?? '';
@@ -18,21 +19,23 @@ try {
     }
     
     $db = getDBConnection();
+    $customerEmailSql = tenantCustomerContactSql('tc', 'email');
+    $customerPhoneSql = tenantCustomerContactSql('tc', 'phone');
     
     // Search in tenant_customers for existing customers
     $stmt = $db->prepare("
         SELECT 
-            id,
-            first_name || ' ' || last_name as name,
-            email,
-            phone
-        FROM tenant_customers
-        WHERE company_id = ?
+            tc.id,
+            CONCAT(COALESCE(tc.first_name, ''), ' ', COALESCE(tc.last_name, '')) as name,
+            {$customerEmailSql} AS email,
+            {$customerPhoneSql} AS phone
+        FROM tenant_customers tc
+        WHERE tc.company_id = ?
         AND (
-            id::text ILIKE ?
-            OR first_name || ' ' || last_name ILIKE ?
-            OR email ILIKE ?
-            OR phone ILIKE ?
+            CAST(tc.id AS CHAR) LIKE ?
+            OR CONCAT(COALESCE(tc.first_name, ''), ' ', COALESCE(tc.last_name, '')) LIKE ?
+            OR {$customerEmailSql} LIKE ?
+            OR {$customerPhoneSql} LIKE ?
         )
         LIMIT 1
     ");
