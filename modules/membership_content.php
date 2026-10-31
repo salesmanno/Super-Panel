@@ -564,7 +564,7 @@
                         </div>
                         <div class="col-8">
                             <label class="form-label small" for="customer-contact-value">Kontaktverdi</label>
-                            <input class="form-control form-control-sm" id="customer-contact-value" name="contact_value" required>
+                            <input class="form-control form-control-sm" id="customer-contact-value" name="contact_value" type="email" maxlength="255" required>
                         </div>
                     </div>
                     <div class="form-check mt-2">
@@ -1334,8 +1334,8 @@ function renderMembersTable(members) {
                         </div>
                         <button type="button" class="btn btn-link btn-sm px-0 py-1"
                                 data-open-customer-contacts
-                                data-customer-id="${escapeH(member.customer_id || '')}"
-                                data-customer-name="${escapeH((member.first_name || '') + ' ' + (member.last_name || ''))}">
+                                data-customer-id="${customerContactAttribute(member.customer_id || '')}"
+                                data-customer-name="${customerContactAttribute((member.first_name || '') + ' ' + (member.last_name || ''))}">
                             <i class="bi bi-person-lines-fill me-1"></i>Administrer kontakter
                         </button>
                     </td>
@@ -2308,6 +2308,12 @@ function downloadMembersExcel() {
 }
 
 let activeContactManagerCustomerId = '';
+let customerContactLoadRevision = 0;
+
+function customerContactAttribute(value) {
+    return String(value ?? '').replace(/[&<>"']/g, character =>
+        ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[character]));
+}
 
 async function openCustomerContactManager(customerId, customerName) {
     if (!customerId) {
@@ -2323,12 +2329,15 @@ async function openCustomerContactManager(customerId, customerName) {
 }
 
 async function loadCustomerContacts() {
+    const customerId = activeContactManagerCustomerId;
+    const revision = ++customerContactLoadRevision;
     const list = document.getElementById('customer-contact-list');
     const status = document.getElementById('customer-contact-manager-status');
     list.innerHTML = '<div class="text-muted small py-2">Laster kontakter …</div>';
     try {
-        const response = await fetch(`/api/get_customer_contacts.php?customer_id=${encodeURIComponent(activeContactManagerCustomerId)}`);
+        const response = await fetch(`/api/get_customer_contacts.php?customer_id=${encodeURIComponent(customerId)}`);
         const result = await response.json();
+        if (revision !== customerContactLoadRevision || customerId !== activeContactManagerCustomerId) return;
         if (!response.ok || !result.success) throw new Error(result.message || 'Kunne ikke hente kontakter.');
         if (!result.contacts.length) {
             list.innerHTML = '<div class="text-muted small py-2">Ingen kontakter er lagret ennå.</div>';
@@ -2340,42 +2349,60 @@ async function loadCustomerContacts() {
                 ? '<span class="badge text-bg-light border ms-2">Bekreftet</span>'
                 : '';
             const primary = Number(contact.is_primary) === 1;
-            return `<div class="list-group-item d-flex align-items-center gap-2">
+            const id = customerContactAttribute(contact.id);
+            const legacy = !!contact.is_legacy;
+            return `<div class="list-group-item d-flex align-items-center gap-2" data-contact-row>
                 <div class="flex-grow-1 min-w-0">
                     <div class="small text-muted">${label}${primary ? '<span class="badge text-bg-primary ms-2">Hovedkontakt</span>' : ''}${verified}</div>
-                    <div class="text-break">${escapeH(contact.contact_value)}</div>
+                    <div class="text-break" data-contact-display>${escapeH(contact.contact_value)}</div>
+                    ${legacy ? '<small class="text-muted">Fra eldre kundeprofil</small>' : `<input class="form-control form-control-sm d-none" data-contact-input type="${contact.contact_type === 'email' ? 'email' : 'tel'}" maxlength="255" required aria-label="${label}" value="${customerContactAttribute(contact.contact_value)}">`}
                 </div>
                 <div class="d-flex gap-1 flex-shrink-0">
-                    ${primary ? '' : `<button type="button" class="btn btn-sm btn-outline-primary" data-contact-action="primary" data-contact-id="${escapeH(contact.id)}" title="Sett som hovedkontakt"><i class="bi bi-star"></i></button>`}
-                    <button type="button" class="btn btn-sm btn-outline-danger" data-contact-action="delete" data-contact-id="${escapeH(contact.id)}" title="Fjern kontakt"><i class="bi bi-trash"></i></button>
+                    ${legacy
+                        ? `<button type="button" class="btn btn-sm btn-outline-primary" data-contact-action="import" data-contact-type="${contact.contact_type}" data-contact-value="${customerContactAttribute(contact.contact_value)}">Ta i bruk</button>`
+                        : `${primary ? '' : `<button type="button" class="btn btn-sm btn-outline-primary" data-contact-action="primary" data-contact-id="${id}" aria-label="Sett som hovedkontakt" title="Sett som hovedkontakt"><i class="bi bi-star"></i></button>`}
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-contact-action="edit" data-contact-id="${id}" aria-label="Rediger kontakt" title="Rediger kontakt"><i class="bi bi-pencil"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary d-none" data-contact-action="cancel" aria-label="Avbryt redigering" title="Avbryt redigering"><i class="bi bi-x"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-contact-action="delete" data-contact-id="${id}" aria-label="Fjern kontakt" title="Fjern kontakt"><i class="bi bi-trash"></i></button>`}
                 </div>
             </div>`;
         }).join('');
     } catch (error) {
+        if (revision !== customerContactLoadRevision || customerId !== activeContactManagerCustomerId) return;
         list.innerHTML = '<div class="text-danger small py-2">Kontaktene kunne ikke lastes.</div>';
         status.textContent = error.message;
     }
 }
 
 async function submitCustomerContactAction(payload) {
+    const customerId = activeContactManagerCustomerId;
     const status = document.getElementById('customer-contact-manager-status');
     status.textContent = '';
+    status.className = 'small mb-3';
+    const controls = [...document.querySelectorAll('#customerContactManagerModal button, #customerContactManagerModal input, #customerContactManagerModal select')];
+    controls.forEach(control => { control.disabled = true; });
     try {
         const response = await fetch('/api/manage_customer_contact.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({...payload, customer_id: activeContactManagerCustomerId})
+            body: JSON.stringify({...payload, customer_id: customerId})
         });
         const result = await response.json();
         if (!response.ok || !result.success) throw new Error(result.message || 'Kunne ikke lagre kontaktopplysningen.');
-        status.textContent = result.message;
-        await loadCustomerContacts();
+        if (customerId === activeContactManagerCustomerId) {
+            status.textContent = result.message;
+            await loadCustomerContacts();
+        }
         await loadMembers();
         return true;
     } catch (error) {
-        status.textContent = error.message;
-        status.className = 'small mb-3 text-danger';
+        if (customerId === activeContactManagerCustomerId) {
+            status.textContent = error.message;
+            status.className = 'small mb-3 text-danger';
+        }
         return false;
+    } finally {
+        controls.forEach(control => { control.disabled = false; });
     }
 }
 
@@ -2403,11 +2430,34 @@ document.addEventListener('click', async event => {
     }
     const actionButton = event.target.closest('[data-contact-action]');
     if (!actionButton) return;
-    const action = actionButton.dataset.contactAction;
+    let action = actionButton.dataset.contactAction;
+    const row = actionButton.closest('[data-contact-row]');
+    const input = row?.querySelector('[data-contact-input]');
+    if (action === 'edit' || action === 'cancel') {
+        const editing = action === 'edit';
+        row.querySelector('[data-contact-display]').classList.toggle('d-none', editing);
+        input.classList.toggle('d-none', !editing);
+        const editButton = row.querySelector('[data-contact-action="edit"], [data-contact-action="save"]');
+        editButton.dataset.contactAction = editing ? 'save' : 'edit';
+        editButton.innerHTML = editing ? '<i class="bi bi-check-lg"></i>' : '<i class="bi bi-pencil"></i>';
+        editButton.setAttribute('aria-label', editing ? 'Lagre kontakt' : 'Rediger kontakt');
+        editButton.title = editing ? 'Lagre kontakt' : 'Rediger kontakt';
+        row.querySelector('[data-contact-action="cancel"]').classList.toggle('d-none', !editing);
+        if (editing) input.focus();
+        else input.value = row.querySelector('[data-contact-display]').textContent;
+        return;
+    }
+    if (action === 'save' && !input.reportValidity()) return;
     if (action === 'delete' && !confirm('Fjerne denne kontaktopplysningen fra kundeprofilen?')) return;
     await submitCustomerContactAction({
-        action,
-        contact_id: actionButton.dataset.contactId
+        action: action === 'save' ? 'edit' : action === 'import' ? 'add' : action,
+        contact_id: actionButton.dataset.contactId,
+        ...(action === 'save' ? {contact_value: input.value} : {}),
+        ...(action === 'import' ? {contact_type: actionButton.dataset.contactType, contact_value: actionButton.dataset.contactValue, is_primary: true} : {})
     });
+});
+
+document.getElementById('customer-contact-type')?.addEventListener('change', event => {
+    document.getElementById('customer-contact-value').type = event.target.value === 'email' ? 'email' : 'tel';
 });
 </script>

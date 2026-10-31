@@ -16,6 +16,18 @@ function tenantCustomerNormalizeContact(string $type, ?string $value): string
     throw new InvalidArgumentException('Ukjent kontakttype.');
 }
 
+function tenantCustomerValidateContact(string $type, string $value, bool $allowBlank = false): void
+{
+    $normalized = tenantCustomerNormalizeContact($type, $value);
+    if ($allowBlank && $value === '') return;
+    if ($normalized === '' || mb_strlen($value, 'UTF-8') > 255) {
+        throw new InvalidArgumentException('Kontaktverdien må være utfylt og maksimalt 255 tegn.');
+    }
+    if ($type === 'email' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
+        throw new InvalidArgumentException('E-postadressen er ugyldig.');
+    }
+}
+
 /**
  * SQL expression returning the primary profile contact, with the legacy
  * customer column as a transition fallback.
@@ -76,11 +88,6 @@ function tenantCustomerFindByContact(
     if ($normalized === '') {
         return null;
     }
-    $column = match ($type) {
-        'email' => 'email',
-        'phone' => 'phone',
-        default => throw new InvalidArgumentException('Ukjent kontakttype.')
-    };
     $legacyNormalized = tenantCustomerLegacyNormalizedSql('tc', $type);
     $lock = $forUpdate ? ' FOR UPDATE' : '';
     $stmt = $db->prepare("
@@ -95,14 +102,25 @@ function tenantCustomerFindByContact(
                     AND tcc.contact_type = ?
                     AND LOWER(TRIM(tcc.normalized_value)) = ?
               )
-              OR {$legacyNormalized} = ?
+              OR (
+                  NOT EXISTS (
+                      SELECT 1 FROM tenant_customer_contacts known_contact
+                      WHERE known_contact.customer_id = tc.id
+                        AND known_contact.contact_type = ?
+                        AND known_contact.is_primary = 1
+                  )
+                  AND {$legacyNormalized} = ?
+              )
           )
         ORDER BY tc.created_at ASC, tc.id ASC
-        LIMIT 1{$lock}
+        LIMIT 2{$lock}
     ");
-    $stmt->execute([$companyId, $type, $normalized, $normalized]);
-    $customer = $stmt->fetch(PDO::FETCH_ASSOC);
-    return $customer ?: null;
+    $stmt->execute([$companyId, $type, $normalized, $type, $normalized]);
+    $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if (count($customers) > 1) {
+        throw new InvalidArgumentException('Kontaktopplysningen er knyttet til flere kunder. Velg kunden uttrykkelig.');
+    }
+    return $customers[0] ?? null;
 }
 
 /**
@@ -115,7 +133,8 @@ function tenantCustomerSetPrimaryContact(
     string $companyId,
     string $customerId,
     string $type,
-    ?string $value
+    ?string $value,
+    bool $preserveLegacy = true
 ): void {
     $column = match ($type) {
         'email' => 'email',
@@ -124,9 +143,7 @@ function tenantCustomerSetPrimaryContact(
     };
     $value = trim((string) $value);
     $normalized = tenantCustomerNormalizeContact($type, $value);
-    if ($value !== '' && $type === 'email' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
-        throw new InvalidArgumentException('E-postadressen er ugyldig.');
-    }
+    tenantCustomerValidateContact($type, $value, true);
 
     $ownsTransaction = !$db->inTransaction();
     if ($ownsTransaction) {
@@ -134,11 +151,31 @@ function tenantCustomerSetPrimaryContact(
     }
     try {
         $customerStmt = $db->prepare(
-            'SELECT id FROM tenant_customers WHERE id = ? AND company_id = ? FOR UPDATE'
+            "SELECT id, {$column} AS legacy_contact
+             FROM tenant_customers WHERE id = ? AND company_id = ? FOR UPDATE"
         );
         $customerStmt->execute([$customerId, $companyId]);
-        if (!$customerStmt->fetchColumn()) {
+        $customer = $customerStmt->fetch(PDO::FETCH_ASSOC);
+        if (!$customer) {
             throw new InvalidArgumentException('Kunden tilhører ikke valgt bedrift.');
+        }
+
+        // Preserve a legacy-only contact when the profile is edited before backfill.
+        $legacyValue = trim((string) ($customer['legacy_contact'] ?? ''));
+        if ($preserveLegacy && $legacyValue !== '') {
+            $legacyNormalized = tenantCustomerNormalizeContact($type, $legacyValue);
+            $db->prepare(
+                'INSERT INTO tenant_customer_contacts
+                    (id, customer_id, contact_type, contact_value, normalized_value, is_primary, created_at)
+                 SELECT ?, ?, ?, ?, ?, 0, NOW()
+                 WHERE NOT EXISTS (
+                     SELECT 1 FROM tenant_customer_contacts
+                     WHERE customer_id = ? AND contact_type = ? AND normalized_value = ?
+                 )'
+            )->execute([
+                tenantCustomerContactUuid(), $customerId, $type, $legacyValue, $legacyNormalized,
+                $customerId, $type, $legacyNormalized,
+            ]);
         }
 
         $db->prepare(

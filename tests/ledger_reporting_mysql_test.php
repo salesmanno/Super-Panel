@@ -35,6 +35,8 @@ $db->exec("CREATE TABLE economy_configuration_data(company_id VARCHAR(36),gatewa
     INSERT INTO system_modules VALUES('sales','sales',1),('rental','rental',1);
     CREATE TABLE tenant_admin_modules(tenant_admin_id VARCHAR(36),module_id VARCHAR(36));
     INSERT INTO tenant_admin_modules VALUES('admin-a','sales');");
+require_once $root.'/tests/customer_contacts_fixture.php';
+createCustomerContactFixtureTable($db);
 $insert = $db->prepare("INSERT INTO unified_ledger VALUES(" . implode(',', array_fill(0, 16, '?')) . ",NOW(),NOW(),?)");
 $rows = [
     ['s1','sales',120,3,'completed','active','income',30],
@@ -75,7 +77,7 @@ foreach (['../../x','ul; DROP TABLE x'] as $alias) {
 $app = $tmp.'/app';
 foreach (['api','config','includes'] as $dir) mkdir($app.'/'.$dir,0700,true);
 foreach (['get_economy_data.php','get_membership_income.php','get_membership_income_tracking.php','get_monthly_membership_payments.php','get_event_finances.php','get_event_transactions.php','image_upload.php'] as $api) copy($root.'/api/'.$api,$app.'/api/'.$api);
-foreach (['ImageUpload.php','ledger_reporting.php','event_results_helpers.php','entity_form_fields.php'] as $file) symlink($root.'/includes/'.$file,$app.'/includes/'.$file);
+foreach (['ImageUpload.php','ledger_reporting.php','event_results_helpers.php','entity_form_fields.php','tenant_customer_contacts.php'] as $file) symlink($root.'/includes/'.$file,$app.'/includes/'.$file);
 file_put_contents($app.'/config/database.php', '<?php function getDBConnection(){return new PDO('.var_export('mysql:unix_socket='.$socket.';dbname=fixture',true).',"root","",[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);}');
 // Login fixture exists only in the temporary isolated server, never the app.
 file_put_contents($app.'/session.php', '<?php session_start(); $_SESSION=[]; if(($_GET["mode"]??"")!=="anonymous"){$_SESSION=["tenant_admin_id"=>($_GET["mode"]??"")==="disabled"?"disabled":"admin-a","company_id"=>"company-a"];} echo "ok";');

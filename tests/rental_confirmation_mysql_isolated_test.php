@@ -49,6 +49,8 @@ foreach ([
         from_email VARCHAR(255), subject TEXT, body LONGTEXT, template_id VARCHAR(36), module_source VARCHAR(100),
         source_id VARCHAR(36), status VARCHAR(30), priority INT, scheduled_at DATETIME, created_at DATETIME, updated_at DATETIME) ENGINE=InnoDB",
 ] as $sql) $db->exec($sql);
+require_once $root.'/tests/customer_contacts_fixture.php';
+createCustomerContactFixtureTable($db);
 $bodyA = "<html><body><h1>{{company_name}}: {{customer_name}}</h1>\n"
     . '{{#if (eq status "Godkjent")}}<p>Viktig: Betalingen må være registrert.</p>'
     . '<table role="presentation" width="100%"><tr><td>{{date_from}} – {{date_to}}</td>'

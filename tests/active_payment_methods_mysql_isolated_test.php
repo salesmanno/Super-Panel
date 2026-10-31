@@ -36,6 +36,8 @@ foreach ([
 "INSERT INTO membership_plans VALUES('priced','a','Betalt',100,'yearly'),('free','a','Gratis',0,'yearly'),('other','b','Annet',50,'yearly')",
 "INSERT INTO events_eventdata(id,company_id,title,is_active,registration_type,payment_methods_json,ticket_price) VALUES('binding','a','Bindende',1,'binding','[\"vipps\"]',100),('signup','a','Påmelding',1,'signup','[\"cash\",\"vipps\"]',100)",
 ] as $sql) $db->exec($sql);
+require_once $root.'/tests/customer_contacts_fixture.php';
+createCustomerContactFixtureTable($db);
 $_SESSION=['company_id'=>'a','tenant_admin_id'=>'admin'];
 checkPayment(array_column(activePaymentMethods($db,'a'),'method_type')===['vipps'],'Activation source, tenant boundary, unknown and inactive methods');
 checkPayment(activePaymentMethods($db,'a')[0]['is_demo'] && !activePaymentMethods($db,'a')[0]['is_configured'],'Test/configuration flags remain distinct');

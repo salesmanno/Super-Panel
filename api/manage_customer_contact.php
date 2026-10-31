@@ -38,31 +38,58 @@ try {
     );
     $lock->execute([$customerId, $companyId]);
     if (!$lock->fetchColumn()) {
+        http_response_code(404);
         throw new InvalidArgumentException('Kunden ble ikke funnet i valgt bedrift.');
     }
 
-    if ($action === 'add') {
+    if ($action === 'add' || $action === 'edit') {
         $type = (string) ($data['contact_type'] ?? '');
         $value = trim((string) ($data['contact_value'] ?? ''));
+        $oldContact = null;
+        if ($action === 'edit') {
+            $oldStmt = $db->prepare(
+                'SELECT contact_type, normalized_value, is_primary
+                 FROM tenant_customer_contacts WHERE id = ? AND customer_id = ?'
+            );
+            $oldStmt->execute([$contactId, $customerId]);
+            $oldContact = $oldStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$oldContact) {
+                http_response_code(404);
+                throw new InvalidArgumentException('Kontaktpunktet ble ikke funnet.');
+            }
+            $type = (string) $oldContact['contact_type'];
+        }
         if (!in_array($type, ['email', 'phone'], true) || $value === '') {
             http_response_code(400);
             throw new InvalidArgumentException('Velg e-post eller telefon, og fyll inn verdien.');
         }
-        if ($type === 'email' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
-            http_response_code(400);
-            throw new InvalidArgumentException('E-postadressen er ugyldig.');
-        }
+        tenantCustomerValidateContact($type, $value);
         $normalized = tenantCustomerNormalizeContact($type, $value);
         $existingStmt = $db->prepare(
             'SELECT id FROM tenant_customer_contacts
-             WHERE customer_id = ? AND contact_type = ? AND normalized_value = ?
+             WHERE customer_id = ? AND contact_type = ? AND normalized_value = ? AND id <> ?
              LIMIT 1'
         );
-        $existingStmt->execute([$customerId, $type, $normalized]);
+        $existingStmt->execute([$customerId, $type, $normalized, $action === 'edit' ? $contactId : '']);
         if ($existingStmt->fetchColumn()) {
             http_response_code(409);
             throw new InvalidArgumentException('Denne kontaktverdien finnes allerede på kunden.');
         }
+        if ($action === 'edit') {
+            $changed = $normalized !== (string) $oldContact['normalized_value'];
+            $db->prepare(
+                'UPDATE tenant_customer_contacts
+                 SET contact_value = ?, normalized_value = ?,
+                     verified_at = CASE WHEN ? = 1 THEN NULL ELSE verified_at END
+                 WHERE id = ? AND customer_id = ?'
+            )->execute([$value, $normalized, (int) $changed, $contactId, $customerId]);
+            if ((int) $oldContact['is_primary'] === 1) {
+                $db->prepare(
+                    "UPDATE tenant_customers SET {$type} = ?, updated_at = NOW()
+                     WHERE id = ? AND company_id = ?"
+                )->execute([$value, $customerId, $companyId]);
+            }
+        } else {
         $primary = !empty($data['is_primary']);
         $hasPrimaryStmt = $db->prepare(
             'SELECT id FROM tenant_customer_contacts
@@ -86,6 +113,7 @@ try {
                 $value,
                 $normalized,
             ]);
+        }
         }
     } elseif ($action === 'primary') {
         $contactStmt = $db->prepare(
@@ -140,7 +168,8 @@ try {
                 $companyId,
                 $customerId,
                 (string) $contact['contact_type'],
-                $nextValue === false ? null : (string) $nextValue
+                $nextValue === false ? null : (string) $nextValue,
+                false
             );
         }
     } else {
@@ -160,6 +189,7 @@ try {
         $message = 'Kunne ikke oppdatere kontaktopplysningene.';
     } else {
         $message = $e->getMessage();
+        if (http_response_code() < 400) http_response_code(400);
     }
     echo json_encode(['success' => false, 'message' => $message]);
 }

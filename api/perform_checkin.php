@@ -78,9 +78,9 @@ try {
             ee.company_id,
             mp.name as membership_plan_name
         FROM events_checkin c
+        JOIN events_eventdata ee ON c.event_id = ee.id
         LEFT JOIN tenant_customers tc
           ON c.customer_id = tc.id AND tc.company_id = ee.company_id
-        JOIN events_eventdata ee ON c.event_id = ee.id
         LEFT JOIN membership_plans mp ON c.membership_plan_id = mp.id
         WHERE c.id = ? AND ee.company_id = ?
         FOR UPDATE

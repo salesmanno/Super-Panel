@@ -42,7 +42,7 @@ try {
         FROM service_bookings b
         LEFT JOIN reservation_services rs ON b.service_id = rs.id
         LEFT JOIN tenant_staff ts ON b.staff_id = ts.id
-        LEFT JOIN tenant_customers tc ON b.customer_id = tc.id
+        LEFT JOIN tenant_customers tc ON b.customer_id = tc.id AND tc.company_id = b.company_id
         WHERE b.company_id = ?
         AND b.booking_date IS NOT NULL
         AND b.start_time IS NOT NULL

@@ -35,6 +35,9 @@ $schema=[
     "unified_ledger(id VARCHAR(36) PRIMARY KEY,order_id VARCHAR(100) UNIQUE,company_id VARCHAR(36),module_source VARCHAR(30),item_type VARCHAR(30),source_id VARCHAR(36),item_name TEXT,quantity INT,selling_price DECIMAL(12,2),cost_price DECIMAL(12,2),customer_id VARCHAR(36),payment_method VARCHAR(50),payment_status VARCHAR(30),status VARCHAR(30),transaction_date DATETIME,transaction_type VARCHAR(30),category TEXT,metadata JSON,rental_schedule_id VARCHAR(36),UNIQUE KEY rental_payment(company_id,rental_schedule_id))",
 ];
 foreach($schema as $ddl)$db->exec('CREATE TABLE '.$ddl.' ENGINE=InnoDB');
+require_once $root.'/tests/customer_contacts_fixture.php';
+createCustomerContactFixtureTable($db);
+$db->exec('ALTER TABLE tenant_customers ADD updated_at DATETIME DEFAULT CURRENT_TIMESTAMP');
 $db->exec('ALTER TABLE rental_schedule ADD return_time TIME, ADD key_box_code VARCHAR(6), ADD checkin_email_queued_at DATETIME, ADD checkin_email_sent_at DATETIME');
 $db->exec('ALTER TABLE rental_venues ADD access_code VARCHAR(6)');
 $db->exec('ALTER TABLE rental_objects ADD weekday_prices JSON');

@@ -44,7 +44,7 @@ try {
         FROM membership_members_renew mmr
         JOIN membership_members mm ON mm.id   = mmr.membership_member_id
         JOIN membership_plans   p  ON p.id    = mm.membership_plan_id
-        JOIN tenant_customers   c  ON c.id    = mm.customer_id
+        JOIN tenant_customers   c  ON c.id    = mm.customer_id AND c.company_id = mm.company_id
         LEFT JOIN unified_ledger ul
             ON ul.module_source = 'membership'
            AND ul.source_id     = mmr.id

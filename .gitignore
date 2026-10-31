@@ -15,4 +15,6 @@ replit.md
 *.sql
 # Reviewed schema source, not a database dump.
 !sql/sales_register_setup.sql
+!db_migrations/tenant_customer_contacts_backfill.sql
+!db_migrations/tenant_customer_contacts_setup.sql
 *.log

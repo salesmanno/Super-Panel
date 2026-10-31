@@ -30,6 +30,8 @@ $schema = [
     'email_queue(id VARCHAR(36),company_id VARCHAR(36),recipient_email TEXT,from_email TEXT,subject TEXT,body TEXT,template_id VARCHAR(36),module_source VARCHAR(50),source_id VARCHAR(36),idempotency_key VARCHAR(200) UNIQUE,status VARCHAR(30),priority INT,scheduled_at DATETIME,created_at DATETIME,updated_at DATETIME)',
 ];
 foreach ($schema as $sql) $db->exec('CREATE TABLE '.$sql.' ENGINE=InnoDB');
+require_once $root.'/tests/customer_contacts_fixture.php';
+createCustomerContactFixtureTable($db);
 $db->exec('ALTER TABLE rental_objects ADD rental_price DECIMAL(12,2), ADD weekend_price DECIMAL(12,2), ADD saturday_price DECIMAL(12,2), ADD sunday_price DECIMAL(12,2)');
 $db->exec('ALTER TABLE rental_schedule ADD customer_phone TEXT, ADD created_at DATETIME DEFAULT CURRENT_TIMESTAMP');
 $db->exec('ALTER TABLE tenant_customers ADD phone TEXT, ADD date_of_birth DATE');

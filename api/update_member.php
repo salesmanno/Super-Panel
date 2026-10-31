@@ -36,6 +36,9 @@ try {
     }
     
     $customerId = $member['customer_id'];
+    if (!$customerId && (array_key_exists('email', $data) || array_key_exists('phone', $data))) {
+        throw new InvalidArgumentException('Medlemmet mangler kundekobling. Kontaktopplysninger kan ikke lagres.');
+    }
     
     // Fields that belong to tenant_customers
     $customerFieldMapping = [
