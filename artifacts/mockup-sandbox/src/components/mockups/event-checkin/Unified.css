@@ -369,7 +369,9 @@
 .uc-methods legend { margin-bottom: 7px; color: #557263; font-size: 10px; font-weight: 750; }
 .uc-methods label { display: flex; align-items: center; gap: 9px; min-height: 53px; padding: 7px 10px; border: 1px solid #dce6df; border-radius: 8px; cursor: pointer; }
 .uc-methods label.is-selected { border-color: #85ae91; background: #f4f8f2; }
+.uc-methods label.is-disabled { cursor: not-allowed; opacity: .48; }
 .uc-methods input { position: absolute; opacity: 0; }
+.uc-methods input:disabled { cursor: not-allowed; }
 .uc-methods label:focus-within { outline: 3px solid #88b39a; outline-offset: 2px; }
 .uc-method-icon { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 8px; background: #e9f0e7; color: #50775d; }
 .uc-methods label > span:nth-last-child(2) { display: grid; gap: 3px; }
@@ -380,6 +382,16 @@
 .uc-simulation-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 13px; padding: 10px; border: 1px solid #e7dfc8; border-radius: 8px; background: #faf7ed; color: #82744e; font-size: 9px; line-height: 1.45; }
 .uc-simulation-note svg { color: #a08a55; }
 .uc-simulation-note strong { color: #6e603e; }
+.uc-vipps-request { display: grid; grid-template-columns: 36px minmax(0,1fr); align-items: center; gap: 9px; margin-top: 13px; padding: 12px; border: 1px solid #e0e6dc; border-radius: 9px; background: #f6f8f3; }
+.uc-vipps-request-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: #ffe5dc; color: #da4b26; }
+.uc-vipps-request-icon.is-expired { background: #f5ebdf; color: #967249; }
+.uc-vipps-request > div:not(.uc-vipps-demo-note) { display: grid; gap: 3px; min-width: 0; }
+.uc-vipps-request > div > strong { color: #435e4e; font-size: 10px; }
+.uc-vipps-request > div > span { overflow-wrap: anywhere; color: #687e70; font-size: 11px; }
+.uc-vipps-request > div > small { display: flex; align-items: center; gap: 5px; color: #8c978e; font-size: 9px; }
+.uc-vipps-request > div > small svg { color: #c17c38; }
+.uc-vipps-demo-note { grid-column: 1 / -1; display: flex; align-items: flex-start; gap: 6px; padding-top: 8px; border-top: 1px solid #e5e9e0; color: #8a7953; font-size: 9px; line-height: 1.4; }
+.uc-vipps-demo-note svg { flex: none; }
 .uc-toast { position: fixed; z-index: 150; right: 20px; bottom: 20px; display: flex; align-items: center; gap: 8px; max-width: min(420px, calc(100vw - 32px)); padding: 12px 15px; border: 1px solid #cbdcce; border-radius: 10px; background: #fffefa; color: #426f53; box-shadow: 0 12px 28px rgba(29,63,52,.14); font-size: 11px; font-weight: 700; animation: uc-toast-in .2s ease-out both; }
 
 .uc-shell.is-focus { min-height: 100dvh; }

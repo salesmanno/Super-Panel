@@ -44,8 +44,8 @@ type LedgerRow = { id: string; attendee: string; amount: number; method: string;
 
 const seedAttendees: Attendee[] = [
   { id: "a1", first: "Ingrid", last: "Solberg", email: "ingrid.solberg@example.no", price: 690, payment: "paid", hasValidLedger: true, checkedIn: true, checkedAt: "18:04", method: "Vipps" },
-  { id: "a2", first: "Marius", last: "Haugen", email: "marius.haugen@example.no", price: 690, payment: "paid", hasValidLedger: false, checkedIn: false, method: "Kort" },
-  { id: "a3", first: "Sofie", last: "Lunde", email: "sofie.lunde@example.no", price: 690, payment: "unpaid", hasValidLedger: false, checkedIn: false },
+  { id: "a2", first: "Marius", last: "Haugen", email: "marius.haugen@example.no", phone: "940 23 781", price: 690, payment: "paid", hasValidLedger: false, checkedIn: false, method: "Kort" },
+  { id: "a3", first: "Sofie", last: "Lunde", email: "sofie.lunde@example.no", phone: "984 22 130", price: 690, payment: "unpaid", hasValidLedger: false, checkedIn: false },
   { id: "a4", first: "Anders", last: "Berg", email: "anders.berg@example.no", price: 0, payment: "free", hasValidLedger: false, checkedIn: true, checkedAt: "18:11" },
   { id: "a5", first: "Nora", last: "Eide", email: "nora.eide@example.no", price: 690, payment: "paid", hasValidLedger: true, checkedIn: false, method: "Vipps" },
   { id: "a6", first: "Jonas", last: "Dahl", email: "jonas.dahl@example.no", price: 690, payment: "unpaid", hasValidLedger: false, checkedIn: false },
@@ -68,7 +68,9 @@ export function Unified() {
   const [menuMessage, setMenuMessage] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [paymentTarget, setPaymentTarget] = useState<Attendee | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"Kontant" | "Vipps">("Vipps");
+  const [paymentMethod, setPaymentMethod] = useState<"Kontant" | "Vipps">("Kontant");
+  const [vippsRequest, setVippsRequest] = useState<"idle" | "pending" | "expired">("idle");
+  const [vippsSecondsLeft, setVippsSecondsLeft] = useState(80);
   const [ledger, setLedger] = useState<LedgerRow[]>([]);
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
@@ -109,6 +111,8 @@ export function Unified() {
   const closeDialog = () => {
     setAddOpen(false);
     setPaymentTarget(null);
+    setVippsRequest("idle");
+    setVippsSecondsLeft(80);
     window.setTimeout(() => previousFocus.current?.focus(), 0);
   };
 
@@ -140,6 +144,20 @@ export function Unified() {
 
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
+  useEffect(() => {
+    if (vippsRequest !== "pending") return;
+    const interval = window.setInterval(() => {
+      setVippsSecondsLeft((seconds) => {
+        if (seconds <= 1) {
+          setVippsRequest("expired");
+          return 0;
+        }
+        return seconds - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [vippsRequest]);
+
   const markCheckedIn = (attendee: Attendee, method?: string) => {
     setActiveRoster("checked");
     setAttendees((current) => current.map((person) =>
@@ -153,7 +171,9 @@ export function Unified() {
         { id: attendee.id, attendee: `${attendee.first} ${attendee.last}`, amount: attendee.price, method, time: new Intl.DateTimeFormat("nb-NO", { hour: "2-digit", minute: "2-digit" }).format(new Date()) },
       ]);
       setLedgerOpen(true);
-      showToast(`Betaling simulert og ${attendee.first} sjekket inn`);
+      showToast(attendee.payment === "paid"
+        ? `Ledgerføring gjenopprettet — ingen ny belastning. ${attendee.first} er sjekket inn`
+        : `Betaling simulert og ${attendee.first} sjekket inn`);
     } else {
       showToast(`${attendee.first} er sjekket inn`);
     }
@@ -167,6 +187,9 @@ export function Unified() {
     }
     if (attendee.price > 0 && !attendee.hasValidLedger) {
       previousFocus.current = document.activeElement as HTMLElement;
+      setPaymentMethod("Kontant");
+      setVippsRequest("idle");
+      setVippsSecondsLeft(80);
       setPaymentTarget(attendee);
       return;
     }
@@ -175,9 +198,21 @@ export function Unified() {
 
   const confirmPayment = () => {
     if (!paymentTarget) return;
+    if (paymentTarget.payment !== "paid" && paymentMethod === "Vipps") return;
     markCheckedIn(paymentTarget, paymentMethod);
-    setPaymentTarget(null);
-    window.setTimeout(() => previousFocus.current?.focus(), 0);
+    closeDialog();
+  };
+
+  const sendVippsRequest = () => {
+    if (!paymentTarget?.phone || paymentTarget.payment === "paid") return;
+    setVippsSecondsLeft(80);
+    setVippsRequest("pending");
+  };
+
+  const receiveMockVippsConfirmation = () => {
+    if (!paymentTarget || paymentTarget.payment === "paid" || vippsRequest !== "pending") return;
+    markCheckedIn(paymentTarget, "Vipps");
+    closeDialog();
   };
 
   const addGuest = (event: React.FormEvent<HTMLFormElement>) => {
@@ -383,21 +418,46 @@ export function Unified() {
 
       {paymentTarget && <div className="uc-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeDialog(); }}>
         <section className="uc-dialog uc-payment-dialog" role="dialog" aria-modal="true" aria-labelledby="uc-payment-title" ref={dialogRef}>
-          <div className="uc-dialog-head"><span className="uc-dialog-icon is-payment"><CircleDollarSign size={18} /></span><button type="button" className="uc-icon-button" aria-label="Lukk" onClick={closeDialog}><X size={18} /></button></div>
+          <div className="uc-dialog-head"><span className="uc-dialog-icon is-payment"><CircleDollarSign size={18} /></span><button type="button" className="uc-icon-button" aria-label="Lukk og avbryt" onClick={closeDialog}><X size={18} /></button></div>
           <div className="uc-dialog-content">
             <div className="uc-heading-kicker">LOKAL SIMULERING</div>
-            <h2 id="uc-payment-title">{paymentTarget.payment === "paid" ? "Registrer manglende betaling" : "Velg betalingsmetode"}</h2>
-            <p><strong>{paymentTarget.first} {paymentTarget.last}</strong> {paymentTarget.payment === "paid" ? "er markert betalt, men mangler en gyldig ledger-registrering. Velg metoden som ble brukt og bekreft — ingen belastning utføres på nytt." : "mangler en gyldig betaling og ledger-registrering. Velg metode for den lokale betalingen før innsjekking."}</p>
+            <h2 id="uc-payment-title">{paymentTarget.payment === "paid" ? "Registrer manglende ledger" : "Bekreft betaling først"}</h2>
+            <p><strong>{paymentTarget.first} {paymentTarget.last}</strong> {paymentTarget.payment === "paid" ? "er allerede markert betalt, men mangler ledgerføring. Velg metoden som faktisk ble brukt — det sendes ingen ny belastning." : "kan sjekkes inn når betalingen er bekreftet. Kontant bekreftes her; Vipps må bekreftes fra forespørselen."}</p>
             <div className="uc-payment-amount"><span>Beløp</span><strong>{formatNok(paymentTarget.price)}</strong></div>
-            <fieldset className="uc-methods"><legend>Betalingsmetode</legend>
-              {(["Vipps", "Kontant"] as const).map((method) => <label key={method} className={paymentMethod === method ? "is-selected" : ""}>
-                <input type="radio" name="payment-method" value={method} checked={paymentMethod === method} onChange={() => setPaymentMethod(method)} />
-                <span className="uc-method-icon">{method === "Vipps" ? <Smartphone size={17} /> : <CreditCard size={17} />}</span><span><strong>{method}</strong><small>Eksempelmetode</small></span>
+            <fieldset className="uc-methods"><legend>{paymentTarget.payment === "paid" ? "Hvilken metode ble brukt?" : "Velg betalingsmåte"}</legend>
+              {(["Kontant", "Vipps"] as const).map((method) => {
+                const vippsUnavailable = method === "Vipps" && paymentTarget.payment !== "paid" && !paymentTarget.phone;
+                return <label key={method} className={`${paymentMethod === method ? "is-selected" : ""}${vippsUnavailable ? " is-disabled" : ""}`}>
+                <input type="radio" name="payment-method" value={method} disabled={vippsUnavailable} checked={paymentMethod === method} onChange={() => { setPaymentMethod(method); setVippsRequest("idle"); }} />
+                <span className="uc-method-icon">{method === "Vipps" ? <Smartphone size={17} /> : <CreditCard size={17} />}</span><span><strong>{method}</strong><small>{method === "Kontant" ? "Registrer mottatt kontant" : paymentTarget.payment === "paid" ? "Registrer tidligere mottatt betaling" : paymentTarget.phone ? `Forespørsel til ${paymentTarget.phone}` : "Krever telefonnummer"}</small></span>
                 <span className="uc-radio-mark" />
-              </label>)}
+              </label>;
+              })}
             </fieldset>
-            <div className="uc-simulation-note"><ShieldCheck size={16} /><span><strong>Kun simulering</strong> · Ingen penger trekkes, og ingen betalingsforespørsel sendes. Dette valget registreres bare i eksemplet.</span></div>
-            <div className="uc-dialog-actions"><button type="button" className="uc-secondary-button" onClick={closeDialog}>Avbryt</button><button type="button" className="uc-primary-button" onClick={confirmPayment}><Check size={15} /> Registrer og sjekk inn</button></div>
+            {paymentTarget.payment === "paid"
+              ? <div className="uc-simulation-note"><ShieldCheck size={16} /><span><strong>Ingen ny belastning</strong> · Du oppgir betalingsmåten som allerede ble brukt. Vipps-forespørsel sendes ikke på nytt.</span></div>
+              : paymentMethod === "Kontant"
+                ? <div className="uc-simulation-note"><ShieldCheck size={16} /><span><strong>Kontant</strong> · Bekreft først når beløpet er mottatt. Da registreres det og innsjekkingen fullføres.</span></div>
+                : !paymentTarget.phone
+                  ? <div className="uc-simulation-note"><ShieldCheck size={16} /><span><strong>Vipps utilgjengelig</strong> · Legg inn et telefonnummer på deltakeren for å sende en betalingsforespørsel.</span></div>
+                  : <div className="uc-vipps-request">
+                    {vippsRequest === "pending"
+                      ? <><span className="uc-vipps-request-icon"><Smartphone size={17} /></span><div><strong>Venter på Vipps-bekreftelse</strong><span>Forespørsel til {paymentTarget.phone}</span><small><Clock3 size={13} /> {Math.floor(vippsSecondsLeft / 60)}:{String(vippsSecondsLeft % 60).padStart(2, "0")} igjen</small></div></>
+                      : vippsRequest === "expired"
+                        ? <><span className="uc-vipps-request-icon is-expired"><Clock3 size={17} /></span><div><strong>Forespørselen utløp</strong><span>Ingen innsjekking ble registrert.</span><small>Du kan sende en ny forespørsel.</small></div></>
+                        : <><span className="uc-vipps-request-icon"><Smartphone size={17} /></span><div><strong>Betalingsforespørsel til</strong><span>{paymentTarget.phone}</span><small>Beløpet bekreftes før innsjekking.</small></div></>}
+                    <div className="uc-vipps-demo-note"><ShieldCheck size={14} /> Forhåndsvisning: ingen ekte Vipps-forespørsel blir sendt.</div>
+                  </div>}
+            <div className="uc-dialog-actions">
+              <button type="button" className="uc-secondary-button" onClick={closeDialog}>{vippsRequest === "pending" ? "Avbryt" : "Lukk"}</button>
+              {paymentTarget.payment === "paid"
+                ? <button type="button" className="uc-primary-button" onClick={confirmPayment}><Check size={15} /> Registrer brukt metode</button>
+                : paymentMethod === "Kontant"
+                  ? <button type="button" className="uc-primary-button" onClick={confirmPayment}><Check size={15} /> Bekreft kontant og sjekk inn</button>
+                  : vippsRequest === "pending"
+                    ? <button type="button" className="uc-primary-button" onClick={receiveMockVippsConfirmation}><Check size={15} /> Simuler mottatt Vipps-bekreftelse</button>
+                    : <button type="button" className="uc-primary-button" onClick={sendVippsRequest}><Smartphone size={15} /> {vippsRequest === "expired" ? "Send Vipps på nytt" : "Send Vipps!"}</button>}
+            </div>
           </div>
         </section>
       </div>}
@@ -425,13 +485,11 @@ function AttendeeRow({ person, eventDay, onCheckin }: { person: Attendee; eventD
         : <button
           type="button"
           className="uc-checkin-button"
-          aria-label={person.price > 0 && !person.hasValidLedger ? `Velg betalingsmetode, registrer ledger og sjekk inn ${person.first} ${person.last}` : `Sjekk inn ${person.first} ${person.last}`}
+          aria-label={`Sjekk inn ${person.first} ${person.last}`}
           disabled={!eventDay}
           onClick={() => onCheckin(person)}
         >
-          {person.price > 0 && !person.hasValidLedger
-            ? <><CircleDollarSign size={15} /><span className="uc-action-label-full">Velg betalingsmetode</span><span className="uc-action-label-compact" aria-hidden="true">Betalingsmåte</span></>
-            : <><Check size={15} /><span>Sjekk inn</span></>}
+          <Check size={15} /><span>Sjekk inn</span>
         </button>}
     </div>
     <span className="uc-price">{formatNok(person.price)}</span>
