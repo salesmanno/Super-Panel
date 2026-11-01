@@ -1,4 +1,7 @@
-on: push
+on:
+  push:
+    branches:
+      - main
 name: 🚀 Deploy website on push
 jobs:
   web-deploy:
@@ -15,9 +18,12 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: super/
+          port: 21
           protocol: ftps
           timeout: 90000
           exclude: |
+            **/.env
+            **/.env.*
             **/.git*
             **/.git*/**
             **/node_modules/**
