@@ -81,6 +81,7 @@ export function Unified() {
   const [newGuest, setNewGuest] = useState({ first: "", last: "", email: "", phone: "" });
   const [formError, setFormError] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
+  const groupSearchRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -492,25 +493,24 @@ export function Unified() {
               <strong>{formatNok(paymentTarget.payment === "paid" ? paymentTarget.price : totalPaymentAmount)}</strong>
             </div>
             {paymentTarget.payment !== "paid" && <section className="uc-group-add" aria-label="Legg flere personer til samme betaling">
-              <div className="uc-group-add-heading">
-                <div><strong>Flere til samme betaling?</strong><small>{paymentTarget.first} {paymentTarget.last} står som betaler · maks 5 personer totalt</small></div>
-                <button type="button" className="uc-group-toggle" onClick={() => setGroupPickerOpen((open) => !open)} aria-expanded={groupPickerOpen} disabled={vippsRequest === "pending"}>
-                  {groupPickerOpen ? "Skjul søk" : "Legg til flere til innsjekk"}
-                  <ChevronDown size={15} />
-                </button>
-              </div>
-              {selectedAdditionalParticipants.length > 0 && <div className="uc-selected-group" aria-label="Valgt gruppe">
-                <span>{paymentTarget.first} betaler for:</span>
-                {selectedAdditionalParticipants.map((person) => <span className="uc-group-chip" key={person.id}>{person.first} {person.last}
-                  <button type="button" aria-label={`Fjern ${person.first} ${person.last}`} onClick={() => toggleAdditionalParticipant(person)} disabled={vippsRequest === "pending"}><X size={12} /></button>
-                </span>)}
-              </div>}
-              {groupPickerOpen && <div className="uc-group-picker">
+              {!groupPickerOpen
+                ? <button type="button" className="uc-group-toggle" onClick={() => {
+                    setGroupQuery("");
+                    setGroupPickerOpen(true);
+                    window.setTimeout(() => groupSearchRef.current?.focus(), 0);
+                  }} aria-expanded="false" disabled={vippsRequest === "pending"}>
+                    <Plus size={14} />
+                    <span>Legg til flere til innsjekk</span>
+                    {selectedAdditionalParticipants.length > 0 && <small>{selectedAdditionalParticipants.length} valgt</small>}
+                    <ChevronDown size={14} />
+                  </button>
+                : <div className="uc-group-picker">
                 <label className="uc-group-search">
                   <Search size={15} aria-hidden="true" />
-                  <input type="search" value={groupQuery} autoComplete="off" autoCorrect="off" spellCheck={false} placeholder="Søk blant ubetalte deltakere" aria-label="Søk blant ubetalte deltakere" onChange={(event) => setGroupQuery(event.target.value)} disabled={vippsRequest === "pending"} />
+                  <input ref={groupSearchRef} type="search" value={groupQuery} autoComplete="off" autoCorrect="off" spellCheck={false} placeholder="Søk blant ubetalte deltakere" aria-label="Søk blant ubetalte deltakere" onChange={(event) => setGroupQuery(event.target.value)} disabled={vippsRequest === "pending"} />
+                  <span className="uc-group-limit">{1 + selectedAdditionalParticipants.length}/5</span>
+                  <button type="button" className="uc-group-close" aria-label="Lukk søk etter flere deltakere" onClick={() => { setGroupPickerOpen(false); setGroupQuery(""); }} disabled={vippsRequest === "pending"}><X size={15} /></button>
                 </label>
-                <div className="uc-group-count">{1 + selectedAdditionalParticipants.length} av 5 personer · {formatNok(totalPaymentAmount)} totalt</div>
                 <div className="uc-group-results" role="list" aria-label="Ubetalte deltakere">
                   {additionalParticipants.map((person) => {
                     const isSelected = additionalParticipantIds.includes(person.id);
@@ -523,7 +523,6 @@ export function Unified() {
                   })}
                   {additionalParticipants.length === 0 && <div className="uc-group-empty">{groupQuery ? "Ingen ubetalte deltakere samsvarer med søket." : "Ingen flere ubetalte deltakere å legge til."}</div>}
                 </div>
-                <div className="uc-group-payer-note"><UserRound size={14} /> Betalingen belastes alltid opprinnelig deltaker. Vipps sendes kun til {paymentTarget.first}s registrerte telefonnummer.</div>
               </div>}
             </section>}
             {paymentTarget.payment === "paid"
@@ -537,7 +536,7 @@ export function Unified() {
                 <div className="uc-simulation-note"><ShieldCheck size={16} /><span><strong>Velg handling</strong> · Kontant bekreftes av verten. Vipps sendes separat til deltakerens telefon og krever mottatt bekreftelse.</span></div>
                 {vippsRequest !== "pending" && <div className="uc-checkin-actions">
                   <button type="button" className="uc-cash-button" onClick={confirmCashPayment}><CreditCard size={17} /><span><strong>Kontant mottatt</strong><small>Bekreft kontant og sjekk inn</small></span></button>
-                  <button type="button" className="uc-vipps-button" onClick={sendVippsRequest} disabled={!paymentTarget.phone} aria-describedby="uc-vipps-helper"><Smartphone size={18} /><span><strong>Send Vipps!</strong><small>{vippsRequest === "expired" ? "Send ny forespørsel" : "Be om betaling på telefon"}</small></span></button>
+                  <button type="button" className="uc-vipps-button" onClick={sendVippsRequest} disabled={!paymentTarget.phone} aria-label="Send Vipps!" aria-describedby="uc-vipps-helper"><img className="uc-vipps-logo" src="/__mockup/images/event-checkin-vipps-payment-logo.webp" alt="" /><span><strong className="uc-sr-only">Send Vipps!</strong><small>{vippsRequest === "expired" ? "Send ny forespørsel" : "Be om betaling på telefon"}</small></span></button>
                 </div>}
                 {!paymentTarget.phone && <p id="uc-vipps-helper" className="uc-vipps-no-phone"><Smartphone size={14} /> Vipps er ikke tilgjengelig uten telefonnummer.</p>}
                 {paymentTarget.phone && <p id="uc-vipps-helper" className="uc-vipps-target"><Smartphone size={14} /> Vipps-forespørsel sendes til <strong>{paymentTarget.phone}</strong></p>}
