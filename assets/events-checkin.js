@@ -100,7 +100,7 @@
         root.addEventListener('submit', async event => {
             if (!event.target.matches('[data-ec-manual]')) return;
             event.preventDefault();
-            if (busy || !mutable() || !event.target.reportValidity()) return;
+            if (busy || !event.target.reportValidity()) return;
             setBusy(true);
             try {
                 const fields=Object.fromEntries(new FormData(event.target));
@@ -110,7 +110,7 @@
                 });
                 const result=await response.json();
                 if (!response.ok || !result.success) throw Error(result.message||'Deltakeren kunne ikke legges til.');
-                active='waiting'; query=''; await reload(); message('Deltakeren er lagt til og kan nå sjekkes inn.');
+                active='waiting'; query=''; await reload(); message(mutable()?'Deltakeren er lagt til og kan nå sjekkes inn.':'Deltakeren er lagt til. Innsjekking åpner på arrangementsdatoen.');
             } catch(error) { message(error.message,true); } finally { setBusy(false); }
         });
     }
@@ -136,14 +136,14 @@
             <div class="uc-heading-kicker">ARRANGEMENT</div><h1 id="ec-title">${esc(event.title)}</h1>
             <div class="uc-header-meta"><span>${icon('calendar3')} ${esc(date)}</span><span>${icon('clock')} ${esc(String(event.start_time||'').slice(0,5))}${event.end_time?'–'+esc(String(event.end_time).slice(0,5)):''}</span>${event.venue_name?`<span>${icon('geo-alt')} ${esc(event.venue_name)}</span>`:''}</div></div>
             <button type="button" data-ec-focus class="uc-focus-button" aria-label="Veksle fullskjerm">${icon('arrows-fullscreen')}<span>Fokusmodus</span></button></header>
-            ${!mutable()?`<div class="uc-readonly-notice">${icon('shield-check')} Deltakerlisten kan vises nå. Innsjekking og deltakerendringer åpner på arrangementsdatoen.</div>`:''}
+            ${!mutable()?`<div class="uc-readonly-notice">${icon('shield-check')} Du kan legge til deltakere nå. Innsjekking åpner på arrangementsdatoen.</div>`:''}
             <section class="uc-overview" aria-label="Oppmøte"><div class="uc-progress-block"><div class="uc-progress-top"><span>Oppmøte</span><strong>${count}<small> / ${all}</small></strong></div>
             <div class="uc-progress-track" role="progressbar" aria-label="Innsjekket" aria-valuemin="0" aria-valuemax="${Math.max(all,1)}" aria-valuenow="${count}"><span style="width:${all?count/all*100:0}%"></span></div>
             <small>${all?Math.round(count/all*100):0}% innsjekket · ${all-count} venter</small></div>
             <div class="uc-overview-stat">${icon('check-circle')}<span><strong>${count}</strong><small>Innsjekket</small></span></div>
             <div class="uc-overview-stat">${icon('people')}<span><strong>${all-count}</strong><small>Gjenstår</small></span></div></section>
             <section class="uc-roster"><div class="uc-roster-heading"><div><div class="uc-heading-kicker">DELTAKEROVERSIKT</div><h2>Deltakere <small>${all}</small></h2></div>
-            <button type="button" class="uc-add-button" data-ec-add ${mutable()?'':'disabled'}>${icon('plus-lg')} Legg til deltaker</button></div>
+            <button type="button" class="uc-add-button" data-ec-add>${icon('plus-lg')} Legg til deltaker</button></div>
             <form data-ec-manual class="uc-manual" hidden><strong>Ny deltaker</strong><div class="uc-manual-grid">
             <label>Fornavn<input name="attendee_first_name" required maxlength="255" autocomplete="off"></label>
             <label>Etternavn<input name="attendee_last_name" required maxlength="255" autocomplete="off"></label>

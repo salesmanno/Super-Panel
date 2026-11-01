@@ -50,8 +50,11 @@ try {
     $timing->execute([$eventId,$companyId]);
     $eventTiming=$timing->fetch(PDO::FETCH_ASSOC);
     $today=(new DateTimeImmutable('now',new DateTimeZone('Europe/Oslo')))->format('Y-m-d');
-    if (!$eventTiming || empty($eventTiming['start_date']) || substr($eventTiming['start_date'],0,10)>$today) {
-        throw new InvalidArgumentException('Manuell deltakerregistrering åpner på arrangementsdatoen.');
+    if (!$eventTiming) {
+        throw new OutOfBoundsException('Arrangement ikke funnet');
+    }
+    if ($checkedIn && (empty($eventTiming['start_date']) || substr($eventTiming['start_date'],0,10)>$today)) {
+        throw new InvalidArgumentException('Innsjekking åpner på arrangementsdatoen.');
     }
     $ticketPrice=max(0,(float)$eventTiming['ticket_price']);
     if ($checkedIn && $ticketPrice>0) throw new InvalidArgumentException('Registrer deltakeren først og bekreft betalingen ved innsjekking.');

@@ -155,10 +155,17 @@ try {
     $tomorrow=(new DateTimeImmutable('tomorrow',new DateTimeZone('Europe/Oslo')))->format('Y-m-d');
     $db->prepare("UPDATE events_eventdata SET start_date=? WHERE id='event-a'")->execute([$tomorrow]);
     $beforeStart=manualEventHttp($baseInput+['attendee_first_name'=>'Før','attendee_last_name'=>'Tid']);
-    manualEventAssert(!$beforeStart['success'],'Manual API blocks changes before the event starts');
+    manualEventAssert($beforeStart['success'] && !$beforeStart['checked_in'],
+        'Manual API allows participant registration before the event starts without check-in');
+    $earlyCheckin=manualEventHttp(array_replace($baseInput,[
+        'attendee_first_name'=>'For tidlig','attendee_last_name'=>'Innsjekking','checked_in'=>true,
+    ]));
+    manualEventAssert(!$earlyCheckin['success'],'Early check-in remains blocked');
+    $db->exec('DELETE FROM events_checkin WHERE id='.$db->quote($beforeStart['checkin_id']));
+    $db->exec('DELETE FROM audit_logs WHERE resource_id='.$db->quote($beforeStart['checkin_id']));
     manualEventAssert((int)$db->query('SELECT COUNT(*) FROM events_checkin')->fetchColumn()===2
         && (int)$db->query('SELECT COUNT(*) FROM audit_logs')->fetchColumn()===2,
-        'A pre-event attempt creates no participant or audit row');
+        'A denied early check-in creates no extra participant or audit row');
     $db->prepare("UPDATE events_eventdata SET start_date=? WHERE id='event-a'")->execute([$eventDay]);
 
     $db->exec("DELETE FROM tenant_admin_modules WHERE tenant_admin_id='admin-a'");
