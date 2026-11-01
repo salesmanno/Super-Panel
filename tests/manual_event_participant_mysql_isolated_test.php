@@ -80,6 +80,8 @@ try {
         usleep(100000);
     }
 
+    $eventDay=(new DateTimeImmutable('now',new DateTimeZone('Europe/Oslo')))->format('Y-m-d');
+    $db->prepare("UPDATE events_eventdata SET start_date=? WHERE id='event-a'")->execute([$eventDay]);
     $baseInput=['event_id'=>'event-a','checked_in'=>false,'csrf_token'=>'manual-token'];
     manualEventAssert(!manualEventHttp($baseInput+['attendee_first_name'=>'Ada'])['success'],
         'Missing surname is rejected before any participant is inserted');
@@ -135,6 +137,15 @@ try {
         'Manual entry neither creates revenue nor queues email');
     manualEventAssert((int)$db->query('SELECT COUNT(*) FROM audit_logs')->fetchColumn()===2,
         'Each saved participant is audited');
+
+    $tomorrow=(new DateTimeImmutable('tomorrow',new DateTimeZone('Europe/Oslo')))->format('Y-m-d');
+    $db->prepare("UPDATE events_eventdata SET start_date=? WHERE id='event-a'")->execute([$tomorrow]);
+    $beforeStart=manualEventHttp($baseInput+['attendee_first_name'=>'Før','attendee_last_name'=>'Tid']);
+    manualEventAssert(!$beforeStart['success'],'Manual API blocks changes before the event starts');
+    manualEventAssert((int)$db->query('SELECT COUNT(*) FROM events_checkin')->fetchColumn()===2
+        && (int)$db->query('SELECT COUNT(*) FROM audit_logs')->fetchColumn()===2,
+        'A pre-event attempt creates no participant or audit row');
+    $db->prepare("UPDATE events_eventdata SET start_date=? WHERE id='event-a'")->execute([$eventDay]);
 
     $db->exec("DELETE FROM tenant_admin_modules WHERE tenant_admin_id='admin-a'");
     $denied=manualEventHttp($baseInput+['attendee_first_name'=>'Per','attendee_last_name'=>'Test']);

@@ -161,8 +161,14 @@ const checks = `(async()=>{
  click(card('event-0').querySelector('.events-event-open'));await settle();await settle();
  check(fixtureCheckinOpens.length===2&&fixtureCheckinOpens.at(-1)==='event-0',
    'Pressing the event title opens unified check-in');
+ detail.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));await settle();
+ check(fixtureCheckinOpens.length===3&&fixtureCheckinOpens.at(-1)==='event-0',
+   'Enter opens unified check-in from the focused event card');
+ detail.dispatchEvent(new KeyboardEvent('keydown',{key:' ',bubbles:true,cancelable:true}));await settle();
+ check(fixtureCheckinOpens.length===4&&fixtureCheckinOpens.at(-1)==='event-0',
+   'Space opens unified check-in from the focused event card');
  click(card('event-0').querySelector('.events-event-cover'));await settle();await settle();
- check(fixtureCheckinOpens.length===3,'Image area also opens unified check-in');
+ check(fixtureCheckinOpens.length===5,'Image area also opens unified check-in');
  const cardOpensBeforeMenu=fixtureCheckinOpens.length;
  // Specific menu controls retain their own action.
  click(card('event-0').querySelector('[data-event-details]'));
