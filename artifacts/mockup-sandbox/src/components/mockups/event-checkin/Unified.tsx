@@ -33,6 +33,7 @@ type Attendee = {
   phone?: string;
   price: number;
   payment: "paid" | "unpaid" | "free";
+  hasValidLedger: boolean;
   checkedIn: boolean;
   checkedAt?: string;
   method?: string;
@@ -42,15 +43,15 @@ type Attendee = {
 type LedgerRow = { id: string; attendee: string; amount: number; method: string; time: string };
 
 const seedAttendees: Attendee[] = [
-  { id: "a1", first: "Ingrid", last: "Solberg", email: "ingrid.solberg@example.no", price: 690, payment: "paid", checkedIn: true, checkedAt: "18:04", method: "Vipps" },
-  { id: "a2", first: "Marius", last: "Haugen", email: "marius.haugen@example.no", price: 690, payment: "paid", checkedIn: false, method: "Kort" },
-  { id: "a3", first: "Sofie", last: "Lunde", email: "sofie.lunde@example.no", price: 690, payment: "unpaid", checkedIn: false },
-  { id: "a4", first: "Anders", last: "Berg", email: "anders.berg@example.no", price: 0, payment: "free", checkedIn: true, checkedAt: "18:11" },
-  { id: "a5", first: "Nora", last: "Eide", email: "nora.eide@example.no", price: 690, payment: "paid", checkedIn: false, method: "Vipps" },
-  { id: "a6", first: "Jonas", last: "Dahl", email: "jonas.dahl@example.no", price: 690, payment: "unpaid", checkedIn: false },
-  { id: "a7", first: "Emilie", last: "Nygård", email: "emilie.nygard@example.no", price: 690, payment: "paid", checkedIn: false, method: "Kort" },
-  { id: "a8", first: "Thomas", last: "Vik", email: "thomas.vik@example.no", price: 690, payment: "paid", checkedIn: true, checkedAt: "18:19", method: "Vipps" },
-  { id: "a9", first: "Kari", last: "Moen", email: "kari.moen@example.no", price: 690, payment: "unpaid", checkedIn: false },
+  { id: "a1", first: "Ingrid", last: "Solberg", email: "ingrid.solberg@example.no", price: 690, payment: "paid", hasValidLedger: true, checkedIn: true, checkedAt: "18:04", method: "Vipps" },
+  { id: "a2", first: "Marius", last: "Haugen", email: "marius.haugen@example.no", price: 690, payment: "paid", hasValidLedger: false, checkedIn: false, method: "Kort" },
+  { id: "a3", first: "Sofie", last: "Lunde", email: "sofie.lunde@example.no", price: 690, payment: "unpaid", hasValidLedger: false, checkedIn: false },
+  { id: "a4", first: "Anders", last: "Berg", email: "anders.berg@example.no", price: 0, payment: "free", hasValidLedger: false, checkedIn: true, checkedAt: "18:11" },
+  { id: "a5", first: "Nora", last: "Eide", email: "nora.eide@example.no", price: 690, payment: "paid", hasValidLedger: true, checkedIn: false, method: "Vipps" },
+  { id: "a6", first: "Jonas", last: "Dahl", email: "jonas.dahl@example.no", price: 690, payment: "unpaid", hasValidLedger: false, checkedIn: false },
+  { id: "a7", first: "Emilie", last: "Nygård", email: "emilie.nygard@example.no", price: 690, payment: "paid", hasValidLedger: true, checkedIn: false, method: "Kort" },
+  { id: "a8", first: "Thomas", last: "Vik", email: "thomas.vik@example.no", price: 690, payment: "paid", hasValidLedger: true, checkedIn: true, checkedAt: "18:19", method: "Vipps" },
+  { id: "a9", first: "Kari", last: "Moen", email: "kari.moen@example.no", price: 690, payment: "unpaid", hasValidLedger: false, checkedIn: false },
 ];
 
 const formatNok = (amount: number) =>
@@ -143,10 +144,10 @@ export function Unified() {
     setActiveRoster("checked");
     setAttendees((current) => current.map((person) =>
       person.id === attendee.id
-        ? { ...person, checkedIn: true, checkedAt: new Intl.DateTimeFormat("nb-NO", { hour: "2-digit", minute: "2-digit" }).format(new Date()), ...(method ? { method, payment: "paid" as const } : {}) }
+        ? { ...person, checkedIn: true, checkedAt: new Intl.DateTimeFormat("nb-NO", { hour: "2-digit", minute: "2-digit" }).format(new Date()), ...(method ? { method, payment: "paid" as const, hasValidLedger: true } : {}) }
         : person
     ));
-    if (attendee.price > 0 && attendee.payment === "unpaid" && method) {
+    if (attendee.price > 0 && !attendee.hasValidLedger && method) {
       setLedger((current) => current.some((row) => row.id === attendee.id) ? current : [
         ...current,
         { id: attendee.id, attendee: `${attendee.first} ${attendee.last}`, amount: attendee.price, method, time: new Intl.DateTimeFormat("nb-NO", { hour: "2-digit", minute: "2-digit" }).format(new Date()) },
@@ -164,7 +165,7 @@ export function Unified() {
       showToast(`${attendee.first} er allerede sjekket inn`);
       return;
     }
-    if (attendee.payment === "unpaid" && attendee.price > 0) {
+    if (attendee.price > 0 && !attendee.hasValidLedger) {
       previousFocus.current = document.activeElement as HTMLElement;
       setPaymentTarget(attendee);
       return;
@@ -195,6 +196,7 @@ export function Unified() {
       phone: newGuest.phone.trim() || undefined,
       price: 690,
       payment: "unpaid",
+      hasValidLedger: false,
       checkedIn: false,
       manual: true,
     };
@@ -384,8 +386,8 @@ export function Unified() {
           <div className="uc-dialog-head"><span className="uc-dialog-icon is-payment"><CircleDollarSign size={18} /></span><button type="button" className="uc-icon-button" aria-label="Lukk" onClick={closeDialog}><X size={18} /></button></div>
           <div className="uc-dialog-content">
             <div className="uc-heading-kicker">LOKAL SIMULERING</div>
-            <h2 id="uc-payment-title">Bekreft betaling</h2>
-            <p><strong>{paymentTarget.first} {paymentTarget.last}</strong> har en ubetalt billett. Velg eksempelmetode for å simulere betaling og sjekke inn.</p>
+            <h2 id="uc-payment-title">{paymentTarget.payment === "paid" ? "Registrer manglende betaling" : "Velg betalingsmetode"}</h2>
+            <p><strong>{paymentTarget.first} {paymentTarget.last}</strong> {paymentTarget.payment === "paid" ? "er markert betalt, men mangler en gyldig ledger-registrering. Velg metoden som ble brukt og bekreft — ingen belastning utføres på nytt." : "mangler en gyldig betaling og ledger-registrering. Velg metode for den lokale betalingen før innsjekking."}</p>
             <div className="uc-payment-amount"><span>Beløp</span><strong>{formatNok(paymentTarget.price)}</strong></div>
             <fieldset className="uc-methods"><legend>Betalingsmetode</legend>
               {(["Vipps", "Kontant"] as const).map((method) => <label key={method} className={paymentMethod === method ? "is-selected" : ""}>
@@ -394,8 +396,8 @@ export function Unified() {
                 <span className="uc-radio-mark" />
               </label>)}
             </fieldset>
-            <div className="uc-simulation-note"><ShieldCheck size={16} /><span><strong>Kun simulering</strong> · Ingen betaling sendes til Vipps eller andre betalingstjenester.</span></div>
-            <div className="uc-dialog-actions"><button type="button" className="uc-secondary-button" onClick={closeDialog}>Avbryt</button><button type="button" className="uc-primary-button" onClick={confirmPayment}><Check size={15} /> Bekreft og sjekk inn</button></div>
+            <div className="uc-simulation-note"><ShieldCheck size={16} /><span><strong>Kun simulering</strong> · Ingen penger trekkes, og ingen betalingsforespørsel sendes. Dette valget registreres bare i eksemplet.</span></div>
+            <div className="uc-dialog-actions"><button type="button" className="uc-secondary-button" onClick={closeDialog}>Avbryt</button><button type="button" className="uc-primary-button" onClick={confirmPayment}><Check size={15} /> Registrer og sjekk inn</button></div>
           </div>
         </section>
       </div>}
@@ -406,20 +408,31 @@ export function Unified() {
 }
 
 function AttendeeRow({ person, eventDay, onCheckin }: { person: Attendee; eventDay: boolean; onCheckin: (person: Attendee) => void }) {
-  const paymentText = person.payment === "paid" ? "Betalt" : person.payment === "unpaid" ? "Ubetalt" : "Gratis";
+  const paymentText = person.price === 0 ? "Gratis" : !person.hasValidLedger ? "Mangler ledger" : person.payment === "paid" ? "Betalt" : "Ubetalt";
+  const paymentClass = person.price > 0 && !person.hasValidLedger ? "unpaid" : person.payment;
   return <article className={`uc-attendee${person.checkedIn ? " is-checked" : ""}`} role="listitem">
     <div className="uc-avatar" aria-hidden="true">{person.first.charAt(0)}{person.last.charAt(0)}</div>
     <div className="uc-person">
       <div className="uc-person-name">{person.first} {person.last}{person.manual && <span className="uc-manual-tag">Manuelt lagt til</span>}</div>
       <div className="uc-person-contact">{person.email || person.phone || "Ingen kontaktopplysninger"}</div>
     </div>
-    <span className={`uc-payment-status is-${person.payment}`} aria-label={`Betalingsstatus: ${paymentText}`}>
-      <span />{paymentText}{person.payment === "paid" && person.method ? <small> · {person.method}</small> : null}
+    <span className={`uc-payment-status is-${paymentClass}`} aria-label={`Betalingsstatus: ${paymentText}`}>
+      <span />{paymentText}{person.method ? <small> · {person.method}</small> : null}
     </span>
     <div className="uc-attendee-action">
       {person.checkedIn
         ? <span className="uc-checked-status"><CheckCircle2 size={15} /><span>Innsjekket<small>{person.checkedAt || "I dag"}</small></span></span>
-        : <button type="button" className="uc-checkin-button" disabled={!eventDay} onClick={() => onCheckin(person)}>{person.payment === "unpaid" && person.price > 0 ? <><CircleDollarSign size={15} /> Betal & sjekk inn</> : <><Check size={15} /> Sjekk inn</>}</button>}
+        : <button
+          type="button"
+          className="uc-checkin-button"
+          aria-label={person.price > 0 && !person.hasValidLedger ? `Velg betalingsmetode, registrer ledger og sjekk inn ${person.first} ${person.last}` : `Sjekk inn ${person.first} ${person.last}`}
+          disabled={!eventDay}
+          onClick={() => onCheckin(person)}
+        >
+          {person.price > 0 && !person.hasValidLedger
+            ? <><CircleDollarSign size={15} /><span className="uc-action-label-full">Velg betalingsmetode</span><span className="uc-action-label-compact" aria-hidden="true">Betalingsmåte</span></>
+            : <><Check size={15} /><span>Sjekk inn</span></>}
+        </button>}
     </div>
     <span className="uc-price">{formatNok(person.price)}</span>
   </article>;

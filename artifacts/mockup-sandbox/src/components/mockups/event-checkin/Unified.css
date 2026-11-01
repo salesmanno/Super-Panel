@@ -284,6 +284,7 @@
   white-space: nowrap;
 }
 .uc-checkin-button:hover:not(:disabled) { border-color: #94b89b; background: #e9f3e8; }
+.uc-action-label-compact { display: none; }
 .uc-checked-status { display: inline-flex; align-items: center; gap: 5px; color: #4d815e; font-size: 9px; font-weight: 750; white-space: nowrap; }
 .uc-checked-status > span { display: grid; gap: 2px; }
 .uc-checked-status small { color: #94a198; font-size: 8px; font-weight: 550; }
@@ -462,7 +463,9 @@
   .uc-person-contact { font-size: 8px; }
   .uc-payment-status { font-size: 8px; }
   .uc-payment-status small { font-size: 7px; }
-  .uc-checkin-button { min-height: 34px; max-width: 116px; padding: 0 6px; font-size: 8px; }
+  .uc-checkin-button { width: 100%; min-height: 44px; max-width: 116px; padding: 5px 6px; font-size: 9px; line-height: 1.15; white-space: normal; text-align: center; }
+  .uc-action-label-full { display: none; }
+  .uc-action-label-compact { display: inline; }
   .uc-checkin-button svg { width: 13px; }
   .uc-checked-status { font-size: 8px; }
   .uc-modal-backdrop { align-items: end; padding: 8px; }
