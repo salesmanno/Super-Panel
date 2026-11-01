@@ -1392,6 +1392,9 @@ try {
                     <p id="selected-event-date"></p>
                 </div>
                 <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary" data-add-event-participant>
+                        <i class="bi bi-plus-lg me-1"></i>Legg til deltaker
+                    </button>
                     <button class="btn btn-primary" id="open-fullscreen-checkin">
                         <i class="bi bi-arrows-fullscreen me-2"></i>Fullskjerm
                     </button>
@@ -1548,7 +1551,7 @@ try {
                                 <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                                     <span><i class="bi bi-check-circle-fill me-2"></i>Ankommet / Innsjekket</span>
                                     <button type="button" class="btn btn-sm btn-light" onclick="beginManualEventParticipant(true, 'checkin-confirmed-list')" aria-label="Legg til innsjekket deltaker" title="Legg til deltaker">
-                                        <i class="bi bi-plus-lg"></i>
+                                        <i class="bi bi-plus-lg me-1"></i>Legg til deltaker
                                     </button>
                                 </div>
                                 <div class="card-body p-0">
@@ -1586,7 +1589,7 @@ try {
                                     <span><i class="bi bi-clock-fill me-2"></i>Venter på innsjekking</span>
                                     <div class="d-flex align-items-center gap-2">
                                         <button type="button" class="btn btn-sm btn-light" onclick="beginManualEventParticipant(false, 'checkin-pending-list')" aria-label="Legg til deltaker som venter" title="Legg til deltaker">
-                                            <i class="bi bi-plus-lg"></i>
+                                            <i class="bi bi-plus-lg me-1"></i>Legg til deltaker
                                         </button>
                                         <button id="create-group-btn" class="btn btn-sm btn-light" style="display: none;" onclick="openGroupCheckoutModal()">
                                             <i class="bi bi-people-fill me-1"></i>Gruppesjekk <span class="badge bg-warning text-dark">0</span>
@@ -3420,9 +3423,11 @@ async function openEventDetail(eventId, eventTitle, eventDate) {
     
     // Load checkins and event details
     await loadPaymentMethods(eventId);
-    loadCheckins(eventId);
-    loadEventDetailsForCheckin(eventId);
-    await loadEventRegistrationFields(eventId);
+    await Promise.all([
+        loadCheckins(eventId),
+        loadEventDetailsForCheckin(eventId),
+        loadEventRegistrationFields(eventId)
+    ]);
 }
 
 function goBackToEventList() {
@@ -4189,6 +4194,7 @@ async function loadCheckins(eventId) {
     try {
         const response = await fetch(`/api/get_event_checkins.php?event_id=${eventId}`);
         const result = await response.json();
+        if (String(selectedEventId) !== String(eventId)) return;
         
         if (result.success) {
             // Update statistics with new fields
@@ -6027,6 +6033,12 @@ async function loadAllRegistrations() {
                     <div id="${collapseId}" class="accordion-collapse collapse" 
                          data-bs-parent="#registrationsAccordion" data-event-id="${eventGroup.event_id}">
                         <div class="accordion-body p-0">
+                            <div class="d-flex justify-content-end p-2 border-bottom">
+                                <button type="button" class="btn btn-sm btn-outline-primary"
+                                        data-event-participants-add="${eventFormEscapeText(eventGroup.event_id)}">
+                                    <i class="bi bi-plus-lg me-1"></i>Legg til deltaker
+                                </button>
+                            </div>
                             <div class="table-responsive">
                                 <table class="table table-sm table-hover mb-0">
                                     <thead style="background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">

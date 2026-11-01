@@ -1332,11 +1332,12 @@ function renderMembersTable(members) {
                         <div class="editable-member-cell small" data-field="email">
                             <i class="bi bi-envelope me-1 text-muted"></i>${escapeH(member.email)}
                         </div>
-                        <button type="button" class="btn btn-link btn-sm px-0 py-1"
+                        <button type="button" class="btn btn-link btn-sm p-0 text-muted"
                                 data-open-customer-contacts
+                                title="Flere e-postadresser og telefonnumre" aria-label="Flere e-postadresser og telefonnumre"
                                 data-customer-id="${customerContactAttribute(member.customer_id || '')}"
                                 data-customer-name="${customerContactAttribute((member.first_name || '') + ' ' + (member.last_name || ''))}">
-                            <i class="bi bi-person-lines-fill me-1"></i>Administrer kontakter
+                            <i class="bi bi-three-dots"></i>
                         </button>
                     </td>
                     <td class="small text-nowrap">

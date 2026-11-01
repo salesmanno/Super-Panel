@@ -168,7 +168,7 @@
             ${membershipDetails}
         </div>`;
         return `<article class="events-event-entry" id="events-event-${esc(id)}">
-            <div class="events-event-card${stateClass === 'hidden' ? ' is-inactive' : ''}${stateClass === 'past' ? ' is-past' : ''}" data-event-card="${esc(id)}" tabindex="0" role="group" aria-expanded="false" aria-controls="events-detail-${esc(id)}" aria-label="${esc(event.title || 'Arrangement')}. Trykk Enter for å vise detaljer.">
+            <div class="events-event-card${stateClass === 'hidden' ? ' is-inactive' : ''}${stateClass === 'past' ? ' is-past' : ''}" data-event-card="${esc(id)}" tabindex="0" role="group" aria-haspopup="dialog" aria-label="${esc(event.title || 'Arrangement')}. Trykk Enter for å vise påmeldte.">
                 <div class="events-event-cover">${imageMarkup}</div>
                 <div class="events-event-main">
                     <div class="events-event-top">
@@ -451,6 +451,7 @@
         const body = document.getElementById('eventsOverviewModalBody');
         if (!modal || !body) return;
         if (!confirmEditorForAction()) return;
+        modal.dataset.overviewKind = kind;
         if (kind === 'upcoming') {
             if (state.modalKind) restoreOverview();
             state.modalKind = 'upcoming';
@@ -477,13 +478,27 @@
         }
         sections.forEach(section => { body.append(section);section.style.display = 'block'; });
         const title = document.getElementById('eventsOverviewModalTitle');
-        if (title) title.textContent = kind === 'requests' ? 'Eventbestillinger' : 'Innsjekking';
+        if (title) title.textContent = kind === 'requests' ? 'Eventbestillinger' : kind === 'participants' ? 'Påmeldte' : 'Innsjekking';
         if (kind === 'requests' && !state.modalControls) attachRegistrationFilter();
         bootstrap.Modal.getOrCreateInstance(modal).show();
         if (shouldRefresh) {
             if (kind === 'requests') { window.loadPendingRegistrations?.();window.loadAllRegistrations?.(); }
             else window.loadCheckinEventSelector?.();
         }
+    }
+
+    async function openParticipants(id, addParticipant = false) {
+        const item = state.events.find(event => String(event.id) === String(id));
+        if (!item || !confirmEditorForAction()) return;
+        openOverview('participants', false);
+        const title = document.getElementById('eventsOverviewModalTitle');
+        if (title) title.textContent = `Påmeldte · ${item.title || 'Arrangement'}`;
+        // Reuse the actual participant tables and their inline create/save flow.
+        await window.openEventDetail?.(id, item.title || 'Arrangement', displayDate(item));
+        if (String(selectedEventId) !== String(id)) return;
+        const pendingTab = document.querySelector('[data-bs-target="#checkin-pending-tab"]');
+        if (pendingTab) bootstrap.Tab.getOrCreateInstance(pendingTab).show();
+        if (addParticipant) window.beginManualEventParticipant?.(false, 'checkin-pending-list');
     }
 
     function restoreOverview() {
@@ -523,6 +538,19 @@
             if (await beforeNavigation()) { state.appliedStatus = target.value;renderList(); }
             else target.value = state.appliedStatus;
         });
+        document.addEventListener('click',event => {
+            const addFromList = event.target.closest('[data-event-participants-add]');
+            if (addFromList) {
+                openParticipants(addFromList.dataset.eventParticipantsAdd, true);
+                return;
+            }
+            if (event.target.closest('[data-add-event-participant]')) {
+                const pendingTab = document.querySelector('[data-bs-target="#checkin-pending-tab"]');
+                if (pendingTab) bootstrap.Tab.getOrCreateInstance(pendingTab).show();
+                window.beginManualEventParticipant?.(false, 'checkin-pending-list');
+                return;
+            }
+        });
         root.addEventListener('click',event => {
             const overviewButton = event.target.closest('[data-open-overview]');
             if (overviewButton) {
@@ -557,7 +585,7 @@
             if (event.target.closest('[data-events-retry]')) window.loadEvents?.();
             const card = event.target.closest('[data-event-card]');
             if (card && !event.target.closest('button,input,select,textarea,a,.events-event-details,.events-inline-fields,[role="menu"]')) {
-                toggleEventDetails(card.dataset.eventCard);
+                openParticipants(card.dataset.eventCard);
             }
         });
         root.addEventListener('keydown',event => {
@@ -565,7 +593,7 @@
             if (!card || event.target !== card) return;
             if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
-                toggleEventDetails(card.dataset.eventCard);
+                openParticipants(card.dataset.eventCard);
             }
         });
         document.getElementById('eventsOverviewModalBody')?.addEventListener('click',event => {
@@ -660,6 +688,7 @@
         renderList,
         openOverview,
         openFieldEditor,
+        openParticipants,
         closeFieldEditor,
         beforeNavigation,
         setSource:(success,events,message) => sourceUpdated({detail:{success,events,message}})

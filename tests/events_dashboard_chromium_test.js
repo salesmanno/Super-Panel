@@ -131,8 +131,21 @@ const checks = `(async()=>{
  typed(search,'Arrangement 1');await settle();check(card('event-1')&&!card('event-0'),'Intentional search filters');
  typed(search,'');await settle();
  const detail=card('event-0').querySelector('.events-event-card');
- detail.click();check(!document.getElementById('events-detail-event-0').hidden,'Whole card opens useful details');
- detail.click();check(document.getElementById('events-detail-event-0').hidden,'Card toggles details');
+ detail.click();await settle();await settle();
+ check(document.getElementById('eventsOverviewModal').classList.contains('show')&&
+  document.getElementById('eventsOverviewModalTitle').textContent==='Påmeldte · Arrangement 0',
+  'Whole card opens the actual event participant list');
+ check(document.querySelector('#eventsOverviewModalBody #checkin-pending-tab').classList.contains('active'),
+  'Participant list starts with registered participants, not checked-in participants');
+ const addParticipant=document.querySelector('#eventsOverviewModalBody [data-add-event-participant]');
+ check(addParticipant&&addParticipant.textContent.includes('Legg til deltaker'),'Visible plus action in participant list');
+ click(addParticipant);await settle();
+ check(document.querySelector('#checkin-pending-list .manual-participant-row'),'Header plus creates a real inline participant row inside the modal');
+ click(document.querySelector('#checkin-pending-list [data-manual-participant-cancel]'));await settle();
+ bootstrap.Modal.getInstance(document.getElementById('eventsOverviewModal')).hide();await settle();
+ // Specific controls retain their own action and do not open participants.
+ click(card('event-0').querySelector('[data-event-details]'));
+ check(!document.getElementById('events-detail-event-0').hidden&&!document.getElementById('eventsOverviewModal').classList.contains('show'),'Title details action stays separate from card action');
  action('event-0','fields').click();await settle();
  let panel=document.getElementById('events-inline-fields-event-0');
  check(!panel.hidden&&panel.querySelector('[data-common-field="email"]'),'Editor embedded in card');

@@ -39,6 +39,15 @@ $setup->exec("INSERT INTO rental_request_field_values VALUES('answer','a','r','r
 $_SESSION=['company_id'=>'a','tenant_admin_id'=>'admin','admin_name'=>'FORGED'];
 $dsn=$base.';dbname=forms_fixture;charset=utf8mb4';
 $db=new AuditedPDO($dsn,'root','',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);
+// A customer-site definition without __configured must beat an old dedicated
+// field list, and postal must not reappear alongside the supported zip field.
+$setup->exec("INSERT INTO dynamic_form_fields(id,company_id,entity_type,entity_id,field_name,field_label,field_type,sort_order) VALUES('external-zip','a','event','e','zip','Postnummer','text',7),('external-postal','a','event','e','postal','Postnummer gammel','text',8)");
+$external=entityFormLoad($db,'a','event','e');
+formsAssert($external['source']==='dynamic' && array_column($external['fields'],'field_name')===['zip'],'Existing dynamic fields win over legacy; unsupported postal removed');
+formsAssert($external['fields'][0]['sort_order']===7,'Saved external sort order retained');
+formsAssert(!in_array('postal',array_column(entityFormDefaults('event'),'field_name'),true),'Presets contain only the recognized postal-code field');
+formsAssert($setup->query("SELECT COUNT(*) FROM dynamic_form_fields WHERE id='external-postal'")->fetchColumn()==1,'Reading does not delete definitions or historical answers');
+$setup->exec("DELETE FROM dynamic_form_fields WHERE id IN ('external-zip','external-postal')");
 $plan=entityFormMigrationPlan($db);
 formsAssert($plan['report']['conflicting_entities']===1,'Reports shared/legacy conflict');
 formsAssert($setup->query('SELECT COUNT(*) FROM dynamic_form_fields')->fetchColumn()==2,'Dry run does not write');

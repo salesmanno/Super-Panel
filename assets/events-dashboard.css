@@ -1,3 +1,9 @@
+#eventsOverviewModal[data-overview-kind="participants"] #event-details-panel > .row > .col-lg-4 { display:none; }
+#eventsOverviewModal[data-overview-kind="participants"] #event-details-panel > .row > .col-lg-8 { width:100%; }
+#eventsOverviewModal[data-overview-kind="participants"] #open-fullscreen-checkin,
+#eventsOverviewModal[data-overview-kind="participants"] .checkin-back-btn { display:none; }
+#eventsOverviewModal[data-overview-kind="participants"] .event-info-header { flex-wrap:wrap; }
+#eventsOverviewModal[data-overview-kind="participants"] .event-info-header > .d-flex { flex-wrap:wrap; }
 #events-module {
     --event-ink:#263b3a;
     --event-muted:#71817c;

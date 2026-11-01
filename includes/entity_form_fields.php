@@ -49,7 +49,7 @@ function entityFormDefaults(string $type): array {
     }
     $definitions = $type === 'event'
         ? ['first_name'=>'Fornavn','last_name'=>'Etternavn','email'=>'E-postadresse','phone'=>'Telefonnummer',
-            'street'=>'Gateadresse','zip'=>'Postnummer','city'=>'Poststed','postal'=>'Postboks','age'=>'Alder']
+            'street'=>'Gateadresse','zip'=>'Postnummer','city'=>'Poststed','age'=>'Alder']
         : ['first_name'=>'Fornavn','last_name'=>'Etternavn','phone'=>'Telefon','email'=>'E-post',
             'postal_code'=>'Postnummer','street_address'=>'Gateadresse','city'=>'Poststed','age'=>'Alder'];
     $fields = [];
@@ -95,6 +95,9 @@ function entityFormNormalize(string $type, array $fields, bool $allowBrokenRenta
         $nameInput=$f['field_name']??$f['field']??'';
         if(!is_string($nameInput))throw new InvalidArgumentException('Ugyldig feltnavn');
         $name = entityFormCanonicalName($type,$nameInput);
+        // The customer-facing event form recognizes zip, not postal.
+        // Retire the unsupported definition without touching submitted answers.
+        if ($type === 'event' && $name === 'postal') continue;
         if (!preg_match('/^[a-z][a-z0-9_]{0,99}$/D',$name)
             || preg_match('/password|secret|token|access_code/',$name) || isset($result[$name])) {
             throw new InvalidArgumentException('Ugyldig eller gjentatt feltnavn');
@@ -222,9 +225,10 @@ function entityFormLoad(PDO $db,string $company,string $type,string $id,bool $al
     $context=entityFormContext($db,$company,$type,$id);
     $raw=entityFormRaw($db,$company,$type,$id);
     $fields=array_values(array_filter($raw,static fn($f)=>$f['field_name']!=='__configured'));
-    $configured=in_array('__configured',array_column($raw,'field_name'),true);
-    $legacy=$configured?[]:entityFormLegacy($db,$company,$type,$id);
-    if ($configured || ($raw && !$legacy)) {
+    // Existing shared definitions are authoritative, including rows written
+    // by the customer site without our optional configuration marker.
+    $legacy=$raw?[]:entityFormLegacy($db,$company,$type,$id);
+    if ($raw) {
         $fields=entityFormNormalize($type,$fields,$allowBrokenRentalEmailRules);
         $source='dynamic';
     } else {
