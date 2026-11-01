@@ -22,7 +22,8 @@
         transitioningToDetails: false,
         childModalId: null,
         modalControls: null,
-        registrationObserver: null
+        registrationObserver: null,
+        participantLoadRevision: 0
     };
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
@@ -201,7 +202,7 @@
                     ${membershipDetails}
                     <div class="events-participant-actions">
                         <button type="button" class="btn btn-sm btn-outline-secondary" data-event-participants="${esc(id)}" aria-haspopup="dialog"><i class="bi bi-people me-1"></i>Deltakerliste</button>
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-event-participants-add="${esc(id)}" aria-haspopup="dialog"><i class="bi bi-plus-lg me-1"></i>Deltaker</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-event-participants-add="${esc(id)}" aria-haspopup="dialog"><i class="bi bi-plus-lg me-1"></i>Legg til deltaker</button>
                     </div>
                 </div>
                 ${details}
@@ -495,15 +496,115 @@
     async function openParticipants(id, addParticipant = false) {
         const item = state.events.find(event => String(event.id) === String(id));
         if (!item || !confirmEditorForAction()) return;
-        openOverview('participants', false);
+        if (state.modalKind && state.modalKind !== 'participants') {
+            restoreOverview();
+        }
+        const revision = ++state.participantLoadRevision;
+        state.modalKind = 'participants';
+        selectedEventId = String(id);
+        currentEventTitle = item.title || 'Arrangement';
+        currentEventDate = displayDate(item);
+        const modal = document.getElementById('eventsOverviewModal');
         const title = document.getElementById('eventsOverviewModalTitle');
-        if (title) title.textContent = `Påmeldte · ${item.title || 'Arrangement'}`;
-        // Reuse the actual participant tables and their inline create/save flow.
-        await window.openEventDetail?.(id, item.title || 'Arrangement', displayDate(item));
-        if (String(selectedEventId) !== String(id)) return;
-        const pendingTab = document.querySelector('[data-bs-target="#checkin-pending-tab"]');
-        if (pendingTab) bootstrap.Tab.getOrCreateInstance(pendingTab).show();
-        if (addParticipant) window.beginManualEventParticipant?.(false, 'checkin-pending-list');
+        const body = document.getElementById('eventsOverviewModalBody');
+        if (!modal || !body) return;
+        modal.dataset.overviewKind = 'participants';
+        if (title) title.textContent = `Deltakere · ${currentEventTitle}`;
+        body.innerHTML = `<div class="event-participants" data-event-participants-panel="${esc(id)}">
+            <div class="event-participants-heading">
+                <div><span class="event-participants-date">${esc(currentEventDate)}</span><p class="mb-0">Deltakerlisten for dette arrangementet</p></div>
+                <button type="button" class="btn btn-primary" data-dashboard-add-participant="${esc(id)}"><i class="bi bi-plus-lg me-1"></i>Legg til deltaker</button>
+            </div>
+            <div class="event-participants-status" role="status" aria-live="polite">Laster deltakere …</div>
+            <div class="event-participants-list" id="dashboard-event-participant-list">
+                <div class="event-participants-loading"><span></span><span></span></div>
+            </div>
+        </div>`;
+        bootstrap.Modal.getOrCreateInstance(modal).show();
+        await Promise.all([
+            loadDashboardManualParticipantFields(String(id)),
+            loadDashboardParticipants(String(id), revision)
+        ]);
+        const addButton = body.querySelector('[data-dashboard-add-participant]');
+        if (addButton) {
+            addButton.disabled = !eventManualParticipantCsrfToken;
+            addButton.title = eventManualParticipantCsrfToken ? '' : 'Deltakerskjemaet kunne ikke lastes.';
+        }
+        if (revision === state.participantLoadRevision && addParticipant) {
+            window.beginManualEventParticipant?.(false, 'dashboard-event-participant-list');
+        }
+    }
+
+    async function loadDashboardManualParticipantFields(eventId) {
+        eventManualParticipantCsrfToken = '';
+        eventManualParticipantFieldDefinitions = [];
+        try {
+            const [fieldsResponse, tokenResponse] = await Promise.all([
+                fetch(`/api/get_event_fields.php?event_id=${encodeURIComponent(eventId)}`, {credentials:'same-origin'}),
+                fetch(`/api/get_entity_form_fields.php?entity_type=event&entity_id=${encodeURIComponent(eventId)}&csrf_only=1`, {credentials:'same-origin'})
+            ]);
+            const [fieldsResult, tokenResult] = await Promise.all([fieldsResponse.json(), tokenResponse.json()]);
+            if (String(selectedEventId) !== String(eventId)) return false;
+            if (!fieldsResponse.ok || !fieldsResult?.success || !Array.isArray(fieldsResult.fields)) {
+                throw new Error(fieldsResult?.message || 'Skjemafeltene kunne ikke lastes.');
+            }
+            if (!tokenResponse.ok || !tokenResult?.success || typeof tokenResult.csrf_token !== 'string' || !tokenResult.csrf_token) {
+                throw new Error(tokenResult?.message || 'Sikkerhetskontrollen kunne ikke lastes.');
+            }
+            eventManualParticipantFieldDefinitions = fieldsResult.fields;
+            eventManualParticipantCsrfToken = tokenResult.csrf_token;
+            return true;
+        } catch (error) {
+            console.error('Could not load dashboard participant form:', error);
+            eventManualParticipantCsrfToken = '';
+            eventManualParticipantFieldDefinitions = [];
+            return false;
+        }
+    }
+
+    async function loadDashboardParticipants(eventId, revision = state.participantLoadRevision) {
+        const panel = document.querySelector(`[data-event-participants-panel="${CSS.escape(String(eventId))}"]`);
+        const list = panel?.querySelector('#dashboard-event-participant-list');
+        const status = panel?.querySelector('.event-participants-status');
+        if (!panel || !list) return false;
+        try {
+            const response = await fetch(`/api/get_event_checkins.php?event_id=${encodeURIComponent(eventId)}`, {
+                credentials:'same-origin',
+                headers:{'Accept':'application/json'}
+            });
+            const result = await response.json();
+            if (revision !== state.participantLoadRevision || !panel.isConnected) return false;
+            if (!response.ok || !result.success) throw new Error(result.message || 'Kunne ikke hente deltakerlisten.');
+            const participants = [
+                ...(Array.isArray(result.not_checked_in) ? result.not_checked_in : []),
+                ...(Array.isArray(result.checked_in) ? result.checked_in : [])
+            ].sort((a,b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+            if (status) status.textContent = `${participants.length} deltaker${participants.length === 1 ? '' : 'e'}`;
+            list.innerHTML = participants.length ? participants.map(participant => {
+                const name = participant.customer_name || [participant.first_name,participant.last_name].filter(Boolean).join(' ') || 'Ukjent deltaker';
+                const contact = [participant.customer_email,participant.customer_phone].filter(Boolean).join(' · ');
+                const checkedIn = Number(participant.checked_in) === 1;
+                const payment = participant.payment_status === 'paid' ? 'Betalt'
+                    : participant.payment_status === 'pending' ? 'Ubetalt'
+                    : participant.payment_status || '';
+                return `<article class="event-participant-item">
+                    <div class="event-participant-avatar" aria-hidden="true"><i class="bi bi-person"></i></div>
+                    <div class="event-participant-info"><strong>${esc(name)}</strong>
+                        ${contact ? `<span>${esc(contact)}</span>` : '<span class="text-muted">Ingen kontaktinformasjon</span>'}
+                    </div>
+                    <div class="event-participant-state">
+                        <span class="badge ${checkedIn ? 'text-bg-success' : 'text-bg-light'}">${checkedIn ? 'Innsjekket' : 'Ikke innsjekket'}</span>
+                        ${payment ? `<small>${esc(payment)}</small>` : ''}
+                    </div>
+                </article>`;
+            }).join('') : '<div class="event-participants-empty"><i class="bi bi-people" aria-hidden="true"></i><strong>Ingen deltakere ennå</strong><span>Legg til den første deltakeren her.</span></div>';
+            return true;
+        } catch (error) {
+            if (revision !== state.participantLoadRevision || !panel.isConnected) return false;
+            if (status) status.textContent = error.message || 'Kunne ikke hente deltakerlisten.';
+            list.innerHTML = '<div class="event-participants-error">Deltakerlisten kunne ikke lastes. Prøv å åpne den på nytt.</div>';
+            return false;
+        }
     }
 
     function restoreOverview() {
@@ -544,15 +645,14 @@
             else target.value = state.appliedStatus;
         });
         document.addEventListener('click',event => {
-            const addFromList = event.target.closest('[data-event-participants-add]');
-            if (addFromList) {
-                openParticipants(addFromList.dataset.eventParticipantsAdd, true);
+            const addFromDashboard = event.target.closest('[data-dashboard-add-participant]');
+            if (addFromDashboard) {
+                window.beginManualEventParticipant?.(false, 'dashboard-event-participant-list');
                 return;
             }
-            if (event.target.closest('[data-add-event-participant]')) {
-                const pendingTab = document.querySelector('[data-bs-target="#checkin-pending-tab"]');
-                if (pendingTab) bootstrap.Tab.getOrCreateInstance(pendingTab).show();
-                window.beginManualEventParticipant?.(false, 'checkin-pending-list');
+            const addFromCard = event.target.closest('[data-event-participants-add]');
+            if (addFromCard) {
+                openParticipants(addFromCard.dataset.eventParticipantsAdd, true);
                 return;
             }
         });
@@ -700,6 +800,7 @@
         openOverview,
         openFieldEditor,
         openParticipants,
+        refreshParticipants: eventId => loadDashboardParticipants(String(eventId)),
         closeFieldEditor,
         beforeNavigation,
         setSource:(success,events,message) => sourceUpdated({detail:{success,events,message}})

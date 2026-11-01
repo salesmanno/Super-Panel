@@ -1392,9 +1392,6 @@ try {
                     <p id="selected-event-date"></p>
                 </div>
                 <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-primary" data-add-event-participant>
-                        <i class="bi bi-plus-lg me-1"></i>Legg til deltaker
-                    </button>
                     <button class="btn btn-primary" id="open-fullscreen-checkin">
                         <i class="bi bi-arrows-fullscreen me-2"></i>Fullskjerm
                     </button>
@@ -1548,11 +1545,8 @@ try {
                         <!-- Checked In Tab -->
                         <div class="tab-pane fade show active" id="checkin-confirmed-tab" role="tabpanel">
                             <div class="card checkin-list-card">
-                                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                                <div class="card-header bg-success text-white">
                                     <span><i class="bi bi-check-circle-fill me-2"></i>Ankommet / Innsjekket</span>
-                                    <button type="button" class="btn btn-sm btn-light" onclick="beginManualEventParticipant(true, 'checkin-confirmed-list')" aria-label="Legg til innsjekket deltaker" title="Legg til deltaker">
-                                        <i class="bi bi-plus-lg me-1"></i>Legg til deltaker
-                                    </button>
                                 </div>
                                 <div class="card-body p-0">
                                     <div class="table-responsive" id="checkin-confirmed-container">
@@ -1588,9 +1582,6 @@ try {
                                 <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
                                     <span><i class="bi bi-clock-fill me-2"></i>Venter på innsjekking</span>
                                     <div class="d-flex align-items-center gap-2">
-                                        <button type="button" class="btn btn-sm btn-light" onclick="beginManualEventParticipant(false, 'checkin-pending-list')" aria-label="Legg til deltaker som venter" title="Legg til deltaker">
-                                            <i class="bi bi-plus-lg me-1"></i>Legg til deltaker
-                                        </button>
                                         <button id="create-group-btn" class="btn btn-sm btn-light" style="display: none;" onclick="openGroupCheckoutModal()">
                                             <i class="bi bi-people-fill me-1"></i>Gruppesjekk <span class="badge bg-warning text-dark">0</span>
                                         </button>
@@ -1698,9 +1689,6 @@ try {
                 <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-clock-fill me-2"></i>Ikke innsjekket</span>
                     <div class="d-flex align-items-center gap-2">
-                        <button type="button" class="btn btn-sm btn-light" onclick="beginManualEventParticipant(false, 'fullscreen-pending-list')" aria-label="Legg til deltaker som venter i fullskjerm" title="Legg til deltaker">
-                            <i class="bi bi-plus-lg"></i>
-                        </button>
                         <span class="badge bg-light text-dark" id="fullscreen-pending-badge">0</span>
                     </div>
                 </div>
@@ -1736,9 +1724,6 @@ try {
                 <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-check-circle-fill me-2"></i>Innsjekket</span>
                     <div class="d-flex align-items-center gap-2">
-                        <button type="button" class="btn btn-sm btn-light" onclick="beginManualEventParticipant(true, 'fullscreen-checked-list')" aria-label="Legg til innsjekket deltaker i fullskjerm" title="Legg til deltaker">
-                            <i class="bi bi-plus-lg"></i>
-                        </button>
                         <span class="badge bg-light text-dark" id="fullscreen-confirmed-badge">0</span>
                     </div>
                 </div>
@@ -4005,24 +3990,31 @@ async function beginManualEventParticipant(checkedIn, listId) {
             return;
         }
         const previousEventId = eventManualParticipantDraft.dataset.manualEventId;
+        const wasDashboardDraft = eventManualParticipantDraft.dataset.manualDashboard === '1';
         eventManualParticipantDraft.remove();
         eventManualParticipantDraft = null;
-        if (String(previousEventId) === String(selectedEventId)) await loadCheckins(selectedEventId);
+        if (String(previousEventId) === String(selectedEventId)) {
+            if (wasDashboardDraft) await window.EventsDashboard?.refreshParticipants?.(previousEventId);
+            else await loadCheckins(selectedEventId);
+        }
     }
 
     const target = document.getElementById(listId);
     if (!target) return;
+    const dashboardPlacement = listId === 'dashboard-event-participant-list';
     target.querySelectorAll('.checkin-empty-state').forEach(emptyState => emptyState.closest('tr')?.remove());
+    if (dashboardPlacement) target.querySelector('.event-participants-empty')?.remove();
 
     const definitions = eventManualParticipantFieldDefinitions.filter(field => {
         const visible = field.is_visible;
         return visible === undefined || ![false, 0, '0', 'false'].includes(visible);
     });
     const byName = Object.fromEntries(definitions.map(field => [String(field.field_name), field]));
-    const row = document.createElement('tr');
+    const row = document.createElement(dashboardPlacement ? 'div' : 'tr');
     row.className = 'manual-participant-row';
     row.dataset.manualEventId = String(selectedEventId);
     row.dataset.manualCheckedIn = checkedIn ? '1' : '0';
+    row.dataset.manualDashboard = dashboardPlacement ? '1' : '0';
 
     const coreFields = [
         ['first_name', 'Fornavn', 'text', true],
@@ -4068,14 +4060,13 @@ async function beginManualEventParticipant(checkedIn, listId) {
         );
     }).join('');
 
-    row.innerHTML = `<td colspan="5">
-        <div class="manual-participant-editor">
+    const editorMarkup = `<div class="manual-participant-editor">
             <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
                 <div>
                     <strong>Ny deltaker</strong>
                     <div class="small text-muted">Fornavn og etternavn må fylles ut. Ingen betaling registreres.</div>
                 </div>
-                <span class="badge ${checkedIn ? 'bg-success' : 'bg-warning text-dark'}">${checkedIn ? 'Innsjekket' : 'Venter'}</span>
+                ${dashboardPlacement ? '' : `<span class="badge ${checkedIn ? 'bg-success' : 'bg-warning text-dark'}">${checkedIn ? 'Innsjekket' : 'Venter'}</span>`}
             </div>
             <div class="manual-participant-fields">${fieldsMarkup}${customMarkup}</div>
             <div class="manual-participant-error" data-manual-participant-error role="alert" aria-live="polite"></div>
@@ -4083,20 +4074,23 @@ async function beginManualEventParticipant(checkedIn, listId) {
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-manual-participant-cancel>Avbryt</button>
                 <button type="button" class="btn btn-sm btn-primary" data-manual-participant-save><i class="bi bi-check-lg me-1"></i>Lagre deltaker</button>
             </div>
-        </div>
-    </td>`;
+        </div>`;
+    row.innerHTML = dashboardPlacement ? editorMarkup : `<td colspan="5">${editorMarkup}</td>`;
     target.prepend(row);
     eventManualParticipantDraft = row;
     row.querySelector('[data-manual-participant-field="first_name"]')?.focus();
 }
 
 function cancelManualEventParticipant(button) {
-    const row = button.closest('tr.manual-participant-row');
+    const row = button.closest('.manual-participant-row');
     if (!row) return;
     const eventId = row.dataset.manualEventId;
+    const dashboardPlacement = row.dataset.manualDashboard === '1';
     row.remove();
     if (eventManualParticipantDraft === row) eventManualParticipantDraft = null;
-    if (String(selectedEventId) === String(eventId)) {
+    if (dashboardPlacement) {
+        window.EventsDashboard?.refreshParticipants?.(eventId);
+    } else if (String(selectedEventId) === String(eventId)) {
         loadCheckins(selectedEventId);
         if (document.getElementById('fullscreen-checkin-overlay')?.classList.contains('active')) {
             syncCheckinToFullscreen();
@@ -4105,7 +4099,7 @@ function cancelManualEventParticipant(button) {
 }
 
 async function saveManualEventParticipant(button) {
-    const row = button.closest('tr.manual-participant-row');
+    const row = button.closest('.manual-participant-row');
     if (!row || button.disabled) return;
     const error = row.querySelector('[data-manual-participant-error]');
     const controls = Array.from(row.querySelectorAll('[data-manual-participant-field]'));
@@ -4165,11 +4159,17 @@ async function saveManualEventParticipant(button) {
             return;
         }
         const eventId = row.dataset.manualEventId;
+        const dashboardPlacement = row.dataset.manualDashboard === '1';
         row.remove();
         if (eventManualParticipantDraft === row) eventManualParticipantDraft = null;
         toast.quickSuccess('Deltaker', result.message || 'Deltakeren er lagt til.');
-        if (String(selectedEventId) === String(eventId)) await loadCheckins(eventId);
-        if (document.getElementById('fullscreen-checkin-overlay')?.classList.contains('active')) {
+        if (dashboardPlacement) {
+            await window.EventsDashboard?.refreshParticipants?.(eventId);
+            window.loadEvents?.();
+        } else if (String(selectedEventId) === String(eventId)) {
+            await loadCheckins(eventId);
+        }
+        if (!dashboardPlacement && document.getElementById('fullscreen-checkin-overlay')?.classList.contains('active')) {
             await syncCheckinToFullscreen();
         }
     } catch (requestError) {
@@ -6033,12 +6033,6 @@ async function loadAllRegistrations() {
                     <div id="${collapseId}" class="accordion-collapse collapse" 
                          data-bs-parent="#registrationsAccordion" data-event-id="${eventGroup.event_id}">
                         <div class="accordion-body p-0">
-                            <div class="d-flex justify-content-end p-2 border-bottom">
-                                <button type="button" class="btn btn-sm btn-outline-primary"
-                                        data-event-participants-add="${eventFormEscapeText(eventGroup.event_id)}">
-                                    <i class="bi bi-plus-lg me-1"></i>Legg til deltaker
-                                </button>
-                            </div>
                             <div class="table-responsive">
                                 <table class="table table-sm table-hover mb-0">
                                     <thead style="background-color: #f8f9fa; border-bottom: 2px solid #e9ecef;">
