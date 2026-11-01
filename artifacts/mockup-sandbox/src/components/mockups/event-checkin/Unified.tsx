@@ -433,12 +433,12 @@ export function Unified() {
           <div className="uc-dialog-head"><span className="uc-dialog-icon is-payment"><CircleDollarSign size={18} /></span><button type="button" className="uc-icon-button" aria-label="Lukk og avbryt" onClick={closeDialog}><X size={18} /></button></div>
           <div className="uc-dialog-content">
             <div className="uc-heading-kicker">LOKAL SIMULERING</div>
-            <h2 id="uc-payment-title">{paymentTarget.payment === "paid" ? "Registrer manglende ledger" : "Bekreft betaling først"}</h2>
-            <p><strong>{paymentTarget.first} {paymentTarget.last}</strong> {paymentTarget.payment === "paid" ? "er allerede markert betalt, men mangler ledgerføring. Velg metoden som faktisk ble brukt — det sendes ingen ny belastning." : "kan sjekkes inn når betalingen er bekreftet. Kontant bekreftes her; Vipps må bekreftes fra forespørselen."}</p>
-            <div className="uc-payment-amount"><span>Beløp</span><strong>{formatNok(paymentTarget.price)}</strong></div>
+            <h2 id="uc-payment-title">{paymentTarget.payment === "paid" ? "Bekreft tidligere betaling" : "Ubetalt — velg betalingsmåte"}</h2>
+            <p><strong>{paymentTarget.first} {paymentTarget.last}</strong> {paymentTarget.payment === "paid" ? "er allerede registrert som betalt. Velg metoden som faktisk ble brukt — det sendes ingen ny belastning." : "er ikke betalt. Velg hvordan betalingen mottas. Kontant bekreftes her; Vipps må bekreftes fra forespørselen."}</p>
+            <div className="uc-payment-amount"><span>{paymentTarget.payment === "paid" ? "Allerede betalt" : "Betalingsbeløp"}</span><strong>{formatNok(paymentTarget.price)}</strong></div>
             {paymentTarget.payment === "paid"
               ? <>
-                <div className="uc-simulation-note"><ShieldCheck size={16} /><span><strong>Betalingen er allerede mottatt</strong> · Dette reparerer bare manglende ledgerføring. Ingen ny belastning eller Vipps-forespørsel utføres.</span></div>
+                <div className="uc-simulation-note"><ShieldCheck size={16} /><span><strong>Ingen ny belastning</strong> · Dette registrerer bare betalingsmåten som allerede ble brukt. Ingen ny Vipps-forespørsel utføres.</span></div>
                 <div className="uc-checkin-actions">
                   <button type="button" className="uc-primary-button" onClick={recordPreviousPayment}><Check size={15} /> Registrer eksisterende {paymentTarget.method || "betaling"}</button>
                 </div>
@@ -474,7 +474,7 @@ export function Unified() {
 }
 
 function AttendeeRow({ person, eventDay, onCheckin }: { person: Attendee; eventDay: boolean; onCheckin: (person: Attendee) => void }) {
-  const paymentText = person.price === 0 ? "Gratis" : !person.hasValidLedger ? "Mangler ledger" : person.payment === "paid" ? "Betalt" : "Ubetalt";
+  const paymentText = person.price === 0 ? "Gratis" : !person.hasValidLedger ? "Ubetalt" : person.payment === "paid" ? "Betalt" : "Ubetalt";
   const paymentClass = person.price > 0 && !person.hasValidLedger ? "unpaid" : person.payment;
   return <article className={`uc-attendee${person.checkedIn ? " is-checked" : ""}`} role="listitem">
     <div className="uc-avatar" aria-hidden="true">{person.first.charAt(0)}{person.last.charAt(0)}</div>
