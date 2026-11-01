@@ -69,8 +69,11 @@ export function Unified() {
   const [addOpen, setAddOpen] = useState(false);
   const [paymentTarget, setPaymentTarget] = useState<Attendee | null>(null);
   const [vippsRequest, setVippsRequest] = useState<"idle" | "pending" | "expired">("idle");
-  const [vippsPayload, setVippsPayload] = useState<{ participant_id: string; target_phone: string; amount: number } | null>(null);
+  const [vippsPayload, setVippsPayload] = useState<{ participant_id: string; participant_ids: string[]; target_phone: string; amount: number } | null>(null);
   const [vippsSecondsLeft, setVippsSecondsLeft] = useState(80);
+  const [groupPickerOpen, setGroupPickerOpen] = useState(false);
+  const [groupQuery, setGroupQuery] = useState("");
+  const [additionalParticipantIds, setAdditionalParticipantIds] = useState<string[]>([]);
   const [ledger, setLedger] = useState<LedgerRow[]>([]);
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
@@ -96,6 +99,29 @@ export function Unified() {
     }).sort((a, b) => a.last.localeCompare(b.last, "nb"));
   }, [activeRoster, attendees, query]);
 
+  const additionalParticipants = useMemo(() => {
+    if (!paymentTarget) return [];
+    const normalized = groupQuery.trim().toLocaleLowerCase("nb-NO");
+    return attendees
+      .filter((person) =>
+        person.id !== paymentTarget.id &&
+        !person.checkedIn &&
+        person.price > 0 &&
+        !person.hasValidLedger &&
+        person.payment === "unpaid"
+      )
+      .filter((person) => !normalized || `${person.first} ${person.last} ${person.phone ?? ""}`.toLocaleLowerCase("nb-NO").includes(normalized))
+      .sort((a, b) => a.last.localeCompare(b.last, "nb"));
+  }, [attendees, groupQuery, paymentTarget]);
+
+  const selectedAdditionalParticipants = useMemo(
+    () => attendees.filter((person) => additionalParticipantIds.includes(person.id) && !person.checkedIn),
+    [additionalParticipantIds, attendees]
+  );
+  const totalPaymentAmount = paymentTarget
+    ? paymentTarget.price + selectedAdditionalParticipants.reduce((total, person) => total + person.price, 0)
+    : 0;
+
   const showToast = (message: string) => {
     setToast(message);
     window.clearTimeout(toastTimer.current);
@@ -114,6 +140,9 @@ export function Unified() {
     setVippsRequest("idle");
     setVippsPayload(null);
     setVippsSecondsLeft(80);
+    setGroupPickerOpen(false);
+    setGroupQuery("");
+    setAdditionalParticipantIds([]);
     window.setTimeout(() => previousFocus.current?.focus(), 0);
   };
 
@@ -191,6 +220,9 @@ export function Unified() {
       setVippsRequest("idle");
       setVippsPayload(null);
       setVippsSecondsLeft(80);
+      setGroupPickerOpen(false);
+      setGroupQuery("");
+      setAdditionalParticipantIds([]);
       setPaymentTarget(attendee);
       return;
     }
@@ -200,7 +232,9 @@ export function Unified() {
   const confirmCashPayment = () => {
     if (!paymentTarget) return;
     if (paymentTarget.payment === "paid") return;
-    markCheckedIn(paymentTarget, "Kontant");
+    const group = [paymentTarget, ...selectedAdditionalParticipants];
+    group.forEach((person) => markCheckedIn(person, "Kontant"));
+    if (group.length > 1) showToast(`Kontant mottatt for ${group.length} personer. ${paymentTarget.first} er registrert som betaler.`);
     closeDialog();
   };
 
@@ -212,10 +246,12 @@ export function Unified() {
 
   const sendVippsRequest = () => {
     if (!paymentTarget?.phone || paymentTarget.payment === "paid") return;
+    const group = [paymentTarget, ...selectedAdditionalParticipants];
     setVippsPayload({
       participant_id: paymentTarget.id,
+      participant_ids: group.map((person) => person.id),
       target_phone: paymentTarget.phone.replace(/\s+/g, ""),
-      amount: paymentTarget.price,
+      amount: totalPaymentAmount,
     });
     setVippsSecondsLeft(80);
     setVippsRequest("pending");
@@ -223,8 +259,24 @@ export function Unified() {
 
   const receiveMockVippsConfirmation = () => {
     if (!paymentTarget || !vippsPayload || vippsPayload.participant_id !== paymentTarget.id || paymentTarget.payment === "paid" || vippsRequest !== "pending") return;
-    markCheckedIn(paymentTarget, "Vipps");
+    const group = vippsPayload.participant_ids
+      .map((id) => attendees.find((person) => person.id === id))
+      .filter((person): person is Attendee => Boolean(person && !person.checkedIn));
+    if (group.length !== vippsPayload.participant_ids.length) return;
+    group.forEach((person) => markCheckedIn(person, "Vipps"));
+    if (group.length > 1) showToast(`Vipps-betalingen er bekreftet for ${group.length} personer. ${paymentTarget.first} betalte.`);
     closeDialog();
+  };
+
+  const toggleAdditionalParticipant = (person: Attendee) => {
+    setAdditionalParticipantIds((current) => {
+      if (current.includes(person.id)) return current.filter((id) => id !== person.id);
+      if (current.length >= 4) {
+        showToast("Maksimalt fem personer kan sjekkes inn sammen.");
+        return current;
+      }
+      return [...current, person.id];
+    });
   };
 
   const addGuest = (event: React.FormEvent<HTMLFormElement>) => {
@@ -435,7 +487,45 @@ export function Unified() {
             <div className="uc-heading-kicker">LOKAL SIMULERING</div>
             <h2 id="uc-payment-title">{paymentTarget.payment === "paid" ? "Bekreft tidligere betaling" : "Ubetalt — velg betalingsmåte"}</h2>
             <p><strong>{paymentTarget.first} {paymentTarget.last}</strong> {paymentTarget.payment === "paid" ? "er allerede registrert som betalt. Velg metoden som faktisk ble brukt — det sendes ingen ny belastning." : "er ikke betalt. Velg hvordan betalingen mottas. Kontant bekreftes her; Vipps må bekreftes fra forespørselen."}</p>
-            <div className="uc-payment-amount"><span>{paymentTarget.payment === "paid" ? "Allerede betalt" : "Betalingsbeløp"}</span><strong>{formatNok(paymentTarget.price)}</strong></div>
+            <div className="uc-payment-amount">
+              <span>{paymentTarget.payment === "paid" ? "Allerede betalt" : `Total for ${1 + selectedAdditionalParticipants.length} ${selectedAdditionalParticipants.length ? "personer" : "person"}`}<small>{paymentTarget.payment !== "paid" && selectedAdditionalParticipants.length > 0 ? `Betaler: ${paymentTarget.first} ${paymentTarget.last}` : ""}</small></span>
+              <strong>{formatNok(paymentTarget.payment === "paid" ? paymentTarget.price : totalPaymentAmount)}</strong>
+            </div>
+            {paymentTarget.payment !== "paid" && <section className="uc-group-add" aria-label="Legg flere personer til samme betaling">
+              <div className="uc-group-add-heading">
+                <div><strong>Flere til samme betaling?</strong><small>{paymentTarget.first} {paymentTarget.last} står som betaler · maks 5 personer totalt</small></div>
+                <button type="button" className="uc-group-toggle" onClick={() => setGroupPickerOpen((open) => !open)} aria-expanded={groupPickerOpen} disabled={vippsRequest === "pending"}>
+                  {groupPickerOpen ? "Skjul søk" : "Legg til flere til innsjekk"}
+                  <ChevronDown size={15} />
+                </button>
+              </div>
+              {selectedAdditionalParticipants.length > 0 && <div className="uc-selected-group" aria-label="Valgt gruppe">
+                <span>{paymentTarget.first} betaler for:</span>
+                {selectedAdditionalParticipants.map((person) => <span className="uc-group-chip" key={person.id}>{person.first} {person.last}
+                  <button type="button" aria-label={`Fjern ${person.first} ${person.last}`} onClick={() => toggleAdditionalParticipant(person)} disabled={vippsRequest === "pending"}><X size={12} /></button>
+                </span>)}
+              </div>}
+              {groupPickerOpen && <div className="uc-group-picker">
+                <label className="uc-group-search">
+                  <Search size={15} aria-hidden="true" />
+                  <input type="search" value={groupQuery} autoComplete="off" autoCorrect="off" spellCheck={false} placeholder="Søk blant ubetalte deltakere" aria-label="Søk blant ubetalte deltakere" onChange={(event) => setGroupQuery(event.target.value)} disabled={vippsRequest === "pending"} />
+                </label>
+                <div className="uc-group-count">{1 + selectedAdditionalParticipants.length} av 5 personer · {formatNok(totalPaymentAmount)} totalt</div>
+                <div className="uc-group-results" role="list" aria-label="Ubetalte deltakere">
+                  {additionalParticipants.map((person) => {
+                    const isSelected = additionalParticipantIds.includes(person.id);
+                    const atCapacity = !isSelected && selectedAdditionalParticipants.length >= 4;
+                    return <button type="button" role="listitem" className={`uc-group-result${isSelected ? " is-selected" : ""}`} key={person.id} aria-pressed={isSelected} disabled={atCapacity || vippsRequest === "pending"} onClick={() => toggleAdditionalParticipant(person)}>
+                      <span className="uc-group-check">{isSelected ? <Check size={14} /> : <Plus size={14} />}</span>
+                      <span><strong>{person.first} {person.last}</strong><small>Ubetalt · {formatNok(person.price)}</small></span>
+                      <span className="uc-group-result-action">{isSelected ? "Valgt" : "Legg til"}</span>
+                    </button>;
+                  })}
+                  {additionalParticipants.length === 0 && <div className="uc-group-empty">{groupQuery ? "Ingen ubetalte deltakere samsvarer med søket." : "Ingen flere ubetalte deltakere å legge til."}</div>}
+                </div>
+                <div className="uc-group-payer-note"><UserRound size={14} /> Betalingen belastes alltid opprinnelig deltaker. Vipps sendes kun til {paymentTarget.first}s registrerte telefonnummer.</div>
+              </div>}
+            </section>}
             {paymentTarget.payment === "paid"
               ? <>
                 <div className="uc-simulation-note"><ShieldCheck size={16} /><span><strong>Ingen ny belastning</strong> · Dette registrerer bare betalingsmåten som allerede ble brukt. Ingen ny Vipps-forespørsel utføres.</span></div>

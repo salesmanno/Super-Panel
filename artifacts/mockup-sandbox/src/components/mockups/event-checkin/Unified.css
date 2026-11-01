@@ -364,7 +364,42 @@
 .uc-secondary-button:hover { background: #f4f7f2; }
 .uc-primary-button { min-height: 38px; font-size: 10px; }
 .uc-payment-amount { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; padding: 12px; border-radius: 8px; background: #f3f6ef; color: #71857a; font-size: 10px; }
+.uc-payment-amount > span { display: grid; gap: 4px; }
+.uc-payment-amount > span small { color: #87968b; font-size: 9px; }
 .uc-payment-amount strong { color: #315f4e; font-size: 17px; letter-spacing: -.03em; }
+.uc-group-add { margin: -4px 0 13px; padding: 11px; border: 1px solid #dce6df; border-radius: 9px; background: #fbfcf8; }
+.uc-group-add-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.uc-group-add-heading > div { display: grid; gap: 4px; min-width: 0; }
+.uc-group-add-heading strong { color: #456452; font-size: 10px; }
+.uc-group-add-heading small { color: #86948b; font-size: 9px; line-height: 1.4; }
+.uc-group-toggle { flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 36px; padding: 0 9px; border: 1px solid #d5e2d7; border-radius: 7px; background: #fffefa; color: #4b7559; font-size: 9px; font-weight: 750; }
+.uc-group-toggle:hover:not(:disabled) { border-color: #9cbea2; background: #f0f6ee; }
+.uc-group-toggle:disabled { cursor: not-allowed; opacity: .55; }
+.uc-selected-group { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 9px; color: #72847a; font-size: 9px; }
+.uc-group-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 5px 4px 8px; border: 1px solid #d6e4d6; border-radius: 99px; background: #edf5eb; color: #41664e; font-weight: 650; }
+.uc-group-chip button { display: grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: 99px; background: transparent; color: #708a76; }
+.uc-group-chip button:hover:not(:disabled) { background: #dfeadf; }
+.uc-group-chip button:disabled { opacity: .45; }
+.uc-group-picker { display: grid; gap: 7px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e7ede6; }
+.uc-group-search { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 10px; border: 1px solid #d7e2d8; border-radius: 7px; background: #fffefa; color: #839589; }
+.uc-group-search:focus-within { border-color: #89ae94; outline: 3px solid rgba(75,132,98,.1); }
+.uc-group-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #355648; font-size: 11px; }
+.uc-group-search input::placeholder { color: #98a49b; }
+.uc-group-count { color: #839288; font-size: 9px; font-variant-numeric: tabular-nums; }
+.uc-group-results { display: grid; max-height: 178px; overflow: auto; border: 1px solid #e3ebe2; border-radius: 8px; background: #fffefa; }
+.uc-group-result { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 44px; padding: 6px 9px; border: 0; border-bottom: 1px solid #edf1ec; background: transparent; color: #465f50; text-align: left; }
+.uc-group-result:last-child { border-bottom: 0; }
+.uc-group-result:hover:not(:disabled), .uc-group-result.is-selected { background: #f2f7ef; }
+.uc-group-result:disabled { cursor: not-allowed; opacity: .48; }
+.uc-group-check { flex: none; display: grid; place-items: center; width: 23px; height: 23px; border: 1px solid #d8e3d9; border-radius: 6px; background: #fff; color: #477758; }
+.uc-group-result.is-selected .uc-group-check { border-color: #71a07b; background: #e4f0e2; }
+.uc-group-result > span:nth-child(2) { display: grid; gap: 3px; min-width: 0; }
+.uc-group-result strong { overflow: hidden; color: #435d4b; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.uc-group-result small { color: #95815d; font-size: 9px; }
+.uc-group-result-action { margin-left: auto; color: #62806a; font-size: 9px; font-weight: 700; }
+.uc-group-empty { padding: 14px 9px; color: #85948a; font-size: 9px; text-align: center; }
+.uc-group-payer-note { display: flex; align-items: flex-start; gap: 6px; color: #7a8a80; font-size: 9px; line-height: 1.45; }
+.uc-group-payer-note svg { flex: none; color: #66856d; }
 .uc-payment-flow { display: grid; gap: 11px; }
 .uc-checkin-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 12px; }
 .uc-checkin-actions > button { display: flex; align-items: center; justify-content: flex-start; gap: 10px; min-width: 0; min-height: 59px; padding: 9px 12px; border: 1px solid #dce6df; border-radius: 9px; color: #365b4b; text-align: left; }
