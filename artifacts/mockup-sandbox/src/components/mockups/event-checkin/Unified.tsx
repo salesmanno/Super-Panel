@@ -11,7 +11,6 @@ import {
   CreditCard,
   Ellipsis,
   Expand,
-  Filter,
   Mail,
   MapPin,
   Minimize,
@@ -63,7 +62,7 @@ export function Unified() {
   const [eventDay, setEventDay] = useState(true);
   const [attendees, setAttendees] = useState(seedAttendees);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | "not-arrived" | "arrived" | "unpaid">("all");
+  const [activeRoster, setActiveRoster] = useState<"waiting" | "checked">("waiting");
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuMessage, setMenuMessage] = useState("");
   const [addOpen, setAddOpen] = useState(false);
@@ -87,15 +86,12 @@ export function Unified() {
   const visibleAttendees = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("nb-NO");
     return attendees.filter((person) => {
+      const belongsInList = activeRoster === "checked" ? person.checkedIn : !person.checkedIn;
+      if (!belongsInList) return false;
       const matchesSearch = !normalized || `${person.first} ${person.last} ${person.email ?? ""} ${person.phone ?? ""} ${exampleBarcode(person)}`.toLocaleLowerCase("nb-NO").includes(normalized);
-      const matchesFilter =
-        filter === "all" ||
-        (filter === "not-arrived" && !person.checkedIn) ||
-        (filter === "arrived" && person.checkedIn) ||
-        (filter === "unpaid" && person.payment === "unpaid");
-      return matchesSearch && matchesFilter;
+      return matchesSearch;
     }).sort((a, b) => a.last.localeCompare(b.last, "nb"));
-  }, [attendees, filter, query]);
+  }, [activeRoster, attendees, query]);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -144,6 +140,7 @@ export function Unified() {
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
   const markCheckedIn = (attendee: Attendee, method?: string) => {
+    setActiveRoster("checked");
     setAttendees((current) => current.map((person) =>
       person.id === attendee.id
         ? { ...person, checkedIn: true, checkedAt: new Intl.DateTimeFormat("nb-NO", { hour: "2-digit", minute: "2-digit" }).format(new Date()), ...(method ? { method, payment: "paid" as const } : {}) }
@@ -205,7 +202,7 @@ export function Unified() {
     setNewGuest({ first: "", last: "", email: "", phone: "" });
     setAddOpen(false);
     setQuery(`${first} ${last}`);
-    setFilter("all");
+    setActiveRoster("waiting");
     showToast(`${first} ${last} lagt til i deltakerlisten`);
     window.setTimeout(() => previousFocus.current?.focus(), 0);
   };
@@ -319,10 +316,18 @@ export function Unified() {
                 </div>
                 <button className="uc-add-button" type="button" onClick={openAddDialog} disabled={!eventDay}><Plus size={16} /> Legg til deltaker</button>
               </div>
+              <div className="uc-roster-tabs" role="tablist" aria-label="Deltakerlister">
+                <button type="button" role="tab" aria-selected={activeRoster === "waiting"} aria-controls="uc-roster-panel" className={`uc-roster-tab${activeRoster === "waiting" ? " is-active" : ""}`} onClick={() => { setActiveRoster("waiting"); setQuery(""); }}>
+                  <span>Ikke innsjekket</span><small>{outstandingCount}</small>
+                </button>
+                <button type="button" role="tab" aria-selected={activeRoster === "checked"} aria-controls="uc-roster-panel" className={`uc-roster-tab${activeRoster === "checked" ? " is-active" : ""}`} onClick={() => { setActiveRoster("checked"); setQuery(""); }}>
+                  <span>Innsjekket</span><small>{checkedCount}</small>
+                </button>
+              </div>
               <div className="uc-tools">
                 <label className="uc-search">
                   <Search size={17} aria-hidden="true" />
-                  <input ref={searchRef} type="search" value={query} autoComplete="off" name="event-demo-search" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => {
+                  <input ref={searchRef} type="search" value={query} autoComplete="off" autoCorrect="off" spellCheck={false} inputMode="search" aria-autocomplete="none" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => {
                     if (event.key !== "Enter") return;
                     const match = attendees.find(person => exampleBarcode(person) === query.trim());
                     if (!match) return;
@@ -333,21 +338,11 @@ export function Unified() {
                   }} placeholder="Søk navn, e-post eller strekkode" aria-label="Søk blant deltakere" />
                   {query && <button type="button" className="uc-clear-search" aria-label="Tøm søk" onClick={() => { setQuery(""); searchRef.current?.focus(); }}><X size={14} /></button>}
                 </label>
-                <label className="uc-filter">
-                  <Filter size={15} aria-hidden="true" />
-                  <select value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)} aria-label="Filtrer deltakere">
-                    <option value="all">Alle statuser</option>
-                    <option value="not-arrived">Venter på innsjekking</option>
-                    <option value="arrived">Innsjekket</option>
-                    <option value="unpaid">Ubetalt</option>
-                  </select>
-                  <ChevronDown size={14} aria-hidden="true" />
-                </label>
               </div>
-              <div className="uc-list-meta"><span>{visibleAttendees.length} av {attendees.length} deltakere</span><span title="Prøv eksempelkoden 9900000000002 og trykk Enter"><QrCode size={13} /> Søk eller scan kode</span></div>
-              <div className="uc-attendee-list" role="list" aria-label="Deltakerliste">
+              <div className="uc-list-meta"><span>{visibleAttendees.length} av {activeRoster === "checked" ? checkedCount : outstandingCount} i denne listen</span><span title="Prøv eksempelkoden 9900000000002 og trykk Enter"><QrCode size={13} /> Søk eller scan kode</span></div>
+              <div className="uc-attendee-list" role="tabpanel" id="uc-roster-panel" aria-label={activeRoster === "checked" ? "Innsjekkede deltakere" : "Deltakere som venter på innsjekking"}>
                 {visibleAttendees.map((person) => <AttendeeRow key={person.id} person={person} eventDay={eventDay} onCheckin={handleCheckin} />)}
-                {!visibleAttendees.length && <div className="uc-empty"><Search size={20} /><strong>Ingen deltakere funnet</strong><span>Prøv et annet søk eller filter.</span></div>}
+                {!visibleAttendees.length && <div className="uc-empty"><Search size={20} /><strong>{query ? "Ingen deltakere funnet" : activeRoster === "checked" ? "Ingen er sjekket inn ennå" : "Ingen venter på innsjekking"}</strong><span>{query ? "Prøv et annet søk." : activeRoster === "checked" ? "Sjekk inn en deltaker for å se den her." : "Alle deltakerne har møtt opp."}</span></div>}
               </div>
             </section>
             <div className="uc-footnote"><ShieldCheck size={14} /> Eksempeldata · Endringer er lokale og tilbakestilles ved ny innlasting.</div>
