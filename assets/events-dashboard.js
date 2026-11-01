@@ -283,7 +283,7 @@
         if (!state.editorId) return true;
         if (!force && state.editor && !state.editor.confirmClose()) return false;
         const id = state.editorId;
-        const panel = document.getElementById(`events-inline-fields-${CSS.escape(id)}`);
+        const panel = document.getElementById(`events-inline-fields-${id}`);
         if (panel) { panel.replaceChildren(); panel.hidden = true; }
         state.editor = null;
         state.editorId = null;
@@ -303,8 +303,8 @@
     async function openFieldEditor(id, trigger) {
         if (state.editorId && state.editorId === String(id)) return closeFieldEditor(false);
         if (state.editorId && !(await closeFieldEditor(false))) return false;
-        const panel = document.getElementById(`events-inline-fields-${CSS.escape(String(id))}`);
-        const entry = document.getElementById(`events-event-${CSS.escape(String(id))}`);
+        const panel = document.getElementById(`events-inline-fields-${String(id)}`);
+        const entry = document.getElementById(`events-event-${String(id)}`);
         const item = state.events.find(event => String(event.id) === String(id));
         if (!panel || !entry || !item) return false;
         state.scrollY = window.scrollY;
@@ -355,7 +355,7 @@
     }
 
     function toggleEventDetails(id) {
-        const panel = document.getElementById(`events-detail-${CSS.escape(String(id))}`);
+        const panel = document.getElementById(`events-detail-${String(id)}`);
         const card = document.querySelector(`[data-event-card="${CSS.escape(String(id))}"]`);
         if (!panel || !card) return;
         panel.hidden = !panel.hidden;

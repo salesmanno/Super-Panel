@@ -197,6 +197,26 @@ const checks = `(async()=>{
  action('event-6','fields').click();await settle();
  panel=document.getElementById('events-inline-fields-event-6');check(panel.querySelector('[data-save]').disabled,'No-registration field editing disabled');
  await EventsDashboard.closeFieldEditor(true);
+  const numericEventId='7a000000-0000-4000-8000-000000000001';
+  EventsDashboard.setSource(true,[...fixtureEvents,{...fixtureEvents[0],id:numericEventId,title:'Arrangement med numerisk UUID'}]);
+  click(card(numericEventId).querySelector('[data-event-details]'));
+  check(!document.getElementById('events-detail-'+numericEventId).hidden,
+    'Details open for a real UUID beginning with a digit');
+  action(numericEventId,'fields').click();await settle();
+  const numericPanel=document.getElementById('events-inline-fields-'+numericEventId);
+  check(!numericPanel.hidden&&numericPanel.querySelector('[data-common-field="email"]'),
+    'Field editor loads for a real UUID beginning with a digit');
+  check(fixtureCalls.some(url=>url.includes('get_entity_form_fields.php')&&new URL(url,'https://fixture.test').searchParams.get('entity_id')===numericEventId),
+    'Numeric UUID is passed unchanged to the fields API');
+  click(numericPanel.querySelector('[data-edit-field="email"]'));
+  typed(numericPanel.querySelector('[data-prop="field_label"]'),'E-post for UUID-arrangement');
+  click(numericPanel.querySelector('[data-save]'));await settle();
+  check(numericPanel.hidden&&fixtureFieldWrites.at(-1).entity_id===numericEventId,
+    'Saving the numeric UUID event closes its own editor');
+  action(numericEventId,'fields').click();await settle();
+  action(numericEventId,'fields').click();await settle();
+  check(numericPanel.hidden&&!numericPanel.children.length,'Toggling a numeric UUID editor closes and clears it');
+  EventsDashboard.setSource(true,fixtureEvents);
  action('event-0','edit').click();await settle();
  check(document.getElementById('editEventModal').classList.contains('show'),'Existing basic modal opens');
  document.getElementById('edit-tab-4').click();await settle();
