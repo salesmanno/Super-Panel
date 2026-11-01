@@ -365,6 +365,26 @@
 .uc-primary-button { min-height: 38px; font-size: 10px; }
 .uc-payment-amount { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; padding: 12px; border-radius: 8px; background: #f3f6ef; color: #71857a; font-size: 10px; }
 .uc-payment-amount strong { color: #315f4e; font-size: 17px; letter-spacing: -.03em; }
+.uc-payment-flow { display: grid; gap: 11px; }
+.uc-checkin-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 12px; }
+.uc-checkin-actions > button { display: flex; align-items: center; justify-content: flex-start; gap: 10px; min-width: 0; min-height: 59px; padding: 9px 12px; border: 1px solid #dce6df; border-radius: 9px; color: #365b4b; text-align: left; }
+.uc-checkin-actions > button > span { display: grid; gap: 3px; min-width: 0; }
+.uc-checkin-actions > button strong { font-size: 11px; }
+.uc-checkin-actions > button small { color: #75887c; font-size: 9px; font-weight: 500; line-height: 1.35; }
+.uc-cash-button { background: #f2f6ef; }
+.uc-cash-button:hover { border-color: #b8cdbb; background: #eaf2e8; }
+.uc-vipps-button { border-color: #e85d34!important; background: #e85d34; color: #fff!important; }
+.uc-vipps-button:hover:not(:disabled) { border-color: #cb4929!important; background: #cb4929; }
+.uc-vipps-button small { color: rgba(255,255,255,.82)!important; }
+.uc-vipps-target, .uc-vipps-no-phone { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0; color: #71847a; font-size: 10px; line-height: 1.5; }
+.uc-vipps-target svg, .uc-vipps-no-phone svg { color: #d75330; }
+.uc-vipps-target strong { color: #405f4e; font-variant-numeric: tabular-nums; }
+.uc-vipps-no-phone { color: #9a6b4d; }
+.uc-cancel-request { justify-self: start; padding: 2px 0; border: 0; background: none; color: #8e6960; font-size: 10px; text-decoration: underline; text-underline-offset: 2px; }
+.uc-vipps-payload { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 5px 8px; padding: 9px 10px; border: 1px solid #efdfd8; border-radius: 8px; background: #fffaf7; }
+.uc-vipps-payload > span:first-child { grid-column: 1 / -1; color: #8b756d; font-size: 8px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.uc-vipps-payload code { color: #c64c2d; font-family: "DM Sans", "Segoe UI", sans-serif; font-size: 11px; font-weight: 750; }
+.uc-vipps-payload > span:last-child { justify-self: end; color: #415f4f; font-size: 10px; font-weight: 700; }
 .uc-methods { display: grid; gap: 7px; margin: 0; padding: 0; border: 0; }
 .uc-methods legend { margin-bottom: 7px; color: #557263; font-size: 10px; font-weight: 750; }
 .uc-methods label { display: flex; align-items: center; gap: 9px; min-height: 53px; padding: 7px 10px; border: 1px solid #dce6df; border-radius: 8px; cursor: pointer; }
@@ -451,6 +471,8 @@
 
 @media (max-width: 430px) {
   .uc-demo-bar { align-items: flex-start; flex-direction: column; padding: 7px 13px; gap: 5px; }
+  .uc-checkin-actions { grid-template-columns: 1fr; }
+  .uc-checkin-actions > button { min-height: 48px; }
   .uc-state-control { width: 100%; justify-content: space-between; }
   .uc-state-control select { max-width: 66%; }
   .uc-main { padding-inline: 12px; }

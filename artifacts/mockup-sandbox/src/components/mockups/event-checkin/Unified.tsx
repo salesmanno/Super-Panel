@@ -68,8 +68,8 @@ export function Unified() {
   const [menuMessage, setMenuMessage] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [paymentTarget, setPaymentTarget] = useState<Attendee | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"Kontant" | "Vipps">("Kontant");
   const [vippsRequest, setVippsRequest] = useState<"idle" | "pending" | "expired">("idle");
+  const [vippsPayload, setVippsPayload] = useState<{ participant_id: string; target_phone: string; amount: number } | null>(null);
   const [vippsSecondsLeft, setVippsSecondsLeft] = useState(80);
   const [ledger, setLedger] = useState<LedgerRow[]>([]);
   const [ledgerOpen, setLedgerOpen] = useState(false);
@@ -112,6 +112,7 @@ export function Unified() {
     setAddOpen(false);
     setPaymentTarget(null);
     setVippsRequest("idle");
+    setVippsPayload(null);
     setVippsSecondsLeft(80);
     window.setTimeout(() => previousFocus.current?.focus(), 0);
   };
@@ -187,8 +188,8 @@ export function Unified() {
     }
     if (attendee.price > 0 && !attendee.hasValidLedger) {
       previousFocus.current = document.activeElement as HTMLElement;
-      setPaymentMethod("Kontant");
       setVippsRequest("idle");
+      setVippsPayload(null);
       setVippsSecondsLeft(80);
       setPaymentTarget(attendee);
       return;
@@ -196,21 +197,32 @@ export function Unified() {
     markCheckedIn(attendee);
   };
 
-  const confirmPayment = () => {
+  const confirmCashPayment = () => {
     if (!paymentTarget) return;
-    if (paymentTarget.payment !== "paid" && paymentMethod === "Vipps") return;
-    markCheckedIn(paymentTarget, paymentMethod);
+    if (paymentTarget.payment === "paid") return;
+    markCheckedIn(paymentTarget, "Kontant");
+    closeDialog();
+  };
+
+  const recordPreviousPayment = () => {
+    if (!paymentTarget || paymentTarget.payment !== "paid" || paymentTarget.hasValidLedger) return;
+    markCheckedIn(paymentTarget, paymentTarget.method || "Tidligere betaling");
     closeDialog();
   };
 
   const sendVippsRequest = () => {
     if (!paymentTarget?.phone || paymentTarget.payment === "paid") return;
+    setVippsPayload({
+      participant_id: paymentTarget.id,
+      target_phone: paymentTarget.phone.replace(/\s+/g, ""),
+      amount: paymentTarget.price,
+    });
     setVippsSecondsLeft(80);
     setVippsRequest("pending");
   };
 
   const receiveMockVippsConfirmation = () => {
-    if (!paymentTarget || paymentTarget.payment === "paid" || vippsRequest !== "pending") return;
+    if (!paymentTarget || !vippsPayload || vippsPayload.participant_id !== paymentTarget.id || paymentTarget.payment === "paid" || vippsRequest !== "pending") return;
     markCheckedIn(paymentTarget, "Vipps");
     closeDialog();
   };
@@ -424,39 +436,33 @@ export function Unified() {
             <h2 id="uc-payment-title">{paymentTarget.payment === "paid" ? "Registrer manglende ledger" : "Bekreft betaling først"}</h2>
             <p><strong>{paymentTarget.first} {paymentTarget.last}</strong> {paymentTarget.payment === "paid" ? "er allerede markert betalt, men mangler ledgerføring. Velg metoden som faktisk ble brukt — det sendes ingen ny belastning." : "kan sjekkes inn når betalingen er bekreftet. Kontant bekreftes her; Vipps må bekreftes fra forespørselen."}</p>
             <div className="uc-payment-amount"><span>Beløp</span><strong>{formatNok(paymentTarget.price)}</strong></div>
-            <fieldset className="uc-methods"><legend>{paymentTarget.payment === "paid" ? "Hvilken metode ble brukt?" : "Velg betalingsmåte"}</legend>
-              {(["Kontant", "Vipps"] as const).map((method) => {
-                const vippsUnavailable = method === "Vipps" && paymentTarget.payment !== "paid" && !paymentTarget.phone;
-                return <label key={method} className={`${paymentMethod === method ? "is-selected" : ""}${vippsUnavailable ? " is-disabled" : ""}`}>
-                <input type="radio" name="payment-method" value={method} disabled={vippsUnavailable} checked={paymentMethod === method} onChange={() => { setPaymentMethod(method); setVippsRequest("idle"); }} />
-                <span className="uc-method-icon">{method === "Vipps" ? <Smartphone size={17} /> : <CreditCard size={17} />}</span><span><strong>{method}</strong><small>{method === "Kontant" ? "Registrer mottatt kontant" : paymentTarget.payment === "paid" ? "Registrer tidligere mottatt betaling" : paymentTarget.phone ? `Forespørsel til ${paymentTarget.phone}` : "Krever telefonnummer"}</small></span>
-                <span className="uc-radio-mark" />
-              </label>;
-              })}
-            </fieldset>
             {paymentTarget.payment === "paid"
-              ? <div className="uc-simulation-note"><ShieldCheck size={16} /><span><strong>Ingen ny belastning</strong> · Du oppgir betalingsmåten som allerede ble brukt. Vipps-forespørsel sendes ikke på nytt.</span></div>
-              : paymentMethod === "Kontant"
-                ? <div className="uc-simulation-note"><ShieldCheck size={16} /><span><strong>Kontant</strong> · Bekreft først når beløpet er mottatt. Da registreres det og innsjekkingen fullføres.</span></div>
-                : !paymentTarget.phone
-                  ? <div className="uc-simulation-note"><ShieldCheck size={16} /><span><strong>Vipps utilgjengelig</strong> · Legg inn et telefonnummer på deltakeren for å sende en betalingsforespørsel.</span></div>
-                  : <div className="uc-vipps-request">
+              ? <>
+                <div className="uc-simulation-note"><ShieldCheck size={16} /><span><strong>Betalingen er allerede mottatt</strong> · Dette reparerer bare manglende ledgerføring. Ingen ny belastning eller Vipps-forespørsel utføres.</span></div>
+                <div className="uc-checkin-actions">
+                  <button type="button" className="uc-primary-button" onClick={recordPreviousPayment}><Check size={15} /> Registrer eksisterende {paymentTarget.method || "betaling"}</button>
+                </div>
+              </>
+              : <div className="uc-payment-flow">
+                <div className="uc-simulation-note"><ShieldCheck size={16} /><span><strong>Velg handling</strong> · Kontant bekreftes av verten. Vipps sendes separat til deltakerens telefon og krever mottatt bekreftelse.</span></div>
+                {vippsRequest !== "pending" && <div className="uc-checkin-actions">
+                  <button type="button" className="uc-cash-button" onClick={confirmCashPayment}><CreditCard size={17} /><span><strong>Kontant mottatt</strong><small>Bekreft kontant og sjekk inn</small></span></button>
+                  <button type="button" className="uc-vipps-button" onClick={sendVippsRequest} disabled={!paymentTarget.phone} aria-describedby="uc-vipps-helper"><Smartphone size={18} /><span><strong>Send Vipps!</strong><small>{vippsRequest === "expired" ? "Send ny forespørsel" : "Be om betaling på telefon"}</small></span></button>
+                </div>}
+                {!paymentTarget.phone && <p id="uc-vipps-helper" className="uc-vipps-no-phone"><Smartphone size={14} /> Vipps er ikke tilgjengelig uten telefonnummer.</p>}
+                {paymentTarget.phone && <p id="uc-vipps-helper" className="uc-vipps-target"><Smartphone size={14} /> Vipps-forespørsel sendes til <strong>{paymentTarget.phone}</strong></p>}
+                {vippsRequest !== "idle" && <div className={`uc-vipps-request${vippsRequest === "expired" ? " is-expired" : ""}`}>
                     {vippsRequest === "pending"
-                      ? <><span className="uc-vipps-request-icon"><Smartphone size={17} /></span><div><strong>Venter på Vipps-bekreftelse</strong><span>Forespørsel til {paymentTarget.phone}</span><small><Clock3 size={13} /> {Math.floor(vippsSecondsLeft / 60)}:{String(vippsSecondsLeft % 60).padStart(2, "0")} igjen</small></div></>
-                      : vippsRequest === "expired"
-                        ? <><span className="uc-vipps-request-icon is-expired"><Clock3 size={17} /></span><div><strong>Forespørselen utløp</strong><span>Ingen innsjekking ble registrert.</span><small>Du kan sende en ny forespørsel.</small></div></>
-                        : <><span className="uc-vipps-request-icon"><Smartphone size={17} /></span><div><strong>Betalingsforespørsel til</strong><span>{paymentTarget.phone}</span><small>Beløpet bekreftes før innsjekking.</small></div></>}
+                      ? <><span className="uc-vipps-request-icon"><Smartphone size={17} /></span><div><strong>Venter på Vipps-bekreftelse</strong><span>Forespørsel til {vippsPayload?.target_phone}</span><small><Clock3 size={13} /> {Math.floor(vippsSecondsLeft / 60)}:{String(vippsSecondsLeft % 60).padStart(2, "0")} igjen</small></div></>
+                      : <><span className="uc-vipps-request-icon is-expired"><Clock3 size={17} /></span><div><strong>Forespørselen utløp</strong><span>Ingen innsjekking ble registrert.</span><small>Send en ny forespørsel eller avbryt.</small></div></>}
+                    <div className="uc-vipps-payload"><span>Payload · target_phone</span><code>{vippsPayload?.target_phone}</code><span>{formatNok(vippsPayload?.amount ?? paymentTarget.price)}</span></div>
                     <div className="uc-vipps-demo-note"><ShieldCheck size={14} /> Forhåndsvisning: ingen ekte Vipps-forespørsel blir sendt.</div>
                   </div>}
+                {vippsRequest === "pending" && <button type="button" className="uc-cancel-request" onClick={() => setVippsRequest("idle")}>Avbryt forespørselen</button>}
+                </div>}
             <div className="uc-dialog-actions">
-              <button type="button" className="uc-secondary-button" onClick={closeDialog}>{vippsRequest === "pending" ? "Avbryt" : "Lukk"}</button>
-              {paymentTarget.payment === "paid"
-                ? <button type="button" className="uc-primary-button" onClick={confirmPayment}><Check size={15} /> Registrer brukt metode</button>
-                : paymentMethod === "Kontant"
-                  ? <button type="button" className="uc-primary-button" onClick={confirmPayment}><Check size={15} /> Bekreft kontant og sjekk inn</button>
-                  : vippsRequest === "pending"
-                    ? <button type="button" className="uc-primary-button" onClick={receiveMockVippsConfirmation}><Check size={15} /> Simuler mottatt Vipps-bekreftelse</button>
-                    : <button type="button" className="uc-primary-button" onClick={sendVippsRequest}><Smartphone size={15} /> {vippsRequest === "expired" ? "Send Vipps på nytt" : "Send Vipps!"}</button>}
+              <button type="button" className="uc-secondary-button" onClick={closeDialog}>Lukk</button>
+              {vippsRequest === "pending" && <button type="button" className="uc-primary-button" onClick={receiveMockVippsConfirmation}><Check size={15} /> Simuler mottatt Vipps-bekreftelse</button>}
             </div>
           </div>
         </section>
