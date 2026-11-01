@@ -254,13 +254,63 @@ trait SalesProducts {
             if((int)$old['stock_quantity']!==$expected)throw new SalesConflict('Lageret er endret. Last oppdatert beholdning før justering.');
             $reason=self::text($data['reason']??'',500);if($reason==='')throw new InvalidArgumentException('Oppgi begrunnelse for lagerjusteringen');
             if($quantity!==$expected) {
-                $write=fn()=>$this->q('UPDATE sales_products SET stock_quantity=?,updated_at=NOW() WHERE id=? AND company_id=?',[$quantity,$old['id'],$this->company]);
-                if(method_exists($this->db,'withExplicitAudit'))$this->db->withExplicitAudit($write);else$write();
+                $this->applyStockQuantity($old,$quantity);
                 tenantAuditChange($this->db,$this->company,'sales','sales.stock_adjusted','sales_products',$old['id'],$old['name'],
-                    ['stock_quantity'=>$expected],['stock_quantity'=>$quantity,'stock_adjustment_reason'=>$reason],[],$this->actor);
+                    ['stock_quantity'=>$expected],['stock_quantity'=>$quantity,'stock_adjustment_reason'=>$reason],
+                    ['unit_cost'=>$old['cost_price']],$this->actor);
                 $this->registerProductEvent('product.stock_adjusted',['product_id'=>$old['id'],'before'=>$expected,'after'=>$quantity,'reason'=>$reason]);
             }
             return ['product'=>$this->productView($this->product($old['id']))];
         });
+    }
+
+    /** Conservative compensation of an explicit stock correction, never of a sale/payment. */
+    public function reverseStockAdjustment(string $auditId, bool $apply = false, string $revision = ''): array {
+        return $this->transaction(function () use ($auditId, $apply, $revision): array {
+            if (!tenantIsSupervisor($this->db, $this->company, true)) {
+                throw new TenantAuditException('Kun firmaveileder kan reversere handlinger.');
+            }
+            $log = $this->q('SELECT * FROM audit_logs WHERE id=? AND company_id=? FOR UPDATE',
+                [$auditId,$this->company])->fetch(PDO::FETCH_ASSOC);
+            if (!$log) throw new OutOfBoundsException('Hendelsen ble ikke funnet.');
+            $safe = tenantAuditPublicRow($log);
+            if (!$safe['reversal_candidate']) throw new DomainException($safe['reversal_reason']);
+            $before = $safe['before']['stock_quantity'] ?? null;
+            $after = $safe['after']['stock_quantity'] ?? null;
+            if (!is_numeric($before) || !is_numeric($after) || (float)$before < 0 || (float)$after < 0
+                || (float)$before !== (float)(int)$before || (float)$after !== (float)(int)$after || (int)$before === (int)$after) {
+                throw new DomainException('Loggen inneholder ikke et fullstendig grunnlag for lagerreversering.');
+            }
+            $product = $this->product((string)$log['resource_id'], true);
+            // Product lock also serialises concurrent stock writes; original audit lock serialises repeat reversals.
+            $already = $this->q("SELECT id FROM audit_logs WHERE company_id=? AND action='audit.stock_reversed'
+                AND JSON_UNQUOTE(JSON_EXTRACT(IF(JSON_VALID(new_values),new_values,'{}'),'$._audit.links.reverses_audit_id'))=? LIMIT 1 FOR UPDATE",
+                [$this->company,$auditId])->fetchColumn();
+            if ($already) throw new SalesConflict('Denne lagerjusteringen er allerede reversert.');
+            if ((int)$product['stock_quantity'] !== (int)$after) throw new SalesConflict('Beholdningen er endret etter handlingen. Reversering er blokkert.');
+            // Seconds-only timestamps have no unambiguous intra-second order. Reject ties rather than guessing.
+            $later = $this->q('SELECT id FROM audit_logs WHERE company_id=? AND resource_type=? AND resource_id=?
+                AND id<>? AND performed_at>=? LIMIT 1 FOR UPDATE',
+                [$this->company,'sales_products',$product['id'],$auditId,$log['performed_at']])->fetchColumn();
+            if ($later) throw new SalesConflict('Varen har senere eller samtidige loggposter. Kontroller historikken og bruk vanlig lagerjustering.');
+            $token = hash('sha256', $auditId . ':' . $this->productRevision($product) . ':' . $before . ':' . $after);
+            $preview = ['name'=>$product['name'],'from'=>(int)$after,'to'=>(int)$before,'revision'=>$token,
+                'message'=>'Bare beholdningen korrigeres. Salg, betaling, journal og kvitteringer endres ikke.'];
+            if (!$apply) return $preview;
+            if ($revision === '' || !hash_equals($token,$revision)) throw new SalesConflict('Forhåndsvisningen er utdatert. Åpne reversering på nytt.');
+            $this->applyStockQuantity($product, (int)$before);
+            $id = tenantAuditChange($this->db,$this->company,'sales','audit.stock_reversed','sales_products',
+                $product['id'],$product['name'],['stock_quantity'=>$after],['stock_quantity'=>$before],
+                ['reverses_audit_id'=>$auditId],$this->actor);
+            $this->registerProductEvent('product.stock_adjusted',
+                ['product_id'=>$product['id'],'before'=>(int)$after,'after'=>(int)$before,'reason'=>'Reversering av '.$auditId]);
+            return $preview + ['audit_id'=>$id];
+        });
+    }
+
+    private function applyStockQuantity(array $product, int $quantity): void {
+        $write = fn() => $this->q('UPDATE sales_products SET stock_quantity=?,updated_at=NOW() WHERE id=? AND company_id=?',
+            [$quantity,$product['id'],$this->company]);
+        if (method_exists($this->db,'withExplicitAudit')) $this->db->withExplicitAudit($write); else $write();
     }
 }

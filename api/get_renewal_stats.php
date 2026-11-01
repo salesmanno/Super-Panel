@@ -18,7 +18,7 @@ try {
     $sumStmt = $db->prepare("
         SELECT COALESCE(SUM(mmr.amount), 0)
         FROM membership_members_renew mmr
-        JOIN membership_members mm ON mm.id = mmr.membership_member_id
+        JOIN membership_members mm ON mm.id = mmr.membership_member_id AND mm.company_id = mmr.company_id
         WHERE mmr.company_id = ?
           AND mmr.status      = 'completed'
           AND mm.payment_status = 'paid'
@@ -29,7 +29,7 @@ try {
     $renewedStmt = $db->prepare("
         SELECT COUNT(*)
         FROM membership_members_renew mmr
-        JOIN membership_members mm ON mm.id = mmr.membership_member_id
+        JOIN membership_members mm ON mm.id = mmr.membership_member_id AND mm.company_id = mmr.company_id
         WHERE mmr.company_id  = ?
           AND mmr.status       = 'completed'
           AND mm.payment_status = 'paid'
@@ -40,7 +40,7 @@ try {
     $validStmt = $db->prepare("
         SELECT COUNT(*)
         FROM membership_members_renew mmr
-        JOIN membership_members mm ON mm.id = mmr.membership_member_id
+        JOIN membership_members mm ON mm.id = mmr.membership_member_id AND mm.company_id = mmr.company_id
         WHERE mmr.company_id   = ?
           AND mmr.status        = 'completed'
           AND mm.payment_status  = 'paid'
@@ -57,5 +57,7 @@ try {
     ]);
 
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    error_log('get_renewal_stats error: '.$e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Kunne ikke hente fornyelsesstatistikk']);
 }

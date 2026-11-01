@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/audit_comparison.php';
+require_once __DIR__ . '/audit_narrative.php';
+require_once __DIR__ . '/audit_context.php';
 
 final class TenantAuditException extends RuntimeException {}
 
@@ -166,6 +168,7 @@ function tenantAuditChange(
         if (array_key_exists($key, $old)) $changedOld[$key] = $old[$key];
         if (array_key_exists($key, $new)) $changedNew[$key] = $new[$key];
     }
+    $links += tenantAuditBusinessContext($db,$companyId,$resource,$resourceId,$before,$after);
     return tenantAuditRecord($db, $companyId, $module, $action, $resource, $resourceId, $resourceName,
         $changedOld, $changedNew, 'success', $links, $actor);
 }
@@ -208,15 +211,16 @@ function tenantAuditRecord(
     $safeAfter = tenantAuditSafeValues($resource, $after);
     $safeLinks = [];
     foreach (['queue_id','template_id','source_id','source_module','correlation_id','initiator_audit_id',
-        'template_body_sha256','template_subject_sha256','message_body_sha256','message_subject_sha256'] as $key) {
+        'template_body_sha256','template_subject_sha256','message_body_sha256','message_subject_sha256','reverses_audit_id'] as $key) {
         if (isset($links[$key]) && is_scalar($links[$key])) {
             $safeLinks[$key] = mb_substr((string) $links[$key], 0, 100);
         }
     }
+    $context = tenantAuditSafeContext($links);
     $safeAfter['_audit'] = [
         'version' => 1, 'company_name' => $actor['company_name'],
         'actor_name' => $actor['name'], 'actor_role' => $actor['role'],
-        'actor_type' => $actor['type'], 'outcome' => $outcome, 'links' => $safeLinks,
+        'actor_type' => $actor['type'], 'outcome' => $outcome, 'links' => $safeLinks, 'context' => $context,
         'redacted_fields' => array_values(array_filter($redactedFields,
             static fn($field): bool => is_string($field) && (bool) preg_match('/^[a-zA-Z_][a-zA-Z0-9_]{0,99}$/D', $field))),
     ];
@@ -249,7 +253,7 @@ function tenantAuditPublicRow(array $row): array {
     $before = is_array($before) ? $before : [];
     $after = is_array($after) ? $after : [];
     $meta = is_array($after['_audit'] ?? null) ? $after['_audit'] : [];
-    return [
+    $public = [
         'id' => $row['id'], 'performed_at' => $row['performed_at'], 'module' => $row['module'],
         'action' => $row['action'], 'resource_type' => $row['resource_type'],
         'resource_id' => $row['resource_id'], 'resource_name' => $row['resource_name'],
@@ -257,11 +261,18 @@ function tenantAuditPublicRow(array $row): array {
         'actor_id' => $row['user_id'], 'actor_name' => $meta['actor_name'] ?? $after['admin_name'] ?? 'Historisk navn ikke registrert',
         'actor_role' => $meta['actor_role'] ?? 'Ikke registrert', 'actor_type' => $meta['actor_type'] ?? $row['user_type'],
         'outcome' => $meta['outcome'] ?? 'legacy',
+        'context' => is_array($meta['context'] ?? null) ? tenantAuditSafeContext($meta['context']) : [],
         'redacted_fields' => $meta['redacted_fields'] ?? [],
         'before' => tenantAuditSafeValues((string) $row['resource_type'], $before),
         'after' => tenantAuditSafeValues((string) $row['resource_type'], $after),
         'links' => array_intersect_key((array) ($meta['links'] ?? []),
             array_flip(['queue_id','template_id','source_id','source_module','correlation_id','initiator_audit_id',
-                'template_body_sha256','template_subject_sha256','message_body_sha256','message_subject_sha256'])),
+                'template_body_sha256','template_subject_sha256','message_body_sha256','message_subject_sha256','reverses_audit_id'])),
     ];
+    $public['description'] = tenantAuditNarrative($public);
+    $public['reversal_candidate'] = $public['action'] === 'sales.stock_adjusted' && $public['resource_type'] === 'sales_products'
+        && $public['outcome'] === 'success';
+    $public['reversal_reason'] = $public['reversal_candidate'] ? null
+        : 'Denne handlingen kan ikke reverseres direkte. Betaling krever retur/refusjon, sendt e-post kan ikke trekkes tilbake, og sletting krever fullstendig gjenopprettingsgrunnlag.';
+    return $public;
 }

@@ -116,8 +116,8 @@ try {
     }
 
     // List mode: paginated, optional search on order_id
-    $page     = max(1, intval($_GET['page']     ?? 1));
-    $per_page = max(1, intval($_GET['per_page'] ?? 10));
+    $page     = min(100000, max(1, intval($_GET['page'] ?? 1)));
+    $per_page = min(100, max(1, intval($_GET['per_page'] ?? 10)));
     $search   = trim($_GET['search'] ?? '');
     $offset   = ($page - 1) * $per_page;
 
@@ -152,15 +152,13 @@ try {
             CONCAT(COALESCE(c.first_name,''), ' ', COALESCE(c.last_name,'')) AS member_name,
             mp.name           AS plan_name
         FROM membership_members_renew mmr
-        JOIN membership_members mm  ON mm.id  = mmr.membership_member_id
-        LEFT JOIN tenant_customers c  ON c.id   = mm.customer_id
-        LEFT JOIN membership_plans mp ON mp.id  = mmr.membership_plan_id
+        JOIN membership_members mm  ON mm.id = mmr.membership_member_id AND mm.company_id = mmr.company_id
+        LEFT JOIN tenant_customers c ON c.id = mm.customer_id AND c.company_id = mm.company_id
+        LEFT JOIN membership_plans mp ON mp.id = mmr.membership_plan_id AND mp.company_id = mmr.company_id
         WHERE {$where}
-        ORDER BY mmr.created_at DESC
-        LIMIT ? OFFSET ?
+        ORDER BY mmr.created_at DESC, mmr.id DESC
+        LIMIT {$per_page} OFFSET {$offset}
     ");
-    $params[] = $per_page;
-    $params[] = $offset;
     $listStmt->execute($params);
     $rows = $listStmt->fetchAll(PDO::FETCH_ASSOC);
 

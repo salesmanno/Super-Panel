@@ -13,6 +13,7 @@ require_once __DIR__.'/entity_form_input.php';
 require_once __DIR__.'/active_payment_methods.php';
 require_once __DIR__.'/UnifiedLedgerService.php';
 require_once __DIR__.'/ProductCatalogService.php';
+require_once __DIR__.'/tenant_supervisor.php';
 
 class SalesConflict extends RuntimeException {}
 

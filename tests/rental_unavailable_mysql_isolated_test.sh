@@ -44,7 +44,13 @@ if [[ "$ready" != 1 ]]; then
     cat "$TEMP_ROOT/mysql.log" >&2
     exit 1
 fi
-if [[ "${1:-}" == "--company-login" ]]; then
+if [[ "${1:-}" == "--audit-improvements" ]]; then
+    php "$ROOT/tests/manual_event_participant_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
+    php "$ROOT/tests/membership_renewals_mysql_test.php" "$ROOT" "$TEMP_ROOT"
+    php "$ROOT/tests/tenant_audit_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
+    php "$ROOT/tests/event_checkin_mysql_test.php" "$ROOT" "$TEMP_ROOT"
+    php "$ROOT/tests/sales_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT" --backend-only
+elif [[ "${1:-}" == "--company-login" ]]; then
     php "$ROOT/tests/company_choice_mysql_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--codes" ]]; then
     php "$ROOT/tests/rental_reservation_codes_mysql_test.php" "$ROOT" "$TEMP_ROOT"

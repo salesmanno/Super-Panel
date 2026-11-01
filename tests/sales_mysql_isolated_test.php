@@ -375,6 +375,7 @@ try {
     require $root.'/tests/sales_payment_lifecycle_cases.php';
     require $root.'/tests/sales_vipps_diagnostics_cases.php';
     require $root.'/tests/sales_cart_persistence_cases.php';
+    require $root.'/tests/sales_audit_reversal_cases.php';
     if(($argv[3]??'')!=='--backend-only') {
     // Browser talks to the existing isolated HTTP fixture, never the app DB.
     // Release PDO owners before spawning the browser process.

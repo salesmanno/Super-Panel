@@ -288,6 +288,7 @@ final class AuditedPDO extends PDO {
                 $redacted = array_values(array_filter($privateFields,
                     static fn($field) => ($old['_audit_hash_' . $field] ?? null) !== ($new['_audit_hash_' . $field] ?? null)));
                 if ($redacted) {
+                    $links += tenantAuditBusinessContext($this,$company,$table,$resourceId,$old,$new);
                     tenantAuditRecord($this, $company, tenantAuditResourceSpec($table)['module'], $action,
                         $table, $resourceId, $name, $old, $new, 'success', $links, $this->actor($company), $redacted);
                 } else {

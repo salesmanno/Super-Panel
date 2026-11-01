@@ -6,6 +6,7 @@ header('Cache-Control: no-store');
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/tenant_audit.php';
 require_once __DIR__ . '/../includes/tenant_supervisor.php';
+require_once __DIR__ . '/../includes/entity_form_fields.php';
 if (empty($_SESSION['tenant_admin_id']) || empty($_SESSION['company_id'])) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
@@ -29,7 +30,7 @@ try {
             echo json_encode(['success' => false, 'message' => 'Hendelsen ble ikke funnet.']);
             exit;
         }
-        echo json_encode(['success' => true, 'log' => tenantAuditPublicRow($row)], JSON_THROW_ON_ERROR);
+        echo json_encode(['success' => true, 'log' => tenantAuditPublicRow($row), 'csrf_token'=>entityFormCsrfToken()], JSON_THROW_ON_ERROR);
         exit;
     }
     $where = ['company_id = ?'];

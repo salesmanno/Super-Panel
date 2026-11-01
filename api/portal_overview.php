@@ -51,7 +51,7 @@ try {
         $q->execute([$company]);
         foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $safe = tenantAuditPublicRow($row);
-            $activity[] = array_intersect_key($safe, array_flip(['id','actor_name','action','resource_name','performed_at']));
+            $activity[] = array_intersect_key($safe, array_flip(['id','actor_name','action','resource_name','performed_at','description']));
         }
     }
     echo json_encode(['success' => true, 'agenda' => array_slice($agenda, 0, 2),

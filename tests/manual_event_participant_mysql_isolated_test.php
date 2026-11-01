@@ -138,6 +138,20 @@ try {
     manualEventAssert((int)$db->query('SELECT COUNT(*) FROM audit_logs')->fetchColumn()===2,
         'Each saved participant is audited');
 
+    $db->exec("UPDATE events_eventdata SET ticket_price=475.50 WHERE id='event-a'");
+    $priced=manualEventHttp($baseInput+['attendee_first_name'=>'Rett','attendee_last_name'=>'Pris','ticket_price'=>0]);
+    manualEventAssert($priced['success'] && (float)$priced['ticket_price']===475.50,
+        'API returns the actual server-selected price, not zero or a client override');
+    $pricedRow=$db->query('SELECT * FROM events_checkin WHERE id='.$db->quote($priced['checkin_id']))->fetch();
+    manualEventAssert((float)$pricedRow['ticket_price']===475.50 && $pricedRow['payment_status']==='pending' && !$pricedRow['checked_in'],
+        'Nonzero price remains payable and not checked in');
+    $pricedAudit=json_decode($db->query('SELECT new_values FROM audit_logs WHERE resource_id='.$db->quote($priced['checkin_id']))->fetchColumn(),true);
+    manualEventAssert((float)$pricedAudit['ticket_price']===475.50,'Audit retains the same nonzero price');
+    $bypass=manualEventHttp(array_replace($baseInput,['attendee_first_name'=>'Uten','attendee_last_name'=>'Betaling','checked_in'=>true]));
+    manualEventAssert(!$bypass['success'],'A paid ticket cannot bypass payment using manual creation');
+    $db->exec('DELETE FROM events_checkin WHERE id='.$db->quote($priced['checkin_id']));
+    $db->exec('DELETE FROM audit_logs WHERE resource_id='.$db->quote($priced['checkin_id']));
+
     $tomorrow=(new DateTimeImmutable('tomorrow',new DateTimeZone('Europe/Oslo')))->format('Y-m-d');
     $db->prepare("UPDATE events_eventdata SET start_date=? WHERE id='event-a'")->execute([$tomorrow]);
     $beforeStart=manualEventHttp($baseInput+['attendee_first_name'=>'Før','attendee_last_name'=>'Tid']);

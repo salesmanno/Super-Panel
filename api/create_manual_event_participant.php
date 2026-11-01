@@ -117,7 +117,7 @@ try {
         'checkin_id'=>$checkinId,
         'checked_in'=>$checkedIn,
         'payment_status'=>'pending',
-        'ticket_price'=>0,
+        'ticket_price'=>$ticketPrice,
     ],JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);
 } catch (Throwable $error) {
     if (isset($db) && $db instanceof PDO && $db->inTransaction()) $db->rollBack();

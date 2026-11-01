@@ -13,6 +13,7 @@
     const dialogClose = document.getElementById('dialog-close');
     let currentPage = 1;
     let lastFocus = null;
+    let reversalCsrf = '';
 
     const text = (value, fallback = '—') => {
         if (value === null || value === undefined || value === '') return fallback;
@@ -265,7 +266,7 @@
 
         const actionCell = document.createElement('td');
         addCellLabel(actionCell, 'Hendelse');
-        actionCell.appendChild(node('span', 'action-name', auditActionLabel(log.action)));
+        actionCell.appendChild(node('span', 'action-name', log.description || auditActionLabel(log.action)));
         actionCell.appendChild(node('span', 'resource-meta', `${auditResourceLabel(log.resource_type || 'Ressurs')} · ${text(log.resource_name || log.resource_id, 'Uten navn')}`));
 
         const moduleCell = document.createElement('td');
@@ -476,6 +477,7 @@
         appendDetailItem(grid, 'Bedrift', log.company_name);
         appendDetailItem(grid, 'Hendelses-ID', log.id);
         dialogContent.appendChild(grid);
+        if (log.description) dialogContent.appendChild(node('p', 'mt-3', log.description));
 
         dialogContent.appendChild(node('h3', 'section-title', 'Endringer'));
         const redacted = Array.isArray(log.redacted_fields) ? log.redacted_fields : [];
@@ -483,6 +485,59 @@
         renderFieldDifferences(dialogContent, log.before, log.after, redactedSet);
         renderRedactedFields(dialogContent, redacted);
         renderLinks(dialogContent, log.links);
+        const reversal = node('section', 'mt-4 border-top pt-3');
+        reversal.appendChild(node('h3', 'section-title', 'Reversering'));
+        if (!log.reversal_candidate) {
+            reversal.appendChild(node('p', 'text-muted', log.reversal_reason || 'Denne handlingen kan ikke reverseres direkte.'));
+        } else {
+            const button = node('button', 'btn btn-outline-primary', 'Forhåndsvis reversering');
+            button.type = 'button';
+            reversal.appendChild(button);
+            button.addEventListener('click', async () => {
+                button.disabled = true;
+                try {
+                    const preview = await reversalRequest(log.id, 'preview');
+                    reversal.replaceChildren(node('h3', 'section-title', 'Bekreft lagerreversering'),
+                        node('p', '', `${preview.name}: beholdning ${preview.from} → ${preview.to}. ${preview.message}`));
+                    const confirm = node('button', 'btn btn-danger', 'Bekreft reversering');
+                    const cancel = node('button', 'btn btn-outline-secondary ms-2', 'Avbryt');
+                    confirm.type = cancel.type = 'button';
+                    cancel.addEventListener('click', () => renderDetail(log));
+                    confirm.addEventListener('click', async () => {
+                        confirm.disabled = cancel.disabled = true;
+                        try {
+                            const result = await reversalRequest(log.id, 'apply', preview.revision);
+                            reversal.replaceChildren(node('p', 'text-success', 'Lagerjusteringen er reversert. Opprinnelig historikk er bevart.'));
+                            if (result.audit_id) {
+                                const link = node('button', 'btn btn-outline-primary', 'Vis korrigerende loggpost');
+                                link.type = 'button';
+                                link.addEventListener('click', () => openDetails(result.audit_id, link));
+                                reversal.appendChild(link);
+                            }
+                            loadLogs(currentPage);
+                        } catch (error) {
+                            reversal.replaceChildren(node('p', 'text-danger', error.message));
+                        }
+                    });
+                    reversal.append(confirm,cancel);
+                } catch (error) {
+                    reversal.appendChild(node('p', 'text-danger', error.message));
+                    button.disabled = false;
+                }
+            });
+        }
+        dialogContent.appendChild(reversal);
+    }
+
+    async function reversalRequest(id, mode, revision = '') {
+        const response = await fetch(new URL('../api/reverse_audit_action.php', window.location.href), {
+            method: 'POST', credentials: 'same-origin',
+            headers: {'Content-Type':'application/json','X-CSRF-Token':reversalCsrf},
+            body: JSON.stringify({id,mode,revision})
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.success) throw new Error(payload.message || 'Reversering kunne ikke gjennomføres.');
+        return payload.result;
     }
 
     async function openDetails(id, trigger) {
@@ -493,6 +548,7 @@
         try {
             const payload = await request({ id: String(id) });
             if (!payload.log || typeof payload.log !== 'object') throw new Error('Hendelsesdetaljene mangler i svaret.');
+            reversalCsrf = payload.csrf_token || '';
             renderDetail(payload.log);
             dialogClose.focus();
         } catch (error) {

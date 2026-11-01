@@ -71,7 +71,7 @@ window.PortalOverview = (() => {
                     const link = el('a');
                     link.href = '/pages/company_audit.php?id=' + encodeURIComponent(row.id);
                     link.append(el('small',date(row.performed_at,true)),
-                        document.createTextNode(`${row.actor_name} ${actions[row.action] || row.action} ${row.resource_name || ''}`));
+                        document.createTextNode(row.description || `${row.actor_name} ${actions[row.action] || row.action} ${row.resource_name || ''}`));
                     activity.append(link);
                 }
                 if (!data.activity.length) activity.append(el('span','Ingen registrerte endringer.'));

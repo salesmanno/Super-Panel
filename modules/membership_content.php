@@ -2213,7 +2213,7 @@ async function mbLoadRenewalList(page) {
                         <input type="date" class="form-control form-control-sm border-0 px-1"
                                style="min-width:120px;"
                                value="${expVal}"
-                               onchange="mbSaveField('${safeMemId}', this.closest('tr').querySelector('select:nth-of-type(2)').value, this.value)">
+                onchange="mbSaveField('${safeMemId}', this.closest('tr').querySelectorAll('select')[1].value, this.value)">
                     </td>
                     <td class="text-center">
                         <input type="checkbox" class="form-check-input" ${kontrolEl ? 'checked' : ''}
@@ -2275,13 +2275,13 @@ async function mbLoadRenewalStats() {
     } catch(e) { console.error('mbLoadRenewalStats error', e); }
 }
 
-const mbRenewalTabLink = document.querySelector('a[href="#membership-renewals"]');
-if (mbRenewalTabLink) {
-    mbRenewalTabLink.addEventListener('click', () => setTimeout(() => {
+// Also handles restored subtabs and programmatic navigation, not only a mouse click.
+document.addEventListener('subtab-changed', event => {
+    if (event.detail?.module === 'membership' && event.detail?.subtab === 'membership-renewals') {
         mbLoadRenewalList(1);
         mbLoadRenewalStats();
-    }, 100));
-}
+    }
+});
 
 document.getElementById('mb-lookup-input')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') mbLookupRenewal();

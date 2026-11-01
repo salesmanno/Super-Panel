@@ -201,8 +201,18 @@ final class EventCheckin {
             }
             tenantAuditChange($this->db,$this->company,'events','EVENT_CHECKIN','events_checkin',$p['id'],
                 $event['title'].' / '.$p['customer_name'],['checked_in'=>$p['checked_in'],'payment_status'=>$p['payment_status']],
-                ['checked_in'=>1,'payment_status'=>'paid','payment_method'=>$used],[], $this->actor);
+                 ['checked_in'=>1,'payment_status'=>'paid','payment_method'=>$used],
+                 ['event_name'=>$event['title'],'participant_name'=>$p['customer_name'],'ticket_price'=>$p['ticket_price'],
+                     'paid_on_site'=>$paid && !$p['has_valid_ledger'] && $p['payment_status']!=='paid' ? 1 : 0,
+                     'payment_name'=>$this->paymentAuditName($used)], $this->actor);
         }
+    }
+    private function paymentAuditName(?string $method): string {
+        if (!$method) return '';
+        $builtIn = ['cash'=>'Kontant','card'=>'Kort','vipps'=>'Vipps'];
+        if (isset($builtIn[$method])) return $builtIn[$method];
+        $q = $this->query('SELECT name FROM economy_payment_gateways WHERE id=? AND company_id=?',[$method,$this->company]);
+        return (string)($q->fetchColumn() ?: 'Betalingsmetode ikke registrert');
     }
     public function commit(string $event,array $ids,string $payer,string $method,bool $confirmed): array {
         $ids=self::ids($ids,$payer);
