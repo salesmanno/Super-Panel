@@ -547,16 +547,16 @@ try {
                 <li class="nav-item">
                     <a class="nav-link active" href="#events-dashboard">Arrangementsdashboard</a>
                 </li>
-                <li class="nav-item">
+                <li class="nav-item" hidden>
                     <a class="nav-link" href="#events-my">Dine arrangement</a>
                 </li>
-                <li class="nav-item">
+                <li class="nav-item" hidden>
                     <a class="nav-link" href="#events-registrations">Eventbestillinger</a>
                 </li>
-                <li class="nav-item">
+                <li class="nav-item" hidden>
                     <a class="nav-link" href="#events-create">Opprett arrangement</a>
                 </li>
-                <li class="nav-item">
+                <li class="nav-item" hidden>
                     <a class="nav-link" href="#events-checkin">Innsjekking</a>
                 </li>
                 <li class="nav-item">
@@ -1366,6 +1366,10 @@ try {
                 
                 // Sjekk om det finnes en lagret subtab for denne modulen
                 let savedSubtab = localStorage.getItem(STORAGE_KEY_SUBTAB + '_' + moduleSlug);
+                if (moduleSlug === 'events' && !['events-dashboard', 'events-results'].includes(savedSubtab)) {
+                    savedSubtab = 'events-dashboard';
+                    localStorage.setItem(STORAGE_KEY_SUBTAB + '_events', savedSubtab);
+                }
                 // Requests and upcoming rentals now live in dashboard modals; never restore their legacy empty panels.
                 if (moduleSlug === 'rental' && ['rental-requests', 'rental-upcoming'].includes(savedSubtab)) {
                     savedSubtab = 'rental-objects';

@@ -15,6 +15,11 @@ assert.ok(nav.includes('href="#events-dashboard">Arrangementsdashboard'));
 for (const name of ['events-my','events-registrations','events-create','events-checkin','events-results']) {
     assert.ok(nav.includes('href="#'+name+'"'), 'Existing Events view retained: '+name);
 }
+for (const name of ['events-my','events-registrations','events-create','events-checkin']) {
+    assert.match(nav, new RegExp('<li[^>]+hidden[^>]*>\\s*<a[^>]+href="#'+name+'"'));
+}
+assert.ok(dashboard.includes("moduleSlug === 'events' && !['events-dashboard', 'events-results'].includes(savedSubtab)"),
+    'Previously stored hidden tabs are restored to the dashboard');
 function download(url) {
     const out = spawnSync('curl',['--fail','--silent','--show-error','--max-time','30',url],{encoding:'utf8',maxBuffer:2*1024*1024});
     assert.equal(out.status,0,out.stderr);
@@ -33,6 +38,7 @@ let moduleHtml = render.stdout
 const stubs = `
 window.testErrors=[];window.fixtureCalls=[];window.fixtureWrites=[];window.fixtureFieldWrites=[];window.fixtureEdits=[];
 window.fixtureManualWrites=[];window.fixtureManualCheckins=[];
+window.fixtureEmptyEvents=false;window.fixturePaymentFailure=false;window.fixtureDelayPayments=false;window.fixturePaymentResolvers=[];
 window.addEventListener('error',e=>testErrors.push(e.message));
 window.addEventListener('unhandledrejection',e=>testErrors.push(String(e.reason)));
 window.confirmAnswer=true;window.confirm=()=>confirmAnswer;window.prompt=()=> 'Testbegrunnelse';
@@ -84,7 +90,8 @@ window.fetch=async (url,options={})=>{
   result={success:true,message:'Deltakeren er lagt til',checkin_id:checkin.id,checked_in:payload.checked_in,
    payment_status:'pending',ticket_price:0};
  }
- if(route.includes('get_events.php')){result={success:!fixtureFailEvents,events:fixtureEvents,message:'Fixture event-load failure'};}
+ if(route.includes('get_events.php')){result={success:!fixtureFailEvents,events:fixtureEmptyEvents?[]:fixtureEvents,message:'Fixture event-load failure'};}
+ else if(route.includes('get_events_results.php')){result={success:true,events:[]};}
  else if(route.includes('get_event.php')){result={success:true,event:fixtureEvents.find(e=>e.id===params.get('id'))};}
  else if(route.includes('get_entity_form_fields.php')){result={success:!fixtureFailFields,csrf_token:'fixture-csrf',revision:'revision-a',
   registration_type:fixtureEvents.find(e=>e.id===params.get('entity_id'))?.registration_type||'signup',
@@ -92,7 +99,11 @@ window.fetch=async (url,options={})=>{
  else if(route.includes('save_entity_form_fields.php')){fixtureFieldWrites.push(payload);result={success:!fixtureFailFieldSave,fields:payload.fields,revision:'revision-b',message:'Fixture conflict, draft retained'};if(fixtureFailFieldSave)status=409;}
  else if(route.includes('get_event_membership_pricing.php')){result={success:true,pricing:[...(fixtureEvents.find(e=>e.id===params.get('event_id'))?.membership_prices||[]).map(p=>({...p,ticket_price:p.price})),{plan_id:'retired',plan_name:'Tidligere medlemsplan',ticket_price:175,public_display:0}]};}
  else if(route.includes('get_membership_plans.php')){result={success:true,plans:fixtureMembershipPlans};}
- else if(route.includes('get_payment_methods.php')){result={success:true,payment_methods:[{method_type:'vipps',method_name:'Vipps'},{method_type:'cash',method_name:'Kontant'}]};}
+ else if(route.includes('get_payment_methods.php')){
+  if(fixtureDelayPayments)await new Promise(resolve=>fixturePaymentResolvers.push(resolve));
+  result={success:!fixturePaymentFailure,payment_methods:[{method_type:'vipps',method_name:'Vipps'},{method_type:'cash',method_name:'Kontant'}]};
+  if(fixturePaymentFailure)status=503;
+ }
  else if(route.includes('update_event.php')){fixtureEdits.push(payload);result={success:!fixtureFailEdit,message:'Fixture edit failure'};}
  else if(route.includes('set_event_visibility.php')){fixtureWrites.push(payload);fixtureEvents.find(e=>e.id===payload.event_id).is_active=payload.is_active;}
  else if(route.includes('approve_registration.php')||route.includes('reject_registration.php')){fixtureWrites.push({route,...payload});result={success:true,ticket_price:250};}
@@ -117,8 +128,17 @@ const checks = `(async()=>{
  const select=(el,value)=>{el.value=value;el.dispatchEvent(new Event('change',{bubbles:true}))};
  const typed=(el,value)=>{el.value=value;el.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:value}))};
  await settle();
+ const visibleTabs=[...document.querySelectorAll('#subtabs-events li')].filter(li=>li.getBoundingClientRect().height>0);
+ check(visibleTabs.length===2&&visibleTabs[0].querySelector('a').hash==='#events-dashboard'
+  &&visibleTabs[1].querySelector('a').hash==='#events-results','Only dashboard and results tabs are visible');
  check(card('event-0'),'Dashboard loaded real source data');
  check(document.querySelector('[data-event-create]'),'Create entrance present');
+ click(document.querySelector('[data-event-create]'));await settle();
+ check(document.getElementById('events-create').style.display==='block','Create wizard still opens from dashboard');
+ check(document.querySelector('#subtabs-events .active').hash==='#events-dashboard'
+  &&localStorage.getItem('salesman_active_subtab_events')==='events-dashboard','Hidden create flow keeps dashboard active and remembered');
+ resetWizardAndGoToList();await settle();
+ check(document.getElementById('events-dashboard').style.display==='block','Wizard back action returns to dashboard');
  check(card('event-0').textContent.includes('150')&&card('event-0').textContent.includes('Premium'),'Actual member prices shown alongside regular price');
  check(card('event-0').textContent.includes('50')&&card('event-0').textContent.includes('venter'),'Capacity and pending count shown');
  check(card('event-2').textContent.includes('Gratis'),'Zero priced event displayed without is_free');
@@ -241,11 +261,20 @@ const checks = `(async()=>{
  check(document.getElementById('rejectionReasonModal').classList.contains('show')&&!document.getElementById('eventsOverviewModal').classList.contains('show'),'Rejection opens with a single active modal');
  document.querySelector('#rejectionReasonModal input[type="checkbox"]').checked=true;await submitRejection();await settle();await settle();
  check(fixtureWrites.some(w=>w.registration_id==='reg-1'&&w.rejection_reason),'Rejection posts existing reasoned action');
- nav('events-registrations');await settle();await settle();
- check(document.getElementById('events-registrations').style.display==='block'&&!document.querySelector('#eventsOverviewModalBody #events-registrations'),'Original registration subtab restored and usable');
- nav('events-my');await settle();check(document.getElementById('events-my').style.display==='block','Old event list retained');
+ nav('events-results');await settle();await settle();
+ check(document.getElementById('events-registrations').style.display==='none'&&!document.querySelector('#eventsOverviewModalBody #events-registrations'),'Registration panel is returned and hidden when the modal closes');
+ check(document.getElementById('events-results').style.display==='block','Results remains available as a visible tab');
  nav('events-dashboard');await settle();
- await openEventDetail('event-0','Arrangement 0','12.06.2035');await settle();await settle();
+ fixtureDelayPayments=true;
+ click(card('event-0').querySelector('[data-event-checkin]'));await settle();await settle();
+ check(selectedEventId==='event-0'&&document.getElementById('eventsOverviewModalTitle').textContent==='Innsjekking · Arrangement 0',
+  'Card action opens the correct event in check-in');
+ check(document.querySelector('#eventsOverviewModalBody #events-checkin')
+  &&document.getElementById('checkin-event-selector').style.display==='none'
+  &&!document.getElementById('checkin-pending-list').textContent.includes('Laster deltakere'),
+  'Roster is rendered while payment methods are still waiting');
+ fixtureDelayPayments=false;fixturePaymentResolvers.splice(0).forEach(resolve=>resolve());await settle();await settle();
+ check(availablePaymentMethods.length===2,'Payment actions become available when methods finish loading');
   check(!document.querySelector('#checkin-confirmed-tab .card-header button[onclick*="beginManualEventParticipant"]')
    &&!document.querySelector('#checkin-pending-tab .card-header button[onclick*="beginManualEventParticipant"]'),
    'No manual participant add buttons in either check-in list');
@@ -254,6 +283,37 @@ const checks = `(async()=>{
   check(!document.querySelector('#fullscreen-checkin-overlay button[onclick*="beginManualEventParticipant"]'),
    'No manual participant add buttons in fullscreen check-in');
   closeFullscreenCheckin();await settle();
+ bootstrap.Modal.getInstance(document.getElementById('eventsOverviewModal')).hide();await settle();
+ fixturePaymentFailure=true;
+ click(card('event-1').querySelector('[data-event-checkin]'));await settle();await settle();
+ check(selectedEventId==='event-1'&&document.querySelector('[data-checkin-retry-payments]')
+  &&!document.getElementById('checkin-pending-list').textContent.includes('Laster deltakere'),
+  'Payment errors do not prevent the event roster from loading');
+ fixturePaymentFailure=false;click(document.querySelector('[data-checkin-retry-payments]'));await settle();
+ check(availablePaymentMethods.length===2&&!document.querySelector('[data-checkin-retry-payments]'),'Payment methods can be retried in place');
+ goBackToEventList();await settle();
+ check(document.querySelectorAll('[data-checkin-select]').length===fixtureEvents.length,'Back opens the loaded event selector');
+ const paymentRequestsBefore=fixtureCalls.filter(url=>url.includes('get_payment_methods')).length;
+ fixtureFailEvents=true;
+ const loading=loadCheckinEventSelector();
+ check(document.getElementById('checkin-event-cards').getAttribute('aria-busy')==='true','Selector has a loading state');
+ await loading;
+ check(document.querySelector('[data-checkin-retry-events]')&&document.getElementById('checkin-event-cards').textContent.includes('Feil ved lasting'),
+  'Event API errors are not misreported as an empty list');
+ fixtureFailEvents=false;click(document.querySelector('[data-checkin-retry-events]'));await settle();
+ check(document.querySelectorAll('[data-checkin-select]').length===fixtureEvents.length,'Selector retry reloads events');
+ fixtureEmptyEvents=true;await loadCheckinEventSelector();
+ check(document.getElementById('checkin-event-cards').textContent.includes('Ingen arrangementer tilgjengelig')
+  &&document.querySelector('[data-checkin-retry-events]'),'Empty event list offers refresh');
+ fixtureEmptyEvents=false;fixtureDelayPayments=true;await loadCheckinEventSelector();
+ check(document.querySelectorAll('[data-checkin-select]').length===fixtureEvents.length
+  &&fixtureCalls.filter(url=>url.includes('get_payment_methods')).length===paymentRequestsBefore,
+  'Selector does not wait for or request payment methods');
+ fixtureDelayPayments=false;
+ click(document.querySelector('[data-checkin-select="event-0"]'));await settle();await settle();
+ check(selectedEventId==='event-0'&&document.getElementById('selected-event-title').textContent==='Arrangement 0',
+  'Selector cards use the same correct event-opening flow');
+ bootstrap.Modal.getInstance(document.getElementById('eventsOverviewModal')).hide();await settle();
 
   click(card('event-0').querySelector('[data-event-participants-add]'));await settle();await settle();
   check(eventManualParticipantCsrfToken==='fixture-csrf','Dashboard participant editor receives the event-scoped CSRF token');

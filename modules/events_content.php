@@ -826,7 +826,6 @@ try {
                 <p class="events-dashboard-intro">En tydelig oversikt over det som kommer, og det som allerede har skjedd.</p></div>
             <div class="events-dashboard-head-actions">
                 <button type="button" class="btn btn-sm btn-outline-success" data-open-overview="requests"><i class="bi bi-inbox me-1"></i>Påmeldinger</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary" data-open-overview="checkin"><i class="bi bi-qr-code-scan me-1"></i>Innsjekking</button>
                 <button type="button" class="btn events-dashboard-create" data-event-create><i class="bi bi-plus-lg me-2"></i>Nytt arrangement</button>
             </div>
         </div>
@@ -871,6 +870,7 @@ try {
     </div>
 
     <div id="events-create" class="subtab-content" style="display: none;">
+        <button type="button" class="btn btn-sm btn-outline-secondary mb-3" onclick="resetWizardAndGoToList()"><i class="bi bi-arrow-left me-1"></i>Tilbake til dashboard</button>
         <div class="card bg-white border-0 shadow-sm">
             <div class="card-body p-4">
                 <!-- Wizard Progress Indicator -->
@@ -1382,6 +1382,7 @@ try {
 
         <!-- Event Details & Check-in Panel -->
         <div id="event-details-panel" style="display: none;">
+            <div id="checkin-payment-status" class="small mb-3" role="status" aria-live="polite"></div>
             <!-- Event Info Header with Fullscreen Button -->
             <div class="event-info-header">
                 <div class="event-icon">
@@ -3203,21 +3204,44 @@ document.addEventListener('DOMContentLoaded', formatAddressFields);
 let selectedEventId = null;
 let availablePaymentMethods = [];
 let selectedForGroup = new Set();
+let checkinPaymentLoadRevision = 0;
+let checkinSelectorLoadRevision = 0;
+let checkinSelectorEvents = new Map();
+
+async function fetchCheckinJson(url) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+        const response = await fetch(url, {credentials: 'same-origin', signal: controller.signal});
+        if (!response.ok) throw new Error(`Serveren svarte med feil (HTTP ${response.status}).`);
+        return await response.json();
+    } catch (error) {
+        if (error.name === 'AbortError') throw new Error('Hentingen tok for lang tid. Prøv igjen.');
+        throw error;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
 
 // Load available payment methods from economy configuration
 async function loadPaymentMethods(eventId = '') {
-    availablePaymentMethods=[];
+    const revision = ++checkinPaymentLoadRevision;
+    availablePaymentMethods = [];
+    const status = document.getElementById('checkin-payment-status');
+    if (status) status.textContent = 'Henter betalingsmetoder …';
     try {
-        const response = await fetch('/api/get_payment_methods.php'+(eventId ? '?event_id='+encodeURIComponent(eventId) : ''));
-        const result = await response.json();
-        if (result.success && result.payment_methods && result.payment_methods.length > 0) {
-            availablePaymentMethods = result.payment_methods;
-        } else {
-            availablePaymentMethods = [];
-        }
+        const result = await fetchCheckinJson('/api/get_payment_methods.php'+(eventId ? '?event_id='+encodeURIComponent(eventId) : ''));
+        if (revision !== checkinPaymentLoadRevision) return false;
+        if (!result.success || !Array.isArray(result.payment_methods)) throw new Error('Kunne ikke hente betalingsmetoder.');
+        availablePaymentMethods = result.payment_methods;
+        if (status) status.textContent = result.payment_methods.length ? '' : 'Ingen aktiverte betalingsmetoder er tilgjengelige.';
+        return true;
     } catch (error) {
+        if (revision !== checkinPaymentLoadRevision) return false;
         console.error('Error loading payment methods:', error);
         availablePaymentMethods = [];
+        if (status) status.innerHTML = '<span class="text-warning">Betalingsmetodene kunne ikke lastes. Deltakerlisten er fortsatt tilgjengelig.</span> <button type="button" class="btn btn-sm btn-outline-secondary" data-checkin-retry-payments>Prøv igjen</button>';
+        return false;
     }
 }
 
@@ -3292,23 +3316,24 @@ function updateGroupSelectionUI() {
 
 // Load events into check-in selector as cards
 async function loadCheckinEventSelector() {
-    // Also load payment methods when entering check-in section
-    await loadPaymentMethods();
-    
     const cardsContainer = document.getElementById('checkin-event-cards');
-    
+    if (!cardsContainer) return;
+    const revision = ++checkinSelectorLoadRevision;
+    checkinSelectorEvents = new Map();
+    cardsContainer.setAttribute('aria-busy', 'true');
+    cardsContainer.innerHTML = '<div class="col-12 text-center text-muted py-5" role="status"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Laster arrangementer …</div>';
     try {
-        const response = await fetch('/api/get_events.php');
-        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        const result = await response.json();
+        // Event selection must not depend on payment-provider availability.
+        const result = await fetchCheckinJson('/api/get_events.php');
+        if (revision !== checkinSelectorLoadRevision) return;
+        if (!result.success || !Array.isArray(result.events)) {
+            throw new Error(result.message || 'Kunne ikke hente arrangementene.');
+        }
+        checkinSelectorEvents = new Map(result.events.map(event => [String(event.id), event]));
         
-        if (result.success && result.events && result.events.length > 0) {
+        if (result.events.length > 0) {
             cardsContainer.innerHTML = result.events.map(event => {
                 const dateStr = formatNorskDato(event.start_date, event.start_time, { includeTime: true });
-                
-                const escapedTitle = event.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
-                const escapedDateStr = dateStr.replace(/'/g, "\\'");
-                
                 const eventImageUrl = safeEventImageUrl(event.event_image_url);
                 const hasImage = eventImageUrl !== '';
                 const imageStyle = hasImage 
@@ -3316,60 +3341,79 @@ async function loadCheckinEventSelector() {
                     : 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);';
                 
                 const pendingBadge = event.pending_registrations > 0 
-                    ? `<span class="badge bg-warning text-dark ms-1" title="Ventende godkjenning">${event.pending_registrations}</span>`
+                    ? `<span class="badge bg-warning text-dark ms-1" title="Ventende godkjenning">${Number(event.pending_registrations)}</span>`
                     : '';
                 
                 return `
                     <div class="col-md-6 col-lg-4 col-xl-3">
-                        <div class="checkin-event-card" onclick="openEventDetail('${event.id}', '${escapedTitle}', '${escapedDateStr}')">
+                        <button type="button" class="checkin-event-card w-100 text-start p-0" data-checkin-select="${eventFormEscapeText(event.id)}">
                             <div class="card-img-top d-flex align-items-center justify-content-center" style="${imageStyle}">
                                 ${!hasImage ? '<i class="bi bi-calendar-event text-white" style="font-size: 2.5rem; opacity: 0.8;"></i>' : ''}
                             </div>
                             <div class="card-body">
-                                <div class="event-title text-truncate">${event.title}</div>
+                                <div class="event-title text-truncate">${eventFormEscapeText(event.title || 'Arrangement uten navn')}</div>
                                 <div class="event-date">
-                                    <i class="bi bi-clock me-1"></i>${dateStr}
+                                    <i class="bi bi-clock me-1"></i>${eventFormEscapeText(dateStr)}
                                 </div>
                                 <div class="event-stats">
                                     <div class="stat-item">
                                         <i class="bi bi-people"></i>
-                                        <span>${event.current_attendees || 0} godkjent${pendingBadge}</span>
+                                        <span>${event.counts_loaded === false ? '—' : Number(event.current_attendees) || 0} godkjent${pendingBadge}</span>
                                     </div>
                                     <div class="stat-item">
                                         <i class="bi bi-check-circle"></i>
-                                        <span>${event.checked_in_count || 0}</span> innsjekket
+                                        <span>${event.counts_loaded === false ? '—' : Number(event.checked_in_count) || 0}</span> innsjekket
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </button>
                     </div>
                 `;
             }).join('');
             
-            // Load check-in counts for each event
-            result.events.forEach(event => {
-                loadEventCheckInCount(event.id);
-            });
         } else {
             cardsContainer.innerHTML = `
                 <div class="col-12">
                     <div class="checkin-empty-state">
                         <i class="bi bi-calendar-x"></i>
                         <p class="mb-0">Ingen arrangementer tilgjengelig</p>
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-3" data-checkin-retry-events>Oppdater listen</button>
                     </div>
                 </div>`;
         }
     } catch (error) {
+        if (revision !== checkinSelectorLoadRevision) return;
         console.error('Error loading events:', error);
         cardsContainer.innerHTML = `
             <div class="col-12">
                 <div class="checkin-empty-state">
                     <i class="bi bi-exclamation-triangle text-danger"></i>
-                    <p class="mb-0 text-danger">Feil ved lasting av arrangementer</p>
+                    <p class="mb-1 text-danger">Feil ved lasting av arrangementer</p>
+                    <p class="small text-muted mb-2">${eventFormEscapeText(error.message)}</p>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-checkin-retry-events>Prøv igjen</button>
                 </div>
             </div>`;
+    } finally {
+        if (revision === checkinSelectorLoadRevision) cardsContainer.setAttribute('aria-busy', 'false');
     }
 }
+
+document.getElementById('checkin-event-cards')?.addEventListener('click', event => {
+    if (event.target.closest('[data-checkin-retry-events]')) {
+        loadCheckinEventSelector();
+        return;
+    }
+    const button = event.target.closest('[data-checkin-select]');
+    const item = button && checkinSelectorEvents.get(button.dataset.checkinSelect);
+    if (item) openEventDetail(String(item.id), item.title || 'Arrangement', formatNorskDato(item.start_date, item.start_time, {includeTime: true}));
+});
+
+document.getElementById('checkin-payment-status')?.addEventListener('click', async event => {
+    if (!event.target.closest('[data-checkin-retry-payments]') || !selectedEventId) return;
+    const id = selectedEventId;
+    await loadPaymentMethods(id);
+    if (String(selectedEventId) === String(id)) loadCheckins(id);
+});
 
 async function loadEventCheckInCount(eventId) {
     try {
@@ -3400,6 +3444,12 @@ async function openEventDetail(eventId, eventTitle, eventDate) {
     document.getElementById('selected-event-date').textContent = eventDate || '';
     document.getElementById('checkin-event-selector').style.display = 'none';
     document.getElementById('event-details-panel').style.display = 'block';
+    if (document.getElementById('eventsOverviewModal')?.dataset.overviewKind === 'checkin') {
+        document.getElementById('eventsOverviewModalTitle').textContent = `Innsjekking · ${eventTitle}`;
+    }
+    ['checkin-confirmed-list', 'checkin-pending-list'].forEach(id => {
+        document.getElementById(id).innerHTML = '<tr><td colspan="5" class="text-center py-4" role="status">Laster deltakere …</td></tr>';
+    });
     
     // Focus on barcode scanner
     setTimeout(() => {
@@ -3407,9 +3457,14 @@ async function openEventDetail(eventId, eventTitle, eventDate) {
     }, 100);
     
     // Load checkins and event details
-    await loadPaymentMethods(eventId);
+    const payments = loadPaymentMethods(eventId);
+    const checkins = loadCheckins(eventId);
+    // Render the roster immediately. Refresh its payment actions when methods arrive.
+    Promise.all([payments, checkins]).then(([success]) => {
+        if (success && String(selectedEventId) === String(eventId)) loadCheckins(eventId);
+    });
     await Promise.all([
-        loadCheckins(eventId),
+        checkins,
         loadEventDetailsForCheckin(eventId),
         loadEventRegistrationFields(eventId)
     ]);
@@ -3421,12 +3476,17 @@ function goBackToEventList() {
         eventManualParticipantDraft = null;
     }
     selectedEventId = null;
+    ++checkinPaymentLoadRevision;
+    availablePaymentMethods = [];
     currentEventTitle = '';
     currentEventDate = '';
     document.getElementById('event-details-panel').style.display = 'none';
     document.getElementById('checkin-event-selector').style.display = 'block';
     document.getElementById('checkin-search-results').style.display = 'none';
     document.getElementById('checkin-barcode-search').value = '';
+    if (document.getElementById('eventsOverviewModal')?.dataset.overviewKind === 'checkin') {
+        document.getElementById('eventsOverviewModalTitle').textContent = 'Innsjekking';
+    }
     loadCheckinEventSelector();
 }
 
@@ -3434,12 +3494,14 @@ async function loadEventDetailsForCheckin(eventId) {
     try {
         const response = await fetch(`/api/get_event.php?id=${eventId}`);
         const result = await response.json();
+        if (String(selectedEventId) !== String(eventId)) return;
         if (result.success && result.event) {
             document.getElementById('guest-price').value = result.event.ticket_price || 0;
             const paymentMethodSelect = document.getElementById('guest-payment-method');
             paymentMethodSelect.innerHTML = '';
             paymentMethodSelect.required=Number(result.event.ticket_price || 0)>0;
             const methods=await ActivePaymentMethods.load(eventId);
+            if (String(selectedEventId) !== String(eventId)) return;
             paymentMethodSelect.append(new Option(methods.length ? '— Velg betalingsmetode —' : 'Ingen aktivert betalingsmetode',''));
             methods.forEach(method => {
                 const option = document.createElement('option');
@@ -7373,7 +7435,7 @@ function resetWizard() {
 
 function resetWizardAndGoToList() {
     if (!resetWizard()) return;
-    document.querySelector('[href="#events-my"]')?.click();
+    document.querySelector('[href="#events-dashboard"]')?.click();
 }
 
 function resetEventWizardForm() {
@@ -7429,7 +7491,7 @@ function showWizardSuccess() {
     if (!resetEventWizardForm()) return;
 
     // Return to the event list after success; reopening the wizard starts clean.
-    const myEventsTab = document.querySelector('[href="#events-my"]');
+    const myEventsTab = document.querySelector('[href="#events-dashboard"]');
     if (myEventsTab) {
         myEventsTab.click();
         setTimeout(() => {

@@ -203,6 +203,7 @@
                     <div class="events-participant-actions">
                         <button type="button" class="btn btn-sm btn-outline-secondary" data-event-participants="${esc(id)}" aria-haspopup="dialog"><i class="bi bi-people me-1"></i>Deltakerliste</button>
                         <button type="button" class="btn btn-sm btn-outline-primary" data-event-participants-add="${esc(id)}" aria-haspopup="dialog"><i class="bi bi-plus-lg me-1"></i>Legg til deltaker</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-event-checkin="${esc(id)}" aria-haspopup="dialog"><i class="bi bi-qr-code-scan me-1"></i>Innsjekking</button>
                     </div>
                 </div>
                 ${details}
@@ -489,7 +490,7 @@
         bootstrap.Modal.getOrCreateInstance(modal).show();
         if (shouldRefresh) {
             if (kind === 'requests') { window.loadPendingRegistrations?.();window.loadAllRegistrations?.(); }
-            else window.loadCheckinEventSelector?.();
+            else window.goBackToEventList?.();
         }
     }
 
@@ -533,6 +534,13 @@
         if (revision === state.participantLoadRevision && addParticipant) {
             window.beginManualEventParticipant?.(false, 'dashboard-event-participant-list');
         }
+    }
+
+    function openCheckin(id) {
+        const item = state.events.find(event => String(event.id) === String(id));
+        if (!item || !confirmEditorForAction()) return;
+        openOverview('checkin', false);
+        window.openEventDetail?.(String(id), item.title || 'Arrangement', displayDate(item));
     }
 
     async function loadDashboardManualParticipantFields(eventId) {
@@ -672,6 +680,11 @@
                 document.querySelector('#subtabs-events a[href="#events-create"]')?.click();
                 return;
             }
+            const checkin = event.target.closest('[data-event-checkin]');
+            if (checkin) {
+                openCheckin(checkin.dataset.eventCheckin);
+                return;
+            }
             const details = event.target.closest('[data-event-details]');
             if (details) {
                 toggleEventDetails(details.dataset.eventDetails);
@@ -721,13 +734,20 @@
             event.preventDefault();
             event.stopImmediatePropagation();
             if (!confirmEditorForAction()) return;
-            const targetId = link.hash.slice(1);
+            let targetId = link.hash.slice(1);
+            // Legacy entry points stay callable, but are no longer navigation tabs.
+            if (targetId === 'events-registrations' || targetId === 'events-checkin') {
+                openOverview(targetId === 'events-registrations' ? 'requests' : 'checkin', true);
+                return;
+            }
+            if (targetId === 'events-my') targetId = 'events-dashboard';
             if (state.modalKind) {
                 restoreOverview();
                 bootstrap.Modal.getInstance(document.getElementById('eventsOverviewModal'))?.hide();
             }
-            document.querySelectorAll('#subtabs-events .nav-link').forEach(item => item.classList.toggle('active',item === link));
-            window.localStorage.setItem('salesman_active_subtab_events',targetId);
+            const visibleTarget = ['events-dashboard','events-results'].includes(targetId) ? targetId : 'events-dashboard';
+            document.querySelectorAll('#subtabs-events .nav-link').forEach(item => item.classList.toggle('active',item.hash === '#' + visibleTarget));
+            window.localStorage.setItem('salesman_active_subtab_events',visibleTarget);
             if (typeof window.showSubTabContent === 'function') window.showSubTabContent('events',targetId);
             else {
                 root.querySelectorAll('.subtab-content').forEach(panel => { panel.style.display = panel.id === targetId ? 'block' : 'none'; });
@@ -800,6 +820,7 @@
         openOverview,
         openFieldEditor,
         openParticipants,
+        openCheckin,
         refreshParticipants: eventId => loadDashboardParticipants(String(eventId)),
         closeFieldEditor,
         beforeNavigation,
