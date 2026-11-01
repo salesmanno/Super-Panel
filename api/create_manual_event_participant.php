@@ -46,6 +46,15 @@ try {
     $db->beginTransaction();
 
     $event=entityFormContext($db,$companyId,'event',$eventId,true);
+    $timing=$db->prepare('SELECT start_date,ticket_price FROM events_eventdata WHERE id=? AND company_id=? FOR UPDATE');
+    $timing->execute([$eventId,$companyId]);
+    $eventTiming=$timing->fetch(PDO::FETCH_ASSOC);
+    $today=(new DateTimeImmutable('now',new DateTimeZone('Europe/Oslo')))->format('Y-m-d');
+    if (!$eventTiming || empty($eventTiming['start_date']) || substr($eventTiming['start_date'],0,10)>$today) {
+        throw new InvalidArgumentException('Manuell deltakerregistrering åpner på arrangementsdatoen.');
+    }
+    $ticketPrice=max(0,(float)$eventTiming['ticket_price']);
+    if ($checkedIn && $ticketPrice>0) throw new InvalidArgumentException('Registrer deltakeren først og bekreft betalingen ved innsjekking.');
     $notes=eventManualGuestFormNotes(
         $db,
         $companyId,
@@ -63,12 +72,13 @@ try {
         INSERT INTO events_checkin
             (id,event_id,membership_plan_id,ticket_price,payment_status,payment_method,
              checked_in,check_in_time,checked_in_by,barcode,notes,created_at,updated_at)
-        VALUES (?,?,NULL,0,\'pending\',NULL,?,IF(?=1,NOW(),NULL),IF(?=1,?,NULL),?,?,NOW(),NOW())
+        VALUES (?,?,NULL,?,\'pending\',NULL,?,IF(?=1,NOW(),NULL),IF(?=1,?,NULL),?,?,NOW(),NOW())
     ');
     $checkedValue=$checkedIn?1:0;
     $insert->execute([
         $checkinId,
         $eventId,
+        $ticketPrice,
         $checkedValue,
         $checkedValue,
         $checkedValue,
@@ -91,7 +101,7 @@ try {
             'id'=>$checkinId,
             'event_id'=>$eventId,
             'membership_plan_id'=>null,
-            'ticket_price'=>0,
+            'ticket_price'=>$ticketPrice,
             'payment_status'=>'pending',
             'payment_method'=>null,
             'checked_in'=>$checkedIn?1:0,

@@ -19,7 +19,7 @@ foreach ([
     "CREATE TABLE tenant_staff(id CHAR(36) PRIMARY KEY,company_id CHAR(36),first_name VARCHAR(100),last_name VARCHAR(100))",
     "CREATE TABLE system_modules(id CHAR(36) PRIMARY KEY,module_key VARCHAR(50),is_active TINYINT)",
     "CREATE TABLE tenant_admin_modules(tenant_admin_id CHAR(36),module_id CHAR(36))",
-    "CREATE TABLE events_eventdata(id CHAR(36) PRIMARY KEY,company_id CHAR(36),title VARCHAR(255),registration_type VARCHAR(30))",
+    "CREATE TABLE events_eventdata(id CHAR(36) PRIMARY KEY,company_id CHAR(36),title VARCHAR(255),registration_type VARCHAR(30),start_date DATE DEFAULT '2020-01-01',ticket_price DECIMAL(12,2) DEFAULT 0)",
     "CREATE TABLE dynamic_form_fields(id CHAR(36) PRIMARY KEY,company_id CHAR(36),entity_type VARCHAR(50),entity_id CHAR(36),field_name VARCHAR(100),field_label VARCHAR(255),field_type VARCHAR(50),is_required INT DEFAULT 0,is_visible INT DEFAULT 1,default_value TEXT,options TEXT,validation_rules TEXT,sort_order INT DEFAULT 0,created_at DATETIME DEFAULT CURRENT_TIMESTAMP,updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,UNIQUE(company_id,entity_type,entity_id,field_name))",
     "CREATE TABLE events_checkin(id CHAR(36) PRIMARY KEY,event_id CHAR(36),membership_plan_id CHAR(36) NULL,ticket_price DECIMAL(10,2) NOT NULL,payment_status VARCHAR(30),payment_method VARCHAR(50) NULL,checked_in TINYINT NOT NULL,check_in_time DATETIME NULL,checked_in_by CHAR(36) NULL,barcode VARCHAR(100),notes TEXT,created_at DATETIME,updated_at DATETIME)",
     "CREATE TABLE unified_ledger(id CHAR(36) PRIMARY KEY,company_id CHAR(36),order_id VARCHAR(100))",
@@ -29,7 +29,7 @@ foreach ([
     "INSERT INTO tenant_admins VALUES('admin-a','company-a',NULL,'admin-a','admin',1)",
     "INSERT INTO system_modules VALUES('events-module','events',1)",
     "INSERT INTO tenant_admin_modules VALUES('admin-a','events-module')",
-    "INSERT INTO events_eventdata VALUES('event-a','company-a','Lokalt arrangement','signup'),('event-b','company-b','Annet firma','signup')",
+    "INSERT INTO events_eventdata(id,company_id,title,registration_type) VALUES('event-a','company-a','Lokalt arrangement','signup'),('event-b','company-b','Annet firma','signup')",
     "INSERT INTO dynamic_form_fields(id,company_id,entity_type,entity_id,field_name,field_label,field_type,is_required,is_visible,options,validation_rules,sort_order) VALUES('configured','company-a','event','event-a','__configured','','text',0,1,NULL,'{}',0),('topic','company-a','event','event-a','topic','Interesse','text',1,1,NULL,'{\"max_length\":100}',1),('age','company-a','event','event-a','age','Alder','number',1,1,NULL,'{\"min\":0,\"max\":130}',2)",
 ] as $sql) {
     $db->exec($sql);

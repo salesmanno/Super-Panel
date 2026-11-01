@@ -17,6 +17,7 @@ require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
 require_once __DIR__ . '/../includes/tenant_audit.php';
 require_once __DIR__ . '/../includes/active_payment_methods.php';
+require_once __DIR__ . '/../includes/EventCheckin.php';
 
 /**
  * Get human-readable payment method name
@@ -36,6 +37,7 @@ function getPaymentMethodName($method) {
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
+    entityFormRequireCsrf(is_array($data)?$data:[]);
     
     if (empty($data['checkin_id'])) {
         echo json_encode(['success' => false, 'message' => 'Mangler checkin_id']);
@@ -51,8 +53,18 @@ try {
     $skipPayment = isset($data['skip_payment']) && $data['skip_payment'] === true;
     $preservePaymentMethod = isset($data['preserve_payment_method']) && $data['preserve_payment_method'] === true;
     
-    $auditActor = tenantAuditActor($db, (string) $companyId);
+    $auditActor = entityFormRequireModuleAccess($db, (string) $companyId, 'event');
     $adminName = $auditActor['name'];
+    if (!$isNoShow) {
+        $owned=$db->prepare('SELECT c.event_id FROM events_checkin c JOIN events_eventdata e ON e.id=c.event_id WHERE c.id=? AND e.company_id=?');
+        $owned->execute([$checkinId,$companyId]); $eventId=$owned->fetchColumn();
+        if (!$eventId) throw new InvalidArgumentException('Deltakeren finnes ikke i valgt bedrift.');
+        $method=$preservePaymentMethod?'previous':(activePaymentMethodName($paymentMethod)??'');
+        $result=(new EventCheckin($db,(string)$companyId,$auditActor))->commit((string)$eventId,[(string)$checkinId],
+            (string)$checkinId,$method,!$skipPayment);
+        echo json_encode(['success'=>true,'message'=>'Innsjekket']+$result);
+        exit;
+    }
     $db->beginTransaction();
     activePaymentMethodsLock($db,(string)$companyId);
     
@@ -75,6 +87,7 @@ try {
             tc.last_name,
             {$customerEmailSql} as customer_email,
             ee.title as event_title,
+            ee.start_date,
             ee.company_id,
             mp.name as membership_plan_name
         FROM events_checkin c
@@ -94,6 +107,10 @@ try {
             (string) $checkinId, 'Innsjekking ikke tilgjengelig', [], [], 'denied', [], $auditActor);
         echo json_encode(['success' => false, 'message' => 'Innsjekking ikke funnet']);
         exit;
+    }
+    $today=(new DateTimeImmutable('now',new DateTimeZone('Europe/Oslo')))->format('Y-m-d');
+    if (empty($checkin['start_date']) || substr($checkin['start_date'],0,10)>$today) {
+        throw new InvalidArgumentException('Innsjekking åpner på arrangementsdatoen.');
     }
     
     if ($checkin['checked_in'] == 1 && !$isNoShow) {

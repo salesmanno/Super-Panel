@@ -150,51 +150,24 @@ const checks = `(async()=>{
  check(card('event-0')&&search.value==='','Autofill must not wipe inventory');
  typed(search,'Arrangement 1');await settle();check(card('event-1')&&!card('event-0'),'Intentional search filters');
  typed(search,'');await settle();
+ window.fixtureCheckinOpens=[];
+ window.EventCheckinDashboard={open:id=>window.fixtureCheckinOpens.push(id)};
  const detail=card('event-0').querySelector('.events-event-card');
  detail.click();await settle();await settle();
- check(document.getElementById('eventsOverviewModal').classList.contains('show')&&
-   document.getElementById('eventsOverviewModalTitle').textContent==='Deltakere · Arrangement 0',
-   'Whole card opens the dashboard-owned participant list');
-  check(document.querySelector('#eventsOverviewModalBody .event-participants')
-   &&!document.querySelector('#eventsOverviewModalBody #events-checkin')
-   &&!document.querySelector('#eventsOverviewModalBody #checkin-pending-tab'),
-   'Participant view is separate from the check-in interface');
-  const addParticipant=document.querySelector('#eventsOverviewModalBody [data-dashboard-add-participant]');
-  check(addParticipant&&addParticipant.textContent.includes('Legg til deltaker'),'Dashboard participant list has its own add action');
-  check(!document.querySelector('#checkin-confirmed-tab .card-header button[onclick*="beginManualEventParticipant"]')
-   &&!document.querySelector('#checkin-pending-tab .card-header button[onclick*="beginManualEventParticipant"]'),
-   'Check-in tabs do not expose manual participant creation');
-  click(addParticipant);await settle();
-  check(document.querySelector('#dashboard-event-participant-list .manual-participant-row'),
-   'Dashboard action creates an inline participant form outside check-in');
-  click(document.querySelector('#dashboard-event-participant-list [data-manual-participant-cancel]'));await settle();
- bootstrap.Modal.getInstance(document.getElementById('eventsOverviewModal')).hide();await settle();
+ check(fixtureCheckinOpens.at(-1)==='event-0','Whole card opens unified check-in for the correct event');
+ check(!card('event-0').querySelector('[data-event-participants],[data-event-participants-add],[data-event-checkin]'),
+   'Card has no redundant participant, add, or checkin buttons');
  // A real user normally presses the title, not the empty card background.
  click(card('event-0').querySelector('.events-event-open'));await settle();await settle();
- check(document.getElementById('eventsOverviewModal').classList.contains('show')&&
-   document.getElementById('eventsOverviewModalTitle').textContent==='Deltakere · Arrangement 0',
-  'Pressing the event title opens participants, not the old details panel');
- bootstrap.Modal.getInstance(document.getElementById('eventsOverviewModal')).hide();await settle();
- const cardPlus=card('event-0').querySelector('[data-event-participants-add]');
- check(cardPlus&&cardPlus.getBoundingClientRect().height>=32,'Each card has a visible touch-sized plus button');
- click(cardPlus);await settle();await settle();
-  check(document.querySelectorAll('#dashboard-event-participant-list .manual-participant-row').length===1,
-  'Card plus opens participant list with exactly one editable participant row');
- check(document.documentElement.scrollWidth<=innerWidth+1,'Participant modal stays within mobile viewport');
- if(innerWidth<=576){
-   const editor=document.querySelector('#dashboard-event-participant-list .manual-participant-editor');
-  check(editor.getBoundingClientRect().right<=innerWidth-16,'Inline form fits without horizontal scrolling on mobile');
-  check(editor.querySelector('[data-manual-participant-save]').getBoundingClientRect().right<=innerWidth-16,
-   'Save action stays inside the mobile viewport');
- }
-  click(document.querySelector('#dashboard-event-participant-list [data-manual-participant-cancel]'));await settle();
- bootstrap.Modal.getInstance(document.getElementById('eventsOverviewModal')).hide();await settle();
+ check(fixtureCheckinOpens.length===2&&fixtureCheckinOpens.at(-1)==='event-0',
+   'Pressing the event title opens unified check-in');
  click(card('event-0').querySelector('.events-event-cover'));await settle();await settle();
- check(document.getElementById('eventsOverviewModal').classList.contains('show'),'Image area also opens participants');
- bootstrap.Modal.getInstance(document.getElementById('eventsOverviewModal')).hide();await settle();
- // Specific menu controls retain their own action and do not open participants.
+ check(fixtureCheckinOpens.length===3,'Image area also opens unified check-in');
+ const cardOpensBeforeMenu=fixtureCheckinOpens.length;
+ // Specific menu controls retain their own action.
  click(card('event-0').querySelector('[data-event-details]'));
  check(!document.getElementById('events-detail-event-0').hidden&&!document.getElementById('eventsOverviewModal').classList.contains('show'),'Menu details action stays separate from card action');
+ check(fixtureCheckinOpens.length===cardOpensBeforeMenu,'Menu action does not trigger check-in');
  action('event-0','fields').click();await settle();
  let panel=document.getElementById('events-inline-fields-event-0');
  check(!panel.hidden&&panel.querySelector('[data-common-field="email"]'),'Editor embedded in card');
@@ -265,8 +238,11 @@ const checks = `(async()=>{
  check(document.getElementById('events-registrations').style.display==='none'&&!document.querySelector('#eventsOverviewModalBody #events-registrations'),'Registration panel is returned and hidden when the modal closes');
  check(document.getElementById('events-results').style.display==='block','Results remains available as a visible tab');
  nav('events-dashboard');await settle();
+ // Legacy selector/fullscreen compatibility is separate from the new admission
+ // surface, whose real production JS is tested in events_checkin_chromium_test.
+ window.EventCheckinDashboard=null;
  fixtureDelayPayments=true;
- click(card('event-0').querySelector('[data-event-checkin]'));await settle();await settle();
+ click(card('event-0').querySelector('.events-event-card'));await settle();await settle();
  check(selectedEventId==='event-0'&&document.getElementById('eventsOverviewModalTitle').textContent==='Innsjekking · Arrangement 0',
   'Card action opens the correct event in check-in');
  check(document.querySelector('#eventsOverviewModalBody #events-checkin')
@@ -285,7 +261,7 @@ const checks = `(async()=>{
   closeFullscreenCheckin();await settle();
  bootstrap.Modal.getInstance(document.getElementById('eventsOverviewModal')).hide();await settle();
  fixturePaymentFailure=true;
- click(card('event-1').querySelector('[data-event-checkin]'));await settle();await settle();
+ click(card('event-1').querySelector('.events-event-card'));await settle();await settle();
  check(selectedEventId==='event-1'&&document.querySelector('[data-checkin-retry-payments]')
   &&!document.getElementById('checkin-pending-list').textContent.includes('Laster deltakere'),
   'Payment errors do not prevent the event roster from loading');
@@ -315,32 +291,7 @@ const checks = `(async()=>{
   'Selector cards use the same correct event-opening flow');
  bootstrap.Modal.getInstance(document.getElementById('eventsOverviewModal')).hide();await settle();
 
-  click(card('event-0').querySelector('[data-event-participants-add]'));await settle();await settle();
-  check(eventManualParticipantCsrfToken==='fixture-csrf','Dashboard participant editor receives the event-scoped CSRF token');
-  let manualRow=document.querySelector('#dashboard-event-participant-list .manual-participant-row');
-  check(manualRow&&manualRow.querySelectorAll('[data-manual-participant-field]').length>=5,
-   'Dashboard inline row exposes core and configured optional fields');
-  check(document.documentElement.scrollWidth<=innerWidth+1,'Dashboard participant editor fits the viewport');
-  click(manualRow.querySelector('[data-manual-participant-save]'));await settle();
-  check(fixtureManualWrites.length===0&&manualRow.querySelector('[data-manual-participant-error]').textContent.includes('Fornavn og etternavn'),
-  'Missing names prevent the API call and keep an inline validation message');
- typed(manualRow.querySelector('[data-manual-participant-field="first_name"]'),'Ada');
- typed(manualRow.querySelector('[data-manual-participant-field="phone"]'),'12345678');
- click(manualRow.querySelector('[data-manual-participant-save]'));await settle();
- check(fixtureManualWrites.length===0,'Missing surname remains blocked after partial entry');
- typed(manualRow.querySelector('[data-manual-participant-field="last_name"]'),'Nord');
- click(manualRow.querySelector('[data-manual-participant-save]'));await settle();
- check(fixtureManualWrites.length===1&&fixtureManualWrites[0].checked_in===false
-  &&fixtureManualWrites[0].attendee_first_name==='Ada'&&fixtureManualWrites[0].attendee_last_name==='Nord'
-  &&fixtureManualWrites[0].attendee_phone==='12345678'&&fixtureManualWrites[0].optional_fields.dietary==='',
-   'Dashboard add saves optional blanks without entering a check-in status');
-  check(document.querySelector('#dashboard-event-participant-list').textContent.includes('Ada Nord')
-   &&document.querySelector('.event-participants-status').textContent==='1 deltaker',
-   'Successful save refreshes the dashboard-owned attendee list');
-  check(!document.querySelector('#eventsOverviewModalBody #events-checkin')
-   &&!document.querySelector('#checkin-pending-list').textContent.includes('Ada Nord'),
-   'Saving from the dashboard does not open or refresh check-in lists');
-  bootstrap.Modal.getInstance(document.getElementById('eventsOverviewModal')).hide();await settle();
+  // Manual creation now belongs to the unified surface and its API fixtures.
  fixtureFailEvents=true;await loadEvents();await settle();
  check(document.getElementById('eventsDashboardNotice').textContent.toLowerCase().includes('feil'),'Source error is explicit');
  fixtureFailEvents=false;await loadEvents();await settle();

@@ -74,6 +74,8 @@ elif [[ "${1:-}" == "--event-payment-audit" ]]; then
     php "$ROOT/tests/event_payment_audit_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--manual-event-participant" ]]; then
     php "$ROOT/tests/manual_event_participant_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
+elif [[ "${1:-}" == "--event-checkin" ]]; then
+    php "$ROOT/tests/event_checkin_mysql_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--audit-all" ]]; then
     php "$ROOT/tests/tenant_audit_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
     php "$ROOT/tests/rental_confirmation_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"

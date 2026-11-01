@@ -12,9 +12,11 @@ require_once __DIR__ . '/../includes/EmailService.php';
 require_once __DIR__ . '/../includes/UnifiedLedgerService.php';
 require_once __DIR__ . '/../includes/active_payment_methods.php';
 require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
+require_once __DIR__ . '/../includes/entity_form_fields.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
+    entityFormRequireCsrf(is_array($data)?$data:[]);
     
     if (empty($data['event_id'])) {
         echo json_encode(['success' => false, 'message' => 'Mangler event_id']);
@@ -22,6 +24,7 @@ try {
     }
 
     $db = getDBConnection();
+    entityFormRequireModuleAccess($db,(string)$_SESSION['company_id'],'event');
     $customerId = $data['customer_id'] ?? null;
     $registrationId = $data['registration_id'] ?? null;
     
@@ -82,6 +85,9 @@ try {
     
     // Use default payment method
     $paymentMethod = $data['payment_method'] ?? null;
+    if (activePaymentMethodName($paymentMethod)==='vipps') {
+        throw new InvalidArgumentException('Bruk Vipps-knappen i den nye innsjekkingen. En Vipps-betaling kan ikke bekreftes manuelt.');
+    }
     
     // Determine ticket price based on membership plan
     $ticketPrice = $event['ticket_price'];
@@ -108,7 +114,12 @@ try {
     
     $db->beginTransaction();
     activePaymentMethodsLock($db,(string)$_SESSION['company_id']);
+    $dateCheck=$db->prepare('SELECT start_date FROM events_eventdata WHERE id=? AND company_id=? FOR UPDATE');
+    $dateCheck->execute([$data['event_id'],$_SESSION['company_id']]); $startDate=$dateCheck->fetchColumn();
+    $today=(new DateTimeImmutable('now',new DateTimeZone('Europe/Oslo')))->format('Y-m-d');
+    if (!$startDate || substr($startDate,0,10)>$today) throw new InvalidArgumentException('Innsjekking åpner på arrangementsdatoen.');
     $noPayment=($data['is_paying']??null)===false || in_array($paymentMethod,[null,'','free','on_arrival'],true);
+    if ((float)$ticketPrice>0 && $noPayment) throw new InvalidArgumentException('Betalingen må bekreftes i den nye innsjekkingen før deltakeren kan sjekkes inn.');
     if (($data['is_paying']??null)!==false && (!$noPayment || ($data['is_paying']??false)===true || ($data['paid']??false)===true)) {
         $paymentMethod=requireActiveEventPayment($db,(string)$_SESSION['company_id'],(string)$data['event_id'],$paymentMethod,(float)$ticketPrice);
     } else {

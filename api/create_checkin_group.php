@@ -13,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/EventCheckin.php';
 
 $data = json_decode(file_get_contents('php://input'), true);
 
@@ -29,6 +30,13 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     $adminId = $_SESSION['tenant_admin_id'];
+    entityFormRequireCsrf(is_array($data)?$data:[]);
+    $actor=entityFormRequireModuleAccess($db,(string)$companyId,'event');
+    $payer=(string)($data['payer_id']??($checkinIds[0]??''));
+    $result=(new EventCheckin($db,(string)$companyId,$actor))->commit((string)$eventId,$checkinIds,$payer,
+        activePaymentMethodName($paymentMethod)??'',true);
+    echo json_encode(['success'=>true,'message'=>'Gruppe sjekket inn','checked_in_count'=>count($result['checked_in_ids'])]+$result);
+    exit;
     
     // Verify event belongs to this company
     $eventCheck = $db->prepare("SELECT id FROM events_eventdata WHERE id = ? AND company_id = ?");

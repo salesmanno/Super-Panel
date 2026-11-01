@@ -169,11 +169,11 @@
             ${membershipDetails}
         </div>`;
         return `<article class="events-event-entry" id="events-event-${esc(id)}">
-            <div class="events-event-card${stateClass === 'hidden' ? ' is-inactive' : ''}${stateClass === 'past' ? ' is-past' : ''}" data-event-card="${esc(id)}" tabindex="0" role="group" aria-haspopup="dialog" aria-label="${esc(event.title || 'Arrangement')}. Trykk Enter for å vise påmeldte.">
+            <div class="events-event-card${stateClass === 'hidden' ? ' is-inactive' : ''}${stateClass === 'past' ? ' is-past' : ''}" data-event-card="${esc(id)}" tabindex="0" role="group" aria-haspopup="dialog" aria-label="${esc(event.title || 'Arrangement')}. Trykk Enter for å åpne innsjekking.">
                 <div class="events-event-cover">${imageMarkup}</div>
                 <div class="events-event-main">
                     <div class="events-event-top">
-                        <button type="button" class="events-event-open" data-event-participants="${esc(id)}" aria-haspopup="dialog">${esc(event.title || 'Arrangement uten navn')}</button>
+                        <button type="button" class="events-event-open" data-event-open-checkin="${esc(id)}" aria-haspopup="dialog">${esc(event.title || 'Arrangement uten navn')}</button>
                         <div class="dropdown events-event-actions">
                             <button type="button" class="events-event-menu-button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Handlinger for ${esc(event.title || 'arrangement')}"><i class="bi bi-three-dots"></i></button>
                             <ul class="dropdown-menu dropdown-menu-end">
@@ -200,11 +200,6 @@
                         <span class="events-event-tag"><i class="bi bi-people"></i>${esc(registrationText)}</span>
                     </div>
                     ${membershipDetails}
-                    <div class="events-participant-actions">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" data-event-participants="${esc(id)}" aria-haspopup="dialog"><i class="bi bi-people me-1"></i>Deltakerliste</button>
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-event-participants-add="${esc(id)}" aria-haspopup="dialog"><i class="bi bi-plus-lg me-1"></i>Legg til deltaker</button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" data-event-checkin="${esc(id)}" aria-haspopup="dialog"><i class="bi bi-qr-code-scan me-1"></i>Innsjekking</button>
-                    </div>
                 </div>
                 ${details}
                 <div class="events-inline-fields" id="events-inline-fields-${esc(id)}" hidden></div>
@@ -539,6 +534,10 @@
     function openCheckin(id) {
         const item = state.events.find(event => String(event.id) === String(id));
         if (!item || !confirmEditorForAction()) return;
+        if (window.EventCheckinDashboard) {
+            window.EventCheckinDashboard.open(String(id));
+            return;
+        }
         openOverview('checkin', false);
         window.openEventDetail?.(String(id), item.title || 'Arrangement', displayDate(item));
     }
@@ -665,10 +664,10 @@
             }
         });
         root.addEventListener('click',event => {
-            const participants = event.target.closest('[data-event-participants]');
-            if (participants) {
+            const checkinTitle = event.target.closest('[data-event-open-checkin]');
+            if (checkinTitle) {
                 event.preventDefault();
-                openParticipants(participants.dataset.eventParticipants);
+                openCheckin(checkinTitle.dataset.eventOpenCheckin);
                 return;
             }
             const overviewButton = event.target.closest('[data-open-overview]');
@@ -709,7 +708,7 @@
             if (event.target.closest('[data-events-retry]')) window.loadEvents?.();
             const card = event.target.closest('[data-event-card]');
             if (card && !event.target.closest('button,input,select,textarea,a,.events-event-details,.events-inline-fields,[role="menu"]')) {
-                openParticipants(card.dataset.eventCard);
+                openCheckin(card.dataset.eventCard);
             }
         });
         root.addEventListener('keydown',event => {
@@ -717,7 +716,7 @@
             if (!card || event.target !== card) return;
             if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
-                openParticipants(card.dataset.eventCard);
+                openCheckin(card.dataset.eventCard);
             }
         });
         document.getElementById('eventsOverviewModalBody')?.addEventListener('click',event => {
