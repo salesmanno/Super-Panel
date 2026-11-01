@@ -28,8 +28,8 @@ assert.equal(render.status,0,render.stderr);
 let moduleHtml = render.stdout
     .replace(/<script[^>]*src="https:[^"]+"[^>]*><\/script>/g,'')
     .replace(/<link[^>]*href="https:[^"]+"[^>]*>/g,'')
-    .replace(/<script[^>]*src="(\/assets\/[^"]+)"[^>]*><\/script>/g,(_,src) => '<script>'+fs.readFileSync(path.join(root,src),'utf8')+'</script>')
-    .replace(/<link[^>]*href="(\/assets\/[^"]+)"[^>]*>/g,(_,src) => '<style>'+fs.readFileSync(path.join(root,src),'utf8')+'</style>');
+    .replace(/<script[^>]*src="(\/assets\/[^"]+)"[^>]*><\/script>/g,(_,src) => '<script>'+fs.readFileSync(path.join(root,src.split('?')[0]),'utf8')+'</script>')
+    .replace(/<link[^>]*href="(\/assets\/[^"]+)"[^>]*>/g,(_,src) => '<style>'+fs.readFileSync(path.join(root,src.split('?')[0]),'utf8')+'</style>');
 const stubs = `
 window.testErrors=[];window.fixtureCalls=[];window.fixtureWrites=[];window.fixtureFieldWrites=[];window.fixtureEdits=[];
 window.fixtureManualWrites=[];window.fixtureManualCheckins=[];
@@ -143,9 +143,32 @@ const checks = `(async()=>{
  check(document.querySelector('#checkin-pending-list .manual-participant-row'),'Header plus creates a real inline participant row inside the modal');
  click(document.querySelector('#checkin-pending-list [data-manual-participant-cancel]'));await settle();
  bootstrap.Modal.getInstance(document.getElementById('eventsOverviewModal')).hide();await settle();
- // Specific controls retain their own action and do not open participants.
+ // A real user normally presses the title, not the empty card background.
+ click(card('event-0').querySelector('.events-event-open'));await settle();await settle();
+ check(document.getElementById('eventsOverviewModal').classList.contains('show')&&
+  document.getElementById('eventsOverviewModalTitle').textContent==='Påmeldte · Arrangement 0',
+  'Pressing the event title opens participants, not the old details panel');
+ bootstrap.Modal.getInstance(document.getElementById('eventsOverviewModal')).hide();await settle();
+ const cardPlus=card('event-0').querySelector('[data-event-participants-add]');
+ check(cardPlus&&cardPlus.getBoundingClientRect().height>=32,'Each card has a visible touch-sized plus button');
+ click(cardPlus);await settle();await settle();
+ check(document.querySelectorAll('#checkin-pending-list .manual-participant-row').length===1,
+  'Card plus opens participant list with exactly one editable participant row');
+ check(document.documentElement.scrollWidth<=innerWidth+1,'Participant modal stays within mobile viewport');
+ if(innerWidth<=576){
+  const editor=document.querySelector('#checkin-pending-list .manual-participant-editor');
+  check(editor.getBoundingClientRect().right<=innerWidth-16,'Inline form fits without horizontal scrolling on mobile');
+  check(editor.querySelector('[data-manual-participant-save]').getBoundingClientRect().right<=innerWidth-16,
+   'Save action stays inside the mobile viewport');
+ }
+ click(document.querySelector('#checkin-pending-list [data-manual-participant-cancel]'));await settle();
+ bootstrap.Modal.getInstance(document.getElementById('eventsOverviewModal')).hide();await settle();
+ click(card('event-0').querySelector('.events-event-cover'));await settle();await settle();
+ check(document.getElementById('eventsOverviewModal').classList.contains('show'),'Image area also opens participants');
+ bootstrap.Modal.getInstance(document.getElementById('eventsOverviewModal')).hide();await settle();
+ // Specific menu controls retain their own action and do not open participants.
  click(card('event-0').querySelector('[data-event-details]'));
- check(!document.getElementById('events-detail-event-0').hidden&&!document.getElementById('eventsOverviewModal').classList.contains('show'),'Title details action stays separate from card action');
+ check(!document.getElementById('events-detail-event-0').hidden&&!document.getElementById('eventsOverviewModal').classList.contains('show'),'Menu details action stays separate from card action');
  action('event-0','fields').click();await settle();
  let panel=document.getElementById('events-inline-fields-event-0');
  check(!panel.hidden&&panel.querySelector('[data-common-field="email"]'),'Editor embedded in card');
@@ -275,8 +298,8 @@ assert.equal(noMemberRender.status,0,noMemberRender.stderr);
 const noMemberFragment = noMemberRender.stdout
     .replace(/<script[^>]*src="https:[^"]+"[^>]*><\/script>/g,'')
     .replace(/<link[^>]*href="https:[^"]+"[^>]*>/g,'')
-    .replace(/<script[^>]*src="(\/assets\/[^"]+)"[^>]*><\/script>/g,(_,src) => '<script>'+fs.readFileSync(path.join(root,src),'utf8')+'</script>')
-    .replace(/<link[^>]*href="(\/assets\/[^"]+)"[^>]*>/g,(_,src) => '<style>'+fs.readFileSync(path.join(root,src),'utf8')+'</style>');
+    .replace(/<script[^>]*src="(\/assets\/[^"]+)"[^>]*><\/script>/g,(_,src) => '<script>'+fs.readFileSync(path.join(root,src.split('?')[0]),'utf8')+'</script>')
+    .replace(/<link[^>]*href="(\/assets\/[^"]+)"[^>]*>/g,(_,src) => '<style>'+fs.readFileSync(path.join(root,src.split('?')[0]),'utf8')+'</style>');
 const noMemberFixture = path.join(dir,'without-membership.html');
 fs.writeFileSync(noMemberFixture,html(noMemberFragment));
 const noMemberChecks = `(async()=>{

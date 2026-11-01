@@ -1,3 +1,14 @@
+#events-module .events-participant-actions { display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.65rem; }
+#events-module .events-participant-actions .btn { min-height:36px; }
+@media (max-width:576px) {
+    #eventsOverviewModal[data-overview-kind="participants"] .manual-participant-editor {
+        width:min(100%,calc(100vw - 100px));
+        white-space:normal;
+    }
+    #eventsOverviewModal[data-overview-kind="participants"] .manual-participant-fields {
+        grid-template-columns:minmax(0,1fr);
+    }
+}
 #eventsOverviewModal[data-overview-kind="participants"] #event-details-panel > .row > .col-lg-4 { display:none; }
 #eventsOverviewModal[data-overview-kind="participants"] #event-details-panel > .row > .col-lg-8 { width:100%; }
 #eventsOverviewModal[data-overview-kind="participants"] #open-fullscreen-checkin,

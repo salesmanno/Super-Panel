@@ -14,7 +14,7 @@ try {
 ?>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="/assets/entity-form-fields.css">
-<link rel="stylesheet" href="/assets/events-dashboard.css">
+<link rel="stylesheet" href="/assets/events-dashboard.css?v=<?= filemtime(__DIR__.'/../assets/events-dashboard.css') ?>">
 <script src="/assets/active-payment-methods.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
@@ -2455,7 +2455,7 @@ try {
 <script src="/assets/event_form_helpers.js"></script>
 <script src="/assets/entity-form-fields.js"></script>
 <script src="/assets/event-settings.js"></script>
-<script src="/assets/events-dashboard.js"></script>
+<script src="/assets/events-dashboard.js?v=<?= filemtime(__DIR__.'/../assets/events-dashboard.js') ?>"></script>
 <script>
 const norskMnd = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des'];
 const norskMndLang = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];

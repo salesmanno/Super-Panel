@@ -172,10 +172,11 @@
                 <div class="events-event-cover">${imageMarkup}</div>
                 <div class="events-event-main">
                     <div class="events-event-top">
-                        <button type="button" class="events-event-open" data-event-details="${esc(id)}" aria-expanded="false" aria-controls="events-detail-${esc(id)}">${esc(event.title || 'Arrangement uten navn')}</button>
+                        <button type="button" class="events-event-open" data-event-participants="${esc(id)}" aria-haspopup="dialog">${esc(event.title || 'Arrangement uten navn')}</button>
                         <div class="dropdown events-event-actions">
                             <button type="button" class="events-event-menu-button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Handlinger for ${esc(event.title || 'arrangement')}"><i class="bi bi-three-dots"></i></button>
                             <ul class="dropdown-menu dropdown-menu-end">
+                                <li><button type="button" class="dropdown-item" data-event-details="${esc(id)}" aria-expanded="false" aria-controls="events-detail-${esc(id)}"><i class="bi bi-info-circle me-2"></i>Arrangementsdetaljer</button></li>
                                 <li><button type="button" class="dropdown-item" data-event-action="edit" data-event-id="${esc(id)}"><i class="bi bi-pencil me-2"></i>Grunnopplysninger</button></li>
                                 <li><button type="button" class="dropdown-item" data-event-action="fields" data-event-id="${esc(id)}"><i class="bi bi-ui-checks me-2"></i>Skjemafelt</button></li>
                                 <li><button type="button" class="dropdown-item" data-event-action="visibility" data-event-id="${esc(id)}" data-active="${asBool(event.is_active) ? '1' : '0'}"><i class="bi bi-eye${asBool(event.is_active) ? '-slash' : ''} me-2"></i>${asBool(event.is_active) ? 'Skjul' : 'Vis'}</button></li>
@@ -198,6 +199,10 @@
                         <span class="events-event-tag"><i class="bi bi-people"></i>${esc(registrationText)}</span>
                     </div>
                     ${membershipDetails}
+                    <div class="events-participant-actions">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-event-participants="${esc(id)}" aria-haspopup="dialog"><i class="bi bi-people me-1"></i>Deltakerliste</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-event-participants-add="${esc(id)}" aria-haspopup="dialog"><i class="bi bi-plus-lg me-1"></i>Deltaker</button>
+                    </div>
                 </div>
                 ${details}
                 <div class="events-inline-fields" id="events-inline-fields-${esc(id)}" hidden></div>
@@ -552,6 +557,12 @@
             }
         });
         root.addEventListener('click',event => {
+            const participants = event.target.closest('[data-event-participants]');
+            if (participants) {
+                event.preventDefault();
+                openParticipants(participants.dataset.eventParticipants);
+                return;
+            }
             const overviewButton = event.target.closest('[data-open-overview]');
             if (overviewButton) {
                 openOverview(overviewButton.dataset.openOverview,true);
