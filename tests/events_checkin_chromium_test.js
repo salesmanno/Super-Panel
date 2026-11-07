@@ -16,7 +16,10 @@ fs.writeFileSync(path.join(dir,'index.html'),`<!doctype html><meta charset="utf-
 body{margin:0}.modal{display:none;position:fixed;inset:0;z-index:1050;overflow:auto}.modal.show{display:block}
 .modal-dialog{margin:1.75rem auto;position:relative}.modal-content{position:relative;height:100%;overflow:auto}button,input{box-sizing:border-box}
 ${css}</style><button id="open-event">Åpne</button><script>
-const testPeople=${JSON.stringify(people)}; let pending=null, rejected=false, calls=[];
+const testPeople=${JSON.stringify(people)}; let pending=null, rejected=false, calls=[],exports=[];
+window.fixtureExports=exports;
+URL.createObjectURL=blob=>{window.fixtureDownloadBlob=blob;return 'blob:fixture'};
+URL.revokeObjectURL=()=>{};
 window.addEventListener('unhandledrejection',event=>{window.fixtureError=String(event.reason?.stack||event.reason)});
 window.bootstrap={Modal:{getOrCreateInstance:root=>({
  show:()=>root.classList.add('show'),
@@ -24,6 +27,7 @@ window.bootstrap={Modal:{getOrCreateInstance:root=>({
 })}};
 window.fetch=async(url,options={})=>{
  if(url.includes('get_entity_form_fields'))return{ok:true,json:async()=>({success:true,csrf_token:'fixture-token'})};
+ if(url.includes('export_event_participants.php')){exports.push(JSON.parse(options.body));return{ok:true,blob:async()=>new Blob(['fixture']),headers:{get:()=> 'attachment; filename="deltakere.xlsx"'}}}
  const input=JSON.parse(options.body); calls.push(input);
  let result={success:true};
  if(input.action==='load')result={...result,event:{id:'event',title:'Julebord',start_date:'2020-12-06',start_time:'18:00:00',end_time:'23:00:00',ticket_price:100,editable:true},people:structuredClone(testPeople),methods:{cash:true,vipps:true}};
@@ -43,6 +47,14 @@ const checks=`(async()=>{
  assert(document.querySelectorAll('.uc-attendee').length===8,'Waiting roster loads actual component: rows='+document.querySelectorAll('.uc-attendee').length+'; '+document.querySelector('[data-ec-message]')?.textContent+'; '+window.fixtureError);
  const search=document.querySelector('[data-ec-search]');
  assert(!search.hasAttribute('name')&&!search.id&&search.autocomplete==='off','Search avoids autofill identifiers');
+ assert(document.querySelector('[data-ec-export="csv"]')&&document.querySelector('[data-ec-export="xlsx"]'),'CSV and XLSX export actions are visible');
+ search.value='Deltaker 1';search.dispatchEvent(new Event('input',{bubbles:true}));await wait();
+ click('[data-ec-export="csv"]');await wait();
+ assert(exports[0]?.format==='csv'&&exports[0]?.participant_ids.length===1&&exports[0].participant_ids[0]==='p1'
+   &&exports[0].checked_in===false,'CSV exports only the visible matching roster and status');
+ click('[data-ec-export="xlsx"]');await wait();
+ assert(exports[1]?.format==='xlsx'&&exports[1]?.participant_ids[0]==='p1','XLSX uses the same visible participant selection');
+ search.value='';search.dispatchEvent(new Event('input',{bubbles:true}));await wait();
  click('[data-ec-checkin="p1"]');await wait();
  assert(document.querySelector('[data-ec-vipps]').disabled,'Missing phone disables Vipps');
  click('[data-ec-checkout-close]');click('[data-ec-checkin="p0"]');await wait();

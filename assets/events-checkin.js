@@ -73,6 +73,7 @@
                 if (button.matches('[data-ec-close]')) modal.hide();
                 if (button.matches('[data-ec-reload]')) await reload();
                 if (button.matches('[data-ec-tab]')) { active=button.dataset.ecTab; query=''; render(); }
+                if (button.matches('[data-ec-export]')) await exportRoster(button.dataset.ecExport);
                 if (button.matches('[data-ec-focus]')) {
                     if (document.fullscreenElement) await document.exitFullscreen();
                     else if (root.requestFullscreen) await root.requestFullscreen();
@@ -143,7 +144,9 @@
             <div class="uc-overview-stat">${icon('check-circle')}<span><strong>${count}</strong><small>Innsjekket</small></span></div>
             <div class="uc-overview-stat">${icon('people')}<span><strong>${all-count}</strong><small>Gjenstår</small></span></div></section>
             <section class="uc-roster"><div class="uc-roster-heading"><div><div class="uc-heading-kicker">DELTAKEROVERSIKT</div><h2>Deltakere <small>${all}</small></h2></div>
-            <button type="button" class="uc-add-button" data-ec-add>${icon('plus-lg')} Legg til deltaker</button></div>
+            <div class="uc-roster-actions"><button type="button" class="uc-export-button" data-ec-export="csv" aria-label="Eksporter deltakerlisten som CSV">${icon('filetype-csv')}<span>CSV</span></button>
+            <button type="button" class="uc-export-button" data-ec-export="xlsx" aria-label="Eksporter deltakerlisten som XLSX">${icon('file-earmark-spreadsheet')}<span>XLSX</span></button>
+            <button type="button" class="uc-add-button" data-ec-add>${icon('plus-lg')} Legg til deltaker</button></div></div>
             <form data-ec-manual class="uc-manual" hidden><strong>Ny deltaker</strong><div class="uc-manual-grid">
             <label>Fornavn<input name="attendee_first_name" required maxlength="255" autocomplete="off"></label>
             <label>Etternavn<input name="attendee_last_name" required maxlength="255" autocomplete="off"></label>
@@ -157,11 +160,10 @@
         renderRows();
     }
     function renderRows() {
+        const rows=visiblePeople();
         const q=query.trim().toLocaleLowerCase('nb-NO');
-        const rows=data.people.filter(person=>(Number(person.checked_in)===1)===(active==='checked'))
-            .filter(person=>[person.customer_name,person.customer_email,person.customer_phone,person.barcode].join(' ').toLocaleLowerCase('nb-NO').includes(q))
-            .sort((a,b)=>a.customer_name.localeCompare(b.customer_name,'nb'));
         root.querySelector('[data-ec-count]').textContent=`${rows.length} i denne listen`;
+        root.querySelectorAll('[data-ec-export]').forEach(button=>button.disabled=rows.length===0);
         root.querySelector('[data-ec-rows]').innerHTML=rows.length?rows.map(person=>`
             <article class="uc-attendee" role="listitem"><span class="uc-avatar">${esc((person.first_name||'?')[0]+(person.last_name||'')[0])}</span>
             <div class="uc-person"><strong>${esc(person.customer_name)}</strong><small>${esc(person.customer_email||person.customer_phone||'Ingen kontaktopplysninger')}</small>
@@ -170,6 +172,45 @@
             `<button type="button" data-ec-checkin="${esc(person.id)}" class="uc-checkin-button" ${mutable()?'':'disabled'}>${icon('check2')} Sjekk inn</button>`}</div>
             <span class="uc-price">${money(person.ticket_price)}</span></article>`).join(''):
             `<div class="uc-empty">${icon('people')}<strong>${q?'Ingen treff':'Ingen deltakere i denne listen'}</strong><span>${q?'Prøv et annet søk.':'Deltakerne vises her når de er registrert eller sjekket inn.'}</span></div>`;
+    }
+    function visiblePeople() {
+        const q=query.trim().toLocaleLowerCase('nb-NO');
+        return data.people.filter(person=>(Number(person.checked_in)===1)===(active==='checked'))
+            .filter(person=>[person.customer_name,person.customer_email,person.customer_phone,person.barcode].join(' ').toLocaleLowerCase('nb-NO').includes(q))
+            .sort((a,b)=>a.customer_name.localeCompare(b.customer_name,'nb'));
+    }
+    async function exportRoster(format) {
+        const people=visiblePeople();
+        if (!people.length) { message('Det er ingen deltakere i listen som kan eksporteres.',true); return; }
+        const button=root.querySelector(`[data-ec-export="${format}"]`);
+        if (button) button.disabled=true;
+        try {
+            const response=await fetch('/api/export_event_participants.php',{
+                method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({
+                    event_id:eventId,csrf_token:token,format,
+                    checked_in:active==='checked',
+                    participant_ids:people.map(person=>String(person.id))
+                })
+            });
+            if (!response.ok) {
+                let result={};
+                try { result=await response.json(); } catch {}
+                throw Error(result.message||'Deltakerlisten kunne ikke eksporteres.');
+            }
+            const blob=await response.blob();
+            const disposition=response.headers.get('Content-Disposition')||'';
+            const filename=disposition.match(/filename="?([^";]+)"?/i)?.[1]||`deltakere.${format}`;
+            const url=URL.createObjectURL(blob);
+            const link=document.createElement('a');
+            link.href=url;link.download=filename;link.hidden=true;document.body.append(link);link.click();link.remove();
+            setTimeout(()=>URL.revokeObjectURL(url),1000);
+            message(`${people.length} deltakere eksportert som ${format.toUpperCase()}.`);
+        } catch (error) {
+            message(error.message||'Deltakerlisten kunne ikke eksporteres.',true);
+        } finally {
+            if (button) button.disabled=visiblePeople().length===0;
+        }
     }
     async function checkin(person) {
         if (!person || busy || !mutable()) return;

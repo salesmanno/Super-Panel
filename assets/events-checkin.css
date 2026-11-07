@@ -37,6 +37,10 @@
 .ec-modal .uc-overview-stat small {font-size:11px;color:#8a9b8c}
 .ec-modal .uc-roster {background:#fffefa;border:1px solid var(--uc-line);border-radius:15px}
 .ec-modal .uc-roster-heading {display:flex;align-items:center;justify-content:space-between;gap:10px;padding:19px}
+.ec-modal .uc-roster-actions {display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.ec-modal .uc-export-button {display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:7px 10px;border:1px solid #d7e2d8;border-radius:8px;background:#fbfcf8;color:#567360;font-size:11px;font-weight:650}
+.ec-modal .uc-export-button:hover:not(:disabled) {background:#edf4e9;border-color:#bfd2c0}
+.ec-modal .uc-export-button:disabled {opacity:.5;cursor:not-allowed}
 .ec-modal h2 {margin:5px 0 0;color:#315443;font-size:21px;letter-spacing:-.025em}
 .ec-modal .uc-roster-heading h2 small {display:inline-grid;place-items:center;min-width:22px;padding:2px 5px;background:#edf3eb;border-radius:20px;font-size:11px;color:#78917e;margin-left:5px}
 .ec-modal .uc-add-button,.ec-modal .uc-primary-button {display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:8px 13px;border:1px solid #356b59;border-radius:8px;background:#356b59;color:#fffefa;font-size:12px;font-weight:650}
@@ -126,6 +130,8 @@
     .ec-modal .uc-overview-stat strong {font-size:18px}
     .ec-modal .uc-roster-heading {padding:14px 12px}
     .ec-modal .uc-roster-heading h2 {font-size:19px}
+    .ec-modal .uc-roster-actions {gap:5px}
+    .ec-modal .uc-export-button {min-height:40px;padding:7px 8px}
     .ec-modal .uc-add-button {font-size:11px;padding:8px}
     .ec-modal .uc-search {margin:10px 10px 8px}
     .ec-modal .uc-search input,.ec-modal .uc-group-search input,.ec-modal .uc-manual input {font-size:16px}
