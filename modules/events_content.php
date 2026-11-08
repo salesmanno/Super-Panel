@@ -7282,41 +7282,73 @@ function updateWizardBasedOnType() {
 }
 
 async function loadBindingPaymentMethods() {
-    const bindingContainer=document.getElementById('binding-payment-methods');
-    bindingContainer.textContent='Laster aktiverte betalingsmetoder…';
-    try {
-        const response = await fetch('/api/get_payment_methods.php');
-        const result = await response.json();
-        
-        const container = document.getElementById('binding-payment-methods');
-        if (!container) return;
-        
-        if (result.success && result.payment_methods) {
-            const nonCashMethods = result.payment_methods.filter(pm => pm.method_type !== 'cash');
-            
-            if (nonCashMethods.length === 0) {
-                container.innerHTML = '<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Ingen elektroniske betalingsmetoder konfigurert. Gå til Økonomi-modulen for å sette opp Vipps, Stripe eller PayPal.</div>';
+    const container=document.getElementById('binding-payment-methods');
+    if (!container) return;
+
+    // updateWizardSummary() also calls updateWizardBasedOnType(). Do not refetch
+    // and replace the radios there: doing so erased the user's Vipps selection
+    // immediately before the create request was built.
+    if (container.dataset.paymentState==='ready') return;
+    if (container.bindingPaymentLoad) return container.bindingPaymentLoad;
+
+    const selectedMethod=container.querySelector('[name="binding_payment_method"]:checked')?.value
+        || container.dataset.selectedMethod || '';
+    container.dataset.paymentState='loading';
+    container.textContent='Laster aktiverte betalingsmetoder…';
+
+    container.bindingPaymentLoad=(async()=>{
+        try {
+            const response=await fetch('/api/get_payment_methods.php',{cache:'no-store'});
+            const result=await response.json();
+            if (!container.isConnected) return;
+
+            if (!response.ok || !result.success || !Array.isArray(result.payment_methods)) {
+                throw new Error('Kunne ikke laste aktiverte betalingsmetoder.');
+            }
+
+            const nonCashMethods=result.payment_methods.filter(pm=>pm.method_type!=='cash');
+            container.replaceChildren();
+            if (!nonCashMethods.length) {
+                const message=document.createElement('div');
+                message.className='alert alert-danger mb-0';
+                message.textContent='Ingen elektroniske betalingsmetoder konfigurert. Gå til Økonomi-modulen for å aktivere Vipps eller en annen elektronisk betalingsmetode.';
+                container.append(message);
+                container.dataset.paymentState='ready';
                 return;
             }
-            
-            container.innerHTML = nonCashMethods.map(pm => {
-                const icon = (pm.config && pm.config.icon) ? pm.config.icon : 'wallet2';
-                const name = ActivePaymentMethods.text(ActivePaymentMethods.label(pm));
-                return `
-                <div class="form-check mb-2">
-                    <input class="form-check-input binding-payment-radio" type="radio" name="binding_payment_method" value="${pm.method_type}" id="binding_pm_${pm.method_type}">
-                    <label class="form-check-label" for="binding_pm_${pm.method_type}">
-                        <i class="bi bi-${icon} me-1"></i>${name}
-                    </label>
-                </div>`;
-            }).join('');
-        } else {
-            container.innerHTML = '<div class="alert alert-warning mb-0">Kunne ikke laste betalingsmetoder.</div>';
+
+            for (const pm of nonCashMethods) {
+                const row=document.createElement('div');
+                row.className='form-check mb-2';
+                const input=document.createElement('input');
+                input.className='form-check-input binding-payment-radio';
+                input.type='radio';
+                input.name='binding_payment_method';
+                input.value=pm.method_type;
+                input.id='binding_pm_'+pm.method_type;
+                input.checked=pm.method_type===selectedMethod;
+                const label=document.createElement('label');
+                label.className='form-check-label';
+                label.htmlFor=input.id;
+                const icon=document.createElement('i');
+                icon.className='bi bi-'+(pm.config?.icon || 'wallet2')+' me-1';
+                label.append(icon,document.createTextNode(ActivePaymentMethods.label(pm)));
+                input.addEventListener('change',()=>{
+                    if (input.checked) container.dataset.selectedMethod=input.value;
+                });
+                row.append(input,label);
+                container.append(row);
+            }
+            container.dataset.paymentState='ready';
+        } catch (error) {
+            console.error('Error loading binding payment methods:',error);
+            container.dataset.paymentState='error';
+            container.textContent='Kunne ikke laste aktiverte betalingsmetoder. Velg arrangementstype på nytt for å prøve igjen.';
+        } finally {
+            container.bindingPaymentLoad=null;
         }
-    } catch (error) {
-        console.error('Error loading binding payment methods:', error);
-        bindingContainer.textContent='Kunne ikke laste aktiverte betalingsmetoder. Velg arrangementstype på nytt for å prøve igjen.';
-    }
+    })();
+    return container.bindingPaymentLoad;
 }
 
 function updateMembershipAddonsVisibility() {

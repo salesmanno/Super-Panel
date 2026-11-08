@@ -256,6 +256,12 @@ const checks = `
         await settle();
         await loadBindingPaymentMethods();await loadWizardPaymentMethods();
         form.querySelector('[name="binding_payment_method"][value="vipps"]').checked=true;
+        form.querySelector('[name="binding_payment_method"][value="vipps"]').dispatchEvent(new Event('change',{bubbles:true}));
+        // Opening the final summary used to reload the binding payment radios
+        // and clear the selected Vipps method before the create request.
+        updateWizardSummary();await settle();
+        check(form.querySelector('[name="binding_payment_method"][value="vipps"]').checked,
+            'Vipps selection survives opening the event summary');
         field('memberverification').checked=true;field('is_member_exclusive').checked=true;
         const bindingMethods=EventSettings.paymentMethods(form,'#payment-methods-container input[type="checkbox"]','binding');
         check(!bindingMethods.includes('cash'),'Binding create filters cash before submission');
