@@ -294,7 +294,12 @@ function announcement_validate_payload($data): array {
         if (!is_string($image) || !filter_var($image, FILTER_VALIDATE_URL) || !in_array(strtolower(parse_url($image, PHP_URL_SCHEME)), ['http','https'], true)) $errors[] = 'Bilde-URL må være en http- eller https-adresse';
         elseif (strlen($image) > 255) $errors[] = 'Bilde-URL kan ikke være lengre enn 255 tegn';
     } else $image = null;
-    $publish = announcement_parse_datetime($data['publish_at'] ?? null, 'Publiseringstidspunkt', $errors);
+    $scheduled = $data['scheduled_publish'] ?? null;
+    if (array_key_exists('scheduled_publish', $data) && !is_bool($scheduled)) {
+        $errors[] = 'Planlagt publisering må være true eller false';
+    }
+    $publish = announcement_parse_datetime($scheduled === false ? null : ($data['publish_at'] ?? null), 'Publiseringstidspunkt', $errors);
+    if ($scheduled === true && !$publish) $errors[] = 'Velg dato og klokkeslett for planlagt publisering';
     $expire = announcement_parse_datetime($data['expire_at'] ?? null, 'Utløpstidspunkt', $errors);
     if ($publish && $expire && $expire <= $publish) $errors[] = 'Utløpstidspunkt må være etter publiseringstidspunktet';
     $product = $data['product'] ?? null;
@@ -311,7 +316,7 @@ function announcement_validate_payload($data): array {
     $priority = array_key_exists('priority', $data) ? announcement_priority_for_write($data['priority']) : ANNOUNCEMENT_PRIORITY_DEFAULT;
     if ($priority === null) $errors[] = 'Prioritet må være et heltall mellom 1 og 9';
     if ($errors) return ['ok'=>false, 'message'=>implode('. ', $errors)];
-    return ['ok'=>true, 'data'=>['title'=>$title,'content'=>$content,'image_url'=>$image,'is_published'=>(bool)($data['is_published'] ?? false),'is_pinned'=>(bool)($data['is_pinned'] ?? false),'announcement_type'=>announcement_type($data['announcement_type'] ?? null),'priority'=>$priority,'publish_at'=>$publish,'expire_at'=>$expire,'product'=>$product]];
+    return ['ok'=>true, 'data'=>['title'=>$title,'content'=>$content,'image_url'=>$image,'is_published'=>(bool)($data['is_published'] ?? false),'is_pinned'=>(bool)($data['is_pinned'] ?? false),'announcement_type'=>announcement_type($data['announcement_type'] ?? null),'priority'=>$priority,'publish_at'=>$publish,'scheduled_publish'=>$scheduled,'expire_at'=>$expire,'product'=>$product]];
 }
 function announcement_is_active(array $a, ?DateTimeImmutable $now = null): bool {
     $now = $now ?: new DateTimeImmutable('now');

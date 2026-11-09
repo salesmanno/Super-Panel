@@ -4,6 +4,7 @@ require_once '../config/database.php';
 require_once '../includes/auth_check.php';
 require_once '../includes/announcement_helpers.php';
 require_once '../includes/announcement_elements.php';
+require_once '../includes/announcement_editor.php';
 
 header('Content-Type: application/json');
 if (!isset($_SESSION['tenant_admin_id'], $_SESSION['company_id'])) {
@@ -36,15 +37,21 @@ try {
     announcement_lock_company_priorities($db, (string)$companyId);
     
     // Verify ownership while holding the tenant lock.
-    $stmt = $db->prepare("SELECT id FROM {$tableName} WHERE id = ? AND company_id = ? FOR UPDATE");
+    $stmt = $db->prepare("SELECT id, is_published, publish_at FROM {$tableName} WHERE id = ? AND company_id = ? FOR UPDATE");
     $stmt->execute([$data['id'], $companyId]);
     
-    if (!$stmt->fetch()) {
+    $existingAnnouncement = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$existingAnnouncement) {
         $db->rollBack();
         http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Nyhet ikke funnet']);
         exit;
     }
+    if ($clean['is_published'] && !announcement_editor_author($db, (string)$_SESSION['tenant_admin_id'], (string)$companyId)) {
+        throw new InvalidArgumentException('Brukeren må være knyttet til en ansatt i bedriften for å publisere.');
+    }
+    $databaseNow = (string)$db->query('SELECT NOW()')->fetchColumn();
+    $clean['publish_at'] = announcement_editor_publish_at($clean, $existingAnnouncement, $databaseNow);
     
     announcement_apply_priority_assignment(
         $db,
@@ -118,6 +125,7 @@ try {
         'success' => true,
         'message' => 'Nyhet oppdatert',
         'announcement_id' => $data['id'],
+        'publish_at' => $clean['publish_at'],
         'priorities' => (object)$priorities,
         'content' => $storedContent,
         'content_html' => announcement_content_to_html($storedContent),

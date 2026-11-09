@@ -3,7 +3,7 @@ session_start();
 session_write_close();
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['tenant_admin_id'])) {
+if (!isset($_SESSION['tenant_admin_id'], $_SESSION['company_id'])) {
     echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
     exit;
 }
@@ -11,10 +11,15 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 require_once '../config/database.php';
 require_once '../includes/announcement_helpers.php';
 require_once '../includes/announcement_elements.php';
+require_once '../includes/announcement_editor.php';
 
 try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
+    $editorAuthor = announcement_editor_author($db, (string)$_SESSION['tenant_admin_id'], (string)$companyId);
+    $companyStmt = $db->prepare('SELECT name FROM tenant_companies WHERE id = ?');
+    $companyStmt->execute([$companyId]);
+    $companyName = (string)$companyStmt->fetchColumn();
     
     $tableName = 'tenant_announcements';
     
@@ -85,7 +90,13 @@ try {
     }
     
     // Cast boolean fields and add product data
+    $authorNames = [];
     foreach ($announcements as &$announcement) {
+        $authorKey = (string)($announcement['author_id'] ?? '');
+        if (!array_key_exists($authorKey, $authorNames)) {
+            $authorNames[$authorKey] = announcement_editor_author($db, $authorKey, (string)$companyId, false)['name'] ?? null;
+        }
+        $announcement['author_name'] = $authorNames[$authorKey];
         $announcement['is_published'] = (bool)$announcement['is_published'];
         $announcement['is_pinned'] = (bool)$announcement['is_pinned'];
         $announcement['announcement_type'] = announcement_type($announcement['announcement_type'] ?? null);
@@ -100,6 +111,8 @@ try {
     
     echo json_encode([
         'success' => true,
+        'editor_author' => $editorAuthor,
+        'company_name' => $companyName,
         'announcements' => $announcements
     ], JSON_UNESCAPED_UNICODE);
     

@@ -3,6 +3,19 @@ require_once __DIR__.'/announcement_helpers.php';
 
 const ANNOUNCEMENT_ELEMENT_TYPES = ['text','image','text_image','image_carousel','youtube_video'];
 
+/** Keep canonical JSON compatible with the reader while exposing editable URLs. */
+function announcement_element_editor_content(string $type, array $content): array {
+    if ($type === 'image_carousel' && !isset($content['urls'])) {
+        if (isset($content['images']) && !is_array($content['images'])) throw new InvalidArgumentException('Bildekarusellen har ugyldige bildedata.');
+        $content['urls'] = array_map(static fn($image) => is_array($image) ? ($image['url'] ?? '') : '', $content['images'] ?? []);
+    }
+    if ($type === 'youtube_video' && empty($content['url']) &&
+        preg_match('/^[A-Za-z0-9_-]{11}$/', (string)($content['video_id'] ?? ''))) {
+        $content['url'] = 'https://www.youtube.com/watch?v=' . $content['video_id'];
+    }
+    return $content;
+}
+
 function announcement_element_url($value, string $label): string {
     if (!is_string($value) || strlen($value) > 2048 ||
         !filter_var($value, FILTER_VALIDATE_URL) ||
@@ -24,6 +37,7 @@ function announcement_validate_elements($input): array {
         $type = $item['element_type'];
         $content = $item['content'] ?? null;
         if (!is_array($content)) throw new InvalidArgumentException('Innholdet i et element er ugyldig.');
+        $content = announcement_element_editor_content($type, $content);
         $clean = [];
         if ($type === 'text') {
             $html = trim(announcement_sanitize_content((string)($content['html'] ?? '')));
@@ -46,7 +60,18 @@ function announcement_validate_elements($input): array {
             if (!is_array($urls) || !array_is_list($urls) || count($urls)<2 || count($urls)>20) {
                 throw new InvalidArgumentException('En bildegalleri må ha mellom 2 og 20 bildeadresser.');
             }
-            $clean = ['images'=>array_map(static fn($url)=>['url'=>announcement_element_url($url,'Bildeadressen'),'alt'=>''], $urls)];
+            $savedImages = $content['images'] ?? [];
+            $clean = ['images'=>array_map(static function($url) use ($savedImages) {
+                $url = announcement_element_url($url,'Bildeadressen');
+                $alt = '';
+                foreach ($savedImages as $image) {
+                    if (is_array($image) && ($image['url'] ?? null) === $url) {
+                        $alt = mb_substr(trim((string)($image['alt'] ?? '')), 0, 255);
+                        break;
+                    }
+                }
+                return ['url'=>$url,'alt'=>$alt];
+            }, $urls)];
         } else {
             $url = announcement_element_url($content['url'] ?? null,'YouTube-lenken');
             $host = strtolower((string)parse_url($url,PHP_URL_HOST));
@@ -81,7 +106,9 @@ function announcement_load_elements(PDO $db, string $companyId, array $announcem
     $stmt->execute(array_merge([$companyId],$announcementIds));
     $map=[];
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $map[$row['announcement_id']][]=['position'=>(int)$row['position'],'element_type'=>$row['element_type'],'content'=>json_decode($row['content_json'],true)??[]];
+        $content = json_decode($row['content_json'],true);
+        if (!is_array($content)) throw new UnexpectedValueException('Et lagret nyhetselement har ugyldig JSON.');
+        $map[$row['announcement_id']][]=['position'=>(int)$row['position'],'element_type'=>$row['element_type'],'content'=>announcement_element_editor_content($row['element_type'],$content)];
     }
     return $map;
 }

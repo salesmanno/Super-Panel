@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id'], $_SESSION['company_id'])) {
 require_once '../config/database.php';
 require_once '../includes/announcement_helpers.php';
 require_once '../includes/announcement_elements.php';
+require_once '../includes/announcement_editor.php';
 
 try {
     $raw = json_decode(file_get_contents('php://input'), true);
@@ -27,11 +28,17 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     $authorId = $_SESSION['tenant_admin_id'];
+    if (!announcement_editor_author($db, (string)$authorId, (string)$companyId)) {
+        throw new InvalidArgumentException('Brukeren må være knyttet til en ansatt i bedriften før en ny sak kan opprettes.');
+    }
     
     $tableName = 'tenant_announcements';
     
     $db->beginTransaction();
     announcement_lock_company_priorities($db, (string)$companyId);
+    $databaseNow = (string)$db->query('SELECT NOW()')->fetchColumn();
+    $data['publish_at'] = announcement_editor_publish_at($data, null, $databaseNow);
+    if ($data['scheduled_publish'] === null && $data['publish_at'] === null) $data['publish_at'] = $databaseNow;
     
     // Generate UUID for MySQL
     $stmt = $db->query("SELECT UUID() as id");
@@ -71,7 +78,7 @@ try {
         $data['content'],
         $data['image_url'] ?? null,
         isset($data['is_published']) ? (int)$data['is_published'] : 0,
-        ($data['publish_at'] ?? null) ?: date('Y-m-d H:i:s'),
+        $data['publish_at'],
         $data['expire_at'] ?? null,
         isset($data['is_pinned']) ? (int)$data['is_pinned'] : 0,
         announcement_type($data['announcement_type'] ?? null),
@@ -119,6 +126,7 @@ try {
         'success' => true,
         'message' => 'Nyhet opprettet',
         'announcement_id' => $announcementId,
+        'publish_at' => $data['publish_at'],
         'priorities' => (object)$priorities,
         'content' => $storedContent,
         'content_html' => announcement_content_to_html($storedContent),
