@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowLeft,
@@ -101,6 +101,42 @@ function videoIdFromUrl(url: string) {
   }
 }
 
+function InlineText({
+  value,
+  onChange,
+  ariaLabel,
+  className,
+  onFocus,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel: string;
+  className?: string;
+  onFocus?: () => void;
+}) {
+  const elementRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const element = elementRef.current;
+    if (!element || document.activeElement === element) return;
+    if (element.innerText !== value) element.innerText = value;
+  }, [value]);
+
+  return (
+    <div
+      ref={elementRef}
+      className={className}
+      contentEditable
+      suppressContentEditableWarning
+      role="textbox"
+      aria-label={ariaLabel}
+      aria-multiline="true"
+      onFocus={onFocus}
+      onInput={(event) => onChange(event.currentTarget.innerText)}
+    />
+  );
+}
+
 function BlockIcon({ type, size = 15 }: { type: BlockType; size?: number }) {
   if (type === "image" || type === "carousel") return <ImageIcon size={size} />;
   if (type === "video") return <Video size={size} />;
@@ -185,15 +221,13 @@ export function Composer() {
   const renderPaperBlock = (block: Block, index: number) => {
     const isSelected = block.id === selectedId;
     const editable = (value: string, onChange: (text: string) => void, className = "paper-editable") => (
-      <div
+      <InlineText
+        value={value}
+        onChange={onChange}
         className={className}
-        contentEditable
-        suppressContentEditableWarning
-        role="textbox"
         aria-label={`${typeNames[block.type]} ${index + 1}`}
         onFocus={() => setSelectedId(block.id)}
-        onInput={(event) => onChange(event.currentTarget.innerText)}
-      >{value}</div>
+      />
     );
 
     return (
@@ -232,11 +266,11 @@ export function Composer() {
           <ul className="paper-list">
             {(block.items ?? []).map((item, itemIndex) => (
               <li key={`${block.id}-${itemIndex}`}>
-                <div contentEditable suppressContentEditableWarning role="textbox" aria-label={`Punkt ${itemIndex + 1}`} onFocus={() => setSelectedId(block.id)} onInput={(event) => {
+                <InlineText value={item} ariaLabel={`Punkt ${itemIndex + 1}`} onFocus={() => setSelectedId(block.id)} onChange={(text) => {
                   const items = [...(block.items ?? [])];
-                  items[itemIndex] = event.currentTarget.innerText;
+                  items[itemIndex] = text;
                   updateBlock(block.id, { items });
-                }}>{item}</div>
+                }} />
               </li>
             ))}
           </ul>
@@ -244,18 +278,18 @@ export function Composer() {
         {block.type === "sheet" && (
           <div className="paper-table-wrap">
             <table className="paper-table"><thead><tr>{(block.headers ?? []).map((header, columnIndex) => (
-              <th key={columnIndex} contentEditable suppressContentEditableWarning role="textbox" aria-label={`Kolonneoverskrift ${columnIndex + 1}`} onFocus={() => setSelectedId(block.id)} onInput={(event) => {
+              <th key={columnIndex}><InlineText value={header} ariaLabel={`Kolonneoverskrift ${columnIndex + 1}`} onFocus={() => setSelectedId(block.id)} onChange={(text) => {
                 const headers = [...(block.headers ?? [])];
-                headers[columnIndex] = event.currentTarget.innerText;
+                headers[columnIndex] = text;
                 updateBlock(block.id, { headers });
-              }}>{header}</th>
+              }} /></th>
             ))}</tr></thead><tbody>{(block.rows ?? []).map((row, rowIndex) => (
               <tr key={rowIndex}>{(block.headers ?? []).map((_, columnIndex) => (
-                <td key={columnIndex} contentEditable suppressContentEditableWarning role="textbox" aria-label={`Rad ${rowIndex + 1}, kolonne ${columnIndex + 1}`} onFocus={() => setSelectedId(block.id)} onInput={(event) => {
+                <td key={columnIndex}><InlineText value={row[columnIndex] ?? ""} ariaLabel={`Rad ${rowIndex + 1}, kolonne ${columnIndex + 1}`} onFocus={() => setSelectedId(block.id)} onChange={(text) => {
                   const rows = (block.rows ?? []).map((current) => [...current]);
-                  rows[rowIndex][columnIndex] = event.currentTarget.innerText;
+                  rows[rowIndex][columnIndex] = text;
                   updateBlock(block.id, { rows });
-                }}>{row[columnIndex] ?? ""}</td>
+                }} /></td>
               ))}</tr>
             ))}</tbody></table>
           </div>
@@ -321,7 +355,7 @@ export function Composer() {
               <div className="paper-mat">
                 <article className={`paper-sheet ${previewMode === "mobile" ? "mobile" : ""}`}>
                   <header className="paper-header"><span>Nyhet · Fjordvik</span><span>{category}</span></header>
-                  <div className="paper-title" contentEditable suppressContentEditableWarning role="textbox" aria-label="Nyhetstittel" onInput={(event) => setTitle(event.currentTarget.innerText)}>{title}</div>
+                  <InlineText className="paper-title" value={title} ariaLabel="Nyhetstittel" onChange={setTitle} />
                   <p className="paper-byline">Av Sofie Nilsen · Fjordvik Kulturhus{scheduleSummary}</p>
                   {coverUrl && <figure className="paper-image cover-paper-image"><img src={coverUrl} alt="Forsidebilde" /></figure>}
                   {blocks.map(renderPaperBlock)}
