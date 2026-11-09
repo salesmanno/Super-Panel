@@ -11,6 +11,7 @@ const ANNOUNCEMENT_LEGACY_PRIORITIES = ['urgent' => 1, 'high' => 3, 'normal' => 
 const ANNOUNCEMENT_CONTENT_MAX = 100000;
 const ANNOUNCEMENT_ALLOWED_CONTENT_TAGS = [
     'div', 'p', 'br', 'h2', 'h3', 'h4', 'h5', 'ul', 'ol', 'li',
+    'table', 'thead', 'tbody', 'tr', 'th', 'td',
     'strong', 'em', 'u', 's', 'blockquote', 'pre', 'code', 'a'
 ];
 
@@ -264,8 +265,9 @@ function announcement_content_to_plain_text(string $content): string {
     }
     $html = announcement_content_to_html($content);
     $html = preg_replace('/<(?:div|p|h[2-5]|blockquote|pre)>\s*<br\s*\/?>\s*<\/(?:div|p|h[2-5]|blockquote|pre)>/i', "\n", $html) ?? $html;
+    $html = preg_replace('/<\/(?:td|th)>/i', "\t", $html) ?? $html;
+    $html = preg_replace('/<\/(?:tr|div|p|h[2-5]|li|blockquote|pre)>/i', "\n", $html) ?? $html;
     $html = preg_replace('/<br\s*\/?>/i', "\n", $html) ?? $html;
-    $html = preg_replace('/<\/(?:div|p|h[2-5]|li|blockquote|pre)>/i', "\n", $html) ?? $html;
     $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
     return $text;
 }

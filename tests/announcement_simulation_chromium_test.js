@@ -27,12 +27,15 @@ window.fetch = async (url, options) => {
     if (!options) return {ok:true,json:async()=>({success:true,announcements:window.testRows})};
     const data=JSON.parse(options.body);
     window.testSaves.push(data);
-    const planned=AnnouncementRanking.planPriorityAssignment(window.testRows,data.id,data.priority).items;
-    // A deliberately different returned rank proves the editor trusts the server.
-    const priorities=Object.fromEntries(planned.map(row=>[row.id,row.priority]));
-    priorities.four=7;
+    const priorities={};
+    if(data.id){
+        const planned=AnnouncementRanking.planPriorityAssignment(window.testRows,data.id,data.priority).items;
+        Object.assign(priorities,Object.fromEntries(planned.map(row=>[row.id,row.priority])));
+        // A deliberately different returned rank proves the editor trusts the server.
+        priorities.four=7;
+    }else priorities['new-story']=data.priority;
     return {ok:true,json:async()=>({success:true,priorities,content:data.content,
-        content_html:data.content,content_text:'Content'})};
+        announcement_id:data.id||'new-story',content_html:data.content,content_text:'Content'})};
 };
 class TestModal {
     static instances = new Map();
@@ -55,16 +58,16 @@ const checks = `
     const order=()=>Array.from(document.querySelectorAll('#news-preview .hero-story,#news-preview .secondary-story')).map(el=>el.dataset.storyId).join(',');
     const edit=id=>document.querySelector('[data-action="edit"][data-id="'+id+'"]').click();
     const setPriority=value=>{input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}))};
-    const close=()=>bootstrap.Modal.getInstance(document.getElementById('announcementModal')).hide();
+    const close=()=>document.getElementById('news-overview-tab').click();
     const manage=id=>Array.from(document.querySelectorAll('#news-management .manage-item')).find(el=>el.querySelector('[data-action="edit"]').dataset.id===id).textContent;
     try{
         await settle();
-        check(order()==='one,two,three,four,six','Initial saved order');
+        check(order()==='one,two,three,four,six','Initial saved order: '+order());
         edit('target');setPriority('4');
-        const writingBox=document.getElementById('announcement-content-editor');
+        const writingBox=document.querySelector('#announcement-selected-element [contenteditable="true"]');
         const writingStyle=getComputedStyle(writingBox);
-        check(parseFloat(writingStyle.minHeight)>=260,'News writing surface is sufficiently tall');
-        check(parseFloat(writingStyle.borderLeftWidth)>=2,'News writing surface has a defined border');
+        check(parseFloat(writingStyle.minHeight)>=170,'Selected news block has a usable writing surface');
+        check(parseFloat(writingStyle.borderLeftWidth)>=1,'Selected news block has a defined border');
         check(writingBox.getAttribute('contenteditable')==='true','News editor remains editable');
         check(order()==='one,two,three,target,four','9 to 4 simulation leaves top three alone');
         check(impact().includes('six → 7')&&impact().includes('eight → 9'),'Impact crosses gaps and caps at nine');
@@ -86,6 +89,18 @@ const checks = `
         check(testSaves.length===1&&testSaves[0].priority===1,'Save sends chosen priority, not shifted target');
         check(manage('four').includes('Prioritet 7'),'Management applies authoritative server rank');
         check(document.querySelector('#news-preview .hero-story').dataset.storyId==='target','Saved preview reflects server-confirmed new top');
+        document.getElementById('newAnnouncementButton').click();
+        const title=document.getElementById('announcement-title');title.value='Ny testnyhet';title.dispatchEvent(new Event('input',{bubbles:true}));
+        const text=document.querySelector('#announcement-selected-element [contenteditable="true"]');text.innerHTML='Prøveinnhold';text.dispatchEvent(new Event('input',{bubbles:true}));
+        const type=document.getElementById('announcement-element-type');type.value='spreadsheet';document.getElementById('announcement-add-element').click();
+        document.querySelector('#announcement-selected-element [data-table-head="0"]').value='Dato';
+        document.querySelector('#announcement-selected-element [data-table-head="0"]').dispatchEvent(new Event('input',{bubbles:true}));
+        document.querySelector('#announcement-selected-element [data-table-row="0"][data-table-col="0"]').value='14.09';
+        document.querySelector('#announcement-selected-element [data-table-row="0"][data-table-col="0"]').dispatchEvent(new Event('input',{bubbles:true}));
+        document.getElementById('publishButton').click();await settle();
+        check(testSaves.length===2&&testSaves[1].elements.some(element=>element.element_type==='text'&&element.content.html.includes('<table>')),'Table block is stored as supported text HTML');
+        check(document.getElementById('announcement-title').value===''&&document.getElementById('news-create-panel').hidden===false,'Successful creation clears the form and stays in create tab');
+        check(document.getElementById('announcement-save-status').hidden===false,'Successful creation shows reset confirmation');
         check(testAlerts.length===0,'Editor encountered no errors');
         document.body.dataset.testStatus='passed';
     }catch(error){document.body.dataset.testStatus='failed';document.body.dataset.testError=error.stack||String(error)}

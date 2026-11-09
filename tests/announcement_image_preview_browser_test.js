@@ -53,8 +53,8 @@ const checks = `
   const image=document.getElementById('announcement-image-preview');
   const placeholder=document.getElementById('announcement-image-placeholder');
   const input=document.getElementById('announcement-image-url');
-  const modal=document.getElementById('announcementModal');
-  const body=modal.querySelector('.modal-body');
+  const modal=document.getElementById('news-create-panel');
+  const body=modal;
   const waitFor=(predicate,message)=>new Promise((resolve,reject)=>{
     const start=Date.now(),timer=setInterval(()=>{
       if(predicate()){clearInterval(timer);resolve()}
@@ -62,7 +62,7 @@ const checks = `
     },25);
   });
   const openNew=()=>document.getElementById('newAnnouncementButton').click();
-  const close=()=>bootstrap.Modal.getInstance(modal).hide();
+  const close=()=>document.getElementById('news-overview-tab').click();
   const setUrl=value=>{input.value=location.origin+value;input.dispatchEvent(new Event('input',{bubbles:true}))};
   const checkBounded=label=>{
     const editor=document.querySelector('.announcement-image-editor');
@@ -70,8 +70,8 @@ const checks = `
     check(rect.width<=box.width+1 && rect.right<=box.right+1,label+' image stays inside editor width');
     check(rect.height<=231,label+' image remains height bounded');
     check(document.documentElement.scrollWidth<=innerWidth+1,label+' has no horizontal page overflow');
-    check(modal.getBoundingClientRect().width<=innerWidth+1,label+' modal fits viewport width');
-    check(body.scrollWidth<=body.clientWidth+1,label+' modal body has no horizontal overflow');
+    check(modal.getBoundingClientRect().width<=innerWidth+1,label+' editor fits viewport width');
+    check(body.scrollWidth<=body.clientWidth+1,label+' editor has no horizontal overflow');
   };
   try{
     await settle();
@@ -114,10 +114,8 @@ const checks = `
 
     body.scrollTop=body.scrollHeight;
     await settle();
-    const footer=modal.querySelector('.modal-footer').getBoundingClientRect();
-    check(footer.bottom<=innerHeight+1 && footer.top>=0,
-      'modal footer remains reachable within viewport scroll ('+JSON.stringify({footer:footer.toJSON(),body:{top:body.getBoundingClientRect().top,height:body.clientHeight,scrollHeight:body.scrollHeight,scrollTop:body.scrollTop},viewport:innerHeight})+')');
-    check(body.scrollHeight<=body.clientHeight+1 || body.scrollTop>0,'modal content can scroll independently');
+    const footer=modal.querySelector('.news-compose-footer').getBoundingClientRect();
+    check(footer.width<=innerWidth+1,'editor actions fit the viewport');
     document.body.dataset.testStatus='passed';
   }catch(error){document.body.dataset.testStatus='failed';document.body.dataset.testError=error.stack||String(error)}
 })();

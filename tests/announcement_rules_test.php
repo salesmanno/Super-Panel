@@ -101,6 +101,8 @@ check_rule($valid['ok'] && $valid['data']['content'] === "a\nb", 'valid payload 
 $rich = announcement_sanitize_content('<h3>Overskrift</h3><p>Første avsnitt</p><p><br></p><p><strong>Viktig</strong> <em>tekst</em> <a href="https://example.test/info" style="color:red">lenke</a></p><ul><li>Punkt</li></ul>');
 check_rule(str_contains($rich, '<h3>Overskrift</h3>') && str_contains($rich, '<strong>Viktig</strong>') && str_contains($rich, '<a href="https://example.test/info"'), 'allowed rich formatting survives sanitization');
 check_rule(str_contains($rich, '<p><br></p>') && !str_contains($rich, 'style='), 'blank paragraphs survive and styling is removed');
+$tableContent = announcement_sanitize_content('<table onclick="evil()"><thead><tr><th>Dato</th><th>Aktivitet</th></tr></thead><tbody><tr><td>14.09</td><td>Åpent hus</td></tr></tbody></table>');
+check_rule(str_contains($tableContent, '<table>') && str_contains($tableContent, '<td>Åpent hus</td>') && !str_contains($tableContent, 'onclick'), 'news spreadsheet tables retain structure without unsafe attributes');
 $unsafe = announcement_sanitize_content('<p>Trygt</p><script>alert(1)</script><img src=x onerror=alert(1)><a href="javascript:alert(1)">farlig</a><span onclick="evil()">tekst</span>');
 check_rule(str_contains($unsafe, 'Trygt') && !str_contains($unsafe, 'script') && !str_contains($unsafe, 'onerror') && !str_contains($unsafe, 'javascript:') && str_contains($unsafe, 'tekst'), 'unsafe tags, attributes and URLs are removed');
 $emptyRichContent = ['<script>alert(1)</script>', '<br>', '<p>   </p>', '<div><br></div>', ''];
