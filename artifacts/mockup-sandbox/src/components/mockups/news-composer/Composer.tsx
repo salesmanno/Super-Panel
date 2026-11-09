@@ -225,7 +225,7 @@ export function Composer() {
         value={value}
         onChange={onChange}
         className={className}
-        aria-label={`${typeNames[block.type]} ${index + 1}`}
+        ariaLabel={`${typeNames[block.type]} ${index + 1}`}
         onFocus={() => setSelectedId(block.id)}
       />
     );
