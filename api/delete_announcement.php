@@ -15,16 +15,20 @@ try {
     
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
-    
+    $db->beginTransaction();
+    $elements = $db->prepare('DELETE FROM tenant_news_elements WHERE announcement_id = ? AND company_id = ?');
+    $elements->execute([$data['id'],$companyId]);
     $stmt = $db->prepare("DELETE FROM tenant_announcements WHERE id = ? AND company_id = ?");
     $stmt->execute([$data['id'], $companyId]);
     
     if ($stmt->rowCount() > 0) {
+        $db->commit();
         echo json_encode([
             'success' => true,
             'message' => 'Nyhet slettet'
         ]);
     } else {
+        $db->rollBack();
         echo json_encode([
             'success' => false,
             'message' => 'Nyhet ikke funnet'
@@ -32,6 +36,7 @@ try {
     }
     
 } catch (Exception $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
     error_log('Delete announcement error: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([

@@ -9,6 +9,7 @@ if (!isset($_SESSION['tenant_admin_id'], $_SESSION['company_id'])) {
 
 require_once '../config/database.php';
 require_once '../includes/announcement_helpers.php';
+require_once '../includes/announcement_elements.php';
 
 try {
     $raw = json_decode(file_get_contents('php://input'), true);
@@ -19,6 +20,9 @@ try {
         exit;
     }
     $data = $validated['data'];
+    $elements = array_key_exists('elements', $raw)
+        ? announcement_validate_elements($raw['elements'])
+        : null;
     
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
@@ -75,6 +79,7 @@ try {
     ];
     
     $stmt->execute($params);
+    if ($elements !== null) announcement_save_elements($db,(string)$companyId,(string)$announcementId,$elements);
     
     if (isset($data['product']) && !empty($data['product']['output_product_id'])) {
         $product = $data['product'];

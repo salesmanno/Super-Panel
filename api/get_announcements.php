@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 
 require_once '../config/database.php';
 require_once '../includes/announcement_helpers.php';
+require_once '../includes/announcement_elements.php';
 
 try {
     $db = getDBConnection();
@@ -55,6 +56,7 @@ try {
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
     $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $elementMap = announcement_load_elements($db,(string)$companyId,array_column($announcements,'id'));
     
     // Get product associations for all announcements
     $announcementIds = array_column($announcements, 'id');
@@ -90,6 +92,7 @@ try {
         $announcement['priority'] = announcement_priority($announcement['priority'] ?? null);
         $announcement['clicks'] = (int)($announcement['clicks'] ?? 0);
         $announcement['product'] = $productMap[$announcement['id']] ?? null;
+        $announcement['elements'] = $elementMap[$announcement['id']] ?? [];
         $announcement['content_html'] = announcement_content_to_html((string)($announcement['content'] ?? ''));
         $announcement['content_text'] = announcement_content_to_plain_text((string)($announcement['content'] ?? ''));
     }

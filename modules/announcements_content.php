@@ -66,7 +66,13 @@ try {
 <div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5" id="announcementModalTitle">Ny sak</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Lukk"></button></div>
 <form id="announcementForm"><div class="modal-body"><input type="hidden" id="announcement-id">
 <label class="form-label" for="announcement-title">Tittel</label><input class="form-control mb-3" id="announcement-title" required>
-<label class="form-label" for="announcement-content-editor">Innhold</label><div class="announcement-editor-toolbar" role="toolbar" aria-label="Tekstformatering"><button type="button" class="btn btn-sm btn-outline-secondary" data-format="bold" title="Fet"><strong>B</strong></button><button type="button" class="btn btn-sm btn-outline-secondary" data-format="italic" title="Kursiv"><em>I</em></button><button type="button" class="btn btn-sm btn-outline-secondary" data-format="underline" title="Understreket"><u>U</u></button><button type="button" class="btn btn-sm btn-outline-secondary" data-format="formatBlock" data-value="h3" title="Overskrift">H</button><button type="button" class="btn btn-sm btn-outline-secondary" data-format="insertUnorderedList" title="Punktliste">•</button><button type="button" class="btn btn-sm btn-outline-secondary" data-format="insertOrderedList" title="Nummerert liste">1.</button><button type="button" class="btn btn-sm btn-outline-secondary" data-format="createLink" title="Sett inn lenke">↗</button></div><div id="announcement-content-editor" class="announcement-content-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-describedby="announcement-content-help announcement-content-feedback" aria-required="true"></div><textarea id="announcement-content" hidden aria-hidden="true"></textarea><div id="announcement-content-feedback" class="invalid-feedback" role="alert" aria-live="polite" hidden>Innhold kan ikke være tomt.</div><small id="announcement-content-help" class="text-muted d-block mb-3">Avsnitt, tomme linjer, overskrifter, lister, utheving og lenker beholdes ved lagring.</small>
+<section id="announcement-elements-editor" class="mb-3" aria-labelledby="announcement-elements-heading">
+ <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap"><div><label class="form-label mb-0" id="announcement-elements-heading">Nyhetsinnhold</label><small class="text-muted d-block">Legg til og sorter innholdsblokker.</small></div>
+ <div class="d-flex gap-2"><select id="announcement-element-type" class="form-select form-select-sm" aria-label="Elementtype"><option value="text">Ren tekst</option><option value="image">Bilde</option><option value="text_image">Tekst og bilde</option><option value="image_carousel">Bildekarusell</option><option value="youtube_video">YouTube-video</option></select><button type="button" class="btn btn-outline-primary btn-sm" id="announcement-add-element">+ Element</button></div></div>
+ <div id="announcement-elements-list" class="mt-2"></div>
+</section>
+<details class="mb-3"><summary class="small text-muted">Eldre tekstinnhold (beholdes som reserve)</summary><div class="pt-2">
+<label class="form-label" for="announcement-content-editor">Tekstreserve for eldre visninger</label><div class="announcement-editor-toolbar" role="toolbar" aria-label="Tekstformatering"><button type="button" class="btn btn-sm btn-outline-secondary" data-format="bold" title="Fet"><strong>B</strong></button><button type="button" class="btn btn-sm btn-outline-secondary" data-format="italic" title="Kursiv"><em>I</em></button><button type="button" class="btn btn-sm btn-outline-secondary" data-format="underline" title="Understreket"><u>U</u></button><button type="button" class="btn btn-sm btn-outline-secondary" data-format="formatBlock" data-value="h3" title="Overskrift">H</button><button type="button" class="btn btn-sm btn-outline-secondary" data-format="insertUnorderedList" title="Punktliste">•</button><button type="button" class="btn btn-sm btn-outline-secondary" data-format="insertOrderedList" title="Nummerert liste">1.</button><button type="button" class="btn btn-sm btn-outline-secondary" data-format="createLink" title="Sett inn lenke">↗</button></div><div id="announcement-content-editor" class="announcement-content-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-describedby="announcement-content-help announcement-content-feedback"></div><textarea id="announcement-content" hidden aria-hidden="true"></textarea><div id="announcement-content-feedback" class="invalid-feedback" role="alert" aria-live="polite" hidden>Innhold kan ikke være tomt.</div><small id="announcement-content-help" class="text-muted d-block mb-3">Beholdes for eldre visninger mens disse tas ut av bruk.</small></div></details>
 <div class="row g-2"><div class="col-md-5"><label class="form-label" for="announcement-type">Type</label><select class="form-select" id="announcement-type"><option value="news">Nyhet</option><option value="event">Arrangement</option><option value="info">Informasjon</option><option value="promotion">Aktuelt</option><option value="urgent">Viktig melding</option></select></div><div class="col-md-7 d-flex align-items-end"><div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="announcement-is-pinned"><label class="form-check-label" for="announcement-is-pinned">Fest øverst</label></div></div></div>
 <div class="row g-2 mt-2"><div class="col-md-6"><label class="form-label" for="announcement-publish-at">Publiseres</label><input type="datetime-local" class="form-control" id="announcement-publish-at"></div><div class="col-md-6"><label class="form-label" for="announcement-expire-at">Utløper</label><input type="datetime-local" class="form-control" id="announcement-expire-at"></div></div>
 <div class="form-check form-switch mt-3"><input class="form-check-input" type="checkbox" id="announcement-product-toggle"><label class="form-check-label" for="announcement-product-toggle">Knytt til produkt</label></div><div id="product-section" class="mt-2" hidden><select class="form-select mb-2" id="announcement-product-id"><option value="">Velg produkt</option></select><div class="row g-2"><div class="col-4"><input type="number" class="form-control" id="announcement-discount" min="0" max="100" placeholder="Rabatt %"></div><div class="col-4"><input type="number" class="form-control" id="announcement-max-qty" min="1" placeholder="Maks antall"></div><div class="col-4"><input type="date" class="form-control" id="announcement-product-expiry"></div></div></div>
@@ -79,6 +85,87 @@ try {
 const types={event:'Arrangement',info:'Informasjon',news:'Nyhet',promotion:'Aktuelt',urgent:'Viktig melding'},priorityValue=value=>AnnouncementRanking.priorityValue(value),priorityDefault=5;let announcements=[],previewDraft=null,selectedId=null,previewMode='desktop',lastTrigger=null,publishIntent=false,simulatePublished=true,previewEffectivePublishAt=null,editRevision=0,loadRevision=0,saveBusy=false,imagePreviewUrl='',imagePreviewFailed=false;
  const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])), norm=s=>String(s??'').replace(/\r\n?/g,'\n');
  const contentEditor=()=>$('announcement-content-editor');
+  let editorElements=[];
+  const elementDefaults=type=>type==='text'?{html:''}:type==='image'?{url:'',alt:'',caption:''}:type==='text_image'?{html:'',url:'',alt:'',caption:'',layout:'image_top'}:type==='image_carousel'?{urls:[]}: {url:'',caption:''};
+  const elementLabel=type=>({text:'Ren tekst',image:'Bilde',text_image:'Tekst og bilde',image_carousel:'Bildekarusell',youtube_video:'YouTube-video'}[type]||'Innhold');
+  const escAttr=value=>esc(value).replace(/`/g,'&#96;');
+  function elementField(index,key,label,value,type='text'){
+   const attrs=`data-element-index="${index}" data-element-key="${key}"`;
+   if(type==='textarea')return `<label class="form-label small">${label}<textarea class="form-control form-control-sm" rows="3" ${attrs}>${esc(value)}</textarea></label>`;
+   return `<label class="form-label small">${label}<input class="form-control form-control-sm" type="${type}" value="${escAttr(value)}" ${attrs}></label>`;
+  }
+  function renderElements(){
+   const list=$('announcement-elements-list');if(!list)return;
+   list.innerHTML=editorElements.map((el,index)=>{
+    const c=el.content||{};let fields='';
+    if(el.element_type==='text')fields=elementField(index,'html','Tekst',c.html||'','textarea');
+    if(el.element_type==='image')fields=elementField(index,'url','Bildefilens lenke',c.url||'','url')+elementField(index,'alt','Alternativ tekst',c.alt||'')+elementField(index,'caption','Bildetekst',c.caption||'');
+    if(el.element_type==='text_image')fields=elementField(index,'html','Tekst',c.html||'','textarea')+elementField(index,'url','Bildefilens lenke',c.url||'','url')+elementField(index,'alt','Alternativ tekst',c.alt||'')+elementField(index,'caption','Bildetekst',c.caption||'');
+    if(el.element_type==='image_carousel')fields=elementField(index,'urls','Bilde-URL-er (én per linje)',(c.urls||[]).join('\n'),'textarea');
+    if(el.element_type==='youtube_video')fields=elementField(index,'url','YouTube-lenke',c.url||'','url')+elementField(index,'caption','Bildetekst',c.caption||'');
+    return `<article class="card mb-2" data-element-card="${index}"><div class="card-header py-2 d-flex justify-content-between align-items-center"><strong>${index+1}. ${elementLabel(el.element_type)}</strong><div class="btn-group btn-group-sm"><button type="button" class="btn btn-outline-secondary" data-element-move="-1" data-element-index="${index}" aria-label="Flytt opp" ${index===0?'disabled':''}>↑</button><button type="button" class="btn btn-outline-secondary" data-element-move="1" data-element-index="${index}" aria-label="Flytt ned" ${index===editorElements.length-1?'disabled':''}>↓</button><button type="button" class="btn btn-outline-danger" data-element-remove="${index}">Fjern</button></div></div><div class="card-body p-2">${fields}</div></article>`;
+   }).join('');
+  }
+  function setEditorElements(elements){
+   editorElements=(Array.isArray(elements)?elements:[]).map(el=>({element_type:el.element_type,content:{...(el.content||{})}}));
+   renderElements();
+  }
+  function getEditorElements(){
+   return editorElements.filter(el=>el.element_type!=='text'||contentToText(el.content?.html||'').trim()!=='').map(el=>({element_type:el.element_type,content:{...el.content,
+    ...(el.element_type==='image_carousel'?{urls:(el.content.urls||[]).map(v=>String(v).trim()).filter(Boolean)}:{})}}));
+  }
+  function elementsLegacyText(){
+   const parts=[];
+   for(const el of getEditorElements()){
+    const c=el.content||{};
+    if(el.element_type==='text'||el.element_type==='text_image')parts.push(contentToText(c.html||''));
+    if(c.caption)parts.push(c.caption);
+   }
+   return parts.map(s=>String(s||'').trim()).filter(Boolean).join('\n\n')||'Nyhetsinnhold';
+  }
+  function legacyContentForSave(existing,elements){
+   if(!elements.length)return contentValue();
+   const generated=elementsLegacyText();
+   if(existing&&!existing.elements?.length&&contentToText(existing.content_html||existing.content||'').trim()===generated.trim())return existing.content||generated;
+   return generated;
+  }
+  function elementsPreviewText(){
+   const parts=[];
+   for(const el of getEditorElements()){
+    const c=el.content||{};
+    if(el.element_type==='text'||el.element_type==='text_image')parts.push(contentToText(c.html||''));
+    if(c.caption)parts.push(c.caption);
+    if(el.element_type==='image'&&!c.caption)parts.push(c.alt||'Bilde');
+    if(el.element_type==='youtube_video'&&!c.caption)parts.push('YouTube-video');
+   }
+   return parts.filter(Boolean).join(' ').trim();
+  }
+  function elementsFirstImage(){
+   for(const el of getEditorElements()){
+    if(el.element_type==='image'||el.element_type==='text_image')return el.content.url||'';
+    if(el.element_type==='image_carousel')return el.content.urls?.[0]||'';
+   }
+   return '';
+  }
+  $('announcement-add-element').addEventListener('click',()=>{
+   editorElements.push({element_type:$('announcement-element-type').value,content:elementDefaults($('announcement-element-type').value)});
+   renderElements();syncDraft();
+  });
+  $('announcement-elements-list').addEventListener('input',e=>{
+   const field=e.target.closest('[data-element-index][data-element-key]');if(!field)return;
+   const i=Number(field.dataset.elementIndex),key=field.dataset.elementKey;if(!editorElements[i])return;
+   editorElements[i].content=editorElements[i].content||{};
+   editorElements[i].content[key]=key==='urls'?field.value.split(/\r?\n/).map(v=>v.trim()).filter(Boolean):field.value;
+   syncDraft();
+  });
+  $('announcement-elements-list').addEventListener('click',e=>{
+   const remove=e.target.closest('[data-element-remove]');
+   if(remove){editorElements.splice(Number(remove.dataset.elementRemove),1);renderElements();syncDraft();return}
+   const move=e.target.closest('[data-element-move]');if(!move)return;
+   const i=Number(move.dataset.elementIndex),j=i+Number(move.dataset.elementMove);
+   if(j<0||j>=editorElements.length)return;
+   [editorElements[i],editorElements[j]]=[editorElements[j],editorElements[i]];renderElements();syncDraft();
+  });
   const editorPriority=()=>{let input=$('announcement-priority'),priority=input.valueAsNumber,valid=AnnouncementRanking.isValidPriority(priority);input.setCustomValidity(valid?'':'Prioritet må være et heltall mellom 1 og 9.');return valid?priority:null};
  const contentToText=value=>{let node=document.createElement('div'),html=String(value??'').replace(/<br\s*\/?>/gi,'\n').replace(/<\/(?:div|p|h[2-5]|li|blockquote|pre)>/gi,'\n');node.innerHTML=html;return norm(node.textContent||'')};
  const contentValue=()=>contentEditor()?.innerHTML||'';
@@ -103,21 +190,22 @@ function productFromForm(){if(!$('announcement-product-toggle').checked)return n
 function localSqlNow(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
 function effectivePublishAt(){return val('announcement-publish-at')||previewEffectivePublishAt}
  function updateImagePreview(){let url=val('announcement-image-url').trim(),img=$('announcement-image-preview'),placeholder=$('announcement-image-placeholder'),valid=false;try{let parsed=new URL(url);valid=parsed.protocol==='http:'||parsed.protocol==='https:'}catch(e){}if(!valid){imagePreviewUrl='';imagePreviewFailed=false;img.hidden=true;placeholder.hidden=false;img.removeAttribute('src');return}if(url!==imagePreviewUrl){imagePreviewUrl=url;imagePreviewFailed=false;img.src=url}img.hidden=imagePreviewFailed;placeholder.hidden=!imagePreviewFailed}
-   function syncDraft(){let id=val('announcement-id')||'draft-preview',existing=announcements.find(a=>String(a.id)===String(id)),priority=editorPriority();previewDraft={id,originalPriority:existing?priorityValue(existing.priority):null,priorityInputValid:priority!==null,title:val('announcement-title'),content_text:contentToText(contentValue()),content_html:contentValue(),image_url:val('announcement-image-url'),announcement_type:val('announcement-type'),priority,publish_at:effectivePublishAt(),expire_at:val('announcement-expire-at')||null,is_pinned:$('announcement-is-pinned').checked,is_published:simulatePublished,product:productFromForm()};updateImagePreview();renderPriorityImpact();render()}
+    function syncDraft(){let id=val('announcement-id')||'draft-preview',existing=announcements.find(a=>String(a.id)===String(id)),priority=editorPriority();previewDraft={id,originalPriority:existing?priorityValue(existing.priority):null,priorityInputValid:priority!==null,title:val('announcement-title'),content_text:elementsPreviewText()||contentToText(contentValue()),content_html:contentValue(),elements:getEditorElements(),image_url:val('announcement-image-url')||elementsFirstImage(),announcement_type:val('announcement-type'),priority,publish_at:effectivePublishAt(),expire_at:val('announcement-expire-at')||null,is_pinned:$('announcement-is-pinned').checked,is_published:simulatePublished,product:productFromForm()};updateImagePreview();renderPriorityImpact();render()}
 async function loadProducts(){let s=$('announcement-product-id');if(s.options.length>1)return;let r=await fetch('/api/get_output_products.php'),x=await r.json();s.innerHTML='<option value="">Velg produkt</option>'+(x.products||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.name||'Ukjent')}</option>`).join('')}
 async function toggleProduct(){let on=$('announcement-product-toggle').checked;$('product-section').hidden=!on;if(on)await loadProducts();syncDraft()}
 function resetProduct(){let s=$('announcement-product-id');s.selectedIndex=0;$('announcement-product-toggle').checked=false;$('product-section').hidden=true;$('announcement-discount').value='';$('announcement-max-qty').value='';$('announcement-product-expiry').value=''}
-  function openNew(){editRevision+=1;lastTrigger=document.activeElement;selectedId=null;previewDraft=null;publishIntent=false;simulatePublished=true;previewEffectivePublishAt=localSqlNow();$('announcementForm').reset();setContentHtml('');$('announcement-priority').value='5';$('announcement-id').value='';resetProduct();$('announcementModalTitle').textContent='Ny sak';$('simulate-published').checked=true;new bootstrap.Modal($('announcementModal')).show();syncDraft()}
-  async function edit(id){let revision=++editRevision,a=announcements.find(x=>String(x.id)===String(id));if(!a)return;if(a.product)await loadProducts();if(revision!==editRevision)return;lastTrigger=document.activeElement;selectedId=String(id);publishIntent=!!a.is_published;simulatePublished=true;$('announcementModalTitle').textContent='Rediger sak';[['title',a.title],['image-url',a.image_url||''],['type',a.announcement_type||'info'],['priority',priorityValue(a.priority)],['publish-at',a.publish_at?.replace(' ','T').slice(0,16)||''],['expire-at',a.expire_at?.replace(' ','T').slice(0,16)||'']].forEach(([k,v])=>$('announcement-'+k).value=v);setContentHtml(a.content_html);previewEffectivePublishAt=a.publish_at?a.publish_at.replace(' ','T').slice(0,16):localSqlNow();$('announcement-id').value=a.id;$('announcement-is-pinned').checked=!!a.is_pinned;resetProduct();if(a.product){$('announcement-product-toggle').checked=true;$('product-section').hidden=false;$('announcement-product-id').value=a.product.output_product_id;$('announcement-discount').value=a.product.discount_percent||0;$('announcement-max-qty').value=a.product.max_quantity||'';$('announcement-product-expiry').value=a.product.expiry_date||''}previewDraft=null;$('simulate-published').checked=true;syncDraft();new bootstrap.Modal($('announcementModal')).show()}
+  function openNew(){editRevision+=1;lastTrigger=document.activeElement;selectedId=null;previewDraft=null;publishIntent=false;simulatePublished=true;previewEffectivePublishAt=localSqlNow();$('announcementForm').reset();setContentHtml('');setEditorElements([{element_type:'text',content:elementDefaults('text')}]);$('announcement-priority').value='5';$('announcement-id').value='';resetProduct();$('announcementModalTitle').textContent='Ny sak';$('simulate-published').checked=true;new bootstrap.Modal($('announcementModal')).show();syncDraft()}
+  async function edit(id){let revision=++editRevision,a=announcements.find(x=>String(x.id)===String(id));if(!a)return;if(a.product)await loadProducts();if(revision!==editRevision)return;lastTrigger=document.activeElement;selectedId=String(id);publishIntent=!!a.is_published;simulatePublished=true;$('announcementModalTitle').textContent='Rediger sak';[['title',a.title],['image-url',a.image_url||''],['type',a.announcement_type||'info'],['priority',priorityValue(a.priority)],['publish-at',a.publish_at?.replace(' ','T').slice(0,16)||''],['expire-at',a.expire_at?.replace(' ','T').slice(0,16)||'']].forEach(([k,v])=>$('announcement-'+k).value=v);setContentHtml(a.content_html);setEditorElements(a.elements?.length?a.elements:[{element_type:'text',content:{html:contentToText(a.content_html||a.content||'')}}]);previewEffectivePublishAt=a.publish_at?a.publish_at.replace(' ','T').slice(0,16):localSqlNow();$('announcement-id').value=a.id;$('announcement-is-pinned').checked=!!a.is_pinned;resetProduct();if(a.product){$('announcement-product-toggle').checked=true;$('product-section').hidden=false;$('announcement-product-id').value=a.product.output_product_id;$('announcement-discount').value=a.product.discount_percent||0;$('announcement-max-qty').value=a.product.max_quantity||'';$('announcement-product-expiry').value=a.product.expiry_date||''}previewDraft=null;$('simulate-published').checked=true;syncDraft();new bootstrap.Modal($('announcementModal')).show()}
  function setSaveBusy(busy){if(saveBusy===busy)return;saveBusy=busy;let form=$('announcementForm');form.setAttribute('aria-busy',String(busy));form.querySelectorAll('input,select,textarea,button').forEach(control=>{if(busy){control.dataset.saveWasDisabled=control.disabled?'1':'0';control.disabled=true}else{control.disabled=control.dataset.saveWasDisabled==='1';delete control.dataset.saveWasDisabled}})}
  function applyPriorityMap(priorities){if(!priorities||typeof priorities!=='object')return false;announcements=announcements.map(a=>Object.prototype.hasOwnProperty.call(priorities,String(a.id))?{...a,priority:priorityValue(priorities[String(a.id)])}:a);render();return true}
  async function saveAnnouncement(publish){
   if(saveBusy)return;
   let priority=editorPriority();
   if(priority===null){$('announcement-priority').reportValidity();return}
-  if(!validateContentEditor()||!$('announcementForm').reportValidity())return;
+  let elements=getEditorElements();
+  if((!elements.length&&!validateContentEditor())||!$('announcementForm').reportValidity())return;
   publishIntent=!!publish;syncDraft();
-  let id=val('announcement-id'),existing=announcements.find(a=>String(a.id)===String(id)),data={id:id||undefined,title:val('announcement-title').trim(),content:contentValue(),image_url:val('announcement-image-url').trim()||null,announcement_type:val('announcement-type'),priority,is_published:publishIntent,is_pinned:$('announcement-is-pinned').checked,publish_at:effectivePublishAt(),expire_at:val('announcement-expire-at')||null,product:productFromForm()};
+  let id=val('announcement-id'),existing=announcements.find(a=>String(a.id)===String(id)),data={id:id||undefined,title:val('announcement-title').trim(),content:legacyContentForSave(existing,elements),elements,image_url:val('announcement-image-url').trim()||elementsFirstImage()||null,announcement_type:val('announcement-type'),priority,is_published:publishIntent,is_pinned:$('announcement-is-pinned').checked,publish_at:effectivePublishAt(),expire_at:val('announcement-expire-at')||null,product:productFromForm()};
   setSaveBusy(true);
   try{
    let r=await fetch(id?'/api/update_announcement.php':'/api/create_announcement.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}),x;
@@ -125,7 +213,7 @@ function resetProduct(){let s=$('announcement-product-id');s.selectedIndex=0;$('
    if(!r.ok||!x.success){alert(x.message||'Kunne ikke lagre');return}
    if(typeof x.content!=='string'||typeof x.content_html!=='string'||typeof x.content_text!=='string'){alert('Serveren returnerte ikke lagret innhold');return}
    loadRevision+=1;
-   let saved={...(existing||{}),id:id||x.announcement_id,title:data.title,image_url:data.image_url,announcement_type:data.announcement_type,priority:data.priority,is_published:data.is_published,is_pinned:data.is_pinned,publish_at:data.publish_at,expire_at:data.expire_at,product:data.product,content:x.content,content_html:x.content_html,content_text:x.content_text,clicks:Number(existing?.clicks)||0,created_at:existing?.created_at||new Date().toISOString(),updated_at:new Date().toISOString()};
+   let saved={...(existing||{}),id:id||x.announcement_id,title:data.title,image_url:data.image_url,announcement_type:data.announcement_type,priority:data.priority,is_published:data.is_published,is_pinned:data.is_pinned,publish_at:data.publish_at,expire_at:data.expire_at,product:data.product,elements,content:x.content,content_html:x.content_html,content_text:x.content_text,clicks:Number(existing?.clicks)||0,created_at:existing?.created_at||new Date().toISOString(),updated_at:new Date().toISOString()};
    if(existing)announcements=announcements.map(a=>String(a.id)===String(id)?saved:a);else announcements.push(saved);
    previewDraft=null;
    if(!applyPriorityMap(x.priorities))await load();

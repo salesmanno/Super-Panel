@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/announcement_helpers.php';
+require_once __DIR__ . '/../includes/announcement_elements.php';
 
 function check_rule(bool $value, string $message): void {
     if (!$value) { fwrite(STDERR, "FAIL: {$message}\n"); exit(1); }
@@ -20,6 +21,25 @@ check_rule(array_column($active, 'id') === ['a','b','c','z'], 'pin, priority, da
 check_rule(announcement_type('unknown') === 'info', 'safe type default');
 check_rule(announcement_priority('urgent') === 1 && announcement_priority('high') === 3 && announcement_priority('normal') === 5 && announcement_priority('low') === 8, 'legacy priority mapping');
 check_rule(announcement_priority('unknown') === 5, 'safe priority default');
+ $elementRows=announcement_validate_elements([
+    ['element_type'=>'text','content'=>['html'=>'<p>Hei</p>']],
+    ['element_type'=>'image','content'=>['url'=>'https://images.example.test/news.jpg','alt'=>'Bilde']],
+    ['element_type'=>'text_image','content'=>['html'=>'Tekst','url'=>'https://images.example.test/news.jpg']],
+    ['element_type'=>'image_carousel','content'=>['urls'=>['https://images.example.test/a.jpg','https://images.example.test/b.jpg']]],
+    ['element_type'=>'youtube_video','content'=>['url'=>'https://youtu.be/abcdefghijk']]
+ ]);
+check_rule(count($elementRows)===5 && $elementRows[4]['position']===5, 'all structured news element types and order validate');
+check_rule(json_decode($elementRows[4]['content_json'],true)['video_id']==='abcdefghijk', 'YouTube URL is stored as a validated video ID');
+foreach ([
+    [['element_type'=>'image','content'=>['url'=>'javascript:alert(1)']]],
+    [['element_type'=>'image_carousel','content'=>['urls'=>['https://images.example.test/only.jpg']]]],
+    [['element_type'=>'youtube_video','content'=>['url'=>'https://evil.example/abcdefghijk']]],
+    [['element_type'=>'text','content'=>['html'=>'<script>alert(1)</script>']]]
+] as $invalidElements) {
+    $rejected=false;
+    try { announcement_validate_elements($invalidElements); } catch (InvalidArgumentException $e) { $rejected=true; }
+    check_rule($rejected,'invalid or empty structured news elements rejected');
+}
 check_rule(announcement_priority('1') === 1 && announcement_priority('10') === 9, 'legacy ten reads at lowest rank, never default five');
 foreach (range(1, 9) as $priority) check_rule(announcement_priority_for_write($priority) === $priority, 'one to nine accepted');
 foreach ([0, -1, 10, 11, 500, 5.5, '5', '5.0', 9007199254740992, null, false] as $priority) check_rule(announcement_priority_for_write($priority) === null, 'invalid numeric priority rejected');

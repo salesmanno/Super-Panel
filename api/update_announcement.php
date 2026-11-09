@@ -3,6 +3,7 @@ session_start();
 require_once '../config/database.php';
 require_once '../includes/auth_check.php';
 require_once '../includes/announcement_helpers.php';
+require_once '../includes/announcement_elements.php';
 
 header('Content-Type: application/json');
 if (!isset($_SESSION['tenant_admin_id'], $_SESSION['company_id'])) {
@@ -22,6 +23,9 @@ try {
     $validated = announcement_validate_payload($data);
     if (!$validated['ok']) { http_response_code(422); echo json_encode(['success'=>false,'message'=>$validated['message']], JSON_UNESCAPED_UNICODE); exit; }
     $clean = $validated['data'];
+    $elements = array_key_exists('elements',$data)
+        ? announcement_validate_elements($data['elements'])
+        : null;
     
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
@@ -69,6 +73,7 @@ try {
         $data['id'],
         $companyId
     ]);
+    if ($elements !== null) announcement_save_elements($db,(string)$companyId,(string)$data['id'],$elements);
     
     // Handle product association - delete existing and add new if provided
     $deleteProductSql = "DELETE FROM announcement_products WHERE announcement_id = ? AND company_id = ?";
