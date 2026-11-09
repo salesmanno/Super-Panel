@@ -69,15 +69,46 @@ final class EventCheckin {
         if ($ids!==null && count($rows)!==count($ids)) throw new InvalidArgumentException('En deltaker tilhører ikke arrangementet.');
         // Batch financial lookups: two network queries per person would make a
         // large roster unusable against the externally hosted database.
-        $payments=[];
-        foreach (array_chunk(array_column($rows,'id'),400) as $chunk) {
+        $payments=[];$registrationTotals=[];$registrationPaid=[];$registrationMethods=[];
+        $registrationIds=array_values(array_unique(array_filter(array_column($rows,'registration_id'))));
+        // Website payments use the registration ID; on-site payments use the
+        // checkin ID. Validate the former in this exact tenant and event first.
+        foreach(array_chunk($registrationIds,400) as $chunk) {
             $slots=implode(',',array_fill(0,count($chunk),'?'));
-            $entries=$this->query("SELECT source_id,order_id,status,payment_status,selling_price,metadata
+            $valid=$this->query("SELECT id FROM event_registrations WHERE company_id=? AND event_id=?
+                AND id IN ($slots)".($lock?' FOR UPDATE':''),array_merge([$this->company,$event],$chunk))->fetchAll(PDO::FETCH_COLUMN);
+            if(!$valid)continue;
+            foreach($valid as $id)$registrationTotals[$id]=0;
+            $slots=implode(',',array_fill(0,count($valid),'?'));
+            // Always include ALL tickets in a shared registration, including
+            // when admitting only one of them. One paid ticket cannot fund two.
+            $tickets=$this->query("SELECT registration_id,ticket_price FROM events_checkin WHERE event_id=?
+                AND registration_id IN ($slots)".($lock?' FOR UPDATE':''),array_merge([$event],$valid))->fetchAll(PDO::FETCH_ASSOC);
+            foreach($tickets as $ticket)$registrationTotals[$ticket['registration_id']]+=max(0,(int)round((float)$ticket['ticket_price']*100));
+        }
+        $seenLedger=[];
+        $paymentIds=array_values(array_unique(array_merge(array_column($rows,'id'),array_keys($registrationTotals))));
+        foreach (array_chunk($paymentIds,400) as $chunk) {
+            $slots=implode(',',array_fill(0,count($chunk),'?'));
+            $entries=$this->query("SELECT id,source_id,order_id,status,payment_status,payment_method,selling_price,transaction_type,item_type,metadata
                 FROM unified_ledger WHERE company_id=? AND module_source='events'
                 AND (source_id IN ($slots) OR order_id IN ($slots)) ORDER BY id".($lock?' FOR UPDATE':''),
                 array_merge([$this->company],$chunk,$chunk))->fetchAll(PDO::FETCH_ASSOC);
-            foreach($entries as $entry) foreach(array_unique([$entry['source_id'],$entry['order_id']]) as $key) {
-                $payments[$key][]=$entry;
+            foreach($entries as $entry) {
+                if(isset($seenLedger[$entry['id']]))continue;
+                $seenLedger[$entry['id']]=true;
+                $metadata=json_decode($entry['metadata']??'',true);
+                if(!empty($metadata['event_id']) && (string)$metadata['event_id']!==$event)continue;
+                if($entry['transaction_type']==='expense' || str_contains((string)$entry['item_type'],'expense'))continue;
+                if(array_key_exists($entry['source_id'],$registrationTotals)) {
+                    if($entry['status']==='active' && $entry['payment_status']==='completed') {
+                        $registrationPaid[$entry['source_id']]=($registrationPaid[$entry['source_id']]??0)
+                            +max(0,(int)round((float)$entry['selling_price']*100));
+                        if(!empty($entry['payment_method']))$registrationMethods[$entry['source_id']]=$entry['payment_method'];
+                    }
+                }else{
+                    foreach(array_unique([$entry['source_id'],$entry['order_id']]) as $key)$payments[$key][]=$entry;
+                }
             }
         }
         foreach ($rows as &$row) {
@@ -89,11 +120,16 @@ final class EventCheckin {
                 $row['customer_phone']=$snapshot['guest']['phone']??'';
             }
             $row['customer_name']=trim(($row['first_name']??'').' '.($row['last_name']??'')) ?: 'Ukjent deltaker';
-            $row['has_valid_ledger']=false; $pending=null;
+            $registration=$row['registration_id']??'';
+            $row['has_valid_ledger']=($registrationTotals[$registration]??0)>0
+                && ($registrationPaid[$registration]??0)>=$registrationTotals[$registration];
+            if($row['has_valid_ledger'] && isset($registrationMethods[$registration]))$row['payment_method']=$registrationMethods[$registration];
+            $pending=null;
             foreach($payments[$row['id']]??[] as $entry) {
                 if ($entry['status']!=='active') continue;
                 if ($entry['payment_status']==='completed' && (float)$entry['selling_price']>=(float)$row['ticket_price']) {
                     $row['has_valid_ledger']=true;
+                    if(!empty($entry['payment_method']))$row['payment_method']=$entry['payment_method'];
                 }
                 if ($entry['payment_status']==='pending') {
                     $m=json_decode($entry['metadata']??'',true);

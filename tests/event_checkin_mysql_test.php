@@ -12,7 +12,8 @@ foreach ([
     'tenant_customers'=>'id VARCHAR(36) PRIMARY KEY,company_id VARCHAR(36),first_name VARCHAR(100),last_name VARCHAR(100),email VARCHAR(255),phone VARCHAR(30)',
     'tenant_customer_contacts'=>'id VARCHAR(36),customer_id VARCHAR(36),contact_type VARCHAR(10),contact_value VARCHAR(255),is_primary INT,created_at DATETIME',
     'events_eventdata'=>'id VARCHAR(36) PRIMARY KEY,company_id VARCHAR(36),title VARCHAR(255),start_date DATE,start_time TIME,end_time TIME,venue_name VARCHAR(255),ticket_price DECIMAL(12,2),registration_type VARCHAR(30),payment_methods_json JSON',
-    'events_checkin'=>'id VARCHAR(36) PRIMARY KEY,event_id VARCHAR(36),customer_id VARCHAR(36),ticket_price DECIMAL(12,2),payment_status VARCHAR(30),payment_method VARCHAR(30),checked_in INT DEFAULT 0,check_in_time DATETIME,checked_in_by VARCHAR(36),barcode VARCHAR(30),notes TEXT,updated_at DATETIME',
+    'events_checkin'=>'id VARCHAR(36) PRIMARY KEY,event_id VARCHAR(36),registration_id VARCHAR(36),customer_id VARCHAR(36),ticket_price DECIMAL(12,2),payment_status VARCHAR(30),payment_method VARCHAR(30),checked_in INT DEFAULT 0,check_in_time DATETIME,checked_in_by VARCHAR(36),barcode VARCHAR(30),notes TEXT,updated_at DATETIME',
+    'event_registrations'=>'id VARCHAR(36) PRIMARY KEY,company_id VARCHAR(36),event_id VARCHAR(36)',
     'unified_ledger'=>'id VARCHAR(36) PRIMARY KEY,order_id VARCHAR(100),company_id VARCHAR(36),module_source VARCHAR(30),item_type VARCHAR(30),source_id VARCHAR(36),item_name VARCHAR(255),quantity DECIMAL(12,2),selling_price DECIMAL(12,2),cost_price DECIMAL(12,2),customer_id VARCHAR(36),payment_method VARCHAR(30),payment_status VARCHAR(30),status VARCHAR(30),transaction_date DATETIME,transaction_type VARCHAR(30),category VARCHAR(30),metadata JSON',
     'audit_logs'=>'id VARCHAR(36) PRIMARY KEY,company_id VARCHAR(36),user_id VARCHAR(36),user_type VARCHAR(30),user_email VARCHAR(255),action VARCHAR(50),resource_type VARCHAR(100),resource_id VARCHAR(36),resource_name VARCHAR(255),old_values TEXT,new_values TEXT,severity VARCHAR(20),performed_at DATETIME,module VARCHAR(50)',
     'economy_configuration_data'=>'id VARCHAR(36) PRIMARY KEY,company_id VARCHAR(36),gateway_type VARCHAR(30),config_name VARCHAR(100),is_active INT,test_mode INT,client_id VARCHAR(255),client_secret_encrypted VARCHAR(255),subscription_key VARCHAR(255),merchant_serial_number VARCHAR(255),public_key VARCHAR(255),private_key_encrypted VARCHAR(255)',
@@ -121,4 +122,46 @@ $db->exec("UPDATE events_eventdata SET start_date='2020-01-01' WHERE id='event'"
 $db->exec("CREATE TRIGGER fail_ledger BEFORE INSERT ON unified_ledger FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Fixture failure'");
 fails(fn()=>$service->commit('event',['p17','p18'],'p17','cash',true),'Ledger failure aborts group');
 check((int)scalar("SELECT SUM(checked_in) FROM events_checkin WHERE id IN ('p17','p18')")===0,'Group transaction rolls back all checkins');
+$db->exec('DROP TRIGGER fail_ledger');
+// Public registrations have one ledger entry per registration, not per checkin.
+foreach([
+    ['web-one','a','event'],['web-group','a','event'],['web-short','a','event'],
+    ['web-foreign','b','foreign'],['web-wrong-event','a','event'],['web-expense','a','event'],
+    ['web-pending','a','event'],['web-cancelled','a','event']
+] as $r)$db->prepare('INSERT INTO event_registrations VALUES(?,?,?)')->execute($r);
+foreach([
+    ['w1','web-one'],['w2','web-group'],['w3','web-group'],['w4','web-short'],['w5','web-short'],
+    ['w6','web-foreign'],['w7','web-wrong-event'],['w8','web-expense'],['w9','web-pending'],['w10','web-cancelled']
+] as [$id,$reg]){
+    $db->prepare("INSERT INTO tenant_customers VALUES(?,'a','Web',?,'web@example.invalid',NULL)")->execute([$id,$id]);
+    $db->prepare("INSERT INTO events_checkin(id,event_id,registration_id,customer_id,ticket_price,payment_status,payment_method)
+        VALUES(?,'event',?,?,100,'paid',NULL)")->execute([$id,$reg,$id]);
+}
+foreach([
+    ['web-one',100,'a','event','completed','active','income'],
+    ['web-group',200,'a','event','completed','active','income'],
+    ['web-short',100,'a','event','completed','active','income'],
+    ['web-foreign',100,'b','foreign','completed','active','income'],
+    ['web-wrong-event',100,'a','foreign','completed','active','income'],
+    ['web-expense',100,'a','event','completed','active','expense'],
+    ['web-pending',100,'a','event','pending','active','income'],
+    ['web-cancelled',100,'a','event','completed','cancelled','income']
+] as [$reg,$amount,$company,$e,$pay,$status,$type]){
+    $db->prepare("INSERT INTO unified_ledger(id,order_id,company_id,module_source,item_type,source_id,selling_price,
+        payment_method,payment_status,status,transaction_type,metadata)
+        VALUES(UUID(),?,?,'events','event_registration',?,?,'vipps',?,?,?,?)")
+        ->execute(['EVT-'.$reg,$company,$reg,$amount,$pay,$status,$type,json_encode(['event_id'=>$e])]);
+}
+$web=array_column($service->load('event')['people'],null,'id');
+check($web['w1']['has_valid_ledger'] && $web['w1']['payment_method']==='vipps','Website payment displays paid with original method');
+check($web['w2']['has_valid_ledger'] && $web['w3']['has_valid_ledger'],'Fully funded shared registration covers its own tickets');
+check(!$web['w4']['has_valid_ledger'] && !$web['w5']['has_valid_ledger'],'One paid ticket cannot fund an underpaid group');
+foreach(['w6','w7','w8','w9','w10'] as $id)check(!$web[$id]['has_valid_ledger'],'Foreign, wrong-event, expense, pending or inactive ledger rejected: '.$id);
+$ledgerCount=(int)scalar('SELECT COUNT(*) FROM unified_ledger');$calls=count($provider->calls);
+$service->commit('event',['w1'],'w1','',false);
+$service->commit('event',['w2'],'w2','',false);
+$service->commit('event',['w3'],'w3','',false);
+check((int)scalar('SELECT COUNT(*) FROM unified_ledger')===$ledgerCount && count($provider->calls)===$calls,
+    'Web-paid admission creates neither new income nor a payment request');
+check((int)scalar("SELECT SUM(checked_in) FROM events_checkin WHERE id IN ('w1','w2','w3')")===3,'Single and shared web-paid tickets can be admitted');
 echo "Event checkin MySQL: $checks checks passed; no external calls.\n";
