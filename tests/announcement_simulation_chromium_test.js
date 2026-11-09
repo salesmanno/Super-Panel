@@ -2,14 +2,15 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const {spawnSync} = require('node:child_process');
+const chromiumFixture = require('./chromium_fixture');
 
 // Render the actual editor fragment, without evaluating PHP or loading the app's
 // database/auth configuration. All API calls are local in-memory test doubles.
 const ranking = fs.readFileSync(path.join(__dirname, '../assets/announcement_ranking.js'), 'utf8');
 const fragment = fs.readFileSync(path.join(__dirname, '../modules/announcements_content.php'), 'utf8')
     .replace(/<\?[\s\S]*?\?>/g, '')
-    .replace('<script src="/assets/announcement_ranking.js"></script>', `<script>${ranking}</script>`);
+    .replace('<script src="/assets/announcement_ranking.js"></script>', `<script>${ranking}</script>`)
+    .replace('<script src="/assets/news_video.js"></script>', `<script>${fs.readFileSync(path.join(__dirname, '../assets/news_video.js'),'utf8')}</script>`);
 const fixture = [
     ['one', 1], ['two', 2], ['three', 3], ['four', 4],
     ['six', 6], ['eight', 8], ['target', 9], ['tail', 9],
@@ -23,6 +24,7 @@ window.testRows = ${JSON.stringify(fixture)};
 window.testSaves = [];
 window.testAlerts = [];
 window.alert = message => window.testAlerts.push(message);
+window.confirm = () => true;
 window.fetch = async (url, options) => {
     if (!options) return {ok:true,json:async()=>({success:true,announcements:window.testRows,editor_author:{staff_id:'staff-test',name:'Testredaktør'},company_name:'Testfirma'})};
     const data=JSON.parse(options.body);
@@ -105,18 +107,11 @@ const checks = `
 })();
 `;
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'news-simulation-'));
-try {
+(async () => { try {
     const file = path.join(directory, 'fixture.html');
     fs.writeFileSync(file, `<!doctype html><html><body><script>${stubs}</script>${fragment}<script>${checks}</script></body></html>`);
-    const result = spawnSync(process.env.CHROMIUM_PATH || '/repl/tools/bin/chromium', [
-        '--headless', '--no-sandbox', '--disable-dev-shm-usage',
-        '--no-first-run', '--user-data-dir='+path.join(directory, 'profile'),
-        '--virtual-time-budget=5000', '--dump-dom', 'file://'+file,
-    ], {encoding:'utf8',timeout:30000,maxBuffer:4*1024*1024});
-    assert.equal(result.status, 0, result.stderr);
-    const status = result.stdout.match(/data-test-status="([^"]+)"/)?.[1];
-    assert.equal(status, 'passed', result.stdout.match(/data-test-error="([^"]+)"/)?.[1] || result.stdout.slice(-4000));
+    await chromiumFixture(file, `(async()=>{for(let i=0;i<100&&!document.body.dataset.testStatus;i++)await new Promise(r=>setTimeout(r,50));return {passed:document.body.dataset.testStatus==='passed',error:document.body.dataset.testError||'Checks did not finish'};})()`, [1280], {outputDir:directory});
     console.log('Actual News editor Chromium simulation tests passed');
 } finally {
     fs.rmSync(directory, {recursive:true,force:true});
-}
+}})().catch(error=>{console.error(error);process.exitCode=1});

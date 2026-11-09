@@ -33,6 +33,24 @@ type Block = {
   headers?: string[];
   rows?: string[][];
 };
+type ArticleData = {
+  title: string;
+  blocks: Block[];
+  coverUrl: string;
+  category: string;
+  priority: string;
+  pinned: boolean;
+  scheduled: boolean;
+  publishDate: string;
+  publishTime: string;
+  expires: string;
+  productOn: boolean;
+  productName: string;
+  productDiscount: string;
+  productMax: string;
+  productExpiry: string;
+};
+type SavedArticle = ArticleData & { id: string; updatedAt: string };
 
 const typeNames: Record<BlockType, string> = {
   text: "Tekst",
@@ -87,17 +105,36 @@ const initialBlocks: Block[] = [
   },
 ];
 
-function videoIdFromUrl(url: string) {
+function videoSourceFromUrl(url: string):
+  | { kind: "youtube" | "vimeo"; src: string }
+  | { kind: "file"; src: string }
+  | { kind: "invalid" } {
   try {
     const parsed = new URL(url);
+    if ((parsed.protocol !== "https:" && parsed.protocol !== "http:") || parsed.username || parsed.password) return { kind: "invalid" };
     const host = parsed.hostname.toLowerCase();
     const parts = parsed.pathname.split("/").filter(Boolean);
-    const id = host === "youtu.be" || host === "www.youtu.be"
-      ? parts[0]
-      : parsed.searchParams.get("v") || (["embed", "shorts"].includes(parts[0]) ? parts[1] : "");
-    return id && /^[A-Za-z0-9_-]{11}$/.test(id) ? id : "";
+    const youtubeHosts = ["youtube.com", "www.youtube.com", "m.youtube.com", "youtube-nocookie.com", "www.youtube-nocookie.com", "youtu.be", "www.youtu.be"];
+    const vimeoHosts = ["vimeo.com", "www.vimeo.com", "player.vimeo.com"];
+    if (youtubeHosts.includes(host)) {
+      const id = host.endsWith("youtu.be") ? parts[0] : parsed.searchParams.get("v") || (["embed", "shorts"].includes(parts[0]) ? parts[1] : "");
+      return id && /^[A-Za-z0-9_-]{11}$/.test(id)
+        ? { kind: "youtube", src: `https://www.youtube-nocookie.com/embed/${id}${parsed.searchParams.get("list") ? `?list=${encodeURIComponent(parsed.searchParams.get("list")!)}` : ""}` }
+        : { kind: "invalid" };
+    }
+    if (vimeoHosts.includes(host)) {
+      if (!/^\/(?:video\/)?\d+(?:\/[A-Za-z0-9]+)?\/?$/.test(parsed.pathname) || Array.from(parsed.searchParams.keys()).some(key => key.startsWith("h["))) return { kind: "invalid" };
+      const videoIndex = parts[0] === "video" ? 1 : 0;
+      const id = parts[videoIndex];
+      const hash = parsed.searchParams.get("h") || (parts.length > videoIndex + 1 ? parts[videoIndex + 1] : "");
+      return id && /^\d{1,12}$/.test(id) && (!hash || /^[A-Za-z0-9]+$/.test(hash))
+        ? { kind: "vimeo", src: `https://player.vimeo.com/video/${id}${hash ? `?h=${encodeURIComponent(hash)}` : ""}` }
+        : { kind: "invalid" };
+    }
+    if (/\.(mp4|webm)$/i.test(parsed.pathname)) return { kind: "file", src: parsed.href };
+    return { kind: "invalid" };
   } catch {
-    return "";
+    return { kind: "invalid" };
   }
 }
 
@@ -168,10 +205,129 @@ export function Composer() {
   const [publishTime, setPublishTime] = useState("11:00");
   const [expires, setExpires] = useState("");
   const [productOn, setProductOn] = useState(false);
+  const [productName, setProductName] = useState("");
+  const [productDiscount, setProductDiscount] = useState("");
+  const [productMax, setProductMax] = useState("");
+  const [productExpiry, setProductExpiry] = useState("");
+  const [subtab, setSubtab] = useState<"create" | "edit">("create");
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [currentArticleId, setCurrentArticleId] = useState<string | null>(null);
+  const [articles, setArticles] = useState<SavedArticle[]>([{
+    id: "demo-smakshelg",
+    title: "Smakshelg i Fjordvik – bli med på åpningen",
+    blocks: initialBlocks,
+    coverUrl: sampleImage,
+    category: "Nyhet",
+    priority: "2",
+    pinned: false,
+    scheduled: false,
+    publishDate: "10.11.26",
+    publishTime: "11:00",
+    expires: "",
+    productOn: false,
+    productName: "",
+    productDiscount: "",
+    productMax: "",
+    productExpiry: "",
+    updatedAt: "Eksempel",
+  }]);
+  const [workspaceDrafts, setWorkspaceDrafts] = useState<Record<string, ArticleData>>({});
   const [carouselIndex, setCarouselIndex] = useState<Record<number, number>>({});
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [toast, setToast] = useState("");
   const selected = blocks.find((block) => block.id === selectedId);
+
+  const captureArticle = (): ArticleData => ({
+    title,
+    blocks: blocks.map((block) => ({
+      ...block,
+      items: block.items ? [...block.items] : undefined,
+      urls: block.urls ? [...block.urls] : undefined,
+      headers: block.headers ? [...block.headers] : undefined,
+      rows: block.rows?.map((row) => [...row]),
+    })),
+    coverUrl, category, priority, pinned, scheduled, publishDate, publishTime, expires, productOn,
+    productName, productDiscount, productMax, productExpiry,
+  });
+  const restoreArticle = (article: ArticleData) => {
+    setTitle(article.title);
+    setBlocks(article.blocks.map((block) => ({
+      ...block,
+      items: block.items ? [...block.items] : undefined,
+      urls: block.urls ? [...block.urls] : undefined,
+      headers: block.headers ? [...block.headers] : undefined,
+      rows: block.rows?.map((row) => [...row]),
+    })));
+    setCoverUrl(article.coverUrl);
+    setCategory(article.category);
+    setPriority(article.priority);
+    setPinned(article.pinned);
+    setScheduled(article.scheduled);
+    setPublishDate(article.publishDate);
+    setPublishTime(article.publishTime);
+    setExpires(article.expires);
+    setProductOn(article.productOn);
+    setProductName(article.productName ?? "");
+    setProductDiscount(article.productDiscount ?? "");
+    setProductMax(article.productMax ?? "");
+    setProductExpiry(article.productExpiry ?? "");
+    setSelectedId(article.blocks[0]?.id ?? 0);
+    setCarouselIndex({});
+  };
+  const openArticle = (article: SavedArticle) => {
+    if (currentArticleId === article.id) {
+      setSubtab("edit");
+      setLibraryOpen(false);
+      return;
+    }
+    const currentKey = currentArticleId ?? "new";
+    setWorkspaceDrafts((drafts) => ({ ...drafts, [currentKey]: captureArticle() }));
+    restoreArticle(workspaceDrafts[article.id] ?? article);
+    setCurrentArticleId(article.id);
+    setSubtab("edit");
+    setLibraryOpen(false);
+  };
+  const openCreation = () => {
+    if (currentArticleId) {
+      setWorkspaceDrafts((drafts) => ({ ...drafts, [currentArticleId]: captureArticle() }));
+      restoreArticle(workspaceDrafts.new ?? { title: "", blocks: [], coverUrl: "", category: "Nyhet", priority: "2", pinned: false, scheduled: false, publishDate: "", publishTime: "", expires: "", productOn: false });
+      setCurrentArticleId(null);
+    }
+    setSubtab("create");
+    setLibraryOpen(false);
+  };
+  const resetForNewArticle = () => {
+    restoreArticle({ title: "", blocks: [], coverUrl: "", category: "Nyhet", priority: "2", pinned: false, scheduled: false, publishDate: "", publishTime: "", expires: "", productOn: false, productName: "", productDiscount: "", productMax: "", productExpiry: "" });
+    setCurrentArticleId(null);
+    setInsertOpen(false);
+    setSubtab("create");
+  };
+  const saveLocally = () => {
+    const data = captureArticle();
+    if (!data.title.trim()) {
+      notifyLocal("Skriv inn en tittel før du lagrer lokalt.");
+      return;
+    }
+    if (data.blocks.some(block => block.type === "video" && videoSourceFromUrl(block.url ?? "").kind === "invalid")) {
+      notifyLocal("Rett videolenken før du lagrer: bruk YouTube, Vimeo eller .mp4 / .webm.");
+      return;
+    }
+    if (currentArticleId) {
+      setArticles((current) => current.map((article) => article.id === currentArticleId ? { ...article, ...data, updatedAt: new Date().toLocaleDateString("nb-NO") } : article));
+      setWorkspaceDrafts((drafts) => {
+        const next = { ...drafts };
+        delete next[currentArticleId];
+        return next;
+      });
+      notifyLocal("Endringene er lagret lokalt på artikkelkortet.");
+      setLibraryOpen(true);
+    } else {
+      const id = `article-${Date.now()}`;
+      setArticles((current) => [{ ...data, id, updatedAt: new Date().toLocaleDateString("nb-NO") }, ...current]);
+      notifyLocal("Ny artikkel er lagt til i den lokale kortlisten.");
+      resetForNewArticle();
+    }
+  };
 
   const updateBlock = (id: number, patch: Partial<Block>) => {
     setBlocks((current) => current.map((block) => block.id === id ? { ...block, ...patch } : block));
@@ -296,9 +452,12 @@ export function Composer() {
         )}
         {block.type === "video" && (
           <figure className="paper-video-block">
-            {videoIdFromUrl(block.url ?? "")
-              ? <div className="paper-video"><iframe title={block.caption || "YouTube-video"} src={`https://www.youtube-nocookie.com/embed/${videoIdFromUrl(block.url ?? "")}`} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen /></div>
-              : <div className="paper-empty"><Video size={20} />Legg til en YouTube-lenke for å vise videoen.</div>}
+            {(() => {
+              const source = videoSourceFromUrl(block.url ?? "");
+              if (source.kind === "file") return <div className="paper-video"><video style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" }} src={source.src} controls preload="metadata" aria-label={block.caption || "Video"} /></div>;
+              if (source.kind === "youtube" || source.kind === "vimeo") return <div className="paper-video"><iframe title={block.caption || "Videospiller"} src={source.src} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen /></div>;
+              return <div className="paper-empty"><Video size={20} />{block.url ? "Videolenken støttes ikke. Bruk YouTube, Vimeo eller en direkte .mp4/.webm-adresse over HTTP eller HTTPS." : "Legg til en videolenke for å vise videoen."}</div>;
+            })()}
             {editable(block.caption ?? "", (caption) => updateBlock(block.id, { caption }), "paper-caption paper-editable")}
           </figure>
         )}
@@ -314,6 +473,8 @@ export function Composer() {
         .editor-topbar{height:52px;padding:0 clamp(16px,4vw,56px);display:flex;align-items:center;justify-content:space-between;background:#f8fafb;border-bottom:1px solid var(--line);color:#506779}
         .editor-brand{display:flex;align-items:center;gap:9px;font-weight:750;letter-spacing:-.025em;color:var(--ink)}.editor-mark{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:#e7f0ed;color:var(--teal)}.editor-context{font-size:12px;color:#6c8090}.editor-account{display:flex;align-items:center;gap:8px;font-size:12px}.editor-avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#e5efec;color:#3a685f;font-size:10px;font-weight:750}
         .editor-page{max-width:1500px;margin:auto;padding:20px clamp(16px,3.7vw,54px) 0}.editor-crumb{display:flex;align-items:center;gap:7px;color:#788b98;font-size:12px;margin-bottom:14px}.editor-crumb b{color:var(--ink);font-weight:650}
+        .news-subtabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin:0 0 18px}.news-subtabs button{position:relative;padding:10px 12px;border:0;background:transparent;color:#647986;font-size:12px;font-weight:700}.news-subtabs button.active{color:var(--teal)}.news-subtabs button.active:after{position:absolute;right:10px;bottom:-1px;left:10px;height:2px;background:var(--teal);content:""}.news-subtabs button span{margin-left:5px;padding:2px 6px;border-radius:10px;background:#edf3f0;color:#5b756d;font-size:10px}
+        .article-library{min-height:420px;padding:22px 0}.library-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:18px}.library-head h2,.library-empty h2{margin:4px 0;color:var(--ink);font:400 26px/1.2 Georgia,serif}.library-head p,.library-empty p{margin:0;color:var(--muted);font-size:12px}.article-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.article-preview-card{display:grid;grid-template-columns:minmax(120px, .8fr) 1.2fr;min-height:176px;padding:0;overflow:hidden;text-align:left;border:1px solid #dce5e7;border-radius:12px;background:#fff;color:var(--ink);box-shadow:0 4px 15px rgba(23,50,77,.04);transition:transform .16s,border-color .16s}.article-preview-card:hover{transform:translateY(-2px);border-color:#9dbdb3}.article-preview-card>img,.article-card-image{width:100%;height:100%;min-height:176px;object-fit:cover;background:#e8efeb}.article-card-image{display:grid;place-items:center;color:#6b8d82}.article-card-content{display:flex;min-width:0;flex-direction:column;align-items:flex-start;padding:15px}.article-card-meta{color:#70837d;font-size:10px;font-weight:700}.article-card-content strong{margin-top:7px;font:600 17px/1.25 Georgia,serif}.article-card-description{display:-webkit-box;overflow:hidden;margin-top:7px;color:#657872;font:12px/1.45 Georgia,serif;-webkit-line-clamp:2;-webkit-box-orient:vertical}.article-card-open{display:flex;align-items:center;gap:4px;margin-top:auto;padding-top:10px;color:var(--teal);font-size:11px;font-weight:750}.library-empty{display:grid;justify-items:center;gap:8px;max-width:480px;margin:55px auto;padding:28px;text-align:center;border:1px dashed #bfd0c9;border-radius:12px;background:#f8faf7}.library-empty p{margin-bottom:8px}
         .compose-heading{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:5px 2px 17px}.compose-kicker{font-size:11px;font-weight:800;letter-spacing:.12em;color:var(--teal)}.compose-heading h1{font:400 32px/1.12 Georgia,"Times New Roman",serif;margin:5px 0 3px;color:var(--ink)}.compose-heading p{margin:0;color:var(--muted);font-size:13px}.local-badge{border:1px solid #c9ddd8;background:#eef6f3;color:#35655e;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:700;white-space:nowrap}
         .compose-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(300px,.75fr);gap:16px;align-items:start}.compose-main,.compose-side{min-width:0}.compose-side{display:grid;align-content:start;gap:14px}
         .paper-card{border:0;background:transparent}.paper-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:3px 0 12px}.card-heading{display:grid;grid-template-columns:auto 1fr;column-gap:10px;align-items:center}.step{grid-row:span 2;width:25px;height:25px;border-radius:7px;display:grid;place-items:center;background:#eaf3f1;color:var(--teal);font-size:10px;font-weight:800}.card-heading strong{font-size:13px;color:var(--ink)}.card-heading small{grid-column:2;color:#728493;font-size:11px;margin-top:2px}.mode-switch{display:flex;gap:3px;padding:3px;border-radius:7px;background:#e9eff0}.mode-switch button{border:0;border-radius:5px;padding:5px 9px;background:transparent;color:#657b86;font-size:11px;font-weight:700}.mode-switch button.active{background:#fff;color:var(--teal);box-shadow:0 1px 4px #17324d1c}
@@ -329,7 +490,7 @@ export function Composer() {
         .block-list{display:grid;gap:3px}.block-item{display:flex;align-items:center;gap:6px;min-width:0;border:1px solid transparent;border-radius:8px;padding:6px 5px;background:#fff;color:#334e62;transition:background .15s,border .15s}.block-item:hover,.block-item.active{background:#eef6f3;border-color:#cbded8}.drag-hint{width:23px;height:28px;display:grid;place-items:center;color:#81918d;flex:none;cursor:grab}.block-item-main{display:flex;align-items:center;gap:7px;min-width:0;flex:1;text-align:left;border:0;background:transparent;color:inherit;padding:2px 0}.block-order{color:#8b9a9d;font:11px system-ui,sans-serif;font-variant-numeric:tabular-nums}.block-icon{display:flex;color:#658c8c}.block-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:700}.block-actions{display:flex;gap:0}.icon-btn{width:25px;height:26px;display:grid;place-items:center;border:0;border-radius:5px;background:transparent;color:#6c8088}.icon-btn:hover{background:#dcebe6;color:#17324d}.icon-btn:disabled{opacity:.32;cursor:not-allowed}.icon-btn.danger:hover{background:#fcebe7;color:#a94e3d}.media-panel{margin-top:11px;border:1px solid #dce5e7;border-radius:9px;overflow:hidden}.media-panel-head{display:flex;align-items:center;justify-content:space-between;padding:9px 10px;background:#edf4f2;border-bottom:1px solid #dce5e7;color:#294d50;font-size:11px;font-weight:700}.media-panel-body{display:grid;gap:10px;padding:10px}.media-panel-body label{display:grid;gap:5px;color:#334e62;font-size:10px;font-weight:700}.media-panel-body input,.media-panel-body textarea{width:100%;border:1px solid #cad8dc;border-radius:6px;padding:8px;background:#fff;color:#294454;font:11px system-ui,sans-serif;outline:0}.media-panel-body textarea{min-height:70px;resize:vertical}.media-thumb{width:100%;max-height:135px;object-fit:contain;background:#f0f2ee;border-radius:6px}.media-count{color:#788b94;font-size:10px}
         .compose-footer{display:flex;justify-content:flex-end;gap:8px;padding:13px 0 0;margin-top:14px;border-top:1px solid #dce5e7}.footer-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid #cbd8dc;border-radius:999px;background:#fff;color:#45616d;padding:9px 14px;font-size:12px;font-weight:700}.footer-btn.primary{border-color:#087f8c;background:#087f8c;color:#fff}.footer-btn:hover{filter:brightness(.97)}.toast{position:fixed;right:18px;bottom:18px;z-index:5;padding:10px 13px;border-radius:8px;background:#244f50;color:#f8fbf6;box-shadow:0 8px 24px rgba(23,50,77,.16);font-size:11px}
         @media(max-width:850px){.compose-grid{grid-template-columns:1fr}.compose-side{grid-row:2}.compose-main{grid-row:1}.paper-sheet{min-height:0}.paper-mat{padding:9px}}
-        @media(max-width:575px){.editor-topbar{height:48px;padding:0 13px}.editor-context{display:none}.editor-page{padding:15px 12px 0}.compose-heading{align-items:flex-start;flex-direction:column;gap:9px}.compose-heading h1{font-size:28px}.paper-card-head{align-items:flex-start}.paper-sheet{padding:22px 18px}.paper-header{font-size:9px}.paper-title{font-size:36px}.type-picker{grid-template-columns:repeat(2,minmax(0,1fr))}.inspector-body{padding:12px}.compose-footer{flex-wrap:wrap}.footer-btn{flex:1}}
+        @media(max-width:575px){.editor-topbar{height:48px;padding:0 13px}.editor-context{display:none}.editor-page{padding:15px 12px 0}.compose-heading{align-items:flex-start;flex-direction:column;gap:9px}.compose-heading h1{font-size:28px}.paper-card-head{align-items:flex-start}.paper-sheet{padding:22px 18px}.paper-header{font-size:9px}.paper-title{font-size:36px}.type-picker{grid-template-columns:repeat(2,minmax(0,1fr))}.inspector-body{padding:12px}.compose-footer{flex-wrap:wrap}.footer-btn{flex:1}.library-head{align-items:flex-start;flex-direction:column}.article-cards{grid-template-columns:1fr}.article-preview-card{grid-template-columns:110px minmax(0,1fr);min-height:150px}.article-preview-card>img,.article-card-image{min-height:150px}.article-card-content{padding:11px}.article-card-content strong{font-size:15px}.news-subtabs{margin-bottom:12px}}
         @media(prefers-reduced-motion:reduce){.news-editor *{transition:none!important}}
       `}</style>
       <header className="editor-topbar">
@@ -337,11 +498,27 @@ export function Composer() {
         <div className="editor-account"><span>Tenant-administrasjon</span><span className="editor-avatar"><Rows3 size={13} /></span><span>Redaktør</span><ChevronDown size={13} /></div>
       </header>
       <main className="editor-page">
-        <div className="editor-crumb"><ArrowLeft size={14} /><span>Nyhetsoversikt</span><span>/</span><b>Opprett ny sak</b></div>
+        <div className="editor-crumb"><ArrowLeft size={14} /><span>Nyhetsoversikt</span><span>/</span><b>{subtab === "edit" && libraryOpen ? "Rediger saker" : currentArticleId ? "Rediger sak" : "Opprett ny sak"}</b></div>
         <header className="compose-heading">
-          <div><span className="compose-kicker">NEWS · REDAKTØR</span><h1>Opprett ny sak</h1><p>Rediger ferdig artikkel direkte på arket.</p></div>
+          <div><span className="compose-kicker">NEWS · REDAKTØR</span><h1>{subtab === "edit" && libraryOpen ? "Rediger saker" : currentArticleId ? "Rediger sak" : "Opprett ny sak"}</h1><p>{subtab === "edit" && libraryOpen ? "Velg en lokal artikkel for å fortsette der du slapp." : "Rediger ferdig artikkel direkte på arket."}</p></div>
           <span className="local-badge"><span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#438f7c", marginRight: 6, verticalAlign: "middle" }} />Lokal eksempelvisning</span>
         </header>
+        <nav className="news-subtabs" aria-label="Nyhetsredigering">
+          <button type="button" className={subtab === "create" ? "active" : ""} onClick={openCreation}>Opprett ny sak</button>
+          <button type="button" className={subtab === "edit" ? "active" : ""} onClick={() => { setSubtab("edit"); setLibraryOpen(true); }}>Rediger saker <span>{articles.length}</span></button>
+        </nav>
+        {subtab === "edit" && libraryOpen ? (
+          <section className="article-library" aria-label="Lokale artikler">
+            <div className="library-head"><div><span className="compose-kicker">LOKAL KORTLISTE</span><h2>Artiklene dine</h2><p>Endringer lagres bare i denne eksempelvisningen.</p></div><button type="button" className="footer-btn primary" onClick={resetForNewArticle}><Plus size={14} />Opprett ny sak</button></div>
+            {articles.length ? <div className="article-cards">{articles.map((article) => {
+              const previewText = article.blocks.find((block) => block.type === "text")?.text || "Artikkelen har ikke fått en ingress ennå.";
+              return <button type="button" className="article-preview-card" key={article.id} onClick={() => openArticle(article)}>
+                {article.coverUrl ? <img src={article.coverUrl} alt="" /> : <div className="article-card-image"><Rows3 size={22} /></div>}
+                <span className="article-card-content"><span className="article-card-meta">{article.category} · Oppdatert {article.updatedAt}</span><strong>{article.title}</strong><span className="article-card-description">{previewText}</span><span className="article-card-open">Åpne artikkel <ChevronRight size={14} /></span></span>
+              </button>;
+            })}</div> : <div className="library-empty"><span className="step"><Rows3 size={15} /></span><h2>Ingen lokale saker ennå</h2><p>Lagre en artikkel fra redigeringsarket, så vises den her for videre redigering.</p><button type="button" className="footer-btn primary" onClick={resetForNewArticle}><Plus size={14} />Opprett ny sak</button></div>}
+          </section>
+        ) : (
         <div className="compose-grid">
           <section className="compose-main">
             <article className="paper-card">
@@ -369,9 +546,9 @@ export function Composer() {
               </div>
             </article>
             <footer className="compose-footer">
-              <button type="button" className="footer-btn" onClick={() => notifyLocal("Lokal eksempelvisning · ingen endringer er lagret.")}>Til nyhetsoversikt</button>
-              <button type="button" className="footer-btn" onClick={() => notifyLocal("Lokal eksempelvisning · ingen endringer er lagret.")}>Lagre som kladd</button>
-              <button type="button" className="footer-btn primary" onClick={() => notifyLocal("Lokal eksempelvisning · ingen publisering er utført.")}><Check size={14} />Publiser</button>
+              <button type="button" className="footer-btn" onClick={() => { setSubtab("edit"); setLibraryOpen(true); }}>Til saksliste</button>
+              <button type="button" className="footer-btn" onClick={saveLocally}>Lagre lokalt</button>
+              <button type="button" className="footer-btn primary" onClick={saveLocally}><Check size={14} />Lagre lokalt</button>
             </footer>
           </section>
           <aside className="compose-side">
@@ -398,8 +575,8 @@ export function Composer() {
                 <div className="author-state"><strong>Forfatter følger innlogget ansatt</strong>Sofie Nilsen · eksempel på koblet tenant_staff-bruker</div>
                 <label className="check-row"><input type="checkbox" checked={productOn} onChange={(event) => setProductOn(event.target.checked)} />Knytt til produkt</label>
                 {productOn && <div className="product-fields">
-                  <label className="field"><span>Produkt</span><select defaultValue=""><option value="">Velg produkt</option><option>Lokalt eksempelprodukt</option></select></label>
-                  <div className="details-row"><input type="number" min="0" max="100" placeholder="Rabatt %" /><input type="number" min="1" placeholder="Maks antall" /><input type="date" aria-label="Produktets utløpsdato" /></div>
+                  <label className="field"><span>Produkt</span><select value={productName} onChange={(event) => setProductName(event.target.value)}><option value="">Velg produkt</option><option>Lokalt eksempelprodukt</option></select></label>
+                  <div className="details-row"><input type="number" min="0" max="100" placeholder="Rabatt %" value={productDiscount} onChange={(event) => setProductDiscount(event.target.value)} /><input type="number" min="1" placeholder="Maks antall" value={productMax} onChange={(event) => setProductMax(event.target.value)} /><input type="date" aria-label="Produktets utløpsdato" value={productExpiry} onChange={(event) => setProductExpiry(event.target.value)} /></div>
                 </div>}
               </div>
             </section>
@@ -453,9 +630,11 @@ export function Composer() {
                         <label>Bildetekst<input value={selected.caption ?? ""} onChange={(event) => updateBlock(selected.id, { caption: event.target.value })} /></label>
                       </>}
                       {selected.type === "video" && <>
-                        <label>YouTube-lenke<input type="url" value={selected.url ?? ""} placeholder="https://www.youtube.com/watch?v=…" onChange={(event) => updateBlock(selected.id, { url: event.target.value })} /></label>
+                        <label>Videolenke<input type="url" value={selected.url ?? ""} placeholder="YouTube, Vimeo eller direkte .mp4/.webm" onChange={(event) => updateBlock(selected.id, { url: event.target.value })} /></label>
                         <label>Bildetekst<input value={selected.caption ?? ""} onChange={(event) => updateBlock(selected.id, { caption: event.target.value })} /></label>
-                        {videoIdFromUrl(selected.url ?? "") ? <span className="author-state"><Check size={13} style={{ verticalAlign: "middle" }} /> Gyldig YouTube-adresse</span> : <span className="author-state missing"><CircleAlert size={13} style={{ verticalAlign: "middle" }} /> Bruk en vanlig YouTube-videoadresse.</span>}
+                        {videoSourceFromUrl(selected.url ?? "").kind !== "invalid"
+                          ? <span className="author-state"><Check size={13} style={{ verticalAlign: "middle" }} /> Videolenken kan vises i forhåndsvisningen.</span>
+                          : <span className="author-state missing"><CircleAlert size={13} style={{ verticalAlign: "middle" }} /> Ugyldig kilde. Bruk YouTube, Vimeo eller direkte .mp4/.webm via HTTP eller HTTPS.</span>}
                       </>}
                     </div>
                   </div>
@@ -469,6 +648,7 @@ export function Composer() {
             </section>
           </aside>
         </div>
+        )}
       </main>
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>

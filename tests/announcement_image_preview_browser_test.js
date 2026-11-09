@@ -132,7 +132,7 @@ let html = `<!doctype html><html><head><meta name="viewport" content="width=devi
 button{padding:.45rem .7rem}
 </style></head><body><script>${bootstrap}</script>${rendered.stdout.replace(
     '<script src="/assets/announcement_ranking.js"></script>', `<script>${ranking}</script>`,
-)}<script>${uploadJs}</script><script>${checks}</script></body></html>`;
+).replace('<script src="/assets/news_video.js"></script>', `<script>${fs.readFileSync(path.join(__dirname, '../assets/news_video.js'),'utf8')}</script>`)}<script>${uploadJs}</script><script>${checks}</script></body></html>`;
 const server = http.createServer((request, response) => {
     if (request.url === '/landscape.svg' || request.url === '/portrait.svg') {
         const landscape = request.url === '/landscape.svg';

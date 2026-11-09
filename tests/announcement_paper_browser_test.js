@@ -9,7 +9,7 @@ const rendered = spawnSync('php', ['-r', '$_SESSION=[];include "modules/announce
 if (rendered.status !== 0) throw new Error(rendered.stderr);
 const ranking = fs.readFileSync(path.join(__dirname, '../assets/announcement_ranking.js'), 'utf8');
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'news-paper-'));
-const fixture = rendered.stdout.replace('<script src="/assets/announcement_ranking.js"></script>', `<script>${ranking}</script>`);
+const fixture = rendered.stdout.replace('<script src="/assets/announcement_ranking.js"></script>', `<script>${ranking}</script>`).replace('<script src="/assets/news_video.js"></script>', `<script>${fs.readFileSync(path.join(__dirname, '../assets/news_video.js'),'utf8')}</script>`);
 const stubs = `
 window.paperRows=[];window.paperSaves=[];window.paperAlerts=[];window.failNext=false;
 window.alert=message=>paperAlerts.push(message);
@@ -19,7 +19,7 @@ window.fetch=async(url,options)=>{
  if(failNext){failNext=false;return {ok:false,json:async()=>({success:false,message:'Test: lagring avvist'})}}
  const id=data.id||'new-story',elements=data.elements.map(el=>{
   if(el.element_type==='image_carousel')return {...el,content:{images:el.content.urls.map(url=>({url,alt:''}))}};
-  if(el.element_type==='youtube_video')return {...el,content:{video_id:'abcdefghijk',caption:el.content.caption}};
+  if(el.element_type==='youtube_video'){const video=NewsVideo.parse(el.content.url);return {...el,content:video.provider==='youtube'?{video_id:video.id,caption:el.content.caption}:{provider:video.provider,url:el.content.url,caption:el.content.caption}}}
   return el;
  });
  const story={...data,id,elements,author_name:'Testredaktør',publish_at:data.scheduled_publish?data.publish_at:'2026-11-09 19:00:00',content_html:data.content,content_text:data.content};
@@ -91,6 +91,28 @@ const checks = `(async()=>{
   const carouselRow=Array.from(rows()).find(row=>row.textContent.includes('Bildekarusell'));carouselRow.querySelector('[data-element-select]').click();
   check(document.querySelector('[data-element-key="urls"]').value.split('\\n').length===2,'Carousel canonical JSON reopens with two editable URLs');
   check(paper.querySelector('[data-paper-text] strong'),'Rich formatting survives save and reopening');
+  check(!$('news-edit-panel').hidden&&$('news-create-tab').getAttribute('aria-selected')==='false','Editing opens under its own subtab');
+  const videoRow=Array.from(rows()).find(row=>row.textContent.includes('Video'));videoRow.querySelector('[data-element-select]').click();
+  input(document.querySelector('[data-element-key="url"]'),'https://vimeo.com/123456789/abc123');
+  check(paper.querySelector('iframe')?.src==='https://player.vimeo.com/video/123456789?h=abc123','Unlisted Vimeo uses embedded player and preserves hash');
+  input(document.querySelector('[data-element-key="url"]'),'https://cdn.example.test/clip.webm?version=2');
+  check(paper.querySelector('video')?.getAttribute('src')==='https://cdn.example.test/clip.webm?version=2'&&paper.querySelector('video').controls,'Direct video uses native controls and retains query');
+  $('publishButton').click();await tick();
+  check(!$('news-edit-panel').hidden&&!$('news-edit-list').hidden&&$('news-edit-workspace').hidden,'Edit save returns to preview cards');
+  check(paperSaves.at(-1).id==='new-story'&&paperSaves.at(-1).elements.some(el=>el.content.url?.includes('clip.webm')),'Update saves original article ID and new video URL');
+  check($('news-edit-cards').querySelectorAll('[data-edit-story]').length===1,'Saved article appears as a clickable preview card');
+  $('news-create-tab').click();input($('announcement-title'),'Ulagret ny sak');
+  $('news-edit-tab').click();$('news-edit-cards').querySelector('[data-edit-story]').click();await tick();
+  check(!!paper.querySelector('video'),'Card reopens the saved direct video');
+  $('news-create-tab').click();await tick();
+  check($('announcement-title').value==='Ulagret ny sak','Switching back restores separate creation draft');
+  $('news-edit-tab').click();$('news-edit-cards').querySelector('[data-edit-story]').click();await tick();
+  input($('announcement-title'),'Endret tittel');window.confirm=()=>false;$('news-edit-back').click();
+  check(!$('news-edit-workspace').hidden&&$('announcement-title').value==='Endret tittel','Declining discard retains changes');
+  window.confirm=()=>true;$('news-edit-back').click();
+  check(!$('news-edit-list').hidden,'Back returns to card list after confirmed discard');
+  input($('news-edit-search'),'finnes ikke');check(!$('news-edit-cards').querySelector('[data-edit-story]'),'Card search has an empty result state');
+  input($('news-edit-search'),'');
   check(document.documentElement.scrollWidth<=innerWidth+1,'Paper and inspector do not overflow mobile width');
   window.scrollTo(0,0);
   return {passed:true};

@@ -25,6 +25,42 @@ function announcement_element_url($value, string $label): string {
     return $value;
 }
 
+/** Legacy element_type stays unchanged; provider is carried in content_json. */
+function announcement_video_content(array $content): array {
+    $value = $content['url'] ?? null;
+    $url = announcement_element_url(is_string($value) ? trim($value) : $value, 'Videolenken');
+    if (parse_url($url, PHP_URL_USER) !== null || parse_url($url, PHP_URL_PASS) !== null) {
+        throw new InvalidArgumentException('Videolenken kan ikke inneholde påloggingsinformasjon.');
+    }
+    $host = preg_replace('/^www\./', '', strtolower((string)parse_url($url, PHP_URL_HOST)));
+    $path = (string)parse_url($url, PHP_URL_PATH);
+    parse_str((string)parse_url($url, PHP_URL_QUERY), $query);
+    $caption = mb_substr(trim((string)($content['caption'] ?? '')), 0, 2000);
+    if (in_array($host, ['youtu.be','youtube.com','m.youtube.com','youtube-nocookie.com'], true)) {
+        $id = $host === 'youtu.be' ? (explode('/', trim($path, '/'))[0] ?? '') : ($query['v'] ?? '');
+        if (!$id && preg_match('~^/(?:embed|shorts)/([^/]+)~', $path, $match)) $id = $match[1];
+        if (!is_string($id) || !preg_match('/^[A-Za-z0-9_-]{11}$/', $id)) {
+            throw new InvalidArgumentException('YouTube-lenken inneholder ikke en gyldig video.');
+        }
+        // Preserve the original reader contract for YouTube.
+        return ['video_id'=>$id, 'caption'=>$caption];
+    }
+    if (in_array($host, ['vimeo.com','player.vimeo.com'], true)) {
+        if (!preg_match('~^/(?:video/)?(\d+)(?:/([A-Za-z0-9]+))?/?$~', $path, $match)) {
+            throw new InvalidArgumentException('Vimeo-lenken inneholder ikke en gyldig video.');
+        }
+        $hash = $query['h'] ?? ($match[2] ?? '');
+        if (!is_string($hash) || ($hash !== '' && !preg_match('/^[A-Za-z0-9]+$/', $hash))) {
+            throw new InvalidArgumentException('Vimeo-lenken har en ugyldig delingsnøkkel.');
+        }
+        return ['provider'=>'vimeo', 'url'=>'https://vimeo.com/'.$match[1].($hash !== '' ? '/'.$hash : ''), 'caption'=>$caption];
+    }
+    if (preg_match('/\.(mp4|webm)$/i', $path)) {
+        return ['provider'=>'file', 'url'=>$url, 'caption'=>$caption];
+    }
+    throw new InvalidArgumentException('Bruk YouTube, Vimeo eller en direkte lenke til .mp4 eller .webm.');
+}
+
 function announcement_validate_elements($input): array {
     if (!is_array($input) || !array_is_list($input) || count($input) > 50) {
         throw new InvalidArgumentException('Innholdet må bestå av maksimalt 50 elementer.');
@@ -73,18 +109,7 @@ function announcement_validate_elements($input): array {
                 return ['url'=>$url,'alt'=>$alt];
             }, $urls)];
         } else {
-            $url = announcement_element_url($content['url'] ?? null,'YouTube-lenken');
-            $host = strtolower((string)parse_url($url,PHP_URL_HOST));
-            $path = trim((string)parse_url($url,PHP_URL_PATH),'/');
-            parse_str((string)parse_url($url,PHP_URL_QUERY),$query);
-            $videoId = '';
-            if (in_array($host,['youtu.be','www.youtu.be'],true)) $videoId=explode('/',$path)[0]??'';
-            elseif (in_array($host,['youtube.com','www.youtube.com','m.youtube.com','youtube-nocookie.com','www.youtube-nocookie.com'],true)) {
-                $videoId=($query['v']??'');
-                if (!$videoId && preg_match('~^(?:embed|shorts)/([^/]+)~',$path,$match)) $videoId=$match[1];
-            }
-            if (!preg_match('/^[A-Za-z0-9_-]{11}$/',$videoId)) throw new InvalidArgumentException('YouTube-lenken ser ikke ut til å inneholde en gyldig video.');
-            $clean = ['video_id'=>$videoId,'caption'=>mb_substr(trim((string)($content['caption']??'')),0,2000)];
+            $clean = announcement_video_content($content);
         }
         $elements[]=['position'=>$index+1,'element_type'=>$type,'content_json'=>json_encode($clean,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)];
     }
