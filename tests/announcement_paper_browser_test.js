@@ -11,11 +11,11 @@ const ranking = fs.readFileSync(path.join(__dirname, '../assets/announcement_ran
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'news-paper-'));
 const fixture = rendered.stdout.replace('<script src="/assets/announcement_ranking.js"></script>', `<script>${ranking}</script>`).replace('<script src="/assets/news_video.js"></script>', `<script>${fs.readFileSync(path.join(__dirname, '../assets/news_video.js'),'utf8')}</script>`);
 const stubs = `
-window.paperRows=[];window.paperSaves=[];window.paperAlerts=[];window.failNext=false;
+window.paperRows=[];window.paperSaves=[];window.paperEndpoints=[];window.paperAlerts=[];window.failNext=false;
 window.alert=message=>paperAlerts.push(message);
 window.fetch=async(url,options)=>{
  if(!options)return {ok:true,json:async()=>({success:true,announcements:paperRows,editor_author:{staff_id:'test-staff',name:'Testredaktør'},company_name:'Testforeningen'})};
- const data=JSON.parse(options.body);paperSaves.push(data);
+ const data=JSON.parse(options.body);paperSaves.push(data);paperEndpoints.push(String(url));
  if(failNext){failNext=false;return {ok:false,json:async()=>({success:false,message:'Test: lagring avvist'})}}
  const id=data.id||'new-story',elements=data.elements.map(el=>{
   if(el.element_type==='image_carousel')return {...el,content:{images:el.content.urls.map(url=>({url,alt:''}))}};
@@ -35,6 +35,7 @@ const checks = `(async()=>{
  const add=kind=>{$('paper-add-trigger').click();const pending=paper.querySelector('[data-pending-index]')?.closest('[data-paper-index]');check(!!pending,'New block is inserted into paper before choosing a type');check(!!(pending.compareDocumentPosition($('paper-add-trigger'))&Node.DOCUMENT_POSITION_FOLLOWING),'Pending block appears above the add button');check(pending.querySelectorAll('[data-add-kind]').length===6,'Exactly six element choices');pending.querySelector('[data-add-kind="'+kind+'"]').click()};
  try{
   await tick();$('newAnnouncementButton').click();
+  check(!document.querySelector('select#announcement-type')&&$('announcement-type').value==='news','Creation has no type dropdown and defaults to news');
   check(!paper.querySelector('[data-paper-index]'),'New paper starts empty');
   check(!$('announcement-scheduled').checked&&$('announcement-schedule-fields').hidden,'Publishing now hides schedule fields');
   check(paper.textContent.includes('Testredaktør')&&!paper.textContent.includes('Fjordvik'),'Real author and company metadata replaces placeholders: '+paper.textContent);
@@ -84,6 +85,7 @@ const checks = `(async()=>{
   $('publishButton').click();await tick();
   check(paperSaves[1].publish_at==='2039-12-31 19:00:00'&&paperSaves[1].scheduled_publish===true,'Planned date is serialized in SQL format');
   check(paperSaves[1].elements.length===6,'All six types survive serialization');
+  check(paperEndpoints[1]==='/api/create_announcement.php'&&paperSaves[1].is_published===true&&paperSaves[1].announcement_type==='news','Publish calls real creation endpoint with news type and publication flag');
   check(!$('announcement-title').value&&!paper.querySelector('[data-paper-index]')&&!$('news-create-panel').hidden,'Successful creation resets the complete paper and stays in create tab');
   $('news-overview-tab').click();await tick();document.querySelector('[data-action="edit"]').click();await tick();
   check(paper.querySelectorAll('.nc-paper-block').length===6,'Saved elements all reopen');
@@ -92,6 +94,7 @@ const checks = `(async()=>{
   check(document.querySelector('[data-element-key="urls"]').value.split('\\n').length===2,'Carousel canonical JSON reopens with two editable URLs');
   check(paper.querySelector('[data-paper-text] strong'),'Rich formatting survives save and reopening');
   check(!$('news-edit-panel').hidden&&$('news-create-tab').getAttribute('aria-selected')==='false','Editing opens under its own subtab');
+  check(!document.querySelector('select#announcement-type'),'Editing has no type dropdown either');
   const videoRow=Array.from(rows()).find(row=>row.textContent.includes('Video'));videoRow.querySelector('[data-element-select]').click();
   input(document.querySelector('[data-element-key="url"]'),'https://vimeo.com/123456789/abc123');
   check(paper.querySelector('iframe')?.src==='https://player.vimeo.com/video/123456789?h=abc123','Unlisted Vimeo uses embedded player and preserves hash');
@@ -100,6 +103,7 @@ const checks = `(async()=>{
   $('publishButton').click();await tick();
   check(!$('news-edit-panel').hidden&&!$('news-edit-list').hidden&&$('news-edit-workspace').hidden,'Edit save returns to preview cards');
   check(paperSaves.at(-1).id==='new-story'&&paperSaves.at(-1).elements.some(el=>el.content.url?.includes('clip.webm')),'Update saves original article ID and new video URL');
+  check(paperEndpoints.at(-1)==='/api/update_announcement.php'&&paperSaves.at(-1).is_published===true,'Edit publishes through the update endpoint');
   check($('news-edit-cards').querySelectorAll('[data-edit-story]').length===1,'Saved article appears as a clickable preview card');
   $('news-create-tab').click();input($('announcement-title'),'Ulagret ny sak');
   $('news-edit-tab').click();$('news-edit-cards').querySelector('[data-edit-story]').click();await tick();

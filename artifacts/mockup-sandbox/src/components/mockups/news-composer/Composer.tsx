@@ -197,7 +197,7 @@ export function Composer() {
   const [selectedId, setSelectedId] = useState(2);
   const [insertOpen, setInsertOpen] = useState(false);
   const [coverUrl, setCoverUrl] = useState(sampleImage);
-  const [category, setCategory] = useState("Nyhet");
+  const category = "Nyhet";
   const [priority, setPriority] = useState("2");
   const [pinned, setPinned] = useState(false);
   const [scheduled, setScheduled] = useState(false);
@@ -259,7 +259,6 @@ export function Composer() {
       rows: block.rows?.map((row) => [...row]),
     })));
     setCoverUrl(article.coverUrl);
-    setCategory(article.category);
     setPriority(article.priority);
     setPinned(article.pinned);
     setScheduled(article.scheduled);
@@ -302,10 +301,10 @@ export function Composer() {
     setInsertOpen(false);
     setSubtab("create");
   };
-  const saveLocally = () => {
+  const publishPreview = () => {
     const data = captureArticle();
     if (!data.title.trim()) {
-      notifyLocal("Skriv inn en tittel før du lagrer lokalt.");
+      notifyLocal("Skriv inn en tittel før du publiserer.");
       return;
     }
     if (data.blocks.some(block => block.type === "video" && videoSourceFromUrl(block.url ?? "").kind === "invalid")) {
@@ -319,12 +318,12 @@ export function Composer() {
         delete next[currentArticleId];
         return next;
       });
-      notifyLocal("Endringene er lagret lokalt på artikkelkortet.");
+      notifyLocal("Demo: publisering av endringene er simulert. Ingen data er sendt til serveren.");
       setLibraryOpen(true);
     } else {
       const id = `article-${Date.now()}`;
       setArticles((current) => [{ ...data, id, updatedAt: new Date().toLocaleDateString("nb-NO") }, ...current]);
-      notifyLocal("Ny artikkel er lagt til i den lokale kortlisten.");
+      notifyLocal("Demo: publisering er simulert. Ingen data er sendt til serveren.");
       resetForNewArticle();
     }
   };
@@ -500,16 +499,16 @@ export function Composer() {
       <main className="editor-page">
         <div className="editor-crumb"><ArrowLeft size={14} /><span>Nyhetsoversikt</span><span>/</span><b>{subtab === "edit" && libraryOpen ? "Rediger saker" : currentArticleId ? "Rediger sak" : "Opprett ny sak"}</b></div>
         <header className="compose-heading">
-          <div><span className="compose-kicker">NEWS · REDAKTØR</span><h1>{subtab === "edit" && libraryOpen ? "Rediger saker" : currentArticleId ? "Rediger sak" : "Opprett ny sak"}</h1><p>{subtab === "edit" && libraryOpen ? "Velg en lokal artikkel for å fortsette der du slapp." : "Rediger ferdig artikkel direkte på arket."}</p></div>
-          <span className="local-badge"><span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#438f7c", marginRight: 6, verticalAlign: "middle" }} />Lokal eksempelvisning</span>
+          <div><span className="compose-kicker">NEWS · REDAKTØR</span><h1>{subtab === "edit" && libraryOpen ? "Rediger saker" : currentArticleId ? "Rediger sak" : "Opprett ny sak"}</h1><p>{subtab === "edit" && libraryOpen ? "Velg en sak for å redigere innholdet." : "Rediger ferdig artikkel direkte på arket."}</p></div>
+          <span className="local-badge"><span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#438f7c", marginRight: 6, verticalAlign: "middle" }} />Forhåndsvisning · simulerte data</span>
         </header>
         <nav className="news-subtabs" aria-label="Nyhetsredigering">
           <button type="button" className={subtab === "create" ? "active" : ""} onClick={openCreation}>Opprett ny sak</button>
           <button type="button" className={subtab === "edit" ? "active" : ""} onClick={() => { setSubtab("edit"); setLibraryOpen(true); }}>Rediger saker <span>{articles.length}</span></button>
         </nav>
         {subtab === "edit" && libraryOpen ? (
-          <section className="article-library" aria-label="Lokale artikler">
-            <div className="library-head"><div><span className="compose-kicker">LOKAL KORTLISTE</span><h2>Artiklene dine</h2><p>Endringer lagres bare i denne eksempelvisningen.</p></div><button type="button" className="footer-btn primary" onClick={resetForNewArticle}><Plus size={14} />Opprett ny sak</button></div>
+          <section className="article-library" aria-label="Saker">
+            <div className="library-head"><div><span className="compose-kicker">NYHETSARKIV</span><h2>Artiklene dine</h2><p>Trykk på et kort for å åpne artikkelarket.</p></div><button type="button" className="footer-btn primary" onClick={resetForNewArticle}><Plus size={14} />Opprett ny sak</button></div>
             {articles.length ? <div className="article-cards">{articles.map((article) => {
               const previewText = article.blocks.find((block) => block.type === "text")?.text || "Artikkelen har ikke fått en ingress ennå.";
               return <button type="button" className="article-preview-card" key={article.id} onClick={() => openArticle(article)}>
@@ -547,8 +546,7 @@ export function Composer() {
             </article>
             <footer className="compose-footer">
               <button type="button" className="footer-btn" onClick={() => { setSubtab("edit"); setLibraryOpen(true); }}>Til saksliste</button>
-              <button type="button" className="footer-btn" onClick={saveLocally}>Lagre lokalt</button>
-              <button type="button" className="footer-btn primary" onClick={saveLocally}><Check size={14} />Lagre lokalt</button>
+              <button type="button" className="footer-btn primary" onClick={publishPreview}><Check size={14} />Publiser</button>
             </footer>
           </section>
           <aside className="compose-side">
@@ -557,7 +555,6 @@ export function Composer() {
               <div className="inspector-body">
                 <label className="field"><span>Tittel</span><input value={title} maxLength={255} onChange={(event) => setTitle(event.target.value)} /></label>
                 <div className="details-row">
-                  <label className="field"><span>Type</span><select value={category} onChange={(event) => setCategory(event.target.value)}><option>Nyhet</option><option>Arrangement</option><option>Informasjon</option><option>Aktuelt</option><option>Viktig melding</option></select></label>
                   <label className="field"><span>Prioritet</span><input type="number" min="1" max="9" value={priority} onChange={(event) => setPriority(event.target.value)} /></label>
                 </div>
                 <small className="priority-help">1–9 · 1 er høyest.</small>

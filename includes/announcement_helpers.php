@@ -16,7 +16,7 @@ const ANNOUNCEMENT_ALLOWED_CONTENT_TAGS = [
 ];
 
 function announcement_type($value): string {
-    return in_array($value, ANNOUNCEMENT_TYPES, true) ? $value : 'info';
+    return in_array($value, ANNOUNCEMENT_TYPES, true) ? $value : 'news';
 }
 /** Normalize values read during the legacy text-to-number transition. */
 function announcement_priority($value): int {

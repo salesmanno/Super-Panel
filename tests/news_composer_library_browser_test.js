@@ -8,6 +8,8 @@ const checks = `(async()=>{
  const check=(ok,message)=>{if(!ok)throw new Error(message)};
  const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
  for(let i=0;i<60&&!document.querySelector('.news-subtabs');i++)await new Promise(r=>setTimeout(r,100));
+ check(!Array.from(document.querySelectorAll('.compose-side label')).some(el=>el.querySelector('span')?.textContent==='Type'),'Demo has no type dropdown');
+ check(document.querySelector('.footer-btn.primary')?.textContent.trim()==='Publiser','Demo uses the actual publication action label');
  const nav=label=>Array.from(document.querySelectorAll('.news-subtabs button')).find(b=>b.textContent.startsWith(label));
  const input=async(el,value)=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,value);el.dispatchEvent(new Event('input',{bubbles:true}));await tick()};
  const save=()=>document.querySelector('.footer-btn.primary').click();

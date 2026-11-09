@@ -219,7 +219,8 @@ try {
      <header class="news-compose-card-head"><div><span class="news-compose-step">02</span><strong>Nyhetsdetaljer</strong><small>Opplysninger som følger saken ut.</small></div></header>
      <div class="news-compose-card-body">
       <label class="form-label" for="announcement-title">Tittel</label><input class="form-control mb-3" id="announcement-title" required maxlength="255">
-      <div class="row g-2"><div class="col-7"><label class="form-label" for="announcement-type">Type</label><select class="form-select" id="announcement-type"><option value="news">Nyhet</option><option value="event">Arrangement</option><option value="info">Informasjon</option><option value="promotion">Aktuelt</option><option value="urgent">Viktig melding</option></select></div><div class="col-5"><label class="form-label" for="announcement-priority">Prioritet</label><input class="form-control" id="announcement-priority" type="number" min="1" max="9" step="1" value="5" required aria-describedby="announcement-priority-help"></div></div><small id="announcement-priority-help" class="text-muted">1–9 · 1 er høyest.</small>
+      <input type="hidden" id="announcement-type" value="news">
+      <label class="form-label" for="announcement-priority">Prioritet</label><input class="form-control" id="announcement-priority" type="number" min="1" max="9" step="1" value="5" required aria-describedby="announcement-priority-help"><small id="announcement-priority-help" class="text-muted">1–9 · 1 er høyest.</small>
       <div class="announcement-image-editor mt-3"><img id="announcement-image-preview" class="announcement-image-preview" alt="Forhåndsvisning av nyhetsbildet" hidden><div id="announcement-image-placeholder" class="announcement-image-placeholder">Ingen forsidebilde valgt</div><div class="announcement-image-url"><label class="form-label" for="announcement-image-url">Forsidebilde · URL</label><input type="url" class="form-control" id="announcement-image-url" placeholder="https://…"></div></div>
       <div class="form-check mt-3"><input class="form-check-input" type="checkbox" id="announcement-is-pinned"><label class="form-check-label" for="announcement-is-pinned">Fest øverst</label></div>
        <div class="form-check mt-3"><input class="form-check-input" type="checkbox" id="announcement-scheduled"><label class="form-check-label" for="announcement-scheduled">Planlagt publisering</label></div><div id="announcement-schedule-fields" class="news-compose-schedule mt-2" hidden><div class="row g-2"><div class="col-7"><label class="form-label" for="announcement-publish-date">Dato · dd.mm.åå</label><input class="form-control" id="announcement-publish-date" inputmode="numeric" placeholder="dd.mm.åå"></div><div class="col-5"><label class="form-label" for="announcement-publish-time">Klokkeslett</label><input class="form-control" id="announcement-publish-time" inputmode="numeric" placeholder="19:00" maxlength="5"></div></div></div><input type="hidden" id="announcement-publish-at"><div class="mt-3"><label class="form-label" for="announcement-expire-at">Utløper</label><input type="datetime-local" class="form-control" id="announcement-expire-at"></div><div class="nc-author-slot mt-3"></div>
@@ -501,7 +502,7 @@ async function loadProducts(){let s=$('announcement-product-id');if(s.options.le
 async function toggleProduct(){let on=$('announcement-product-toggle').checked;$('product-section').hidden=!on;if(on)await loadProducts();syncDraft()}
 function resetProduct(){let s=$('announcement-product-id');s.selectedIndex=0;$('announcement-product-toggle').checked=false;$('product-section').hidden=true;$('announcement-discount').value='';$('announcement-max-qty').value='';$('announcement-product-expiry').value=''}
   function resetComposer(){
-   $('announcementForm').reset();$('announcement-id').value='';selectedAuthorName='';$('announcement-priority').value=String(priorityDefault);
+   $('announcementForm').reset();$('announcement-id').value='';$('announcement-type').value='news';selectedAuthorName='';$('announcement-priority').value=String(priorityDefault);
    $('announcement-publish-at').value='';setScheduleFields('',false);$('announcement-expire-at').value='';$('announcement-is-pinned').checked=false;
     setContentHtml('');setEditorElements([]);selectedElementIndex=0;
    resetProduct();$('announcementModalTitle').textContent='Opprett ny sak';previewDraft=null;selectedId=null;insertionOpen=false;carouselIndexes={};previewEffectivePublishAt=null;
@@ -523,7 +524,7 @@ function resetProduct(){let s=$('announcement-product-id');s.selectedIndex=0;$('
    rememberNewStory();
    selectedId=String(id);publishIntent=!!a.is_published;selectedAuthorName=a.author_name||'';
    $('announcement-id').value=a.id;
-   [['title',a.title],['image-url',a.image_url||''],['type',a.announcement_type||'info'],['priority',priorityValue(a.priority)],['expire-at',a.expire_at?.replace(' ','T').slice(0,16)||'']].forEach(([k,v])=>$('announcement-'+k).value=v);
+   [['title',a.title],['image-url',a.image_url||''],['type',a.announcement_type||'news'],['priority',priorityValue(a.priority)],['expire-at',a.expire_at?.replace(' ','T').slice(0,16)||'']].forEach(([k,v])=>$('announcement-'+k).value=v);
    setScheduleFields(a.publish_at,!!(a.publish_at&&new Date(String(a.publish_at).replace(' ','T'))>new Date()));
    setContentHtml(a.content_html);carouselIndexes={};setEditorElements(a.elements?.length?a.elements:[{element_type:'text',content:{html:a.content_html||a.content||''}}]);
    $('announcement-is-pinned').checked=!!a.is_pinned;resetProduct();
@@ -574,7 +575,7 @@ function resetProduct(){let s=$('announcement-product-id');s.selectedIndex=0;$('
    if(!applyPriorityMap(x.priorities))await load();
    setSaveBusy(false);
    if(id){editBaseline=editorFingerprint();resetComposer();restoreNewStory();setNewsPanel('edit',false)}
-   else{$('announcement-save-status').textContent='Nyhet opprettet. Skjemaet er nullstilt og klart for neste sak.';$('announcement-save-status').hidden=false;resetComposer();$('announcement-save-status').textContent='Nyhet opprettet. Skjemaet er nullstilt og klart for neste sak.';$('announcement-save-status').hidden=false;setNewsPanel('create')}
+   else{resetComposer();$('announcement-save-status').textContent=publishIntent?(scheduled?'Nyheten er lagret for planlagt publisering.':'Nyheten er publisert.'):'Nyheten er lagret som kladd.';$('announcement-save-status').textContent+=' Skjemaet er nullstilt og klart for neste sak.';$('announcement-save-status').hidden=false;setNewsPanel('create')}
   }catch(e){alert('Kunne ikke lagre. Kontroller forbindelsen og prøv igjen.')}
   finally{setSaveBusy(false)}
  }

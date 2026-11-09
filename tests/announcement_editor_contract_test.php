@@ -34,6 +34,7 @@ editor_rejects(static fn() => announcement_validate_elements([
 $payload = ['title'=>'Ny sak','content'=>'Innhold','priority'=>5,'is_published'=>true,'scheduled_publish'=>false,'publish_at'=>'ignored-client-value'];
 $result = announcement_validate_payload($payload);
 editor_check($result['ok'] && $result['data']['publish_at'] === null, 'Publish now must ignore client timestamps');
+editor_check($result['data']['announcement_type'] === 'news', 'New articles default to news without a type selection');
 $clean = $result['data'];
 $now = '2026-11-09 18:40:01';
 editor_check(announcement_editor_publish_at($clean, null, $now) === $now, 'First publication uses database time');

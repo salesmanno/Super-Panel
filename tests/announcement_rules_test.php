@@ -18,7 +18,7 @@ $items = [
 $active = array_values(array_filter($items, fn($a) => announcement_is_active($a, $now)));
 announcement_sort($active);
 check_rule(array_column($active, 'id') === ['a','b','c','z'], 'pin, priority, date and id tie ordering');
-check_rule(announcement_type('unknown') === 'info', 'safe type default');
+check_rule(announcement_type('unknown') === 'news', 'safe type default');
 check_rule(announcement_priority('urgent') === 1 && announcement_priority('high') === 3 && announcement_priority('normal') === 5 && announcement_priority('low') === 8, 'legacy priority mapping');
 check_rule(announcement_priority('unknown') === 5, 'safe priority default');
  $elementRows=announcement_validate_elements([
