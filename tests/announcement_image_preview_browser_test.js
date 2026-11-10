@@ -61,8 +61,8 @@ const checks = `
       else if(Date.now()-start>4000){clearInterval(timer);reject(new Error(message))}
     },25);
   });
-  const openNew=()=>document.getElementById('newAnnouncementButton').click();
-  const close=()=>document.getElementById('news-overview-tab').click();
+  const openNew=()=>document.getElementById('news-create-tab').click();
+  const close=()=>document.getElementById('news-edit-tab').click();
   const setUrl=value=>{input.value=location.origin+value;input.dispatchEvent(new Event('input',{bubbles:true}))};
   const checkBounded=label=>{
     const editor=document.querySelector('.announcement-image-editor');
@@ -103,7 +103,7 @@ const checks = `
     checkBounded('new error');
     close();
 
-    document.querySelector('[data-action="edit"][data-id="44"]').click();
+    document.querySelector('[data-edit-story="44"]').click();
     await waitFor(()=>image.complete&&image.naturalWidth===300,'editing existing story loads its portrait preview');
     checkBounded('edit portrait');
     setUrl('/landscape.svg');
