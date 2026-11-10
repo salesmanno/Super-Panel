@@ -18,3 +18,7 @@ replit.md
 !db_migrations/tenant_customer_contacts_backfill.sql
 !db_migrations/tenant_customer_contacts_setup.sql
 *.log
+
+# Generated browser profiles from URL-based test fixtures, never application files.
+/http:/
+/https:/

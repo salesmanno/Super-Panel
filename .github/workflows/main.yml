@@ -22,6 +22,8 @@ jobs:
           protocol: ftps
           timeout: 90000
           exclude: |
+            http:/**
+            https:/**
             **/.env
             **/.env.*
             **/.git*

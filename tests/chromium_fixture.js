@@ -2,8 +2,14 @@
 const {spawn} = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
+function outputDirectory(fixture, options={}) {
+    return options.outputDir || (/^https?:\/\//.test(fixture)
+        ? fs.mkdtempSync(path.join(os.tmpdir(),'chromium-url-fixture-'))
+        : path.dirname(fixture));
+}
 module.exports = async function chromiumFixture(fixture, checks, widths, options={}) {
-    const dir = options.outputDir || path.dirname(fixture);
+    const dir = outputDirectory(fixture,options);
     let browser, socket;
     try {
         browser = spawn('/repl/tools/bin/chromium', ['--headless','--no-sandbox','--disable-dev-shm-usage',
@@ -52,3 +58,4 @@ module.exports = async function chromiumFixture(fixture, checks, widths, options
         browser?.kill();
     }
 };
+module.exports.outputDirectory = outputDirectory;
