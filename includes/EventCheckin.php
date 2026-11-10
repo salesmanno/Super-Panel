@@ -190,22 +190,6 @@ final class EventCheckin {
             'payment_status','payment_method','checked_in','check_in_time','barcode','has_valid_ledger','pending_reference','pending_payment']));
         return ['event'=>$e,'people'=>$people,'methods'=>$this->methods($e)];
     }
-    /**
-     * Shared payment projection for the legacy dashboard participant endpoint.
-     * Its roster data is otherwise served from the raw checkin columns, while
-     * website payments may be recorded against the parent registration.
-     */
-    public function paymentRecognition(string $event): array {
-        $this->event($event); // Do not expose another tenant's event or ledger.
-        $result=[];
-        foreach($this->people($event) as $person) {
-            $result[$person['id']]=[
-                'has_valid_ledger'=>(bool)$person['has_valid_ledger'],
-                'payment_method'=>$person['payment_method']??null
-            ];
-        }
-        return $result;
-    }
     private function validateGroup(array $rows, bool $previous, ?string $reference = null): void {
         foreach ($rows as $index=>$p) {
             if ((int)$p['checked_in']===1) throw new InvalidArgumentException('En deltaker er allerede sjekket inn. Oppdater oversikten.');

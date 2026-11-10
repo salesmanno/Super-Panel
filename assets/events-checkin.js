@@ -9,7 +9,10 @@
     let returnFocus, dialogFocus, requestPhase = '';
     const current = () => document.getElementById('ec-checkout');
     const byId = id => data?.people.find(person => String(person.id) === String(id));
-    const paid = person => Number(person.ticket_price) <= 0 || !!person.has_valid_ledger;
+    // A missing accounting link does not undo a recorded payment. Keep the
+    // displayed payment status separate from the admission/ledger requirement.
+    const readyForAdmission = person => Number(person.ticket_price) <= 0 || !!person.has_valid_ledger;
+    const paid = person => person.payment_status === 'paid' || readyForAdmission(person);
     const selected = () => [target, ...extras.map(byId)].filter(Boolean);
     const total = () => selected().reduce((sum, person) => sum + Number(person.ticket_price), 0);
     const mutable = () => !!data?.event.editable;
@@ -215,7 +218,7 @@
     async function checkin(person) {
         if (!person || busy || !mutable()) return;
         if (Number(person.checked_in)===1) { message(`${person.customer_name} er allerede sjekket inn.`); return; }
-        if (paid(person) && !person.pending_reference) {
+        if (readyForAdmission(person) && !person.pending_reference) {
             setBusy(true);
             try {
                 await api('commit',{participant_ids:[person.id],payer_id:person.id,method:'',confirmed:false});

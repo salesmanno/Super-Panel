@@ -6,10 +6,10 @@ const logo='data:image/webp;base64,'+fs.readFileSync(path.join(__dirname,'../ass
 const source=fs.readFileSync(path.join(__dirname,'../assets/events-checkin.js'),'utf8')
     .replace('/assets/vipps-payment-logo.webp',logo);
 const css=fs.readFileSync(path.join(__dirname,'../assets/events-checkin.css'),'utf8');
-const people=Array.from({length:8},(_,index)=>({
+const people=Array.from({length:9},(_,index)=>({
     id:'p'+index,customer_name:'Deltaker '+index,first_name:'Deltaker',last_name:String(index),
     customer_phone:index===0?'99999999':'',customer_email:'test@example.invalid',
-    ticket_price:index===7?0:100,payment_status:index===6?'paid':'pending',payment_method:index===6?'cash':null,
+    ticket_price:index===7?0:100,payment_status:[6,8].includes(index)?'paid':'pending',payment_method:[6,8].includes(index)?'cash':null,
     has_valid_ledger:index===6,checked_in:0,barcode:'BAR'+index
 }));
 fs.writeFileSync(path.join(dir,'index.html'),`<!doctype html><meta charset="utf-8"><style>
@@ -44,7 +44,17 @@ const checks=`(async()=>{
  const wait=()=>new Promise(r=>setTimeout(r,80)),assert=(ok,msg)=>{if(!ok)throw Error(msg)};
  const click=selector=>{const el=document.querySelector(selector);assert(el,'Missing '+selector);el.click()};
  click('#open-event');for(let i=0;i<100&&!document.querySelector('[data-ec-search]');i++)await wait();
- assert(document.querySelectorAll('.uc-attendee').length===8,'Waiting roster loads actual component: rows='+document.querySelectorAll('.uc-attendee').length+'; '+document.querySelector('[data-ec-message]')?.textContent+'; '+window.fixtureError);
+ assert(document.querySelectorAll('.uc-attendee').length===9,'Waiting roster loads actual component: rows='+document.querySelectorAll('.uc-attendee').length+'; '+document.querySelector('[data-ec-message]')?.textContent+'; '+window.fixtureError);
+ const recordedPaidRow=document.querySelector('[data-ec-checkin="p8"]').closest('.uc-attendee');
+ assert(recordedPaidRow.querySelector('.uc-payment-status').textContent.trim()==='Betalt','Stored paid is not displayed as unpaid when ledger link is missing');
+ assert(recordedPaidRow.querySelector('.uc-payment-status').classList.contains('is-paid'),'Recorded payment has paid styling');
+ assert(document.querySelector('[data-ec-checkin="p0"]').closest('.uc-attendee').querySelector('.uc-payment-status').textContent.trim()==='Ubetalt','Actual pending payment remains unpaid');
+ const beforePaidClick=calls.length;
+ click('[data-ec-checkin="p8"]');await wait();
+ assert(document.querySelector('#ec-checkout-title').textContent==='Bekreft tidligere betaling','Missing ledger retains existing previous-payment confirmation');
+ assert(!document.querySelector('[data-ec-vipps]')&&!document.querySelector('[data-ec-cash]'),'Recorded-paid attendee is not offered a new payment');
+ assert(!calls.slice(beforePaidClick).some(c=>c.action==='commit'||c.action==='start_vipps'),'Displaying paid does not bypass ledger verification or charge again');
+ click('[data-ec-checkout-close]');await wait();
  const search=document.querySelector('[data-ec-search]');
  assert(!search.hasAttribute('name')&&!search.id&&search.autocomplete==='off','Search avoids autofill identifiers');
  assert(document.querySelector('[data-ec-export="csv"]')&&document.querySelector('[data-ec-export="xlsx"]'),'CSV and XLSX export actions are visible');
