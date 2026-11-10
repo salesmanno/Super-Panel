@@ -38,7 +38,7 @@ def values(key):
     return read_git("config", "--get-all", key, optional=True)
 
 
-def valid_url(value):
+def valid_url(value, resolved=False):
     """Allow only the established HTTPS target, retaining existing auth."""
     try:
         if not value or any(c.isspace() or ord(c) < 32 for c in value):
@@ -46,7 +46,9 @@ def valid_url(value):
         parsed = urlsplit(value)
         return (
             parsed.scheme == "https"
-            and parsed.hostname == "github.com"
+            and parsed.hostname in (
+                ("github.com", "github.replit.internal") if resolved else ("github.com",)
+            )
             and parsed.port is None
             and parsed.path.casefold() == "/salesmanno/super-panel.git"
             and not parsed.query
@@ -65,8 +67,17 @@ def validate_target():
     rewrites = read_git(
         "config", "--get-regexp", r"^url\..*\.(insteadof|pushinsteadof)$", optional=True
     )
-    if rewrites:
-        raise ExportBlocked("Git URL-omskriving er konfigurert. Eksport er stoppet.")
+    # Replit's documented credential proxy is infrastructure, not another
+    # repository. Permit only the exact platform mappings; retain fail-closed
+    # validation for every other rewrite and for the resolved repository path.
+    platform_rewrites = {
+        "url.https://github.replit.internal/.insteadof": "https://github.com/",
+        "url.https://gitlab.replit.internal/.insteadof": "https://gitlab.com/",
+    }
+    for rewrite in rewrites:
+        key, value = rewrite.split(None, 1)
+        if platform_rewrites.get(key.lower()) != value:
+            raise ExportBlocked("Ukjent Git URL-omskriving er konfigurert. Eksport er stoppet.")
 
     fetch = values("remote.origin.url")
     push = values("remote.origin.pushurl")
@@ -76,7 +87,7 @@ def validate_target():
         raise ExportBlocked("origin har et ukjent eller ekstra push-mål. Eksport er stoppet.")
     for args in [(), ("--push",)]:
         resolved = read_git("remote", "get-url", "--all", *args, "origin")
-        if len(resolved) != 1 or not valid_url(resolved[0]):
+        if len(resolved) != 1 or not valid_url(resolved[0], resolved=True):
             raise ExportBlocked("Faktisk Git-mål er ikke det tillatte Super-Panel-repositoryet.")
 
     for key in ("vcs", "receivepack", "uploadpack"):

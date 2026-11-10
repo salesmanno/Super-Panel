@@ -132,6 +132,16 @@ class ExportTests(unittest.TestCase):
         with self.assertRaises(exporter.ExportBlocked):
             exporter.validate_target()
 
+    def test_replit_proxy_preserves_repository_boundary(self):
+        self.git("config", "url.https://github.replit.internal/.insteadOf", "https://github.com/")
+        self.git("config", "url.https://gitlab.replit.internal/.insteadOf", "https://gitlab.com/")
+        exporter.validate_target()
+        self.git("config", "remote.origin.pushurl", "https://github.com/salesmanno/www.git")
+        with self.assertRaises(exporter.ExportBlocked):
+            exporter.validate_target()
+        self.assertFalse(exporter.valid_url("https://github.replit.internal/salesmanno/Super-Panel.git"))
+        self.assertFalse(exporter.valid_url("https://github.replit.internal/salesmanno/www.git", resolved=True))
+
     def test_rewrites_blocked_even_if_current_url_would_resolve_correctly(self):
         for key in [
             "url.https://github.com/salesmanno/www.git.insteadOf",
