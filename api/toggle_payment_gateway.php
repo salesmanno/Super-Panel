@@ -122,13 +122,13 @@ try {
                 if (empty($config['client_id'])) $missingFields[] = 'client_id';
                 if (empty($config['client_secret_encrypted'])) $missingFields[] = 'client_secret';
                 break;
-            case 'faktura':
             case 'bank':
-                $baCheck = $db->prepare("SELECT COUNT(*) as cnt FROM economy_bank_accounts WHERE company_id = ? AND is_active = 1 AND account_number IS NOT NULL");
+            case 'faktura':
+                $baCheck = $db->prepare("SELECT COUNT(*) as cnt FROM economy_bank_accounts WHERE company_id = ? AND is_active = 1 AND account_number IS NOT NULL AND account_number <> ''");
                 $baCheck->execute([$company_id]);
                 $baResult = $baCheck->fetch(PDO::FETCH_ASSOC);
-                if (($baResult['cnt'] ?? 0) == 0) {
-                    $missingFields[] = 'minst én aktiv bankkonto (legg til i Bankkontoer)';
+                if ((int)($baResult['cnt'] ?? 0) !== 1) {
+                    $missingFields[] = 'nøyaktig én valgt primærkonto';
                 }
                 break;
         }

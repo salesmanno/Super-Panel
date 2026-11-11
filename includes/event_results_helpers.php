@@ -22,6 +22,13 @@ function event_results_ledger_valid_sql(string $ledgerAlias): string {
         AND {$ledgerAlias}.payment_status = 'completed'";
 }
 
+function event_results_ledger_reportable_sql(string $ledgerAlias): string {
+    $ledgerAlias = event_results_sql_alias($ledgerAlias);
+    return "{$ledgerAlias}.module_source = 'events'
+        AND {$ledgerAlias}.status = 'active'
+        AND {$ledgerAlias}.payment_status IN ('pending', 'completed')";
+}
+
 function event_results_ledger_is_expense_sql(string $ledgerAlias): string {
     $ledgerAlias = event_results_sql_alias($ledgerAlias);
     return "(
@@ -83,6 +90,22 @@ function event_results_ledger_amounts(array $row): array {
     return ['income' => 0.0, 'expense' => $expense];
 }
 
+function event_results_ledger_projected_amounts(array $row): array {
+    if (strtolower((string) ($row['module_source'] ?? '')) !== 'events'
+        || strtolower((string) ($row['status'] ?? '')) !== 'active'
+        || !in_array(strtolower((string) ($row['payment_status'] ?? '')), ['pending','completed'], true)) {
+        return ['income'=>0.0,'expense'=>0.0];
+    }
+    $amount=(float)($row['selling_price']??0);
+    $cost=(float)($row['cost_price']??0);
+    $type=strtolower((string)($row['transaction_type']??''));
+    $item=strtolower((string)($row['item_type']??''));
+    $expense=$type==='expense'||str_contains($item,'expense')||$amount<0;
+    return $expense
+        ? ['income'=>0.0,'expense'=>$amount<0?abs($amount):($cost>0?$cost:abs($amount))]
+        : ['income'=>max(0.0,$amount),'expense'=>0.0];
+}
+
 function event_results_summary(array $events): array {
     $summary = [
         'total_events' => count($events),
@@ -111,14 +134,14 @@ function event_results_summary(array $events): array {
         $projectedIncome = (float) ($event['projected_income'] ?? 0);
         $expense = (float) ($event['expense'] ?? 0);
         $net = (float) ($event['net_result'] ?? ($income - $expense));
-        $projectedNet = (float) ($event['projected_net_result'] ?? ($income + $projectedIncome - $expense));
+        $projectedNet = (float) ($event['projected_net_result'] ?? ($projectedIncome - (float)($event['projected_expense'] ?? $expense)));
         $attendees = (int) ($event['attendee_count'] ?? 0);
         $unpaidAttendees = (int) ($event['unpaid_attendee_count'] ?? 0);
         $ticketPrice = (float) ($event['ticket_price'] ?? 0);
 
         $summary['total_revenue'] += $income;
         $summary['total_projected_income'] += $projectedIncome;
-        $summary['total_income_including_projection'] += $income + $projectedIncome;
+        $summary['total_income_including_projection'] += $projectedIncome;
         $summary['total_expense'] += $expense;
         $summary['net_result'] += $net;
         $summary['projected_net_result'] += $projectedNet;

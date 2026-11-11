@@ -506,10 +506,8 @@
                         <input type="date" id="inv-due" class="form-control form-control-sm">
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label form-label-sm fw-semibold">Bankkonto</label>
-                        <select id="inv-bank-account" class="form-select form-select-sm">
-                            <option value="">Velg konto...</option>
-                        </select>
+                        <label class="form-label form-label-sm fw-semibold">Fakturakonto</label>
+                        <div id="inv-bank-account-label" class="form-control form-control-sm bg-light">Følger valgt primærkonto i Betalingsløsninger</div>
                     </div>
                 </div>
 
@@ -1382,9 +1380,9 @@ async function loadPaymentGateways() {
                     <i class="bi bi-toggle-off me-1"></i>Aktiver
                 </button>`;
             } else {
-                statusHtml = '<span class="badge bg-secondary">Ikke konfigurert</span>';
+                statusHtml = `<span class="badge bg-secondary">${gw.gateway_type === 'faktura' && gw.bank_accounts?.length ? 'Velg primærkonto' : 'Ikke konfigurert'}</span>`;
                 actionBtn = `<button class="btn btn-outline-secondary btn-sm w-100" disabled>
-                    <i class="bi bi-lock me-1"></i>Mangler oppsett
+                    <i class="bi bi-lock me-1"></i>${gw.gateway_type === 'faktura' ? 'Velg en primærkonto først' : 'Mangler oppsett'}
                 </button>`;
             }
             
@@ -1393,17 +1391,32 @@ async function loadPaymentGateways() {
             const feePercent = (gw.fee_percent || 0).toFixed(2);
             const feePreview = (parseFloat(feeFixed) + 100 * parseFloat(feePercent) / 100).toFixed(2);
 
-            const fakturaSection = gw.gateway_type === 'faktura' ? `
+            const fakturaAccounts = gw.gateway_type === 'faktura' ? `
                 <hr class="my-2">
-                <p class="small fw-semibold text-muted mb-1"><i class="bi bi-bank me-1"></i>Bankkontoer</p>
+                <p class="small fw-semibold text-muted mb-1"><i class="bi bi-bank me-1"></i>Bankkontoer · velg primærkonto</p>
                 ${gw.bank_accounts && gw.bank_accounts.length > 0
                     ? gw.bank_accounts.map(ba => `
-                        <div class="small text-dark mb-1">
-                            <span class="fw-semibold">${ba.bank_name || 'Bankkonto'}</span>
-                            <span class="text-muted ms-1">${ba.account_number}</span>
+                        <div class="d-flex align-items-center justify-content-between gap-2 border rounded p-2 mb-1">
+                            <div class="small text-dark">
+                                <span class="fw-semibold">${economyEsc(ba.bank_name || 'Bankkonto')}</span>
+                                <span class="text-muted ms-1">${economyEsc(ba.account_number)}</span>
+                                ${Number(ba.is_active) === 1 ? '<span class="badge text-bg-primary ms-1">Primær</span>' : ''}
+                            </div>
+                            ${Number(ba.is_active) === 1
+                                ? '<span class="small text-success">Valgt</span>'
+                                : `<button type="button" class="btn btn-outline-primary btn-sm" onclick="selectEconomyBankAccount('${economyEsc(ba.id)}','${economyEsc(gwId)}')">Velg</button>`}
                         </div>`).join('')
-                    : `<div class="small text-muted fst-italic">Ingen bankkontoer registrert ennå.<br>Legg til i Bankkontoer-seksjonen.</div>`
-                }
+                    : `<div class="small text-muted fst-italic mb-2">Ingen bankkonto lagt til ennå.</div>`}
+                <div class="border-top pt-2 mt-2">
+                    <div class="small fw-semibold mb-1">Legg til bankkonto</div>
+                    <div class="row g-2">
+                        <div class="col-sm-5"><input type="text" class="form-control form-control-sm" id="new-bank-name-${economyEsc(gwId)}" maxlength="120" placeholder="Banknavn" autocomplete="off"></div>
+                        <div class="col-sm-5"><input type="text" class="form-control form-control-sm" id="new-bank-number-${economyEsc(gwId)}" maxlength="34" placeholder="Kontonummer" autocomplete="off" inputmode="text"></div>
+                        <div class="col-sm-2 d-grid"><button type="button" class="btn btn-primary btn-sm" onclick="createEconomyBankAccount('${economyEsc(gwId)}')">Legg til</button></div>
+                    </div>
+                    <div class="small text-muted mt-1">Bare valgt primærkonto brukes på nye fakturaer. Valg av ny primærkonto erstatter det forrige.</div>
+                    <div id="bank-account-msg-${economyEsc(gwId)}" class="small mt-1" role="status"></div>
+                </div>
             ` : '';
 
             const feeSection = hasFees ? `
@@ -1441,7 +1454,7 @@ async function loadPaymentGateways() {
                             <p class="small text-muted mb-2">${desc}</p>
                             <div class="mb-2">${statusHtml}</div>
                             ${actionBtn}
-                            ${fakturaSection}
+                            ${fakturaAccounts}
                             ${feeSection}
                         </div>
                     </div>
@@ -1474,6 +1487,43 @@ async function toggleGateway(gatewayId, gatewayName, activate) {
         }
     } catch (error) {
         console.error('Toggle gateway error:', error);
+    }
+}
+
+async function saveEconomyBankAccount(action, values, messageId) {
+    const message=document.getElementById(messageId);
+    if (message) message.textContent='';
+    try {
+        const response=await fetch('/api/manage_economy_bank_account.php',{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({action,...values})
+        });
+        const result=await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message||'Kunne ikke lagre bankkonto.');
+        if (message) {message.textContent=result.message;message.className='small mt-1 text-success';}
+        await loadPaymentGateways();
+        await ecPopulateBankAccounts();
+        return true;
+    } catch (error) {
+        if (message) {message.textContent=error.message;message.className='small mt-1 text-danger';}
+        else alert(error.message);
+        return false;
+    }
+}
+
+async function selectEconomyBankAccount(id,gatewayId) {
+    await saveEconomyBankAccount('select',{id},'bank-account-msg-'+gatewayId);
+}
+
+async function createEconomyBankAccount(gatewayId) {
+    const bank=document.getElementById('new-bank-name-'+gatewayId)?.value.trim()||'';
+    const account=document.getElementById('new-bank-number-'+gatewayId)?.value.trim()||'';
+    const ok=await saveEconomyBankAccount('create',{bank_name:bank,account_number:account},'bank-account-msg-'+gatewayId);
+    if (ok) {
+        const bankInput=document.getElementById('new-bank-name-'+gatewayId);
+        const accountInput=document.getElementById('new-bank-number-'+gatewayId);
+        if (bankInput) bankInput.value='';
+        if (accountInput) accountInput.value='';
     }
 }
 
@@ -1867,17 +1917,15 @@ async function ecPopulateBankAccounts() {
     try {
         const res  = await fetch('/api/get_bank_accounts.php');
         const data = await res.json();
-        const sel  = document.getElementById('inv-bank-account');
-        if (!sel) return;
+        const label  = document.getElementById('inv-bank-account-label');
+        if (!label) return;
         const accounts = data.accounts || [];
-        sel.innerHTML = '<option value="">Velg konto...</option>'
-            + accounts.map(a => {
-                const label = [a.account_number, a.bank_name].filter(Boolean).join(' – ');
-                return `<option value="${a.id}">${label}</option>`;
-            }).join('');
+        label.textContent=accounts.length
+            ? `${accounts[0].bank_name} · ${accounts[0].account_number}`
+            : 'Faktura er deaktivert eller mangler valgt primærkonto';
     } catch (e) {
-        const sel = document.getElementById('inv-bank-account');
-        if (sel) sel.innerHTML = '<option value="">Feil ved lasting</option>';
+        const label = document.getElementById('inv-bank-account-label');
+        if (label) label.textContent='Kunne ikke hente valgt fakturakonto';
     }
 }
 
@@ -1901,9 +1949,8 @@ async function ecCreateInvoice() {
     const invoiceType   = document.getElementById('inv-type').value;
     const dueDate       = document.getElementById('inv-due').value;
     const notes         = document.getElementById('inv-notes').value.trim();
-    const bankAccountId = document.getElementById('inv-bank-account')?.value || null;
     const btn           = document.querySelector('#invoice-create-form .btn-success');
-    let payload = { invoice_type: invoiceType, due_date: dueDate, notes, bank_account_id: bankAccountId || null };
+    let payload = { invoice_type: invoiceType, due_date: dueDate, notes };
 
     if (invoiceType === 'general') {
         const customerId = document.getElementById('inv-customer-general').value;

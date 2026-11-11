@@ -27,6 +27,8 @@ $check($amounts === ['income' => 125.0, 'expense' => 0.0], 'Billettinntekt må t
 $pending = $base;
 $pending['payment_status'] = 'pending';
 $check(event_results_ledger_amounts($pending) === ['income' => 0.0, 'expense' => 0.0], 'Ventende betaling må utelates');
+$check(event_results_ledger_projected_amounts($pending) === ['income'=>125.0,'expense'=>0.0], 'Ventende betaling inngår i prosjektert inntekt');
+$check(event_results_ledger_projected_amounts($base) === ['income'=>125.0,'expense'=>0.0], 'Fullført betaling inngår i prosjektert total');
 
 $failed = $base;
 $failed['payment_status'] = 'failed';
@@ -86,7 +88,7 @@ $summary = event_results_summary($events);
 $check($summary['total_events'] === 2, 'Alle lagrede arrangementer må telles');
 $check($summary['total_revenue'] === 200.0, 'Inntekt må summeres fra arrangementsradene');
 $check($summary['total_projected_income'] === 125.0, 'Forventede ubetalte inntekter må summeres separat');
-$check($summary['total_income_including_projection'] === 325.0, 'Betalt og forventet inntekt skal kunne summeres');
+$check($summary['total_income_including_projection'] === 125.0, 'Prosjektert inntekt er totalsummen fra pending og completed');
 $check($summary['total_expense'] === 140.0, 'Utgift må summeres fra arrangementsradene');
 $check($summary['net_result'] === 60.0, 'Netto må stemme med inntekt minus utgift');
 $check($summary['projected_net_result'] === 185.0, 'Prognosenetto må inkludere betalt inntekt, ubetalt inntekt og utgifter');
@@ -113,7 +115,8 @@ $check(str_contains($dataHelper, 'projected_income'), 'Resultat-API-et må retur
 $check(!str_contains($resultsApi, 'attendee_event.is_active = 1'), 'Skjulte arrangementer må beholde deltakerantallet');
 $check(!str_contains($resultsApi, 'ledger_event.is_active = 1'), 'Skjulte arrangementer må beholde økonomidata');
 $check(!str_contains($resultsApi, 'AND e.is_active = 1'), 'Resultatlisten må ikke filtrere bort skjulte arrangementer');
-$check(str_contains($resultsApi, 'event_results_load') && str_contains($dataHelper, 'event_results_ledger_valid_sql'), 'Oversikten må bruke de delte hovedbokfiltrene');
+$check(str_contains($resultsApi, 'event_results_load') && str_contains($dataHelper, 'event_results_ledger_reportable_sql'), 'Oversikten må bruke pending/completed og utelate avbrutte poster');
+$check(str_contains($resultsApi, "attendee_count'] > 0"), 'Arrangementer uten gyldige påmeldte skal skjules fra resultatlisten');
 $check(str_contains($financesApi, 'event_results_load'), 'Økonomidetaljene må bruke samme hovedbokfiltre');
 $check(!str_contains($financesApi, 'AND e.is_active = 1'), 'Økonomidetaljer må også åpnes for skjulte arrangementer');
 $check(str_contains($transactionsApi, 'event_results_load'), 'Transaksjonsdetaljene må bruke samme hovedbokfiltre');
@@ -145,13 +148,16 @@ $result = event_results_calculate([['id'=>'e','is_active'=>0]], [
 ]);
 $row = $result['events'][0];
 $check($row['income'] === 300.0 && $row['expense'] === 40.0, 'Registration-ID, checkin-ID and event-ID payments resolve once');
-$check($row['projected_income'] === 75.0 && $row['unpaid_attendee_count'] === 1, 'Settled group/direct tickets cannot also inflate forecast');
+$check($row['projected_income'] === 425.0 && $row['unpaid_attendee_count'] === 1, 'Projected total combines completed, pending ledger and uncovered valid participants');
 $check($row['attendee_count'] === 9 && $row['is_active'] === 0, 'All existing participants and hidden events retained');
-$check($row['unreconciled_paid_count'] === 1, 'Paid tickets without ledger remain paid but flagged, never projected');
-$check($row['projected_net_result'] === 335.0, 'Projected net combines paid, outstanding and expenses');
+$check($row['unreconciled_paid_count'] === 1, 'Paid tickets without ledger are projected from ticket price and flagged');
+$check($row['projected_net_result'] === 385.0, 'Projected net combines pending, completed and expenses');
 $partial = event_results_calculate([['id'=>'e']], [$ticket('a',100,'paid','reg'),$ticket('b',100,'pending','reg')],
     [['id'=>'reg','event_id'=>'e','approval_status'=>'approved']], [$entry('partial','reg',125)])['events'][0];
-$check($partial['projected_income'] === 75.0, 'Partial group coverage is consumed once after paid sibling');
+$check($partial['projected_income'] === 200.0, 'Partial group payment plus remaining ticket balance is projected once');
+$cancelled = event_results_calculate([['id'=>'e']], [$ticket('c',80,'cancelled'),$ticket('r',90,'pending','rejected')],
+    [['id'=>'rejected','event_id'=>'e','approval_status'=>'rejected']], [])['events'][0];
+$check($cancelled['attendee_count'] === 0 && $cancelled['projected_income'] === 0.0, 'Cancelled or rejected registrations do not count');
 
 if ($failures) {
     fwrite(STDERR, implode(PHP_EOL, $failures) . PHP_EOL);

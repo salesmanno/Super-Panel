@@ -1760,7 +1760,7 @@ try {
 </div>
 
     <div id="events-results" class="subtab-content" style="display: none;">
-        <p class="small text-muted mb-3">Alle lagrede arrangementer vises, også skjulte/inaktive. Betalt inntekt kommer fra fullførte hovedboksposter. Forventet ubetalt er gjenstående billettbeløp for registrerte påmeldte, ikke mottatt betaling. Netto med forventet = betalt + forventet − registrerte utgifter.</p>
+        <p class="small text-muted mb-3">Viser arrangementer med gyldige påmeldinger. Prosjektert inntekt omfatter registrerte betalinger med status «pending» og «completed»; avbrutte og kansellerte betalinger er utelatt. Betalt inntekt er fullførte poster i hovedboken.</p>
         <!-- Summary stats -->
         <div class="mb-4" id="events-results-summary" style="display: none;">
             <div class="row g-2 mb-2">
@@ -4734,12 +4734,13 @@ async function loadEventsResults() {
                                         </div>
                                         <div class="row g-2 mt-2">
                                             ${metric('Betalt inntekt', event.income, 'text-success')}
-                                            ${metric(`Forventet · ${Number(event.unpaid_attendee_count) || 0} ubetalte`, event.projected_income, 'text-warning-emphasis')}
+                                            ${metric('Prosjektert · pending + completed', event.projected_income, 'text-warning-emphasis')}
+                                            ${metric('Ventende påmeldte', Number(event.unpaid_attendee_count) || 0, 'text-warning-emphasis')}
                                             ${metric('Utgifter', event.expense, 'text-danger')}
                                             ${metric('Faktisk netto', actualNet, actualNet >= 0 ? 'text-success' : 'text-danger')}
                                             ${metric('Netto med forventet', projectedNet, projectedNet >= 0 ? 'text-success' : 'text-danger')}
                                         </div>
-                                        ${Number(event.unreconciled_paid_count) > 0 ? `<p class="small text-warning-emphasis mt-2 mb-0" role="note">${Number(event.unreconciled_paid_count)} påmeldte er registrert som betalt uten full betalingskobling i hovedboken. Disse er ikke merket ubetalt eller lagt til prognosen. Kontroller historikken før eventuell retting.</p>` : ''}
+                                        ${Number(event.unreconciled_paid_count) > 0 ? `<p class="small text-warning-emphasis mt-2 mb-0" role="note">${Number(event.unreconciled_paid_count)} påmeldte står som betalt uten full betalingskobling. Beløpet kan inngå i prosjektert sum fra påmeldingen, men ikke i faktisk inntekt fra hovedboken. Kontroller betalingshistorikken før eventuell retting.</p>` : ''}
                                     </div>
                                 </article>
                             `;

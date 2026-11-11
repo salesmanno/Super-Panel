@@ -155,15 +155,15 @@ try {
     foreach(['get_event_finances.php','get_event_transactions.php'] as $endpoint){
         $event=apiFixture('/api/'.$endpoint.'?event_id=event-a');
         ledgerCheck((float)$event['summary']['total_income']===100.0 && (float)$event['summary']['total_expense']===25.0,'event read model preserved');
-        ledgerCheck((float)$event['summary']['projected_income']===55.0,'Paid registration with stale pending flag not also projected');
+        ledgerCheck((float)$event['summary']['projected_income']===155.0,'Projection combines completed payment and unpaid tickets without double counting');
         $hidden=apiFixture('/api/'.$endpoint.'?event_id=hidden');
         ledgerCheck((float)$hidden['summary']['projected_income']===75.0,'Hidden event details accessible; unapproved, free, no-show and refund not projected');
     }
     $results=apiFixture('/api/get_events_results.php');
     $byEvent=array_column($results['events'],null,'id');
-    ledgerCheck(count($byEvent)===3 && isset($byEvent['hidden'],$byEvent['empty']) && !isset($byEvent['foreign-event']),'All retained tenant events shown, including empty and hidden');
-    ledgerCheck((float)$results['summary']['total_revenue']===100.0 && (float)$results['summary']['total_projected_income']===130.0
-        && (float)$results['summary']['total_expense']===25.0 && (float)$results['summary']['projected_net_result']===205.0,'Actual API totals match paid plus forecast less expenses');
+    ledgerCheck(count($byEvent)===2 && isset($byEvent['hidden']) && !isset($byEvent['empty'],$byEvent['foreign-event']),'Events without participants are hidden; hidden registered event retained');
+    ledgerCheck((float)$results['summary']['total_revenue']===100.0 && (float)$results['summary']['total_projected_income']===230.0
+        && (float)$results['summary']['total_expense']===25.0 && (float)$results['summary']['projected_net_result']===205.0,'Actual and pending/completed projection totals reconcile');
     ledgerCheck($results['summary']['total_attendees']===7 && $results['summary']['total_unpaid_attendees']===2,'All participants retained, unpaid counts separate');
     $income=apiFixture('/api/get_economy_data.php?view=income')['data'];
     $expenses=apiFixture('/api/get_economy_data.php?view=expense')['data'];

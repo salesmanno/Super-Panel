@@ -48,8 +48,8 @@ function activePaymentMethods(PDO $db, string $company): array {
             WHEN 'stripe' THEN (COALESCE(public_key,'')<>'' AND COALESCE(private_key_encrypted,'')<>'')
             WHEN 'paypal' THEN (COALESCE(client_id,'')<>'' AND COALESCE(client_secret_encrypted,'')<>'')
             WHEN 'klarna' THEN (COALESCE(client_id,'')<>'' AND COALESCE(client_secret_encrypted,'')<>'')
-            WHEN 'bank' THEN EXISTS(SELECT 1 FROM economy_bank_accounts b WHERE b.company_id=c.company_id AND b.is_active=1 AND b.account_number IS NOT NULL)
-            WHEN 'faktura' THEN EXISTS(SELECT 1 FROM economy_bank_accounts b WHERE b.company_id=c.company_id AND b.is_active=1 AND b.account_number IS NOT NULL)
+            WHEN 'bank' THEN (SELECT COUNT(*) FROM economy_bank_accounts b WHERE b.company_id=c.company_id AND b.is_active=1 AND b.account_number IS NOT NULL AND b.account_number<>'')=1
+            WHEN 'faktura' THEN (SELECT COUNT(*) FROM economy_bank_accounts b WHERE b.company_id=c.company_id AND b.is_active=1 AND b.account_number IS NOT NULL AND b.account_number<>'')=1
             ELSE 0 END AS is_configured
         FROM economy_configuration_data c WHERE c.company_id=? AND c.is_active=1 ORDER BY c.config_name,c.id".$currentRead);
     $stmt->execute([$company]);
@@ -58,7 +58,7 @@ function activePaymentMethods(PDO $db, string $company): array {
     $methods = [];
     foreach ($rows as $row) {
         $type = $row['method_type'];
-        if (!isset($names[$type]) || ($type === 'cash' && !$cash) || isset($methods[$type])) continue;
+        if (!isset($names[$type]) || ($type === 'cash' && !$cash) || isset($methods[$type]) || !(bool)$row['is_configured']) continue;
         $name = $row['config_name'] ?: $names[$type];
         $methods[$type] = [
             'method_type'=>$type, 'method_name'=>$name, 'is_active'=>true,

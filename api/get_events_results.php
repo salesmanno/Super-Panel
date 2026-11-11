@@ -44,6 +44,7 @@ try {
     ");
     $stmt->execute([$companyId]);
     $events = event_results_load($db, (string) $companyId, $stmt->fetchAll(PDO::FETCH_ASSOC))['events'];
+    $events = array_values(array_filter($events, static fn(array $event): bool => (int)$event['attendee_count'] > 0));
 
     echo json_encode([
         'success' => true,

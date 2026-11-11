@@ -101,12 +101,12 @@ try {
     $hasActiveBankAccount = false;
     $bankAccounts = [];
     try {
-        $bankStmt = $db->prepare("SELECT COUNT(*) as count FROM economy_bank_accounts WHERE company_id = ? AND is_active = 1 AND account_number IS NOT NULL");
+        $bankStmt = $db->prepare("SELECT COUNT(*) as count FROM economy_bank_accounts WHERE company_id = ? AND is_active = 1 AND account_number IS NOT NULL AND account_number <> ''");
         $bankStmt->execute([$company_id]);
         $bankResult = $bankStmt->fetch(PDO::FETCH_ASSOC);
-        $hasActiveBankAccount = ($bankResult['count'] ?? 0) > 0;
+        $hasActiveBankAccount = (int)($bankResult['count'] ?? 0) === 1;
 
-        $baStmt = $db->prepare("SELECT id, bank_name, account_number FROM economy_bank_accounts WHERE company_id = ? AND is_active = 1 ORDER BY bank_name");
+        $baStmt = $db->prepare("SELECT id, bank_name, account_number, is_active FROM economy_bank_accounts WHERE company_id = ? ORDER BY is_active DESC, bank_name, account_number");
         $baStmt->execute([$company_id]);
         $bankAccounts = $baStmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
@@ -209,7 +209,7 @@ try {
             'display_name'  => $config['config_name'] ?: ($gatewayDisplayNames[$gatewayType] ?? ucfirst($gatewayType)),
             'icon'          => $gatewayIcons[$gatewayType] ?? 'wallet2',
             'is_configured' => $isConfigured,
-            'is_active'     => (bool)$config['is_active'],
+            'is_active'     => (bool)$config['is_active'] && ($gatewayType !== 'faktura' || $isConfigured),
             'test_mode'     => (bool)$config['test_mode'],
             'missing_fields'=> $missingFields,
             'fee_fixed'     => (float)($config['fee_fixed']   ?? 0),

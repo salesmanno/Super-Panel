@@ -21,7 +21,6 @@ $notes              = $body['notes'] ?? null;
 $membershipMemberId = $body['membership_member_id'] ?? null;
 $manualAmount       = isset($body['manual_amount']) ? (float)$body['manual_amount'] : null;
 $manualCustomer     = $body['manual_customer'] ?? null;
-$bankAccountId      = $body['bank_account_id'] ?? null;
 
 try {
     $dueDate = normalizeRequestDate($dueDate, 'Forfallsdato');
@@ -29,12 +28,25 @@ try {
     $companyId = $_SESSION['company_id'];
     $db->beginTransaction();
 
-    if ($bankAccountId) {
-        $baCheck = $db->prepare("SELECT id FROM economy_bank_accounts WHERE id = ? AND company_id = ? AND is_active = 1");
-        $baCheck->execute([$bankAccountId, $companyId]);
-        if (!$baCheck->fetchColumn()) {
-            $bankAccountId = null;
+    // The selected primary account is authoritative. A client-supplied account
+    // cannot override it, and a disabled invoice method never leaks account data.
+    $invoiceGateway=$db->prepare("SELECT id FROM economy_configuration_data
+        WHERE company_id=? AND LOWER(gateway_type)='faktura' AND is_active=1 LIMIT 1 FOR UPDATE");
+    $invoiceGateway->execute([$companyId]);
+    $invoiceGatewayId=$invoiceGateway->fetchColumn();
+    $bankAccountId=null;
+    if ($invoiceGatewayId) {
+        $primary=$db->prepare("SELECT id FROM economy_bank_accounts WHERE company_id=? AND is_active=1
+            AND account_number IS NOT NULL AND account_number<>'' ORDER BY id LIMIT 2 FOR UPDATE");
+        $primary->execute([$companyId]);
+        $primaryIds=$primary->fetchAll(PDO::FETCH_COLUMN);
+        if (count($primaryIds)!==1) {
+            $db->rollBack();
+            http_response_code(409);
+            echo json_encode(['success'=>false,'error'=>'Faktura må ha nøyaktig én valgt primærkonto.']);
+            exit;
         }
+        $bankAccountId=$primaryIds[0];
     }
 
     $prefix   = 'INV';
