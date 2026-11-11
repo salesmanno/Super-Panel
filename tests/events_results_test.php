@@ -57,28 +57,41 @@ $events = [
     [
         'title' => 'Sommerfest',
         'income' => 125,
+        'projected_income' => 25,
         'expense' => 40,
         'net_result' => 85,
+        'projected_net_result' => 110,
         'attendee_count' => 4,
+        'unpaid_attendee_count' => 1,
         'ticket_price' => 100,
         'status' => 'Avsluttet',
+        'is_active' => 1,
     ],
     [
         'title' => 'Vinterfest',
         'income' => 75,
+        'projected_income' => 100,
         'expense' => 100,
         'net_result' => -25,
+        'projected_net_result' => 75,
         'attendee_count' => 8,
+        'unpaid_attendee_count' => 2,
         'ticket_price' => 200,
         'status' => 'Kommende',
+        'is_active' => 0,
     ],
 ];
 $summary = event_results_summary($events);
-$check($summary['total_events'] === 2, 'Alle aktive arrangementer må telles');
+$check($summary['total_events'] === 2, 'Alle lagrede arrangementer må telles');
 $check($summary['total_revenue'] === 200.0, 'Inntekt må summeres fra arrangementsradene');
+$check($summary['total_projected_income'] === 125.0, 'Forventede ubetalte inntekter må summeres separat');
+$check($summary['total_income_including_projection'] === 325.0, 'Betalt og forventet inntekt skal kunne summeres');
 $check($summary['total_expense'] === 140.0, 'Utgift må summeres fra arrangementsradene');
 $check($summary['net_result'] === 60.0, 'Netto må stemme med inntekt minus utgift');
+$check($summary['projected_net_result'] === 185.0, 'Prognosenetto må inkludere betalt inntekt, ubetalt inntekt og utgifter');
 $check($summary['total_attendees'] === 12, 'Deltakere må summeres likt');
+$check($summary['total_unpaid_attendees'] === 3, 'Ubetalte påmeldte må vises separat');
+$check($summary['active_events'] === 1 && $summary['inactive_events'] === 1, 'Skjulte arrangementer telles og skilles fra aktive');
 $check($summary['upcoming_events'] === 1, 'Kommende arrangementer må telles');
 $check($summary['most_profitable']['title'] === 'Sommerfest', 'Mest lønnsomme arrangement må bruke beregnet netto');
 $check($summary['most_expensive']['title'] === 'Vinterfest', 'Dyreste arrangement må bruke billettpris');
@@ -94,10 +107,17 @@ $check(!str_contains($resultsApi, 'FROM events_results'), 'Resultat-API-et må i
 $check(!str_contains($resultsApi, "SHOW TABLES LIKE 'events_results'"), 'Tabell-eksistens må ikke styre beregningsmodellen');
 $check(str_contains($resultsApi, 'FROM events_eventdata e'), 'Arrangementstabellen må drive resultatlisten');
 $check(str_contains($resultsApi, 'FROM events_checkin ec'), 'Deltakere må komme fra innsjekkingstabellen');
+$check(str_contains($resultsApi, 'projected_income'), 'Resultat-API-et må returnere ubetalte forventede inntekter');
+$check(!str_contains($resultsApi, 'attendee_event.is_active = 1'), 'Skjulte arrangementer må beholde deltakerantallet');
+$check(!str_contains($resultsApi, 'ledger_event.is_active = 1'), 'Skjulte arrangementer må beholde økonomidata');
+$check(!str_contains($resultsApi, 'AND e.is_active = 1'), 'Resultatlisten må ikke filtrere bort skjulte arrangementer');
 $check(str_contains($resultsApi, 'event_results_ledger_valid_sql'), 'Oversikten må bruke de delte hovedbokfiltrene');
 $check(str_contains($financesApi, 'event_results_ledger_valid_sql'), 'Økonomidetaljene må bruke samme hovedbokfiltre');
+$check(!str_contains($financesApi, 'AND e.is_active = 1'), 'Økonomidetaljer må også åpnes for skjulte arrangementer');
 $check(str_contains($transactionsApi, 'event_results_ledger_valid_sql'), 'Transaksjonsdetaljene må bruke samme hovedbokfiltre');
+$check(!str_contains($transactionsApi, 'AND is_active = 1'), 'Transaksjoner må være lesbare for skjulte arrangementer');
 $check(str_contains($transactionsApi, "'net_result' => \$netResult"), 'Detaljmodalen må få forventet nettofelt');
+$check(str_contains(file_get_contents(__DIR__ . '/../modules/events_content.php'), 'summary-projected-income'), 'Resultatsammendraget må vise forventet inntekt');
 $check(!str_contains($incomeApi, 'customer_name'), 'Inntektsføring må bruke gjeldende hovedbokskjema');
 $check(!str_contains($expenseApi, 'customer_name'), 'Utgiftsføring må bruke gjeldende hovedbokskjema');
 

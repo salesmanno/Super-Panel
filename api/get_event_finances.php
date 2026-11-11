@@ -30,7 +30,6 @@ try {
         FROM events_eventdata e
         WHERE e.id = ?
           AND e.company_id = ?
-          AND e.is_active = 1
     ");
     $eventStmt->execute([$eventId, $companyId]);
     $event = $eventStmt->fetch(PDO::FETCH_ASSOC);

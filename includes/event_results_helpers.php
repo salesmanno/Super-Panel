@@ -87,10 +87,16 @@ function event_results_summary(array $events): array {
     $summary = [
         'total_events' => count($events),
         'total_revenue' => 0.0,
+        'total_projected_income' => 0.0,
+        'total_income_including_projection' => 0.0,
         'total_expense' => 0.0,
         'net_result' => 0.0,
+        'projected_net_result' => 0.0,
         'total_attendees' => 0,
+        'total_unpaid_attendees' => 0,
         'upcoming_events' => 0,
+        'active_events' => 0,
+        'inactive_events' => 0,
         'most_profitable' => ['title' => 'N/A', 'profit' => 0.0],
         'most_expensive' => ['title' => 'N/A', 'price' => 0.0],
         'most_attended' => ['title' => 'N/A', 'attendees' => 0],
@@ -102,15 +108,27 @@ function event_results_summary(array $events): array {
 
     foreach ($events as $event) {
         $income = (float) ($event['income'] ?? 0);
+        $projectedIncome = (float) ($event['projected_income'] ?? 0);
         $expense = (float) ($event['expense'] ?? 0);
         $net = (float) ($event['net_result'] ?? ($income - $expense));
+        $projectedNet = (float) ($event['projected_net_result'] ?? ($income + $projectedIncome - $expense));
         $attendees = (int) ($event['attendee_count'] ?? 0);
+        $unpaidAttendees = (int) ($event['unpaid_attendee_count'] ?? 0);
         $ticketPrice = (float) ($event['ticket_price'] ?? 0);
 
         $summary['total_revenue'] += $income;
+        $summary['total_projected_income'] += $projectedIncome;
+        $summary['total_income_including_projection'] += $income + $projectedIncome;
         $summary['total_expense'] += $expense;
         $summary['net_result'] += $net;
+        $summary['projected_net_result'] += $projectedNet;
         $summary['total_attendees'] += $attendees;
+        $summary['total_unpaid_attendees'] += $unpaidAttendees;
+        if ((int) ($event['is_active'] ?? 1) === 1) {
+            $summary['active_events']++;
+        } else {
+            $summary['inactive_events']++;
+        }
         if (($event['status'] ?? '') === 'Kommende') {
             $summary['upcoming_events']++;
         }
@@ -146,8 +164,11 @@ function event_results_summary(array $events): array {
     }
 
     $summary['total_revenue'] = round($summary['total_revenue'], 2);
+    $summary['total_projected_income'] = round($summary['total_projected_income'], 2);
+    $summary['total_income_including_projection'] = round($summary['total_income_including_projection'], 2);
     $summary['total_expense'] = round($summary['total_expense'], 2);
     $summary['net_result'] = round($summary['net_result'], 2);
+    $summary['projected_net_result'] = round($summary['projected_net_result'], 2);
 
     return $summary;
 }

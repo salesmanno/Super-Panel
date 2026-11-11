@@ -91,7 +91,16 @@ window.fetch=async (url,options={})=>{
    payment_status:'pending',ticket_price:0};
  }
  if(route.includes('get_events.php')){result={success:!fixtureFailEvents,events:fixtureEmptyEvents?[]:fixtureEvents,message:'Fixture event-load failure'};}
- else if(route.includes('get_events_results.php')){result={success:true,events:[]};}
+ else if(route.includes('get_events_results.php')){result={success:true,summary:{
+  total_events:2,total_revenue:500,total_projected_income:250,total_expense:125,net_result:375,projected_net_result:625,
+  total_attendees:5,total_unpaid_attendees:2,upcoming_events:1,inactive_events:1,
+  most_profitable:{title:'Aktiv fest',profit:375},most_expensive:{title:'Aktiv fest',price:250},most_attended:{title:'Aktiv fest',attendees:3}
+ },events:[
+  {id:'result-active',title:'Aktiv fest',start_date:'2035-06-12',start_time:'19:00:00',status:'Kommende',is_active:1,
+   attendee_count:3,unpaid_attendee_count:1,income:500,projected_income:100,expense:125,net_result:375,projected_net_result:475},
+  {id:'result-hidden',title:'Skjult fest',start_date:'2034-05-10',start_time:'18:00:00',status:'Avsluttet',is_active:0,
+   attendee_count:2,unpaid_attendee_count:1,income:0,projected_income:150,expense:0,net_result:0,projected_net_result:150}
+ ]};}
  else if(route.includes('get_event.php')){result={success:true,event:fixtureEvents.find(e=>e.id===params.get('id'))};}
  else if(route.includes('get_entity_form_fields.php')){result={success:!fixtureFailFields,csrf_token:'fixture-csrf',revision:'revision-a',
   registration_type:fixtureEvents.find(e=>e.id===params.get('entity_id'))?.registration_type||'signup',
@@ -263,6 +272,19 @@ const checks = `(async()=>{
  nav('events-results');await settle();await settle();
  check(document.getElementById('events-registrations').style.display==='none'&&!document.querySelector('#eventsOverviewModalBody #events-registrations'),'Registration panel is returned and hidden when the modal closes');
  check(document.getElementById('events-results').style.display==='block','Results remains available as a visible tab');
+  const resultCards=[...document.querySelectorAll('#events-results-list article')];
+  check(resultCards.length===2&&resultCards.some(card=>card.textContent.includes('Skjult fest')&&card.textContent.includes('Skjult/inaktiv')),
+   'Results show active and hidden events without dropping the hidden event');
+  check(resultCards[0].textContent.includes('Betalt inntekt')&&resultCards[0].textContent.includes('Forventet')
+   &&resultCards[0].textContent.includes('Utgifter')&&resultCards[0].textContent.includes('Faktisk netto'),
+   'Each result separates paid income, unpaid forecast, expenses and actual net');
+  check(resultCards.some(card=>card.textContent.includes('2 påmeldte'))
+   &&document.getElementById('summary-total-attendees').textContent==='5',
+   'Per-event and total attendee counts remain visible');
+  check(document.getElementById('summary-projected-income').textContent.includes('250')
+   &&document.getElementById('summary-total-expense').textContent.includes('125')
+   &&document.getElementById('summary-projected-net').textContent.includes('625'),
+   'Summary shows projected income, expenses and forecast net');
  nav('events-dashboard');await settle();
  // Legacy selector/fullscreen compatibility is separate from the new admission
  // surface, whose real production JS is tested in events_checkin_chromium_test.

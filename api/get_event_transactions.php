@@ -27,7 +27,7 @@ try {
     $eventStmt = $db->prepare("
         SELECT id
         FROM events_eventdata
-        WHERE id = ? AND company_id = ? AND is_active = 1
+        WHERE id = ? AND company_id = ?
     ");
     $eventStmt->execute([$eventId, $companyId]);
     if (!$eventStmt->fetchColumn()) {

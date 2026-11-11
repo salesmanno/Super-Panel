@@ -1760,68 +1760,22 @@ try {
 </div>
 
     <div id="events-results" class="subtab-content" style="display: none;">
-        <!-- Summary Stats - Horizontal Layout -->
+        <!-- Summary stats -->
         <div class="mb-4" id="events-results-summary" style="display: none;">
+            <div class="row g-2 mb-2">
+                <div class="col-6 col-lg-3 col-xxl-2"><div class="card bg-light h-100"><div class="card-body p-3"><div class="text-muted small">Arrangementer</div><div class="fs-5 fw-bold text-primary" id="summary-total-events">0</div><div class="small text-muted"><span id="summary-inactive-events">0</span> skjulte/inaktive</div></div></div></div>
+                <div class="col-6 col-lg-3 col-xxl-2"><div class="card bg-light h-100"><div class="card-body p-3"><div class="text-muted small">Betalt inntekt</div><div class="fs-5 fw-bold text-success" id="summary-total-revenue">0 kr</div></div></div></div>
+                <div class="col-6 col-lg-3 col-xxl-2"><div class="card bg-light h-100"><div class="card-body p-3"><div class="text-muted small">Forventet ubetalt</div><div class="fs-5 fw-bold text-warning" id="summary-projected-income">0 kr</div><div class="small text-muted"><span id="summary-unpaid-attendees">0</span> ubetalte påmeldte</div></div></div></div>
+                <div class="col-6 col-lg-3 col-xxl-2"><div class="card bg-light h-100"><div class="card-body p-3"><div class="text-muted small">Utgifter</div><div class="fs-5 fw-bold text-danger" id="summary-total-expense">0 kr</div></div></div></div>
+                <div class="col-6 col-lg-3 col-xxl-2"><div class="card bg-light h-100"><div class="card-body p-3"><div class="text-muted small">Faktisk netto</div><div class="fs-5 fw-bold" id="summary-net-result">0 kr</div></div></div></div>
+                <div class="col-6 col-lg-3 col-xxl-2"><div class="card bg-light h-100"><div class="card-body p-3"><div class="text-muted small">Netto med forventet</div><div class="fs-5 fw-bold" id="summary-projected-net">0 kr</div></div></div></div>
+                <div class="col-6 col-lg-3 col-xxl-2"><div class="card bg-light h-100"><div class="card-body p-3"><div class="text-muted small">Påmeldte</div><div class="fs-5 fw-bold text-info" id="summary-total-attendees">0</div></div></div></div>
+                <div class="col-6 col-lg-3 col-xxl-2"><div class="card bg-light h-100"><div class="card-body p-3"><div class="text-muted small">Kommende</div><div class="fs-5 fw-bold text-warning" id="summary-upcoming-events">0</div></div></div></div>
+            </div>
             <div class="row g-2">
-                <div class="col-md-2">
-                    <div class="card bg-light h-100">
-                        <div class="card-body text-center p-2">
-                            <div class="text-muted small">Arrangementer</div>
-                            <div class="fs-5 fw-bold text-primary" id="summary-total-events">0</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="card bg-light h-100">
-                        <div class="card-body text-center p-2">
-                            <div class="text-muted small">Inntekt</div>
-                            <div class="fs-5 fw-bold text-success" id="summary-total-revenue">0 kr</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="card bg-light h-100">
-                        <div class="card-body text-center p-2">
-                            <div class="text-muted small">Deltakere</div>
-                            <div class="fs-5 fw-bold text-info" id="summary-total-attendees">0</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="card bg-light h-100">
-                        <div class="card-body text-center p-2">
-                            <div class="text-muted small">Kommende</div>
-                            <div class="fs-5 fw-bold text-warning" id="summary-upcoming-events">0</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="card bg-light h-100">
-                        <div class="card-body text-center p-2">
-                            <div class="text-muted small">Mest lønnsom</div>
-                            <div class="fs-6 fw-bold text-primary" id="summary-most-profitable">-</div>
-                            <div class="small text-muted" id="summary-most-profitable-value">0 kr</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="card bg-light h-100">
-                        <div class="card-body text-center p-2">
-                            <div class="text-muted small">Dyreste</div>
-                            <div class="fs-6 fw-bold text-danger" id="summary-most-expensive">-</div>
-                            <div class="small text-muted" id="summary-most-expensive-value">0 kr</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="card bg-light h-100">
-                        <div class="card-body text-center p-2">
-                            <div class="text-muted small">Mest besøkt</div>
-                            <div class="fs-6 fw-bold text-info" id="summary-most-attended">-</div>
-                            <div class="small text-muted" id="summary-most-attended-value">0 deltakere</div>
-                        </div>
-                    </div>
-                </div>
+                <div class="col-md-4"><div class="card h-100"><div class="card-body p-2"><div class="small text-muted">Mest lønnsom · faktisk netto</div><div class="fw-semibold text-truncate" id="summary-most-profitable">-</div><div class="small text-muted" id="summary-most-profitable-value">0 kr</div></div></div></div>
+                <div class="col-md-4"><div class="card h-100"><div class="card-body p-2"><div class="small text-muted">Høyeste billettpris</div><div class="fw-semibold text-truncate" id="summary-most-expensive">-</div><div class="small text-muted" id="summary-most-expensive-value">0 kr</div></div></div></div>
+                <div class="col-md-4"><div class="card h-100"><div class="card-body p-2"><div class="small text-muted">Flest påmeldte</div><div class="fw-semibold text-truncate" id="summary-most-attended">-</div><div class="small text-muted" id="summary-most-attended-value">0 påmeldte</div></div></div></div>
             </div>
         </div>
 
@@ -4692,7 +4646,7 @@ function eventResultsEscape(value) {
 }
 
 function eventResultsMoney(value) {
-    return `${new Intl.NumberFormat('nb-NO', {maximumFractionDigits: 0}).format(Number(value) || 0)} kr`;
+    return `${new Intl.NumberFormat('nb-NO', {maximumFractionDigits: 2}).format(Number(value) || 0)} kr`;
 }
 
 // Load event results from canonical event, ledger and attendee data
@@ -4711,8 +4665,19 @@ async function loadEventsResults() {
             summaryDiv.style.display = 'block';
             document.getElementById('summary-total-events').textContent = result.summary.total_events;
             document.getElementById('summary-total-revenue').textContent = eventResultsMoney(result.summary.total_revenue);
+            document.getElementById('summary-projected-income').textContent = eventResultsMoney(result.summary.total_projected_income);
+            document.getElementById('summary-total-expense').textContent = eventResultsMoney(result.summary.total_expense);
+            document.getElementById('summary-net-result').textContent = eventResultsMoney(result.summary.net_result);
+            document.getElementById('summary-projected-net').textContent = eventResultsMoney(result.summary.projected_net_result);
             document.getElementById('summary-total-attendees').textContent = result.summary.total_attendees;
             document.getElementById('summary-upcoming-events').textContent = result.summary.upcoming_events;
+            document.getElementById('summary-inactive-events').textContent = result.summary.inactive_events || 0;
+            document.getElementById('summary-unpaid-attendees').textContent = result.summary.total_unpaid_attendees || 0;
+
+            document.getElementById('summary-net-result').classList.toggle('text-success', Number(result.summary.net_result) >= 0);
+            document.getElementById('summary-net-result').classList.toggle('text-danger', Number(result.summary.net_result) < 0);
+            document.getElementById('summary-projected-net').classList.toggle('text-success', Number(result.summary.projected_net_result) >= 0);
+            document.getElementById('summary-projected-net').classList.toggle('text-danger', Number(result.summary.projected_net_result) < 0);
             
             // New stats
             const mostProf = result.summary.most_profitable || {title: 'N/A', profit: 0};
@@ -4729,61 +4694,54 @@ async function loadEventsResults() {
             document.getElementById('summary-most-attended-value').textContent = (mostAtt.attendees || 0) + ' deltakere';
         }
         
-        // Render event results as table per arrangement
+        // Keep all event records visible and group actual/projected figures
+        // per event. Attendee counts remain prominent in the card header.
         const resultsList = document.getElementById('events-results-list');
         
         if (result.events && result.events.length > 0) {
             resultsList.innerHTML = `
                 <div class="col-12">
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Arrangement</th>
-                                    <th>Dato</th>
-                                    <th>Status</th>
-                                    <th class="text-center">Deltakere</th>
-                                    <th class="text-end">Inntekt</th>
-                                    <th class="text-end">Utgift</th>
-                                    <th class="text-end">Netto resultat</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${result.events.map(event => {
-                                    const statusBadge = event.status === 'Kommende' ? 'bg-info' : event.status === 'Pågår' ? 'bg-warning' : 'bg-secondary';
-                                    const startDate = formatNorskDato(event.start_date, event.start_time);
-                                    const netResult = Number(event.net_result) || 0;
-                                    const netColor = netResult >= 0 ? 'text-success' : 'text-danger';
-                                    
-                                    return `
-                                        <tr>
-                                            <td>
-                                                <strong>${eventResultsEscape(event.title)}</strong>
-                                            </td>
-                                            <td>
-                                                ${eventResultsEscape(startDate)}
-                                                ${event.start_time ? `<br><small class="text-muted">kl. ${formatNorskTid(event.start_time)}</small>` : ''}
-                                            </td>
-                                            <td>
+                    <div class="d-grid gap-2">
+                        ${result.events.map(event => {
+                            const statusBadge = event.status === 'Kommende' ? 'bg-info' : event.status === 'Pågår' ? 'bg-warning text-dark' : 'bg-secondary';
+                            const startDate = formatNorskDato(event.start_date, event.start_time);
+                            const actualNet = Number(event.net_result) || 0;
+                            const projectedNet = Number(event.projected_net_result) || 0;
+                            const visibilityBadge = Number(event.is_active) === 1
+                                ? ''
+                                : '<span class="badge text-bg-light border">Skjult/inaktiv</span>';
+                            const metric = (label, value, tone = 'text-dark') => `
+                                <div class="col-6 col-md">
+                                    <div class="h-100 rounded border bg-light p-2">
+                                        <div class="small text-muted">${label}</div>
+                                        <div class="fw-semibold ${tone}">${eventResultsMoney(value)}</div>
+                                    </div>
+                                </div>`;
+                            return `
+                                <article class="card">
+                                    <div class="card-body p-3">
+                                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                                            <div class="me-auto">
+                                                <h6 class="mb-1">${eventResultsEscape(event.title)}</h6>
+                                                <div class="small text-muted">${eventResultsEscape(startDate)}${event.start_time ? ` · kl. ${formatNorskTid(event.start_time)}` : ''}</div>
+                                            </div>
+                                            <div class="d-flex flex-wrap align-items-center gap-1">
                                                 <span class="badge ${statusBadge}">${eventResultsEscape(event.status)}</span>
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="badge bg-primary">${Number(event.attendee_count) || 0}</span>
-                                            </td>
-                                            <td class="text-end text-success">
-                                                <strong>${eventResultsMoney(event.income)}</strong>
-                                            </td>
-                                            <td class="text-end text-danger">
-                                                ${eventResultsMoney(event.expense)}
-                                            </td>
-                                            <td class="text-end fw-bold ${netColor}">
-                                                ${eventResultsMoney(netResult)}
-                                            </td>
-                                        </tr>
-                                    `;
-                                }).join('')}
-                            </tbody>
-                        </table>
+                                                ${visibilityBadge}
+                                                <span class="badge text-bg-primary">${Number(event.attendee_count) || 0} påmeldte</span>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2 mt-2">
+                                            ${metric('Betalt inntekt', event.income, 'text-success')}
+                                            ${metric(`Forventet · ${Number(event.unpaid_attendee_count) || 0} ubetalte`, event.projected_income, 'text-warning-emphasis')}
+                                            ${metric('Utgifter', event.expense, 'text-danger')}
+                                            ${metric('Faktisk netto', actualNet, actualNet >= 0 ? 'text-success' : 'text-danger')}
+                                            ${metric('Netto med forventet', projectedNet, projectedNet >= 0 ? 'text-success' : 'text-danger')}
+                                        </div>
+                                    </div>
+                                </article>
+                            `;
+                        }).join('')}
                     </div>
                 </div>
             `;
