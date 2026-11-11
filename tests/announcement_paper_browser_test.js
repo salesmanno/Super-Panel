@@ -135,8 +135,8 @@ const checks = `(async()=>{
   check(!$('news-edit-workspace').hidden&&$('announcement-title').value==='Endret tittel','Declining discard retains changes');
   window.confirm=()=>true;$('news-edit-back').click();
    check(!$('news-edit-list').hidden,'Back returns to card list after confirmed discard');
-  input($('news-edit-search'),'finnes ikke');check(!$('news-edit-cards').querySelector('[data-edit-story]'),'Card search has an empty result state');
-  input($('news-edit-search'),'');
+  check(!$('news-edit-search'),'Search field is replaced by visibility dropdown');
+  check(!!$('news-admin-filter'),'Visibility dropdown is available');
    $('news-edit-cards').querySelector('[data-card-action="delete"]').click();await tick();
    check(paperActions.at(-1)?.url==='/api/delete_announcement.php'&&paperRows.length===0,'Delete uses the existing delete endpoint and removes the card');
    check(document.documentElement.scrollWidth<=innerWidth+1,'Paper and News admin fit mobile width ('+document.documentElement.scrollWidth+'/'+innerWidth+'); right='+Array.from(document.querySelectorAll('body *')).map(el=>[el.getBoundingClientRect().right,el.getBoundingClientRect().width,el.id||el.className]).filter(([right,width])=>right>innerWidth+1).sort((a,b)=>b[0]-a[0]).slice(0,8).map(row=>row.join(':')).join('|'));

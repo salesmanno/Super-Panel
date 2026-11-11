@@ -217,9 +217,9 @@ try {
    <div id="news-edit-list">
   <header class="news-admin-heading"><div><h2>Nyhetsadministrasjon</h2><p class="text-muted mb-0">Saker, klikk og publiseringsstatus samlet på ett sted.</p></div><button type="button" class="btn btn-outline-secondary btn-sm" id="news-edit-refresh">Oppdater</button></header>
    <section class="news-home-preview" id="news-home-preview" aria-label="Forhåndsvis offentlig hjemmeside"></section>
-    <div class="news-home-tools"><strong>Redaksjonell oversikt</strong><span class="news-management-note">Søk og filter gjelder bare listen under — forsiden viser alltid publiserte saker.</span></div>
+    <div class="news-home-tools"><strong>Redaksjonell oversikt</strong><span class="news-management-note">Velg synlige eller skjulte saker. Planlagte og utløpte saker regnes som skjulte fra forsiden.</span></div>
    <div id="news-priority-live" class="news-priority-live" role="status" aria-live="polite"></div>
-  <div class="news-admin-toolbar"><label for="news-edit-search" class="visually-hidden">Søk etter sak</label><input id="news-edit-search" class="form-control" type="search" placeholder="Søk etter tittel …" autocomplete="off"><label for="news-admin-filter" class="visually-hidden">Filtrer saker</label><select id="news-admin-filter" class="form-select form-select-sm w-auto"><option value="all">Alle saker</option><option value="published">Publisert</option><option value="scheduled">Planlagt</option><option value="draft">Skjult / kladd</option><option value="expired">Utløpt</option></select></div>
+  <div class="news-admin-toolbar"><label for="news-admin-filter">Vis saker</label><select id="news-admin-filter" class="form-select form-select-sm w-auto"><option value="all">Alle saker</option><option value="visible">Synlige saker</option><option value="hidden">Skjulte saker</option></select></div>
   <div id="news-edit-cards" class="news-edit-cards" aria-live="polite">Henter saker …</div>
  </div>
  <div id="news-edit-workspace" hidden><button type="button" class="btn btn-outline-secondary btn-sm" id="news-edit-back">← Tilbake til nyhetsadministrasjon</button><div id="news-edit-editor-host"></div></div>
@@ -496,8 +496,8 @@ const types={event:'Arrangement',info:'Informasjon',news:'Nyhet',promotion:'Aktu
   }
   function isPublicNow(a,now=new Date()){
    if(!a.is_published)return false;
-   const published=a.publish_at?new Date(String(a.publish_at).replace(' ','T')):null;
-   const expires=a.expire_at?new Date(String(a.expire_at).replace(' ','T')):null;
+   const published=a.publish_at&&!String(a.publish_at).startsWith('0000-00-00')?new Date(String(a.publish_at).replace(' ','T')):null;
+   const expires=a.expire_at&&!String(a.expire_at).startsWith('0000-00-00')?new Date(String(a.expire_at).replace(' ','T')):null;
    return !(published&&published>now)&&!(expires&&!Number.isNaN(expires.getTime())&&expires<=now);
   }
   function safeImage(value){
@@ -521,14 +521,17 @@ const types={event:'Arrangement',info:'Informasjon',news:'Nyhet',promotion:'Aktu
    return `<button type="button" data-priority-move="${up?-1:1}" data-id="${esc(item.id)}" aria-label="${esc(label)}" title="${esc(reason||`Flytt ${word}`)}" ${reason||priorityBusy?'disabled':''}>${up?'↑':'↓'}</button>`;
   }
   function previewActions(item,sorted){
-   return `<div class="news-preview-actions" aria-label="Redaksjonelle handlinger for ${esc(item.title||'saken')}"><span class="preview-clicks">${Number(item.clicks)||0} klikk</span>${priorityMoveButton(item,-1,sorted)}${priorityMoveButton(item,1,sorted)}<button type="button" data-card-action="publish" data-id="${esc(item.id)}">Skjul</button></div>`;
+   return `<div class="news-preview-actions" aria-label="Redaksjonelle handlinger for ${esc(item.title||'saken')}"><span class="preview-clicks">${Number(item.clicks)||0} klikk · ${esc(cardStatus(item))}</span>${priorityMoveButton(item,-1,sorted)}${priorityMoveButton(item,1,sorted)}<button type="button" data-card-action="publish" data-id="${esc(item.id)}">${item.is_published?'Skjul':'Publiser'}</button></div>`;
   }
   function renderPublicPreview(){
    const host=$('news-home-preview');if(!host)return;
+   if(loadError){host.innerHTML=`<div class="alert alert-danger" role="alert">${esc(loadError)} Forhåndsvisningen kunne ikke lastes.</div>`;return}
+   if(loadRevision===0){host.innerHTML='<p role="status">Henter saker …</p>';return}
    const color=/^#[0-9a-f]{6}$/i.test(String(companyInfo.header_bg_color||''))?companyInfo.header_bg_color:'#2d5598';
    const logo=safeImage(companyInfo.img_url);
    const name=companyInfo.name||companyName||'';
-    const allRanked=rankedAnnouncements(),stories=AnnouncementRanking(announcements.filter(a=>isPublicNow(a)));
+    const filter=$('news-admin-filter').value;
+    const allRanked=rankedAnnouncements(),stories=AnnouncementRanking(announcements.filter(a=>filter==='all'||(filter==='hidden'?!isPublicNow(a):isPublicNow(a))));
     const contact=[companyInfo.contact_phone,companyInfo.address_street,[companyInfo.address_zip,companyInfo.address_city].filter(Boolean).join(' ')].filter(Boolean);
    const storyCard=(a,hero=false)=>{
     const title=esc(a.title||'Uten tittel'),image=safeImage(a.image_url),summary=esc(excerpt(a.content_text||a.content_html||'',hero?230:150));
@@ -539,25 +542,23 @@ const types={event:'Arrangement',info:'Informasjon',news:'Nyhet',promotion:'Aktu
    host.style.setProperty('--site-head',color);
    const rgb=[1,3,5].map(start=>parseInt(color.slice(start,start+2),16));
    host.style.setProperty('--site-head-ink',(rgb[0]*299+rgb[1]*587+rgb[2]*114)/1000>160?'#183b45':'#ffffff');
-    host.innerHTML=`<header class="news-home-top">${logo?`<img class="news-home-logo" src="${esc(logo)}" alt="">`:''}${name?`<span class="news-home-name">${esc(name)}</span>`:''}</header><nav class="news-home-nav" aria-label="Navigasjon"><span>Om oss</span><span>Hjem</span><span>Tjenester</span></nav><div class="news-home-content">${stories.length?`${storyCard(stories[0],true)}${stories.length>1?`<div class="news-home-rest">${stories.slice(1).map(a=>storyCard(a)).join('')}</div>`:''}`:'<div class="news-home-empty">Ingen publiserte saker vises på forsiden akkurat nå.</div>'}</div><footer class="news-home-footer"><span>${name?esc(name):''}${contact.length?`<small>${contact.map(esc).join(' · ')}</small>`:''}</span></footer>`;
+    host.innerHTML=`<header class="news-home-top">${logo?`<img class="news-home-logo" src="${esc(logo)}" alt="">`:''}${name?`<span class="news-home-name">${esc(name)}</span>`:''}</header><nav class="news-home-nav" aria-label="Navigasjon"><span>Om oss</span><span>Hjem</span><span>Tjenester</span></nav><div class="news-home-content">${stories.length?`${storyCard(stories[0],true)}${stories.length>1?`<div class="news-home-rest">${stories.slice(1).map(a=>storyCard(a)).join('')}</div>`:''}`:`<div class="news-home-empty">${announcements.length?'Ingen saker i dette utvalget. Velg «Alle saker» for å administrere de øvrige sakene.':'Ingen nyhetssaker er registrert for denne bedriften.'}</div>`}</div><footer class="news-home-footer"><span>${name?esc(name):''}${contact.length?`<small>${contact.map(esc).join(' · ')}</small>`:''}</span></footer>`;
   }
   function renderEditCards(){
    renderPublicPreview();
    $('news-priority-live').textContent=priorityStatus;
    if(loadError){$('news-edit-cards').innerHTML=`<div class="alert alert-danger" role="alert">${esc(loadError)} <button type="button" class="btn btn-sm btn-outline-danger" id="news-edit-retry">Prøv igjen</button></div>`;return}
-   const sorted=rankedAnnouncements(),term=$('news-edit-search').value.trim().toLocaleLowerCase('nb');
+   const sorted=rankedAnnouncements();
    const filter=$('news-admin-filter').value,now=new Date();
    const rows=sorted.filter(a=>{
-    if(!String(a.title||'').toLocaleLowerCase('nb').includes(term))return false;
-    const status=cardStatus(a,now);
-    return filter==='all'||filter==='published'&&status==='Publisert'||filter==='scheduled'&&status==='Planlagt'||filter==='draft'&&!a.is_published||filter==='expired'&&status==='Utløpt';
+    return filter==='all'||(filter==='visible'?isPublicNow(a):!isPublicNow(a));
      });
    $('news-edit-cards').innerHTML=rows.map(a=>{
     const id=esc(a.id),title=esc(a.title),status=cardStatus(a,now),clicks=Number(a.clicks)||0;
       const image=safeImage(a.image_url),position=sorted.findIndex(item=>String(item.id)===String(a.id)),ranked=position>=0;
      const priority=priorityValue(a.priority);
       return `<article class="news-edit-card"><button type="button" class="news-edit-card-open" data-edit-story="${id}" aria-label="Åpne og rediger ${title}">${image?`<img src="${esc(image)}" alt="" loading="lazy">`:'<span class="news-edit-card-image">Ingen forside</span>'}<span class="news-edit-card-body"><small>${esc(types[a.announcement_type]||'Nyhet')}${a.is_pinned?' · Festet':''}</small><strong class="news-edit-card-title">${title}</strong><span class="news-edit-card-excerpt">${esc(excerpt(a.content_text||'',130))||'Ingen tekstutdrag'}</span><small>${esc(a.author_name||'Forfatter ukjent')} · ${esc(date(a.publish_at))}</small><span class="news-edit-card-meta"><span class="badge-news">${esc(status)}</span><span class="badge-news news-textpill-bg">${clicks} klikk</span><span class="badge-news">Prioritet ${priority}</span></span></span></button><div class="news-edit-card-actions" aria-label="Handlinger for ${title}">${ranked?priorityMoveButton(a,-1,sorted)+priorityMoveButton(a,1,sorted):''}<button type="button" data-card-action="pin" data-id="${id}">${a.is_pinned?'Løsne':'Fest øverst'}</button><button type="button" data-card-action="publish" data-id="${id}">${a.is_published?'Skjul':'Publiser'}</button><button type="button" data-card-action="delete" data-id="${id}">Slett</button></div></article>`;
-   }).join('')||'<p class="text-muted">Ingen saker funnet med dette søket og filteret.</p>';
+   }).join('')||'<p class="text-muted">Ingen saker i dette utvalget.</p>';
  }
  function render(){renderEditCards()}
 function productFromForm(){if(!$('announcement-product-toggle').checked)return null;let id=val('announcement-product-id');if(!id)return null;let option=$('announcement-product-id').selectedOptions[0];return {output_product_id:id,name:option?.textContent||'',discount_percent:Number(val('announcement-discount'))||0,max_quantity:val('announcement-max-qty')?Number(val('announcement-max-qty')):null,expiry_date:val('announcement-product-expiry')||null}}
@@ -711,7 +712,6 @@ function resetProduct(){let s=$('announcement-product-id');s.selectedIndex=0;$('
     $('news-edit-cards').addEventListener('click',e=>{const retry=e.target.closest('#news-edit-retry');if(retry){load();return}const move=e.target.closest('[data-priority-move]');if(move){moveStoryPriority(move.dataset.id,move.dataset.priorityMove);return}const actionButton=e.target.closest('[data-card-action]');if(actionButton){action(actionButton.dataset.cardAction,actionButton.dataset.id);return}const card=e.target.closest('[data-edit-story]');if(card)edit(card.dataset.editStory)});
     $('news-home-preview').addEventListener('click',e=>{const move=e.target.closest('[data-priority-move]');if(move){moveStoryPriority(move.dataset.id,move.dataset.priorityMove);return}const actionButton=e.target.closest('[data-card-action]');if(actionButton){action(actionButton.dataset.cardAction,actionButton.dataset.id);return}if(e.target.closest('button'))return;const card=e.target.closest('[data-edit-story]');if(card)edit(card.dataset.editStory)});
     $('news-home-preview').addEventListener('keydown',e=>{if(e.target.closest('button'))return;const card=e.target.closest('[data-edit-story]');if(card&&(e.key==='Enter'||e.key===' ')){e.preventDefault();edit(card.dataset.editStory)}});
-  $('news-edit-search').addEventListener('input',renderEditCards);
    $('news-admin-filter').addEventListener('change',renderEditCards);
   $('news-edit-refresh').addEventListener('click',load);
   $('cancelAnnouncement').addEventListener('click',()=>{
