@@ -98,6 +98,9 @@ try {
         }
     }
     
+    // Do not let the next foreach overwrite the last row through this reference.
+    unset($product);
+
     // DEDUPLICATE: Remove duplicate products by (product_type, product_id) - keep the most recent
     $seen = [];
     $uniqueProducts = [];
