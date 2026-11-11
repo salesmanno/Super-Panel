@@ -12,6 +12,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/event_results_helpers.php';
+require_once __DIR__ . '/../includes/event_results_data.php';
 
 $eventId = trim((string) ($_GET['event_id'] ?? ''));
 if ($eventId === '') {
@@ -25,7 +26,7 @@ try {
     $companyId = $_SESSION['company_id'];
 
     $eventStmt = $db->prepare("
-        SELECT e.title, e.ticket_price,
+        SELECT e.id, e.company_id, e.is_active, e.title, e.ticket_price,
                (SELECT COUNT(*) FROM events_checkin ec WHERE ec.event_id = e.id) AS attendee_count
         FROM events_eventdata e
         WHERE e.id = ?
@@ -40,27 +41,9 @@ try {
         exit;
     }
 
-    $validLedgerSql = event_results_ledger_valid_sql('ul');
-    $ledgerEventIdSql = event_results_ledger_event_id_sql('ul');
-    $ledgerStmt = $db->prepare("
-        SELECT
-            ul.item_name,
-            ul.item_type,
-            ul.quantity,
-            ul.selling_price,
-            ul.cost_price,
-            ul.module_source,
-            ul.payment_status,
-            ul.status,
-            ul.transaction_type
-        FROM unified_ledger ul
-        WHERE ul.company_id = ?
-          AND {$validLedgerSql}
-          AND {$ledgerEventIdSql} = ?
-        ORDER BY ul.transaction_date ASC, ul.created_at ASC, ul.id ASC
-    ");
-    $ledgerStmt->execute([$companyId, $eventId]);
-    $transactions = $ledgerStmt->fetchAll(PDO::FETCH_ASSOC);
+    $report = event_results_load($db, (string) $companyId, [$event]);
+    $event = $report['events'][0];
+    $transactions = $report['transactions'][$eventId];
 
     $incomeGroups = [];
     $expenseGroups = [];
@@ -126,6 +109,8 @@ try {
             'total_income' => $totalIncome,
             'total_expense' => $totalExpense,
             'net_result' => round($totalIncome - $totalExpense, 2),
+            'projected_income' => $event['projected_income'],
+            'projected_net_result' => $event['projected_net_result'],
         ],
     ], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $e) {

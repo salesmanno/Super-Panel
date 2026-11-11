@@ -1760,6 +1760,7 @@ try {
 </div>
 
     <div id="events-results" class="subtab-content" style="display: none;">
+        <p class="small text-muted mb-3">Alle lagrede arrangementer vises, også skjulte/inaktive. Betalt inntekt kommer fra fullførte hovedboksposter. Forventet ubetalt er gjenstående billettbeløp for registrerte påmeldte, ikke mottatt betaling. Netto med forventet = betalt + forventet − registrerte utgifter.</p>
         <!-- Summary stats -->
         <div class="mb-4" id="events-results-summary" style="display: none;">
             <div class="row g-2 mb-2">
@@ -4738,6 +4739,7 @@ async function loadEventsResults() {
                                             ${metric('Faktisk netto', actualNet, actualNet >= 0 ? 'text-success' : 'text-danger')}
                                             ${metric('Netto med forventet', projectedNet, projectedNet >= 0 ? 'text-success' : 'text-danger')}
                                         </div>
+                                        ${Number(event.unreconciled_paid_count) > 0 ? `<p class="small text-warning-emphasis mt-2 mb-0" role="note">${Number(event.unreconciled_paid_count)} påmeldte er registrert som betalt uten full betalingskobling i hovedboken. Disse er ikke merket ubetalt eller lagt til prognosen. Kontroller historikken før eventuell retting.</p>` : ''}
                                     </div>
                                 </article>
                             `;

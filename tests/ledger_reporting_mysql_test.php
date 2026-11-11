@@ -25,7 +25,16 @@ $db->exec("CREATE TABLE economy_configuration_data(company_id VARCHAR(36),gatewa
     INSERT INTO membership_members VALUES('member-a','company-a','customer-a','plan-a','active',CONCAT(YEAR(CURRENT_DATE),'-01-01'),NULL,0),('member-b','company-a','customer-b','plan-a','active',CONCAT(YEAR(CURRENT_DATE),'-01-01'),NULL,0);
     CREATE TABLE events_eventdata(id VARCHAR(36),company_id VARCHAR(36),title VARCHAR(40),ticket_price DECIMAL(12,2),is_active INT);
     INSERT INTO events_eventdata VALUES('event-a','company-a','Arrangement',100,1);
-    CREATE TABLE events_checkin(id VARCHAR(36),event_id VARCHAR(36));
+    CREATE TABLE events_checkin(id VARCHAR(36),event_id VARCHAR(36),registration_id VARCHAR(36),ticket_price DECIMAL(12,2),payment_status VARCHAR(30));
+    CREATE TABLE event_registrations(id VARCHAR(36),event_id VARCHAR(36),company_id VARCHAR(36),approval_status VARCHAR(30));
+    ALTER TABLE events_eventdata ADD start_date DATE DEFAULT '2025-01-01', ADD start_time TIME DEFAULT '19:00:00',
+        ADD end_date DATE DEFAULT '2025-01-01', ADD end_time TIME DEFAULT '23:00:00';
+    INSERT INTO events_eventdata(id,company_id,title,ticket_price,is_active) VALUES
+        ('hidden','company-a','Skjult',150,0),('empty','company-a','Tomt',0,1),('foreign-event','company-b','Foreign',100,1);
+    INSERT INTO event_registrations VALUES('reg-a','event-a','company-a','approved'),('waiting','hidden','company-a','pending');
+    INSERT INTO events_checkin VALUES('covered','event-a','reg-a',100,'pending'),('member-price','event-a',NULL,55,'unpaid'),
+        ('due','hidden',NULL,75,'pending'),('refunded','hidden',NULL,999,'refunded'),('noshow','hidden',NULL,20,'no_show'),
+        ('free','hidden',NULL,0,'pending'),('unapproved','hidden','waiting',40,'pending');
     CREATE TABLE tenant_companies(id VARCHAR(36),name VARCHAR(40),is_active INT);
     INSERT INTO tenant_companies VALUES('company-a','Fixture',1),('company-b','Foreign',1);
     CREATE TABLE tenant_admins(id VARCHAR(36),company_id VARCHAR(36),username VARCHAR(30),role VARCHAR(20),is_active INT,tenant_staff_id VARCHAR(36));
@@ -57,7 +66,7 @@ $rows[] = ['member-cancelled','membership',700,2,'completed','cancelled','income
 $rows[] = ['ledger-refunded','sales',600,2,'completed','refunded','income',null];
 foreach ($rows as [$id,$module,$price,$qty,$payment,$status,$type,$cost]) {
     $customer = $id === 'member-other' ? 'customer-b' : 'customer-a';
-    $source = $module === 'events' ? 'event-a' : $id;
+    $source = $id === 'event-paid' ? 'reg-a' : ($module === 'events' ? 'event-a' : $id);
     $insert->execute([$id,$id==='s2'?'s1':$id,'company-a',$source,$customer,$module,$id,'product',null,$type,$price,$cost,$qty,'cash',$payment,$status,'{}']);
 }
 $insert->execute(['foreign','foreign','company-b','foreign','customer-foreign','membership','Foreign','membership',null,'income',9999,null,1,'cash','completed','active','{}']);
@@ -76,8 +85,8 @@ foreach (['../../x','ul; DROP TABLE x'] as $alias) {
 
 $app = $tmp.'/app';
 foreach (['api','config','includes'] as $dir) mkdir($app.'/'.$dir,0700,true);
-foreach (['get_economy_data.php','get_membership_income.php','get_membership_income_tracking.php','get_monthly_membership_payments.php','get_event_finances.php','get_event_transactions.php','image_upload.php'] as $api) copy($root.'/api/'.$api,$app.'/api/'.$api);
-foreach (['ImageUpload.php','ledger_reporting.php','event_results_helpers.php','entity_form_fields.php','tenant_customer_contacts.php'] as $file) symlink($root.'/includes/'.$file,$app.'/includes/'.$file);
+foreach (['get_economy_data.php','get_membership_income.php','get_membership_income_tracking.php','get_monthly_membership_payments.php','get_event_finances.php','get_event_transactions.php','get_events_results.php','image_upload.php'] as $api) copy($root.'/api/'.$api,$app.'/api/'.$api);
+foreach (['ImageUpload.php','ledger_reporting.php','event_results_helpers.php','event_results_data.php','entity_form_fields.php','tenant_customer_contacts.php'] as $file) symlink($root.'/includes/'.$file,$app.'/includes/'.$file);
 file_put_contents($app.'/config/database.php', '<?php function getDBConnection(){return new PDO('.var_export('mysql:unix_socket='.$socket.';dbname=fixture',true).',"root","",[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);}');
 // Login fixture exists only in the temporary isolated server, never the app.
 file_put_contents($app.'/session.php', '<?php session_start(); $_SESSION=[]; if(($_GET["mode"]??"")!=="anonymous"){$_SESSION=["tenant_admin_id"=>($_GET["mode"]??"")==="disabled"?"disabled":"admin-a","company_id"=>"company-a"];} echo "ok";');
@@ -146,7 +155,16 @@ try {
     foreach(['get_event_finances.php','get_event_transactions.php'] as $endpoint){
         $event=apiFixture('/api/'.$endpoint.'?event_id=event-a');
         ledgerCheck((float)$event['summary']['total_income']===100.0 && (float)$event['summary']['total_expense']===25.0,'event read model preserved');
+        ledgerCheck((float)$event['summary']['projected_income']===55.0,'Paid registration with stale pending flag not also projected');
+        $hidden=apiFixture('/api/'.$endpoint.'?event_id=hidden');
+        ledgerCheck((float)$hidden['summary']['projected_income']===75.0,'Hidden event details accessible; unapproved, free, no-show and refund not projected');
     }
+    $results=apiFixture('/api/get_events_results.php');
+    $byEvent=array_column($results['events'],null,'id');
+    ledgerCheck(count($byEvent)===3 && isset($byEvent['hidden'],$byEvent['empty']) && !isset($byEvent['foreign-event']),'All retained tenant events shown, including empty and hidden');
+    ledgerCheck((float)$results['summary']['total_revenue']===100.0 && (float)$results['summary']['total_projected_income']===130.0
+        && (float)$results['summary']['total_expense']===25.0 && (float)$results['summary']['projected_net_result']===205.0,'Actual API totals match paid plus forecast less expenses');
+    ledgerCheck($results['summary']['total_attendees']===7 && $results['summary']['total_unpaid_attendees']===2,'All participants retained, unpaid counts separate');
     $income=apiFixture('/api/get_economy_data.php?view=income')['data'];
     $expenses=apiFixture('/api/get_economy_data.php?view=expense')['data'];
     ledgerCheck((float)$income['total']===560.0 && (float)$expenses['total']===75.0,'overview and income/expense agree');
