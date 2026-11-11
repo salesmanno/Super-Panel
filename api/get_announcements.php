@@ -12,28 +12,17 @@ require_once '../config/database.php';
 require_once '../includes/announcement_helpers.php';
 require_once '../includes/announcement_elements.php';
 require_once '../includes/announcement_editor.php';
+require_once '../includes/announcement_preview.php';
 
+$stage = 'databasetilkobling';
 try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
+    $stage = 'forfatterkobling';
     $editorAuthor = announcement_editor_author($db, (string)$_SESSION['tenant_admin_id'], (string)$companyId);
-    $companyStmt = $db->prepare('SELECT name, img_url, contact_phone, address_street, address_zip, address_city FROM tenant_companies WHERE id = ?');
-    $companyStmt->execute([$companyId]);
-    $company = $companyStmt->fetch(PDO::FETCH_ASSOC) ?: [];
-    $companyName = (string)($company['name'] ?? '');
-    $themeStmt = $db->prepare('SELECT header_bg_color FROM tenant_website_general WHERE company_id = ? LIMIT 1');
-    $themeStmt->execute([$companyId]);
-    $headerColor = $themeStmt->fetchColumn();
-    $company = [
-        'name' => $companyName,
-        'img_url' => (string)($company['img_url'] ?? ''),
-        'header_bg_color' => is_string($headerColor) && preg_match('/^#[0-9a-fA-F]{6}$/', $headerColor)
-            ? $headerColor : '#176b69',
-        'contact_phone' => (string)($company['contact_phone'] ?? ''),
-        'address_street' => (string)($company['address_street'] ?? ''),
-        'address_zip' => (string)($company['address_zip'] ?? ''),
-        'address_city' => (string)($company['address_city'] ?? ''),
-    ];
+    $preview = announcement_preview_company($db, (string)$companyId);
+    $company = $preview['company'];
+    $companyName = $company['name'];
     
     $tableName = 'tenant_announcements';
     
@@ -72,9 +61,11 @@ try {
               CAST(a.priority AS UNSIGNED) ASC,
               a.publish_at DESC, a.id ASC";
     
+    $stage = 'nyhetssaker';
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
     $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stage = 'nyhetselementer';
     $elementMap = announcement_load_elements($db,(string)$companyId,array_column($announcements,'id'));
     
     // Get product associations for all announcements
@@ -82,6 +73,7 @@ try {
     $productMap = [];
     
     if (!empty($announcementIds)) {
+        $stage = 'produktkoblinger';
         $placeholders = implode(',', array_fill(0, count($announcementIds), '?'));
         $productSql = "SELECT ap.announcement_id, ap.output_product_id, ap.discount_percent, ap.max_quantity, ap.expiry_date,
                               op.name AS product_name, op.product_type
@@ -104,6 +96,7 @@ try {
     }
     
     // Cast boolean fields and add product data
+    $stage = 'behandling av nyhetsinnhold';
     $authorNames = [];
     foreach ($announcements as &$announcement) {
         $authorKey = (string)($announcement['author_id'] ?? '');
@@ -128,13 +121,16 @@ try {
         'editor_author' => $editorAuthor,
         'company_name' => $companyName,
         'company' => $company,
+        'warnings' => $preview['warnings'],
         'announcements' => $announcements
-    ], JSON_UNESCAPED_UNICODE);
+    ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR);
     
-} catch (Exception $e) {
-    error_log('Get announcements error: ' . $e->getMessage());
+} catch (Throwable $e) {
+    $reference = bin2hex(random_bytes(4));
+    error_log("Get announcements error [{$reference}] ({$stage}): " . $e->getMessage());
+    http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Kunne ikke hente nyheter'
+        'message' => "Kunne ikke hente nyheter ({$stage}). Feilreferanse: {$reference}"
     ]);
 }

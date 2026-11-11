@@ -15,6 +15,7 @@ for (const asset of ['announcement_ranking', 'news_video']) {
 const stubs = `
 window.confirm=()=>true;window.newsAlerts=[];window.alert=m=>newsAlerts.push(m);
 window.newsSaves=[];window.newsMoves=[];window.failMove=false;
+window.newsLoadFailure=false;window.newsTheme={logo_position:'right',nav_position:'left',header_layout:'standard'};
 const row=(id,priority,extra={})=>({id,priority,title:'Nyhet '+id,content:'Innhold '+id,
  content_html:'<p>Innhold '+id+'</p>',content_text:'Innhold '+id,
  is_published:true,is_pinned:false,publish_at:'2025-01-01 10:00:00',expire_at:null,
@@ -24,10 +25,13 @@ window.newsRows=[row('A',1,{expire_at:'2039-12-31 17:45:00'}),row('B',2),
  row('hidden',3,{is_published:false}),row('expired',4,{expire_at:'2025-01-02 08:00:00'}),
  row('future',5,{publish_at:'2039-01-01 10:00:00'})];
 window.fetch=async(url,options)=>{
- if(!options)return {ok:true,json:async()=>({success:true,announcements:newsRows,
+ if(!options||!options.body){
+ if(newsLoadFailure)return {ok:false,status:500,json:async()=>({success:false,message:'Kunne ikke hente nyheter (nyhetselementer). Feilreferanse: testref'})};
+ return {ok:true,json:async()=>({success:true,announcements:newsRows,
   editor_author:{staff_id:'staff-test',name:'Testredaktør'},company_name:'Testforeningen',
   company:{name:'Testforeningen',img_url:location.origin+'/image.svg',header_bg_color:'#2b5097',
-   contact_phone:'12345678',address_street:'Testgata 1',address_zip:'6000',address_city:'Testbyen'}})};
+   contact_phone:'12345678',address_street:'Testgata 1',address_zip:'6000',address_city:'Testbyen',...newsTheme}})};
+ }
  const data=JSON.parse(options.body);
  if(String(url).includes('update_announcement_priority')){
   newsMoves.push(data);
@@ -67,6 +71,13 @@ const checks = `(async()=>{
  check($('news-home-preview').textContent.includes('Testforeningen')&&$('news-home-preview').textContent.includes('Testgata 1'),'Real company name and address are shown');
  check(getComputedStyle($('news-home-preview')).getPropertyValue('--site-head').trim()==='#2b5097','Header uses company theme');
  check(document.querySelector('.news-home-logo')?.getAttribute('src').endsWith('/image.svg'),'Real company image is used');
+ check(getComputedStyle(document.querySelector('.news-home-top')).justifyContent==='flex-end','Header respects saved right positioning');
+ check(getComputedStyle(document.querySelector('.news-home-nav')).justifyContent==='flex-start','Navigation respects saved left positioning');
+ newsTheme={logo_position:'center',nav_position:'right',header_layout:'centered'};$('news-edit-refresh').click();await tick();
+ check(getComputedStyle(document.querySelector('.news-home-top')).flexDirection==='column'&&getComputedStyle(document.querySelector('.news-home-top')).alignItems==='center','Centered header uses stacked centered branding');
+ newsLoadFailure=true;$('news-edit-refresh').click();await tick();
+ check($('news-home-preview').textContent.includes('testref')&&!$('news-home-preview').textContent.includes('Ingen nyhetssaker'),'Actual server failure is shown instead of empty state');
+ newsLoadFailure=false;$('news-edit-refresh').click();await tick();
  selectFilter('hidden');await tick();
  check(document.querySelectorAll('#news-home-preview [data-edit-story]').length===3,'Hidden preview includes drafts, expired and scheduled stories');
  check(document.querySelectorAll('#news-edit-cards [data-edit-story]').length===3,'List and preview use the same dropdown filter');

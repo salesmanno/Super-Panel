@@ -197,6 +197,9 @@ try {
 .news-home-preview .story-kicker{color:#426da9}.news-home-preview .story-meta{color:#586d7e}
 .news-home-preview .story-meta{display:block;margin-top:.5rem;font-size:.76rem}
 .news-home-top,.news-home-footer{color:var(--site-head-ink,#fff)}
+.news-home-top{justify-content:var(--site-header-position,flex-start);text-align:var(--site-header-align,left)}
+.news-home-name{min-width:0;overflow-wrap:anywhere}.news-home-nav{justify-content:var(--site-nav-position,center)}
+.news-home-top[data-layout="centered"]{flex-direction:column;align-items:var(--site-header-position,center)}
 .news-home-footer small{display:block;margin-top:.35rem;font-weight:400}
 .news-admin-toolbar{display:flex;align-items:center;justify-content:space-between;gap:.65rem;flex-wrap:wrap;margin-top:1rem}
 .news-admin-toolbar input{flex:1 1 220px;max-width:420px}
@@ -530,6 +533,12 @@ const types={event:'Arrangement',info:'Informasjon',news:'Nyhet',promotion:'Aktu
    const color=/^#[0-9a-f]{6}$/i.test(String(companyInfo.header_bg_color||''))?companyInfo.header_bg_color:'#2d5598';
    const logo=safeImage(companyInfo.img_url);
    const name=companyInfo.name||companyName||'';
+   const positions={left:'flex-start',center:'center',right:'flex-end'};
+   const headerPosition=Object.hasOwn(positions,companyInfo.logo_position)?companyInfo.logo_position:(companyInfo.header_layout==='centered'?'center':'left');
+   const navPosition=Object.hasOwn(positions,companyInfo.nav_position)?companyInfo.nav_position:'center';
+   host.style.setProperty('--site-header-position',positions[headerPosition]);
+   host.style.setProperty('--site-header-align',headerPosition);
+   host.style.setProperty('--site-nav-position',positions[navPosition]);
     const filter=$('news-admin-filter').value;
     const allRanked=rankedAnnouncements(),stories=AnnouncementRanking(announcements.filter(a=>filter==='all'||(filter==='hidden'?!isPublicNow(a):isPublicNow(a))));
     const contact=[companyInfo.contact_phone,companyInfo.address_street,[companyInfo.address_zip,companyInfo.address_city].filter(Boolean).join(' ')].filter(Boolean);
@@ -543,6 +552,11 @@ const types={event:'Arrangement',info:'Informasjon',news:'Nyhet',promotion:'Aktu
    const rgb=[1,3,5].map(start=>parseInt(color.slice(start,start+2),16));
    host.style.setProperty('--site-head-ink',(rgb[0]*299+rgb[1]*587+rgb[2]*114)/1000>160?'#183b45':'#ffffff');
     host.innerHTML=`<header class="news-home-top">${logo?`<img class="news-home-logo" src="${esc(logo)}" alt="">`:''}${name?`<span class="news-home-name">${esc(name)}</span>`:''}</header><nav class="news-home-nav" aria-label="Navigasjon"><span>Om oss</span><span>Hjem</span><span>Tjenester</span></nav><div class="news-home-content">${stories.length?`${storyCard(stories[0],true)}${stories.length>1?`<div class="news-home-rest">${stories.slice(1).map(a=>storyCard(a)).join('')}</div>`:''}`:`<div class="news-home-empty">${announcements.length?'Ingen saker i dette utvalget. Velg «Alle saker» for å administrere de øvrige sakene.':'Ingen nyhetssaker er registrert for denne bedriften.'}</div>`}</div><footer class="news-home-footer"><span>${name?esc(name):''}${contact.length?`<small>${contact.map(esc).join(' · ')}</small>`:''}</span></footer>`;
+   host.querySelector('.news-home-top').dataset.layout=['standard','centered','minimal'].includes(companyInfo.header_layout)?companyInfo.header_layout:'standard';
+   if(Array.isArray(companyInfo.preview_warnings)&&companyInfo.preview_warnings.length){
+    const warning=document.createElement('div');warning.className='alert alert-warning';warning.setAttribute('role','status');
+    warning.textContent=companyInfo.preview_warnings.join(' ');host.prepend(warning);
+   }
   }
   function renderEditCards(){
    renderPublicPreview();
@@ -664,7 +678,29 @@ function resetProduct(){let s=$('announcement-product-id');s.selectedIndex=0;$('
   }catch(e){alert('Kunne ikke lagre. Kontroller forbindelsen og prøv igjen.')}
   finally{setSaveBusy(false)}
  }
-  async function load(){let revision=++loadRevision;try{let x=await (await fetch('/api/get_announcements.php?show_unpublished=true')).json();if(revision!==loadRevision)return false;if(x.success){loadError='';editorAuthor=x.editor_author||null;companyName=typeof x.company_name==='string'?x.company_name:'';companyInfo=x.company&&typeof x.company==='object'?x.company:{};announcements=x.announcements.map(a=>({...a,is_published:a.is_published===true||a.is_published===1||a.is_published==='1',is_pinned:a.is_pinned===true||a.is_pinned===1||a.is_pinned==='1',priority:priorityValue(a.priority),clicks:Number(a.clicks)||0}));const slot=document.querySelector('.nc-author-slot');if(slot&&!val('announcement-id'))slot.innerHTML=editorAuthor?.staff_id?`<div class="news-compose-author">Forfatter · ${esc(currentAuthorLabel())}</div>`:'<div class="news-compose-author">Ny sak krever at brukeren er knyttet til en ansatt i bedriften.</div>';renderPaper();render();return true}loadError=x.message||'Kunne ikke hente nyhetene.';render();return false}catch(e){if(revision===loadRevision){loadError='Kunne ikke hente nyhetene.';render()}return false}}
+  async function load(){
+   const revision=++loadRevision;
+   let response,x;
+   try{
+    response=await fetch('/api/get_announcements.php?show_unpublished=true',{cache:'no-store'});
+    try{x=await response.json()}catch(error){throw new Error(`Serveren returnerte ikke et gyldig nyhetssvar (HTTP ${response.status||'ukjent'}).`)}
+    if(!response.ok||!x.success)throw new Error(x.message||`Kunne ikke hente nyhetene (HTTP ${response.status||'ukjent'}).`);
+    if(!Array.isArray(x.announcements))throw new Error('Nyhetssvaret mangler listen over saker.');
+   }catch(error){
+    if(revision===loadRevision){loadError=error.message||'Kunne ikke kontakte nyhetstjenesten.';render()}
+    return false;
+   }
+   if(revision!==loadRevision)return false;
+   loadError='';editorAuthor=x.editor_author||null;companyName=typeof x.company_name==='string'?x.company_name:'';
+   companyInfo={...(x.company&&typeof x.company==='object'?x.company:{}),preview_warnings:x.warnings||[]};
+   announcements=x.announcements.map(a=>({...a,is_published:a.is_published===true||a.is_published===1||a.is_published==='1',is_pinned:a.is_pinned===true||a.is_pinned===1||a.is_pinned==='1',priority:priorityValue(a.priority),clicks:Number(a.clicks)||0}));
+   const slot=document.querySelector('.nc-author-slot');
+   if(slot&&!val('announcement-id'))slot.innerHTML=editorAuthor?.staff_id?`<div class="news-compose-author">Forfatter · ${esc(currentAuthorLabel())}</div>`:'<div class="news-compose-author">Ny sak krever at brukeren er knyttet til en ansatt i bedriften.</div>';
+   try{renderPaper();render()}catch(error){
+    loadError='Sakene ble hentet, men visningen feilet. Last siden på nytt.';console.error('News rendering failed',error);renderPublicPreview();return false;
+   }
+   return true;
+  }
  async function action(action,id){if(priorityBusy)return;let endpoint=action==='pin'?'/api/toggle_announcement_pin.php':action==='publish'?'/api/toggle_announcement_publish.php':'/api/delete_announcement.php';if(action==='delete'&&!confirm('Slette denne saken?'))return;priorityBusy=true;render();try{let r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}),x=await r.json();if(!r.ok||!x.success){alert(x.message||'Endringen kunne ikke lagres.');return}await load()}catch(e){alert('Endringen kunne ikke lagres. Prøv igjen.')}finally{priorityBusy=false;render()}}
   function priorityMovePlan(id,direction,rows=announcements){
    const sorted=AnnouncementRanking(rows),target=sorted.find(row=>String(row.id)===String(id));

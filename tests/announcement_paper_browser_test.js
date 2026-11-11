@@ -14,7 +14,7 @@ const stubs = `
 window.paperRows=[];window.paperSaves=[];window.paperEndpoints=[];window.paperAlerts=[];window.paperActions=[];window.failNext=false;window.confirm=()=>true;
 window.alert=message=>paperAlerts.push(message);
 window.fetch=async(url,options)=>{
- if(!options)return {ok:true,json:async()=>({success:true,announcements:paperRows,editor_author:{staff_id:'test-staff',name:'Testredaktør'},company_name:'Testforeningen'})};
+ if(!options||!options.body)return {ok:true,json:async()=>({success:true,announcements:paperRows,editor_author:{staff_id:'test-staff',name:'Testredaktør'},company_name:'Testforeningen'})};
  if(String(url).includes('/api/toggle_announcement_')||String(url).includes('/api/delete_announcement.php')){
   const data=JSON.parse(options.body);paperActions.push({url:String(url),id:data.id});
   const row=paperRows.find(item=>String(item.id)===String(data.id));
