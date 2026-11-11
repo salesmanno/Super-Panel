@@ -173,7 +173,7 @@ try {
 @media(max-width:575px){.nc-type-picker{grid-template-columns:repeat(2,minmax(0,1fr))}.news-compose-reader{padding:.9rem}.news-compose-footer{position:sticky;bottom:0;background:#f5f8fa;padding:.7rem 0;z-index:2}}
 </style>
 <style>
-.news-edit-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,430px),1fr));gap:.85rem;margin:1rem 0}
+ .news-edit-cards{display:grid;gap:.45rem;margin:.55rem 0 0}
 .news-edit-card{display:grid;grid-template-columns:minmax(110px,.72fr) minmax(0,1.28fr);min-width:0;overflow:hidden;border:1px solid #dce5e7;border-radius:12px;background:#fff;color:#173b42;box-shadow:0 4px 15px rgba(23,50,77,.04);transition:box-shadow .15s,transform .15s}
 .news-edit-card:hover{transform:translateY(-2px);box-shadow:0 5px 16px #173b4218}.news-edit-card:focus-within{outline:3px solid #087f8c;outline-offset:2px}
 .news-edit-card-open{display:flex;min-width:0;flex-direction:column;align-items:stretch;padding:0;border:0;background:transparent;text-align:left;color:inherit}
@@ -210,6 +210,41 @@ try {
 @media(max-width:700px){.news-home-hero{grid-template-columns:1fr;gap:.8rem}.news-home-hero img{height:auto;max-height:250px;aspect-ratio:16/9}.news-home-rest{grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}.news-home-card img{height:auto;aspect-ratio:1.55}.news-home-top{min-height:58px}.news-home-nav{gap:1.2rem}.news-home-tools{align-items:flex-start;flex-direction:column}}
 @media(max-width:390px){.news-home-rest{grid-template-columns:1fr}.news-home-card{display:grid;grid-template-columns:105px minmax(0,1fr);gap:.6rem;align-items:start}.news-home-card img{grid-row:span 2;margin:0}.news-home-card h4{font-size:.9rem}.news-home-nav{gap:.9rem}}
 .news-preview-actions{display:flex;align-items:center;flex-wrap:wrap;gap:.35rem;margin-top:.7rem;padding-top:.55rem;border-top:1px solid #bfd2e3}.news-preview-actions .preview-clicks{margin-right:auto;color:#536b7a;font-size:.72rem}.news-preview-actions button{border:1px solid #b9cddd;border-radius:6px;background:#f8fbfd;color:#244e70;padding:.28rem .5rem;font-size:.72rem;font-weight:650;cursor:pointer}.news-preview-actions button:hover{background:#fff;border-color:#6d95b3}.news-preview-actions button:disabled{opacity:.45;cursor:not-allowed}.news-home-preview [data-edit-story]:focus-visible{outline:3px solid #e5a28e;outline-offset:2px}.news-home-hero .news-preview-actions{grid-column:1/-1}.news-home-card .news-preview-actions{grid-column:1/-1}.news-priority-live{min-height:1.1rem;margin:.25rem 0;color:#375e57;font-size:.75rem}
+ .news-admin-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,330px);align-items:start;gap:1rem;margin-top:1rem}
+ .news-admin-preview-column{min-width:0}.news-admin-sidebar{position:sticky;top:.75rem;min-width:0;padding:.8rem;border:1px solid #d8e3e5;border-radius:12px;background:#f8faf8}
+ .news-admin-sidebar-head{display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;margin:0 0 .35rem}
+ .news-admin-sidebar-head strong{font-size:.9rem;color:#173b42}.news-admin-sidebar-head span{font-size:.7rem;color:#718492;white-space:nowrap}
+ .news-admin-sidebar .news-admin-toolbar{margin:.5rem 0;justify-content:flex-start}.news-admin-sidebar .news-admin-toolbar select{flex:1;min-width:0}
+ .news-edit-card{display:grid;grid-template-columns:minmax(0,1fr);gap:0;border-radius:9px;box-shadow:none}
+ .news-edit-card:hover{transform:none;box-shadow:0 3px 10px rgba(23,50,77,.08)}
+ .news-edit-card-open{display:block;min-width:0;padding:.58rem .62rem .3rem}
+ .news-edit-card-open>img,.news-edit-card-image{display:none}
+ .news-edit-card-body{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:.25rem .45rem;padding:0}
+ .news-edit-card-body>small:first-child,.news-edit-card-title,.news-edit-card-excerpt,.news-edit-card-meta{grid-column:1/-1}
+ .news-edit-card-body>small:first-child{font-size:.65rem;color:#718492}
+ .news-edit-card-title{font-size:.79rem;line-height:1.25}
+ .news-edit-card-excerpt{font-size:.7rem;-webkit-line-clamp:1}
+ .news-edit-card-body>small:nth-of-type(2){font-size:.66rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .news-edit-card-meta{gap:.25rem;margin-top:.1rem}
+ .news-edit-card-meta .badge-news{padding:.12rem .34rem;font-size:.62rem}
+ .news-edit-card-actions{gap:.25rem;padding:.35rem .45rem}
+ .news-edit-card-actions button{padding:.24rem .38rem;font-size:.67rem}
+ .news-edit-card-actions button[data-card-action=delete]{margin-left:auto}
+ .news-home-top{box-sizing:border-box;height:var(--site-header-height,64px);min-height:0;padding:0 clamp(.7rem,3vw,2.2rem);overflow:hidden}
+ .news-home-top[data-layout="centered"]{gap:.15rem}
+ .news-home-logo{width:auto;height:var(--site-logo-height,40px);max-width:min(34%,180px);max-height:calc(var(--site-header-height,64px) - 8px);object-fit:contain;border-radius:var(--site-radius,10px)}
+ .news-home-name{max-width:100%;font-size:var(--site-header-font-size,1.06rem);line-height:1.15;max-height:1.15em;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical}
+ .news-home-top[data-layout="centered"] .news-home-logo{height:var(--site-logo-height,40px);max-height:calc(var(--site-header-height,80px) - var(--site-header-font-size,20px) * 1.15 - 4px)}
+ .news-home-preview{font-family:var(--site-font-family,Georgia,serif);border-radius:var(--site-radius,13px)}
+ .news-home-preview .news-home-top,.news-home-preview .news-home-footer{border-radius:0}
+ .news-home-preview img{border-radius:var(--site-radius,5px)}
+ .news-home-preview .news-home-nav,.news-home-preview .news-home-content{font-family:inherit}
+ .news-admin-sidebar .news-edit-cards .alert{margin:.35rem 0}
+ .news-sidebar-disclosure{min-width:0;position:sticky;top:.75rem}.news-sidebar-disclosure>summary{display:none}
+ @media(max-width:900px){.news-admin-layout{grid-template-columns:minmax(0,1fr) minmax(230px,285px);gap:.7rem}}
+ @media(max-width:700px){.news-admin-layout{grid-template-columns:1fr}.news-sidebar-disclosure{position:static;grid-row:1}.news-sidebar-disclosure>summary{display:list-item;cursor:pointer;padding:.8rem 1rem;background:#edf5f3;border:1px solid #c8dcd6;border-radius:9px;color:#173b42;font-weight:650}.news-admin-sidebar{position:static;margin-top:.5rem}.news-admin-preview-column{grid-row:2}.news-edit-card{grid-template-columns:minmax(0,1fr)}}
+ @media(max-width:575px){.news-admin-sidebar{padding:.65rem}.news-edit-card-open{padding:.52rem}.news-edit-card-actions{gap:.25rem}.news-edit-card-actions button{padding:.3rem .42rem}}
+ @media(max-width:700px){.news-home-top{height:var(--site-header-height,58px)}}
 </style>
 <div class="container-fluid py-3">
 <nav class="news-subtabs" role="tablist" aria-label="News">
@@ -219,11 +254,16 @@ try {
 <div id="news-edit-panel" class="news-subpanel" hidden>
    <div id="news-edit-list">
   <header class="news-admin-heading"><div><h2>Nyhetsadministrasjon</h2><p class="text-muted mb-0">Saker, klikk og publiseringsstatus samlet på ett sted.</p></div><button type="button" class="btn btn-outline-secondary btn-sm" id="news-edit-refresh">Oppdater</button></header>
-   <section class="news-home-preview" id="news-home-preview" aria-label="Forhåndsvis offentlig hjemmeside"></section>
-    <div class="news-home-tools"><strong>Redaksjonell oversikt</strong><span class="news-management-note">Velg synlige eller skjulte saker. Planlagte og utløpte saker regnes som skjulte fra forsiden.</span></div>
-   <div id="news-priority-live" class="news-priority-live" role="status" aria-live="polite"></div>
-  <div class="news-admin-toolbar"><label for="news-admin-filter">Vis saker</label><select id="news-admin-filter" class="form-select form-select-sm w-auto"><option value="all">Alle saker</option><option value="visible">Synlige saker</option><option value="hidden">Skjulte saker</option></select></div>
-  <div id="news-edit-cards" class="news-edit-cards" aria-live="polite">Henter saker …</div>
+    <div class="news-admin-layout">
+     <div class="news-admin-preview-column"><section class="news-home-preview" id="news-home-preview" aria-label="Forhåndsvis offentlig hjemmeside"></section></div>
+     <details class="news-sidebar-disclosure" id="news-sidebar-disclosure" open><summary>Administrer nyhetssaker</summary><aside class="news-admin-sidebar" aria-label="Administrer alle nyhetssaker">
+      <div class="news-admin-sidebar-head"><strong>Alle nyhetssaker</strong><span id="news-sidebar-count"></span></div>
+      <p class="news-management-note">Bare publiserte saker som er innenfor dato vises på forsiden. Velg en sak for å redigere.</p>
+      <div id="news-priority-live" class="news-priority-live" role="status" aria-live="polite"></div>
+      <div class="news-admin-toolbar"><label for="news-admin-filter">Vis</label><select id="news-admin-filter" class="form-select form-select-sm"><option value="all">Alle saker</option><option value="visible">Synlige saker</option><option value="hidden">Skjulte saker</option></select></div>
+      <div id="news-edit-cards" class="news-edit-cards" aria-live="polite">Henter saker …</div>
+     </aside></details>
+    </div>
  </div>
  <div id="news-edit-workspace" hidden><button type="button" class="btn btn-outline-secondary btn-sm" id="news-edit-back">← Tilbake til nyhetsadministrasjon</button><div id="news-edit-editor-host"></div></div>
 </div>
@@ -499,9 +539,10 @@ const types={event:'Arrangement',info:'Informasjon',news:'Nyhet',promotion:'Aktu
   }
   function isPublicNow(a,now=new Date()){
    if(!a.is_published)return false;
-   const published=a.publish_at&&!String(a.publish_at).startsWith('0000-00-00')?new Date(String(a.publish_at).replace(' ','T')):null;
-   const expires=a.expire_at&&!String(a.expire_at).startsWith('0000-00-00')?new Date(String(a.expire_at).replace(' ','T')):null;
-   return !(published&&published>now)&&!(expires&&!Number.isNaN(expires.getTime())&&expires<=now);
+    const parseDate=value=>{if(!value||String(value).startsWith('0000-00-00'))return null;const parsed=new Date(String(value).replace(' ','T'));return Number.isNaN(parsed.getTime())?false:parsed};
+    const published=parseDate(a.publish_at),expires=parseDate(a.expire_at);
+    if(published===false||expires===false)return false;
+    return !(published&&published>now)&&!(expires&&expires<=now);
   }
   function safeImage(value){
    const raw=String(value||'').trim();
@@ -524,7 +565,7 @@ const types={event:'Arrangement',info:'Informasjon',news:'Nyhet',promotion:'Aktu
    return `<button type="button" data-priority-move="${up?-1:1}" data-id="${esc(item.id)}" aria-label="${esc(label)}" title="${esc(reason||`Flytt ${word}`)}" ${reason||priorityBusy?'disabled':''}>${up?'↑':'↓'}</button>`;
   }
   function previewActions(item,sorted){
-   return `<div class="news-preview-actions" aria-label="Redaksjonelle handlinger for ${esc(item.title||'saken')}"><span class="preview-clicks">${Number(item.clicks)||0} klikk · ${esc(cardStatus(item))}</span>${priorityMoveButton(item,-1,sorted)}${priorityMoveButton(item,1,sorted)}<button type="button" data-card-action="publish" data-id="${esc(item.id)}">${item.is_published?'Skjul':'Publiser'}</button></div>`;
+   return `<span class="story-meta">${Number(item.clicks)||0} klikk</span>`;
   }
   function renderPublicPreview(){
    const host=$('news-home-preview');if(!host)return;
@@ -536,11 +577,17 @@ const types={event:'Arrangement',info:'Informasjon',news:'Nyhet',promotion:'Aktu
    const positions={left:'flex-start',center:'center',right:'flex-end'};
    const headerPosition=Object.hasOwn(positions,companyInfo.logo_position)?companyInfo.logo_position:(companyInfo.header_layout==='centered'?'center':'left');
    const navPosition=Object.hasOwn(positions,companyInfo.nav_position)?companyInfo.nav_position:'center';
+   const safeSize=(value,fallback)=>{const match=String(value??'').trim().match(/^(\d+(?:\.\d+)?)(px|rem|em|vh|vw|%)?$/);return match&&Number(match[1])<=10000?match[1]+(match[2]||'px'):fallback};
+   const headerHeight=safeSize(companyInfo.header_height,'80px');
+   const logoHeight=safeSize(companyInfo.logo_height,'50px');
+   const headerFontSize=safeSize(companyInfo.company_header_font_size,'20px');
+   const radius=safeSize(companyInfo.border_radius,'16px');
+   const safeFontFamily=value=>{const raw=String(value??'').trim();return raw&&raw.length<=150&&/^[A-Za-z0-9 ,'"_-]+$/.test(raw)?raw:'Inter, sans-serif'};
+   const textColor=/^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(String(companyInfo.header_text_color||''))?companyInfo.header_text_color:'';
    host.style.setProperty('--site-header-position',positions[headerPosition]);
    host.style.setProperty('--site-header-align',headerPosition);
    host.style.setProperty('--site-nav-position',positions[navPosition]);
-    const filter=$('news-admin-filter').value;
-    const allRanked=rankedAnnouncements(),stories=AnnouncementRanking(announcements.filter(a=>filter==='all'||(filter==='hidden'?!isPublicNow(a):isPublicNow(a))));
+     const allRanked=rankedAnnouncements(),stories=AnnouncementRanking(announcements.filter(a=>isPublicNow(a)));
     const contact=[companyInfo.contact_phone,companyInfo.address_street,[companyInfo.address_zip,companyInfo.address_city].filter(Boolean).join(' ')].filter(Boolean);
    const storyCard=(a,hero=false)=>{
     const title=esc(a.title||'Uten tittel'),image=safeImage(a.image_url),summary=esc(excerpt(a.content_text||a.content_html||'',hero?230:150));
@@ -550,8 +597,14 @@ const types={event:'Arrangement',info:'Informasjon',news:'Nyhet',promotion:'Aktu
    };
    host.style.setProperty('--site-head',color);
    const rgb=[1,3,5].map(start=>parseInt(color.slice(start,start+2),16));
-   host.style.setProperty('--site-head-ink',(rgb[0]*299+rgb[1]*587+rgb[2]*114)/1000>160?'#183b45':'#ffffff');
-    host.innerHTML=`<header class="news-home-top">${logo?`<img class="news-home-logo" src="${esc(logo)}" alt="">`:''}${name?`<span class="news-home-name">${esc(name)}</span>`:''}</header><nav class="news-home-nav" aria-label="Navigasjon"><span>Om oss</span><span>Hjem</span><span>Tjenester</span></nav><div class="news-home-content">${stories.length?`${storyCard(stories[0],true)}${stories.length>1?`<div class="news-home-rest">${stories.slice(1).map(a=>storyCard(a)).join('')}</div>`:''}`:`<div class="news-home-empty">${announcements.length?'Ingen saker i dette utvalget. Velg «Alle saker» for å administrere de øvrige sakene.':'Ingen nyhetssaker er registrert for denne bedriften.'}</div>`}</div><footer class="news-home-footer"><span>${name?esc(name):''}${contact.length?`<small>${contact.map(esc).join(' · ')}</small>`:''}</span></footer>`;
+    host.style.setProperty('--site-head-ink',textColor||((rgb[0]*299+rgb[1]*587+rgb[2]*114)/1000>160?'#183b45':'#ffffff'));
+    host.style.setProperty('--site-header-height',headerHeight);
+    host.style.setProperty('--site-logo-height',logoHeight);
+    host.style.setProperty('--site-header-font-size',headerFontSize);
+    host.style.setProperty('--site-radius',radius);
+    host.style.setProperty('--site-font-family',safeFontFamily(companyInfo.font_family));
+    host.style.setProperty('--site-logo-position',headerPosition);
+   host.innerHTML=`<header class="news-home-top">${logo?`<img class="news-home-logo" src="${esc(logo)}" alt="">`:''}${name?`<span class="news-home-name">${esc(name)}</span>`:''}</header><nav class="news-home-nav" aria-label="Navigasjon"><span>Om oss</span><span>Hjem</span><span>Tjenester</span></nav><div class="news-home-content">${stories.length?`${storyCard(stories[0],true)}${stories.length>1?`<div class="news-home-rest">${stories.slice(1).map(a=>storyCard(a)).join('')}</div>`:''}`:`<div class="news-home-empty">${announcements.length?'Ingen publiserte saker innenfor gyldige publiseringsdatoer.':'Ingen nyhetssaker er registrert for denne bedriften.'}</div>`}</div><footer class="news-home-footer"><span>${name?esc(name):''}${contact.length?`<small>${contact.map(esc).join(' · ')}</small>`:''}</span></footer>`;
    host.querySelector('.news-home-top').dataset.layout=['standard','centered','minimal'].includes(companyInfo.header_layout)?companyInfo.header_layout:'standard';
    if(Array.isArray(companyInfo.preview_warnings)&&companyInfo.preview_warnings.length){
     const warning=document.createElement('div');warning.className='alert alert-warning';warning.setAttribute('role','status');
@@ -564,15 +617,16 @@ const types={event:'Arrangement',info:'Informasjon',news:'Nyhet',promotion:'Aktu
    if(loadError){$('news-edit-cards').innerHTML=`<div class="alert alert-danger" role="alert">${esc(loadError)} <button type="button" class="btn btn-sm btn-outline-danger" id="news-edit-retry">Prøv igjen</button></div>`;return}
    const sorted=rankedAnnouncements();
    const filter=$('news-admin-filter').value,now=new Date();
-   const rows=sorted.filter(a=>{
+    const rows=sorted.filter(a=>{
     return filter==='all'||(filter==='visible'?isPublicNow(a):!isPublicNow(a));
      });
+    const count=$('news-sidebar-count');if(count)count.textContent=`${rows.length} av ${sorted.length}`;
    $('news-edit-cards').innerHTML=rows.map(a=>{
     const id=esc(a.id),title=esc(a.title),status=cardStatus(a,now),clicks=Number(a.clicks)||0;
       const image=safeImage(a.image_url),position=sorted.findIndex(item=>String(item.id)===String(a.id)),ranked=position>=0;
      const priority=priorityValue(a.priority);
-      return `<article class="news-edit-card"><button type="button" class="news-edit-card-open" data-edit-story="${id}" aria-label="Åpne og rediger ${title}">${image?`<img src="${esc(image)}" alt="" loading="lazy">`:'<span class="news-edit-card-image">Ingen forside</span>'}<span class="news-edit-card-body"><small>${esc(types[a.announcement_type]||'Nyhet')}${a.is_pinned?' · Festet':''}</small><strong class="news-edit-card-title">${title}</strong><span class="news-edit-card-excerpt">${esc(excerpt(a.content_text||'',130))||'Ingen tekstutdrag'}</span><small>${esc(a.author_name||'Forfatter ukjent')} · ${esc(date(a.publish_at))}</small><span class="news-edit-card-meta"><span class="badge-news">${esc(status)}</span><span class="badge-news news-textpill-bg">${clicks} klikk</span><span class="badge-news">Prioritet ${priority}</span></span></span></button><div class="news-edit-card-actions" aria-label="Handlinger for ${title}">${ranked?priorityMoveButton(a,-1,sorted)+priorityMoveButton(a,1,sorted):''}<button type="button" data-card-action="pin" data-id="${id}">${a.is_pinned?'Løsne':'Fest øverst'}</button><button type="button" data-card-action="publish" data-id="${id}">${a.is_published?'Skjul':'Publiser'}</button><button type="button" data-card-action="delete" data-id="${id}">Slett</button></div></article>`;
-   }).join('')||'<p class="text-muted">Ingen saker i dette utvalget.</p>';
+       return `<article class="news-edit-card"><button type="button" class="news-edit-card-open" data-edit-story="${id}" aria-label="Åpne og rediger ${title}"><span class="news-edit-card-body"><small>${esc(types[a.announcement_type]||'Nyhet')}${a.is_pinned?' · Festet':''}</small><strong class="news-edit-card-title">${title}</strong><span class="news-edit-card-excerpt">${esc(excerpt(a.content_text||'',130))||'Ingen tekstutdrag'}</span><small>${esc(a.author_name||'Forfatter ukjent')} · ${esc(date(a.publish_at))}</small><span class="news-edit-card-meta"><span class="badge-news">${esc(status)}</span><span class="badge-news news-textpill-bg">${clicks} klikk</span><span class="badge-news">Prioritet ${priority}</span></span></span></button><div class="news-edit-card-actions" aria-label="Handlinger for ${title}">${ranked?priorityMoveButton(a,-1,sorted)+priorityMoveButton(a,1,sorted):''}<button type="button" data-card-action="pin" data-id="${id}">${a.is_pinned?'Løsne':'Fest øverst'}</button><button type="button" data-card-action="publish" data-id="${id}">${a.is_published?'Skjul':'Publiser'}</button><button type="button" data-card-action="delete" data-id="${id}">Slett</button></div></article>`;
+    }).join('')||'<p class="text-muted small mb-0">Ingen saker i dette utvalget.</p>';
  }
  function render(){renderEditCards()}
 function productFromForm(){if(!$('announcement-product-toggle').checked)return null;let id=val('announcement-product-id');if(!id)return null;let option=$('announcement-product-id').selectedOptions[0];return {output_product_id:id,name:option?.textContent||'',discount_percent:Number(val('announcement-discount'))||0,max_quantity:val('announcement-max-qty')?Number(val('announcement-max-qty')):null,expiry_date:val('announcement-product-expiry')||null}}
@@ -762,6 +816,9 @@ function resetProduct(){let s=$('announcement-product-id');s.selectedIndex=0;$('
   $('announcementForm').addEventListener('submit',e=>e.preventDefault());
    $('announcement-title').addEventListener('input',resizePaperTitle);
    window.addEventListener('resize',resizePaperTitle);
+   const sidebarMedia=window.matchMedia('(max-width:700px)');
+   const syncSidebarLayout=()=>{$('news-sidebar-disclosure').open=!sidebarMedia.matches};
+   syncSidebarLayout();sidebarMedia.addEventListener('change',syncSidebarLayout);
    resetComposer();setNewsPanel('edit');
 })();
 </script>

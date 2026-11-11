@@ -15,7 +15,7 @@ for (const asset of ['announcement_ranking', 'news_video']) {
 const stubs = `
 window.confirm=()=>true;window.newsAlerts=[];window.alert=m=>newsAlerts.push(m);
 window.newsSaves=[];window.newsMoves=[];window.failMove=false;
-window.newsLoadFailure=false;window.newsTheme={logo_position:'right',nav_position:'left',header_layout:'standard'};
+window.newsLoadFailure=false;window.newsTheme={logo_position:'right',nav_position:'left',header_layout:'standard',header_height:'120px',logo_height:'44px',header_text_color:'#ffffcc',font_family:'Georgia, serif',border_radius:'10px',company_header_font_size:'22px'};
 const row=(id,priority,extra={})=>({id,priority,title:'Nyhet '+id,content:'Innhold '+id,
  content_html:'<p>Innhold '+id+'</p>',content_text:'Innhold '+id,
  is_published:true,is_pinned:false,publish_at:'2025-01-01 10:00:00',expire_at:null,
@@ -63,7 +63,14 @@ const checks = `(async()=>{
  const move=(id,dir)=>document.querySelector('#news-edit-cards [data-id="'+id+'"][data-priority-move="'+dir+'"]');
  await tick();
  check(!$('news-edit-search'),'Search field is removed');
- check(document.querySelectorAll('#news-home-preview [data-edit-story]').length===5,'All stories remain manageable in the default administrative preview: '+$('news-home-preview').textContent);
+ check(document.querySelectorAll('#news-home-preview [data-edit-story]').length===2,'Default simulation excludes hidden, scheduled and expired stories');
+ check(document.querySelectorAll('#news-edit-cards [data-edit-story]').length===5,'All five stories are available in the sidebar');
+ check($('news-edit-cards').closest('aside'),'Story list is a sidebar, not a second list below the simulation');
+ if(innerWidth<=700){
+  check(!$('news-sidebar-disclosure').open,'Mobile administration menu starts collapsed');
+  $('news-sidebar-disclosure').querySelector('summary').click();
+  check($('news-sidebar-disclosure').open,'Mobile administration menu opens on tap');
+ }
  const selectFilter=v=>{$('news-admin-filter').value=v;$('news-admin-filter').dispatchEvent(new Event('change',{bubbles:true}))};
  selectFilter('visible');await tick();
  check(hero()==='A','Highest-priority public story is the hero');
@@ -73,14 +80,24 @@ const checks = `(async()=>{
  check(document.querySelector('.news-home-logo')?.getAttribute('src').endsWith('/image.svg'),'Real company image is used');
  check(getComputedStyle(document.querySelector('.news-home-top')).justifyContent==='flex-end','Header respects saved right positioning');
  check(getComputedStyle(document.querySelector('.news-home-nav')).justifyContent==='flex-start','Navigation respects saved left positioning');
- newsTheme={logo_position:'center',nav_position:'right',header_layout:'centered'};$('news-edit-refresh').click();await tick();
+ check(Math.abs(document.querySelector('.news-home-top').getBoundingClientRect().height-120)<1,'Header uses stored 120px height at every viewport');
+ check(Math.abs(document.querySelector('.news-home-logo').getBoundingClientRect().height-44)<1,'Logo uses stored 44px height');
+ check(getComputedStyle(document.querySelector('.news-home-top')).color==='rgb(255, 255, 204)','Header uses explicit text color');
+ check(getComputedStyle($('news-home-preview')).fontFamily.includes('Georgia'),'Simulation uses saved font family');
+ check(getComputedStyle($('news-home-preview')).borderTopLeftRadius==='10px','Simulation uses saved border radius');
+ check(getComputedStyle(document.querySelector('.news-home-name')).fontSize==='22px','Company name uses saved font size');
+ newsTheme={...newsTheme,header_height:'240px',logo_height:'3rem',company_header_font_size:'1.5rem',header_text_color:'#fed'};$('news-edit-refresh').click();await tick();
+ check(Math.abs(document.querySelector('.news-home-top').getBoundingClientRect().height-240)<1,'Stored header height is not arbitrarily capped');
+ check(getComputedStyle(document.querySelector('.news-home-name')).fontSize==='24px'&&getComputedStyle(document.querySelector('.news-home-top')).color==='rgb(255, 238, 221)','Relative font sizes and short hex colors are supported');
+ newsTheme={...newsTheme,header_height:'120px',logo_height:'44px',company_header_font_size:'22px',header_text_color:'#ffffcc'};
+ newsTheme={...newsTheme,logo_position:'center',nav_position:'right',header_layout:'centered'};$('news-edit-refresh').click();await tick();
  check(getComputedStyle(document.querySelector('.news-home-top')).flexDirection==='column'&&getComputedStyle(document.querySelector('.news-home-top')).alignItems==='center','Centered header uses stacked centered branding');
  newsLoadFailure=true;$('news-edit-refresh').click();await tick();
  check($('news-home-preview').textContent.includes('testref')&&!$('news-home-preview').textContent.includes('Ingen nyhetssaker'),'Actual server failure is shown instead of empty state');
  newsLoadFailure=false;$('news-edit-refresh').click();await tick();
  selectFilter('hidden');await tick();
- check(document.querySelectorAll('#news-home-preview [data-edit-story]').length===3,'Hidden preview includes drafts, expired and scheduled stories');
- check(document.querySelectorAll('#news-edit-cards [data-edit-story]').length===3,'List and preview use the same dropdown filter');
+ check(document.querySelectorAll('#news-home-preview [data-edit-story]').length===2&&hero()==='A','Sidebar filter never inserts hidden stories into simulation');
+ check(document.querySelectorAll('#news-edit-cards [data-edit-story]').length===3,'Hidden sidebar includes draft, expired and scheduled stories');
  selectFilter('visible');await tick();
  move('A','1').click();await tick();
  check(hero()==='B','Moving first story down really promotes the second story');
@@ -119,8 +136,9 @@ const checks = `(async()=>{
  check(newsSaves.at(-1).expire_at==='2039-12-30 08:00:00'&&newsSaves.at(-1).scheduled_publish===false,'New story expires at 08:00 and publishes now');
  check($('announcement-title').value===''&&$('announcement-expire-at').value==='','Successful new story resets form');
  $('news-edit-tab').click();await tick();
+ if(innerWidth<=700)$('news-sidebar-disclosure').open=false;
  check(document.documentElement.scrollWidth<=innerWidth+1,'Homepage and management fit viewport '+innerWidth);
- return {passed:true,checks:'branding, public visibility, priority swaps and rollback, search isolation, edit, expiry 08:00, mobile'};
+ return {passed:true,checks:'header settings, sidebar isolation, public-only simulation, priority swaps and rollback, edit, expiry 08:00, mobile'};
 })()`;
 const html = `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>
 *{box-sizing:border-box}body{margin:0;padding:12px;font:16px system-ui;background:#f4f7f7}button,input,select,textarea{font:inherit;max-width:100%}
