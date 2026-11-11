@@ -259,7 +259,8 @@ try {
             50%       { opacity: 0.7; transform: scale(1.12); }
         }
         
-        .subtabs .nav-link {
+        .subtabs .nav-link,
+        .news-subtabs .nav-link {
             color: #6b7280;
             font-weight: 500;
             padding: 0.5rem 1rem;
@@ -268,12 +269,14 @@ try {
             font-size: 0.9rem;
         }
         
-        .subtabs .nav-link:hover {
+        .subtabs .nav-link:hover,
+        .news-subtabs .nav-link:hover {
             background: rgba(102, 126, 234, 0.1);
             color: var(--primary-start);
         }
         
-        .subtabs .nav-link.active {
+        .subtabs .nav-link.active,
+        .news-subtabs .nav-link.active {
             background: var(--primary-start);
             color: white;
         }
@@ -513,7 +516,9 @@ try {
                                 $iconClass = substr($iconClass, 3);
                             }
                             ?>
+                            <?php if (!in_array($module['module_key'], ['news', 'events', 'reservation', 'reservations'], true)): ?>
                             <i class="bi bi-<?= htmlspecialchars($iconClass) ?> me-2"></i>
+                            <?php endif; ?>
                             <?= htmlspecialchars($module['name']) ?>
                             <?php if ($module['module_key'] === 'webmail'): ?>
                             <span class="badge bg-danger email-alert-badge" style="display: none;">Ny</span>
@@ -530,7 +535,6 @@ try {
                             data-bs-target="#content-announcements" 
                             type="button" 
                             role="tab">
-                        <i class="bi bi-megaphone me-2"></i>
                         News
                     </button>
                 </li>
