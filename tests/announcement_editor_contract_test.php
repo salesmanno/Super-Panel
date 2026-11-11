@@ -56,4 +56,25 @@ editor_check(announcement_editor_publish_at($legacy, null, $now) === null, 'Lega
 $rich = '<h3>Overskrift</h3><p><strong>Viktig</strong> tekst</p><ul><li>Et punkt</li></ul><p>Avslutning</p>';
 $text = announcement_validate_elements([['element_type'=>'text','content'=>['html'=>$rich]]]);
 editor_check(json_decode($text[0]['content_json'], true)['html'] === $rich, 'Mixed rich text remains intact after server validation');
-echo "News editor contracts passed: media round-trip, scheduling, safe rich text\n";
+$expiryPayload = announcement_validate_payload([
+    'title' => 'Utløpsdato',
+    'content' => 'En sak med utløpsdato.',
+    'expire_at' => '2039-12-31',
+    'scheduled_publish' => false,
+]);
+editor_check($expiryPayload['ok'] && $expiryPayload['data']['expire_at'] === '2039-12-31 08:00:00',
+    'Date-only expiry defaults to 08:00 on the server');
+$legacyExpiry = announcement_validate_payload([
+    'title' => 'Eksisterende utløp',
+    'content' => 'Behold det opprinnelige tidspunktet.',
+    'expire_at' => '2039-12-31 17:45:00',
+]);
+editor_check($legacyExpiry['ok'] && $legacyExpiry['data']['expire_at'] === '2039-12-31 17:45:00',
+    'Existing explicit expiry times are not overwritten');
+$invalidExpiry = announcement_validate_payload([
+    'title' => 'Ugyldig dato',
+    'content' => 'Dato må valideres.',
+    'expire_at' => '2039-02-31',
+]);
+editor_check(!$invalidExpiry['ok'], 'Date-only expiry rejects nonexistent dates');
+echo "News editor contracts passed: media round-trip, scheduling, expiry defaults, safe rich text\n";

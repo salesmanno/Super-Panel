@@ -300,7 +300,12 @@ function announcement_validate_payload($data): array {
     }
     $publish = announcement_parse_datetime($scheduled === false ? null : ($data['publish_at'] ?? null), 'Publiseringstidspunkt', $errors);
     if ($scheduled === true && !$publish) $errors[] = 'Velg dato og klokkeslett for planlagt publisering';
-    $expire = announcement_parse_datetime($data['expire_at'] ?? null, 'Utløpstidspunkt', $errors);
+    $expireInput = $data['expire_at'] ?? null;
+    // Date-only News forms expire at 08:00; retain explicitly supplied legacy times.
+    if (is_string($expireInput) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $expireInput)) {
+        $expireInput .= ' 08:00:00';
+    }
+    $expire = announcement_parse_datetime($expireInput, 'Utløpstidspunkt', $errors);
     if ($publish && $expire && $expire <= $publish) $errors[] = 'Utløpstidspunkt må være etter publiseringstidspunktet';
     $product = $data['product'] ?? null;
     if ($product !== null) {

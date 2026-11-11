@@ -88,13 +88,11 @@ const checks = `(async()=>{
   check(document.querySelectorAll('.news-compose-element-title')[2].textContent.includes('Regneark'),'Touch handle reorders elements');
   check(paper.querySelector('[data-paper-text] h3')&&paper.querySelector('[data-paper-text] strong'),'Reordering preserves mixed rich text formatting');
   input($('announcement-title'),'En nyhet med flere elementer');
-  $('announcement-scheduled').checked=true;$('announcement-scheduled').dispatchEvent(new Event('change',{bubbles:true}));
-  input($('announcement-publish-date'),'31.02.39');input($('announcement-publish-time'),'19:00');$('publishButton').click();await tick();
-  check(paperSaves.length===0&&paperAlerts.length===1,'Invalid Norwegian calendar date prevents saving');
-  input($('announcement-publish-date'),'31.12.39');window.failNext=true;$('publishButton').click();await tick();
+  check($('announcement-schedule-toggle-wrap').hidden,'New stories publish now without scheduling controls');
+  input($('announcement-expire-at'),'2039-12-31');window.failNext=true;$('publishButton').click();await tick();
   check($('announcement-title').value==='En nyhet med flere elementer','Failed save retains all editor content');
   $('publishButton').click();await tick();
-  check(paperSaves[1].publish_at==='2039-12-31 19:00:00'&&paperSaves[1].scheduled_publish===true,'Planned date is serialized in SQL format');
+  check(paperSaves[1].publish_at===null&&paperSaves[1].scheduled_publish===false&&paperSaves[1].expire_at==='2039-12-31 08:00:00','New stories publish now with expiry at 08:00');
   check(paperSaves[1].elements.length===6,'All six types survive serialization');
   check(paperEndpoints[1]==='/api/create_announcement.php'&&paperSaves[1].is_published===true&&paperSaves[1].announcement_type==='news','Publish calls real creation endpoint with news type and publication flag');
   check(!$('announcement-title').value&&!paper.querySelector('[data-paper-index]')&&!$('news-create-panel').hidden,'Successful creation resets the complete paper and stays in create tab');

@@ -17,9 +17,23 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     $editorAuthor = announcement_editor_author($db, (string)$_SESSION['tenant_admin_id'], (string)$companyId);
-    $companyStmt = $db->prepare('SELECT name FROM tenant_companies WHERE id = ?');
+    $companyStmt = $db->prepare('SELECT name, img_url, contact_phone, address_street, address_zip, address_city FROM tenant_companies WHERE id = ?');
     $companyStmt->execute([$companyId]);
-    $companyName = (string)$companyStmt->fetchColumn();
+    $company = $companyStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $companyName = (string)($company['name'] ?? '');
+    $themeStmt = $db->prepare('SELECT header_bg_color FROM tenant_website_general WHERE company_id = ? LIMIT 1');
+    $themeStmt->execute([$companyId]);
+    $headerColor = $themeStmt->fetchColumn();
+    $company = [
+        'name' => $companyName,
+        'img_url' => (string)($company['img_url'] ?? ''),
+        'header_bg_color' => is_string($headerColor) && preg_match('/^#[0-9a-fA-F]{6}$/', $headerColor)
+            ? $headerColor : '#176b69',
+        'contact_phone' => (string)($company['contact_phone'] ?? ''),
+        'address_street' => (string)($company['address_street'] ?? ''),
+        'address_zip' => (string)($company['address_zip'] ?? ''),
+        'address_city' => (string)($company['address_city'] ?? ''),
+    ];
     
     $tableName = 'tenant_announcements';
     
@@ -113,6 +127,7 @@ try {
         'success' => true,
         'editor_author' => $editorAuthor,
         'company_name' => $companyName,
+        'company' => $company,
         'announcements' => $announcements
     ], JSON_UNESCAPED_UNICODE);
     
