@@ -648,8 +648,32 @@ function setScheduleFields(value,enabled){
 function effectivePublishAt(){return scheduleSqlValue()}
  function updateImagePreview(){let url=val('announcement-image-url').trim(),img=$('announcement-image-preview'),placeholder=$('announcement-image-placeholder'),valid=false;try{let parsed=new URL(url);valid=parsed.protocol==='http:'||parsed.protocol==='https:'}catch(e){}if(!valid){imagePreviewUrl='';imagePreviewFailed=false;img.hidden=true;placeholder.hidden=false;img.removeAttribute('src');return}if(url!==imagePreviewUrl){imagePreviewUrl=url;imagePreviewFailed=false;img.src=url}img.hidden=imagePreviewFailed;placeholder.hidden=!imagePreviewFailed}
       function syncDraft(){let id=val('announcement-id')||'draft-preview',existing=announcements.find(a=>String(a.id)===String(id)),priority=editorPriority();priorityDraft={id,originalPriority:existing?priorityValue(existing.priority):null,priorityInputValid:priority!==null,priority};if(!val('announcement-id')&&!val('announcement-title').trim()&&!getEditorElements().length)priorityDraft=null;updateImagePreview();renderPriorityImpact();render()}
-async function loadProducts(){let s=$('announcement-product-id');if(s.options.length>1)return;let r=await fetch('/api/get_output_products.php'),x=await r.json();s.innerHTML='<option value="">Velg produkt</option>'+(x.products||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.name||'Ukjent')}</option>`).join('')}
-async function toggleProduct(){let on=$('announcement-product-toggle').checked;$('product-section').hidden=!on;if(on)await loadProducts();syncDraft()}
+async function loadProducts(){
+ const s=$('announcement-product-id'),selected=s.value;
+ s.required=true;
+ let status=$('announcement-product-status');
+ if(!status){status=document.createElement('div');status.id='announcement-product-status';status.className='small mb-2';status.setAttribute('role','status');s.after(status)}
+ status.textContent='Henter produkter …';status.className='small mb-2 text-muted';s.disabled=true;
+ try{
+  const r=await fetch('/api/get_output_products.php',{cache:'no-store'}),x=await r.json();
+  if(!r.ok||x.success!==true||!Array.isArray(x.products))throw new Error('Kunne ikke hente produktlisten. Prøv å slå produktvalget av og på igjen.');
+  const groups=new Map([['membership',{label:'Medlemskap',items:[]}],['events',{label:'Arrangementer',items:[]}],['rental',{label:'Utleie',items:[]}],['product',{label:'Salgsvarer',items:[]}],['service',{label:'Tjenester',items:[]}],['other',{label:'Andre produkter',items:[]}]]);
+  for(const p of x.products){if(!p.id)continue;const type=String(p.product_type||p.module_source||'');(groups.get(type)||groups.get('other')).items.push(p)}
+  s.replaceChildren(new Option('Velg produkt',''));
+  for(const group of groups.values()){
+   if(!group.items.length)continue;
+   const optgroup=document.createElement('optgroup');optgroup.label=group.label;
+   group.items.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'nb')).forEach(p=>optgroup.append(new Option(p.name||'Ukjent produkt',p.id)));
+   s.append(optgroup);
+  }
+  s.value=selected;
+  const memberships=groups.get('membership').items.length;
+  status.textContent=x.products.length?`${memberships} medlemskap · ${x.products.length} produkter totalt`:'Ingen produkter tilgjengelig for denne bedriften.';
+  if(selected&&!s.value)throw new Error('Det tilknyttede produktet finnes ikke i listen. Last inn på nytt før du lagrer.');
+ }catch(e){status.className='small mb-2 text-danger';status.textContent=e.message?.startsWith('Det tilknyttede')?e.message:'Kunne ikke hente produktlisten. Prøv å slå produktvalget av og på igjen.';throw e}
+ finally{s.disabled=false}
+}
+async function toggleProduct(){let on=$('announcement-product-toggle').checked;$('product-section').hidden=!on;if(on){try{await loadProducts()}catch(e){return}}syncDraft()}
 function resetProduct(){let s=$('announcement-product-id');s.selectedIndex=0;$('announcement-product-toggle').checked=false;$('product-section').hidden=true;$('announcement-discount').value='';$('announcement-max-qty').value='';$('announcement-product-expiry').value=''}
   function resetComposer(){
    $('announcementForm').reset();$('announcement-id').value='';$('announcement-type').value='news';selectedAuthorName='';$('announcement-priority').value=String(priorityDefault);
@@ -705,6 +729,8 @@ function resetProduct(){let s=$('announcement-product-id');s.selectedIndex=0;$('
  }
  async function saveAnnouncement(publish){
   if(saveBusy)return;
+  if($('announcement-product-toggle').checked&&($('announcement-product-id').disabled||!val('announcement-product-id'))){alert('Velg produktet som skal knyttes til saken. Hvis listen mangler, slå produktvalget av og på for å prøve igjen.');return}
+  $('announcement-product-id').required=$('announcement-product-toggle').checked;
   let priority=editorPriority();
   if(priority===null){$('announcement-priority').reportValidity();return}
   let elements=getEditorElements();

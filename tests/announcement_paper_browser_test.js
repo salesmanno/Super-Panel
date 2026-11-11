@@ -14,6 +14,10 @@ const stubs = `
 window.paperRows=[];window.paperSaves=[];window.paperEndpoints=[];window.paperAlerts=[];window.paperActions=[];window.failNext=false;window.confirm=()=>true;
 window.alert=message=>paperAlerts.push(message);
 window.fetch=async(url,options)=>{
+ if(String(url).includes('/api/get_output_products.php')){
+  if(window.failProducts)return {ok:false,json:async()=>({success:false})};
+  return {ok:true,json:async()=>({success:true,products:[{id:'event-product',name:'Et arrangement',product_type:'events'},{id:'membership-product',name:'Bergsøy Medlem',product_type:'membership'}]})};
+ }
  if(!options||!options.body)return {ok:true,json:async()=>({success:true,announcements:paperRows,editor_author:{staff_id:'test-staff',name:'Testredaktør'},company_name:'Testforeningen'})};
  if(String(url).includes('/api/toggle_announcement_')||String(url).includes('/api/delete_announcement.php')){
   const data=JSON.parse(options.body);paperActions.push({url:String(url),id:data.id});
@@ -46,6 +50,16 @@ const checks = `(async()=>{
  const add=kind=>{$('paper-add-trigger').click();const pending=paper.querySelector('[data-pending-index]')?.closest('[data-paper-index]');check(!!pending,'New block is inserted into paper before choosing a type');check(!!(pending.compareDocumentPosition($('paper-add-trigger'))&Node.DOCUMENT_POSITION_FOLLOWING),'Pending block appears above the add button');check(pending.querySelectorAll('[data-add-kind]').length===6,'Exactly six element choices');pending.querySelector('[data-add-kind="'+kind+'"]').click()};
  try{
    await tick();$('news-create-tab').click();
+  $('announcement-product-toggle').click();await tick();
+  check($('announcement-product-id').querySelector('optgroup')?.label==='Medlemskap','Membership is first, ahead of events');
+  check($('announcement-product-id').querySelector('optgroup option')?.textContent==='Bergsøy Medlem','Existing membership product appears by name');
+  $('announcement-product-id').value='membership-product';
+  $('announcement-product-toggle').click();$('announcement-product-toggle').click();await tick();
+  check($('announcement-product-id').value==='membership-product','Refreshing products retains selected membership');
+  window.failProducts=true;$('announcement-product-toggle').click();$('announcement-product-toggle').click();await tick();
+  check($('announcement-product-status').textContent.includes('Kunne ikke hente'),'Product retrieval error is visible');
+  window.failProducts=false;$('announcement-product-toggle').click();$('announcement-product-toggle').click();await tick();
+  check($('announcement-product-id').value==='membership-product','Retry restores product list without changing selection');
   check(!document.querySelector('select#announcement-type')&&$('announcement-type').value==='news','Creation has no type dropdown and defaults to news');
   check(!paper.querySelector('[data-paper-index]'),'New paper starts empty');
   check(!$('announcement-scheduled').checked&&$('announcement-schedule-fields').hidden,'Publishing now hides schedule fields');
@@ -94,6 +108,7 @@ const checks = `(async()=>{
   $('publishButton').click();await tick();
   check(paperSaves[1].publish_at===null&&paperSaves[1].scheduled_publish===false&&paperSaves[1].expire_at==='2039-12-31 08:00:00','New stories publish now with expiry at 08:00');
   check(paperSaves[1].elements.length===6,'All six types survive serialization');
+  check(paperSaves[1].product.output_product_id==='membership-product','Publication sends the selected membership product ID');
   check(paperEndpoints[1]==='/api/create_announcement.php'&&paperSaves[1].is_published===true&&paperSaves[1].announcement_type==='news','Publish calls real creation endpoint with news type and publication flag');
   check(!$('announcement-title').value&&!paper.querySelector('[data-paper-index]')&&!$('news-create-panel').hidden,'Successful creation resets the complete paper and stays in create tab');
    $('news-edit-tab').click();await tick();
