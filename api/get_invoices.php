@@ -37,10 +37,14 @@ try {
             i.invoice_type,
             i.membership_plan_id,
             i.membership_member_id,
+             i.bank_account_id,
+             ba.bank_name,
+             ba.account_number,
             TRIM(CONCAT(COALESCE(c.first_name, ''), ' ', COALESCE(c.last_name, ''))) AS customer_name,
             {$customerEmailSql} AS customer_email
         FROM economy_invoices i
         LEFT JOIN tenant_customers c ON c.id = i.customer_id AND c.company_id = i.company_id
+         LEFT JOIN economy_bank_accounts ba ON ba.id=i.bank_account_id AND ba.company_id=i.company_id
         WHERE i.company_id = ?
           AND i.status != 'dismantled'
         ORDER BY i.created_at DESC

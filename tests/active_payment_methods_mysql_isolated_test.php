@@ -16,8 +16,10 @@ foreach ([
 "CREATE TABLE tenant_staff(id VARCHAR(36),company_id VARCHAR(36),first_name TEXT,last_name TEXT)",
 "CREATE TABLE system_modules(id VARCHAR(36),module_key VARCHAR(30),is_active INT)",
 "CREATE TABLE tenant_admin_modules(tenant_admin_id VARCHAR(36),module_id VARCHAR(36))",
-"CREATE TABLE economy_configuration_data(id VARCHAR(36),company_id VARCHAR(36),gateway_type VARCHAR(30),config_name TEXT,is_active INT,test_mode INT,client_id TEXT,client_secret_encrypted TEXT,merchant_serial_number TEXT,subscription_key TEXT,public_key TEXT,private_key_encrypted TEXT,updated_at DATETIME)",
-"CREATE TABLE economy_bank_accounts(company_id VARCHAR(36),is_active INT,account_number TEXT)",
+"CREATE TABLE economy_configuration_data(id VARCHAR(36),company_id VARCHAR(36),gateway_type VARCHAR(30),config_name TEXT,is_active INT,test_mode INT,client_id TEXT,client_secret_encrypted TEXT,merchant_serial_number TEXT,subscription_key TEXT,public_key TEXT,private_key_encrypted TEXT,webhook_secret TEXT,fee_fixed DECIMAL(12,2),fee_percent DECIMAL(12,2),created_at DATETIME,updated_at DATETIME)",
+"CREATE TABLE economy_bank_accounts(id VARCHAR(36) PRIMARY KEY,company_id VARCHAR(36),bank_name VARCHAR(120),is_active INT,account_number VARCHAR(34))",
+"CREATE TABLE audit_logs(id CHAR(36) PRIMARY KEY,company_id CHAR(36),user_id CHAR(36),user_type VARCHAR(20),user_email VARCHAR(255),action VARCHAR(50),resource_type VARCHAR(100),resource_id CHAR(36),resource_name VARCHAR(255),old_values TEXT,new_values TEXT,severity VARCHAR(20),performed_at DATETIME,module VARCHAR(50))",
+"CREATE TABLE economy_invoices(id CHAR(36) PRIMARY KEY,company_id CHAR(36),customer_id CHAR(36),invoice_number VARCHAR(50),invoice_date DATE,due_date DATE,subtotal DECIMAL(12,2),tax_rate DECIMAL(12,2),tax_amount DECIMAL(12,2),total_amount DECIMAL(12,2),currency VARCHAR(3),status VARCHAR(30),payment_terms TEXT,notes TEXT,sent_at DATETIME,paid_at DATETIME,created_at DATETIME DEFAULT CURRENT_TIMESTAMP,invoice_type VARCHAR(30),membership_plan_id CHAR(36),membership_member_id CHAR(36),created_by_admin_id CHAR(36),bank_account_id CHAR(36))",
 "CREATE TABLE economy_payment_gateways(company_id VARCHAR(36),gateway_name VARCHAR(30),is_active INT)",
 "CREATE TABLE membership_plans(id VARCHAR(36),company_id VARCHAR(36),name TEXT,price DECIMAL(12,2),billing_cycle VARCHAR(30))",
 "CREATE TABLE tenant_customers(id VARCHAR(36) PRIMARY KEY,company_id VARCHAR(36),customer_code TEXT,first_name TEXT,last_name TEXT,email TEXT,phone TEXT,address_street TEXT,address_city TEXT,address_zip TEXT,date_of_birth DATE,notes TEXT,customer_type TEXT,status TEXT,created_at DATETIME,updated_at DATETIME)",
@@ -29,12 +31,13 @@ foreach ([
 "CREATE TABLE events_checkin(id VARCHAR(36) PRIMARY KEY,event_id VARCHAR(36),customer_id VARCHAR(36),membership_plan_id VARCHAR(36),ticket_price DECIMAL(12,2),payment_status VARCHAR(20),payment_method TEXT,checked_in INT,check_in_time DATETIME,checked_in_by VARCHAR(36),barcode TEXT,notes TEXT,created_at DATETIME,updated_at DATETIME)",
 "INSERT INTO tenant_companies VALUES('a','A',1,0),('b','B',1,1)",
 "INSERT INTO tenant_admins VALUES('admin','a',NULL,'fixture','admin',1)",
-"INSERT INTO system_modules VALUES('member','membership',1),('econ','economy',1)",
-"INSERT INTO tenant_admin_modules VALUES('admin','member'),('admin','econ')",
+"INSERT INTO system_modules VALUES('member','membership',1),('econ','economy',1),('events-module','events',1)",
+"INSERT INTO tenant_admin_modules VALUES('admin','member'),('admin','econ'),('admin','events-module')",
 "INSERT INTO economy_payment_gateways VALUES('a','paypal',1)",
 "INSERT INTO economy_configuration_data(id,company_id,gateway_type,config_name,is_active,test_mode) VALUES('v','a','vipps','Vipps',1,1),('off','a','stripe','Kort',0,0),('foreign','b','paypal','PayPal',1,0),('unknown','a','mystery','Mystery',1,0)",
 "INSERT INTO membership_plans VALUES('priced','a','Betalt',100,'yearly'),('free','a','Gratis',0,'yearly'),('other','b','Annet',50,'yearly')",
 "INSERT INTO events_eventdata(id,company_id,title,is_active,registration_type,payment_methods_json,ticket_price) VALUES('binding','a','Bindende',1,'binding','[\"vipps\"]',100),('signup','a','Påmelding',1,'signup','[\"cash\",\"vipps\"]',100)",
+"UPDATE events_eventdata SET start_date='2020-01-01'",
 ] as $sql) $db->exec($sql);
 require_once $root.'/tests/customer_contacts_fixture.php';
 createCustomerContactFixtureTable($db);
@@ -70,11 +73,11 @@ checkPayment($blocked,'Current-read validation sees activation changed after a t
 $db->rollBack();
 $dir=$temp.'/payment-http';mkdir($dir);
 $bootstrap='function getDBConnection(){return new PDO('.var_export($dsn,true).',"root","",[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]);}';
-foreach (['get_payment_methods.php','create_member.php','log_membership_payment.php','toggle_payment_gateway.php','add_event_income.php','add_event_finance.php','renew_membership.php','checkin_event.php'] as $file) {
+foreach (['get_payment_methods.php','create_member.php','log_membership_payment.php','toggle_payment_gateway.php','add_event_income.php','add_event_finance.php','renew_membership.php','checkin_event.php','manage_economy_bank_account.php','get_payment_gateways.php','get_bank_accounts.php','create_invoice.php','get_invoices.php'] as $file) {
     $source=file_get_contents($root.'/api/'.$file);
     // No SMTP or email credentials are loaded. Fixture check-ins omit email.
     $source=preg_replace('~require_once[^;]*EmailService\\.php[^;]*;~','',$source);
-    $source=str_replace('session_start();','session_save_path('.var_export($temp.'/sessions',true).');session_start();$_SESSION["company_id"]="a";$_SESSION["tenant_admin_id"]="admin";',$source);
+    $source=str_replace('session_start();','session_save_path('.var_export($temp.'/sessions',true).');session_start();$_SESSION["company_id"]="a";$_SESSION["tenant_admin_id"]="admin";$_SESSION["entity_form_csrf"]="fixture-csrf";$_SESSION["economy_bank_csrf"]="fixture-csrf";',$source);
     $source=preg_replace("~require_once\\s+(?:__DIR__\\s*\\.\\s*)?'/?\\.\\./config/database.php';~",$bootstrap,$source);
     $source=preg_replace_callback("~__DIR__\\s*\\.\\s*'/\\.\\./includes/([^']+)'~",static fn($m)=>var_export($root.'/includes/'.$m[1],true),$source);
     $source=preg_replace_callback("~'\\.\\./includes/([^']+)'~",static fn($m)=>var_export($root.'/includes/'.$m[1],true),$source);
@@ -84,7 +87,7 @@ $sock=stream_socket_server('tcp://127.0.0.1:0');$port=(int)substr(strrchr(stream
 $worker=proc_open([PHP_BINARY,'-S','127.0.0.1:'.$port,'-t',$dir],[0=>['file','/dev/null','r'],1=>['file',$temp.'/payments.log','a'],2=>['file',$temp.'/payments.log','a']],$pipes);
 function paymentHttp(string $route,?array $input=null):array {
     global $port;
-    $body=file_get_contents('http://127.0.0.1:'.$port.'/'.$route,false,stream_context_create(['http'=>['method'=>$input===null?'GET':'POST','header'=>"Content-Type: application/json\r\n",'content'=>$input===null?'':json_encode($input),'ignore_errors'=>true]]));
+    $body=file_get_contents('http://127.0.0.1:'.$port.'/'.$route,false,stream_context_create(['http'=>['method'=>$input===null?'GET':'POST','header'=>"Content-Type: application/json\r\nX-CSRF-Token: fixture-csrf\r\n",'content'=>$input===null?'':json_encode($input),'ignore_errors'=>true]]));
     return json_decode($body,true,512,JSON_THROW_ON_ERROR);
 }
 try {
@@ -121,11 +124,15 @@ try {
     checkPayment((int)$db->query('SELECT COUNT(*) FROM unified_ledger')->fetchColumn()===$count,'Free renewal creates no fictitious payment');
     $db->exec("UPDATE tenant_companies SET cash_payment=0 WHERE id='a'");
     $checkin=['event_id'=>'signup','attendee_first_name'=>'Fixture','attendee_last_name'=>'Pending','is_paying'=>false,'payment_method'=>null];
-    checkPayment(paymentHttp('checkin_event.php',$checkin)['success'],'Priced unpaid check-in succeeds with no active methods');
+    checkPayment(!paymentHttp('checkin_event.php',$checkin)['success'],'Priced check-in requires confirmed payment in the unified admission flow');
+    $db->exec("UPDATE events_eventdata SET ticket_price=0 WHERE id='signup'");
+    $freeCheckin=paymentHttp('checkin_event.php',$checkin);
+    checkPayment($freeCheckin['success'],'Free check-in succeeds without active methods: '.json_encode($freeCheckin));
     $row=$db->query('SELECT payment_status,payment_method,ticket_price FROM events_checkin')->fetch();
-    checkPayment($row['payment_status']==='pending' && $row['payment_method']===null && (float)$row['ticket_price']===100.0,'Unpaid check-in preserves price and pending status without a method');
+    checkPayment($row['payment_status']==='paid' && $row['payment_method']===null && (float)$row['ticket_price']===0.0,'Free admission is settled at zero without a payment method');
     checkPayment((int)$db->query('SELECT COUNT(*) FROM unified_ledger')->fetchColumn()===$count,'Pending check-in creates no revenue');
-    checkPayment(paymentHttp('checkin_event.php',array_replace($checkin,['payment_method'=>'free']))['success'],'Legacy unpaid free sentinel does not invent payment');
+    checkPayment(!paymentHttp('checkin_event.php',array_replace($checkin,['payment_method'=>'free']))['success'],'Legacy pseudo-method cannot bypass configured payment method validation');
+    $db->exec("UPDATE events_eventdata SET ticket_price=100 WHERE id='signup'");
     $records=(int)$db->query('SELECT COUNT(*) FROM events_checkin')->fetchColumn();
     checkPayment(!paymentHttp('checkin_event.php',array_replace($checkin,['is_paying'=>true,'paid'=>true,'payment_method'=>'cash']))['success'],'Actual paid check-in rejects inactive method');
     checkPayment((int)$db->query('SELECT COUNT(*) FROM events_checkin')->fetchColumn()===$records,'Rejected payment creates no check-in');
@@ -134,6 +141,7 @@ try {
     checkPayment((int)$db->query('SELECT COUNT(*) FROM unified_ledger')->fetchColumn()===$count+1,'Actual paid check-in records revenue');
     $db->exec("DELETE FROM tenant_admin_modules WHERE module_id='econ'");
     checkPayment(!paymentHttp('toggle_payment_gateway.php',['gateway_name'=>'cash','is_active'=>true])['success'],'Activation requires Economy access');
+    checkPayment(!paymentHttp('manage_economy_bank_account.php',['action'=>'create','bank_name'=>'Denied','account_number'=>'12345678901'])['success'],'Bank account changes require Economy access');
     checkPayment(paymentHttp('get_payment_methods.php')['success'],'Membership admin can choose already activated company methods without personal Economy access');
     $db->exec("INSERT INTO tenant_admin_modules VALUES('admin','econ')");
     // Only synthetic fixture values, never genuine provider credentials.
@@ -141,6 +149,46 @@ try {
     checkPayment(paymentHttp('toggle_payment_gateway.php',['id'=>'v','is_active'=>true])['success'],'Economy activates authoritative configuration');
     checkPayment(in_array('vipps',array_column(paymentHttp('get_payment_methods.php')['payment_methods'],'method_type'),true),'New activation immediately offered');
     checkPayment(paymentHttp('toggle_payment_gateway.php',['id'=>'v','is_active'=>false])['success'],'Economy deactivates authoritative configuration');
+    $configCount=(int)$db->query('SELECT COUNT(*) FROM economy_configuration_data')->fetchColumn();
+    $gateways=paymentHttp('get_payment_gateways.php');
+    checkPayment(in_array('faktura',array_column($gateways['gateways'],'gateway_type'),true),'Invoice card offered without a saved configuration');
+    checkPayment((int)$db->query('SELECT COUNT(*) FROM economy_configuration_data')->fetchColumn()===$configCount,'Reading payment gateways never creates configuration');
+    checkPayment(!paymentHttp('toggle_payment_gateway.php',['gateway_name'=>'faktura','is_active'=>true])['success'],'Invoice cannot activate without a primary bank account');
+    checkPayment(paymentHttp('manage_economy_bank_account.php',['action'=>'create','bank_name'=>'Bank A','account_number'=>'12345678901'])['success'],'Add first bank account inline');
+    checkPayment(paymentHttp('manage_economy_bank_account.php',['action'=>'create','bank_name'=>'Bank B','account_number'=>'10987654321'])['success'],'Add another stored bank account');
+    checkPayment(!paymentHttp('manage_economy_bank_account.php',['action'=>'create','bank_name'=>'Duplicate','account_number'=>'12345678901'])['success'],'Duplicate bank account rejected');
+    checkPayment(!paymentHttp('manage_economy_bank_account.php',['action'=>'create','bank_name'=>'Formatted duplicate','account_number'=>'1234.56.78901'])['success'],'Formatting does not bypass duplicate account detection');
+    $bankA=(string)$db->query("SELECT id FROM economy_bank_accounts WHERE bank_name='Bank A'")->fetchColumn();
+    $bankB=(string)$db->query("SELECT id FROM economy_bank_accounts WHERE bank_name='Bank B'")->fetchColumn();
+    $db->exec("INSERT INTO economy_bank_accounts VALUES('foreign-bank','b','Other company',1,'11111111111')");
+    checkPayment(!paymentHttp('manage_economy_bank_account.php',['action'=>'select','id'=>'foreign-bank'])['success'],'Another company bank account cannot be selected');
+    checkPayment(paymentHttp('manage_economy_bank_account.php',['action'=>'select','id'=>$bankA])['success'],'Select one primary bank account');
+    $auditCount=(int)$db->query('SELECT COUNT(*) FROM audit_logs')->fetchColumn();
+    checkPayment(paymentHttp('manage_economy_bank_account.php',['action'=>'select','id'=>$bankA])['success'],'Selecting the current primary is a valid no-op');
+    checkPayment((int)$db->query('SELECT COUNT(*) FROM audit_logs')->fetchColumn()===$auditCount,'No-op primary selection does not add an audit entry');
+    checkPayment(paymentHttp('toggle_payment_gateway.php',['gateway_name'=>'faktura','is_active'=>true])['success'],'Explicit activation creates invoice configuration');
+    checkPayment(count(paymentHttp('get_bank_accounts.php')['accounts'])===1,'New invoice receives the one selected account');
+    $customer=(string)$db->query("SELECT id FROM tenant_customers WHERE company_id='a' LIMIT 1")->fetchColumn();
+    $invoiceInput=['invoice_type'=>'general','customer_id'=>$customer,'manual_amount'=>25,'bank_account_id'=>'malicious-client-override'];
+    $firstInvoice=paymentHttp('create_invoice.php',$invoiceInput);
+    checkPayment($firstInvoice['success'] && $firstInvoice['bank_account_id']===$bankA,'Invoice server uses primary account, never client account override');
+    checkPayment(paymentHttp('manage_economy_bank_account.php',['action'=>'select','id'=>$bankB])['success'],'Change primary account');
+    checkPayment((int)$db->query("SELECT COUNT(*) FROM economy_bank_accounts WHERE company_id='a' AND is_active=1")->fetchColumn()===1,'Only one account is active after switching');
+    $secondInvoice=paymentHttp('create_invoice.php',$invoiceInput);
+    checkPayment($secondInvoice['success'] && $secondInvoice['bank_account_id']===$bankB,'Subsequent invoice uses new primary account');
+    $old=$db->prepare('SELECT bank_account_id FROM economy_invoices WHERE id=?');$old->execute([$firstInvoice['invoice_id']]);
+    checkPayment($old->fetchColumn()===$bankA,'Changing primary account never rewrites previously issued invoices');
+    $db->exec("UPDATE economy_bank_accounts SET is_active=1 WHERE company_id='a'");
+    checkPayment(!paymentHttp('create_invoice.php',$invoiceInput)['success'],'Conflicting primary accounts block invoice creation instead of guessing');
+    checkPayment(paymentHttp('get_bank_accounts.php')['accounts']===[],'Conflicting accounts are not offered for invoice creation');
+    checkPayment(paymentHttp('manage_economy_bank_account.php',['action'=>'select','id'=>$bankB])['success'],'Explicit selection repairs conflicting primaries');
+    checkPayment(paymentHttp('toggle_payment_gateway.php',['gateway_name'=>'faktura','is_active'=>false])['success'],'Deactivate invoice payment solution');
+    checkPayment(paymentHttp('get_bank_accounts.php')['accounts']===[],'Disabled invoice method exposes no account for new invoices');
+    $disabledInvoice=paymentHttp('create_invoice.php',$invoiceInput);
+    checkPayment($disabledInvoice['success'] && $disabledInvoice['bank_account_id']===null && $disabledInvoice['account_number']===null,'Disabled invoice does not attach a bank account');
+    $historical=array_column(paymentHttp('get_invoices.php')['invoices'],null,'invoice_id');
+    checkPayment($historical[$firstInvoice['invoice_id']]['account_number']==='12345678901','Historical invoices retain their bank information after deactivation');
+    checkPayment(!str_contains((string)$db->query("SELECT GROUP_CONCAT(new_values) FROM audit_logs")->fetchColumn(),'12345678901'),'Bank account numbers do not leak into audit payloads');
     checkPayment(!paymentHttp('create_member.php',['first_name'=>'Stale','last_name'=>'Form','membership_plan_id'=>'priced','payment_status'=>'paid','paymentMethod'=>'Vipps'])['success'],'Open form cannot save a now deactivated selection');
     $income=['event_id'=>'signup','description'=>'Fixture','amount'=>10,'date'=>'2026-10-08'];
     checkPayment(!paymentHttp('add_event_income.php',$income)['success'],'Income has no manual or cash fallback');

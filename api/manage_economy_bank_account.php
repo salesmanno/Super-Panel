@@ -20,6 +20,12 @@ require_once __DIR__.'/../includes/tenant_audit.php';
 $data=json_decode(file_get_contents('php://input'),true);
 $company=(string)$_SESSION['company_id'];
 $action=(string)($data['action']??'');
+$csrf=$_SERVER['HTTP_X_CSRF_TOKEN']??$data['csrf_token']??'';
+if (!is_string($csrf) || empty($_SESSION['economy_bank_csrf']) || !hash_equals((string)$_SESSION['economy_bank_csrf'],$csrf)) {
+    http_response_code(403);
+    echo json_encode(['success'=>false,'message'=>'Ugyldig sikkerhetskode. Last betalingsløsningene på nytt.']);
+    exit;
+}
 
 try {
     $db=getDBConnection();
@@ -43,14 +49,15 @@ try {
     activePaymentMethodsLock($db,$company);
     if ($action==='create') {
         $bank=trim((string)($data['bank_name']??''));
-        $account=trim((string)($data['account_number']??''));
-        if ($bank==='' || mb_strlen($bank)>120 || !preg_match('/^[A-Za-z0-9 .-]{5,34}$/D',$account)) {
+        $account=strtoupper(preg_replace('/[\s.-]+/u','',trim((string)($data['account_number']??''))));
+        if ($bank==='' || mb_strlen($bank)>120 || !preg_match('/^(?:[0-9]{11}|[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30})$/D',$account)) {
             $db->rollBack();
             http_response_code(422);
-            echo json_encode(['success'=>false,'message'=>'Oppgi banknavn og et gyldig kontonummer (5–34 tegn).']);
+            echo json_encode(['success'=>false,'message'=>'Oppgi banknavn og norsk kontonummer (11 sifre) eller IBAN.']);
             exit;
         }
-        $duplicate=$db->prepare('SELECT id FROM economy_bank_accounts WHERE company_id=? AND account_number=? LIMIT 1');
+        $duplicate=$db->prepare("SELECT id FROM economy_bank_accounts WHERE company_id=?
+            AND REPLACE(REPLACE(REPLACE(UPPER(account_number),' ',''),'.',''),'-','')=? LIMIT 1");
         $duplicate->execute([$company,$account]);
         if ($duplicate->fetchColumn()) {
             $db->rollBack();
@@ -81,6 +88,11 @@ try {
     $current=$db->prepare('SELECT id,bank_name,is_active FROM economy_bank_accounts WHERE company_id=? AND is_active=1 FOR UPDATE');
     $current->execute([$company]);
     $previous=$current->fetchAll(PDO::FETCH_ASSOC);
+    if (count($previous)===1 && $previous[0]['id']===$id) {
+        $db->commit();
+        echo json_encode(['success'=>true,'message'=>'Kontoen er allerede valgt som primærkonto.']);
+        exit;
+    }
     $db->prepare('UPDATE economy_bank_accounts SET is_active=0 WHERE company_id=? AND is_active<>0')->execute([$company]);
     $db->prepare('UPDATE economy_bank_accounts SET is_active=1 WHERE id=? AND company_id=?')->execute([$id,$company]);
     foreach ($previous as $old) {

@@ -96,6 +96,14 @@ try {
     }
     
     $config = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$config && strtolower((string)$gatewayName)==='faktura' && $isActive) {
+        $newId=(string)$db->query('SELECT UUID()')->fetchColumn();
+        $db->prepare("INSERT INTO economy_configuration_data
+            (id,company_id,config_name,gateway_type,is_active,test_mode,created_at,updated_at)
+            VALUES(?,?,'Faktura','faktura',0,0,NOW(),NOW())")->execute([$newId,$company_id]);
+        $config=['id'=>$newId,'config_name'=>'Faktura','gateway_type'=>'faktura','is_active'=>0];
+    }
     
     if (!$config) {
         $db->rollBack();

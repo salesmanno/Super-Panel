@@ -1339,6 +1339,14 @@ const gatewayDescriptions = {
     'bank':    'Bankoverføring',
     'faktura': 'Fakturabetaling via bankkonto'
 };
+let invoiceGatewaySetupOpen=false;
+let economyBankCsrf='';
+
+function openInvoiceGatewaySetup(gatewayId) {
+    invoiceGatewaySetupOpen=true;
+    const setup=document.getElementById('invoice-bank-setup-'+gatewayId);
+    if (setup) setup.hidden=false;
+}
 
 async function loadPaymentGateways() {
     const container = document.getElementById('payment-gateways-container');
@@ -1349,6 +1357,7 @@ async function loadPaymentGateways() {
     try {
         const response = await fetch('/api/get_payment_gateways.php');
         const result = await response.json();
+        economyBankCsrf=result.bank_account_csrf_token||'';
         
         if (!result.success || !result.gateways) {
             container.innerHTML = '<div class="col-12"><div class="alert alert-warning">Kunne ikke laste betalingsløsninger</div></div>';
@@ -1359,7 +1368,7 @@ async function loadPaymentGateways() {
             const isActive = gw.is_active;
             const isConfigured = gw.is_configured;
             const testMode = gw.test_mode;
-            const gwId = gw.id || null;
+            const gwId = gw.id || 'null';
             const gwName = gw.gateway_name || gw.gateway_type;
             const desc = gatewayDescriptions[gw.gateway_type || gwName] || '';
             
@@ -1385,6 +1394,11 @@ async function loadPaymentGateways() {
                     <i class="bi bi-lock me-1"></i>${gw.gateway_type === 'faktura' ? 'Velg en primærkonto først' : 'Mangler oppsett'}
                 </button>`;
             }
+            if (gw.gateway_type==='faktura' && !isActive) {
+                actionBtn=`<button type="button" class="btn btn-success btn-sm w-100" onclick="openInvoiceGatewaySetup('${gwId}')">
+                    <i class="bi bi-toggle-off me-1"></i>Aktiver Faktura
+                </button>`;
+            }
             
             const hasFees = ['vipps','stripe','paypal','klarna'].includes(gw.gateway_type);
             const feeFixed   = (gw.fee_fixed   || 0).toFixed(2);
@@ -1392,6 +1406,7 @@ async function loadPaymentGateways() {
             const feePreview = (parseFloat(feeFixed) + 100 * parseFloat(feePercent) / 100).toFixed(2);
 
             const fakturaAccounts = gw.gateway_type === 'faktura' ? `
+                <div id="invoice-bank-setup-${economyEsc(gwId)}" ${isActive||invoiceGatewaySetupOpen?'':'hidden'}>
                 <hr class="my-2">
                 <p class="small fw-semibold text-muted mb-1"><i class="bi bi-bank me-1"></i>Bankkontoer · velg primærkonto</p>
                 ${gw.bank_accounts && gw.bank_accounts.length > 0
@@ -1416,6 +1431,8 @@ async function loadPaymentGateways() {
                     </div>
                     <div class="small text-muted mt-1">Bare valgt primærkonto brukes på nye fakturaer. Valg av ny primærkonto erstatter det forrige.</div>
                     <div id="bank-account-msg-${economyEsc(gwId)}" class="small mt-1" role="status"></div>
+                </div>
+                ${!isActive ? `<button type="button" class="btn btn-success btn-sm w-100 mt-2" ${isConfigured?'':'disabled'} onclick="toggleGateway('${gwId}','faktura',true)">Aktiver med valgt primærkonto</button>` : ''}
                 </div>
             ` : '';
 
@@ -1481,7 +1498,9 @@ async function toggleGateway(gatewayId, gatewayName, activate) {
         
         const result = await response.json();
         if (result.success) {
-            loadPaymentGateways();
+            if (gatewayName==='faktura') invoiceGatewaySetupOpen=activate;
+            await loadPaymentGateways();
+            await ecPopulateBankAccounts();
         } else {
             alert('Feil: ' + (result.message || 'Kunne ikke oppdatere'));
         }
@@ -1495,7 +1514,7 @@ async function saveEconomyBankAccount(action, values, messageId) {
     if (message) message.textContent='';
     try {
         const response=await fetch('/api/manage_economy_bank_account.php',{
-            method:'POST',headers:{'Content-Type':'application/json'},
+            method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':economyBankCsrf},
             body:JSON.stringify({action,...values})
         });
         const result=await response.json();
@@ -1745,6 +1764,12 @@ function ecFmtAmount(amount, currency) {
     return parseFloat(amount || 0).toLocaleString('nb-NO', {minimumFractionDigits: 2}) + ' ' + (currency || 'NOK');
 }
 
+function ecInvoiceBankDetails(inv) {
+    return inv.account_number
+        ? `<small class="d-block text-muted fw-normal">${economyEsc(inv.bank_name || 'Bankkonto')} · ${economyEsc(inv.account_number)}</small>`
+        : '';
+}
+
 function ecRenderBothLists() {
     const active = ecAllInvoices.filter(i => i.status !== 'paid');
     const paid   = ecAllInvoices.filter(i => i.status === 'paid');
@@ -1769,7 +1794,7 @@ function ecRenderBothLists() {
         activeBody.innerHTML = active.map(inv => {
             const rowClass = inv.computed_overdue ? 'table-danger' : '';
             return `<tr class="${rowClass}" id="inv-row-${inv.invoice_id}">
-                <td class="ps-3 fw-semibold">${inv.invoice_number}</td>
+                <td class="ps-3 fw-semibold">${economyEsc(inv.invoice_number)}${ecInvoiceBankDetails(inv)}</td>
                 <td>${ecInvoiceTypeBadge(inv.invoice_type || 'general')}</td>
                 <td>${inv.customer_name || '<span class="text-muted">—</span>'}</td>
                 <td>${ecFmtAmount(inv.total_amount, inv.currency)}</td>
@@ -1793,7 +1818,7 @@ function ecRenderBothLists() {
         paidBody.innerHTML = '<tr><td colspan="6" class="text-center py-3 text-muted small">Ingen betalte fakturaer</td></tr>';
     } else {
         paidBody.innerHTML = paid.map(inv => `<tr>
-            <td class="ps-3 fw-semibold">${inv.invoice_number}</td>
+            <td class="ps-3 fw-semibold">${economyEsc(inv.invoice_number)}${ecInvoiceBankDetails(inv)}</td>
             <td>${ecInvoiceTypeBadge(inv.invoice_type || 'general')}</td>
             <td>${inv.customer_name || '<span class="text-muted">—</span>'}</td>
             <td>${ecFmtAmount(inv.total_amount, inv.currency)}</td>

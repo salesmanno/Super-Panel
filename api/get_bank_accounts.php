@@ -18,9 +18,9 @@ try {
     $stmt = $db->prepare("
         SELECT ba.id, ba.account_number, ba.bank_name
         FROM economy_bank_accounts ba
-        JOIN economy_configuration_data c ON c.company_id=ba.company_id
-             AND LOWER(c.gateway_type)='faktura' AND c.is_active=1
         WHERE ba.company_id = ? AND ba.is_active = 1
+          AND EXISTS(SELECT 1 FROM economy_configuration_data c WHERE c.company_id=ba.company_id
+             AND LOWER(c.gateway_type)='faktura' AND c.is_active=1)
           AND ba.account_number IS NOT NULL AND ba.account_number <> ''
           AND (SELECT COUNT(*) FROM economy_bank_accounts x
                WHERE x.company_id=ba.company_id AND x.is_active=1

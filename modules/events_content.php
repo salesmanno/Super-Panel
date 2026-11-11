@@ -1766,7 +1766,7 @@ try {
             <div class="row g-2 mb-2">
                 <div class="col-6 col-lg-3 col-xxl-2"><div class="card bg-light h-100"><div class="card-body p-3"><div class="text-muted small">Arrangementer</div><div class="fs-5 fw-bold text-primary" id="summary-total-events">0</div><div class="small text-muted"><span id="summary-inactive-events">0</span> skjulte/inaktive</div></div></div></div>
                 <div class="col-6 col-lg-3 col-xxl-2"><div class="card bg-light h-100"><div class="card-body p-3"><div class="text-muted small">Betalt inntekt</div><div class="fs-5 fw-bold text-success" id="summary-total-revenue">0 kr</div></div></div></div>
-                <div class="col-6 col-lg-3 col-xxl-2"><div class="card bg-light h-100"><div class="card-body p-3"><div class="text-muted small">Forventet ubetalt</div><div class="fs-5 fw-bold text-warning" id="summary-projected-income">0 kr</div><div class="small text-muted"><span id="summary-unpaid-attendees">0</span> ubetalte påmeldte</div></div></div></div>
+                <div class="col-6 col-lg-3 col-xxl-2"><div class="card bg-light h-100"><div class="card-body p-3"><div class="text-muted small">Prosjektert inntekt</div><div class="fs-5 fw-bold text-warning" id="summary-projected-income">0 kr</div><div class="small text-muted"><span id="summary-unpaid-attendees">0</span> ventende påmeldte</div></div></div></div>
                 <div class="col-6 col-lg-3 col-xxl-2"><div class="card bg-light h-100"><div class="card-body p-3"><div class="text-muted small">Utgifter</div><div class="fs-5 fw-bold text-danger" id="summary-total-expense">0 kr</div></div></div></div>
                 <div class="col-6 col-lg-3 col-xxl-2"><div class="card bg-light h-100"><div class="card-body p-3"><div class="text-muted small">Faktisk netto</div><div class="fs-5 fw-bold" id="summary-net-result">0 kr</div></div></div></div>
                 <div class="col-6 col-lg-3 col-xxl-2"><div class="card bg-light h-100"><div class="card-body p-3"><div class="text-muted small">Netto med forventet</div><div class="fs-5 fw-bold" id="summary-projected-net">0 kr</div></div></div></div>
@@ -4730,17 +4730,17 @@ async function loadEventsResults() {
                                                 <span class="badge ${statusBadge}">${eventResultsEscape(event.status)}</span>
                                                 ${visibilityBadge}
                                                 <span class="badge text-bg-primary">${Number(event.attendee_count) || 0} påmeldte</span>
+                                                ${Number(event.unpaid_attendee_count)>0?`<span class="badge text-bg-warning">${Number(event.unpaid_attendee_count)} ventende betaling</span>`:''}
                                             </div>
                                         </div>
                                         <div class="row g-2 mt-2">
                                             ${metric('Betalt inntekt', event.income, 'text-success')}
                                             ${metric('Prosjektert · pending + completed', event.projected_income, 'text-warning-emphasis')}
-                                            ${metric('Ventende påmeldte', Number(event.unpaid_attendee_count) || 0, 'text-warning-emphasis')}
                                             ${metric('Utgifter', event.expense, 'text-danger')}
                                             ${metric('Faktisk netto', actualNet, actualNet >= 0 ? 'text-success' : 'text-danger')}
                                             ${metric('Netto med forventet', projectedNet, projectedNet >= 0 ? 'text-success' : 'text-danger')}
                                         </div>
-                                        ${Number(event.unreconciled_paid_count) > 0 ? `<p class="small text-warning-emphasis mt-2 mb-0" role="note">${Number(event.unreconciled_paid_count)} påmeldte står som betalt uten full betalingskobling. Beløpet kan inngå i prosjektert sum fra påmeldingen, men ikke i faktisk inntekt fra hovedboken. Kontroller betalingshistorikken før eventuell retting.</p>` : ''}
+                                        ${Number(event.unreconciled_paid_count) > 0 ? `<p class="small text-warning-emphasis mt-2 mb-0" role="note">${Number(event.unreconciled_paid_count)} påmeldte står som betalt uten full betalingskobling. Manglende beløp er ikke lagt til inntekter eller prognosen. Kontroller betalingshistorikken før eventuell retting.</p>` : ''}
                                     </div>
                                 </article>
                             `;

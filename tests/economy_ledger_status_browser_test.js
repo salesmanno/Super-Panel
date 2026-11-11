@@ -24,6 +24,10 @@ window.__economyRequests = [];
 window.__economyFailFilter = null;
 window.__economyDelayAttempts = false;
 window.__economyResolveDelayed = null;
+window.__invoiceAccounts=[];
+window.__invoiceActive=false;
+window.__invoiceConfigId=null;
+window.alert=message=>{throw new Error(message)};
 const makeRow = (id, name, {status='completed', ledger='active', paid=true, selling=40, income=40, expense=0, cost=0, profit=10}={}) => ({
     ledger_id: id, item_name: name, module_source: 'sales', payment_method: 'card',
     payment_status: status, ledger_status: ledger, counts_as_paid: paid,
@@ -52,13 +56,31 @@ const dataset = (filter, page) => {
         total_pages:Math.max(1,Math.ceil(total/10)), payment_filter:filter
     }};
 };
-window.fetch = (input) => {
+window.fetch = (input, options={}) => {
     const url = new URL(input, location.href);
+    const jsonResponse=data=>Promise.resolve({ok:true,json:async()=>data});
+    if (url.pathname==='/api/get_payment_gateways.php') return jsonResponse({success:true,bank_account_csrf_token:'fixture-csrf',gateways:[{
+        id:window.__invoiceConfigId,gateway_name:'faktura',gateway_type:'faktura',display_name:'Faktura',
+        is_active:window.__invoiceActive,is_configured:window.__invoiceAccounts.filter(x=>x.is_active===1).length===1,
+        test_mode:false,bank_accounts:window.__invoiceAccounts
+    }]});
+    if (url.pathname==='/api/manage_economy_bank_account.php') {
+        if (options.headers['X-CSRF-Token']!=='fixture-csrf') throw new Error('Bank account change missing CSRF token');
+        const body=JSON.parse(options.body);
+        if(body.action==='create') window.__invoiceAccounts.push({id:'bank-'+(window.__invoiceAccounts.length+1),bank_name:body.bank_name,account_number:body.account_number,is_active:0});
+        if(body.action==='select') window.__invoiceAccounts.forEach(x=>x.is_active=x.id===body.id?1:0);
+        return jsonResponse({success:true,message:'Lagret'});
+    }
+    if (url.pathname==='/api/toggle_payment_gateway.php') {
+        const body=JSON.parse(options.body);window.__invoiceActive=body.is_active;window.__invoiceConfigId='invoice-config';
+        return jsonResponse({success:true});
+    }
+    if (url.pathname==='/api/get_bank_accounts.php') return jsonResponse({success:true,accounts:window.__invoiceActive?window.__invoiceAccounts.filter(x=>x.is_active===1):[]});
     const filter = url.searchParams.get('payment_filter') || 'completed';
     const page = Number(url.searchParams.get('page') || 1);
     window.__economyRequests.push({filter,page,url:url.href});
     if (window.__economyFailFilter === filter) return Promise.reject(new Error('simulated fetch failure'));
-    const response = {json: async () => dataset(filter,page)};
+    const response = {ok:true,json: async () => dataset(filter,page)};
     if (filter === 'attempts' && window.__economyDelayAttempts) {
         window.__economyDelayAttempts = false;
         return new Promise(resolve => {
@@ -146,6 +168,31 @@ const checks = `(async () => {
 
     const filterBox = select.getBoundingClientRect();
     if (filterBox.right > window.innerWidth + 1 || filterBox.left < 0) throw new Error('Payment selector clipped at viewport width '+window.innerWidth);
+    await loadPaymentGateways();
+    if (!document.getElementById('invoice-bank-setup-null').hidden) throw new Error('Inactive invoice setup should start collapsed');
+    openInvoiceGatewaySetup('null');
+    if (document.getElementById('invoice-bank-setup-null').hidden) throw new Error('Activation must open inline bank setup');
+    document.getElementById('new-bank-name-null').value='Bank A';
+    document.getElementById('new-bank-number-null').value='12345678901';
+    await createEconomyBankAccount('null');
+    document.getElementById('new-bank-name-null').value='Bank B';
+    document.getElementById('new-bank-number-null').value='10987654321';
+    await createEconomyBankAccount('null');
+    if (!document.getElementById('payment-gateways-container').textContent.includes('Bank B')) throw new Error('New account missing from inline account list');
+    await selectEconomyBankAccount('bank-1','null');
+    await toggleGateway('null','faktura',true);
+    if (!document.getElementById('inv-bank-account-label').textContent.includes('12345678901')) throw new Error('Invoice does not show chosen primary account');
+    await selectEconomyBankAccount('bank-2','invoice-config');
+    if (window.__invoiceAccounts.filter(x=>x.is_active===1).length!==1 || !document.getElementById('inv-bank-account-label').textContent.includes('10987654321')) throw new Error('Primary account change not reflected');
+    await toggleGateway('invoice-config','faktura',false);
+    if (document.getElementById('inv-bank-account-label').textContent.includes('10987654321') || !document.getElementById('invoice-bank-setup-invoice-config').hidden) throw new Error('Deactivated invoice still presents an account number');
+    ecAllInvoices=[
+        {invoice_id:'historical',invoice_number:'INV-1000',status:'pending',bank_name:'Bank A',account_number:'12345678901'},
+        {invoice_id:'without-bank',invoice_number:'INV-1001',status:'pending',bank_name:null,account_number:null}
+    ];
+    ecRenderBothLists();
+    if (!document.getElementById('inv-row-historical').textContent.includes('12345678901')
+        || document.getElementById('inv-row-without-bank').textContent.includes('Bankkonto')) throw new Error('Historical invoice bank details or disabled new-invoice display are wrong');
     return {passed:true,width:window.innerWidth,requests:window.__economyRequests.length,selectorRight:filterBox.right};
 })()`;
 

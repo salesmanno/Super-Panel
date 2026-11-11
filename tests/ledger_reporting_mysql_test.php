@@ -54,6 +54,8 @@ $rows = [
     ['return','sales',-50,2,'completed','active','income',-10],
     ['event-paid','events',100,4,'completed','active','income',null],
     ['event-expense','events',0,1,'completed','active','expense',25],
+    ['event-pending','events',55,1,'pending','active','income',null],
+    ['event-cancelled','events',888,1,'cancelled','active','income',null],
     ['member-paid','membership',60,3,'completed','active','income',null],
     ['member-other','membership',20,1,'completed','active','income',null],
     ['rental-paid','rental',130,1,'completed','active','income',null],
@@ -66,7 +68,7 @@ $rows[] = ['member-cancelled','membership',700,2,'completed','cancelled','income
 $rows[] = ['ledger-refunded','sales',600,2,'completed','refunded','income',null];
 foreach ($rows as [$id,$module,$price,$qty,$payment,$status,$type,$cost]) {
     $customer = $id === 'member-other' ? 'customer-b' : 'customer-a';
-    $source = $id === 'event-paid' ? 'reg-a' : ($module === 'events' ? 'event-a' : $id);
+    $source = $id === 'event-paid' ? 'reg-a' : ($id === 'event-pending' ? 'member-price' : ($module === 'events' ? 'event-a' : $id));
     $insert->execute([$id,$id==='s2'?'s1':$id,'company-a',$source,$customer,$module,$id,'product',null,$type,$price,$cost,$qty,'cash',$payment,$status,'{}']);
 }
 $insert->execute(['foreign','foreign','company-b','foreign','customer-foreign','membership','Foreign','membership',null,'income',9999,null,1,'cash','completed','active','{}']);
@@ -129,7 +131,7 @@ try {
     $overview = apiFixture('/api/get_economy_data.php')['data'];
     ledgerCheck((float)$overview['total_income']===560.0 && (float)$overview['total_expenses']===75.0 && (float)$overview['total_profit']===485.0,'completed-only totals, return reversal and positive-cost expense');
     ledgerCheck($overview['payment_filter']==='completed' && (int)$overview['total']===9 && (int)$overview['transaction_count']===9,'posted default counts');
-    foreach (['completed'=>9,'attempts'=>10,'all'=>19] as $filter=>$count) {
+    foreach (['completed'=>9,'attempts'=>12,'all'=>21] as $filter=>$count) {
         $seen=[];
         for($page=1;$page<=max(1,(int)ceil($count/3));$page++){
             $d=apiFixture('/api/get_economy_data.php?payment_filter='.$filter.'&per_page=3&page='.$page)['data'];
@@ -155,15 +157,15 @@ try {
     foreach(['get_event_finances.php','get_event_transactions.php'] as $endpoint){
         $event=apiFixture('/api/'.$endpoint.'?event_id=event-a');
         ledgerCheck((float)$event['summary']['total_income']===100.0 && (float)$event['summary']['total_expense']===25.0,'event read model preserved');
-        ledgerCheck((float)$event['summary']['projected_income']===155.0,'Projection combines completed payment and unpaid tickets without double counting');
+        ledgerCheck((float)$event['summary']['projected_income']===155.0,'Projection combines pending and completed ledger without cancelled payments');
         $hidden=apiFixture('/api/'.$endpoint.'?event_id=hidden');
-        ledgerCheck((float)$hidden['summary']['projected_income']===75.0,'Hidden event details accessible; unapproved, free, no-show and refund not projected');
+        ledgerCheck((float)$hidden['summary']['projected_income']===0.0,'Hidden event details accessible; ticket amounts without payment records are not projected');
     }
     $results=apiFixture('/api/get_events_results.php');
     $byEvent=array_column($results['events'],null,'id');
     ledgerCheck(count($byEvent)===2 && isset($byEvent['hidden']) && !isset($byEvent['empty'],$byEvent['foreign-event']),'Events without participants are hidden; hidden registered event retained');
-    ledgerCheck((float)$results['summary']['total_revenue']===100.0 && (float)$results['summary']['total_projected_income']===230.0
-        && (float)$results['summary']['total_expense']===25.0 && (float)$results['summary']['projected_net_result']===205.0,'Actual and pending/completed projection totals reconcile');
+    ledgerCheck((float)$results['summary']['total_revenue']===100.0 && (float)$results['summary']['total_projected_income']===155.0
+        && (float)$results['summary']['total_expense']===25.0 && (float)$results['summary']['projected_net_result']===130.0,'Actual and pending/completed projection totals reconcile');
     ledgerCheck($results['summary']['total_attendees']===7 && $results['summary']['total_unpaid_attendees']===2,'All participants retained, unpaid counts separate');
     $income=apiFixture('/api/get_economy_data.php?view=income')['data'];
     $expenses=apiFixture('/api/get_economy_data.php?view=expense')['data'];

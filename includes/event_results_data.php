@@ -3,7 +3,7 @@ require_once __DIR__ . '/event_results_helpers.php';
 
 /** Read-only reporting: never settles payments or changes participant status. */
 function event_results_calculate(array $events, array $tickets, array $registrations, array $ledger): array {
-    $byEvent = $people = $groups = $registrationsById = $transactions = [];
+    $byEvent = $people = $groups = $registrationsById = $transactions = $excludedPeople = [];
     foreach ($events as $event) {
         $event = array_replace($event, [
             'attendee_count'=>0, 'unpaid_attendee_count'=>0, 'projected_income'=>0.0,
@@ -21,9 +21,12 @@ function event_results_calculate(array $events, array $tickets, array $registrat
         $registration = (string)($ticket['registration_id']??'');
         $approval = strtolower((string)($registrationsById[$registration]['approval_status']??'approved'));
         if (in_array($status,['cancelled','canceled','rejected'],true)
-            || in_array($approval,['rejected','cancelled','canceled'],true)) continue;
+            || in_array($approval,['rejected','cancelled','canceled'],true)) {
+            $excludedPeople[$ticket['id']]=true;
+            continue;
+        }
         $ticket['remaining_minor'] = max(0, (int) round((float) $ticket['ticket_price'] * 100));
-        $ticket['completed_coverage_minor'] = 0;
+        $ticket['completed_remaining_minor'] = $ticket['remaining_minor'];
         $people[$ticket['id']] = $ticket;
         $byEvent[$ticket['event_id']]['attendee_count']++;
         if (isset($registrationsById[$registration])
@@ -31,7 +34,12 @@ function event_results_calculate(array $events, array $tickets, array $registrat
             $groups[$registration][] = $ticket['id'];
         }
     }
-    $groupPaid = $groupCompletedPaid = $seen = [];
+    $groupPaid = $groupCompletedPaid = $seen = $completedOrders = [];
+    usort($ledger, static function(array $a,array $b): int {
+        $priorityA=($a['payment_status']??'')==='completed'?0:1;
+        $priorityB=($b['payment_status']??'')==='completed'?0:1;
+        return ($priorityA<=>$priorityB) ?: strcmp((string)($b['transaction_date']??''),(string)($a['transaction_date']??''));
+    });
     foreach ($ledger as $entry) {
         if (isset($seen[$entry['id']])) continue;
         $seen[$entry['id']] = true;
@@ -42,6 +50,8 @@ function event_results_calculate(array $events, array $tickets, array $registrat
         $metadata = is_array($metadata) ? $metadata : [];
         $source = (string) ($entry['source_id'] ?? '');
         $order = (string) ($entry['order_id'] ?? '');
+        if (isset($excludedPeople[$source]) || isset($excludedPeople[$order])
+            || isset($excludedPeople[(string)($metadata['checkin_id']??'')])) continue;
         $person = $registration = null;
         foreach ([$source, (string) ($metadata['checkin_id'] ?? ''), $order] as $key) {
             if (isset($people[$key])) { $person = $key; break; }
@@ -62,6 +72,19 @@ function event_results_calculate(array $events, array $tickets, array $registrat
             && $entry['company_id'] !== $byEvent[$eventId]['company_id']) continue;
         if (($person !== null && !isset($people[$person]))
             || ($registration !== null && in_array(strtolower((string)($registrationsById[$registration]['approval_status']??'')),['rejected','cancelled','canceled'],true))) continue;
+        $businessKey=$eventId.'|'.$order.'|'.$source;
+        if ($order!=='' && ($entry['payment_status']??'')==='completed') $completedOrders[$businessKey]=true;
+        elseif (($entry['payment_status']??'')==='pending' && $projected['income']>0) {
+            $available=null;
+            if ($order!=='' && isset($completedOrders[$businessKey])) $available=0;
+            elseif ($person!==null) $available=$people[$person]['remaining_minor'];
+            elseif ($registration!==null && isset($groups[$registration])) {
+                $available=0;
+                foreach ($groups[$registration] as $id) $available+=$people[$id]['remaining_minor'];
+                $available=max(0,$available-($groupPaid[$registration]??0));
+            }
+            if ($available!==null) $projected['income']=min($projected['income'],$available/100);
+        }
         $byEvent[$eventId]['income'] += $actual['income'];
         $byEvent[$eventId]['expense'] += $actual['expense'];
         $byEvent[$eventId]['projected_income'] += $projected['income'];
@@ -71,7 +94,7 @@ function event_results_calculate(array $events, array $tickets, array $registrat
         $minor = (int) round($projected['income'] * 100);
         if ($person !== null) {
             $people[$person]['remaining_minor'] = max(0, $people[$person]['remaining_minor'] - $minor);
-            $people[$person]['completed_coverage_minor'] += (int)round($actual['income']*100);
+            $people[$person]['completed_remaining_minor'] = max(0, $people[$person]['completed_remaining_minor'] - (int)round($actual['income']*100));
         } elseif ($registration !== null) {
             $groupPaid[$registration] = ($groupPaid[$registration] ?? 0) + $minor;
             $groupCompletedPaid[$registration] = ($groupCompletedPaid[$registration] ?? 0) + (int)round($actual['income']*100);
@@ -82,8 +105,8 @@ function event_results_calculate(array $events, array $tickets, array $registrat
         // Allocate existing group coverage once, including paid siblings even
         // when only one ticket's local payment flag is stale.
         usort($ids, static function ($a, $b) use ($people) {
-            $paidA = $people[$a]['payment_status'] === 'paid' ? 0 : 1;
-            $paidB = $people[$b]['payment_status'] === 'paid' ? 0 : 1;
+            $paidA = in_array($people[$a]['payment_status'],['paid','completed'],true) ? 0 : 1;
+            $paidB = in_array($people[$b]['payment_status'],['paid','completed'],true) ? 0 : 1;
             return ($paidA <=> $paidB) ?: strcmp($a, $b);
         });
         foreach ($ids as $id) {
@@ -100,24 +123,23 @@ function event_results_calculate(array $events, array $tickets, array $registrat
             return ($paidA <=> $paidB) ?: strcmp($a, $b);
         });
         foreach ($ids as $id) {
-            $used = min($credit, max(0, $people[$id]['remaining_minor'] + $people[$id]['completed_coverage_minor']));
-            $people[$id]['completed_coverage_minor'] += $used;
+            $used = min($credit, $people[$id]['completed_remaining_minor']);
+            $people[$id]['completed_remaining_minor'] -= $used;
             $credit -= $used;
         }
     }
     foreach ($people as $ticket) {
         $eventId = $ticket['event_id'];
         $status = strtolower((string) ($ticket['payment_status'] ?? ''));
-        if (in_array($status,['paid','completed'],true) && $ticket['completed_coverage_minor'] < (int)round((float)$ticket['ticket_price']*100)) {
+        if (in_array($status,['paid','completed'],true) && $ticket['completed_remaining_minor'] > 0) {
             $byEvent[$eventId]['unreconciled_paid_count']++;
         }
-        if (!in_array($status, ['pending','unpaid','payment_pending','paid','completed'], true) || $ticket['remaining_minor'] <= 0) continue;
+        if (!in_array($status, ['pending','unpaid','payment_pending','paid','completed'], true)) continue;
         $registrationId = (string) ($ticket['registration_id'] ?? '');
         if ($registrationId !== '' && (!isset($registrationsById[$registrationId])
             || $registrationsById[$registrationId]['event_id'] !== $eventId
             || $registrationsById[$registrationId]['approval_status'] !== 'approved')) continue;
-        if (in_array($status,['pending','unpaid','payment_pending'],true)) $byEvent[$eventId]['unpaid_attendee_count']++;
-        $byEvent[$eventId]['projected_income'] += $ticket['remaining_minor'] / 100;
+        if (in_array($status,['pending','unpaid','payment_pending'],true) && $ticket['completed_remaining_minor']>0) $byEvent[$eventId]['unpaid_attendee_count']++;
     }
     foreach ($byEvent as &$event) {
         foreach (['income','expense','projected_income','projected_expense'] as $key) $event[$key] = round($event[$key], 2);

@@ -10,6 +10,7 @@ if (!isset($_SESSION['tenant_admin_id'])) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/request_date_time.php';
 require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
+require_once __DIR__ . '/../includes/active_payment_methods.php';
 
 $body = json_decode(file_get_contents('php://input'), true);
 $invoiceType        = $body['invoice_type'] ?? 'general';
@@ -27,6 +28,7 @@ try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
     $db->beginTransaction();
+    activePaymentMethodsLock($db,(string)$companyId);
 
     // The selected primary account is authoritative. A client-supplied account
     // cannot override it, and a disabled invoice method never leaks account data.
@@ -35,18 +37,20 @@ try {
     $invoiceGateway->execute([$companyId]);
     $invoiceGatewayId=$invoiceGateway->fetchColumn();
     $bankAccountId=null;
+    $bankAccount=null;
     if ($invoiceGatewayId) {
-        $primary=$db->prepare("SELECT id FROM economy_bank_accounts WHERE company_id=? AND is_active=1
+        $primary=$db->prepare("SELECT id,bank_name,account_number FROM economy_bank_accounts WHERE company_id=? AND is_active=1
             AND account_number IS NOT NULL AND account_number<>'' ORDER BY id LIMIT 2 FOR UPDATE");
         $primary->execute([$companyId]);
-        $primaryIds=$primary->fetchAll(PDO::FETCH_COLUMN);
-        if (count($primaryIds)!==1) {
+        $primaryAccounts=$primary->fetchAll(PDO::FETCH_ASSOC);
+        if (count($primaryAccounts)!==1) {
             $db->rollBack();
             http_response_code(409);
             echo json_encode(['success'=>false,'error'=>'Faktura må ha nøyaktig én valgt primærkonto.']);
             exit;
         }
-        $bankAccountId=$primaryIds[0];
+        $bankAccount=$primaryAccounts[0];
+        $bankAccountId=$bankAccount['id'];
     }
 
     $prefix   = 'INV';
@@ -216,6 +220,9 @@ try {
         'success'        => true,
         'invoice_id'     => $invoiceId,
         'invoice_number' => $invoiceNumber,
+        'bank_account_id'=> $bankAccountId,
+        'bank_name'      => $bankAccount['bank_name'] ?? null,
+        'account_number'=> $bankAccount['account_number'] ?? null,
         'total_amount'   => $totalAmount
     ]);
 

@@ -58,7 +58,8 @@ function activePaymentMethods(PDO $db, string $company): array {
     $methods = [];
     foreach ($rows as $row) {
         $type = $row['method_type'];
-        if (!isset($names[$type]) || ($type === 'cash' && !$cash) || isset($methods[$type]) || !(bool)$row['is_configured']) continue;
+        if (!isset($names[$type]) || ($type === 'cash' && !$cash) || isset($methods[$type])
+            || (in_array($type,['faktura','bank'],true) && !(bool)$row['is_configured'])) continue;
         $name = $row['config_name'] ?: $names[$type];
         $methods[$type] = [
             'method_type'=>$type, 'method_name'=>$name, 'is_active'=>true,

@@ -144,20 +144,34 @@ $result = event_results_calculate([['id'=>'e','is_active'=>0]], [
 ], [
     $entry('web','reg',250), $entry('onsite','direct',30),
     $entry('manual-income','e',20), $entry('cost','e',-40),
+    array_replace($entry('pending-manual','manual',75),['payment_status'=>'pending']),
     $entry('conflict','manual',999,'{"event_id":"foreign"}'),
 ]);
 $row = $result['events'][0];
 $check($row['income'] === 300.0 && $row['expense'] === 40.0, 'Registration-ID, checkin-ID and event-ID payments resolve once');
-$check($row['projected_income'] === 425.0 && $row['unpaid_attendee_count'] === 1, 'Projected total combines completed, pending ledger and uncovered valid participants');
+$check($row['projected_income'] === 375.0 && $row['unpaid_attendee_count'] === 1, 'Projected total combines completed and pending ledger only');
 $check($row['attendee_count'] === 9 && $row['is_active'] === 0, 'All existing participants and hidden events retained');
-$check($row['unreconciled_paid_count'] === 1, 'Paid tickets without ledger are projected from ticket price and flagged');
-$check($row['projected_net_result'] === 385.0, 'Projected net combines pending, completed and expenses');
+$check($row['unreconciled_paid_count'] === 1, 'Paid tickets without ledger are flagged without inventing payment evidence');
+$check($row['projected_net_result'] === 335.0, 'Projected net combines pending, completed and expenses');
 $partial = event_results_calculate([['id'=>'e']], [$ticket('a',100,'paid','reg'),$ticket('b',100,'pending','reg')],
     [['id'=>'reg','event_id'=>'e','approval_status'=>'approved']], [$entry('partial','reg',125)])['events'][0];
-$check($partial['projected_income'] === 200.0, 'Partial group payment plus remaining ticket balance is projected once');
+$check($partial['projected_income'] === 125.0, 'Unlinked remaining ticket balance is not invented as a pending payment');
 $cancelled = event_results_calculate([['id'=>'e']], [$ticket('c',80,'cancelled'),$ticket('r',90,'pending','rejected')],
     [['id'=>'rejected','event_id'=>'e','approval_status'=>'rejected']], [])['events'][0];
 $check($cancelled['attendee_count'] === 0 && $cancelled['projected_income'] === 0.0, 'Cancelled or rejected registrations do not count');
+$pendingEntry=array_replace($entry('request','p',100),['payment_status'=>'pending']);
+$completedEntry=$entry('settled','p',100);
+$cancelledEntry=array_replace($entry('cancelled','e',999),['payment_status'=>'cancelled']);
+$retries=event_results_calculate([['id'=>'e']],[$ticket('p',100,'pending')],[],[$pendingEntry,$completedEntry,$cancelledEntry])['events'][0];
+$check($retries['income']===100.0 && $retries['projected_income']===100.0 && $retries['unpaid_attendee_count']===0,'Completed ticket supersedes pending retry; cancelled payment contributes nothing');
+$pendingOnly=event_results_calculate([['id'=>'e']],[$ticket('p',100,'pending')],[],[$pendingEntry])['events'][0];
+$check($pendingOnly['income']===0.0 && $pendingOnly['projected_income']===100.0 && $pendingOnly['unpaid_attendee_count']===1,'Pending request is projected once and remains unpaid');
+$paidGroup=event_results_calculate([['id'=>'e']],[$ticket('one',50,'completed','g'),$ticket('two',50,'paid','g')],
+    [['id'=>'g','event_id'=>'e','approval_status'=>'approved']],[$entry('group-payment','g',100)])['events'][0];
+$check($paidGroup['projected_income']===100.0 && $paidGroup['unreconciled_paid_count']===0,'Completed group payment covers both completed/paid aliases without false reconciliation warning');
+$cancelledTicket=event_results_calculate([['id'=>'e']],[$ticket('cancelled-ticket',100,'cancelled')],[],
+    [$entry('old-payment','cancelled-ticket',100,'{"event_id":"e"}')])['events'][0];
+$check($cancelledTicket['income']===0.0 && $cancelledTicket['projected_income']===0.0,'Cancelled participant remains excluded even if an older payment references the event');
 
 if ($failures) {
     fwrite(STDERR, implode(PHP_EOL, $failures) . PHP_EOL);

@@ -1,5 +1,7 @@
 <?php
 session_start();
+if (empty($_SESSION['economy_bank_csrf'])) $_SESSION['economy_bank_csrf']=bin2hex(random_bytes(32));
+$bankAccountCsrf=(string)$_SESSION['economy_bank_csrf'];
 session_write_close();
 require_once __DIR__ . '/../config/database.php';
 
@@ -113,32 +115,14 @@ try {
         error_log("economy_bank_accounts not available: " . $e->getMessage());
     }
 
-    // Auto-create 'faktura' entry in economy_configuration_data if not exists
-    try {
-        $fkCheck = $db->prepare("SELECT id FROM economy_configuration_data WHERE company_id = ? AND LOWER(gateway_type) = 'faktura' LIMIT 1");
-        $fkCheck->execute([$company_id]);
-        if (!$fkCheck->fetch()) {
-            $fkId = bin2hex(random_bytes(18));
-            $fkInsert = $db->prepare("
-                INSERT INTO economy_configuration_data (id, company_id, config_name, gateway_type, is_active, test_mode, created_at, updated_at)
-                VALUES (?, ?, 'Faktura', 'faktura', 0, 0, NOW(), NOW())
-            ");
-            $fkInsert->execute([$fkId, $company_id]);
-            // Re-fetch to include new faktura row
-            $stmt = $db->prepare("
-                SELECT id, config_name, gateway_type, client_id, client_secret_encrypted,
-                       subscription_key, merchant_serial_number, public_key, private_key_encrypted,
-                       webhook_secret, is_active, test_mode,
-                       IFNULL(fee_fixed, 0) AS fee_fixed, IFNULL(fee_percent, 0) AS fee_percent
-                FROM economy_configuration_data
-                WHERE company_id = ?
-                ORDER BY config_name
-            ");
-            $stmt->execute([$company_id]);
-            $configurations = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        }
-    } catch (Exception $e) {
-        error_log("Faktura auto-create error: " . $e->getMessage());
+    // Always offer invoice setup, without creating records during a GET.
+    $hasInvoiceConfiguration=false;
+    foreach ($configurations as $config) {
+        if (strtolower((string)$config['gateway_type'])==='faktura') $hasInvoiceConfiguration=true;
+    }
+    if (!$hasInvoiceConfiguration) {
+        $configurations[]=['id'=>null,'config_name'=>'Faktura','gateway_type'=>'faktura',
+            'is_active'=>0,'test_mode'=>0];
     }
 
     $result = [];
@@ -186,7 +170,7 @@ try {
             case 'faktura':
                 $isConfigured = $hasActiveBankAccount;
                 if (!$isConfigured) {
-                    $missingFields[] = 'bankkonto for faktura (opprett i Økonomi > Bankkontoer)';
+                    $missingFields[] = 'nøyaktig én primærkonto (velg eller legg til på Faktura-kortet)';
                 }
                 break;
             case 'klarna':
@@ -223,6 +207,7 @@ try {
     
     echo json_encode([
         'success' => true,
+        'bank_account_csrf_token' => $bankAccountCsrf,
         'gateways' => $result
     ]);
     
