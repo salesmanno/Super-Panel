@@ -21,10 +21,17 @@ class ExportBlocked(RuntimeError):
     pass
 
 
+def git_environment():
+    # Keep Replit's authentication/proxy environment, but never wait for a
+    # password on the workflow terminal or expose a credential-bearing prompt.
+    return {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+
+
 def read_git(*args, optional=False):
     result = subprocess.run(
         (*GIT, *args), stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        env=git_environment(),
     )
     if result.returncode == 1 and optional:
         return []
@@ -124,8 +131,19 @@ def mutate_git(*args):
     result = subprocess.run(
         (*GIT, *args), stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        env=git_environment(),
     )
     if result.returncode:
+        diagnostic = result.stderr.decode("utf-8", errors="replace").casefold()
+        if any(marker in diagnostic for marker in (
+            "authentication failed", "terminal prompts disabled",
+            "could not read username", "could not read password",
+        )):
+            raise ExportBlocked(
+                "GitHub-innlogging kunne ikke bekreftes. Koble GitHub til på nytt "
+                "i Replits Git-panel før du starter eksporten igjen. "
+                "Ingen videre steg ble kjørt."
+            )
         raise ExportBlocked(
             "Git-steget «" + args[0] + "» feilet. Ingen videre steg ble kjørt. "
             "Rå Git-utdata skjules fordi de kan inneholde innloggingsopplysninger."
