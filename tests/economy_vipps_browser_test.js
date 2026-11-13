@@ -7,6 +7,10 @@ const start = source.indexOf('const gatewayDescriptions =');
 const end = source.indexOf('function gwFeePreview(',start);
 if (start < 0 || end < 0) throw new Error('Economy gateway functions not found');
 const script = source.slice(start,end);
+const styleStart = source.indexOf('<style>') + '<style>'.length;
+const styleEnd = source.indexOf('</style>',styleStart);
+if (styleStart < '<style>'.length || styleEnd < 0) throw new Error('Economy styles not found');
+const appStyles = source.slice(styleStart,styleEnd);
 const stubs = `
 window.fixtureActive=false;window.fixtureReady=false;window.fixtureCalls=[];window.fixtureAlerts=[];window.fixtureDelay=false;
 window.alert=message=>fixtureAlerts.push(message);
@@ -37,6 +41,7 @@ try {
  await loadPaymentGateways();
  const container=document.getElementById('payment-gateways-container');
  check(container.textContent.includes('Test'),'Selected environment visible');
+ check(container.textContent.includes('Kontroller webhook og aktiver Vipps'),'Inactive Vipps action explains what activation does');
  check(container.textContent.includes('Oppdater status'),'Status action on Vipps card');
  await refreshVippsWebhook('config-a',container.querySelector('button[onclick*="refreshVippsWebhook"]'));
  check(document.getElementById('vipps-webhook-config-a').textContent.includes('Krever oppfølging'),'Missing receiver shown explicitly');
@@ -52,7 +57,8 @@ try {
  await toggleGateway('config-a','vipps',true);
  check(fixtureActive,'Ready setup activates');
  check(document.getElementById('vipps-webhook-config-a').textContent.includes('Faktisk levering er ikke verifisert'),'Status survives card reload');
- check(container.textContent.includes('Fullfør webhook-oppsett'),'Existing active methods can complete setup without switching off');
+ check(container.textContent.includes('Sjekk / fullfør webhook-oppsett'),'Active method has a clear webhook setup action');
+ check(container.textContent.includes('Deaktiver betalingsmåten'),'Deactivation is clearly separate from webhook setup');
  await toggleGateway('config-a','vipps',false);
  check(!fixtureActive,'Off updates payment card');
  check(!container.textContent.includes('fixture-csrf'),'CSRF not printed in card');
@@ -61,7 +67,7 @@ try {
 }catch(error){return {passed:false,error:error.stack||String(error)}}
 })()`;
 const html = `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>*{box-sizing:border-box}body{margin:0;padding:12px;font:15px system-ui;background:#f5f7fa}.row{display:flex;flex-wrap:wrap;gap:12px}.col-md-4{width:100%;max-width:380px}.card{background:white;border:1px solid #ddd;border-radius:8px}.card-body{padding:16px}.d-flex{display:flex;align-items:center;justify-content:space-between}.btn{padding:8px;border:1px solid #bbb;border-radius:5px;background:white;cursor:pointer}.w-100{width:100%}.small{font-size:13px}.text-muted{color:#667085}.text-break{overflow-wrap:anywhere}.border-top{border-top:1px solid #ddd}.mt-3{margin-top:16px}.mt-2{margin-top:8px}.pt-2{padding-top:8px}.mb-2{margin-bottom:8px}.badge{padding:4px;background:#f1f3f5;border-radius:4px}.col-6{width:calc(50% - 6px)}input{width:100%;padding:6px}</style></head>
+<style>*{box-sizing:border-box}body{margin:0;padding:12px;font:15px system-ui;background:#f5f7fa}.row{display:flex;flex-wrap:wrap;gap:12px}.col-md-4{width:100%;max-width:380px}.card{background:white;border:1px solid #ddd;border-radius:8px}.card-body{padding:16px}.d-flex{display:flex;align-items:center;justify-content:space-between}.btn{padding:8px;border:1px solid #bbb;border-radius:5px;background:white;cursor:pointer}.w-100{width:100%}.small{font-size:13px}.text-muted{color:#667085}.text-break{overflow-wrap:anywhere}.border-top{border-top:1px solid #ddd}.mt-3{margin-top:16px}.mt-2{margin-top:8px}.pt-2{padding-top:8px}.mb-2{margin-bottom:8px}.badge{padding:4px;background:#f1f3f5;border-radius:4px}.col-6{width:calc(50% - 6px)}input{width:100%;padding:6px}.min-w-0{min-width:0}${appStyles}</style></head>
 <body><div id="payment-gateways-container" class="row"></div><script>${stubs}\n${script}</script></body></html>`;
 const server = http.createServer((req,res)=>{res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});res.end(html)});
 (async()=>{
