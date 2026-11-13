@@ -39,7 +39,7 @@ def values(key):
 
 
 def valid_url(value, resolved=False):
-    """Allow only the established HTTPS target, retaining existing auth."""
+    """Allow only the established HTTPS target, with credentials kept out of URLs."""
     try:
         if not value or any(c.isspace() or ord(c) < 32 for c in value):
             return False
@@ -49,6 +49,8 @@ def valid_url(value, resolved=False):
             and parsed.hostname in (
                 ("github.com", "github.replit.internal") if resolved else ("github.com",)
             )
+            and parsed.username is None
+            and parsed.password is None
             and parsed.port is None
             and parsed.path.casefold() == "/salesmanno/super-panel.git"
             and not parsed.query
