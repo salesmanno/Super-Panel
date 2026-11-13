@@ -3,8 +3,11 @@ session_start();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/active_payment_methods.php';
 require_once __DIR__ . '/../includes/tenant_audit.php';
+require_once __DIR__ . '/../includes/EconomyVippsWebhookSetup.php';
+require_once __DIR__ . '/../includes/economy_vipps_access.php';
 
 header('Content-Type: application/json');
+header('Cache-Control: no-store');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -38,6 +41,32 @@ try {
     if (!$access->fetchColumn()) {
         http_response_code(403);
         echo json_encode(['success'=>false,'message'=>'Du trenger Økonomi-modulen for å aktivere betalingsmetoder.']);
+        exit;
+    }
+    // Resolve the real type from the company's configuration, not the browser's label.
+    $vippsQuery = $db->prepare($gatewayId
+        ? 'SELECT id,gateway_type FROM economy_configuration_data WHERE id=? AND company_id=?'
+        : 'SELECT id,gateway_type FROM economy_configuration_data WHERE company_id=? AND LOWER(gateway_type)=LOWER(?)');
+    $vippsQuery->execute($gatewayId ? [$gatewayId,$company_id] : [$company_id,$gatewayName]);
+    $resolved = $vippsQuery->fetchAll(PDO::FETCH_ASSOC);
+    if (count($resolved) > 1 && strtolower((string)$gatewayName) === 'vipps') {
+        throw new RuntimeException('Velg ett konkret Vipps-oppsett.');
+    }
+    if (isset($resolved[0]) && strtolower((string)$resolved[0]['gateway_type']) === 'vipps') {
+        economyVippsCsrf($_SESSION, $data['csrf_token'] ?? null);
+        if (!is_bool($data['is_active'] ?? null)) throw new RuntimeException('Ugyldig aktiveringsvalg.');
+        $service = new EconomyVippsWebhookSetup($db);
+        if ($isActive) {
+            $state = $service->activate((string)$company_id, (string)$resolved[0]['id']);
+            $success = $state['state'] === 'registered' && $state['is_active'];
+            echo json_encode(['success'=>$success,'is_active'=>$state['is_active'],
+                'message'=>$success ? 'Vipps aktivert med registrert webhook. Faktisk levering er ikke verifisert.' : $state['message'],
+                'webhook'=>$state]);
+        } else {
+            // Off affects new payment choices only; keep subscriptions and in-flight callbacks.
+            $service->deactivate((string)$company_id, (string)$resolved[0]['id']);
+            echo json_encode(['success'=>true,'is_active'=>false,'message'=>'Vipps deaktivert. Eksisterende webhook er beholdt.']);
+        }
         exit;
     }
     $db->beginTransaction();
@@ -168,6 +197,8 @@ try {
     
 } catch (Exception $e) {
     if (isset($db) && $db->inTransaction()) $db->rollBack();
-    error_log("Toggle payment gateway error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Serverfeil: ' . $e->getMessage()]);
+    $safeMessage = $e instanceof PDOException || $e instanceof JsonException
+        ? 'Kunne ikke oppdatere betalingsoppsettet. Kontroller databaseoppsettet.'
+        : ($e instanceof SalesVippsFailure ? 'Vipps kunne ikke nås sikkert. Oppdater status før nytt forsøk.' : $e->getMessage());
+    echo json_encode(['success' => false, 'message' => $safeMessage]);
 }

@@ -4,6 +4,7 @@ if (empty($_SESSION['economy_bank_csrf'])) $_SESSION['economy_bank_csrf']=bin2he
 $bankAccountCsrf=(string)$_SESSION['economy_bank_csrf'];
 session_write_close();
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/VippsWebhookRegistry.php';
 
 header('Content-Type: application/json');
 
@@ -55,6 +56,10 @@ try {
                 ecd.client_secret_encrypted,
                 ecd.subscription_key,
                 ecd.merchant_serial_number,
+                ecd.test_client_id,
+                ecd.test_client_secret,
+                ecd.test_subscription_key,
+                ecd.test_merchant_serial_number,
                 ecd.public_key,
                 ecd.private_key_encrypted,
                 ecd.webhook_secret,
@@ -79,6 +84,10 @@ try {
                 ecd.client_secret_encrypted,
                 ecd.subscription_key,
                 ecd.merchant_serial_number,
+                ecd.test_client_id,
+                ecd.test_client_secret,
+                ecd.test_subscription_key,
+                ecd.test_merchant_serial_number,
                 ecd.public_key,
                 ecd.private_key_encrypted,
                 ecd.webhook_secret,
@@ -145,11 +154,12 @@ try {
         
         switch ($gatewayType) {
             case 'vipps':
-                if (empty($config['client_id'])) $missingFields[] = 'client_id';
-                if (empty($config['client_secret_encrypted'])) $missingFields[] = 'client_secret';
-                if (empty($config['merchant_serial_number'])) $missingFields[] = 'merchant_serial_number';
-                if (empty($config['subscription_key'])) $missingFields[] = 'subscription_key';
-                $isConfigured = empty($missingFields);
+                try {
+                    (new VippsWebhookClient())->selected($config + ['company_id'=>$company_id], (string)$company_id);
+                    $isConfigured = true;
+                } catch (RuntimeException $invalidConfig) {
+                    $missingFields[] = (int)$config['test_mode'] === 1 ? 'komplett testnøkkelsett' : 'komplett produksjonsnøkkelsett';
+                }
                 break;
             case 'stripe':
                 if (empty($config['public_key'])) $missingFields[] = 'public_key';
@@ -212,6 +222,5 @@ try {
     ]);
     
 } catch (Exception $e) {
-    error_log("Get payment gateways error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Serverfeil: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Kunne ikke hente betalingsløsninger. Kontroller databaseoppsettet.']);
 }

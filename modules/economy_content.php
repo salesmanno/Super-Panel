@@ -1435,6 +1435,19 @@ async function loadPaymentGateways() {
                 ${!isActive ? `<button type="button" class="btn btn-success btn-sm w-100 mt-2" ${isConfigured?'':'disabled'} onclick="toggleGateway('${gwId}','faktura',true)">Aktiver med valgt primærkonto</button>` : ''}
                 </div>
             ` : '';
+            const vippsWebhook = gwName === 'vipps' ? `
+                <div class="border-top mt-3 pt-2">
+                    <div class="d-flex align-items-center justify-content-between gap-2">
+                        <span class="small fw-semibold">Automatisk betalingsbekreftelse</span>
+                        <span class="badge text-bg-light">${testMode ? 'Test' : 'Produksjon'}</span>
+                    </div>
+                    <p class="small text-muted mb-2">På kontrollerer og registrerer webhook før Vipps aktiveres. Av beholder oppfølging av påbegynte betalinger.</p>
+                    <div id="vipps-webhook-${economyEsc(gwId)}" class="small mb-2" role="status">Status ikke kontrollert.</div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm w-100"
+                        onclick="refreshVippsWebhook('${economyEsc(gwId)}',this)">Oppdater status</button>
+                    ${isActive ? `<button type="button" class="btn btn-outline-primary btn-sm w-100 mt-2"
+                        onclick="toggleGateway('${economyEsc(gwId)}','vipps',true)">Fullfør webhook-oppsett</button>` : ''}
+                </div>` : '';
 
             const feeSection = hasFees ? `
                 <hr class="my-2">
@@ -1471,6 +1484,7 @@ async function loadPaymentGateways() {
                             <p class="small text-muted mb-2">${desc}</p>
                             <div class="mb-2">${statusHtml}</div>
                             ${actionBtn}
+                            ${vippsWebhook}
                             ${fakturaAccounts}
                             ${feeSection}
                         </div>
@@ -1478,6 +1492,7 @@ async function loadPaymentGateways() {
                 </div>
             `;
         }).join('');
+        for (const [id, state] of economyVippsStates) renderVippsWebhookStatus(id, state);
         
     } catch (error) {
         console.error('Load gateways error:', error);
@@ -1486,8 +1501,13 @@ async function loadPaymentGateways() {
 }
 
 async function toggleGateway(gatewayId, gatewayName, activate) {
+    const key = gatewayName + ':' + gatewayId;
+    if (economyGatewayBusy.has(key)) return;
+    economyGatewayBusy.add(key);
+    const status = document.getElementById('vipps-webhook-'+gatewayId);
+    if (gatewayName === 'vipps' && activate && status) status.textContent = 'Kontrollerer mottaker og Vipps-abonnement …';
     try {
-        const payload = { gateway_name: gatewayName, is_active: activate };
+        const payload = { gateway_name: gatewayName, is_active: activate, csrf_token: economyBankCsrf };
         if (gatewayId && gatewayId !== 'null') payload.id = gatewayId;
         
         const response = await fetch('/api/toggle_payment_gateway.php', {
@@ -1497,6 +1517,7 @@ async function toggleGateway(gatewayId, gatewayName, activate) {
         });
         
         const result = await response.json();
+        if (result.webhook) renderVippsWebhookStatus(gatewayId, result.webhook);
         if (result.success) {
             if (gatewayName==='faktura') invoiceGatewaySetupOpen=activate;
             await loadPaymentGateways();
@@ -1506,6 +1527,43 @@ async function toggleGateway(gatewayId, gatewayName, activate) {
         }
     } catch (error) {
         console.error('Toggle gateway error:', error);
+        if (gatewayName === 'vipps' && status) status.textContent = 'Svaret er uavklart. Oppdater status før du forsøker igjen.';
+    } finally {
+        economyGatewayBusy.delete(key);
+    }
+}
+
+const economyGatewayBusy = new Set();
+const economyVippsStates = new Map();
+function renderVippsWebhookStatus(id, state) {
+    economyVippsStates.set(id, state);
+    const target = document.getElementById('vipps-webhook-'+id);
+    if (!target) return;
+    const labels = {registered:'Registrert', not_registered:'Ikke registrert', attention:'Krever oppfølging'};
+    target.replaceChildren();
+    const label = document.createElement('strong');
+    label.textContent = (labels[state.state] || 'Krever oppfølging') + ' · ';
+    target.append(label, document.createTextNode(state.message || ''));
+    if (state.callback_url) {
+        const url = document.createElement('div');
+        url.className = 'text-muted text-break mt-1';
+        url.textContent = state.callback_url;
+        target.append(url);
+    }
+}
+async function refreshVippsWebhook(id, button) {
+    if (button) button.disabled = true;
+    const target = document.getElementById('vipps-webhook-'+id);
+    if (target) target.textContent = 'Henter status …';
+    try {
+        const response = await fetch('/api/vipps_webhook_status.php?configuration_id='+encodeURIComponent(id), {cache:'no-store'});
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'Kunne ikke hente webhook-status.');
+        renderVippsWebhookStatus(id, result.webhook);
+    } catch (error) {
+        if (target) target.textContent = error.message || 'Kunne ikke hente webhook-status.';
+    } finally {
+        if (button) button.disabled = false;
     }
 }
 
