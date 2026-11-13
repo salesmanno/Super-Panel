@@ -1,72 +1,88 @@
 import "./_group.css";
-import { ArrowUpRight, CheckCircle2, CircleAlert, CreditCard, FlaskConical, RefreshCw, ShieldCheck, ToggleLeft, Zap } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle2, ChevronDown, CircleAlert, CreditCard, RotateCcw } from "lucide-react";
 
-function GatewayCard({ active, isVipps }: { active: boolean; isVipps: boolean }) {
+type Gateway = {
+  id: string;
+  name: string;
+  tone: "green" | "yellow" | "red";
+  state: string;
+  logo: "vipps" | "stripe" | "klarna" | "invoice";
+  active: boolean;
+};
+
+const gateways: Gateway[] = [
+  { id: "vipps", name: "Vipps", tone: "yellow", state: "Sjekk", logo: "vipps", active: true },
+  { id: "stripe", name: "Stripe", tone: "green", state: "Aktiv", logo: "stripe", active: true },
+  { id: "klarna", name: "Klarna", tone: "yellow", state: "Sjekk oppsett", logo: "klarna", active: true },
+  { id: "invoice", name: "Faktura", tone: "red", state: "Av", logo: "invoice", active: false },
+];
+
+function Brand({ logo, name }: { logo: Gateway["logo"]; name: string }) {
+  if (logo === "vipps") return <img src="/__mockup/images/vipps.webp" alt="Vipps" style={{ width: "100%", height: "100%", objectFit: "cover" }} />;
+  const styles: Record<Gateway["logo"], React.CSSProperties> = {
+    vipps: {},
+    stripe: { color: "#635bff", background: "#f5f4ff", fontSize: 25, fontWeight: 850, letterSpacing: "-.07em" },
+    klarna: { color: "#111", background: "#ffdf00", fontSize: 23, fontWeight: 850, letterSpacing: "-.06em" },
+    invoice: { color: "#40556e", background: "#eef2f6", fontSize: 15, fontWeight: 750 },
+  };
+  return <div style={{ display: "grid", placeItems: "center", width: "100%", height: "100%", ...styles[logo] }}>{logo === "invoice" ? <CreditCard size={23} /> : name.toLowerCase()}</div>;
+}
+
+function GatewayCard({ gateway, expanded, onToggle }: { gateway: Gateway; expanded: boolean; onToggle: () => void }) {
+  const titleId = `gateway-title-${gateway.id}`;
   return (
     <article style={{
-      overflow: "hidden", border: `1px solid ${active ? "#b8e0ca" : "#e3e9f0"}`, borderRadius: 18,
-      background: "linear-gradient(180deg,#fff 0%,#fbfcfe 100%)", boxShadow: "0 8px 24px rgba(24,39,75,.08)",
+      overflow: "hidden", border: `1px solid ${expanded ? "#b7c8dc" : "#e1e7ef"}`, borderRadius: 14,
+      background: "#fff", boxShadow: expanded ? "0 8px 22px rgba(22,38,61,.1)" : "0 4px 14px rgba(22,38,61,.055)",
     }}>
-      <div style={{ padding: 20 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-          <span style={{ display: "grid", placeItems: "center", width: 48, height: 48, borderRadius: 15, background: active ? "#e8f6ee" : "#eef2f7", color: active ? "#16834d" : "#465a73" }}>
-            {isVipps ? <span style={{ fontWeight: 850, fontSize: 18 }}>V</span> : <CreditCard size={22} />}
-          </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ color: "#6b7787", fontSize: 10, fontWeight: 800, letterSpacing: ".09em" }}>BETALINGSMÅTE</div>
-            <h2 style={{ margin: "3px 0 0", color: "#1c2938", fontSize: 19 }}>Vipps</h2>
-          </div>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 10px", border: "1px solid #c5e8d2", borderRadius: 999, color: "#167445", background: "#edf8f1", fontSize: 11, fontWeight: 750 }}>
-            <CheckCircle2 size={13} /> Aktiv
+      <button type="button" aria-expanded={expanded} aria-controls={`gateway-details-${gateway.id}`} aria-labelledby={titleId} onClick={onToggle}
+        style={{ display: "block", width: "100%", padding: 0, border: 0, background: "white", textAlign: "left", cursor: "pointer" }}>
+        <div style={{ height: 88, overflow: "hidden", background: "#f1f4f8" }}><Brand logo={gateway.logo} name={gateway.name} /></div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 7, minHeight: 49, padding: "9px 10px" }}>
+          <span id={titleId} style={{ minWidth: 0, overflow: "hidden", color: "#202b3a", fontSize: 13, fontWeight: 750, textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{gateway.name}</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, flex: "0 0 auto", color: "#566273", fontSize: 10, fontWeight: 700 }}>
+            <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: "50%", background: gateway.tone === "green" ? "#1b9a5a" : gateway.tone === "yellow" ? "#dfa700" : "#d3424f", boxShadow: `0 0 0 3px ${gateway.tone === "green" ? "rgba(27,154,90,.13)" : gateway.tone === "yellow" ? "rgba(223,167,0,.15)" : "rgba(211,66,79,.13)"}` }} />
+            {gateway.state}<ChevronDown size={14} />
           </span>
         </div>
-        <p style={{ margin: "15px 0 13px", color: "#6b7787", fontSize: 13 }}>Norsk mobilbetaling</p>
-        <div style={{ display: "flex", gap: 7, marginBottom: 14 }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 9px", border: "1px solid #f4dfaa", borderRadius: 999, color: "#8a5b00", background: "#fff8e8", fontSize: 11, fontWeight: 700 }}><FlaskConical size={13} /> Testmiljø</span>
-        </div>
-        <button style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", minHeight: 42, border: "1px solid #e4b9bc", borderRadius: 11, background: "white", color: "#a83e47", fontSize: 13, fontWeight: 700 }}>
-          <ToggleLeft size={17} /> Deaktiver betalingsmåten
-        </button>
-        {isVipps && (
-          <section style={{ marginTop: 16, padding: 14, border: "1px solid #dce7f4", borderRadius: 14, background: "linear-gradient(145deg,#f5f9ff 0%,#f7f8fc 100%)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, color: "#4d627b", fontSize: 10, fontWeight: 800, letterSpacing: ".07em" }}><Zap size={13} /> AUTOMATISK BETALINGSBEKREFTELSE</div>
-                <h3 style={{ margin: "5px 0 0", color: "#22354d", fontSize: 15 }}>Vipps webhook</h3>
-              </div>
-              <span style={{ height: 25, padding: "5px 9px", border: "1px solid #f4dfaa", borderRadius: 99, color: "#8a5b00", background: "#fff8e8", fontSize: 11, fontWeight: 700 }}>Test</span>
-            </div>
-            <div style={{ margin: "12px 0", padding: 11, border: "1px solid #f0d8aa", borderRadius: 10, color: "#78571b", background: "#fffaf0", fontSize: 12, lineHeight: 1.5 }}>
-              <strong style={{ display: "block", marginBottom: 3 }}>Krever oppfølging · levering ikke bekreftet</strong>
-              Mottakeren må klargjøres før webhooken kan registreres.
-              <div style={{ marginTop: 6, color: "#65768a", fontSize: 10, overflowWrap: "anywhere" }}>https://bergsøy.salesman.no/api/vipps_callback.php</div>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button style={{ display: "flex", flex: 1, justifyContent: "center", alignItems: "center", gap: 6, minWidth: 0, minHeight: 42, padding: "7px 10px", border: 0, borderRadius: 10, background: "#174e91", color: "white", fontSize: 12, fontWeight: 750 }}>
-                <ShieldCheck size={15} /> Sjekk / fullfør webhook-oppsett
-              </button>
-              <button aria-label="Oppdater status" style={{ display: "flex", alignItems: "center", gap: 5, minHeight: 42, padding: "7px 10px", border: "1px solid #d6deea", borderRadius: 10, background: "white", color: "#40556e", fontSize: 12, fontWeight: 700 }}>
-                <RefreshCw size={14} /> Oppdater status
-              </button>
-            </div>
-            <div style={{ marginTop: 9, color: "#78879a", fontSize: 11 }}>Registrert status og faktisk levering vises separat.</div>
-          </section>
-        )}
-      </div>
+      </button>
+      {expanded && (
+        <section id={`gateway-details-${gateway.id}`} style={{ padding: 11, borderTop: "1px solid #e9edf2", background: "#fbfcfe" }}>
+          <p style={{ margin: "0 0 9px", color: "#6b7787", fontSize: 11 }}>{gateway.logo === "vipps" ? "Testmiljø · norsk mobilbetaling" : "Betalingsoppsett"}</p>
+          {gateway.logo === "vipps" && <div style={{ marginBottom: 10, padding: 9, border: "1px solid #c7e8d2", borderRadius: 9, color: "#245c3e", background: "#f3fbf5", fontSize: 11, lineHeight: 1.45 }}>
+            <strong style={{ display: "block" }}>Webhook registrert</strong>Faktisk levering er ikke bekreftet ennå.
+          </div>}
+          {(gateway.logo === "stripe" || gateway.logo === "vipps") && <div style={{ marginBottom: 10, padding: 9, borderRadius: 9, background: "white", border: "1px solid #e1e7ef" }}>
+            <div style={{ marginBottom: 6, color: "#536276", fontSize: 11, fontWeight: 700 }}>Transaksjonsgebyr</div>
+            <div style={{ display: "flex", gap: 7 }}><span style={{ flex: 1, padding: 7, border: "1px solid #d9e0e8", borderRadius: 7, color: "#667085", fontSize: 10 }}>Fast: 0,00 kr</span><span style={{ flex: 1, padding: 7, border: "1px solid #d9e0e8", borderRadius: 7, color: "#667085", fontSize: 10 }}>Prosent: 0,00 %</span></div>
+          </div>}
+          <button type="button" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", minHeight: 38, border: `1px solid ${gateway.active ? "#e3b8bc" : "#b7d9c3"}`, borderRadius: 9, color: gateway.active ? "#a83e47" : "#167445", background: "white", fontSize: 12, fontWeight: 700 }}>
+            {gateway.active ? <><RotateCcw size={14} /> Deaktiver</> : <><CheckCircle2 size={14} /> Aktiver</>}
+          </button>
+          {gateway.logo === "vipps" && <div style={{ marginTop: 7, color: "#778496", fontSize: 10 }}>Deaktivering fjerner ikke webhooken; den kan brukes for betalinger som allerede pågår.</div>}
+        </section>
+      )}
     </article>
   );
 }
 
 export function Refreshed() {
+  const [expanded, setExpanded] = useState<string | null>(null);
   return (
-    <main style={{ minHeight: "100vh", padding: 20, background: "#f4f7fb", color: "#22354d" }}>
-      <div style={{ maxWidth: 500, margin: "0 auto" }}>
-        <div style={{ marginBottom: 12, color: "#6b7787", fontSize: 12 }}>ECONOMY <span style={{ margin: "0 5px" }}>›</span> BETALINGSLØSNINGER</div>
-        <GatewayCard active isVipps />
-        <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 11, color: "#68778a", fontSize: 11 }}>
-          <CircleAlert size={14} />
-          <span>«Deaktiver» styrer bare betalingsmåten. Webhook-oppsettet har egen, tydelig knapp.</span>
-          <ArrowUpRight size={13} />
+    <main style={{ minHeight: "100vh", padding: 18, background: "#f4f7fb", color: "#22354d" }}>
+      <div style={{ maxWidth: 650, margin: "0 auto" }}>
+        <div style={{ marginBottom: 15 }}>
+          <div style={{ color: "#6b7787", fontSize: 10, fontWeight: 750, letterSpacing: ".08em" }}>ECONOMY <span style={{ margin: "0 5px" }}>›</span> BETALINGSLØSNINGER</div>
+          <h1 style={{ margin: "5px 0 0", color: "#203149", fontSize: 21 }}>Betalingsmåter</h1>
+          <p style={{ margin: "4px 0 0", color: "#738094", fontSize: 12 }}>Trykk på et kort for detaljer og innstillinger.</p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 11 }}>
+          {gateways.map((gateway) => <GatewayCard key={gateway.id} gateway={gateway} expanded={expanded === gateway.id} onToggle={() => setExpanded(current => current === gateway.id ? null : gateway.id)} />)}
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 7, marginTop: 12, color: "#778496", fontSize: 10, lineHeight: 1.45 }}>
+          <CircleAlert size={13} />
+          <span>Webhook registreres ved behov første gang Vipps aktiveres. Statusen skiller registrering fra faktisk levering.</span>
         </div>
       </div>
     </main>

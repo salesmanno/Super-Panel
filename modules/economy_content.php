@@ -49,137 +49,186 @@
 .filter-btn.active {
     font-weight: 600;
 }
-.economy-gateway-card {
+.economy-gateway-tile {
+    height: 100%;
     overflow: hidden;
-    border: 1px solid #e3e9f0;
+    border: 1px solid #e1e7ef;
     border-radius: 1rem;
-    background: linear-gradient(180deg, #fff 0%, #fbfcfe 100%);
-    box-shadow: 0 5px 18px rgba(24, 39, 75, .055);
-    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+    background: #fff;
+    box-shadow: 0 4px 16px rgba(22, 38, 61, .055);
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
 }
-.economy-gateway-card:hover {
+.economy-gateway-tile:hover {
     transform: translateY(-2px);
-    border-color: #cbd7e5;
-    box-shadow: 0 10px 24px rgba(24, 39, 75, .09);
+    border-color: #c5d2e1;
+    box-shadow: 0 9px 22px rgba(22, 38, 61, .1);
 }
-.economy-gateway-card.is-active {
-    border-color: #b8e0ca;
+.economy-gateway-tile.is-expanded {
+    border-color: #b7c8dc;
+    box-shadow: 0 10px 26px rgba(22, 38, 61, .12);
 }
-.economy-gateway-card .card-body {
-    display: flex;
-    flex-direction: column;
-    padding: 1.15rem;
+.economy-gateway-face {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    color: inherit;
+    background: #fff;
+    text-align: left;
+    cursor: pointer;
 }
-.economy-gateway-heading {
-    display: flex;
-    align-items: center;
-    gap: .8rem;
-    min-width: 0;
+.economy-gateway-face:focus-visible {
+    outline: 3px solid #1877c9;
+    outline-offset: -3px;
 }
-.economy-gateway-icon {
+.economy-gateway-logo-panel {
     display: grid;
     place-items: center;
-    flex: 0 0 2.9rem;
-    width: 2.9rem;
-    height: 2.9rem;
-    border-radius: .9rem;
-    color: #465a73;
-    background: #eef2f7;
-    font-size: 1.35rem;
+    height: 92px;
+    overflow: hidden;
+    background: #f4f6f9;
 }
-.economy-gateway-card.is-active .economy-gateway-icon {
-    color: #16834d;
-    background: #e8f6ee;
+.economy-gateway-logo {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
-.economy-gateway-title {
-    min-width: 0;
-    margin: 0;
-    color: #1c2938;
-    font-size: 1.05rem;
-    font-weight: 700;
-    overflow-wrap: anywhere;
+.economy-gateway-wordmark {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -.045em;
 }
-.economy-gateway-description {
-    min-height: 2.5em;
-    margin: .8rem 0 .7rem;
-    color: #6b7787;
-    font-size: .87rem;
-    line-height: 1.5;
-}
-.economy-gateway-status {
+.economy-gateway-wordmark.is-stripe { color: #635bff; background: #f5f4ff; }
+.economy-gateway-wordmark.is-paypal { color: #063b82; background: #eef6ff; }
+.economy-gateway-wordmark.is-klarna { color: #111; background: #ffdf00; }
+.economy-gateway-wordmark.is-cash { color: #177245; background: #eaf7ef; }
+.economy-gateway-wordmark.is-faktura,
+.economy-gateway-wordmark.is-bank { color: #334155; background: #eef2f6; }
+.economy-gateway-wordmark.is-default { color: #334155; background: #eef2f6; }
+.economy-gateway-face-meta {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: .4rem;
-    margin-bottom: .8rem;
+    justify-content: space-between;
+    gap: .55rem;
+    min-height: 54px;
+    padding: .7rem .8rem;
 }
-.economy-gateway-pill {
+.economy-gateway-name {
+    min-width: 0;
+    overflow: hidden;
+    color: #202b3a;
+    font-size: .95rem;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.economy-gateway-state {
     display: inline-flex;
     align-items: center;
-    gap: .35rem;
-    padding: .32rem .6rem;
-    border: 1px solid #e4e9ef;
-    border-radius: 999px;
-    color: #526174;
-    background: #f6f8fa;
+    flex: 0 0 auto;
+    gap: .38rem;
+    color: #5d6978;
     font-size: .75rem;
     font-weight: 650;
-    line-height: 1.2;
+    white-space: nowrap;
 }
-.economy-gateway-pill.is-on {
-    border-color: #c5e8d2;
-    color: #167445;
-    background: #edf8f1;
+.economy-gateway-light {
+    width: .62rem;
+    height: .62rem;
+    border-radius: 50%;
+    background: #aab3bf;
+    box-shadow: 0 0 0 3px rgba(170, 179, 191, .14);
 }
-.economy-gateway-pill.is-test {
-    border-color: #f4dfaa;
-    color: #8a5b00;
-    background: #fff8e8;
+.economy-gateway-light.is-green { background: #1b9a5a; box-shadow: 0 0 0 3px rgba(27, 154, 90, .14); }
+.economy-gateway-light.is-yellow { background: #dfa700; box-shadow: 0 0 0 3px rgba(223, 167, 0, .17); }
+.economy-gateway-light.is-red { background: #d3424f; box-shadow: 0 0 0 3px rgba(211, 66, 79, .14); }
+.economy-gateway-chevron {
+    margin-left: .15rem;
+    color: #8a96a5;
+    font-size: .8rem;
+}
+.economy-gateway-details {
+    padding: .85rem;
+    border-top: 1px solid #e9edf2;
+    background: #fbfcfe;
+}
+.economy-gateway-details[hidden] { display: none !important; }
+.economy-gateway-detail-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    margin-bottom: .65rem;
+}
+.economy-gateway-description {
+    margin: 0;
+    color: #6b7787;
+    font-size: .81rem;
+    line-height: 1.45;
+}
+.economy-gateway-env {
+    flex: 0 0 auto;
+    padding: .25rem .5rem;
+    border-radius: 999px;
+    color: #745000;
+    background: #fff3cc;
+    font-size: .68rem;
+    font-weight: 700;
+}
+.economy-gateway-env.is-production {
+    color: #405b4a;
+    background: #eaf4ed;
 }
 .economy-gateway-action {
     width: 100%;
-    min-height: 2.65rem;
+    min-height: 2.55rem;
     border-radius: .7rem;
     font-weight: 650;
 }
-.economy-webhook-panel {
-    margin-top: 1rem;
-    padding: .9rem;
-    border: 1px solid #dce7f4;
-    border-radius: .85rem;
-    background: linear-gradient(145deg, #f5f9ff 0%, #f7f8fc 100%);
+.economy-gateway-feedback {
+    margin-top: .45rem;
+    padding: .5rem .6rem;
+    border: 1px solid #f1c8c8;
+    border-radius: .6rem;
+    color: #8b3038;
+    background: #fff5f5;
+    font-size: .78rem;
+    line-height: 1.4;
 }
-.economy-webhook-heading {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: .6rem;
-    margin-bottom: .65rem;
+.economy-gateway-feedback.is-success {
+    border-color: #c7e8d2;
+    color: #245c3e;
+    background: #f3fbf5;
 }
-.economy-webhook-eyebrow {
-    color: #4d627b;
-    font-size: .68rem;
-    font-weight: 750;
-    letter-spacing: .07em;
-    text-transform: uppercase;
+.economy-gateway-feedback.is-pending {
+    border-color: #d6e3f0;
+    color: #37516e;
+    background: #f4f8fc;
+}
+.economy-webhook-section {
+    margin-top: .75rem;
+    padding-top: .7rem;
+    border-top: 1px solid #e4e9ef;
 }
 .economy-webhook-title {
-    margin: .12rem 0 0;
-    color: #22354d;
-    font-size: .94rem;
-    font-weight: 700;
-}
-.economy-webhook-status {
-    margin: .55rem 0 .75rem;
+    margin: 0 0 .4rem;
+    color: #40546d;
+    font-size: .75rem;
+    font-weight: 750;
 }
 .economy-webhook-state {
-    padding: .62rem .7rem;
-    border: 1px solid #e2e8f0;
-    border-radius: .65rem;
-    color: #44546a;
+    padding: .55rem .62rem;
+    border: 1px solid #e1e7ef;
+    border-radius: .62rem;
+    color: #4b596b;
     background: #fff;
-    font-size: .82rem;
-    line-height: 1.45;
+    font-size: .76rem;
+    line-height: 1.4;
 }
 .economy-webhook-state.is-registered {
     border-color: #c7e8d2;
@@ -202,43 +251,30 @@
     font-weight: 750;
 }
 .economy-webhook-url {
-    margin-top: .4rem;
+    margin-top: .35rem;
     color: #65768a;
-    font-size: .74rem;
+    font-size: .7rem;
     overflow-wrap: anywhere;
 }
-.economy-webhook-actions {
-    display: flex;
-    align-items: center;
-    gap: .5rem;
+.economy-webhook-action {
+    margin-top: .5rem;
+    font-size: .76rem;
 }
-.economy-webhook-actions .btn {
-    min-height: 2.45rem;
-    border-radius: .65rem;
-    font-size: .83rem;
-    font-weight: 650;
+.economy-gateway-expanded-status {
+    margin-top: .6rem;
 }
-.economy-webhook-refresh {
-    flex: 0 0 auto;
-    padding-inline: .65rem;
+.economy-gateway-small-note {
+    margin-top: .4rem;
+    color: #7a8796;
+    font-size: .72rem;
+    line-height: 1.4;
 }
 @media (max-width: 575.98px) {
-    .economy-gateway-card .card-body {
-        padding: 1rem;
-    }
-    .economy-gateway-description {
-        min-height: 0;
-    }
-    .economy-webhook-panel {
-        padding: .75rem;
-    }
-    .economy-webhook-actions {
-        align-items: stretch;
-    }
-    .economy-webhook-actions .btn:first-child {
-        min-width: 0;
-        flex: 1 1 auto;
-    }
+    .economy-gateway-logo-panel { height: 78px; }
+    .economy-gateway-face-meta { min-height: 50px; padding: .6rem; }
+    .economy-gateway-name { font-size: .86rem; }
+    .economy-gateway-state { gap: .3rem; font-size: .68rem; }
+    .economy-gateway-details { padding: .7rem; }
 }
 </style>
 <div class="module-content">
@@ -1532,11 +1568,60 @@ const gatewayDescriptions = {
 };
 let invoiceGatewaySetupOpen=false;
 let economyBankCsrf='';
+let economyGatewayExpandedId=null;
 
 function openInvoiceGatewaySetup(gatewayId) {
     invoiceGatewaySetupOpen=true;
     const setup=document.getElementById('invoice-bank-setup-'+gatewayId);
     if (setup) setup.hidden=false;
+}
+
+function toggleGatewayDetails(gatewayId) {
+    const details=document.getElementById('gateway-details-'+gatewayId);
+    const trigger=document.getElementById('gateway-face-'+gatewayId);
+    if (!details || !trigger) return;
+    const opening=details.hidden;
+    document.querySelectorAll('[data-gateway-details]').forEach(panel=>panel.hidden=true);
+    document.querySelectorAll('[data-gateway-face]').forEach(button=>button.setAttribute('aria-expanded','false'));
+    document.querySelectorAll('.economy-gateway-tile').forEach(tile=>tile.classList.remove('is-expanded'));
+    economyGatewayExpandedId=opening?gatewayId:null;
+    if (opening) {
+        details.hidden=false;
+        trigger.setAttribute('aria-expanded','true');
+        trigger.closest('.economy-gateway-tile')?.classList.add('is-expanded');
+    }
+}
+
+function setGatewayTrafficLight(id, type, active, configured, webhookState=null) {
+    const light=document.getElementById('gateway-light-'+id);
+    const label=document.getElementById('gateway-light-label-'+id);
+    if (!light || !label) return;
+    let tone='red';
+    let text='Av';
+    if (active && !configured) {
+        tone='yellow';
+        text='Oppsettfeil';
+    } else if (active && type==='vipps' && !webhookState) {
+        tone='yellow';
+        text='Sjekker';
+    } else if (active && type==='vipps' && (webhookState.state!=='registered' || !webhookState.receiver_ready || !webhookState.delivery_verified)) {
+        tone='yellow';
+        text='Trenger sjekk';
+    } else if (active) {
+        tone='green';
+        text='Aktiv';
+    }
+    light.className='economy-gateway-light is-'+tone;
+    label.textContent=text;
+    label.setAttribute('aria-label', 'Status: '+text);
+}
+
+function setGatewayFeedback(id, message, kind='error') {
+    const target=document.getElementById('gateway-feedback-'+id);
+    if (!target) return;
+    target.textContent=message || '';
+    target.hidden=!message;
+    target.className='economy-gateway-feedback'+(kind==='success'?' is-success':kind==='pending'?' is-pending':'');
 }
 
 async function loadPaymentGateways() {
@@ -1565,33 +1650,24 @@ async function loadPaymentGateways() {
             const isVipps = gwType === 'vipps';
             const desc = gatewayDescriptions[gwType] || '';
             
-            let statusHtml = '';
             let actionBtn = '';
-            
+            const actionClick = (activate) => `toggleGateway('${economyEsc(gwId)}','${economyEsc(gwName)}',${activate},this)`;
             if (isActive) {
-                statusHtml = '';
-                if (testMode && gwType !== 'cash') {
-                    statusHtml += '<span class="economy-gateway-pill is-test"><i class="bi bi-beaker"></i>Testmiljø</span>';
-                }
-                statusHtml = `<span class="economy-gateway-pill is-on"><i class="bi bi-check-circle-fill"></i>Aktiv</span>` + statusHtml;
-                actionBtn = `<button class="btn btn-outline-danger economy-gateway-action" onclick="toggleGateway('${economyEsc(gwId)}', '${economyEsc(gwName)}', false)">
-                    <i class="bi bi-toggle-on me-1"></i>Deaktiver betalingsmåten
+                actionBtn = `<button type="button" class="btn btn-outline-danger economy-gateway-action" onclick="${actionClick(false)}">
+                    <i class="bi bi-toggle-on me-1"></i>Deaktiver
                 </button>`;
             } else if (isConfigured) {
-                statusHtml = '<span class="economy-gateway-pill"><i class="bi bi-check2"></i>Oppsett klart</span>';
-                const activateLabel = isVipps ? 'Kontroller webhook og aktiver Vipps' : 'Aktiver betalingsmåten';
-                actionBtn = `<button class="btn btn-success economy-gateway-action" onclick="toggleGateway('${economyEsc(gwId)}', '${economyEsc(gwName)}', true)">
-                    <i class="bi bi-toggle-off me-1"></i>${activateLabel}
+                actionBtn = `<button type="button" class="btn btn-success economy-gateway-action" onclick="${actionClick(true)}">
+                    <i class="bi bi-toggle-off me-1"></i>Aktiver
                 </button>`;
             } else {
-                statusHtml = `<span class="economy-gateway-pill"><i class="bi bi-exclamation-circle"></i>${gwType === 'faktura' && gw.bank_accounts?.length ? 'Velg primærkonto' : 'Ikke konfigurert'}</span>`;
-                actionBtn = `<button class="btn btn-outline-secondary economy-gateway-action" disabled>
-                    <i class="bi bi-lock me-1"></i>${gwType === 'faktura' ? 'Velg en primærkonto først' : 'Mangler oppsett'}
+                actionBtn = `<button type="button" class="btn btn-outline-secondary economy-gateway-action" disabled>
+                    <i class="bi bi-lock me-1"></i>${gwType === 'faktura' && gw.bank_accounts?.length ? 'Velg primærkonto først' : 'Mangler oppsett'}
                 </button>`;
             }
             if (gwType==='faktura' && !isActive) {
                 actionBtn=`<button type="button" class="btn btn-success economy-gateway-action" onclick="openInvoiceGatewaySetup('${economyEsc(gwId)}')">
-                    <i class="bi bi-toggle-off me-1"></i>Aktiver Faktura
+                    <i class="bi bi-bank me-1"></i>Konfigurer faktura
                 </button>`;
             }
             
@@ -1627,29 +1703,19 @@ async function loadPaymentGateways() {
                     <div class="small text-muted mt-1">Bare valgt primærkonto brukes på nye fakturaer. Valg av ny primærkonto erstatter det forrige.</div>
                     <div id="bank-account-msg-${economyEsc(gwId)}" class="small mt-1" role="status"></div>
                 </div>
-                ${!isActive ? `<button type="button" class="btn btn-success btn-sm w-100 mt-2" ${isConfigured?'':'disabled'} onclick="toggleGateway('${gwId}','faktura',true)">Aktiver med valgt primærkonto</button>` : ''}
+                ${!isActive ? `<button type="button" class="btn btn-success btn-sm w-100 mt-2" ${isConfigured?'':'disabled'} onclick="${actionClick(true)}">Lagre konto og aktiver</button>` : ''}
                 </div>
             ` : '';
             const vippsWebhook = isVipps ? `
-                <section class="economy-webhook-panel" aria-label="Vipps webhook-oppsett">
-                    <div class="economy-webhook-heading">
-                        <div>
-                            <div class="economy-webhook-eyebrow"><i class="bi bi-lightning-charge me-1"></i>Automatisk betalingsbekreftelse</div>
-                            <h6 class="economy-webhook-title">Vipps webhook</h6>
-                        </div>
-                        <span class="economy-gateway-pill ${testMode ? 'is-test' : ''}">${testMode ? 'Test' : 'Produksjon'}</span>
-                    </div>
-                    <p class="small text-muted mb-2">Webhooken mottar betalingsstatus fra Vipps. Registrert betyr ikke at levering allerede er verifisert.</p>
+                <section class="economy-webhook-section" aria-label="Vipps webhook-status">
+                    <h6 class="economy-webhook-title"><i class="bi bi-lightning-charge me-1"></i>Webhook-status</h6>
                     <div id="vipps-webhook-${economyEsc(gwId)}" class="economy-webhook-status" role="status" aria-live="polite">
                         <div class="economy-webhook-state">Kontrollerer webhook-status …</div>
                     </div>
-                    <div class="economy-webhook-actions">
-                        ${isActive ? `<button type="button" class="btn btn-primary"
-                            onclick="toggleGateway('${economyEsc(gwId)}','vipps',true)"><i class="bi bi-shield-check me-1"></i>Sjekk / fullfør webhook-oppsett</button>` : ''}
-                        <button type="button" class="btn btn-light border economy-webhook-refresh"
-                            aria-label="Oppdater Vipps webhook-status"
-                            onclick="refreshVippsWebhook('${economyEsc(gwId)}',this)"><i class="bi bi-arrow-clockwise me-1"></i>Oppdater status</button>
-                    </div>
+                    <div id="vipps-webhook-action-${economyEsc(gwId)}"></div>
+                    <button type="button" class="btn btn-link btn-sm p-0 economy-webhook-refresh"
+                        onclick="refreshVippsWebhook('${economyEsc(gwId)}',this)"><i class="bi bi-arrow-clockwise me-1"></i>Oppdater status</button>
+                    <p class="economy-gateway-small-note mb-0">Aktivering registrerer webhook ved behov. Deaktivering beholder den for betalinger som allerede pågår.</p>
                 </section>` : '';
 
             const feeSection = hasFees ? `
@@ -1677,19 +1743,33 @@ async function loadPaymentGateways() {
             ` : '';
 
             return `
-                <div class="col-xl-4 col-md-6">
-                    <article class="card economy-gateway-card h-100 ${isActive ? 'is-active' : ''}">
-                        <div class="card-body">
-                            <div class="economy-gateway-heading">
-                                <span class="economy-gateway-icon"><i class="bi bi-${economyEsc(gw.icon || 'credit-card')}"></i></span>
-                                <div class="min-w-0 flex-grow-1">
-                                    <div class="small text-muted text-uppercase fw-semibold">Betalingsmåte</div>
-                                    <h5 class="economy-gateway-title">${economyEsc(gw.display_name || gw.gateway_type || 'Betaling')}</h5>
-                                </div>
+                <div class="col-6 col-sm-4 col-lg-3">
+                    <article class="economy-gateway-tile ${economyGatewayExpandedId===gwId?'is-expanded':''}">
+                        <button type="button" id="gateway-face-${economyEsc(gwId)}" class="economy-gateway-face" data-gateway-face
+                            data-gateway-type="${economyEsc(gwType)}" data-gateway-active="${isActive?'1':'0'}" data-gateway-configured="${isConfigured?'1':'0'}"
+                            aria-expanded="${economyGatewayExpandedId===gwId?'true':'false'}"
+                            aria-controls="gateway-details-${economyEsc(gwId)}" onclick="toggleGatewayDetails('${economyEsc(gwId)}')">
+                            <div class="economy-gateway-logo-panel ${isVipps?'is-vipps':''}">
+                                ${isVipps
+                                    ? `<img class="economy-gateway-logo" src="/attached_assets/Vipps_1792068309713.webp" alt="Vipps">`
+                                    : `<span class="economy-gateway-wordmark is-${economyEsc(gwType)}">${economyEsc(gw.display_name || gw.gateway_type || 'Betaling')}</span>`}
                             </div>
-                            <p class="economy-gateway-description">${economyEsc(desc)}</p>
-                            <div class="economy-gateway-status">${statusHtml}</div>
-                            <div class="mt-auto">${actionBtn}</div>
+                            <div class="economy-gateway-face-meta">
+                                <span class="economy-gateway-name">${economyEsc(gw.display_name || gw.gateway_type || 'Betaling')}</span>
+                                <span class="economy-gateway-state">
+                                    <span id="gateway-light-${economyEsc(gwId)}" class="economy-gateway-light ${!isActive?'is-red':(isVipps?'is-yellow':(isConfigured?'is-green':'is-yellow'))}" aria-hidden="true"></span>
+                                    <span id="gateway-light-label-${economyEsc(gwId)}">${!isActive?'Av':(isConfigured?(isVipps?'Sjekker':'Aktiv'):'Feil')}</span>
+                                </span>
+                                <i class="bi bi-chevron-down economy-gateway-chevron" aria-hidden="true"></i>
+                            </div>
+                        </button>
+                        <div id="gateway-details-${economyEsc(gwId)}" class="economy-gateway-details" data-gateway-details ${economyGatewayExpandedId===gwId?'':'hidden'}>
+                            <div class="economy-gateway-detail-heading">
+                                <p class="economy-gateway-description">${economyEsc(desc)}</p>
+                                ${gwType!=='cash'?`<span class="economy-gateway-env ${testMode?'':'is-production'}">${testMode?'Test':'Produksjon'}</span>`:''}
+                            </div>
+                            ${actionBtn}
+                            <div id="gateway-feedback-${economyEsc(gwId)}" class="economy-gateway-feedback" role="status" aria-live="polite" hidden></div>
                             ${vippsWebhook}
                             ${fakturaAccounts}
                             ${feeSection}
@@ -1708,12 +1788,17 @@ async function loadPaymentGateways() {
     }
 }
 
-async function toggleGateway(gatewayId, gatewayName, activate) {
+async function toggleGateway(gatewayId, gatewayName, activate, button=null) {
     const key = gatewayName + ':' + gatewayId;
     if (economyGatewayBusy.has(key)) return;
     economyGatewayBusy.add(key);
-    const status = document.getElementById('vipps-webhook-'+gatewayId);
-    if (gatewayName === 'vipps' && activate && status) status.textContent = 'Kontrollerer mottaker og Vipps-abonnement …';
+    const originalButtonHtml=button?.innerHTML||'';
+    if (button) {
+        button.disabled=true;
+        button.innerHTML='<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>'+(activate?'Aktiverer …':'Deaktiverer …');
+    }
+    if (activate) setGatewayFeedback(gatewayId, gatewayName==='vipps'?'Kontrollerer webhook og aktiverer Vipps …':'Aktiverer betalingsmåten …','pending');
+    else setGatewayFeedback(gatewayId,'Deaktiverer betalingsmåten …','pending');
     try {
         const payload = { gateway_name: gatewayName, is_active: activate, csrf_token: economyBankCsrf };
         if (gatewayId && gatewayId !== 'null') payload.id = gatewayId;
@@ -1731,12 +1816,20 @@ async function toggleGateway(gatewayId, gatewayName, activate) {
             await loadPaymentGateways();
             await ecPopulateBankAccounts();
         } else {
-            alert('Feil: ' + (result.message || 'Kunne ikke oppdatere'));
+            setGatewayFeedback(gatewayId,result.message || 'Kunne ikke oppdatere betalingsmåten.');
+            if (gatewayName==='vipps' && !result.webhook) await refreshVippsWebhook(gatewayId,null);
         }
     } catch (error) {
         console.error('Toggle gateway error:', error);
-        if (gatewayName === 'vipps' && status) status.textContent = 'Svaret er uavklart. Oppdater status før du forsøker igjen.';
+        setGatewayFeedback(gatewayId, gatewayName==='vipps'
+            ? 'Svaret er uavklart. Kontroller webhook-status før du prøver igjen.'
+            : 'Kunne ikke oppdatere betalingsmåten. Prøv igjen.');
+        if (gatewayName==='vipps') await refreshVippsWebhook(gatewayId,null);
     } finally {
+        if (button?.isConnected) {
+            button.disabled=false;
+            button.innerHTML=originalButtonHtml;
+        }
         economyGatewayBusy.delete(key);
     }
 }
@@ -1746,6 +1839,28 @@ const economyVippsStates = new Map();
 function renderVippsWebhookStatus(id, state) {
     economyVippsStates.set(id, state);
     const target = document.getElementById('vipps-webhook-'+id);
+    const trigger=document.getElementById('gateway-face-'+id);
+    if (trigger) {
+        setGatewayTrafficLight(
+            id,
+            trigger.dataset.gatewayType || 'vipps',
+            trigger.dataset.gatewayActive === '1',
+            trigger.dataset.gatewayConfigured === '1',
+            state
+        );
+    }
+    const actionTarget=document.getElementById('vipps-webhook-action-'+id);
+    if (actionTarget) {
+        actionTarget.replaceChildren();
+        if (state.state==='not_registered' && state.is_active) {
+            const action=document.createElement('button');
+            action.type='button';
+            action.className='btn btn-outline-primary btn-sm economy-webhook-action';
+            action.textContent='Registrer webhook';
+            action.addEventListener('click',()=>toggleGateway(id,'vipps',true,action));
+            actionTarget.append(action);
+        }
+    }
     if (!target) return;
     const labels = {registered:'Registrert', not_registered:'Ikke registrert', attention:'Krever oppfølging'};
     const stateClass = state.state === 'registered' ? 'is-registered' : (state.state === 'attention' ? 'is-attention' : 'is-error');
@@ -1753,9 +1868,11 @@ function renderVippsWebhookStatus(id, state) {
     panel.className = 'economy-webhook-state ' + stateClass;
     const label = document.createElement('span');
     label.className = 'economy-webhook-state-title';
-    label.textContent = (labels[state.state] || 'Krever oppfølging') + (state.delivery_verified ? ' · levering bekreftet' : ' · levering ikke bekreftet');
+    label.textContent = labels[state.state] || 'Krever oppfølging';
     const message = document.createElement('span');
-    message.textContent = state.message || '';
+    message.textContent = state.state==='registered' && !state.delivery_verified
+        ? 'Faktisk levering er ikke bekreftet ennå.'
+        : (state.message || '');
     panel.append(label, message);
     target.replaceChildren(panel);
     if (state.callback_url) {
@@ -1786,6 +1903,10 @@ async function refreshVippsWebhook(id, button) {
             panel.textContent = error.message || 'Kunne ikke hente webhook-status.';
             target.replaceChildren(panel);
         }
+        const face=document.getElementById('gateway-face-'+id);
+        const active=face?.dataset.gatewayActive==='1';
+        const configured=face?.dataset.gatewayConfigured==='1';
+        setGatewayTrafficLight(id,'vipps',active,configured,{state:'attention',receiver_ready:false});
     } finally {
         if (button) button.disabled = false;
     }
