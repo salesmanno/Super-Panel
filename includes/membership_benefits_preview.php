@@ -13,8 +13,25 @@ function membershipBenefitsPreviewCanAccess(PDO $db, string $admin, string $comp
 }
 
 /** Read-only catalog projection. Never expose source rows (e.g. venue access codes). */
+function membershipBenefitsPreviewRentalRates(array $source): array {
+    $rates = array_intersect_key($source, array_flip([
+        'rental_price','weekday_prices_enabled','weekday_prices','weekend_price',
+        'saturday_price','sunday_price','deposit_amount'
+    ]));
+    $flag = $rates['weekday_prices_enabled'] ?? null;
+    $enabled = $flag === null || $flag === ''
+        ? isset($rates['weekday_prices']) && $rates['weekday_prices'] !== ''
+        : in_array($flag, [true, 1, '1'], true);
+    $rates['weekday_prices_enabled'] = $enabled ? 1 : 0;
+    // A stored historical base rate must not masquerade as an active tariff.
+    // This is a read projection, not a migration of the original object.
+    if ($enabled) $rates['rental_price'] = null;
+    return $rates;
+}
+
 function membershipBenefitsPreviewProduct(array $catalog, array $source): array {
     $type = (string)$catalog['product_type'];
+    $rentalRates = $type === 'rental' ? membershipBenefitsPreviewRentalRates($source) : null;
     $images = $source['images'] ?? [];
     if (is_string($images)) $images = json_decode($images, true) ?: [];
     $firstImage = is_array($images) ? (array_values($images)[0] ?? '') : '';
@@ -28,7 +45,7 @@ function membershipBenefitsPreviewProduct(array $catalog, array $source): array 
     };
     $price = match ($type) {
         'events' => $source['ticket_price'] ?? null,
-        'rental' => $source['rental_price'] ?? null,
+        'rental' => $rentalRates['rental_price'] ?? null,
         'product' => $source['selling_price'] ?? null,
         default => $source['price'] ?? null,
     };
@@ -53,10 +70,7 @@ function membershipBenefitsPreviewProduct(array $catalog, array $source): array 
         'is_public' => $active && (int)($catalog['is_public'] ?? 0) === 1,
         'membership_prices' => [],
         'assigned_benefits' => [],
-        'rental_rates' => $type === 'rental' ? array_intersect_key($source, array_flip([
-            'rental_price','weekday_prices_enabled','weekday_prices','weekend_price',
-            'saturday_price','sunday_price','deposit_amount'
-        ])) : null,
+        'rental_rates' => $rentalRates,
     ];
 }
 

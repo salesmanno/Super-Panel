@@ -5,6 +5,20 @@ require_once __DIR__.'/../includes/membership_benefits_preview.php';
 function benefitsCheck(bool $condition, string $message): void {
     if (!$condition) throw new RuntimeException($message);
 }
+$catalogRental = ['id'=>'r','product_id'=>'rs','product_type'=>'rental'];
+$dailySource = ['rental_price'=>1150,'weekday_prices_enabled'=>1,'weekday_prices'=>[
+    'monday'=>1000,'tuesday'=>1000,'wednesday'=>1000,'thursday'=>1000,'friday'=>1000
+], 'weekend_price'=>3000,'member_exclusive'=>1];
+$dailyProduct = membershipBenefitsPreviewProduct($catalogRental,$dailySource);
+benefitsCheck($dailyProduct['price']===null && $dailyProduct['rental_rates']['rental_price']===null,
+    'Inactive base price is not exposed as a current tariff');
+benefitsCheck($dailyProduct['rental_rates']['weekday_prices']['monday']===1000
+    && $dailyProduct['rental_rates']['weekend_price']===3000 && $dailyProduct['exclusive']===true,
+    'Rental day rates, package and global member requirement are retained');
+benefitsCheck($dailySource['rental_price']===1150,'Projection does not mutate source data');
+$dailySource['weekday_prices_enabled']=0;
+benefitsCheck(membershipBenefitsPreviewProduct($catalogRental,$dailySource)['price']===1150.0,
+    'Explicit flat mode keeps the base price even when stored daily prices remain');
 $db = new PDO('sqlite::memory:');
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $db->exec("

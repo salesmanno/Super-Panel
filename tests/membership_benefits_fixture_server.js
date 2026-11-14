@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 
-const partial = fs.readFileSync(path.join(__dirname,'../modules/membership_benefits.php'),'utf8')
+const partial = require('node:child_process').execFileSync('php',[path.join(__dirname,'../modules/membership_benefits.php')],{encoding:'utf8'})
     .replace(/<link[^>]+membership-benefits\.css[^>]*>/,'')
     .replace(/<script[^>]+membership-benefits\.js[^>]*><\/script>/,'');
 const html = `<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fordeler fixture</title><link rel="stylesheet" href="/assets/membership-benefits.css"><style>
@@ -11,6 +11,7 @@ const html = `<!doctype html><html lang="no"><head><meta charset="utf-8"><meta n
 </style></head><body>${partial}<script src="/assets/membership-benefits.js"></script><script>window.location.hash='#membership-benefits'</script></body></html>`;
 const fixture = {
     success:true,
+    csrf_token:'fixture-csrf',
     company:{name:'Bergsøy Danseklubb',img_url:'/assets/membership-demo-mark.svg',header_bg_color:'#2d5598',header_text_color:'#ffffff',header_height:'72px',logo_height:'38px',company_header_font_size:'18px',border_radius:'8px',font_family:'Georgia, serif',header_layout:'standard',logo_position:'left',nav_position:'right',contact_phone:'',address_street:'',address_zip:'',address_city:'Fosnavåg'},
     plans:[{id:11,name:'Bergsøy Medlem',price:500,image_url:'',description:'Medlemskap for danseglede.'},{id:22,name:'Familiemedlem',price:850,image_url:'',description:'Familieplan.'}],
     products:[
@@ -41,9 +42,23 @@ fixture.products.find(product => product.id === 'event-1').assigned_benefits = [
 fixture.products.find(product => product.id === 'event-1').assigned_benefits = fixture.products.find(product => product.id === 'event-1').assigned_benefits.filter(rule=>rule.source!=='event_membership_plans');
 fixture.products.find(product => product.id === 'rental-1').rental_rates = {rental_price:1150,weekday_prices_enabled:1,weekday_prices:{monday:1000,tuesday:1000,wednesday:1000,thursday:1000,friday:1000},weekend_price:3000};
 fixture.products.find(product => product.id === 'rental-1').assigned_benefits = [];
+fixture.products.find(product => product.id === 'rental-1').exclusive = 1;
+fixture.products.find(product => product.id === 'event-1').exclusive = '1';
 function createFixtureServer(options={}) {
     return http.createServer((request,response) => {
         const url = new URL(request.url,'http://localhost');
+        if(url.pathname==='/api/save_membership_product_benefit.php' && request.method==='POST'){
+            let body='';request.on('data',c=>body+=c);request.on('end',()=>{
+                const input=JSON.parse(body);
+                const product=fixture.products.find(p=>p.id===input.product_id);
+                response.setHeader('Content-Type','application/json');
+                if(!product || input.csrf_token!==fixture.csrf_token){response.writeHead(403);response.end(JSON.stringify({success:false,message:'Sikkerhetskontroll'}));return;}
+                product.assigned_benefits=(product.assigned_benefits||[]).filter(b=>String(b.plan_id)!==input.plan_id);
+                const benefit=input.benefit ? {...input.benefit,plan_id:input.plan_id,source:'membership_product_modifications'} : null;
+                if(benefit)product.assigned_benefits.push(benefit);
+                response.end(JSON.stringify({success:true,benefit}));
+            });return;
+        }
         if(['/assets/membership-benefit-pricing.js','/assets/rental_request_pricing.js'].includes(url.pathname)){
             response.writeHead(200,{'Content-Type':'application/javascript'});
             response.end(fs.readFileSync(path.join(__dirname,'..',url.pathname))); return;

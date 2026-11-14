@@ -66,6 +66,8 @@
         button.className = 'company-card';
         const image = document.createElement('img');
         image.alt = '';
+        image.style.backgroundColor = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(company.header_bg_color || ''))
+            ? company.header_bg_color : '#2d5598';
         image.addEventListener('error', () => {
             if (image.dataset.fallback) {
                 image.hidden = true;

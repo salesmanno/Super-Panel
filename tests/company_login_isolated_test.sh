@@ -13,7 +13,7 @@ cleanup() {
     if [[ "${AUTH_TEST_KEEP:-0}" != 1 ]]; then rm -rf "$TEMP_ROOT"; fi
 }
 trap cleanup EXIT INT TERM
-if [[ -z "$MYSQLD" ]] || ! php -m | grep -qi '^pdo_mysql$'; then
+if [[ -z "$MYSQLD" ]] || ! php -m | grep -i '^pdo_mysql$' >/dev/null; then
     echo "Isolated authentication tests require mysqld and PHP pdo_mysql" >&2
     exit 2
 fi

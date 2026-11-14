@@ -15,14 +15,25 @@ $companyName = $pending ? 'Velg bedrift' : 'Velkommen';
 $logoUrl = '/attached_assets/salesman-removebg-preview_1761762992662.png';
 $preloadEndpoints = [];
 $preloadContext = '';
+$headerBgColor = '#2d5598';
+$headerForeground = '#ffffff';
 
 if (!$pending) {
 try {
-    $stmt = $db->prepare("SELECT name, logo_url FROM tenant_companies WHERE id = ?");
+    $stmt = $db->prepare("SELECT c.name, c.logo_url,
+        (SELECT w.header_bg_color FROM tenant_website_general w WHERE w.company_id=c.id LIMIT 1) AS header_bg_color
+        FROM tenant_companies c WHERE c.id = ?");
     $stmt->execute([$_SESSION['company_id']]);
     $company = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($company) {
         $companyName = $company['name'] ?? 'Velkommen';
+        if (preg_match('/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i', (string)($company['header_bg_color'] ?? ''))) {
+            $headerBgColor = $company['header_bg_color'];
+            $rgb = ltrim($headerBgColor,'#');
+            if (strlen($rgb) === 3) $rgb = $rgb[0].$rgb[0].$rgb[1].$rgb[1].$rgb[2].$rgb[2];
+            $brightness = hexdec(substr($rgb,0,2))*.299 + hexdec(substr($rgb,2,2))*.587 + hexdec(substr($rgb,4,2))*.114;
+            if ($brightness > 165) $headerForeground = '#18334f';
+        }
         if (!empty($company['logo_url'])) {
             $logoUrl = $company['logo_url'];
         }
@@ -79,7 +90,8 @@ try {
         }
         
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --transition-fg: <?= $headerForeground ?>;
+            background: <?= $headerBgColor ?>;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -105,13 +117,12 @@ try {
             background: transparent;
             border-radius: 20px;
             padding: 15px;
-            background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%);
-            backdrop-filter: blur(10px);
+            background: transparent;
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         .company-name {
-            color: white;
+            color: var(--transition-fg);
             font-size: 32px;
             font-weight: 700;
             margin-bottom: 10px;
@@ -121,7 +132,7 @@ try {
         }
         
         .welcome-text {
-            color: rgba(255, 255, 255, 0.9);
+            color: var(--transition-fg);
             font-size: 18px;
             font-weight: 400;
             margin-bottom: 30px;
@@ -143,7 +154,7 @@ try {
         .loading-dots span {
             width: 12px;
             height: 12px;
-            background: rgba(255, 255, 255, 0.8);
+            background: var(--transition-fg);
             border-radius: 50%;
             animation: bounce 1.4s infinite ease-in-out both;
         }
@@ -250,7 +261,7 @@ try {
         <noscript><p>Aktiver JavaScript for å velge bedrift.</p></noscript>
         <a class="choice-cancel" href="/auth/logout.php">Avbryt og logg ut</a>
     </main>
-    <script src="/assets/company_choice.js"></script>
+    <script src="/assets/company_choice.js?v=<?= filemtime(__DIR__.'/../assets/company_choice.js') ?>"></script>
     <?php else: ?>
     <div class="transition-container">
         <div class="logo-wrapper">

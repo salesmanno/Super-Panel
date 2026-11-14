@@ -9,6 +9,8 @@ final class TenantAuditException extends RuntimeException {}
 /** Only these values may be persisted as before/after data. No deny-list fallback. */
 function tenantAuditFields(): array {
     return [
+        'membership_product_modifications' => ['id','company_id','output_product_id','membership_plan_id',
+            'benefit_type','benefit_value','price_basis','public_display','is_active'],
         'rental_schedule' => ['id','rental_object_id','start_date','end_date','start_time','end_time','pickup_time',
             'approved','status','rental_fee','cleaning','price_adjustment_type','price_adjustment_cents',
             'payment_status','payment_method','checkin_email_sent_at'],

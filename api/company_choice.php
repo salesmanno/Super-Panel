@@ -11,7 +11,9 @@ try {
     companyLoginLock($db,(string)($_SESSION['verified_company_user']??''));
     $admin=companyLoginRequire($db,true);
     if ($_SERVER['REQUEST_METHOD']==='GET') {
-        $companies=$db->query('SELECT id,name,logo_url FROM tenant_companies WHERE is_active=1 ORDER BY name,id')->fetchAll(PDO::FETCH_ASSOC);
+        $companies=$db->query('SELECT c.id,c.name,c.logo_url,
+            (SELECT w.header_bg_color FROM tenant_website_general w WHERE w.company_id=c.id LIMIT 1) AS header_bg_color
+            FROM tenant_companies c WHERE c.is_active=1 ORDER BY c.name,c.id')->fetchAll(PDO::FETCH_ASSOC);
         echo json_encode(['success'=>true,'companies'=>$companies,'csrf_token'=>$_SESSION['company_choice_csrf']]);
         exit;
     }

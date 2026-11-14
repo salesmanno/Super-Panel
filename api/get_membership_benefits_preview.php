@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 session_start();
+if (isset($_SESSION['tenant_admin_id'],$_SESSION['company_id']) && empty($_SESSION['entity_form_csrf'])) {
+    $_SESSION['entity_form_csrf'] = bin2hex(random_bytes(32));
+}
 session_write_close();
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -26,7 +29,9 @@ try {
         echo json_encode(['success'=>false,'message'=>'Du har ikke tilgang til medlemsmodulen i valgt bedrift.']);
         exit;
     }
-    echo json_encode(membershipBenefitsPreviewLoad($db, (string)$_SESSION['company_id']), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR);
+    $preview = membershipBenefitsPreviewLoad($db, (string)$_SESSION['company_id']);
+    $preview['csrf_token'] = $_SESSION['entity_form_csrf'];
+    echo json_encode($preview, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR);
 } catch (Throwable $e) {
     $ref = bin2hex(random_bytes(4));
     error_log("Benefits preview [$ref]: ".$e->getMessage());

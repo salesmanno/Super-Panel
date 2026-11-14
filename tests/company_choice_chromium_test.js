@@ -111,8 +111,8 @@ async function choiceTests(browser) {
                 body: mode === 'malformed' ? '{invalid' : JSON.stringify({
                     success: true, csrf_token: fixtures.csrf,
                     companies: mode === 'empty' ? [] : [
-                        { id: 17, name: '<img src=x onerror=alert(1)> Fjordlaget', logo_url: '/broken-logo.png' },
-                        { id: 28, name: 'Bergen Verksted', logo_url: null },
+                        { id: 17, name: '<img src=x onerror=alert(1)> Fjordlaget', logo_url: '/broken-logo.png',header_bg_color:'#123456' },
+                        { id: 28, name: 'Bergen Verksted', logo_url: null,header_bg_color:'#fff' },
                     ],
                 }),
             });
@@ -132,6 +132,9 @@ async function choiceTests(browser) {
     assert.ok(await page.locator('#company-list img').count() === 2, 'Company names do not create DOM markup');
     assert.ok(await page.locator('#company-list').innerText().then(text => text.includes('<img src=x')), 'Names render literally');
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Mobile has no horizontal overflow');
+    await page.waitForFunction(() => document.querySelectorAll('.company-card img').length === 2);
+    assert.deepEqual(await page.locator('.company-card img').evaluateAll(images=>images.map(image=>getComputedStyle(image).backgroundColor)),
+        ['rgb(18, 52, 86)','rgb(255, 255, 255)'],'Each company logo uses its own header background');
     await page.waitForFunction(logo => [...document.querySelectorAll('.company-card img')]
         .every(image => image.complete && image.naturalWidth > 0 && new URL(image.src).pathname === logo), defaultLogo);
     assert.ok(fallbackRequests > 0, 'Absent and broken logos use the real default logo');

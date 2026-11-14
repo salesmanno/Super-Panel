@@ -3,6 +3,7 @@ const {createFixtureServer}=require('./membership_benefits_fixture_server');
 const checks=`(async()=>{
  const check=(v,m)=>{if(!v)throw Error(m)};
  const change=(id,value)=>{const n=document.getElementById(id);n.value=value;n.dispatchEvent(new Event('input',{bubbles:true}));n.dispatchEvent(new Event('change',{bubbles:true}));};
+ const waitSave=async()=>{for(let i=0;i<50;i++){await new Promise(r=>setTimeout(r,30));if(document.getElementById('mb-save-feedback').textContent.includes('lagret'))return;}throw Error('Save did not finish: '+document.getElementById('mb-save-feedback').textContent);};
  try{
  await new Promise(r=>setTimeout(r,400));
  check(document.querySelector('.mb-site-name').textContent.includes('Bergsøy'),'Profile loaded');
@@ -10,6 +11,13 @@ const checks=`(async()=>{
  check(!document.querySelector('.mb-benefit-caption'),'No bulky admin header');
  check(!document.body.textContent.includes('Medlemskap · ikke fordelstildeling'),'No redundant membership label');
  check(!document.body.textContent.includes('Eldre oppsett'),'No legacy indicators');
+ for(const id of ['rental-1','event-1']){
+   const card=document.querySelector('.mb-card[data-mb-item="'+id+'"]');
+   check(card.classList.contains('mb-card-exclusive'),'Member-only outline on '+id);
+   check(card.textContent.includes('Kun for medlemmer'),'Member-only label on '+id);
+   check(parseFloat(getComputedStyle(card).borderTopWidth)>=2,'Visible border on '+id);
+   check(!card.querySelector('.mb-card-benefits,.mb-benefit-indicator'),'Admin benefits outside '+id);
+ }
  document.querySelector('.mb-feature').click();
  check(document.getElementById('mb-dialog').hidden,'Featured duplicate disabled');
  document.querySelector('.mb-card[data-mb-item="rental-1"]').click();
@@ -26,16 +34,21 @@ const checks=`(async()=>{
  document.querySelectorAll('#mb-editor-plan [role=tab]')[0].click();
  check(document.getElementById('mb-value').value.includes('50'),'Draft retained across tabs');
  document.getElementById('mb-apply').click();
+ await waitSave();
+ check(document.getElementById('mb-save-feedback').textContent.includes('lagret'),'Server confirmed persistent save');
  document.querySelector('#mb-dialog [data-mb-close]').click();
  check(document.getElementById('mb-dialog').hidden,'Close returns to preview');
- check(document.querySelector('.mb-card[data-mb-item="rental-1"]').textContent.includes('Ikke lagret'),'Draft labelled unsaved');
+ check(!document.getElementById('mb-admin-overview').closest('#mb-catalog'),'Admin overview is outside public simulator');
+ check(document.getElementById('mb-admin-overview').textContent.includes('Lagret'),'Saved status outside cards');
  document.querySelector('.mb-card[data-mb-item="event-1"]').click();
  check(document.getElementById('mb-value').value==='500','Saved new event rule prefilled');
  document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
  check(document.getElementById('mb-dialog').hidden,'Escape closes');
  check(document.documentElement.scrollWidth<=innerWidth+1,'No viewport overflow');
  document.querySelector('.mb-card[data-mb-item="rental-1"]').click();
- document.getElementById('mb-reset-item').click();
+ document.getElementById('mb-remove-item').click();
+ await new Promise(r=>setTimeout(r,200));
+ check(document.getElementById('mb-rule-status').textContent.includes('Ingen medlemsfordel'),'Removed rule stays removed');
  document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
  return {passed:true,width:innerWidth};
  }catch(e){return {passed:false,error:e.stack}}

@@ -8,6 +8,7 @@ $db->exec('CREATE DATABASE auth_lifecycle');$db->exec('USE auth_lifecycle');
 $dsn='mysql:unix_socket='.$temp.'/mysql.sock;dbname=auth_lifecycle';
 foreach([
     'tenant_companies(id CHAR(36) PRIMARY KEY,name TEXT,subdomain TEXT,logo_url TEXT,is_active INT)',
+    'tenant_website_general(company_id CHAR(36),header_bg_color VARCHAR(7))',
     'tenant_staff(id CHAR(36) PRIMARY KEY,company_id CHAR(36),first_name TEXT,last_name TEXT,email TEXT,is_active INT)',
     'tenant_admins(id CHAR(36) PRIMARY KEY,company_id CHAR(36),tenant_staff_id CHAR(36),username VARCHAR(100),password_hash TEXT,role TEXT,is_active INT,last_login DATETIME)',
     'tenant_admin_sessions(id INT AUTO_INCREMENT PRIMARY KEY,tenant_admin_id CHAR(36),session_id VARCHAR(255),is_active INT,ip_address TEXT,user_agent TEXT,login_at DATETIME,last_activity DATETIME,logout_at DATETIME)',
