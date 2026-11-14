@@ -26,13 +26,17 @@ const checks=`(async()=>{
  document.querySelectorAll('#mb-editor-plan [role=tab]')[0].click();
  check(document.getElementById('mb-value').value.includes('50'),'Draft retained across tabs');
  document.getElementById('mb-apply').click();
- check(document.getElementById('mb-dialog').hidden,'Apply closes preview');
+ document.querySelector('#mb-dialog [data-mb-close]').click();
+ check(document.getElementById('mb-dialog').hidden,'Close returns to preview');
  check(document.querySelector('.mb-card[data-mb-item="rental-1"]').textContent.includes('Ikke lagret'),'Draft labelled unsaved');
  document.querySelector('.mb-card[data-mb-item="event-1"]').click();
  check(document.getElementById('mb-value').value==='500','Saved new event rule prefilled');
  document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
  check(document.getElementById('mb-dialog').hidden,'Escape closes');
  check(document.documentElement.scrollWidth<=innerWidth+1,'No viewport overflow');
+ document.querySelector('.mb-card[data-mb-item="rental-1"]').click();
+ document.getElementById('mb-reset-item').click();
+ document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
  return {passed:true,width:innerWidth};
  }catch(e){return {passed:false,error:e.stack}}
 })()`;
