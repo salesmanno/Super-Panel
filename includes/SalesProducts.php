@@ -173,14 +173,11 @@ trait SalesProducts {
             if(!$old || !empty($changes)) {
                 $this->registerProductEvent($old?'product.changed':'product.created',
                     ['product_id'=>$row['id'],'before'=>$old?array_intersect_key($old,$changes):null,'after'=>$old?$changes:$row]);
-                $catalogId=$this->q("SELECT id FROM output_products WHERE company_id=? AND product_id=? AND product_type IN('product','sales_item') ORDER BY id LIMIT 1",[$this->company,$row['id']])->fetchColumn();
-                if(!$catalogId)$catalogId=(new ProductCatalogService($this->db))->createProductEntry($this->company,'sales',$row['id'],
-                    ['is_visible'=>(int)$row['is_active'],'is_public'=>(int)$row['is_active']===1 && $row['visibility']!=='kiosk'],$this->admin);
-                if(!$catalogId)throw new RuntimeException('Produktet kunne ikke knyttes til produktkatalogen');
-                $visible=(int)$row['is_active'];$public=$visible===1 && $row['visibility']!=='kiosk'?1:0;
-                $this->q('UPDATE output_products SET is_visible=?,is_public=? WHERE id=? AND company_id=? AND (is_visible<>? OR is_public<>?)',[$visible,$public,$catalogId,$this->company,$visible,$public]);
-                if(($row['output_product_id']??null)!==$catalogId)$this->q('UPDATE sales_products SET output_product_id=? WHERE id=? AND company_id=?',[$catalogId,$row['id'],$this->company]);
             }
+            // Repair missing links even when a user saves unchanged product data.
+            require_once __DIR__.'/source_catalog_links.php';
+            ensureSourceCatalogLink($this->db,$this->company,'sales',(string)$row['id'],$this->admin,
+                !$old || array_key_exists('is_active',$changes??[]) || array_key_exists('visibility',$changes??[]));
             return ['product'=>$this->productView($this->product($row['id']))];
         });
     }

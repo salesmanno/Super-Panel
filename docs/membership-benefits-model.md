@@ -9,8 +9,10 @@ Utleieobjektets `member_exclusive` leses i simulatoren når kolonnen finnes.
 Dette alene aktiverer ikke medlemskontroll i det separate kundesideprosjektet.
 
 ## Foreslått felles kobling
-Manuell SQL finnes i `sql/membership_product_benefits.sql`. Den er ikke kjørt
-av appen eller av simulatoren. Eksisterende `event_membership_plans` beholdes.
+Brukeren har opprettet tabellen som `membership_product_modifications`.
+Referanseskjema finnes i `sql/membership_product_modifications.sql`; det skal
+ikke kjøres på nytt. Appen og simulatoren oppretter ingen tabeller.
+Eksisterende `event_membership_plans` beholdes.
 Det er ingen automatisk migrering eller dobbeltskriving.
 
 Hver rad knytter et `output_products.id` til én `membership_plans.id` i samme
@@ -45,3 +47,17 @@ dagens autoritative arrangementspriser, ikke blande to priskilder.
 
 SQL-en alene endrer ingen kjøpsflyt, gir ingen rabatter og håndhever ingen
 medlemskrav. Ikke slett eller endre eksisterende pristabeller i mellomtiden.
+
+## Katalogkoblinger
+Opprettelse og redigering av utleieobjekter sikrer nå en katalogkobling i samme
+transaksjon. Sales reparerer også manglende kobling ved uendret lagring.
+Koblingen valideres mot bedrift, kildetype og kilde-ID. Eksisterende skjuling
+bevares ved reparasjon; nye kioskvarer blir ikke offentlige.
+Eksplisitt skjuling eller visning på kilden oppdaterer katalogstatusen;
+vanlige pris- og navneendringer gjør ikke skjulte katalogoppføringer synlige.
+
+Eldre objekter og varer kan kontrolleres uten skriving:
+`php scripts/repair_source_catalog_links.php --company-id=BEDRIFTS_ID`
+Legg til `--apply` for å gjennomføre etterkoblingen for bare denne bedriften.
+Hele etterkoblingen rulles tilbake ved feil. Dubletter rapporteres, men slettes
+ikke, siden nyheter eller medlemsfordeler kan peke til dem.

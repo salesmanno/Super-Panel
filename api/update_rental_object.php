@@ -12,6 +12,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/rental_schemas.php';
 require_once __DIR__ . '/../includes/rental_customer_fields.php';
 require_once __DIR__ . '/../includes/rental_weekday_pricing.php';
+require_once __DIR__ . '/../includes/source_catalog_links.php';
 
 $admin = [
     'tenant_admin_id' => $_SESSION['tenant_admin_id'],
@@ -240,11 +241,17 @@ try {
         );
     }
     
+    $visibilityChanged = false;
+    foreach (['is_active','is_available'] as $visibilityField) {
+        if (array_key_exists($visibilityField,$data) && (int)$data[$visibilityField] !== (int)$existing[$visibilityField]) $visibilityChanged = true;
+    }
+    $catalogLink = ensureSourceCatalogLink($db, (string)$admin['company_id'], 'rental', (string)$data['id'], (string)$admin['tenant_admin_id'], $visibilityChanged);
     $db->commit();
     
     $response = [
         'success' => true,
-        'message' => 'Utleieobjekt oppdatert'
+        'message' => 'Utleieobjekt oppdatert',
+        'output_product_id' => $catalogLink['id']
     ];
     if ($customerFields !== null) $response['customer_fields'] = $customerFields;
     echo json_encode($response);

@@ -12,6 +12,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/rental_schemas.php';
 require_once __DIR__ . '/../includes/rental_customer_fields.php';
 require_once __DIR__ . '/../includes/rental_weekday_pricing.php';
+require_once __DIR__ . '/../includes/source_catalog_links.php';
 
 $admin = [
     'tenant_admin_id' => $_SESSION['tenant_admin_id'],
@@ -52,6 +53,7 @@ function generateUUID() {
 
 try {
     $db = getDBConnection();
+    entityFormRequireModuleAccess($db, (string)$admin['company_id'], 'rental_object');
     $db->beginTransaction();
     
     $object_id = generateUUID();
@@ -80,7 +82,7 @@ try {
     $params = [
         $object_id,
         $admin['company_id'],
-        $data['output_product_id'] ?? null,
+        null, // Server establishes the company-scoped catalogue link below.
         $data['object_name'],
         $data['serial_number'] ?? null,
         $data['description'] ?? null,
@@ -198,15 +200,21 @@ try {
         $customerFieldInput === null ? defaultRentalCustomerFieldSettings() : $customerFieldInput
     );
     
+    $catalogLink = ensureSourceCatalogLink($db, (string)$admin['company_id'], 'rental', $object_id, (string)$admin['tenant_admin_id']);
     $db->commit();
     
     echo json_encode([
         'success' => true,
         'message' => 'Utleieobjekt opprettet',
         'object_id' => $object_id,
+        'output_product_id' => $catalogLink['id'],
         'customer_fields' => $customerFields
     ]);
     
+} catch (TenantAuditException $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
+    http_response_code(403);
+    echo json_encode(['success'=>false, 'message'=>$e->getMessage()]);
 } catch (InvalidArgumentException $e) {
     if (isset($db) && $db->inTransaction()) {
         $db->rollBack();

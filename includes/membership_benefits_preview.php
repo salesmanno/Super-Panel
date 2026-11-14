@@ -33,6 +33,7 @@ function membershipBenefitsPreviewProduct(array $catalog, array $source): array 
         default => $source['price'] ?? null,
     };
     $active = (int)($source['is_active'] ?? 1) === 1;
+    if ($type === 'rental') $active = $active && (int)($source['is_available'] ?? 1) === 1;
     if ($type === 'membership') $active = $active && (int)($source['for_sale'] ?? 0) === 1;
     return [
         'id' => (string)$catalog['id'],
@@ -62,6 +63,10 @@ function membershipBenefitsPreviewLoad(PDO $db, string $company): array {
     $q = $db->prepare('SELECT id,product_type,product_id,name,description,is_visible,is_public FROM output_products WHERE company_id=? ORDER BY created_at DESC,id');
     $q->execute([$company]);
     $catalog = $q->fetchAll(PDO::FETCH_ASSOC);
+    // Sales accepts this legacy catalogue type as the same source product.
+    foreach ($catalog as $index => $entry) {
+        if ($entry['product_type'] === 'sales_item') $catalog[$index]['product_type'] = 'product';
+    }
     $tables = ['events'=>'events_eventdata', 'membership'=>'membership_plans', 'rental'=>'rental_objects', 'product'=>'sales_products', 'service'=>'reservation_services'];
     $labels = ['events'=>'arrangementer', 'membership'=>'medlemskap', 'rental'=>'utleie', 'product'=>'varer', 'service'=>'tjenester'];
     $sources = [];

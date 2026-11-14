@@ -62,4 +62,15 @@ benefitsCheck(count($data['warnings']) === 1, 'Unavailable source explicitly rep
 benefitsCheck($before === $db->query('SELECT total_changes()')->fetchColumn(), 'Catalog preview never writes data');
 $other = membershipBenefitsPreviewLoad($db, 'b');
 benefitsCheck(count($other['products']) === 1 && $other['products'][0]['source_id'] === 'eb', 'Second company cannot see first company catalog');
+$db->exec("UPDATE output_products SET product_type='sales_item' WHERE id='cs'");
+$legacyBefore=$db->query('SELECT total_changes()')->fetchColumn();
+$legacyPreview=membershipBenefitsPreviewLoad($db,'a');
+$legacyProducts=array_column($legacyPreview['products'],null,'type');
+benefitsCheck(isset($legacyProducts['product']) && $legacyProducts['product']['source_id']==='s','Legacy Sales catalogue type is included');
+benefitsCheck($legacyBefore===$db->query('SELECT total_changes()')->fetchColumn(),'Legacy type normalization does not write to database');
+$db->exec('ALTER TABLE rental_objects ADD COLUMN is_available INT DEFAULT 1');
+$db->exec("UPDATE rental_objects SET is_available=0 WHERE id='r'");
+$hiddenRental=membershipBenefitsPreviewLoad($db,'a');
+$hiddenProducts=array_column($hiddenRental['products'],null,'type');
+benefitsCheck(!$hiddenProducts['rental']['is_visible'] && !$hiddenProducts['rental']['is_public'],'Source-hidden rental is not displayed even with a stale visible catalogue row');
 echo "Membership benefits read-only projection tests passed\n";

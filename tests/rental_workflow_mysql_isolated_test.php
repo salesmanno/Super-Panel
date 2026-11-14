@@ -15,6 +15,7 @@ $schema=[
     "tenant_staff(id CHAR(36),company_id CHAR(36),first_name TEXT,last_name TEXT)",
     "tenant_admins(id CHAR(36),company_id CHAR(36),tenant_staff_id CHAR(36),username TEXT,role VARCHAR(30),is_active INT)",
     "system_modules(id CHAR(36),module_key VARCHAR(50),is_active INT)",
+    "output_products(id CHAR(36) PRIMARY KEY,company_id CHAR(36),module_id CHAR(36),product_type VARCHAR(30),product_id CHAR(36),is_visible INT,is_public INT,is_marketplace_featured INT,marketplace_priority INT,discount_percent DECIMAL(12,2),created_by CHAR(36))",
     "tenant_admin_modules(tenant_admin_id CHAR(36),module_id CHAR(36))",
     "rental_objects(id CHAR(36) PRIMARY KEY,company_id CHAR(36),object_name TEXT,category VARCHAR(50),rental_text TEXT,rental_price DECIMAL(12,2),weekend_price DECIMAL(12,2),saturday_price DECIMAL(12,2),sunday_price DECIMAL(12,2),weekday_prices_enabled TINYINT(1) NOT NULL DEFAULT 0,is_active INT DEFAULT 1,is_available INT DEFAULT 1,created_by CHAR(36),market_price DECIMAL(12,2),serial_number TEXT,description TEXT,deposit_amount DECIMAL(12,2),condition_notes TEXT,image_url TEXT,images TEXT,rental_periods TEXT,output_product_id CHAR(36))",
     "rental_venues(object_id CHAR(36) PRIMARY KEY,cleaning_fee DECIMAL(12,2),capacity_seated INT,age_required INT NOT NULL DEFAULT 0)",
@@ -202,6 +203,8 @@ try {
         && $db->query("SELECT payment_status FROM rental_schedule WHERE id=".$db->quote($id))->fetchColumn()==='unpaid','Rejected payment changes no status or ledger');
     $db->exec("INSERT INTO economy_configuration_data(id,company_id,gateway_type,config_name,is_active,test_mode)
         VALUES('card-a','a','stripe','Kort',1,0),('bank-a','a','bank','Bankoverføring',1,0),('card-b','b','stripe','Kort',1,0)");
+    // Current bank-method contract requires exactly one active account.
+    $db->exec("INSERT INTO economy_bank_accounts VALUES('a','15030000000',1,'Fixture bank')");
     workflowAssert($call('update_rental_schedule_lifecycle','a',$payment)[1]['success'],'Activated card method accepted');
     $paymentRow=$db->query("SELECT payment_status,payment_method,status FROM rental_schedule WHERE id=".$db->quote($id))->fetch(PDO::FETCH_ASSOC);
     $ledgerRow=$db->query("SELECT * FROM unified_ledger WHERE rental_schedule_id=".$db->quote($id))->fetch(PDO::FETCH_ASSOC);
@@ -300,9 +303,27 @@ try {
     $newFormFields=array_values(array_filter(entityFormDefaults('rental_object'),static fn($field)=>in_array($field['field_name'],['first_name','last_name','email'],true)));
     foreach($newFormFields as &$newField) { $newField['is_visible']=true; }
     unset($newField);
-    [$http,$newObject]=$call('create_rental_object','a',['csrf_token'=>'form-token','object_name'=>'Ukedagslokale','category'=>'venue','rental_price'=>100,'weekday_prices_enabled'=>1,'weekday_prices'=>$weekdayPrices,'form_fields'=>$newFormFields]);
+    workflowAssert($call('create_rental_object','none',['csrf_token'=>'form-token','object_name'=>'Uautorisert','category'=>'venue'])[0]===403,'Creation requires delegated rental module');
+    [$http,$newObject]=$call('create_rental_object','a',['csrf_token'=>'form-token','object_name'=>'Ukedagslokale','category'=>'venue','rental_price'=>100,'weekday_prices_enabled'=>1,'weekday_prices'=>$weekdayPrices,'form_fields'=>$newFormFields,'output_product_id'=>'client-forged-link']);
     workflowAssert($http===200&&$newObject['success'],'Creation saves weekday prices');
     $newId=$newObject['object_id'];
+    $newCatalogId=$newObject['output_product_id'];
+    workflowAssert($newCatalogId!=='client-forged-link'
+        && $db->query('SELECT output_product_id FROM rental_objects WHERE id='.$db->quote($newId))->fetchColumn()===$newCatalogId,'Creation assigns server-owned catalogue link');
+    workflowAssert($db->query('SELECT product_id FROM output_products WHERE company_id=\'a\' AND product_type=\'rental\' AND id='.$db->quote($newCatalogId))->fetchColumn()===$newId,'Catalogue points to correct company, type and rental source');
+    $db->exec('UPDATE rental_objects SET output_product_id=NULL WHERE id='.$db->quote($newId));
+    $repaired=$call('update_rental_object','a',['csrf_token'=>'form-token','id'=>$newId])[1];
+    workflowAssert($repaired['success'] && $repaired['output_product_id']===$newCatalogId
+        && $db->query('SELECT COUNT(*) FROM output_products WHERE product_id='.$db->quote($newId))->fetchColumn()==1,'Unchanged edit repairs source pointer without duplicate catalogue row');
+    $beforeFailedCreate=$db->query('SELECT COUNT(*) FROM rental_objects')->fetchColumn();
+    $db->exec('RENAME TABLE output_products TO unavailable_catalog_fixture');
+    try {
+        [$failureHttp,$failureBody]=$call('create_rental_object','a',['csrf_token'=>'form-token','object_name'=>'Skal rulles tilbake','category'=>'venue','form_fields'=>$newFormFields]);
+        workflowAssert($failureHttp===500 && !$failureBody['success'],'Catalogue failure rejects creation');
+        workflowAssert($db->query('SELECT COUNT(*) FROM rental_objects')->fetchColumn()===$beforeFailedCreate,'Catalogue failure rolls back rental creation');
+    } finally {
+        $db->exec('RENAME TABLE unavailable_catalog_fixture TO output_products');
+    }
     workflowAssert((int)$db->query("SELECT age_required FROM rental_venues WHERE object_id=".$db->quote($newId))->fetchColumn()===0,'New venue defaults to no minimum age');
     $newRequest=$payload;
     $newRequest['submission_id']='weekday-request';$newRequest['object_id']=$newId;

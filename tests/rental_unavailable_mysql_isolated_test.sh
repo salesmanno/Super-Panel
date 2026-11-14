@@ -54,6 +54,10 @@ elif [[ "${1:-}" == "--company-login" ]]; then
     php "$ROOT/tests/company_choice_mysql_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--codes" ]]; then
     php "$ROOT/tests/rental_reservation_codes_mysql_test.php" "$ROOT" "$TEMP_ROOT"
+elif [[ "${1:-}" == "--catalog" ]]; then
+    php "$ROOT/tests/source_catalog_links_test.php" "$ROOT" "$TEMP_ROOT"
+    php "$ROOT/tests/sales_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT" --backend-only
+    php "$ROOT/tests/rental_workflow_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--workflow" ]]; then
     php "$ROOT/tests/rental_workflow_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--forms" ]]; then
