@@ -1,3 +1,5 @@
+.mb-feature.mb-feature-inactive{filter:grayscale(1);opacity:.6;cursor:default}
+.mb-feature-note{font-size:.78rem}
 .mb-catalog .mb-site-logo{background:transparent;border-radius:0}
 .mb-card.mb-card-ineligible{filter:grayscale(1);opacity:.6;cursor:default}
 .mb-card.mb-card-ineligible:hover{transform:none;box-shadow:none}

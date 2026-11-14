@@ -39,9 +39,9 @@ const liveChecks = `(async()=>{
   check(document.querySelector('.mb-card[data-mb-item="event-1"]').textContent.includes('500,00'),'Existing public member event price is represented');
   check(document.querySelector('.mb-card[data-mb-item="member-exclusive"]').textContent.includes('Pris ikke oppgitt'),'Exclusive service without member price is unknown, not treated as free');
   const featured=document.querySelector('.mb-feature');
-  featured.focus();featured.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
-  check(!document.getElementById('mb-dialog').hidden&&document.getElementById('mb-editor-title').textContent.includes('Julebord'),'Featured event is keyboard-activated into the same editor');
-  document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+  check(featured.getAttribute('aria-disabled')==='true'&&!featured.hasAttribute('tabindex')&&!featured.hasAttribute('data-mb-item')&&getComputedStyle(featured).filter.includes('grayscale'),'Duplicate featured event is grey and not an interactive control');
+  featured.click();featured.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+  check(document.getElementById('mb-dialog').hidden,'Duplicate featured event cannot open editor');
   const eventCard=document.querySelector('.mb-card[data-mb-item="event-1"]');
   eventCard.focus();eventCard.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
   check(!document.getElementById('mb-dialog').hidden,'Keyboard activation opens the benefit editor');
