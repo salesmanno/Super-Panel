@@ -105,6 +105,7 @@
         }
 
         let baseCents = 0;
+        const chargedWeekends = new Set();
         for (const day = new Date(start); day <= end; day.setUTCDate(day.getUTCDate() + 1)) {
             const weekday = day.getUTCDay();
             if (weekday >= 1 && weekday <= 5 && weekdays !== null) {
@@ -114,6 +115,14 @@
             if (weekdays !== null && (weekday === 0 || weekday === 6) && weekend <= 0
                 && (weekday === 6 ? saturday : sunday) <= 0) {
                 amountToCents(rates.rental_price, 'Grunnprisen for helg', true, rateCorrection);
+            }
+            if ((weekday === 0 || weekday === 6) && weekend > 0 && saturday <= 0 && sunday <= 0) {
+                const saturdayDate = new Date(day);
+                if (weekday === 0) saturdayDate.setUTCDate(saturdayDate.getUTCDate()-1);
+                const key = saturdayDate.toISOString().slice(0,10);
+                if (!chargedWeekends.has(key)) baseCents += weekend;
+                chargedWeekends.add(key);
+                continue;
             }
             baseCents += weekday === 6 && saturday > 0 ? saturday
                 : weekday === 0 && sunday > 0 ? sunday
@@ -135,6 +144,7 @@
 
         return {
             baseCents,
+            rentalDays: Math.round((end-start)/86400000)+1,
             cleaningCents,
             adjustmentCents,
             totalCents: Math.max(0, baseCents + cleaningCents + adjustmentCents),

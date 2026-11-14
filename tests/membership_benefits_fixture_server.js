@@ -38,9 +38,16 @@ fixture.products.find(product => product.id === 'event-1').assigned_benefits = [
     {plan_id:'11',benefit_type:'fixed_price',benefit_value:500,price_basis:'unit',public_display:true,source:'membership_product_modifications'},
     {plan_id:'22',benefit_type:'fixed_price',benefit_value:380,price_basis:'unit',public_display:true,source:'event_membership_plans'}
 ];
+fixture.products.find(product => product.id === 'event-1').assigned_benefits = fixture.products.find(product => product.id === 'event-1').assigned_benefits.filter(rule=>rule.source!=='event_membership_plans');
+fixture.products.find(product => product.id === 'rental-1').rental_rates = {rental_price:1150,weekday_prices_enabled:1,weekday_prices:{monday:1000,tuesday:1000,wednesday:1000,thursday:1000,friday:1000},weekend_price:3000};
+fixture.products.find(product => product.id === 'rental-1').assigned_benefits = [];
 function createFixtureServer(options={}) {
     return http.createServer((request,response) => {
         const url = new URL(request.url,'http://localhost');
+        if(['/assets/membership-benefit-pricing.js','/assets/rental_request_pricing.js'].includes(url.pathname)){
+            response.writeHead(200,{'Content-Type':'application/javascript'});
+            response.end(fs.readFileSync(path.join(__dirname,'..',url.pathname))); return;
+        }
         if (url.pathname === '/') {
             response.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Set-Cookie':url.searchParams.has('fail')?'membership_fixture_fail=1; SameSite=Lax; Path=/':'membership_fixture_fail=; Max-Age=0; Path=/'}); response.end(html); return;
         }

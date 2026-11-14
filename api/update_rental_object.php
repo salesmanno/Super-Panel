@@ -138,6 +138,9 @@ try {
     }
 
     // UPDATE base rental_objects table
+    if (rentalWeekdayPricingIsActive(array_replace($existing, $data))) {
+        $data['rental_price'] = null;
+    }
     $updateFields = [];
     $updateParams = [];
     

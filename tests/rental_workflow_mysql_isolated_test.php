@@ -304,9 +304,10 @@ try {
     foreach($newFormFields as &$newField) { $newField['is_visible']=true; }
     unset($newField);
     workflowAssert($call('create_rental_object','none',['csrf_token'=>'form-token','object_name'=>'Uautorisert','category'=>'venue'])[0]===403,'Creation requires delegated rental module');
-    [$http,$newObject]=$call('create_rental_object','a',['csrf_token'=>'form-token','object_name'=>'Ukedagslokale','category'=>'venue','rental_price'=>100,'weekday_prices_enabled'=>1,'weekday_prices'=>$weekdayPrices,'form_fields'=>$newFormFields,'output_product_id'=>'client-forged-link']);
+    [$http,$newObject]=$call('create_rental_object','a',['csrf_token'=>'form-token','object_name'=>'Ukedagslokale','category'=>'venue','rental_price'=>100,'weekend_price'=>100,'weekday_prices_enabled'=>1,'weekday_prices'=>$weekdayPrices,'form_fields'=>$newFormFields,'output_product_id'=>'client-forged-link']);
     workflowAssert($http===200&&$newObject['success'],'Creation saves weekday prices');
     $newId=$newObject['object_id'];
+    workflowAssert($db->query('SELECT rental_price FROM rental_objects WHERE id='.$db->quote($newId))->fetchColumn()===null,'Active weekdays clear stored base price');
     $newCatalogId=$newObject['output_product_id'];
     workflowAssert($newCatalogId!=='client-forged-link'
         && $db->query('SELECT output_product_id FROM rental_objects WHERE id='.$db->quote($newId))->fetchColumn()===$newCatalogId,'Creation assigns server-owned catalogue link');

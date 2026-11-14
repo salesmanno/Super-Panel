@@ -75,6 +75,7 @@ try {
         }
     }
     
+    if (rentalWeekdayPricingIsActive($data)) $data['rental_price'] = null;
     $columns = ['id', 'company_id', 'output_product_id', 'object_name', 'serial_number', 
                 'description', 'category', 'rental_price', 'deposit_amount', 
                 'condition_notes', 'image_url', 'images', 'is_available', 'is_active', 'created_by',

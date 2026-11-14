@@ -49,6 +49,7 @@ function rentalPeriodPriceCents(array $object, string $startDate, string $endDat
     $saturday = rentalConfiguredRateCents($object, 'saturday_price', 'Lørdagsprisen');
     $sunday = rentalConfiguredRateCents($object, 'sunday_price', 'Søndagsprisen');
     $total = 0;
+    $chargedWeekends = [];
     for ($date = $start; $date <= $end; $date = $date->modify('+1 day')) {
         $day = (int) $date->format('N');
         if ($day <= 5 && $weekdays !== null) {
@@ -58,6 +59,12 @@ function rentalPeriodPriceCents(array $object, string $startDate, string $endDat
         if ($weekdays !== null && $day >= 6 && $weekend <= 0
             && ($day === 6 ? $saturday : $sunday) <= 0) {
             $base = rentalConfiguredRateCents($object, 'rental_price', 'Grunnprisen for helg', true);
+        }
+        if ($day >= 6 && $weekend > 0 && $saturday <= 0 && $sunday <= 0) {
+            $key = $date->format('o-W');
+            if (!isset($chargedWeekends[$key])) $total += $weekend;
+            $chargedWeekends[$key] = true;
+            continue;
         }
         $total += $day === 6 && $saturday > 0 ? $saturday
             : ($day === 7 && $sunday > 0 ? $sunday

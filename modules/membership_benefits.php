@@ -38,26 +38,45 @@
                     <button type="button" class="mb-close" data-mb-close aria-label="Lukk">Lukk <span aria-hidden="true">×</span></button>
                 </header>
                 <p class="mb-editor-intro">Prøv hvordan tilbudet oppleves for en besøkende eller et medlem.</p>
-                <label class="mb-field-label" for="mb-editor-plan">Medlemskapsplan</label>
-                <select id="mb-editor-plan" class="mb-select mb-editor-plan"></select>
-                <fieldset class="mb-mechanisms">
+                <div id="mb-editor-plan" class="mb-plan-tabs" role="tablist" aria-label="Medlemskapsplan"></div>
+                <div id="mb-plan-panel" role="tabpanel">
+                <p id="mb-rule-status" class="mb-rule-status" aria-live="polite"></p>
+                <p id="mb-source-access" class="mb-editor-intro" hidden>Bare for medlemmer. Alle medlemstyper kvalifiserer. Medlemskravet endres på selve tilbudet.</p>
+                <fieldset class="mb-mechanisms" id="mb-standard-mechanisms">
                     <legend>Fordelens pris</legend>
                     <label><input type="radio" name="mb-mechanism" value="own"> <span><strong>Egen medlemspris</strong><small>Sett prisen medlemmet betaler</small></span></label>
                     <label><input type="radio" name="mb-mechanism" value="percentage"> <span><strong>Prosentvis rabatt</strong><small>Trekk en prosent fra ordinær pris</small></span></label>
                     <label><input type="radio" name="mb-mechanism" value="fixed"> <span><strong>Fast avslag</strong><small>Trekk et beløp fra ordinær pris</small></span></label>
                     <label><input type="radio" name="mb-mechanism" value="included"> <span><strong>Inkludert</strong><small>Ingen ekstra kostnad for medlemmet</small></span></label>
                 </fieldset>
+                <div id="mb-rental-mode-field" hidden>
+                    <label class="mb-field-label" for="mb-rental-mode">Rabatt beregnes som</label>
+                    <select id="mb-rental-mode" class="mb-select"><option value="per_day">Kroner per leiedag</option><option value="percentage">Prosent av hele leiesummen</option></select>
+                </div>
                 <div class="mb-value-field" id="mb-value-field">
                     <label class="mb-field-label" for="mb-value">Medlemspris</label>
-                    <div class="mb-input-wrap"><input id="mb-value" type="number" min="0" step="0.01" inputmode="decimal"><span id="mb-value-suffix">kr</span></div>
+                    <div class="mb-input-wrap"><input id="mb-value" type="text" inputmode="decimal" autocomplete="off" aria-describedby="mb-input-help"><span id="mb-value-suffix">kr</span></div>
+                    <small id="mb-input-help" class="mb-input-help"></small>
+                </div>
+                <div id="mb-rental-quote" hidden>
+                    <div id="mb-rental-rates" class="mb-rate-list"></div>
+                    <div class="mb-date-fields">
+                        <label class="mb-field-label" for="mb-start-date">Fra og med<input id="mb-start-date" type="date" lang="nb-NO"></label>
+                        <label class="mb-field-label" for="mb-end-date">Til og med<input id="mb-end-date" type="date" lang="nb-NO"></label>
+                    </div>
+                    <p class="mb-input-help" id="mb-rental-period-help">Datoene teller med, også returdagen. Depositum, rengjøring og gebyrer er ikke med.</p>
+                    <div id="mb-quote-result" class="mb-quote-result" aria-live="polite"></div>
                 </div>
                 <div class="mb-live-result" aria-live="polite"><span>Medlemspris i forhåndsvisningen</span><strong id="mb-live-price">–</strong></div>
+                </div>
                 <footer class="mb-editor-foot">
-                    <button type="button" class="mb-reset" id="mb-reset-item">Tilbakestill dette tilbudet</button>
-                    <div><button type="button" class="mb-button mb-button-quiet" data-mb-close>Avbryt</button><button type="button" class="mb-button mb-button-primary" id="mb-apply">Vis i forhåndsvisning</button></div>
+                    <div class="mb-preview-controls"><button type="button" class="mb-reset" id="mb-remove-item">Fjern i forhåndsvisning</button><button type="button" class="mb-reset" id="mb-reset-item">Gjenopprett lagret fordel</button></div>
+                    <div><button type="button" class="mb-button mb-button-quiet" data-mb-close>Lukk</button><button type="button" class="mb-button mb-button-primary" id="mb-apply">Vis i forhåndsvisning</button></div>
                 </footer>
             </section>
         </div>
     </div>
 </section>
+<script src="/assets/rental_request_pricing.js" defer></script>
+<script src="/assets/membership-benefit-pricing.js" defer></script>
 <script src="/assets/membership-benefits.js" defer></script>

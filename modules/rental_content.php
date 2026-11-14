@@ -913,6 +913,7 @@ function rentalWeekdayFormState(form, containerId) {
 }
 
 function rentalPriceForPayload(form, rawValue, mode) {
+    if (mode === 'weekdays') return null;
     if (rawValue !== null && rawValue !== undefined && rawValue !== '') return Number(rawValue);
     if (mode === 'weekdays' && form._rentalFallbackRentalPrice !== null && form._rentalFallbackRentalPrice !== undefined && form._rentalFallbackRentalPrice !== '') {
         return Number(form._rentalFallbackRentalPrice);
@@ -934,7 +935,11 @@ function updateRentalWeekdayPricing(containerId, mode, clearParseError = true) {
     const toggle = container.querySelector('[name="weekday_prices_enabled"]');
     const isWeekdayMode = mode === 'weekdays';
     if (toggle) toggle.checked = isWeekdayMode;
-    if (rate) rate.required = !isWeekdayMode || containerId === 'createFormFieldsContainer';
+    if (rate) {
+        rate.required = !isWeekdayMode;
+        rate.disabled = isWeekdayMode;
+        rate.closest('.rental-base-rate-field').hidden = isWeekdayMode;
+    }
     weekdayInputs.forEach(input => input.required = isWeekdayMode);
     if (rateLabel) rateLabel.textContent = isWeekdayMode ? 'Grunnpris for helg (NOK)' : 'Flat dagspris (NOK)';
     if (rateHelp) rateHelp.textContent = isWeekdayMode
@@ -1074,8 +1079,8 @@ function buildFormFields(containerId, category = '', existingData = {}) {
                         <small class="form-text text-muted" data-rental-base-rate-help></small>
                     </div>
                     <div class="col-12 col-md-6 mb-2 rental-deposit-field">
-                        <label class="form-label mb-1">Depositum (NOK)</label>
-                        <input type="number" class="form-control form-control-sm" name="deposit_amount" step="0.01" min="0" value="${escAttr(fieldValue(existingData.deposit_amount ?? 0))}">
+                        <label class="form-check form-switch"><input type="checkbox" class="form-check-input" ${Number(existingData.deposit_amount)>0?'checked':''} onchange="const f=this.closest('.rental-deposit-field').querySelector('[name=deposit_amount]');f.hidden=!this.checked;f.disabled=!this.checked;f.required=this.checked;if(!this.checked)f.value='';"><span>Bruk depositum</span></label>
+                        <input aria-label="Depositum i kroner" type="number" class="form-control form-control-sm" name="deposit_amount" step="0.01" min="0.01" ${Number(existingData.deposit_amount)>0?'required':'hidden disabled'} value="${escAttr(fieldValue(existingData.deposit_amount ?? ''))}">
                     </div>
                     ${category !== 'venue' ? `<div class="col-12 col-md-6 mb-2 rental-market-field">
                         <label class="form-label mb-1">Markedspris (NOK)</label>

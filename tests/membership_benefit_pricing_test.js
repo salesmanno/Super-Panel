@@ -1,0 +1,16 @@
+const assert=require('node:assert/strict');
+const {parseRentalDiscount,applyBenefit}=require('../assets/membership-benefit-pricing');
+const {calculateRentalQuote}=require('../assets/rental_request_pricing');
+const rates={rental_price:null,weekday_prices_enabled:1,weekday_prices:{monday:1000,tuesday:1000,wednesday:1000,thursday:1000,friday:1000},weekend_price:3000};
+const weekend=calculateRentalQuote({rates,startDate:'2026-11-14',endDate:'2026-11-15'});
+assert.equal(weekend.baseCents,300000);
+assert.equal(weekend.rentalDays,2);
+assert.equal(applyBenefit(weekend.baseCents,parseRentalDiscount('50'),2).totalCents,290000);
+assert.equal(applyBenefit(weekend.baseCents,parseRentalDiscount('50%'),2).totalCents,150000);
+assert.equal(calculateRentalQuote({rates,startDate:'2026-11-13',endDate:'2026-11-16'}).baseCents,500000);
+assert.equal(calculateRentalQuote({rates,startDate:'2026-11-14',endDate:'2026-11-22'}).baseCents,1100000);
+assert.equal(applyBenefit(300000,parseRentalDiscount('9999'),2).totalCents,0);
+assert.throws(()=>parseRentalDiscount('101%'));
+assert.throws(()=>parseRentalDiscount('-50'));
+assert.throws(()=>parseRentalDiscount(''));
+console.log('Membership discount and whole-weekend quote tests passed');

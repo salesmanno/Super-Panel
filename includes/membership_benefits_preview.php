@@ -53,6 +53,10 @@ function membershipBenefitsPreviewProduct(array $catalog, array $source): array 
         'is_public' => $active && (int)($catalog['is_public'] ?? 0) === 1,
         'membership_prices' => [],
         'assigned_benefits' => [],
+        'rental_rates' => $type === 'rental' ? array_intersect_key($source, array_flip([
+            'rental_price','weekday_prices_enabled','weekday_prices','weekend_price',
+            'saturday_price','sunday_price','deposit_amount'
+        ])) : null,
     ];
 }
 
@@ -123,22 +127,7 @@ function membershipBenefitsPreviewLoad(PDO $db, string $company): array {
         }
     }
     $pricing = [];
-    if (!empty($sources['events'])) {
-        try {
-            $q = $db->prepare('SELECT emp.event_id,emp.membership_plan_id,emp.ticket_price,emp.public_display
-                FROM event_membership_plans emp
-                JOIN events_eventdata e ON e.id=emp.event_id
-                JOIN membership_plans mp ON mp.id=emp.membership_plan_id
-                WHERE e.company_id=? AND mp.company_id=?');
-            $q->execute([$company, $company]);
-            foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
-                $pricing[(string)$row['event_id']][] = ['plan_id'=>(string)$row['membership_plan_id'], 'price'=>(float)$row['ticket_price'], 'public_display'=>(bool)$row['public_display']];
-            }
-        } catch (PDOException $e) {
-            error_log('Benefits preview pricing: '.$e->getMessage());
-            $warnings[] = 'Medlemspriser for arrangementer kunne ikke hentes. Prisvisningen er ufullstendig.';
-        }
-    }
+    // Legacy rows are not read or modified during this simulator transition.
     // Read new rules first in precedence, retaining inactive rows as fallback blockers.
     $benefits = [];
     try {
