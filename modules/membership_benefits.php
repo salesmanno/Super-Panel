@@ -51,11 +51,6 @@
                     <label class="mb-field-label" for="mb-value">Medlemspris</label>
                     <div class="mb-input-wrap"><input id="mb-value" type="number" min="0" step="0.01" inputmode="decimal"><span id="mb-value-suffix">kr</span></div>
                 </div>
-                <label class="mb-switch">
-                    <input type="checkbox" id="mb-members-only">
-                    <span class="mb-switch-track" aria-hidden="true"></span>
-                    <span><strong>Kun for medlemmer</strong><small>Skjul pris og tilbud for vanlige besøkende</small></span>
-                </label>
                 <div class="mb-live-result" aria-live="polite"><span>Medlemspris i forhåndsvisningen</span><strong id="mb-live-price">–</strong></div>
                 <footer class="mb-editor-foot">
                     <button type="button" class="mb-reset" id="mb-reset-item">Tilbakestill dette tilbudet</button>

@@ -29,10 +29,12 @@ rettighet/fordel, ikke et krav om at kunden skal ha alle planene samtidig.
 - `public_display`: om fordelen annonseres offentlig. Dette er ikke en
   tillatelseskontroll og må ikke fjerne rettigheten til et verifisert medlem.
 
-`member_exclusive` beskriver objektets tilgangskrav; koblingene beskriver
-hvilke planer som kvalifiserer. Medlemspris uten eksklusivitet er tillatt.
-Ved eksklusivitet og ingen aktive plankoblinger skal ingen automatisk gis
-tilgang. Alle nye lagringer må validere bedrift, objekt og plan på serveren.
+`member_exclusive` (eller arrangementets `is_member_exclusive`) er et
+selvstendig tilgangskrav på kildeobjektet: medlem eller ikke medlem,
+uavhengig av medlemsplan. Det skal ikke redigeres eller lagres gjennom
+fordelsmodalen for en plan. Plankoblingene bestemmer særfordeler/priser;
+et medlem uten egen prisregel bruker ordinær pris i simulatoren.
+Alle nye lagringer må validere bedrift, objekt og plan på serveren.
 
 ## Før regler kan aktiveres
 Adminlagring med modulrettigheter, CSRF og revisjonskontroll må innføres.

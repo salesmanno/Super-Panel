@@ -14,7 +14,6 @@
     const valueField = document.getElementById('mb-value-field');
     const valueInput = document.getElementById('mb-value');
     const suffix = document.getElementById('mb-value-suffix');
-    const memberOnly = document.getElementById('mb-members-only');
     const livePrice = document.getElementById('mb-live-price');
     const draftLabel = document.getElementById('mb-editor-title');
     let payload = null;
@@ -24,7 +23,6 @@
     let returnFocus = null;
     let previousOverflow = '';
     let overrides = new Map();
-    let accessOverrides = new Map();
     let viewport = 'desktop';
     let demoMode = false;
     const categoryNames = {membership:'Medlemskap',rental:'Utleie',events:'Arrangementer',product:'Produkter',service:'Tjenester'};
@@ -94,7 +92,6 @@
             loaded = true;
             demoMode = false;
             overrides = new Map();
-            accessOverrides = new Map();
             render();
         } catch (error) {
             loaded = false;
@@ -108,7 +105,6 @@
                 demoMode = true;
                 loaded = true;
                 overrides = new Map();
-                accessOverrides = new Map();
                 render();
             });
         } finally { loading = false; }
@@ -118,7 +114,7 @@
         && (product.type !== 'events' || ['signup','binding'].includes(product.registration_type));
     const eventMembershipPrice = (product,planId) => (product.membership_prices || []).find(entry => String(entry.plan_id) === String(planId));
     const getRule = (product,planId) => overrides.get(`${product.id}:${planId}`) || null;
-    const isExclusive = product => accessOverrides.get(product.id) ?? product.exclusive;
+    const isExclusive = product => product.exclusive;
     const benefitSummary = benefit => {
         const value = benefit.benefit_value;
         if (benefit.benefit_type === 'access') return 'Tilgang';
@@ -160,10 +156,7 @@
             const selected = plan && plan.id === item.id;
             return `<div class="mb-benefit-indicator mb-benefit-temporary${selected ? ' mb-benefit-selected' : ''}"><strong>${safeText(item.name)}</strong><span class="mb-benefit-details"><span class="mb-benefit-summary">${safeText(temporarySummary(rule))}</span><span class="mb-benefit-unsaved">Ikke lagret</span></span></div>`;
         }).join('');
-        const accessChanged = accessOverrides.has(product.id);
-        const accessHtml = accessChanged
-            ? `<div class="mb-benefit-access mb-benefit-temporary"><span>Midlertidig tilgangsvalg: ${isExclusive(product) ? 'Kun for medlemmer' : 'Åpen tilgang'}</span><strong class="mb-benefit-unsaved">Ikke lagret</strong></div>`
-            : product.exclusive ? '<div class="mb-benefit-access">Generell begrensning: Kun for medlemmer</div>' : '';
+        const accessHtml = product.exclusive ? '<div class="mb-benefit-access">Medlemskrav på tjenesten · uavhengig av medlemstype</div>' : '';
         if (!savedHtml && !temporaryHtml && !accessHtml) return '';
         return `<aside class="mb-card-benefits" aria-label="Adminoversikt over fordeler"><span class="mb-benefit-caption">Adminoversikt · ikke offentlig visning</span>${savedHtml}${temporaryHtml}${accessHtml}</aside>`;
     }
@@ -181,7 +174,6 @@
         }
         const existing = eventMembershipPrice(product,planId);
         if (existing && existing.price !== null && existing.price !== '') return nullableNumber(existing.price);
-        if (isExclusive(product)) return null;
         return product.price;
     };
     const productImage = product => {
@@ -311,7 +303,6 @@
         draftLabel.textContent = activeItem.name;
         dialog.querySelectorAll('input[name="mb-mechanism"]').forEach(input => { input.checked = input.value === how; });
         valueInput.value = initialValue === null ? '' : String(initialValue);
-        memberOnly.checked = isExclusive(activeItem);
         updateEditorPreview();
         dialog.hidden = false;
         previousOverflow = document.body.style.overflow;
@@ -342,12 +333,10 @@
     });
     dialog.querySelectorAll('input[name="mb-mechanism"]').forEach(input => input.addEventListener('change',updateEditorPreview));
     valueInput.addEventListener('input',updateEditorPreview);
-    memberOnly.addEventListener('change',updateEditorPreview);
     editorPlan.addEventListener('change',() => {
         const current = getRule(activeItem,editorPlan.value);
         const selectedPrice = current?.value ?? eventMembershipPrice(activeItem,editorPlan.value)?.price ?? activeItem.price;
         valueInput.value = selectedPrice === null || selectedPrice === undefined ? '' : String(selectedPrice);
-        memberOnly.checked = isExclusive(activeItem);
         dialog.querySelectorAll('input[name="mb-mechanism"]').forEach(input => { input.checked = input.value === (current?.mechanism || (eventMembershipPrice(activeItem,editorPlan.value) ? 'own' : 'own')); });
         updateEditorPreview();
     });
@@ -355,14 +344,12 @@
         if (!activeItem || !benefitEligible(activeItem) || !editorPlan.value) return;
         if (mechanism() !== 'included' && !valueInput.reportValidity()) return;
         overrides.set(`${activeItem.id}:${editorPlan.value}`,{mechanism:mechanism(),value:nullableNumber(valueInput.value)});
-        accessOverrides.set(activeItem.id, memberOnly.checked);
         render();
         closeEditor();
     });
     document.getElementById('mb-reset-item').addEventListener('click',() => {
         if (!activeItem) return;
         overrides.delete(`${activeItem.id}:${editorPlan.value}`);
-        accessOverrides.delete(activeItem.id);
         render();
         closeEditor();
     });
@@ -377,7 +364,6 @@
         if (event?.detail?.module === 'membership' && event.detail.subtab === 'membership-benefits') loadCatalog();
         else {
             overrides.clear();
-            accessOverrides.clear();
             showHidden.checked = false;
             if (!dialog.hidden) closeEditor(false);
             if (loaded) render();

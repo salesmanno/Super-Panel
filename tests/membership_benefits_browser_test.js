@@ -45,7 +45,7 @@ const liveChecks = `(async()=>{
   check(document.querySelector('.mb-card[data-mb-item="rental-1"] .mb-benefit-selected strong').textContent==='Bergsøy Medlem','Selected membership type is highlighted');
   check(document.querySelector('.mb-card[data-mb-item="event-hidden-price"] .mb-card-price strong').textContent.includes('415,00'),'Non-public benefit is still applied for the selected member plan');
   check(document.querySelector('.mb-card[data-mb-item="event-1"]').textContent.includes('500,00'),'Existing public member event price is represented');
-  check(document.querySelector('.mb-card[data-mb-item="member-exclusive"]').textContent.includes('Pris ikke oppgitt'),'Exclusive service without member price is unknown, not treated as free');
+  check(document.querySelector('.mb-card[data-mb-item="member-exclusive"] .mb-card-price').textContent.includes('345,00'),'Any selected membership type qualifies for global membership requirement without a plan-specific discount');
   const featured=document.querySelector('.mb-feature');
   check(featured.getAttribute('aria-disabled')==='true'&&!featured.hasAttribute('tabindex')&&!featured.hasAttribute('data-mb-item')&&getComputedStyle(featured).filter.includes('grayscale'),'Duplicate featured event is grey and not an interactive control');
   featured.click();featured.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
@@ -59,7 +59,7 @@ const liveChecks = `(async()=>{
   document.querySelector('.mb-card[data-mb-item="event-1"]').click();
   document.querySelector('input[name="mb-mechanism"][value="own"]').click();
   const membersValue=document.getElementById('mb-value');membersValue.value='200';membersValue.dispatchEvent(new Event('input',{bubbles:true}));
-  const memberOnly=document.getElementById('mb-members-only');memberOnly.checked=true;memberOnly.dispatchEvent(new Event('change',{bubbles:true}));
+  check(!document.getElementById('mb-members-only'),'Membership requirement is not editable in the plan benefit modal');
   document.getElementById('mb-apply').click();
   check(document.querySelector('.mb-card[data-mb-item="event-1"] .mb-benefit-temporary').textContent.includes('Ikke lagret'),'Temporary benefit indicator is distinct from saved assignment');
   check(document.querySelector('.mb-card[data-mb-item="event-1"]').textContent.includes('200,00'),'Members-only benefit retains its configured member price');
@@ -68,7 +68,7 @@ const liveChecks = `(async()=>{
   plan.value='11';plan.dispatchEvent(new Event('change',{bubbles:true}));
   check(document.querySelector('.mb-card[data-mb-item="event-1"] .mb-card-price strong').textContent.includes('200,00'),'Edited plan keeps only its own preview override');
   plan.value='';plan.dispatchEvent(new Event('change',{bubbles:true}));
-  check(document.querySelector('.mb-card[data-mb-item="event-1"] .mb-card-price').textContent.includes('Kun for medlemmer')&&!document.querySelector('.mb-card[data-mb-item="event-1"] .mb-card-price').textContent.includes('200,00'),'Ordinary visitor service price is restricted, separate from admin annotations');
+  check(document.querySelector('.mb-card[data-mb-item="event-1"] .mb-card-price').textContent.includes('650,00')&&!document.querySelector('.mb-card[data-mb-item="event-1"] .mb-card-price').textContent.includes('Kun for medlemmer'),'Plan benefit edits do not change the event-level membership requirement or ordinary price');
   check(document.querySelector('.mb-card[data-mb-item="member-exclusive"]').textContent.includes('Kun for medlemmer'),'Exclusive item is restricted for ordinary visitors');
   plan.value='11';plan.dispatchEvent(new Event('change',{bubbles:true}));
   document.querySelector('.mb-card[data-mb-item="event-1"]').click();
