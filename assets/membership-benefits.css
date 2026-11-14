@@ -18,4 +18,22 @@
 .mb-catalog.mb-phone-view .mb-group-wide .mb-cards{grid-template-columns:1fr}
 @media(max-width:700px){.mb-group-wide .mb-cards,.mb-catalog.mb-phone-view .mb-group-wide .mb-cards{grid-template-columns:1fr}.mb-catalog.mb-phone-view .mb-intro{grid-template-columns:1fr}.mb-catalog.mb-phone-view .mb-groups{grid-template-columns:1fr}.mb-catalog.mb-phone-view .mb-group-wide{grid-column:auto}}
 .mb-public-member-price{display:block;margin-top:.3rem;color:#315f66;font-size:.82rem;font-weight:700}
+.mb-card-benefits{display:grid;gap:.3rem;min-width:0;margin-top:.45rem;padding:.42rem;border:1px solid #c6d7e4;border-radius:5px;background:#f2f7fb;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.mb-benefit-caption{color:#60778b;font-size:.65rem;font-weight:750;letter-spacing:.015em}
+.mb-benefit-indicator{display:flex;align-items:flex-start;justify-content:space-between;gap:.35rem;min-width:0;padding:.26rem .35rem;border-left:2px solid #9db6ca;border-radius:2px;background:#fff;color:#34536e}
+.mb-benefit-indicator>strong{min-width:0;overflow-wrap:anywhere;font-size:.68rem;line-height:1.35}
+.mb-benefit-details{display:flex;align-items:center;justify-content:flex-end;gap:.2rem .35rem;min-width:0;flex-wrap:wrap;text-align:right}
+.mb-benefit-summary{color:#23496a;font-size:.68rem;font-weight:700;overflow-wrap:anywhere}
+.mb-benefit-visibility,.mb-benefit-basis,.mb-benefit-unsaved{display:inline-block;padding:.1rem .28rem;border-radius:3px;background:#e6eef4;color:#566e81;font-size:.59rem;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+.mb-benefit-private{background:#f5eadb;color:#815a31}
+.mb-benefit-basis{background:#e8eee9;color:#4e6759}
+.mb-benefit-temporary{border-left-color:#bb8051;background:#fff8ef}
+.mb-benefit-temporary .mb-benefit-summary{color:#82552e}
+.mb-benefit-unsaved{background:#f3e1ce;color:#79502c;white-space:nowrap}
+.mb-benefit-selected{border-color:#527ca1;border-left-width:3px;background:#e8f1f8;box-shadow:inset 0 0 0 1px #d2e1ec}
+.mb-benefit-temporary.mb-benefit-selected{background:#fff0df}
+.mb-benefit-access{display:flex;align-items:center;justify-content:space-between;gap:.35rem;flex-wrap:wrap;padding:.25rem .35rem;border-top:1px solid #d8e3eb;color:#536b7e;font-size:.64rem;font-weight:700;overflow-wrap:anywhere}
+.mb-benefit-access.mb-benefit-temporary{border:1px solid #e7cba9;border-radius:3px;background:#fff8ef}
+.mb-card-ineligible .mb-card-benefits{filter:grayscale(1)}
+@media(max-width:420px){.mb-benefit-indicator{flex-direction:column;gap:.15rem}.mb-benefit-details{justify-content:flex-start;text-align:left}.mb-benefit-access{align-items:flex-start;flex-direction:column}}
 @media(prefers-reduced-motion:reduce){.mb-workspace *{animation-duration:.01ms!important;transition-duration:.01ms!important}}

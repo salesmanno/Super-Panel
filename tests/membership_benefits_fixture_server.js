@@ -30,6 +30,10 @@ fixture.products.push(
     {id:'no-signup',type:'events',name:'Informasjonsarrangement',registration_type:'none',is_visible:true,is_public:true,price:0,membership_prices:[]},
     {id:'expired-event',type:'events',name:'Utløpt arrangement',registration_type:'signup',end_date:'2000-01-01',is_visible:true,is_public:true,price:100,membership_prices:[]}
 );
+fixture.products.find(product => product.id === 'rental-1').assigned_benefits = [
+    {plan_id:'11',benefit_type:'percent_discount',benefit_value:15,price_basis:'booking_total',public_display:false},
+    {plan_id:'22',benefit_type:'included',benefit_value:null,price_basis:'booking_total',public_display:true}
+];
 function createFixtureServer(options={}) {
     return http.createServer((request,response) => {
         const url = new URL(request.url,'http://localhost');

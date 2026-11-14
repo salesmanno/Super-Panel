@@ -49,6 +49,13 @@ SQL-en alene endrer ingen kjøpsflyt, gir ingen rabatter og håndhever ingen
 medlemskrav. Ikke slett eller endre eksisterende pristabeller i mellomtiden.
 
 ## Katalogkoblinger
+Simulatoren viser nå en egen administrativ fordelsoversikt på tilbudskortene:
+arrangementenes eksisterende medlemspriser og aktive, bedriftsavgrensede regler
+fra `membership_product_modifications` for andre tjenester. Medlemsplan, type
+fordel, offentlig/privat prisvisning og eventuell beregning av bookingtotal vises.
+Dette er indikatorer, ikke ny håndheving i kundens kjøpsflyt. Midlertidige
+simulatorendringer merkes «Ikke lagret» og holdes adskilt fra lagrede regler.
+
 Opprettelse og redigering av utleieobjekter sikrer nå en katalogkobling i samme
 transaksjon. Sales reparerer også manglende kobling ved uendret lagring.
 Koblingen valideres mot bedrift, kildetype og kilde-ID. Eksisterende skjuling

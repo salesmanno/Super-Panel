@@ -52,6 +52,7 @@ function membershipBenefitsPreviewProduct(array $catalog, array $source): array 
         'is_visible' => $active && (int)($catalog['is_visible'] ?? 0) === 1,
         'is_public' => $active && (int)($catalog['is_public'] ?? 0) === 1,
         'membership_prices' => [],
+        'assigned_benefits' => [],
     ];
 }
 
@@ -101,6 +102,31 @@ function membershipBenefitsPreviewLoad(PDO $db, string $company): array {
             $warnings[] = 'Medlemspriser for arrangementer kunne ikke hentes. Prisvisningen er ufullstendig.';
         }
     }
+    // Events keep their existing authoritative price model; no merging or migration.
+    $benefits = [];
+    try {
+        $q = $db->prepare("SELECT m.output_product_id,m.membership_plan_id,m.benefit_type,
+                m.benefit_value,m.price_basis,m.public_display
+            FROM membership_product_modifications m
+            JOIN output_products op ON op.id=m.output_product_id AND op.company_id=m.company_id
+            JOIN membership_plans mp ON mp.id=m.membership_plan_id AND mp.company_id=m.company_id
+            WHERE m.company_id=? AND m.is_active=1 AND mp.is_active=1
+                AND op.product_type NOT IN ('events','membership')
+            ORDER BY mp.name,m.membership_plan_id");
+        $q->execute([$company]);
+        foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $benefits[(string)$row['output_product_id']][] = [
+                'plan_id'=>(string)$row['membership_plan_id'],
+                'benefit_type'=>(string)$row['benefit_type'],
+                'benefit_value'=>is_numeric($row['benefit_value']) ? (float)$row['benefit_value'] : null,
+                'price_basis'=>(string)$row['price_basis'],
+                'public_display'=>(bool)$row['public_display'],
+            ];
+        }
+    } catch (PDOException $e) {
+        error_log('Benefits preview assigned rules: '.$e->getMessage());
+        $warnings[] = 'Tildelte produktfordeler kunne ikke hentes. Fordelsindikatorene er ufullstendige.';
+    }
     $products = [];
     $seen = [];
     foreach ($catalog as $entry) {
@@ -118,6 +144,7 @@ function membershipBenefitsPreviewLoad(PDO $db, string $company): array {
         $today = (new DateTimeImmutable('now', new DateTimeZone('Europe/Oslo')))->format('Y-m-d');
         if ($type === 'events' && !empty($item['end_date']) && substr((string)$item['end_date'], 0, 10) < $today) continue;
         $item['membership_prices'] = $type === 'events' ? ($pricing[$id] ?? []) : [];
+        $item['assigned_benefits'] = $benefits[(string)$entry['id']] ?? [];
         $products[] = $item;
     }
     return ['success'=>true, 'company'=>$preview['company'], 'plans'=>$plans, 'products'=>$products, 'warnings'=>array_values(array_unique($warnings))];

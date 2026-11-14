@@ -22,6 +22,7 @@ CREATE TABLE membership_plans (id TEXT,company_id TEXT,name TEXT,description TEX
 CREATE TABLE output_products (id TEXT,company_id TEXT,product_type TEXT,product_id TEXT,name TEXT,description TEXT,is_visible INT,is_public INT,created_at TEXT);
 CREATE TABLE events_eventdata (id TEXT,company_id TEXT,title TEXT,description TEXT,ticket_price NUMERIC,event_image_url TEXT,start_date TEXT,start_time TEXT,is_active INT,is_member_exclusive INT);
 CREATE TABLE event_membership_plans (event_id TEXT,membership_plan_id TEXT,ticket_price NUMERIC,public_display INT);
+CREATE TABLE membership_product_modifications (company_id TEXT,output_product_id TEXT,membership_plan_id TEXT,benefit_type TEXT,benefit_value NUMERIC,price_basis TEXT,public_display INT,is_active INT);
 CREATE TABLE rental_objects (id TEXT,company_id TEXT,object_name TEXT,rental_price NUMERIC,images TEXT,key_box_code TEXT,is_active INT,member_exclusive INT);
 CREATE TABLE sales_products (id TEXT,company_id TEXT,name TEXT,selling_price NUMERIC,img_product TEXT,cost_price NUMERIC,is_active INT);
 INSERT INTO tenant_companies VALUES ('a','Testklubb','https://example.org/logo.png'),('b','Annen bedrift','');
@@ -40,6 +41,13 @@ INSERT INTO output_products VALUES
  ('bad','a','events','eb','','',1,1,'2026-01-01'),
  ('other','b','events','eb','','',1,1,'2026-01-01');
 ");
+$db->exec("INSERT INTO membership_product_modifications VALUES
+ ('a','cr','m','percent_discount',15,'booking_total',0,1),
+ ('a','cs','m','included',NULL,'unit',1,0),
+ ('b','cr','m','fixed_price',1,'unit',1,1),
+ ('a','cr','other','fixed_price',2,'unit',1,1),
+ ('a','ce','m','fixed_price',99,'unit',1,1),
+ ('a','cm','m','included',NULL,'unit',1,1)");
 $before = $db->query('SELECT total_changes()')->fetchColumn();
 benefitsCheck(membershipBenefitsPreviewCanAccess($db,'admin-a','a'), 'Active delegated Membership access is allowed');
 benefitsCheck(!membershipBenefitsPreviewCanAccess($db,'admin-a','b'), 'Session company must match administrator company');
@@ -54,6 +62,9 @@ benefitsCheck($products['events']['name'] === 'Årsfest' && $products['events'][
 benefitsCheck($products['events']['membership_prices'] === [['plan_id'=>'m','price'=>0.0,'public_display'=>true]], 'Free member price retained and cross-company links excluded');
 benefitsCheck($products['rental']['name'] === 'Lokale' && $products['rental']['price'] === 400.0, 'Rental uses actual object name and rental_price');
 benefitsCheck($products['rental']['exclusive'], 'User-added rental member_exclusive is represented in the simulator');
+benefitsCheck($products['rental']['assigned_benefits'] === [['plan_id'=>'m','benefit_type'=>'percent_discount','benefit_value'=>15.0,'price_basis'=>'booking_total','public_display'=>false]], 'Only active company-scoped saved rules returned, with basis and private visibility');
+benefitsCheck($products['events']['assigned_benefits'] === [] && $products['membership']['assigned_benefits'] === [], 'Events keep their authoritative model and membership cannot receive benefits');
+benefitsCheck($products['product']['assigned_benefits'] === [], 'Inactive benefit rules are not presented as assigned');
 benefitsCheck($products['rental']['image_url'] === 'https://example.org/venue.jpg', 'Rental JSON image normalized');
 benefitsCheck(!$products['product']['is_visible'], 'Hidden catalog flag is preserved');
 benefitsCheck($data['company']['header_height'] === '110px' && $data['company']['logo_position'] === 'right', 'News company theme reused');
@@ -88,4 +99,7 @@ $db->exec("UPDATE events_eventdata SET registration_type='binding' WHERE id='e'"
 $binding=membershipBenefitsPreviewLoad($db,'a');
 $bindingProducts=array_column($binding['products'],null,'type');
 benefitsCheck($bindingProducts['events']['benefit_eligible'],'Binding registration can receive benefits');
+$db->exec('DROP TABLE membership_product_modifications');
+$unavailable=membershipBenefitsPreviewLoad($db,'a');
+benefitsCheck(in_array('Tildelte produktfordeler kunne ikke hentes. Fordelsindikatorene er ufullstendige.',$unavailable['warnings'],true), 'Missing rule table is explicitly reported rather than silently claiming no assigned benefits');
 echo "Membership benefits read-only projection tests passed\n";

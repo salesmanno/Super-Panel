@@ -76,7 +76,7 @@
         return {
             company:data.company,
             plans:data.plans.map(plan => ({...plan,id:String(plan.id),name:String(plan.name || 'Medlemskap'),price:nullableNumber(plan.price)})),
-            products:data.products.map((product,index) => ({...product,registration_type:product.registration_type || 'none',id:String(product.id ?? product.source_id ?? index),type:categoryNames[product.type] ? product.type : 'product',name:String(product.name || 'Uten navn'),description:String(product.description || ''),price:nullableNumber(product.price),exclusive:product.exclusive === true,membership_prices:Array.isArray(product.membership_prices) ? product.membership_prices : []})),
+            products:data.products.map((product,index) => ({...product,registration_type:product.registration_type || 'none',id:String(product.id ?? product.source_id ?? index),type:categoryNames[product.type] ? product.type : 'product',name:String(product.name || 'Uten navn'),description:String(product.description || ''),price:nullableNumber(product.price),exclusive:product.exclusive === true,membership_prices:Array.isArray(product.membership_prices) ? product.membership_prices : [],assigned_benefits:Array.isArray(product.assigned_benefits) ? product.assigned_benefits.map(benefit => ({...benefit,plan_id:String(benefit.plan_id ?? ''),benefit_type:String(benefit.benefit_type || ''),benefit_value:nullableNumber(benefit.benefit_value),price_basis:String(benefit.price_basis || ''),public_display:benefit.public_display === true ? true : benefit.public_display === false ? false : null})).filter(benefit => benefit.plan_id && ['access','fixed_price','percent_discount','amount_discount','included'].includes(benefit.benefit_type)) : []})),
             warnings:Array.isArray(data.warnings) ? data.warnings.map(String) : []
         };
     };
@@ -119,6 +119,53 @@
     const eventMembershipPrice = (product,planId) => (product.membership_prices || []).find(entry => String(entry.plan_id) === String(planId));
     const getRule = (product,planId) => overrides.get(`${product.id}:${planId}`) || null;
     const isExclusive = product => accessOverrides.get(product.id) ?? product.exclusive;
+    const benefitSummary = benefit => {
+        const value = benefit.benefit_value;
+        if (benefit.benefit_type === 'access') return 'Tilgang';
+        if (benefit.benefit_type === 'included') return 'Inkludert';
+        if (benefit.benefit_type === 'fixed_price') return value === null ? 'Fast medlemspris' : `Medlemspris ${money(value)}`;
+        if (benefit.benefit_type === 'percent_discount') return value === null ? 'Prosentvis rabatt' : `${number(value)} % rabatt`;
+        if (benefit.benefit_type === 'amount_discount') return value === null ? 'Beløpsrabatt' : `${money(value)} i avslag`;
+        return '';
+    };
+    const temporarySummary = rule => {
+        if (rule.mechanism === 'included') return 'Inkludert';
+        if (rule.mechanism === 'own') return rule.value === null ? 'Egen medlemspris' : `Medlemspris ${money(rule.value)}`;
+        if (rule.mechanism === 'percentage') return `${number(rule.value)} % rabatt`;
+        return rule.value === null ? 'Fast avslag' : `${money(rule.value)} i avslag`;
+    };
+    function renderBenefitIndicators(product) {
+        if (product.type === 'membership' || (product.type === 'events' && !['signup','binding'].includes(product.registration_type))) return '';
+        const plan = selectedPlan();
+        const saved = product.type === 'events'
+            ? (product.membership_prices || []).map(entry => {
+                const price = nullableNumber(entry.price);
+                return price === null ? null : {plan_id:String(entry.plan_id),summary:`Medlemspris ${money(price)}`,public_display:entry.public_display === true ? true : entry.public_display === false ? false : null};
+            }).filter(Boolean)
+            : product.assigned_benefits.map(benefit => ({plan_id:benefit.plan_id,summary:benefitSummary(benefit),public_display:benefit.public_display,price_basis:benefit.price_basis}));
+        const savedHtml = saved.map(benefit => {
+            const planName = payload.plans.find(item => item.id === benefit.plan_id)?.name || 'Ukjent plan';
+            const selected = plan && plan.id === benefit.plan_id;
+            const details = [
+                `<span class="mb-benefit-summary">${safeText(benefit.summary)}</span>`,
+                benefit.public_display === true ? '<span class="mb-benefit-visibility">Vises offentlig</span>' : benefit.public_display === false ? '<span class="mb-benefit-visibility mb-benefit-private">Privat visning</span>' : '',
+                benefit.price_basis === 'booking_total' ? '<span class="mb-benefit-basis">Beregnes av bookingtotal</span>' : ''
+            ].filter(Boolean).join('');
+            return `<div class="mb-benefit-indicator${selected ? ' mb-benefit-selected' : ''}"><strong>${safeText(planName)}</strong><span class="mb-benefit-details">${details}</span></div>`;
+        }).join('');
+        const temporaryHtml = payload.plans.map(item => {
+            const rule = getRule(product,item.id);
+            if (!rule) return '';
+            const selected = plan && plan.id === item.id;
+            return `<div class="mb-benefit-indicator mb-benefit-temporary${selected ? ' mb-benefit-selected' : ''}"><strong>${safeText(item.name)}</strong><span class="mb-benefit-details"><span class="mb-benefit-summary">${safeText(temporarySummary(rule))}</span><span class="mb-benefit-unsaved">Ikke lagret</span></span></div>`;
+        }).join('');
+        const accessChanged = accessOverrides.has(product.id);
+        const accessHtml = accessChanged
+            ? `<div class="mb-benefit-access mb-benefit-temporary"><span>Midlertidig tilgangsvalg: ${isExclusive(product) ? 'Kun for medlemmer' : 'Åpen tilgang'}</span><strong class="mb-benefit-unsaved">Ikke lagret</strong></div>`
+            : product.exclusive ? '<div class="mb-benefit-access">Generell begrensning: Kun for medlemmer</div>' : '';
+        if (!savedHtml && !temporaryHtml && !accessHtml) return '';
+        return `<aside class="mb-card-benefits" aria-label="Adminoversikt over fordeler"><span class="mb-benefit-caption">Adminoversikt · ikke offentlig visning</span>${savedHtml}${temporaryHtml}${accessHtml}</aside>`;
+    }
     const effectivePrice = (product,planId) => {
         if (!planId) {
             return isExclusive(product) ? null : product.price;
@@ -151,7 +198,6 @@
         const price = effectivePrice(product,plan?.id);
         const publicPrice = product.price;
         const eventPrice = plan && eventMembershipPrice(product,plan.id);
-        const membersOnly = !!(plan && isExclusive(product));
         const hidden = product.is_visible === false || product.is_public === false;
         const restricted = !!(!plan && isExclusive(product));
         const included = !!(plan && getRule(product,plan.id)?.mechanism === 'included');
@@ -163,13 +209,13 @@
             }).join('') : '';
         const priceBlock = price === null ? `<span class="mb-card-price">${restricted ? 'Kun for medlemmer' : 'Pris ikke oppgitt'}</span>${visibleMemberPrices}` :
             included ? '<div class="mb-card-price"><span>Medlemsfordel</span><strong>Inkludert</strong></div>' :
-            `<div class="mb-card-price"><span>${plan && (eventPrice || getRule(product,plan.id)) ? 'Medlemspris' : 'Pris'}</span>${plan && publicPrice !== null && price < publicPrice ? `<s>${money(publicPrice)}</s>` : ''}<strong>${money(price)}</strong>${membersOnly ? '<span class="mb-card-badge">Medlemsfordel</span>' : ''}</div>${visibleMemberPrices}`;
+            `<div class="mb-card-price"><span>${plan && (eventPrice || getRule(product,plan.id)) ? 'Medlemspris' : 'Pris'}</span>${plan && publicPrice !== null && price < publicPrice ? `<s>${money(publicPrice)}</s>` : ''}<strong>${money(price)}</strong></div>${visibleMemberPrices}`;
         const date = product.start_date ? `<span>Dato ${safeText(formatDate(product.start_date))}${product.start_time ? ` kl. ${safeText(product.start_time)}` : ''}</span>` : '';
         const place = product.address || product.location || '';
         const details = [date,place ? `<span>${safeText(place)}</span>` : ''].filter(Boolean).join('');
         return `<article class="mb-card${eligible ? '' : ' mb-card-ineligible'}" ${eligible ? `tabindex="0" role="button" aria-label="Rediger fordel for ${safeText(product.name)}" data-mb-item="${safeText(product.id)}"` : 'aria-disabled="true"'}>
             ${productImage(product)}<div class="mb-card-body"><h5 class="mb-card-title">${safeText(product.name)}</h5><p class="mb-card-description">${safeText(product.description || categoryDescriptions[product.type])}</p>
-            ${details ? `<div class="mb-card-meta">${details}</div>` : ''}${priceBlock}${hidden ? '<span class="mb-card-badge mb-hidden-badge">Skjult i offentlig visning</span>' : ''}<span class="mb-card-action">${eligible ? 'Rediger fordel' : product.type === 'membership' ? 'Medlemskap · ikke fordelstildeling' : 'Uten påmelding · ikke fordelstildeling'}</span></div></article>`;
+            ${details ? `<div class="mb-card-meta">${details}</div>` : ''}${priceBlock}${hidden ? '<span class="mb-card-badge mb-hidden-badge">Skjult i offentlig visning</span>' : ''}${renderBenefitIndicators(product)}<span class="mb-card-action">${eligible ? 'Rediger fordel' : product.type === 'membership' ? 'Medlemskap · ikke fordelstildeling' : 'Uten påmelding · ikke fordelstildeling'}</span></div></article>`;
     }
     function render() {
         if (!loaded || !payload) return;
