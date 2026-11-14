@@ -317,6 +317,9 @@
     };
     function updateEditorPreview() {
         if (!activeItem) return;
+        dialog.querySelectorAll('[data-mb-rental-mode]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.mbRentalMode === rentalMode.value)));
+        document.getElementById('mb-save-verification').disabled = saving || demoMode || !payload.csrf_token
+            || !activeItem.memberverification_supported || document.getElementById('mb-verification').checked === !!activeItem.memberverification;
         const rental = activeItem.type === 'rental';
         const how = mechanism();
         valueField.hidden = !rental && how === 'included';
@@ -381,6 +384,12 @@
         draftLabel.textContent = activeItem.name;
         startDate.value = '';
         endDate.value = '';
+        const verify = document.getElementById('mb-verification');
+        verify.checked = !!activeItem.memberverification;
+        verify.disabled = !activeItem.memberverification_supported || demoMode;
+        document.getElementById('mb-verification-help').textContent = activeItem.memberverification_supported
+            ? 'Gjelder hele tjenesten, uavhengig av medlemsplan og rabatt. Lagres separat fra fordelen.'
+            : 'Kildeobjektet mangler feltet memberverification. Ingen databasekolonner opprettes automatisk.';
         loadEditorPlan();
         dialog.hidden = false;
         previousOverflow = document.body.style.overflow;
@@ -447,6 +456,31 @@
         valueInput.value = '';
         rememberDraft();
         updateEditorPreview();
+    });
+    dialog.querySelectorAll('[data-mb-rental-mode]').forEach(button => button.addEventListener('click',() => {
+        if (rentalMode.value === button.dataset.mbRentalMode) return;
+        rentalMode.value = button.dataset.mbRentalMode;
+        rentalMode.dispatchEvent(new Event('change'));
+    }));
+    document.getElementById('mb-verification').addEventListener('change',updateEditorPreview);
+    document.getElementById('mb-save-verification').addEventListener('click',async() => {
+        if (!activeItem || saving || demoMode || !payload.csrf_token || !activeItem.memberverification_supported) return;
+        const product=activeItem;
+        showSaveFeedback('');
+        setSavingState(true);
+        try {
+            const response=await fetch('/api/save_membership_product_benefit.php',{
+                method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json',Accept:'application/json'},
+                body:JSON.stringify({action:'memberverification',product_id:product.id,
+                    memberverification:document.getElementById('mb-verification').checked ? 1 : 0,csrf_token:payload.csrf_token})
+            });
+            const result=await response.json();
+            if (!response.ok || result.success !== true || typeof result.memberverification !== 'boolean') throw new Error(result.message || 'Medlemsverifisering kunne ikke lagres.');
+            product.memberverification=result.memberverification;
+            showSaveFeedback('Medlemsverifisering lagret.');
+        } catch(error) {
+            showSaveFeedback(error.message || 'Medlemsverifisering kunne ikke lagres.',true);
+        } finally { setSavingState(false); }
     });
     [startDate,endDate].forEach(input => input.addEventListener('change',updateEditorPreview));
     editorPlan.addEventListener('click',event => {

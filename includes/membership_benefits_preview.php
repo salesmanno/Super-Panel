@@ -66,6 +66,8 @@ function membershipBenefitsPreviewProduct(array $catalog, array $source): array 
         'registration_type' => $type === 'events' ? ($source['registration_type'] ?? 'none') : null,
         'benefit_eligible' => $type !== 'membership' && ($type !== 'events' || in_array($source['registration_type'] ?? '', ['signup', 'binding'], true)),
         'exclusive' => (bool)($source['is_member_exclusive'] ?? $source['member_exclusive'] ?? false),
+        'memberverification' => (int)($source['memberverification'] ?? 0) === 1,
+        'memberverification_supported' => array_key_exists('memberverification', $source),
         'is_visible' => $active && (int)($catalog['is_visible'] ?? 0) === 1,
         'is_public' => $active && (int)($catalog['is_public'] ?? 0) === 1,
         'membership_prices' => [],

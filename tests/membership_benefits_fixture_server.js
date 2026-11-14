@@ -44,6 +44,7 @@ fixture.products.find(product => product.id === 'rental-1').rental_rates = {rent
 fixture.products.find(product => product.id === 'rental-1').assigned_benefits = [];
 fixture.products.find(product => product.id === 'rental-1').exclusive = 1;
 fixture.products.find(product => product.id === 'event-1').exclusive = '1';
+fixture.products.forEach(product=>{product.memberverification=false;product.memberverification_supported=true;});
 function createFixtureServer(options={}) {
     return http.createServer((request,response) => {
         const url = new URL(request.url,'http://localhost');
@@ -53,6 +54,10 @@ function createFixtureServer(options={}) {
                 const product=fixture.products.find(p=>p.id===input.product_id);
                 response.setHeader('Content-Type','application/json');
                 if(!product || input.csrf_token!==fixture.csrf_token){response.writeHead(403);response.end(JSON.stringify({success:false,message:'Sikkerhetskontroll'}));return;}
+                if(input.action==='memberverification'){
+                    product.memberverification=!!input.memberverification;
+                    response.end(JSON.stringify({success:true,memberverification:product.memberverification}));return;
+                }
                 product.assigned_benefits=(product.assigned_benefits||[]).filter(b=>String(b.plan_id)!==input.plan_id);
                 const benefit=input.benefit ? {...input.benefit,plan_id:input.plan_id,source:'membership_product_modifications'} : null;
                 if(benefit)product.assigned_benefits.push(benefit);
@@ -64,7 +69,8 @@ function createFixtureServer(options={}) {
             response.end(fs.readFileSync(path.join(__dirname,'..',url.pathname))); return;
         }
         if (url.pathname === '/') {
-            response.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Set-Cookie':url.searchParams.has('fail')?'membership_fixture_fail=1; SameSite=Lax; Path=/':'membership_fixture_fail=; Max-Age=0; Path=/'}); response.end(html); return;
+            const output=url.searchParams.has('editor') ? html.replace('</body>','<script>setTimeout(()=>document.querySelector(\'[data-mb-item="rental-1"]\')?.click(),600)</script></body>') : html;
+            response.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Set-Cookie':url.searchParams.has('fail')?'membership_fixture_fail=1; SameSite=Lax; Path=/':'membership_fixture_fail=; Max-Age=0; Path=/'}); response.end(output); return;
         }
         if (url.pathname === '/assets/membership-benefits.css') {
             response.writeHead(200,{'Content-Type':'text/css; charset=utf-8'}); response.end(fs.readFileSync(path.join(__dirname,'../assets/membership-benefits.css'))); return;

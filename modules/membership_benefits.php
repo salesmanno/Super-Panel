@@ -39,6 +39,12 @@
                     <button type="button" class="mb-close" data-mb-close aria-label="Lukk">Lukk <span aria-hidden="true">×</span></button>
                 </header>
                 <p class="mb-editor-intro">Prøv hvordan tilbudet oppleves for en besøkende eller et medlem.</p>
+                <fieldset class="mb-verification-settings">
+                    <legend>Medlemskrav for tjenesten</legend>
+                    <label><input id="mb-verification" type="checkbox" role="switch"> Krev medlemsverifisering</label>
+                    <p id="mb-verification-help">Gjelder hele tjenesten, uavhengig av medlemsplan og rabatt.</p>
+                    <button type="button" class="mb-button" id="mb-save-verification">Lagre medlemsverifisering</button>
+                </fieldset>
                 <div id="mb-editor-plan" class="mb-plan-tabs" role="tablist" aria-label="Medlemskapsplan"></div>
                 <div id="mb-plan-panel" role="tabpanel">
                 <p id="mb-rule-status" class="mb-rule-status" aria-live="polite"></p>
@@ -54,8 +60,12 @@
                     <label><input type="radio" name="mb-mechanism" value="included"> <span><strong>Inkludert</strong><small>Ingen ekstra kostnad for medlemmet</small></span></label>
                 </fieldset>
                 <div id="mb-rental-mode-field" hidden>
-                    <label class="mb-field-label" for="mb-rental-mode">Rabatt beregnes som</label>
-                    <select id="mb-rental-mode" class="mb-select"><option value="per_day">Kroner per leiedag</option><option value="percentage">Prosent av hele leiesummen</option></select>
+                    <span class="mb-field-label">Rabatt beregnes som</span>
+                    <input id="mb-rental-mode" type="hidden" value="per_day">
+                    <div class="mb-plan-tabs" role="group" aria-label="Rabattype">
+                        <button type="button" data-mb-rental-mode="per_day" aria-pressed="true">Kroner per leiedag</button>
+                        <button type="button" data-mb-rental-mode="percentage" aria-pressed="false">Prosent av hele leiesummen</button>
+                    </div>
                 </div>
                 <div class="mb-value-field" id="mb-value-field">
                     <label class="mb-field-label" for="mb-value">Medlemspris</label>

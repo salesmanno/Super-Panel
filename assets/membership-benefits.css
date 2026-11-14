@@ -79,6 +79,11 @@
 @media(max-width:767px){.mb-groups,.mb-group-wide .mb-cards{grid-template-columns:1fr}.mb-group-wide{grid-column:auto}}
 @media(max-width:420px){.mb-mechanisms{grid-template-columns:1fr}.mb-editor-foot .mb-preview-controls{display:flex;flex-wrap:wrap}.mb-editor-foot .mb-preview-controls button{width:auto;flex:1 1 130px}.mb-plan-tabs button{max-width:210px}.mb-date-fields{gap:.45rem}.mb-benefit-indicator{flex-direction:row}.mb-dialog{padding:.5rem}.mb-editor{max-height:calc(100dvh - 1rem)}}
 @keyframes mb-shimmer{from{opacity:.55}to{opacity:1}}
+.mb-verification-settings{margin:.8rem 0;padding:.7rem;border:1px solid #b6cce0;border-radius:7px;background:#edf4fa}
+.mb-verification-settings legend{float:none;width:auto;margin:0;padding:0 .3rem;font-size:.8rem;font-weight:700}
+.mb-verification-settings label{display:flex;gap:.55rem;align-items:center;font-size:.83rem;font-weight:650}
+.mb-verification-settings p{margin:.45rem 0;color:#60778b;font-size:.73rem}
+.mb-plan-tabs button[aria-pressed=true]{border-color:#b6cce0;background:#e2edf8;color:#234e86;font-weight:750;box-shadow:inset 0 -2px #3267b9}
 .mb-admin-overview{margin:.75rem 0 1rem;padding:.85rem 1rem;border:1px solid #b7cadd;border-left:4px solid var(--mb-head,#2d5598);border-radius:8px;background:#edf4fa;color:#244461}
 .mb-admin-overview[hidden]{display:none!important}
 .mb-admin-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.8rem}

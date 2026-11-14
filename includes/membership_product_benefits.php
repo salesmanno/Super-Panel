@@ -1,6 +1,33 @@
 <?php
 declare(strict_types=1);
 
+/** Global source setting, deliberately independent of price rules or selected plan. */
+function membershipProductVerificationSave(PDO $db,string $company,array $input): array {
+    if (!$db->inTransaction()) throw new LogicException('Lagring krever en transaksjon.');
+    $product=$input['product_id']??null;
+    $flag=$input['memberverification']??null;
+    if (!is_string($product) || !in_array($flag,[true,false,0,1,'0','1'],true)) {
+        throw new InvalidArgumentException('Produkt og gyldig valg for medlemsverifisering må oppgis.');
+    }
+    $lock=$db->getAttribute(PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':'';
+    $q=$db->prepare('SELECT product_type,product_id FROM output_products WHERE id=? AND company_id=?'.$lock);
+    $q->execute([$product,$company]); $catalog=$q->fetch(PDO::FETCH_ASSOC);
+    $tables=['events'=>'events_eventdata','rental'=>'rental_objects','product'=>'sales_products','sales_item'=>'sales_products','service'=>'reservation_services'];
+    $table=$tables[$catalog['product_type']??'']??null;
+    if (!$table) throw new InvalidArgumentException('Produktet støtter ikke medlemsverifisering.');
+    $q=$db->prepare("SELECT * FROM $table WHERE id=? AND company_id=?".$lock);
+    $q->execute([$catalog['product_id'],$company]);$source=$q->fetch(PDO::FETCH_ASSOC);
+    if (!$source || !array_key_exists('memberverification',$source)) {
+        throw new InvalidArgumentException('Kildeobjektet mangler støtte for memberverification. Ingen endring er lagret.');
+    }
+    $before=['memberverification'=>(int)$source['memberverification']];
+    $after=['memberverification'=>(int)(bool)$flag];
+    if ($before!==$after) $db->prepare("UPDATE $table SET memberverification=? WHERE id=? AND company_id=?")
+        ->execute([$after['memberverification'],$catalog['product_id'],$company]);
+    return ['resource'=>$table,'source_id'=>$catalog['product_id'],'before'=>$before,'after'=>$after,
+        'memberverification'=>(bool)$after['memberverification'],'resource_name'=>(string)($source['title']??$source['object_name']??$source['service_name']??$source['name']??$product)];
+}
+
 /** Caller owns the transaction, including the audit record. Never writes legacy rules. */
 function membershipProductBenefitSave(PDO $db, string $company, array $input): array {
     if (!$db->inTransaction()) throw new LogicException('Lagring krever en transaksjon.');

@@ -13,6 +13,7 @@ function tenantAuditResourceSpec(string $table): ?array {
         'dynamic_form_fields' => 'forms',
         'unified_ledger' => 'economy', 'event_registration_fields' => 'events', 'event_registrations' => 'events',
         'event_membership_plans' => 'events', 'event_membership_pricing' => 'events',
+        'reservation_services' => 'reservation',
     ];
     $module = $exact[$table] ?? null;
     foreach (['sales_products' => 'sales','sales_orders' => 'sales','rental_' => 'rental','membership_' => 'membership','events_' => 'events',
@@ -36,7 +37,7 @@ function tenantAuditResourceSpec(string $table): ?array {
         'balance','opening_balance','closing_balance','total_amount','paid_amount','due_amount','net_amount','vat_amount',
         'cash_payment','card_payment','vipps_enabled','memberships_enabled','events_enabled','rental_enabled',
         'billing_interval','currency','max_members','published_at','valid_from','valid_until',
-        'ticket_price','public_display',
+        'ticket_price','public_display','memberverification',
         'sku','selling_price','cost_price','stock_quantity','reorder_level','low_stock_threeshold',
         'discount_percent','discount_starts_at','discount_ends_at','visibility','is_backorder',
         'tax_class','tax_rate','item_taxable','unit','order_number','subtotal','tax_total','total',

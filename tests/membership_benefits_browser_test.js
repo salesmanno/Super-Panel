@@ -23,6 +23,16 @@ const checks=`(async()=>{
  document.querySelector('.mb-card[data-mb-item="rental-1"]').click();
  check(!document.getElementById('mb-dialog').hidden,'Rental editor opens');
  check(document.querySelectorAll('#mb-editor-plan [role=tab]').length===2,'Membership plan tabs');
+ check(!document.querySelector('#mb-dialog select'),'No dropdowns in modal');
+ const verify=document.getElementById('mb-verification');
+ check(!verify.checked&&!verify.disabled,'Global verification switch available');
+ verify.click();
+ document.querySelectorAll('#mb-editor-plan [role=tab]')[1].click();
+ check(verify.checked,'Verification independent of selected plan');
+ document.querySelectorAll('#mb-editor-plan [role=tab]')[0].click();
+ document.getElementById('mb-save-verification').click();
+ await waitSave();
+ check(document.getElementById('mb-save-feedback').textContent.includes('Medlemsverifisering lagret'),'Verification persisted independently');
  check(!document.getElementById('mb-members-only'),'No source-wide access switch in plan modal');
  check(document.getElementById('mb-value').value==='','No invented member price');
  check(document.getElementById('mb-rule-status').textContent.includes('Ingen medlemsfordel'),'Missing benefit explicit');
@@ -46,6 +56,10 @@ const checks=`(async()=>{
  check(document.getElementById('mb-dialog').hidden,'Escape closes');
  check(document.documentElement.scrollWidth<=innerWidth+1,'No viewport overflow');
  document.querySelector('.mb-card[data-mb-item="rental-1"]').click();
+ check(document.getElementById('mb-verification').checked,'Verification restored when reopening modal');
+ document.getElementById('mb-verification').click();
+ document.getElementById('mb-save-verification').click();
+ await waitSave();
  document.getElementById('mb-remove-item').click();
  await new Promise(r=>setTimeout(r,200));
  check(document.getElementById('mb-rule-status').textContent.includes('Ingen medlemsfordel'),'Removed rule stays removed');

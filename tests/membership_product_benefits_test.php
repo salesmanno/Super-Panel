@@ -48,3 +48,20 @@ benefitAssert((int)$db->query('SELECT COUNT(*) FROM membership_product_modificat
 benefitAssert((float)$db->query("SELECT rental_price FROM rental_objects WHERE id='rs'")->fetchColumn()===1150.0,'Benefit writes do not touch ordinary prices');
 benefitAssert((float)$db->query('SELECT ticket_price FROM event_membership_plans')->fetchColumn()===500.0,'Legacy table untouched');
 echo "Persistent membership benefit isolation and validation tests passed\n";
+$db->exec('ALTER TABLE rental_objects ADD COLUMN memberverification INT NOT NULL DEFAULT 0');
+foreach ([1,0,1] as $flag) {
+    $db->beginTransaction();
+    $r=membershipProductVerificationSave($db,'a',['product_id'=>'r','memberverification'=>$flag]);
+    $db->commit();
+    benefitAssert($r['memberverification']===(bool)$flag,'Global verification writes correct on/off value');
+}
+benefitAssert((int)$db->query('SELECT COUNT(*) FROM membership_product_modifications')->fetchColumn()===2,
+    'Verification does not create or remove plan rules');
+foreach (['foreign','cross','m','e'] as $badId) {
+    $db->beginTransaction();$rejected=false;
+    try{membershipProductVerificationSave($db,'a',['product_id'=>$badId,'memberverification'=>1]);}
+    catch(InvalidArgumentException $e){$rejected=true;}
+    $db->rollBack();
+    benefitAssert($rejected,'Reject foreign sources, membership plans and missing verification column');
+}
+echo "Source-wide membership verification isolation tests passed\n";
