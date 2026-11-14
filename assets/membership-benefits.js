@@ -137,18 +137,19 @@
     function renderBenefitIndicators(product) {
         if (product.type === 'membership' || (product.type === 'events' && !['signup','binding'].includes(product.registration_type))) return '';
         const plan = selectedPlan();
-        const saved = product.type === 'events'
+        const saved = product.type === 'events' && !product.assigned_benefits.length
             ? (product.membership_prices || []).map(entry => {
                 const price = nullableNumber(entry.price);
-                return price === null ? null : {plan_id:String(entry.plan_id),summary:`Medlemspris ${money(price)}`,public_display:entry.public_display === true ? true : entry.public_display === false ? false : null};
+                return price === null ? null : {plan_id:String(entry.plan_id),summary:`Medlemspris ${money(price)}`,public_display:entry.public_display === true ? true : entry.public_display === false ? false : null,source:entry.source};
             }).filter(Boolean)
-            : product.assigned_benefits.map(benefit => ({plan_id:benefit.plan_id,summary:benefitSummary(benefit),public_display:benefit.public_display,price_basis:benefit.price_basis}));
+            : product.assigned_benefits.map(benefit => ({plan_id:benefit.plan_id,summary:benefitSummary(benefit),public_display:benefit.public_display,price_basis:benefit.price_basis,source:benefit.source}));
         const savedHtml = saved.map(benefit => {
             const planName = payload.plans.find(item => item.id === benefit.plan_id)?.name || 'Ukjent plan';
             const selected = plan && plan.id === benefit.plan_id;
             const details = [
                 `<span class="mb-benefit-summary">${safeText(benefit.summary)}</span>`,
                 benefit.public_display === true ? '<span class="mb-benefit-visibility">Vises offentlig</span>' : benefit.public_display === false ? '<span class="mb-benefit-visibility mb-benefit-private">Privat visning</span>' : '',
+                benefit.source === 'event_membership_plans' ? '<span class="mb-benefit-visibility">Eldre oppsett</span>' : benefit.source === 'membership_product_modifications' ? '<span class="mb-benefit-visibility">Nytt oppsett</span>' : '',
                 benefit.price_basis === 'booking_total' ? '<span class="mb-benefit-basis">Beregnes av bookingtotal</span>' : ''
             ].filter(Boolean).join('');
             return `<div class="mb-benefit-indicator${selected ? ' mb-benefit-selected' : ''}"><strong>${safeText(planName)}</strong><span class="mb-benefit-details">${details}</span></div>`;
@@ -200,7 +201,9 @@
         const eventPrice = plan && eventMembershipPrice(product,plan.id);
         const hidden = product.is_visible === false || product.is_public === false;
         const restricted = !!(!plan && isExclusive(product));
-        const included = !!(plan && getRule(product,plan.id)?.mechanism === 'included');
+        const included = !!(plan && (getRule(product,plan.id)
+            ? getRule(product,plan.id).mechanism === 'included'
+            : product.type === 'events' && product.assigned_benefits.some(benefit => benefit.plan_id === plan.id && benefit.benefit_type === 'included')));
         const visibleMemberPrices = !plan && !restricted ? product.membership_prices
             .filter(entry => entry.public_display === true && nullableNumber(entry.price) !== null)
             .map(entry => {

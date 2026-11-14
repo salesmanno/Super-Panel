@@ -38,6 +38,9 @@ const liveChecks = `(async()=>{
   check(assigned.textContent.includes('Bergsøy Medlem')&&assigned.textContent.includes('15 % rabatt')&&assigned.textContent.includes('Familiemedlem')&&assigned.textContent.includes('Inkludert'),'Saved benefits identify each membership type without opening the editor');
   check(assigned.textContent.includes('Privat visning')&&assigned.textContent.includes('bookingtotal')&&assigned.textContent.includes('ikke offentlig visning'),'Private visibility and price basis are explicit admin annotations');
   check(document.querySelector('.mb-card[data-mb-item="event-hidden-price"] .mb-card-benefits').textContent.includes('415,00'),'Private saved event price is visible in labelled admin overview');
+  const eventRules=document.querySelector('.mb-card[data-mb-item="event-1"] .mb-card-benefits');
+  check(eventRules.textContent.includes('Nytt oppsett')&&eventRules.textContent.includes('Eldre oppsett'),'Event indicators identify primary rules and per-plan legacy fallback');
+  check(eventRules.querySelectorAll('.mb-benefit-indicator').length===2,'Each event plan is represented once without stacking fallback');
   const plan=document.getElementById('mb-plan-select');plan.value='11';plan.dispatchEvent(new Event('change',{bubbles:true}));
   check(document.querySelector('.mb-card[data-mb-item="rental-1"] .mb-benefit-selected strong').textContent==='Bergsøy Medlem','Selected membership type is highlighted');
   check(document.querySelector('.mb-card[data-mb-item="event-hidden-price"] .mb-card-price strong').textContent.includes('415,00'),'Non-public benefit is still applied for the selected member plan');

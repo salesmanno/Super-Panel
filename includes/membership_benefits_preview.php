@@ -56,6 +56,43 @@ function membershipBenefitsPreviewProduct(array $catalog, array $source): array 
     ];
 }
 
+/** Resolve event preview rules per plan, without stacking new and legacy prices.
+ * An inactive new row is an explicit override, not permission to revive legacy.
+ */
+function membershipBenefitsPreviewEventRules(array $newRules, array $legacyPrices, ?float $basePrice): array {
+    $rules = [];
+    $prices = [];
+    $covered = [];
+    foreach ($newRules as $rule) {
+        $covered[(string)$rule['plan_id']] = true;
+        if (!$rule['is_active']) continue;
+        unset($rule['is_active']);
+        $rule['source'] = 'membership_product_modifications';
+        $rules[] = $rule;
+        $value = $rule['benefit_value'];
+        $validValue = is_numeric($value) && is_finite((float)$value) && (float)$value >= 0;
+        // Event tickets have a unit price. Do not misapply a booking-total rule.
+        $price = $rule['price_basis'] !== 'unit' ? null : match ($rule['benefit_type']) {
+            'fixed_price' => $validValue ? (float)$value : null,
+            'included' => 0.0,
+            'percent_discount' => $validValue && (float)$value <= 100 && $basePrice !== null ? round($basePrice * (1 - (float)$value / 100), 2) : null,
+            'amount_discount' => $validValue && $basePrice !== null ? round(max(0, $basePrice - (float)$value), 2) : null,
+            'access' => $basePrice,
+            default => null,
+        };
+        if ($price !== null) $prices[] = ['plan_id'=>$rule['plan_id'], 'price'=>$price, 'public_display'=>$rule['public_display'], 'source'=>$rule['source']];
+    }
+    foreach ($legacyPrices as $legacy) {
+        if (isset($covered[(string)$legacy['plan_id']])) continue;
+        $legacy['source'] = 'event_membership_plans';
+        $prices[] = $legacy;
+        $rules[] = ['plan_id'=>$legacy['plan_id'], 'benefit_type'=>'fixed_price',
+            'benefit_value'=>$legacy['price'], 'price_basis'=>'unit',
+            'public_display'=>$legacy['public_display'], 'source'=>'event_membership_plans'];
+    }
+    return ['rules'=>$rules, 'prices'=>$prices];
+}
+
 function membershipBenefitsPreviewLoad(PDO $db, string $company): array {
     require_once __DIR__ . '/announcement_preview.php';
     $preview = announcement_preview_company($db, $company);
@@ -102,16 +139,16 @@ function membershipBenefitsPreviewLoad(PDO $db, string $company): array {
             $warnings[] = 'Medlemspriser for arrangementer kunne ikke hentes. Prisvisningen er ufullstendig.';
         }
     }
-    // Events keep their existing authoritative price model; no merging or migration.
+    // Read new rules first in precedence, retaining inactive rows as fallback blockers.
     $benefits = [];
     try {
         $q = $db->prepare("SELECT m.output_product_id,m.membership_plan_id,m.benefit_type,
-                m.benefit_value,m.price_basis,m.public_display
+                m.benefit_value,m.price_basis,m.public_display,m.is_active
             FROM membership_product_modifications m
             JOIN output_products op ON op.id=m.output_product_id AND op.company_id=m.company_id
             JOIN membership_plans mp ON mp.id=m.membership_plan_id AND mp.company_id=m.company_id
-            WHERE m.company_id=? AND m.is_active=1 AND mp.is_active=1
-                AND op.product_type NOT IN ('events','membership')
+            WHERE m.company_id=? AND mp.is_active=1
+                AND op.product_type <> 'membership'
             ORDER BY mp.name,m.membership_plan_id");
         $q->execute([$company]);
         foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
@@ -121,6 +158,7 @@ function membershipBenefitsPreviewLoad(PDO $db, string $company): array {
                 'benefit_value'=>is_numeric($row['benefit_value']) ? (float)$row['benefit_value'] : null,
                 'price_basis'=>(string)$row['price_basis'],
                 'public_display'=>(bool)$row['public_display'],
+                'is_active'=>(bool)$row['is_active'],
             ];
         }
     } catch (PDOException $e) {
@@ -144,7 +182,18 @@ function membershipBenefitsPreviewLoad(PDO $db, string $company): array {
         $today = (new DateTimeImmutable('now', new DateTimeZone('Europe/Oslo')))->format('Y-m-d');
         if ($type === 'events' && !empty($item['end_date']) && substr((string)$item['end_date'], 0, 10) < $today) continue;
         $item['membership_prices'] = $type === 'events' ? ($pricing[$id] ?? []) : [];
-        $item['assigned_benefits'] = $benefits[(string)$entry['id']] ?? [];
+        $newRules = $benefits[(string)$entry['id']] ?? [];
+        if ($type === 'events') {
+            $resolved = membershipBenefitsPreviewEventRules($newRules, $item['membership_prices'], $item['price']);
+            $item['membership_prices'] = $resolved['prices'];
+            $item['assigned_benefits'] = $resolved['rules'];
+        } else {
+            foreach ($newRules as $rule) {
+                if (!$rule['is_active']) continue;
+                unset($rule['is_active']);
+                $item['assigned_benefits'][] = $rule;
+            }
+        }
         $products[] = $item;
     }
     return ['success'=>true, 'company'=>$preview['company'], 'plans'=>$plans, 'products'=>$products, 'warnings'=>array_values(array_unique($warnings))];

@@ -41,17 +41,31 @@ serveren som oppretter reservasjonen eller handelen. Rabattberegning,
 flere kvalifiserende medlemsplaner, utleieperioder, avrunding og MVA må
 ha én avtalt regel uten rabattstabling.
 
-Før migrering må eksisterende arrangementspriser sammenlignes med ny
-kobling. Inntil den overgangen er testet må eksisterende hendelser bruke
-dagens autoritative arrangementspriser, ikke blande to priskilder.
+### Overgang for arrangementer
+I Fordeler-simulatoren er `membership_product_modifications` nå primær kilde,
+per katalogprodukt og medlemsplan. Bare planer uten en ny rad bruker
+`event_membership_plans` som fallback. En deaktivert ny rad sperrer fallback;
+ellers ville en fjernet fordel kunne gjenoppstå fra den gamle tabellen.
+Nye regler og gamle priser stables aldri. Indikatorer viser «Nytt oppsett»
+eller «Eldre oppsett». Fastpris, inkludert, prosent, beløpsavslag og tilgang
+beregnes mot billettens grunnpris. `booking_total` brukes ikke som billettpris.
+
+Dette er innført i simulatorens lesemodell, ikke en masseflytting av data.
+Før gammel tabell kan fases ut i hele portalen må arrangementsopprettelse,
+prisredigering og påmeldings-/innsjekksendepunkter følge samme prioritet:
+`create_event.php`, `event_membership_prices.php`, `get_event.php`,
+`get_events.php`, `get_event_membership_pricing.php`, `register_guest.php`,
+`approve_registration.php`, `checkin_event.php` og listeendepunkter med gamle
+prisjoins. Historiske billettpriser og betalte beløp må ikke omberegnes.
+Kundesideprosjektet må oppdateres separat før den gamle tabellen fjernes.
 
 SQL-en alene endrer ingen kjøpsflyt, gir ingen rabatter og håndhever ingen
 medlemskrav. Ikke slett eller endre eksisterende pristabeller i mellomtiden.
 
 ## Katalogkoblinger
 Simulatoren viser nå en egen administrativ fordelsoversikt på tilbudskortene:
-arrangementenes eksisterende medlemspriser og aktive, bedriftsavgrensede regler
-fra `membership_product_modifications` for andre tjenester. Medlemsplan, type
+aktive, bedriftsavgrensede regler fra `membership_product_modifications`,
+med gamle arrangementspriser som fallback per plan. Medlemsplan, type
 fordel, offentlig/privat prisvisning og eventuell beregning av bookingtotal vises.
 Dette er indikatorer, ikke ny håndheving i kundens kjøpsflyt. Midlertidige
 simulatorendringer merkes «Ikke lagret» og holdes adskilt fra lagrede regler.

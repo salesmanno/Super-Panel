@@ -46,7 +46,6 @@ $db->exec("INSERT INTO membership_product_modifications VALUES
  ('a','cs','m','included',NULL,'unit',1,0),
  ('b','cr','m','fixed_price',1,'unit',1,1),
  ('a','cr','other','fixed_price',2,'unit',1,1),
- ('a','ce','m','fixed_price',99,'unit',1,1),
  ('a','cm','m','included',NULL,'unit',1,1)");
 $before = $db->query('SELECT total_changes()')->fetchColumn();
 benefitsCheck(membershipBenefitsPreviewCanAccess($db,'admin-a','a'), 'Active delegated Membership access is allowed');
@@ -59,11 +58,11 @@ benefitsCheck(count($data['plans']) === 1 && $data['plans'][0]['id'] === 'm', 'P
 benefitsCheck(count($data['products']) === 4, 'Deduplicated catalog excludes another company source');
 $products = array_column($data['products'], null, 'type');
 benefitsCheck($products['events']['name'] === 'Årsfest' && $products['events']['exclusive'], 'Event source and membership requirement are retained');
-benefitsCheck($products['events']['membership_prices'] === [['plan_id'=>'m','price'=>0.0,'public_display'=>true]], 'Free member price retained and cross-company links excluded');
+benefitsCheck($products['events']['membership_prices'] === [['plan_id'=>'m','price'=>0.0,'public_display'=>true,'source'=>'event_membership_plans']], 'Free legacy fallback retained and cross-company links excluded');
 benefitsCheck($products['rental']['name'] === 'Lokale' && $products['rental']['price'] === 400.0, 'Rental uses actual object name and rental_price');
 benefitsCheck($products['rental']['exclusive'], 'User-added rental member_exclusive is represented in the simulator');
 benefitsCheck($products['rental']['assigned_benefits'] === [['plan_id'=>'m','benefit_type'=>'percent_discount','benefit_value'=>15.0,'price_basis'=>'booking_total','public_display'=>false]], 'Only active company-scoped saved rules returned, with basis and private visibility');
-benefitsCheck($products['events']['assigned_benefits'] === [] && $products['membership']['assigned_benefits'] === [], 'Events keep their authoritative model and membership cannot receive benefits');
+benefitsCheck($products['events']['assigned_benefits'][0]['source'] === 'event_membership_plans' && $products['membership']['assigned_benefits'] === [], 'Event fallback source is explicit and membership cannot receive benefits');
 benefitsCheck($products['product']['assigned_benefits'] === [], 'Inactive benefit rules are not presented as assigned');
 benefitsCheck($products['rental']['image_url'] === 'https://example.org/venue.jpg', 'Rental JSON image normalized');
 benefitsCheck(!$products['product']['is_visible'], 'Hidden catalog flag is preserved');
@@ -99,6 +98,24 @@ $db->exec("UPDATE events_eventdata SET registration_type='binding' WHERE id='e'"
 $binding=membershipBenefitsPreviewLoad($db,'a');
 $bindingProducts=array_column($binding['products'],null,'type');
 benefitsCheck($bindingProducts['events']['benefit_eligible'],'Binding registration can receive benefits');
+$db->exec("INSERT INTO membership_product_modifications VALUES ('a','ce','m','fixed_price',99,'unit',0,1)");
+$primary=membershipBenefitsPreviewLoad($db,'a');
+$primaryProducts=array_column($primary['products'],null,'type');
+benefitsCheck($primaryProducts['events']['membership_prices'] === [['plan_id'=>'m','price'=>99.0,'public_display'=>false,'source'=>'membership_product_modifications']], 'New event rule overrides legacy including its public visibility');
+$db->exec("UPDATE membership_product_modifications SET benefit_type='included',benefit_value=NULL WHERE output_product_id='ce'");
+$included=membershipBenefitsPreviewLoad($db,'a');
+benefitsCheck(array_column($included['products'],null,'type')['events']['membership_prices'][0]['price'] === 0.0, 'New included event benefit is zero, not missing');
+$db->exec("UPDATE membership_product_modifications SET is_active=0 WHERE output_product_id='ce'");
+$disabled=membershipBenefitsPreviewLoad($db,'a');
+benefitsCheck(array_column($disabled['products'],null,'type')['events']['membership_prices'] === [], 'Disabled new event rule does not resurrect legacy price');
+$legacy=[['plan_id'=>'p1','price'=>50.0,'public_display'=>true],['plan_id'=>'p2','price'=>60.0,'public_display'=>false]];
+$new=[['plan_id'=>'p1','benefit_type'=>'percent_discount','benefit_value'=>20.0,'price_basis'=>'unit','public_display'=>false,'is_active'=>true]];
+$resolved=membershipBenefitsPreviewEventRules($new,$legacy,500.0);
+benefitsCheck($resolved['prices'][0]['price'] === 400.0 && $resolved['prices'][1]['price'] === 60.0, 'Precedence is per membership plan; other plans keep legacy fallback');
+$new[0]['benefit_type']='amount_discount';$new[0]['benefit_value']=600.0;
+benefitsCheck(membershipBenefitsPreviewEventRules($new,$legacy,500.0)['prices'][0]['price'] === 0.0, 'Amount discount cannot make a negative ticket price');
+$new[0]['price_basis']='booking_total';
+benefitsCheck(count(membershipBenefitsPreviewEventRules($new,$legacy,500.0)['prices']) === 1, 'Booking-total rule cannot be misapplied to a ticket or silently revive legacy');
 $db->exec('DROP TABLE membership_product_modifications');
 $unavailable=membershipBenefitsPreviewLoad($db,'a');
 benefitsCheck(in_array('Tildelte produktfordeler kunne ikke hentes. Fordelsindikatorene er ufullstendige.',$unavailable['warnings'],true), 'Missing rule table is explicitly reported rather than silently claiming no assigned benefits');

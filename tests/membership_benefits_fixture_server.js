@@ -34,6 +34,10 @@ fixture.products.find(product => product.id === 'rental-1').assigned_benefits = 
     {plan_id:'11',benefit_type:'percent_discount',benefit_value:15,price_basis:'booking_total',public_display:false},
     {plan_id:'22',benefit_type:'included',benefit_value:null,price_basis:'booking_total',public_display:true}
 ];
+fixture.products.find(product => product.id === 'event-1').assigned_benefits = [
+    {plan_id:'11',benefit_type:'fixed_price',benefit_value:500,price_basis:'unit',public_display:true,source:'membership_product_modifications'},
+    {plan_id:'22',benefit_type:'fixed_price',benefit_value:380,price_basis:'unit',public_display:true,source:'event_membership_plans'}
+];
 function createFixtureServer(options={}) {
     return http.createServer((request,response) => {
         const url = new URL(request.url,'http://localhost');
