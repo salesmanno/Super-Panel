@@ -411,6 +411,8 @@
 
 </div>
 
+<?php include_once __DIR__ . '/membership_benefits.php'; ?>
+
 <!-- Modal for legg til medlem -->
 <div class="modal fade" id="createMemberModal" tabindex="-1">
     <div class="modal-dialog modal-lg">

@@ -574,6 +574,9 @@ try {
                     <a class="nav-link active" href="#membership-plans">Dine medlemskapsplaner</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="#membership-benefits">Fordeler</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="#membership-members">Medlemmer</a>
                 </li>
                 <li class="nav-item">

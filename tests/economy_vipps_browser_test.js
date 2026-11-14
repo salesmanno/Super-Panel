@@ -20,7 +20,10 @@ window.fetch=async(url,options={})=>{
   fixtureCalls.push({url:String(url),data:options.body?JSON.parse(options.body):null});
   if(String(url).includes('get_payment_gateways'))return {ok:true,json:async()=>({success:true,bank_account_csrf_token:'fixture-csrf',
     gateways:[{id:'config-a',gateway_name:'vipps',gateway_type:'vipps',display_name:'Vipps',is_configured:true,
-      is_active:fixtureActive,test_mode:true,fee_fixed:0,fee_percent:0}]})};
+      is_active:fixtureActive,test_mode:true,fee_fixed:0,fee_percent:0},
+      {id:'config-stripe',gateway_name:'stripe',gateway_type:'stripe',display_name:'Stripe',is_configured:true,is_active:true,fee_fixed:0,fee_percent:0},
+      {id:'config-klarna',gateway_name:'klarna',gateway_type:'klarna',display_name:'Klarna',is_configured:false,is_active:true},
+      {id:'config-invoice',gateway_name:'faktura',gateway_type:'faktura',display_name:'Faktura',is_configured:false,is_active:false}]})};
   const webhook={state:fixtureReady?'registered':'attention',receiver_ready:fixtureReady,environment:'test',
      delivery_verified:fixtureDelivery,callback_url:'https://fixture.salesman.no/api/vipps_callback.php',
     message:fixtureReady?'Webhook registrert. Faktisk levering er ikke verifisert.':'Mottakeren er ikke klargjort.'};
@@ -43,7 +46,11 @@ try {
  check(container.textContent.includes('Test'),'Selected environment visible');
  check(container.textContent.includes('Aktiver'),'Inactive Vipps card has a single activation action');
  const face=document.getElementById('gateway-face-config-a');
- check(face && face.querySelector('img.economy-gateway-logo')?.getAttribute('src').includes('Vipps_'),'Vipps logo fills the compact card');
+ check(face && face.querySelector('img.economy-gateway-logo')?.getAttribute('src')==='/assets/payment-gateway-vipps.webp','Vipps logo uses an exportable app asset');
+ check(fsFixtureAsset,'Vipps image is tracked and exists outside ignored attachments');
+ check(getComputedStyle(container).display==='grid'&&getComputedStyle(container).gridTemplateColumns.split(' ').length===2,'Cards use the approved two-column layout');
+ check(economyGatewayBrand('stripe','Stripe').includes('>stripe<'),'Stripe uses the approved lowercase wordmark');
+ check(economyGatewayBrand('faktura','Faktura').includes('<svg'),'Invoice uses the approved card mark without a remote font');
  const details=document.getElementById('gateway-details-config-a');
  check(details.hidden,'Configuration is collapsed by default');
  toggleGatewayDetails('config-a');
@@ -65,7 +72,7 @@ try {
  await toggleGateway('config-a','vipps',true,container.querySelector('.economy-gateway-action'));
  check(fixtureActive,'Ready setup activates');
  check(document.getElementById('vipps-webhook-config-a').textContent.includes('Faktisk levering er ikke bekreftet ennå'),'Status survives card reload without repeating backend message');
- check(document.getElementById('gateway-light-label-config-a').textContent==='Trenger sjekk','Unverified webhook delivery remains yellow, not falsely green');
+ check(document.getElementById('gateway-light-label-config-a').textContent==='Sjekk','Unverified webhook delivery remains yellow, not falsely green');
  fixtureDelivery=true;
  await refreshVippsWebhook('config-a',null);
  check(document.getElementById('gateway-light-label-config-a').textContent==='Aktiv','Verified receiver delivery turns the status green');
@@ -78,11 +85,18 @@ try {
  return {passed:true};
 }catch(error){return {passed:false,error:error.stack||String(error)}}
 })()`;
+const paymentStart = source.indexOf('<div id="economy-payment"');
+const paymentEnd = source.indexOf('<div id="economy-terms"',paymentStart);
+const paymentMarkup = source.slice(paymentStart,paymentEnd).replace('style="display: none;"','style="display: block;"');
 const html = `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>*{box-sizing:border-box}body{margin:0;padding:12px;font:15px system-ui;background:#f5f7fa}.row{display:flex;flex-wrap:wrap;gap:12px}.col-md-4{width:100%;max-width:380px}.card{background:white;border:1px solid #ddd;border-radius:8px}.card-body{padding:16px}.d-flex{display:flex;align-items:center;justify-content:space-between}.btn{padding:8px;border:1px solid #bbb;border-radius:5px;background:white;cursor:pointer}.w-100{width:100%}.small{font-size:13px}.text-muted{color:#667085}.text-break{overflow-wrap:anywhere}.border-top{border-top:1px solid #ddd}.mt-3{margin-top:16px}.mt-2{margin-top:8px}.pt-2{padding-top:8px}.mb-2{margin-bottom:8px}.badge{padding:4px;background:#f1f3f5;border-radius:4px}.col-6{width:calc(50% - 6px)}input{width:100%;padding:6px}.min-w-0{min-width:0}${appStyles}</style></head>
-<body><div id="payment-gateways-container" class="row"></div><script>${stubs}\n${script}</script></body></html>`;
-const server = http.createServer((req,res)=>{res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});res.end(html)});
+<body>${paymentMarkup}<script>const fsFixtureAsset=${fs.existsSync('assets/payment-gateway-vipps.webp')};${stubs}\n${script}${process.argv.includes('--serve')?'\nfixtureActive=true;loadPaymentGateways();':''}</script></body></html>`;
+const server = http.createServer((req,res)=>{
+ if(req.url==='/assets/payment-gateway-vipps.webp'){res.writeHead(200,{'Content-Type':'image/webp'});res.end(fs.readFileSync('assets/payment-gateway-vipps.webp'));return;}
+ res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});res.end(html);
+});
 (async()=>{
+ if(process.argv.includes('--serve')){server.listen(4180,'127.0.0.1',()=>console.log('Isolated payment-card fixture on 4180'));return;}
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  try {await chromiumFixture('http://127.0.0.1:'+server.address().port+'/',checks,[390,1280]);
  console.log('Economy Vipps UI activation/status tests passed at mobile and desktop sizes');}

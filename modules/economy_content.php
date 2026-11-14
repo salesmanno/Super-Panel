@@ -50,10 +50,9 @@
     font-weight: 600;
 }
 .economy-gateway-tile {
-    height: 100%;
     overflow: hidden;
     border: 1px solid #e1e7ef;
-    border-radius: 1rem;
+    border-radius: 14px;
     background: #fff;
     box-shadow: 0 4px 16px rgba(22, 38, 61, .055);
     transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
@@ -84,7 +83,7 @@
 .economy-gateway-logo-panel {
     display: grid;
     place-items: center;
-    height: 92px;
+    height: 88px;
     overflow: hidden;
     background: #f4f6f9;
 }
@@ -103,27 +102,28 @@
     font-weight: 800;
     letter-spacing: -.045em;
 }
-.economy-gateway-wordmark.is-stripe { color: #635bff; background: #f5f4ff; }
+.economy-gateway-wordmark.is-stripe { color: #635bff; background: #f5f4ff; font-size: 25px; font-weight: 850; letter-spacing: -.07em; }
 .economy-gateway-wordmark.is-paypal { color: #063b82; background: #eef6ff; }
-.economy-gateway-wordmark.is-klarna { color: #111; background: #ffdf00; }
+.economy-gateway-wordmark.is-klarna { color: #111; background: #ffdf00; font-size: 23px; font-weight: 850; letter-spacing: -.06em; }
 .economy-gateway-wordmark.is-cash { color: #177245; background: #eaf7ef; }
 .economy-gateway-wordmark.is-faktura,
 .economy-gateway-wordmark.is-bank { color: #334155; background: #eef2f6; }
 .economy-gateway-wordmark.is-default { color: #334155; background: #eef2f6; }
+.economy-gateway-wordmark.is-faktura { color: #40556e; font-size: 23px; }
 .economy-gateway-face-meta {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: .55rem;
-    min-height: 54px;
-    padding: .7rem .8rem;
+    gap: 7px;
+    min-height: 49px;
+    padding: 9px 10px;
 }
 .economy-gateway-name {
     min-width: 0;
     overflow: hidden;
     color: #202b3a;
-    font-size: .95rem;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 750;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -131,10 +131,10 @@
     display: inline-flex;
     align-items: center;
     flex: 0 0 auto;
-    gap: .38rem;
+    gap: 5px;
     color: #5d6978;
-    font-size: .75rem;
-    font-weight: 650;
+    font-size: 10px;
+    font-weight: 700;
     white-space: nowrap;
 }
 .economy-gateway-light {
@@ -153,7 +153,7 @@
     font-size: .8rem;
 }
 .economy-gateway-details {
-    padding: .85rem;
+    padding: 11px;
     border-top: 1px solid #e9edf2;
     background: #fbfcfe;
 }
@@ -269,12 +269,19 @@
     font-size: .72rem;
     line-height: 1.4;
 }
-@media (max-width: 575.98px) {
-    .economy-gateway-logo-panel { height: 78px; }
-    .economy-gateway-face-meta { min-height: 50px; padding: .6rem; }
-    .economy-gateway-name { font-size: .86rem; }
-    .economy-gateway-state { gap: .3rem; font-size: .68rem; }
-    .economy-gateway-details { padding: .7rem; }
+.economy-payment-workspace { padding: 18px; border-radius: 14px; background: #f4f7fb; color: #22354d; }
+.economy-payment-inner { max-width: 650px; margin: 0 auto; }
+.economy-payment-eyebrow { color: #6b7787; font-size: 10px; font-weight: 750; letter-spacing: .08em; }
+.economy-payment-heading { margin: 5px 0 0; color: #203149; font-size: 21px; }
+.economy-payment-intro { margin: 4px 0 15px; color: #738094; font-size: 12px; }
+#payment-gateways-container.economy-gateway-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 11px; align-items: start; margin: 0; }
+.economy-gateway-slot { min-width: 0; }
+#payment-gateways-container > .col-12 { grid-column: 1/-1; width: 100%; }
+.economy-payment-note { display: flex; align-items: flex-start; gap: 7px; margin: 12px 0 0; color: #778496; font-size: 10px; line-height: 1.45; }
+.economy-gateway-state .economy-gateway-chevron { font-size: 12px; }
+@media (max-width: 359.98px) {
+    .economy-payment-workspace { padding: 10px; }
+    .economy-gateway-face-meta { flex-wrap: wrap; }
 }
 </style>
 <div class="module-content">
@@ -674,11 +681,13 @@
     </div>
 
     <div id="economy-payment" class="subtab-content" style="display: none;">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title"><i class="bi bi-credit-card-2-front me-2"></i>Betalingsløsninger</h5>
-                <p class="text-muted">Administrer tilgjengelige betalingsmetoder</p>
-                <div id="payment-gateways-container" class="row g-3"></div>
+        <div class="economy-payment-workspace">
+            <div class="economy-payment-inner">
+                <div class="economy-payment-eyebrow">ECONOMY · BETALINGSLØSNINGER</div>
+                <h5 class="economy-payment-heading">Betalingsmåter</h5>
+                <p class="economy-payment-intro">Trykk på et kort for detaljer og innstillinger.</p>
+                <div id="payment-gateways-container" class="economy-gateway-grid"></div>
+                <p class="economy-payment-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span>Webhook registreres ved behov første gang Vipps aktiveres. Statusen skiller registrering fra faktisk levering.</span></p>
             </div>
         </div>
     </div>
@@ -1566,6 +1575,12 @@ const gatewayDescriptions = {
     'bank':    'Bankoverføring',
     'faktura': 'Fakturabetaling via bankkonto'
 };
+function economyGatewayBrand(type, name) {
+    if (type === 'vipps') return '<img class="economy-gateway-logo" src="/assets/payment-gateway-vipps.webp" alt="Vipps">';
+    if (type === 'faktura') return '<span class="economy-gateway-wordmark is-faktura"><svg aria-hidden="true" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/></svg></span>';
+    const wordmark = ['stripe', 'klarna'].includes(type) ? type : name;
+    return `<span class="economy-gateway-wordmark is-${economyEsc(type)}">${economyEsc(wordmark)}</span>`;
+}
 let invoiceGatewaySetupOpen=false;
 let economyBankCsrf='';
 let economyGatewayExpandedId=null;
@@ -1600,13 +1615,13 @@ function setGatewayTrafficLight(id, type, active, configured, webhookState=null)
     let text='Av';
     if (active && !configured) {
         tone='yellow';
-        text='Oppsettfeil';
+        text='Feil';
     } else if (active && type==='vipps' && !webhookState) {
         tone='yellow';
         text='Sjekker';
     } else if (active && type==='vipps' && (webhookState.state!=='registered' || !webhookState.receiver_ready || !webhookState.delivery_verified)) {
         tone='yellow';
-        text='Trenger sjekk';
+        text='Sjekk';
     } else if (active) {
         tone='green';
         text='Aktiv';
@@ -1743,24 +1758,22 @@ async function loadPaymentGateways() {
             ` : '';
 
             return `
-                <div class="col-6 col-sm-4 col-lg-3">
+                <div class="economy-gateway-slot">
                     <article class="economy-gateway-tile ${economyGatewayExpandedId===gwId?'is-expanded':''}">
                         <button type="button" id="gateway-face-${economyEsc(gwId)}" class="economy-gateway-face" data-gateway-face
                             data-gateway-type="${economyEsc(gwType)}" data-gateway-active="${isActive?'1':'0'}" data-gateway-configured="${isConfigured?'1':'0'}"
                             aria-expanded="${economyGatewayExpandedId===gwId?'true':'false'}"
                             aria-controls="gateway-details-${economyEsc(gwId)}" onclick="toggleGatewayDetails('${economyEsc(gwId)}')">
                             <div class="economy-gateway-logo-panel ${isVipps?'is-vipps':''}">
-                                ${isVipps
-                                    ? `<img class="economy-gateway-logo" src="/attached_assets/Vipps_1792068309713.webp" alt="Vipps">`
-                                    : `<span class="economy-gateway-wordmark is-${economyEsc(gwType)}">${economyEsc(gw.display_name || gw.gateway_type || 'Betaling')}</span>`}
+                                ${economyGatewayBrand(gwType, gw.display_name || gw.gateway_type || 'Betaling')}
                             </div>
                             <div class="economy-gateway-face-meta">
                                 <span class="economy-gateway-name">${economyEsc(gw.display_name || gw.gateway_type || 'Betaling')}</span>
                                 <span class="economy-gateway-state">
                                     <span id="gateway-light-${economyEsc(gwId)}" class="economy-gateway-light ${!isActive?'is-red':(isVipps?'is-yellow':(isConfigured?'is-green':'is-yellow'))}" aria-hidden="true"></span>
                                     <span id="gateway-light-label-${economyEsc(gwId)}">${!isActive?'Av':(isConfigured?(isVipps?'Sjekker':'Aktiv'):'Feil')}</span>
+                                    <svg class="economy-gateway-chevron" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
                                 </span>
-                                <i class="bi bi-chevron-down economy-gateway-chevron" aria-hidden="true"></i>
                             </div>
                         </button>
                         <div id="gateway-details-${economyEsc(gwId)}" class="economy-gateway-details" data-gateway-details ${economyGatewayExpandedId===gwId?'':'hidden'}>
