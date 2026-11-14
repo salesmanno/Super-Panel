@@ -41,7 +41,7 @@
                 <p class="mb-editor-intro">Prøv hvordan tilbudet oppleves for en besøkende eller et medlem.</p>
                 <fieldset class="mb-verification-settings">
                     <legend>Medlemskrav for tjenesten</legend>
-                    <label><input id="mb-verification" type="checkbox" role="switch"> Krev medlemsverifisering</label>
+                    <label><input id="mb-verification" type="checkbox" role="switch"> Medlemsverifisering</label>
                     <p id="mb-verification-help">Gjelder hele tjenesten, uavhengig av medlemsplan og rabatt.</p>
                     <button type="button" class="mb-button" id="mb-save-verification">Lagre medlemsverifisering</button>
                 </fieldset>

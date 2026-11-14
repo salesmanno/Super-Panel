@@ -185,7 +185,7 @@
         const hidden = product.is_visible === false || product.is_public === false;
         const restricted = !!(!plan && isExclusive(product));
         const included = eventPrice?.benefit_type === 'included';
-        const priceBlock = product.type === 'rental' ? rentalRateHtml(product) + '<p class="mb-no-benefit">Velg datoer for å beregne leiesum</p>' : price === null ? `<span class="mb-card-price">${restricted ? 'Kun for medlemmer' : 'Pris ikke oppgitt'}</span>` :
+        const priceBlock = product.type === 'rental' ? rentalBenefitCardHtml(product,plan) : price === null ? (restricted ? '' : '<span class="mb-card-price">Pris ikke oppgitt</span>') :
             included ? '<div class="mb-card-price"><span>Medlemsfordel</span><strong>Inkludert</strong></div>' :
             `<div class="mb-card-price"><span>${plan && (eventPrice || getRule(product,plan.id)) ? 'Medlemspris' : 'Pris'}</span>${plan && publicPrice !== null && price < publicPrice ? `<s>${money(publicPrice)}</s>` : ''}<strong>${money(price)}</strong></div>`;
         const date = product.start_date ? `<span>Dato ${safeText(formatDate(product.start_date))}${product.start_time ? ` kl. ${safeText(product.start_time)}` : ''}</span>` : '';
@@ -195,6 +195,20 @@
             ${isExclusive(product) ? '<span class="mb-exclusive-label">Kun for medlemmer</span>' : ''}
             ${productImage(product)}<div class="mb-card-body"><h5 class="mb-card-title">${safeText(product.name)}</h5><p class="mb-card-description">${safeText(product.description || categoryDescriptions[product.type])}</p>
             ${details ? `<div class="mb-card-meta">${details}</div>` : ''}${priceBlock}${hidden ? '<span class="mb-card-badge mb-hidden-badge">Skjult i offentlig visning</span>' : ''}</div></article>`;
+    }
+    function rentalBenefitCardHtml(product,selected) {
+        const plans=selected ? [selected] : payload.plans;
+        const rows=plans.map(plan=>{
+            const rule=getRule(product,plan.id);
+            if(!rule) return '';
+            const value=nullableNumber(rule.benefit_value);
+            const text=rule.benefit_type==='percent_discount' && value!==null ? `${number(value)} % avslag`
+                : rule.benefit_type==='amount_discount' && value!==null ? `${money(value)} avslag`
+                : rule.benefit_type==='fixed_price' && value!==null ? `Medlemspris ${money(value)}`
+                : rule.benefit_type==='included' ? 'Inkludert' : 'Ingen prisrabatt';
+            return `<p class="mb-card-price"><span>${safeText(plan.name)}</span><strong>${safeText(text)}</strong></p>`;
+        }).join('');
+        return rows || '<p class="mb-no-benefit">Ingen medlemsrabatt satt</p>';
     }
     function render() {
         if (!loaded || !payload) return;

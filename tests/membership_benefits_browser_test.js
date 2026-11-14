@@ -15,6 +15,7 @@ const checks=`(async()=>{
    const card=document.querySelector('.mb-card[data-mb-item="'+id+'"]');
    check(card.classList.contains('mb-card-exclusive'),'Member-only outline on '+id);
    check(card.textContent.includes('Kun for medlemmer'),'Member-only label on '+id);
+   check(!card.querySelector('.mb-card-body').textContent.includes('Kun for medlemmer'),'No duplicate membership-only text inside card');
    check(parseFloat(getComputedStyle(card).borderTopWidth)>=2,'Visible border on '+id);
    check(!card.querySelector('.mb-card-benefits,.mb-benefit-indicator'),'Admin benefits outside '+id);
  }
@@ -24,6 +25,8 @@ const checks=`(async()=>{
  check(!document.getElementById('mb-dialog').hidden,'Rental editor opens');
  check(document.querySelectorAll('#mb-editor-plan [role=tab]').length===2,'Membership plan tabs');
  check(!document.querySelector('#mb-dialog select'),'No dropdowns in modal');
+ check(document.querySelector('label:has(#mb-verification)').textContent.trim()==='Medlemsverifisering','Short verification label');
+ check(!document.querySelector('.mb-card[data-mb-item="rental-1"]').textContent.includes('Mandag'),'Day tariffs are not shown on rental card');
  const verify=document.getElementById('mb-verification');
  check(!verify.checked&&!verify.disabled,'Global verification switch available');
  verify.click();
@@ -50,6 +53,7 @@ const checks=`(async()=>{
  check(document.getElementById('mb-dialog').hidden,'Close returns to preview');
  check(!document.getElementById('mb-admin-overview').closest('#mb-catalog'),'Admin overview is outside public simulator');
  check(document.getElementById('mb-admin-overview').textContent.includes('Lagret'),'Saved status outside cards');
+ check(document.querySelector('.mb-card[data-mb-item="rental-1"]').textContent.includes('50 % avslag'),'Rental card clearly shows percentage discount');
  document.querySelector('.mb-card[data-mb-item="event-1"]').click();
  check(document.getElementById('mb-value').value==='500','Saved new event rule prefilled');
  document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
@@ -57,6 +61,12 @@ const checks=`(async()=>{
  check(document.documentElement.scrollWidth<=innerWidth+1,'No viewport overflow');
  document.querySelector('.mb-card[data-mb-item="rental-1"]').click();
  check(document.getElementById('mb-verification').checked,'Verification restored when reopening modal');
+ document.querySelector('[data-mb-rental-mode="per_day"]').click();
+ change('mb-value','50');
+ document.getElementById('mb-apply').click();
+ await waitSave();
+ const rentalText=document.querySelector('.mb-card[data-mb-item="rental-1"]').textContent;
+ check(rentalText.includes('50,00')&&rentalText.includes('kr')&&rentalText.includes('avslag')&&!rentalText.includes('50 %'),'Rental card clearly shows currency discount');
  document.getElementById('mb-verification').click();
  document.getElementById('mb-save-verification').click();
  await waitSave();
