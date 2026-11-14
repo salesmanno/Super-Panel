@@ -17,7 +17,20 @@ const quote = (startDate, endDate, options = {}) => pricing.calculateRentalQuote
   cleaningFee: options.cleaningFee,
   cleaning: options.cleaning ?? false,
   adjustment: options.adjustment,
+  membershipBenefits: options.membershipBenefits,
 });
+
+const memberRates = {rental_price:null,weekday_prices_enabled:1,
+  weekday_prices:weekdays,weekend_price:3000};
+const dailyBenefit = {plan_name:'Medlem',benefit_type:'amount_discount',benefit_value:50,price_basis:'rental_day'};
+const percentBenefit = {plan_name:'Annen plan',benefit_type:'percent_discount',benefit_value:15,price_basis:'booking_total'};
+const memberQuote = options => quote('2026-04-04','2026-04-05',{rates:memberRates,...options});
+assert.equal(memberQuote({membershipBenefits:[dailyBenefit]}).totalCents,290000,'Daily discount counts both days of one weekend package');
+assert.equal(memberQuote({membershipBenefits:[dailyBenefit,percentBenefit],cleaning:true,cleaningFee:500}).totalCents,305000,'Best plan, no stacking and no discount on cleaning');
+assert.equal(memberQuote({membershipBenefits:[]}).totalCents,300000,'No entitlement keeps normal package price');
+assert.equal(quote('2026-04-06','2026-04-06',{rates:{rental_price:100,weekday_prices:'null'}}).totalCents,10000,'Serialized JSON null is not an active weekday map');
+assert.equal(memberQuote({membershipBenefits:[{...dailyBenefit,benefit_value:5000}]}).totalCents,0,'Discount cannot produce negative rent');
+assert.throws(()=>memberQuote({membershipBenefits:[{...percentBenefit,benefit_value:101}]}),/100 prosent/);
 
 assert.equal(quote('2026-04-06', '2026-04-07').baseCents, 20000,
   'Changing a weekday date range recalculates the inclusive daily price');

@@ -16,6 +16,9 @@ $schema=[
     "tenant_admins(id CHAR(36),company_id CHAR(36),tenant_staff_id CHAR(36),username TEXT,role VARCHAR(30),is_active INT)",
     "system_modules(id CHAR(36),module_key VARCHAR(50),is_active INT)",
     "output_products(id CHAR(36) PRIMARY KEY,company_id CHAR(36),module_id CHAR(36),product_type VARCHAR(30),product_id CHAR(36),is_visible INT,is_public INT,is_marketplace_featured INT,marketplace_priority INT,discount_percent DECIMAL(12,2),created_by CHAR(36))",
+    "membership_product_modifications(company_id CHAR(36),output_product_id CHAR(36),membership_plan_id CHAR(36),benefit_type VARCHAR(30),benefit_value DECIMAL(12,2),price_basis VARCHAR(30),is_active INT,public_display INT)",
+    "membership_plans(id CHAR(36),company_id CHAR(36),name TEXT,is_active INT)",
+    "membership_members(company_id CHAR(36),customer_id CHAR(36),membership_plan_id CHAR(36),status VARCHAR(30),payment_status VARCHAR(30),join_date DATE,expiration_date DATE)",
     "tenant_admin_modules(tenant_admin_id CHAR(36),module_id CHAR(36))",
     "rental_objects(id CHAR(36) PRIMARY KEY,company_id CHAR(36),object_name TEXT,category VARCHAR(50),rental_text TEXT,rental_price DECIMAL(12,2),weekend_price DECIMAL(12,2),saturday_price DECIMAL(12,2),sunday_price DECIMAL(12,2),weekday_prices_enabled TINYINT(1) NOT NULL DEFAULT 0,is_active INT DEFAULT 1,is_available INT DEFAULT 1,created_by CHAR(36),market_price DECIMAL(12,2),serial_number TEXT,description TEXT,deposit_amount DECIMAL(12,2),condition_notes TEXT,image_url TEXT,images TEXT,rental_periods TEXT,output_product_id CHAR(36))",
     "rental_venues(object_id CHAR(36) PRIMARY KEY,cleaning_fee DECIMAL(12,2),capacity_seated INT,age_required INT NOT NULL DEFAULT 0)",
@@ -340,6 +343,20 @@ try {
     $requestVersion=$call('get_rental_schedule','a',null,'request_id='.$weekdayRequestId)[1]['requests'][0]['decision_version'];
     [$http,$recalculated]=$call('update_rental_schedule','a',['id'=>$weekdayRequestId,'csrf_token'=>'decision-token','expected_version'=>$requestVersion,'end_date'=>'2031-07-12']);
     workflowAssert($http===200&&$recalculated['success']&&(float)$recalculated['rental_fee']===3100.0,'Date edit prices added Saturday using fallback');
+    $memberCustomer=$db->query('SELECT customer_id FROM rental_schedule WHERE id='.$db->quote($weekdayRequestId))->fetchColumn();
+    $db->exec("INSERT INTO membership_plans VALUES('rental-plan','a','Utleiemedlem',1)");
+    $db->prepare("INSERT INTO membership_members VALUES('a',?,'rental-plan','active','paid','2020-01-01','2099-12-31')")->execute([$memberCustomer]);
+    $db->prepare("INSERT INTO membership_product_modifications VALUES('a',?,'rental-plan','amount_discount',50,'rental_day',1,0)")->execute([$newCatalogId]);
+    $memberRequest=$call('get_rental_schedule','a',null,'request_id='.$weekdayRequestId)[1]['requests'][0];
+    $db->prepare('UPDATE rental_venues SET access_code=? WHERE object_id=?')->execute(['1234',$newId]);
+    workflowAssert(count($memberRequest['membership_benefits'])===1 && (float)$memberRequest['rental_fee']===3100.0,'GET exposes private eligible benefit without changing received price');
+    [$http,$blockedApproval]=$call('update_rental_schedule','a',['id'=>$weekdayRequestId,'csrf_token'=>'decision-token','expected_version'=>$memberRequest['decision_version'],'status'=>'approved']);
+    workflowAssert($http===409 && str_contains($blockedApproval['message'],'Medlemsprisen'),'Approval rejects unsaved membership price mismatch: '.json_encode([$http,$blockedApproval]));
+    workflowAssert((float)$db->query('SELECT rental_fee FROM rental_schedule WHERE id='.$db->quote($weekdayRequestId))->fetchColumn()===3100.0,'Rejected approval leaves original price untouched');
+    [$http,$memberSaved]=$call('update_rental_schedule','a',['id'=>$weekdayRequestId,'csrf_token'=>'decision-token','expected_version'=>$memberRequest['decision_version'],'end_date'=>'2031-07-12']);
+    workflowAssert($http===200 && (float)$memberSaved['rental_fee']===2800.0,'Explicit save applies six daily discounts to real API calculation');
+    workflowAssert((float)$memberSaved['pricing']['membership_discount']===300.0
+        && $memberSaved['request']['membership_benefits'][0]['plan_name']==='Utleiemedlem','Save exposes server-calculated discount and fresh eligibility');
     workflowAssert($call('update_rental_object','a',['id'=>'oa','csrf_token'=>'form-token','weekday_prices_enabled'=>0])[1]['success'],'Flat mode disables weekday prices without clearing the map');
     workflowAssert(json_decode($db->query("SELECT weekday_prices FROM rental_objects WHERE id='oa'")->fetchColumn(),true)===$map,'Saved weekday rates remain available if weekday pricing is enabled again');
     workflowAssert((int)$db->query("SELECT weekday_prices_enabled FROM rental_objects WHERE id='oa'")->fetchColumn()===0,'Flat mode persists weekday_prices_enabled=0');

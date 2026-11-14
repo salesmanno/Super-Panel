@@ -76,6 +76,18 @@ window.RentalRequestWorkflow = (() => {
             message('Opplysninger mangler','Last inn forespørselen før du fortsetter.');
             return;
         }
+        if (status === 'approved') {
+            const quote = refreshRentalRequestPrice(row);
+            if (!quote) {
+                message('Pris må kontrolleres', row.dataset.priceError || 'Kunne ikke kontrollere medlemsprisen.');
+                return;
+            }
+            if (quote.membershipDiscountCents > 0 && quote.totalCents !== Math.round(Number(request.rental_fee) * 100)) {
+                message('Lagre medlemsprisen først', 'Beregnet medlemspris avviker fra lagret pris. Trykk «Lagre endringer» før godkjenning.');
+                row.querySelector('.rental-request-save')?.focus();
+                return;
+            }
+        }
         const dialog = document.createElement('dialog');
         dialog.id = 'rental-decision-dialog';
         dialog.className = 'border rounded p-3';

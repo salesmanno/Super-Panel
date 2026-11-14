@@ -15,6 +15,7 @@ require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 require_once __DIR__ . '/../includes/rental_request_fields.php';
 require_once __DIR__ . '/../includes/tenant_notifications.php';
 require_once __DIR__ . '/../includes/rental_schedule_editing.php';
+require_once __DIR__ . '/../includes/rental_membership_pricing.php';
 require_once __DIR__ . '/../includes/rental_reservation_codes.php';
 
 $companyId = $_SESSION['company_id'];
@@ -98,6 +99,16 @@ try {
         $row['checkin_code_missing'] = !rentalValidAssignedCode($row['key_box_code'] ?? null)
             && empty($row['checkin_email_queued_at']) && empty($row['checkin_email_sent_at']);
         $row['decision_version'] = rentalDecisionVersion($row);
+        if ((string)$row['status'] === 'pending') {
+            try {
+                $row['membership_benefits'] = rentalEligibleMembershipBenefits(
+                    $db, (string)$companyId, (string)$row['rental_object_id'], $row['customer_id'] ?: null
+                );
+            } catch (Throwable $error) {
+                error_log('Rental membership pricing: '.$error->getMessage());
+                $row['membership_pricing_error'] = 'Medlemsprisen kunne ikke kontrolleres. Prøv igjen før godkjenning.';
+            }
+        }
         $row['request_fields'] = getRentalRequestFieldValues(
             $db,
             (string) $companyId,

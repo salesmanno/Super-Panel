@@ -24,6 +24,11 @@ const escHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'
 const escAttr=escHtml;
 const calcAge=()=>null;
 const rentalRequestFieldsHtml=()=>'';
+window.RentalRequestWorkflow={hasDrafts:()=>false,capture:()=>{}};
+let rentalRequestsLoadSequence=0;
+let rentalPendingRequests=new Map();
+let rentalDecisionEmailEnabled=false;
+const rentalLifecycleCsrf='fixture';
 window.fetch=async url=>{
     if(url!=='/api/get_rental_schedule.php?approved=0')throw new Error('Unexpected fetch: '+url);
     return {ok:true,json:async()=>({success:true,requests:[{

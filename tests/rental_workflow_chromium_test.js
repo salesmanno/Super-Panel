@@ -8,7 +8,7 @@ const rendered=spawnSync('php',['-r','include "modules/rental_content.php";'],{c
 assert.equal(rendered.status,0,rendered.stderr);
 let html=rendered.stdout.replace(/<link[^>]+>/g,'');
 html=html.replace(/<script src="\/assets\/([^"]+)"><\/script>/g,(_,name)=>
-    '<script>'+fs.readFileSync(path.join(root,'assets',name),'utf8')+'</script>');
+    '<script>'+fs.readFileSync(path.join(root,'assets',name.split('?')[0]),'utf8')+'</script>');
 const dashboard=fs.readFileSync(path.join(root,'pages/company_dashboard.php'),'utf8');
 const subtab=dashboard.slice(dashboard.indexOf('function showSubTabContent('),dashboard.indexOf('function navigateToDittNettsted('));
 const stubs=`
@@ -51,8 +51,10 @@ window.fetch=async(url,options={})=>{
   if(payload.status&&failDecision){status=409;result={success:false,message:'Forespørselen er endret'};}
   else if(!payload.status&&failSave){status=500;result={success:false,message:'Midlertidig feil'};}
   else {
-   requestFixture={...requestFixture,...payload,rental_fee:300,decision_version:'v2'};
-   result={success:true,status:payload.status||'pending',email_queued:Boolean(payload.status),rental_fee:300,request:{...requestFixture}};
+    const fee=requestFixture.membership_benefits?.length
+      ? refreshRentalRequestPrice(document.querySelector('[data-rental-request-id="request-a"]')).totalCents/100 : 300;
+    requestFixture={...requestFixture,...payload,rental_fee:fee,decision_version:'v2'};
+    result={success:true,status:payload.status||'pending',email_queued:Boolean(payload.status),rental_fee:fee,request:{...requestFixture}};
   }
  } else if(String(url).includes('check_refresh_flag'))result={success:true,polls:pollFixtures,csrf_token:'notifications-fixture'};
  else if(String(url).includes('portal_overview'))result={success:true,agenda:[],activity:[],errors:[]};
@@ -104,7 +106,7 @@ window.confirm=()=>true;RentalRequestWorkflow.discard('request-a');
 check(end.value==='2031-05-05'&&!RentalRequestWorkflow.hasDrafts(),'explicit discard restores saved values');
 end.value='2031-05-06';end.dispatchEvent(new Event('change',{bubbles:true}));
 failSave=false;await RentalRequestWorkflow.save('request-a');
-check(!RentalRequestWorkflow.hasDrafts(),'successful explicit save marks draft clean');
+check(!RentalRequestWorkflow.hasDrafts(),'successful explicit save marks draft clean: '+JSON.stringify({messages,errors}));
 const save=calls.filter(c=>c.url.includes('update_rental_schedule')).at(-1).payload;
 check(!Object.hasOwn(save,'status')&&!Object.hasOwn(save,'rental_fee')&&save.csrf_token,'save cannot finalize or supply amount');
 await approveScheduleRequest('request-a');
@@ -122,10 +124,25 @@ dialog.querySelector('button').click();dialog.querySelector('button').click();aw
 check(!row.isConnected&&!document.getElementById('rental-decision-dialog'),'confirmed decision removes only target');
 RentalRequestWorkflow.inspect(requestFixture);
 check(document.getElementById('rental-decision-dialog').textContent.includes('Avslått'),'processed request can be inspected');
-document.getElementById('rental-decision-dialog').querySelector('button').click();
+document.getElementById('rental-decision-dialog').querySelector('button').click();await delay();
 const decisions=calls.filter(c=>c.url.includes('update_rental_schedule')&&c.payload.status);
 check(decisions.length===2,'double click submits only one successful decision');
 check(decisions.at(-1).payload.status==='rejected'&&decisions.at(-1).payload.expected_version==='v2'&&!Object.hasOwn(decisions.at(-1).payload,'end_date'),'decision has saved version, no field edits');
+requestFixture={...requestFixture,status:'pending',approved:0,rental_fee:300,
+ membership_benefits:[{plan_name:'Medlemsplan A',benefit_type:'amount_discount',benefit_value:50,price_basis:'rental_day'}]};
+await loadRentalRequests();
+const memberRow=document.querySelector('[data-rental-request-id="request-a"]');
+check(memberRow.querySelector('.rental-request-membership-summary').textContent.includes('150'),'membership discount is shown separately');
+check(memberRow.querySelector('.rental-request-stored-price').textContent.includes('300'),'opening does not overwrite stored request price');
+await approveScheduleRequest('request-a');
+check(!document.getElementById('rental-decision-dialog')&&messages.at(-1).includes('Lagre medlemsprisen først'),'approval requires explicit save of changed member price');
+await RentalRequestWorkflow.save('request-a');
+check(requestFixture.rental_fee===150&&!RentalRequestWorkflow.hasDrafts(),'explicit save retains membership discount');
+check(memberRow.querySelector('.rental-request-stored-price').textContent.includes('150'),'saved label updates with server price');
+await approveScheduleRequest('request-a');
+check(document.getElementById('rental-decision-dialog')?.textContent.includes('150,00'),'approval reviews the saved member price');
+document.getElementById('rental-decision-dialog').querySelectorAll('button')[1].click();await delay();
+if (${process.env.RENTAL_PRICING_ONLY === '1'}) return {passed:true,scope:'rental decisions and membership pricing'};
 await TenantNotifications.check();
 check(document.querySelectorAll('[data-notification-id]').length===1,'exactly one foreground notification');
 check(document.querySelector('[data-notification-id="p1"]').textContent.includes('John <img src=x> har sendt en utleieforespørsel om Sal A'),'specific literal notification');
@@ -164,7 +181,7 @@ async function main(){
   await send('Page.navigate',{url:'file://'+file+'?w='+width},sessionId);await new Promise(r=>setTimeout(r,500));
   const result=await send('Runtime.evaluate',{expression:checks,awaitPromise:true,returnByValue:true},sessionId);
   assert.equal(result.result?.value?.passed,true,JSON.stringify(result));
-  console.log('Rental workflow and notifications passed at '+width+'px');
+  console.log('Rental workflow'+(process.env.RENTAL_PRICING_ONLY==='1'?' and membership pricing':' and notifications')+' passed at '+width+'px');
  }
 }
 main().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{

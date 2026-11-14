@@ -342,10 +342,10 @@ $schemas = getRentalSchemas();
     </div>
 </div>
 
-<script src="/assets/rental_request_pricing.js"></script>
+<script src="/assets/rental_request_pricing.js?v=<?= filemtime(__DIR__.'/../assets/rental_request_pricing.js') ?>"></script>
 <script src="/assets/active-payment-methods.js"></script>
 <script src="/assets/entity-form-fields.js"></script>
-<script src="/assets/rental_request_workflow.js"></script>
+<script src="/assets/rental_request_workflow.js?v=<?= filemtime(__DIR__.'/../assets/rental_request_workflow.js') ?>"></script>
 <script src="/assets/rental_reservation_codes.js"></script>
 <script src="/assets/rental-dashboard.js" defer></script>
 <script>
@@ -2733,6 +2733,7 @@ function refreshRentalRequestPrice(row) {
     const approveButton = row.querySelector('.rental-request-approve');
     try {
         updateRentalRequestWeekdayLabels(row);
+        if (row.dataset.membershipPricingError) throw new Error(row.dataset.membershipPricingError);
         const adjustment = rentalAdjustmentFromRow(row);
         const quote = RentalRequestPricing.calculateRentalQuote({
             rates: {
@@ -2748,6 +2749,7 @@ function refreshRentalRequestPrice(row) {
             endDate: row.querySelector('[data-rental-request-field="end-date"]')?.value,
             cleaningFee: row.dataset.cleaningFee,
             cleaning: row.querySelector('.rental-request-cleaning')?.checked,
+            membershipBenefits: JSON.parse(row.dataset.membershipBenefits || '[]'),
             adjustment: {
                 type: adjustment.type,
                 amount: adjustment.amountCents / 100,
@@ -2766,6 +2768,10 @@ function refreshRentalRequestPrice(row) {
             ? `+ ${formatCents(quote.cleaningCents)} NOK renhold`
             : 'Ingen renhold';
         if (totalEl) totalEl.textContent = `Totalt: ${formatCents(quote.totalCents)} NOK`;
+        const membershipEl = row.querySelector('.rental-request-membership-summary');
+        if (membershipEl) membershipEl.textContent = quote.membershipDiscountCents > 0
+            ? `− ${formatCents(quote.membershipDiscountCents)} NOK medlemsrabatt · ${quote.membershipBenefit.plan_name}`
+            : 'Ingen aktiv medlemsrabatt på tilknyttet kunde';
         if (adjustmentEl) adjustmentEl.textContent = adjustment.amountCents > 0
             ? `${adjustment.type === 'discount' ? '−' : '+'} ${formatCents(adjustment.amountCents)} NOK · ${adjustment.explanation}`
             : 'Ingen prisjustering';
@@ -2894,6 +2900,8 @@ async function loadRentalRequests() {
                 ? '' : String(r.object_weekday_prices_enabled);
 
             return `<tr data-rental-request-id="${escHtml(r.id)}"
+                        data-membership-benefits="${escAttr(JSON.stringify(r.membership_benefits || []))}"
+                        data-membership-pricing-error="${escAttr(r.membership_pricing_error || '')}"
                         data-object-id="${escHtml(r.rental_object_id || '')}"
                         data-daily-price="${escAttr(r.object_daily_price ?? '')}"
                         data-weekday-prices="${escAttr(weekdayPricesJson)}"
@@ -2946,6 +2954,8 @@ async function loadRentalRequests() {
                             ? `+ ${cleaningFee.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK renhold`
                             : 'Ingen renhold'}
                     </div>
+                    <div class="small text-success rental-request-membership-summary"></div>
+                    <div class="small text-muted rental-request-stored-price">Lagret pris: ${rentalFee.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK</div>
                     <div class="small fw-semibold text-nowrap mt-1 rental-request-total">
                         Totalt: ${rentalFee.toLocaleString('nb-NO', {minimumFractionDigits:0, maximumFractionDigits:2})} NOK
                     </div>
@@ -3029,6 +3039,16 @@ function rentalRequestContext(id) {
 function rentalRequestAcceptSaved(id, result) {
     const request = rentalPendingRequests.get(String(id));
     if (request) Object.assign(request, result.request);
+    const row = document.querySelector(`[data-rental-request-id="${CSS.escape(String(id))}"]`);
+    if (row && result.request?.rental_fee !== undefined) {
+        if (result.request.membership_benefits) {
+            row.dataset.membershipBenefits = JSON.stringify(result.request.membership_benefits);
+            row.dataset.membershipPricingError = '';
+            refreshRentalRequestPrice(row);
+        }
+        const stored = row.querySelector('.rental-request-stored-price');
+        if (stored) stored.textContent = `Lagret pris: ${Number(result.request.rental_fee).toLocaleString('nb-NO')} NOK`;
+    }
 }
 
 async function openRentalRequestNotification(id) {

@@ -58,6 +58,8 @@ elif [[ "${1:-}" == "--catalog" ]]; then
     php "$ROOT/tests/source_catalog_links_test.php" "$ROOT" "$TEMP_ROOT"
     php "$ROOT/tests/sales_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT" --backend-only
     php "$ROOT/tests/rental_workflow_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
+elif [[ "${1:-}" == "--rental-membership" ]]; then
+    php "$ROOT/tests/rental_membership_pricing_test.php" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--workflow" ]]; then
     php "$ROOT/tests/rental_workflow_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--forms" ]]; then

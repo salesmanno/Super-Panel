@@ -72,17 +72,18 @@
         return prices;
     }
 
-    function calculateRentalQuote({ rates, startDate, endDate, cleaningFee, cleaning, adjustment }) {
+    function calculateRentalQuote({ rates, startDate, endDate, cleaningFee, cleaning, adjustment, membershipBenefits = [] }) {
         if (!rates || typeof rates !== 'object') {
             throw new Error('Prisene for utleieobjektet mangler. Oppdater prisene før godkjenning.');
         }
 
         const rateCorrection = 'Oppdater prisene på utleieobjektet.';
         const flag = rates.weekday_prices_enabled;
+        const weekdayData = rates.weekday_prices === 'null' ? null : rates.weekday_prices;
         let weekdayPricingEnabled;
         if (flag === null || flag === undefined || flag === '') {
-            weekdayPricingEnabled = rates.weekday_prices !== null && rates.weekday_prices !== undefined
-                && rates.weekday_prices !== '';
+            weekdayPricingEnabled = weekdayData !== null && weekdayData !== undefined
+                && weekdayData !== '';
         } else if (String(flag) === '0' || flag === false) {
             weekdayPricingEnabled = false;
         } else if (String(flag) === '1' || flag === true) {
@@ -90,7 +91,7 @@
         } else {
             throw new Error('Valget for ukedagspriser er ugyldig.');
         }
-        const weekdays = weekdayPricingEnabled ? weekdayPriceCents(rates.weekday_prices) : null;
+        const weekdays = weekdayPricingEnabled ? weekdayPriceCents(weekdayData) : null;
         if (weekdayPricingEnabled && weekdays === null) {
             throw new Error('Ukedagspriser er slått på, men mangler. Oppdater prisene på utleieobjektet.');
         }
@@ -142,12 +143,38 @@
             ? -normalizedAdjustment.amountCents
             : normalizedAdjustment.type === 'surcharge' ? normalizedAdjustment.amountCents : 0;
 
+        const rentalDays = Math.round((end-start)/86400000)+1;
+        let memberBaseCents = baseCents;
+        let membershipBenefit = null;
+        if (!Array.isArray(membershipBenefits)) throw new Error('Ugyldige medlemsfordeler.');
+        for (const rule of membershipBenefits) {
+            const basis = rule.price_basis || 'unit';
+            const type = rule.benefit_type;
+            if (!['unit','booking_total','rental_day'].includes(basis)
+                || (basis === 'rental_day' && type !== 'amount_discount')) throw new Error('Ugyldig prisgrunnlag for medlemsfordelen.');
+            let candidate = baseCents;
+            if (type === 'included') candidate = 0;
+            else if (type !== 'access') {
+                const cents = amountToCents(rule.benefit_value, 'Medlemsfordelen', true);
+                if (cents > 100000000000) throw new Error('Medlemsfordelen er for stor.');
+                if (type === 'amount_discount') candidate = Math.max(0, baseCents - cents * (basis === 'rental_day' ? rentalDays : 1));
+                else if (type === 'percent_discount') {
+                    if (cents > 10000) throw new Error('Medlemsrabatten kan ikke overstige 100 prosent.');
+                    candidate = Math.round(baseCents * (10000 - cents) / 10000);
+                } else if (type === 'fixed_price') candidate = Math.min(baseCents, cents);
+                else throw new Error('Ukjent medlemsfordel.');
+            }
+            if (candidate < memberBaseCents) { memberBaseCents = candidate; membershipBenefit = rule; }
+        }
         return {
             baseCents,
-            rentalDays: Math.round((end-start)/86400000)+1,
+            rentalDays,
+            memberBaseCents,
+            membershipDiscountCents: baseCents - memberBaseCents,
+            membershipBenefit,
             cleaningCents,
             adjustmentCents,
-            totalCents: Math.max(0, baseCents + cleaningCents + adjustmentCents),
+            totalCents: Math.max(0, memberBaseCents + cleaningCents + adjustmentCents),
         };
     }
 

@@ -13,6 +13,7 @@ require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
 require_once __DIR__ . '/../includes/request_date_time.php';
 require_once __DIR__ . '/../includes/rental_confirmation_email.php';
 require_once __DIR__ . '/../includes/rental_schedule_editing.php';
+require_once __DIR__ . '/../includes/rental_membership_pricing.php';
 require_once __DIR__ . '/../includes/rental_request.php';
 require_once __DIR__ . '/../includes/tenant_audit.php';
 require_once __DIR__ . '/../includes/tenant_notifications.php';
@@ -356,17 +357,29 @@ try {
         || array_key_exists('price_adjustment_amount', $data)
         || array_key_exists('price_adjustment_explanation', $data);
     $pricingBreakdown = null;
-    if ($pricingChanged) {
+    if ($pricingChanged || $newStatus === 'approved') {
         $baseCents = rentalPeriodPriceCents($row, $effectiveStartDate, $effectiveEndDate);
+        $membershipBenefits = rentalEligibleMembershipBenefits(
+            $db, (string)$companyId, (string)$row['rental_object_id'], $row['customer_id'] ?: null
+        );
+        $memberPrice = rentalMembershipPrice($baseCents, $effectiveStartDate, $effectiveEndDate, $membershipBenefits);
         $cleaningCents = $newCleaning === 1
             ? max(0, rentalMoneyToCents($row['cleaning_fee'] ?? 0))
             : 0;
-        $newRentalFee = max(0, $baseCents + $cleaningCents + $adjustmentCents) / 100;
+        $newRentalFee = max(0, $memberPrice['member_base_cents'] + $cleaningCents + $adjustmentCents) / 100;
+        if (!$pricingChanged && $memberPrice['discount_cents'] > 0
+            && rentalMoneyToCents($row['rental_fee']) !== rentalMoneyToCents($newRentalFee)) {
+            throw new RentalRequestConflictException('Medlemsprisen avviker fra lagret pris. Lagre prisberegningen før godkjenning.');
+        }
+    }
+    if ($pricingChanged) {
         $updateFields[] = 'rental_fee = ?';
         $updateParams[] = number_format($newRentalFee, 2, '.', '');
         $row['rental_fee'] = $newRentalFee;
         $pricingBreakdown = [
             'base_rental_fee' => $baseCents / 100,
+            'membership_discount' => $memberPrice['discount_cents'] / 100,
+            'membership_plan' => $memberPrice['benefit']['plan_name'] ?? null,
             'cleaning_fee' => $cleaningCents / 100,
             'price_adjustment_type' => $adjustmentCents === 0 ? null : $adjustmentType,
             'price_adjustment_amount' => abs($adjustmentCents) / 100,
@@ -540,6 +553,7 @@ try {
     $saved = $db->prepare('SELECT * FROM rental_schedule WHERE id = ? AND company_id = ?');
     $saved->execute([$data['id'], $companyId]);
     $savedRow = $saved->fetch(PDO::FETCH_ASSOC);
+    if (isset($membershipBenefits)) $savedRow['membership_benefits'] = $membershipBenefits;
     $savedRow['decision_version'] = rentalDecisionVersion($savedRow);
     $db->commit();
 
