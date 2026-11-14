@@ -19,7 +19,17 @@ const liveChecks = `(async()=>{
   check(parseFloat(getComputedStyle(cardDescription).fontSize)>=13,'Catalog descriptions remain readable at 13px or larger: '+getComputedStyle(cardDescription).fontSize);
   const eventGrid=getComputedStyle(document.querySelector('.mb-group[aria-label="Arrangementer"] .mb-cards')).gridTemplateColumns.split(' ').length;
   check(eventGrid===(innerWidth>700?2:1),'Wide event cards use two columns on desktop and one on phones');
-  check(document.querySelectorAll('.mb-card').length===6,'Private and invisible services omitted by default: '+document.querySelectorAll('.mb-card').length);
+  check(document.querySelectorAll('.mb-card').length===7,'Private and expired services omitted by default: '+document.querySelectorAll('.mb-card').length);
+  check(getComputedStyle(document.querySelector('.mb-site-logo')).backgroundColor==='rgba(0, 0, 0, 0)','Transparent logo exposes header background');
+  const membershipCard=document.querySelector('.mb-group[aria-label="Medlemskap"] .mb-card');
+  check(membershipCard?.getAttribute('aria-disabled')==='true' && getComputedStyle(membershipCard).filter.includes('grayscale'),'Membership remains visible but grey and disabled');
+  membershipCard.click();
+  check(document.getElementById('mb-dialog').hidden,'Membership cannot open benefit assignment');
+  const noSignup=[...document.querySelectorAll('.mb-card')].find(card=>card.textContent.includes('Informasjonsarrangement'));
+  check(noSignup?.getAttribute('aria-disabled')==='true'&&!noSignup.hasAttribute('data-mb-item'),'Events without registration cannot receive benefits');
+  noSignup.click();
+  check(document.getElementById('mb-dialog').hidden,'Event without registration does not open editor');
+  check(!document.body.textContent.includes('Utløpt arrangement'),'Expired event is removed');
   check(!document.body.textContent.includes('Skjult klubbgenser'),'Invisible product is not part of the public preview');
   check(document.body.textContent.includes('Pris ikke oppgitt'),'Unknown price is not displayed as free');
   check(document.querySelector('.mb-card[data-mb-item="event-1"]').textContent.includes('Bergsøy Medlem · medlemspris 500,00'),'Public event member pricing is represented in the ordinary preview');

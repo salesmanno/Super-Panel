@@ -45,6 +45,9 @@ function membershipBenefitsPreviewProduct(array $catalog, array $source): array 
         'price' => is_numeric($price) ? (float)$price : null,
         'start_date' => $type === 'events' ? ($source['start_date'] ?? null) : null,
         'start_time' => $type === 'events' ? ($source['start_time'] ?? null) : null,
+        'end_date' => $type === 'events' ? ($source['end_date'] ?? null) : null,
+        'registration_type' => $type === 'events' ? ($source['registration_type'] ?? 'none') : null,
+        'benefit_eligible' => $type !== 'membership' && ($type !== 'events' || in_array($source['registration_type'] ?? '', ['signup', 'binding'], true)),
         'exclusive' => (bool)($source['is_member_exclusive'] ?? $source['member_exclusive'] ?? false),
         'is_visible' => $active && (int)($catalog['is_visible'] ?? 0) === 1,
         'is_public' => $active && (int)($catalog['is_public'] ?? 0) === 1,
@@ -111,6 +114,9 @@ function membershipBenefitsPreviewLoad(PDO $db, string $company): array {
             continue;
         }
         $item = membershipBenefitsPreviewProduct($entry, $sources[$type][$id]);
+        // An event remains available throughout its final calendar day (Oslo).
+        $today = (new DateTimeImmutable('now', new DateTimeZone('Europe/Oslo')))->format('Y-m-d');
+        if ($type === 'events' && !empty($item['end_date']) && substr((string)$item['end_date'], 0, 10) < $today) continue;
         $item['membership_prices'] = $type === 'events' ? ($pricing[$id] ?? []) : [];
         $products[] = $item;
     }

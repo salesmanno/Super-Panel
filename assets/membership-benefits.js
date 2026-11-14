@@ -76,7 +76,7 @@
         return {
             company:data.company,
             plans:data.plans.map(plan => ({...plan,id:String(plan.id),name:String(plan.name || 'Medlemskap'),price:nullableNumber(plan.price)})),
-            products:data.products.map((product,index) => ({...product,id:String(product.id ?? product.source_id ?? index),type:categoryNames[product.type] ? product.type : 'product',name:String(product.name || 'Uten navn'),description:String(product.description || ''),price:nullableNumber(product.price),exclusive:product.exclusive === true,membership_prices:Array.isArray(product.membership_prices) ? product.membership_prices : []})),
+            products:data.products.map((product,index) => ({...product,registration_type:product.registration_type || 'none',id:String(product.id ?? product.source_id ?? index),type:categoryNames[product.type] ? product.type : 'product',name:String(product.name || 'Uten navn'),description:String(product.description || ''),price:nullableNumber(product.price),exclusive:product.exclusive === true,membership_prices:Array.isArray(product.membership_prices) ? product.membership_prices : []})),
             warnings:Array.isArray(data.warnings) ? data.warnings.map(String) : []
         };
     };
@@ -102,7 +102,9 @@
             mode.textContent = 'Ingen live data';
             state.querySelector('[data-mb-retry]').addEventListener('click',() => loadCatalog(true));
             state.querySelector('[data-mb-demo]').addEventListener('click',() => {
-                payload = normalize(demoData());
+                const demo = demoData();
+                demo.products.filter(product => product.type === 'events').forEach(product => { product.registration_type = 'signup'; });
+                payload = normalize(demo);
                 demoMode = true;
                 loaded = true;
                 overrides = new Map();
@@ -112,6 +114,8 @@
         } finally { loading = false; }
     }
     const selectedPlan = () => payload?.plans.find(plan => plan.id === planSelect.value) || null;
+    const benefitEligible = product => product.type !== 'membership' && product.benefit_eligible !== false
+        && (product.type !== 'events' || ['signup','binding'].includes(product.registration_type));
     const eventMembershipPrice = (product,planId) => (product.membership_prices || []).find(entry => String(entry.plan_id) === String(planId));
     const getRule = (product,planId) => overrides.get(`${product.id}:${planId}`) || null;
     const isExclusive = product => accessOverrides.get(product.id) ?? product.exclusive;
@@ -142,6 +146,7 @@
         return Number.isNaN(date.getTime()) ? String(value) : new Intl.DateTimeFormat('nb-NO',{day:'numeric',month:'short',year:'numeric'}).format(date);
     };
     function renderCard(product) {
+        const eligible = benefitEligible(product);
         const plan = selectedPlan();
         const price = effectivePrice(product,plan?.id);
         const publicPrice = product.price;
@@ -162,9 +167,9 @@
         const date = product.start_date ? `<span>Dato ${safeText(formatDate(product.start_date))}${product.start_time ? ` kl. ${safeText(product.start_time)}` : ''}</span>` : '';
         const place = product.address || product.location || '';
         const details = [date,place ? `<span>${safeText(place)}</span>` : ''].filter(Boolean).join('');
-        return `<article class="mb-card" tabindex="0" role="button" aria-label="Rediger fordel for ${safeText(product.name)}" data-mb-item="${safeText(product.id)}">
+        return `<article class="mb-card${eligible ? '' : ' mb-card-ineligible'}" ${eligible ? `tabindex="0" role="button" aria-label="Rediger fordel for ${safeText(product.name)}" data-mb-item="${safeText(product.id)}"` : 'aria-disabled="true"'}>
             ${productImage(product)}<div class="mb-card-body"><h5 class="mb-card-title">${safeText(product.name)}</h5><p class="mb-card-description">${safeText(product.description || categoryDescriptions[product.type])}</p>
-            ${details ? `<div class="mb-card-meta">${details}</div>` : ''}${priceBlock}${hidden ? '<span class="mb-card-badge mb-hidden-badge">Skjult i offentlig visning</span>' : ''}<span class="mb-card-action">Rediger fordel</span></div></article>`;
+            ${details ? `<div class="mb-card-meta">${details}</div>` : ''}${priceBlock}${hidden ? '<span class="mb-card-badge mb-hidden-badge">Skjult i offentlig visning</span>' : ''}<span class="mb-card-action">${eligible ? 'Rediger fordel' : product.type === 'membership' ? 'Medlemskap · ikke fordelstildeling' : 'Uten påmelding · ikke fordelstildeling'}</span></div></article>`;
     }
     function render() {
         if (!loaded || !payload) return;
@@ -179,9 +184,12 @@
         editorPlan.innerHTML = payload.plans.map(plan => `<option value="${safeText(plan.id)}">${safeText(plan.name)}</option>`).join('') || '<option value="">Ingen medlemskapsplaner</option>';
         const company = payload.company;
         const logo = safeUrl(company.img_url || company.logo_url);
-        const previewProducts = payload.products.filter(product => showHidden.checked || (product.is_visible !== false && product.is_public !== false));
+        const today = new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Oslo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+        const previewProducts = payload.products.filter(product =>
+            !(product.type === 'events' && product.end_date && String(product.end_date).slice(0,10) < today)
+            && (product.type === 'membership' || showHidden.checked || (product.is_visible !== false && product.is_public !== false)));
         const featured = previewProducts.find(product => product.type === 'events');
-        const featuredHtml = featured ? `<article class="mb-feature" tabindex="0" role="button" aria-label="Rediger fordel for ${safeText(featured.name)}" data-mb-item="${safeText(featured.id)}">${productImage(featured).replace('mb-card-image','mb-feature-image')}<div class="mb-feature-copy"><span class="mb-feature-kicker">SISTE ARRANGEMENT</span><h4>${safeText(featured.name)}</h4><p>${safeText(featured.start_date ? `${formatDate(featured.start_date)}${featured.start_time ? ` kl. ${safeText(featured.start_time)}` : ''}` : featured.description)}</p><span class="mb-small-link">Se arrangementet</span></div></article>` : '';
+        const featuredHtml = featured ? `<article class="mb-feature" ${benefitEligible(featured) ? `tabindex="0" role="button" aria-label="Rediger fordel for ${safeText(featured.name)}" data-mb-item="${safeText(featured.id)}"` : 'aria-disabled="true"'}>${productImage(featured).replace('mb-card-image','mb-feature-image')}<div class="mb-feature-copy"><span class="mb-feature-kicker">SISTE ARRANGEMENT</span><h4>${safeText(featured.name)}</h4><p>${safeText(featured.start_date ? `${formatDate(featured.start_date)}${featured.start_time ? ` kl. ${safeText(featured.start_time)}` : ''}` : featured.description)}</p><span class="mb-small-link">${benefitEligible(featured) ? 'Rediger fordel' : 'Uten påmelding'}</span></div></article>` : '';
         const groups = ['membership','rental','events','product','service'].map(type => {
             const products = previewProducts.filter(item => item.type === type);
             if (!products.length) return '';
@@ -240,7 +248,7 @@
     }
     function openEditor(id,card) {
         activeItem = payload.products.find(product => product.id === id);
-        if (!activeItem) return;
+        if (!activeItem || !benefitEligible(activeItem)) { activeItem = null; return; }
         returnFocus = card;
         const planId = selectedPlan()?.id || payload.plans[0]?.id || '';
         editorPlan.value = planId;
@@ -295,7 +303,7 @@
         updateEditorPreview();
     });
     document.getElementById('mb-apply').addEventListener('click',() => {
-        if (!activeItem || !editorPlan.value) return;
+        if (!activeItem || !benefitEligible(activeItem) || !editorPlan.value) return;
         if (mechanism() !== 'included' && !valueInput.reportValidity()) return;
         overrides.set(`${activeItem.id}:${editorPlan.value}`,{mechanism:mechanism(),value:nullableNumber(valueInput.value)});
         accessOverrides.set(activeItem.id, memberOnly.checked);

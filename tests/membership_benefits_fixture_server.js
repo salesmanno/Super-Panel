@@ -25,6 +25,11 @@ const fixture = {
     ],
     warnings:[]
 };
+fixture.products.filter(product => product.type === 'events').forEach(product => { product.registration_type = 'signup'; });
+fixture.products.push(
+    {id:'no-signup',type:'events',name:'Informasjonsarrangement',registration_type:'none',is_visible:true,is_public:true,price:0,membership_prices:[]},
+    {id:'expired-event',type:'events',name:'Utløpt arrangement',registration_type:'signup',end_date:'2000-01-01',is_visible:true,is_public:true,price:100,membership_prices:[]}
+);
 function createFixtureServer(options={}) {
     return http.createServer((request,response) => {
         const url = new URL(request.url,'http://localhost');
