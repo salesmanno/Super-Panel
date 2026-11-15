@@ -1,7 +1,11 @@
 <?php
 session_start();
+if (isset($_SESSION['tenant_admin_id'], $_SESSION['company_id']) && empty($_SESSION['entity_form_csrf'])) {
+    $_SESSION['entity_form_csrf'] = bin2hex(random_bytes(32));
+}
 session_write_close();
 header('Content-Type: application/json');
+header('Cache-Control: no-store');
 
 if (!isset($_SESSION['tenant_admin_id'])) {
     echo json_encode(['success' => false, 'message' => 'Ikke autentisert']);
@@ -70,6 +74,7 @@ try {
             mm.join_date,
             mm.expiration_date as expiry_date,
             mm.auto_renew,
+            mm.my_membership_page_active,
             mm.status,
             mm.payment_status,
             mm.Automailer_Sent,
@@ -102,7 +107,8 @@ try {
     $subStmt->execute([$companyId]);
     $subdomain = $subStmt->fetchColumn() ?: '';
 
-    echo json_encode(['success' => true, 'members' => $members, 'subdomain' => $subdomain]);
+    echo json_encode(['success' => true, 'members' => $members, 'subdomain' => $subdomain,
+        'csrf_token' => $_SESSION['entity_form_csrf']]);
 
 } catch (Exception $e) {
     error_log("Error fetching members: " . $e->getMessage());

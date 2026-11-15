@@ -1071,6 +1071,7 @@ async function loadMembers() {
         if (result.success && result.members) {
             allMembers = result.members;
             memberSubdomain = result.subdomain || '';
+            memberPageCsrf = result.csrf_token || '';
             renderMembersTable(allMembers);
         } else {
             allMembers = [];
@@ -1273,6 +1274,7 @@ async function loadPlansForFilter() {
 // Filter members based on search, plan, and status
 let allMembers = [];
 let memberSubdomain = '';
+let memberPageCsrf = '';
 
 function applyMemberFilters() {
     const searchTerm = document.getElementById('member-search-input').value.toLowerCase();
@@ -1349,13 +1351,10 @@ function renderMembersTable(members) {
                         ${parseInt(member.Automailer_Sent) === 2 ? `<span class="badge bg-danger mt-1" style="font-size:0.6rem;" title="Purring sendt"><i class="bi bi-envelope-exclamation me-1"></i>Purring sendt</span>` : ''}
                     </td>
                     <td class="text-nowrap">
-                        <button class="btn btn-sm btn-success" onclick="renewMembership('${member.member_id}')" title="Forny medlemskap">
-                            <i class="bi bi-arrow-clockwise"></i>
-                        </button>
                         ${member.share_code && member.member_code ? `
-                        <button class="btn btn-sm btn-outline-secondary ms-1"
-                                onclick="copyRenewalLink('${member.share_code}','${member.member_code}')"
-                                title="Kopier fornyelseslenke">
+                        <button type="button" class="btn btn-sm ${Number(member.my_membership_page_active) === 1 ? 'btn-outline-success' : 'btn-outline-secondary'} ms-1"
+                                onclick="copyMemberLink(this.closest('tr').dataset.memberId, this)"
+                                title="Kopier medlemslenke" aria-label="Kopier medlemslenke">
                             <i class="bi bi-clipboard"></i>
                         </button>` : ''}
                         <button class="btn btn-sm btn-outline-info ms-1"
@@ -1690,18 +1689,39 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Copy renewal link to clipboard
-function copyRenewalLink(shareCode, memberCode) {
-    if (!memberSubdomain || !shareCode || !memberCode) {
-        toast.quickError('Mangler data', 'Kunne ikke generere fornyelseslenken.');
+// Activate first, then copy. Never toggle an already active page off.
+async function copyMemberLink(memberId, button) {
+    if (button.disabled) return;
+    const member = allMembers.find(m => m.member_id === memberId);
+    if (!memberSubdomain || !member?.share_code || !member.member_code) {
+        toast.quickError('Mangler data', 'Kunne ikke generere medlemslenken.');
         return;
     }
-    const url = `https://${memberSubdomain}.salesman.no/${shareCode}/${memberCode}`;
-    navigator.clipboard.writeText(url).then(() => {
-        toast.quickSuccess('Lenke kopiert', url);
-    }).catch(() => {
-        prompt('Kopier lenken manuelt:', url);
-    });
+    button.disabled = true;
+    try {
+        // Always check the server: the customer may have closed the page since loading this list.
+        const response = await fetch('/api/activate_member_page.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': memberPageCsrf},
+            body: JSON.stringify({member_id: memberId})
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'Kunne ikke aktivere medlemssiden.');
+        member.my_membership_page_active = 1;
+        button.classList.remove('btn-outline-secondary');
+        button.classList.add('btn-outline-success');
+        const url = `https://${memberSubdomain}.salesman.no/${encodeURIComponent(member.share_code)}/${encodeURIComponent(member.member_code)}`;
+        try {
+            await navigator.clipboard.writeText(url);
+            toast.quickSuccess('Lenke kopiert', url);
+        } catch (_) {
+            prompt('Medlemssiden er aktiv. Kopier lenken manuelt:', url);
+        }
+    } catch (error) {
+        toast.quickError('Medlemslenke', error.message);
+    } finally {
+        button.disabled = false;
+    }
 }
 
 // Renew membership function
