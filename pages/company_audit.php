@@ -134,6 +134,6 @@ if (!tenantIsSupervisor($db, $companyId)) {
         </div>
     </dialog>
 
-    <script src="../assets/tenant-audit.js" defer></script>
+    <script src="../assets/tenant-audit.js?v=<?= filemtime(__DIR__ . '/../assets/tenant-audit.js') ?>" defer></script>
 </body>
 </html>

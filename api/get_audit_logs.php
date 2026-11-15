@@ -82,6 +82,10 @@ try {
     }
     echo json_encode([
         'success' => true, 'logs' => $logs, 'filters' => $filters,
+        'presentation' => ['modules'=>tenantAuditPresentationLabels()['modules'],
+            'resources'=>tenantAuditPresentationLabels()['resources'],
+            'fields'=>tenantAuditPresentationLabels()['fields'],
+            'actions'=>array_combine($filters['actions'], array_map('tenantAuditActionLabel', $filters['actions']))],
         'pagination' => ['page' => $page, 'total' => $total, 'pages' => max(1, (int) ceil($total / 50)), 'limit' => 50],
     ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 } catch (InvalidArgumentException $error) {

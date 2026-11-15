@@ -272,6 +272,10 @@ function tenantAuditPublicRow(array $row): array {
                 'template_body_sha256','template_subject_sha256','message_body_sha256','message_subject_sha256','reverses_audit_id'])),
     ];
     $public['description'] = tenantAuditNarrative($public);
+    $public['changes'] = tenantAuditDisplayChanges($public['before'], $public['after']);
+    $public['module_label'] = tenantAuditLabel('modules', (string)$public['module']);
+    $public['resource_label'] = tenantAuditLabel('resources', (string)$public['resource_type']);
+    $public['action_label'] = tenantAuditActionLabel((string)$public['action']);
     $public['reversal_candidate'] = $public['action'] === 'sales.stock_adjusted' && $public['resource_type'] === 'sales_products'
         && $public['outcome'] === 'success';
     $public['reversal_reason'] = $public['reversal_candidate'] ? null

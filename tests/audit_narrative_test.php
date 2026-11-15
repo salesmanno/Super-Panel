@@ -12,7 +12,7 @@ narrativeCheck(str_contains($text,'Kasserer Kari Nord opprettet arrangementet So
 $edited=array_replace($base,['action'=>'events.update','before'=>['ticket_price'=>200,'start_date'=>'2026-07-15'],
     'after'=>['ticket_price'=>250,'start_date'=>'2026-07-15']]);
 $text=tenantAuditNarrative($edited);
-narrativeCheck(str_contains($text,'billettpris fra 200 til 250') && !str_contains($text,'startdato fra'),'Only actual differences appear');
+narrativeCheck(str_contains($text,'billettpris fra 200,00 NOK til 250,00 NOK') && !str_contains($text,'startdato fra'),'Only actual differences appear, with formatted currency');
 $manual=array_replace($base,['action'=>'EVENT_PARTICIPANT_MANUAL_CREATE','resource_type'=>'events_checkin',
     'resource_name'=>'Sommerfest / Ada Nord','after'=>['ticket_price'=>475.5,'checked_in'=>0]]);
 $text=tenantAuditNarrative($manual);

@@ -16,7 +16,10 @@ window.calls=[];
 const log={id:'stock-log',performed_at:'2026-11-01 19:30:00',module:'sales',actor_role:'Kasserer',
 actor_name:'Kari Nord',actor_type:'tenant_admin',action:'sales.stock_adjusted',resource_type:'sales_products',
 resource_id:'p',resource_name:'Kaffe',description:'Kasserer Kari Nord fylte på Kaffe ×12.',outcome:'success',
-before:{stock_quantity:0},after:{stock_quantity:12},links:{},reversal_candidate:true};
+action_label:'Beholdning justert',module_label:'Salg',resource_label:'Vare',
+before:{stock_quantity:0},after:{stock_quantity:12},links:{},reversal_candidate:true,
+changes:[{key:'stock_quantity',label:'Beholdning',before:'0',after:'12',technical:false},
+ {key:'product_id',label:'Produktreferanse',before:'old-reference',after:'new-reference',technical:true}]};
 window.fetch=async function(url,options={}) {
  const endpoint=String(url), body=options.body ? JSON.parse(options.body) : null;
  calls.push({url:endpoint,body,headers:options.headers});
@@ -29,7 +32,7 @@ window.fetch=async function(url,options={}) {
  return {ok:true,json:async()=>({success:true,logs:[log],filters:{},pagination:{page:1,total:1,pages:1,limit:50}})};
 };`;
 html = html.replace('<head>','<head><style>'+style+'</style><script>'+setup+'</script>');
-html = html.replace('<script src="../assets/tenant-audit.js" defer></script>','<script>'+script+'</script>');
+html = html.replace(/<script src="\.\.\/assets\/tenant-audit\.js[^"]*" defer><\/script>/,'<script>'+script+'</script>');
 const fixture = path.join(dir,'audit.html');
 fs.writeFileSync(fixture,html);
 const checks = `(async()=>{
@@ -41,6 +44,10 @@ const checks = `(async()=>{
  button('Vis detaljer').click();
  await wait(()=>button('Forhåndsvis reversering'));
  assert(document.querySelector('#audit-dialog').open,'Details dialog opens');
+ assert(document.querySelector('.change-key').textContent==='Beholdning','Business field labels are readable');
+ assert(document.querySelector('#dialog-title').textContent==='Beholdning justert · Kaffe','Title uses formatted action rather than event code');
+ assert(!document.querySelector('#dialog-content > .detail-grid').textContent.includes('sales_products'),'Technical resource names are not in the main details');
+ assert(document.querySelector('#dialog-content details') && !document.querySelector('#dialog-content details').open,'Technical references collapsed by default');
  assert(calls.filter(c=>c.body?.mode==='apply').length===0,'Opening details never applies reversal');
  button('Forhåndsvis reversering').click();
  await wait(()=>button('Bekreft reversering'));

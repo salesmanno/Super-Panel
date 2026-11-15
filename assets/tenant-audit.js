@@ -261,17 +261,17 @@
 
         const actorCell = document.createElement('td');
         addCellLabel(actorCell, 'Utført av');
-        actorCell.appendChild(node('span', 'actor-name', `${auditActorName(log)} utførte`));
+        actorCell.appendChild(node('span', 'actor-name', auditActorName(log)));
         actorCell.appendChild(node('span', 'actor-meta', auditActorTypeLabel(log.actor_type)));
 
         const actionCell = document.createElement('td');
         addCellLabel(actionCell, 'Hendelse');
         actionCell.appendChild(node('span', 'action-name', log.description || auditActionLabel(log.action)));
-        actionCell.appendChild(node('span', 'resource-meta', `${auditResourceLabel(log.resource_type || 'Ressurs')} · ${text(log.resource_name || log.resource_id, 'Uten navn')}`));
+        actionCell.appendChild(node('span', 'resource-meta', log.resource_label || auditResourceLabel(log.resource_type || 'Ressurs')));
 
         const moduleCell = document.createElement('td');
         addCellLabel(moduleCell, 'Område');
-        moduleCell.appendChild(node('span', 'module-tag', auditModuleLabel(log.module)));
+        moduleCell.appendChild(node('span', 'module-tag', log.module_label || auditModuleLabel(log.module)));
 
         const outcomeCell = document.createElement('td');
         addCellLabel(outcomeCell, 'Resultat');
@@ -365,6 +365,11 @@
         showLoading();
         try {
             const payload = await request({ ...apiFilters(), page: Math.max(1, Number(page) || 1) });
+            const labels = payload.presentation || {};
+            Object.assign(auditActionLabels, labels.actions || {});
+            Object.assign(auditModuleLabels, labels.modules || {});
+            Object.assign(auditResourceLabels, labels.resources || {});
+            Object.assign(auditFieldLabels, labels.fields || {});
             const filters = payload.filters || {};
             fillSelect('filter-admin', filters.admins || filters.admin_ids, 'Alle administratorer');
             fillSelect('filter-module', filters.modules, 'Alle områder');
@@ -387,7 +392,38 @@
         grid.appendChild(item);
     }
 
-    function renderFieldDifferences(parent, before, after, redactedSet) {
+    function renderFieldDifferences(parent, before, after, redactedSet, formattedChanges) {
+        if (Array.isArray(formattedChanges)) {
+            const changes = formattedChanges.filter(change => !redactedSet.has(change.key));
+            const display = (target, items) => {
+                const columns = node('div', 'change-columns');
+                [['Før', 'before'], ['Etter', 'after']].forEach(([label, side]) => {
+                    const box = node('section', 'change-box');
+                    box.appendChild(node('h3', '', label));
+                    const list = node('ul', 'change-list');
+                    items.forEach(change => {
+                        const item = node('li');
+                        item.append(node('span', 'change-key', change.label),
+                            node('span', 'change-value', text(change[side])));
+                        list.appendChild(item);
+                    });
+                    box.appendChild(list);
+                    columns.appendChild(box);
+                });
+                target.appendChild(columns);
+            };
+            const business = changes.filter(change => !change.technical);
+            const technical = changes.filter(change => change.technical);
+            if (business.length) display(parent, business);
+            else parent.appendChild(node('p', 'resource-meta', 'Ingen endringer i forretningsfelter er registrert.'));
+            if (technical.length) {
+                const details = node('details', 'mt-3');
+                details.appendChild(node('summary', '', `Tekniske referanser og tidspunkter (${technical.length})`));
+                display(details, technical);
+                parent.appendChild(details);
+            }
+            return;
+        }
         const beforeObject = before && typeof before === 'object' && !Array.isArray(before) ? before : {};
         const afterObject = after && typeof after === 'object' && !Array.isArray(after) ? after : {};
         try {
@@ -430,7 +466,7 @@
         const list = node('ul', 'change-list');
         names.forEach(field => {
             const item = document.createElement('li');
-            item.append(node('span', 'change-key', field), node('span', 'change-value', 'Verdi ikke logget'));
+            item.append(node('span', 'change-key', auditFieldLabel(field)), node('span', 'change-value', 'Verdi ikke logget'));
             list.appendChild(item);
         });
         panel.appendChild(list);
@@ -461,7 +497,7 @@
     }
 
     function renderDetail(log) {
-        dialogTitle.textContent = `${auditActionLabel(log.action || 'Hendelse')} · ${text(log.resource_name || auditResourceLabel(log.resource_type), 'Ressurs')}`;
+        dialogTitle.textContent = `${log.action_label || auditActionLabel(log.action || 'Hendelse')} · ${text(log.resource_name || log.resource_label || auditResourceLabel(log.resource_type), 'Ressurs')}`;
         dialogContent.replaceChildren();
         const grid = node('div', 'detail-grid');
         const stamp = formatDate(log.performed_at);
@@ -469,22 +505,28 @@
         appendDetailItem(grid, 'Utført av', auditActorName(log));
         appendDetailItem(grid, 'Rolle', auditActorRoleLabel(log.actor_role) || 'Ikke registrert');
         appendDetailItem(grid, 'Kontotype', auditActorTypeLabel(log.actor_type));
-        appendDetailItem(grid, 'Handling', auditActionLabel(log.action));
-        appendDetailItem(grid, 'Område', auditModuleLabel(log.module));
-        appendDetailItem(grid, 'Ressurs', auditResourceLabel(log.resource_type));
+        appendDetailItem(grid, 'Handling', log.action_label || auditActionLabel(log.action));
+        appendDetailItem(grid, 'Område', log.module_label || auditModuleLabel(log.module));
+        appendDetailItem(grid, 'Ressurs', log.resource_label || auditResourceLabel(log.resource_type));
         appendDetailItem(grid, 'Resultat', formatOutcome(log.outcome));
-        appendDetailItem(grid, 'Ressurs-ID', log.resource_id);
         appendDetailItem(grid, 'Bedrift', log.company_name);
-        appendDetailItem(grid, 'Hendelses-ID', log.id);
         dialogContent.appendChild(grid);
         if (log.description) dialogContent.appendChild(node('p', 'mt-3', log.description));
 
         dialogContent.appendChild(node('h3', 'section-title', 'Endringer'));
         const redacted = Array.isArray(log.redacted_fields) ? log.redacted_fields : [];
         const redactedSet = new Set(redacted.filter(field => typeof field === 'string'));
-        renderFieldDifferences(dialogContent, log.before, log.after, redactedSet);
+        renderFieldDifferences(dialogContent, log.before, log.after, redactedSet, log.changes);
         renderRedactedFields(dialogContent, redacted);
-        renderLinks(dialogContent, log.links);
+        const references = node('details', 'mt-3');
+        references.appendChild(node('summary', '', 'Hendelsesreferanser'));
+        const referenceGrid = node('div', 'detail-grid');
+        appendDetailItem(referenceGrid, 'Hendelses-ID', log.id);
+        appendDetailItem(referenceGrid, 'Ressurs-ID', log.resource_id);
+        appendDetailItem(referenceGrid, 'Registrert handlingskode', log.action);
+        references.appendChild(referenceGrid);
+        dialogContent.appendChild(references);
+        renderLinks(references, log.links);
         const reversal = node('section', 'mt-4 border-top pt-3');
         reversal.appendChild(node('h3', 'section-title', 'Reversering'));
         if (!log.reversal_candidate) {
