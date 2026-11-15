@@ -65,3 +65,39 @@ foreach (['foreign','cross','m','e'] as $badId) {
     benefitAssert($rejected,'Reject foreign sources, membership plans and missing verification column');
 }
 echo "Source-wide membership verification isolation tests passed\n";
+$db->exec('ALTER TABLE rental_objects ADD COLUMN member_exclusive INT NOT NULL DEFAULT 0');
+$db->exec('ALTER TABLE events_eventdata ADD COLUMN is_member_exclusive INT NOT NULL DEFAULT 0');
+$db->exec("UPDATE events_eventdata SET registration_type='signup' WHERE id='es'");
+foreach (['r','e'] as $product) {
+    foreach ([1,1,0] as $flag) {
+        $db->beginTransaction();
+        $r=membershipProductExclusiveSave($db,'a',['product_id'=>$product,'member_exclusive'=>$flag]);
+        $db->commit();
+        benefitAssert($r['exclusive']===(bool)$flag,'Source restriction on/off and repeat saves');
+        benefitAssert(count($r['after'])===1,'Restriction changes only the source flag');
+    }
+}
+foreach ([
+    ['product_id'=>'foreign','member_exclusive'=>1],
+    ['product_id'=>'cross','member_exclusive'=>1],
+    ['product_id'=>'m','member_exclusive'=>1],
+    ['product_id'=>'r','member_exclusive'=>'yes'],
+] as $bad) {
+    $db->beginTransaction();$rejected=false;
+    try {membershipProductExclusiveSave($db,'a',$bad);} catch(InvalidArgumentException $e){$rejected=true;}
+    $db->rollBack();
+    benefitAssert($rejected,'Source restriction rejects foreign/unsupported/invalid writes');
+}
+benefitAssert((int)$db->query('SELECT COUNT(*) FROM membership_product_modifications')->fetchColumn()===2,
+    'Source restriction never creates or removes plan rules');
+benefitAssert((int)$db->query("SELECT memberverification FROM rental_objects WHERE id='rs'")->fetchColumn()===1,
+    'Source restriction leaves verification unchanged');
+echo "Source-wide member-only restriction isolation tests passed\n";
+$db->exec("CREATE TABLE sales_products(id TEXT,company_id TEXT,name TEXT);
+    INSERT INTO sales_products VALUES('sp','a','Uten medlemskolonne');
+    INSERT INTO output_products VALUES('p','a','product','sp');");
+$db->beginTransaction();$rejected=false;
+try { membershipProductExclusiveSave($db,'a',['product_id'=>'p','member_exclusive'=>1]); }
+catch (InvalidArgumentException $e) { $rejected=true; }
+$db->rollBack();
+benefitAssert($rejected,'Missing source column produces a clear error without creating schema');

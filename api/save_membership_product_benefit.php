@@ -27,8 +27,10 @@ try {
         $db->rollBack(); http_response_code(403); echo json_encode(['success'=>false,'message'=>'Du har ikke tilgang til medlemsfordeler i valgt bedrift.']); exit;
     }
     $operation = function() use($db,$company,$input) {
-        if (($input['action'] ?? '') === 'memberverification') {
-            $result=membershipProductVerificationSave($db,$company,$input);
+        if (in_array($input['action'] ?? '', ['memberverification','member_exclusive'], true)) {
+            $result=($input['action']==='member_exclusive')
+                ? membershipProductExclusiveSave($db,$company,$input)
+                : membershipProductVerificationSave($db,$company,$input);
             tenantAuditChange($db,$company,'membership','update',$result['resource'],(string)$result['source_id'],
                 $result['resource_name'],$result['before'],$result['after']);
             return $result;
@@ -40,8 +42,10 @@ try {
     };
     $result = $db instanceof AuditedPDO ? $db->withExplicitAudit($operation) : $operation();
     $db->commit();
-    echo json_encode(['success'=>true]+(array_key_exists('memberverification',$result)
-        ? ['memberverification'=>$result['memberverification']] : ['benefit'=>$result['benefit']]),JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
+    $response = array_key_exists('exclusive',$result) ? ['exclusive'=>$result['exclusive']]
+        : (array_key_exists('memberverification',$result) ? ['memberverification'=>$result['memberverification']]
+            : ['benefit'=>$result['benefit']]);
+    echo json_encode(['success'=>true]+$response,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
 } catch (Throwable $e) {
     if ($db instanceof PDO && $db->inTransaction()) $db->rollBack();
     $expected = $e instanceof InvalidArgumentException || $e instanceof JsonException;

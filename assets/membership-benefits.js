@@ -21,6 +21,8 @@
     let loaded = false;
     let loading = false;
     let saving = false;
+    let exclusiveSaving = false;
+    let verificationSaving = false;
     let activeItem = null;
     let returnFocus = null;
     let previousOverflow = '';
@@ -88,7 +90,7 @@
             company:data.company,
             csrf_token:String(data.csrf_token || ''),
             plans:data.plans.map(plan => ({...plan,id:String(plan.id),name:String(plan.plan_name || plan.name || 'Medlemskap'),price:nullableNumber(plan.price)})),
-            products:data.products.map((product,index) => ({...product,registration_type:product.registration_type || 'none',id:String(product.id ?? product.source_id ?? index),type:categoryNames[product.type] ? product.type : 'product',name:String(product.name || 'Uten navn'),description:String(product.description || ''),price:nullableNumber(product.price),exclusive:[product.exclusive,product.is_member_exclusive,product.member_exclusive].some(value => value === true || value === 1 || value === '1'),assigned_benefits:Array.isArray(product.assigned_benefits) ? product.assigned_benefits.map(benefit => ({...benefit,plan_id:String(benefit.plan_id ?? ''),benefit_type:String(benefit.benefit_type || ''),benefit_value:nullableNumber(benefit.benefit_value),price_basis:String(benefit.price_basis || 'unit'),public_display:benefit.public_display === true ? true : benefit.public_display === false ? false : null})).filter(benefit => benefit.plan_id && ['access','fixed_price','percent_discount','amount_discount','included'].includes(benefit.benefit_type)) : []})),
+            products:data.products.map((product,index) => ({...product,registration_type:product.registration_type || 'none',id:String(product.id ?? product.source_id ?? index),type:categoryNames[product.type] ? product.type : 'product',name:String(product.name || 'Uten navn'),description:String(product.description || ''),price:nullableNumber(product.price),exclusive:[product.exclusive,product.is_member_exclusive,product.member_exclusive].some(value => value === true || value === 1 || value === '1'),exclusive_supported:product.exclusive_supported === true,assigned_benefits:Array.isArray(product.assigned_benefits) ? product.assigned_benefits.map(benefit => ({...benefit,plan_id:String(benefit.plan_id ?? ''),benefit_type:String(benefit.benefit_type || ''),benefit_value:nullableNumber(benefit.benefit_value),price_basis:String(benefit.price_basis || 'unit'),public_display:benefit.public_display === true ? true : benefit.public_display === false ? false : null})).filter(benefit => benefit.plan_id && ['access','fixed_price','percent_discount','amount_discount','included'].includes(benefit.benefit_type)) : []})),
             warnings:Array.isArray(data.warnings) ? data.warnings.map(String) : []
         };
     };
@@ -265,7 +267,7 @@
             });
         });
     }
-    const mechanism = () => dialog.querySelector('input[name="mb-mechanism"]:checked')?.value || 'own';
+    const mechanism = () => document.getElementById('mb-benefit-type').value || 'own';
     function rentalRateHtml(product) {
         const rates = product.rental_rates;
         if (!rates) return '<p class="mb-no-benefit">Leiesatser mangler</p>';
@@ -324,9 +326,9 @@
             return `<li class="mb-plan-row${editing ? ' is-editing' : ''}" data-plan-row="${safeText(plan.id)}">
                 <div class="mb-plan-row-summary">
                     <div class="mb-plan-row-copy"><h4 id="mb-plan-name-${index}">${safeText(plan.name)}</h4>
-                    <p class="mb-plan-row-benefit${rule ? ' has-benefit' : ''}">${rule ? safeText(benefitSummary(rule)) : 'Ingen fordel'}</p></div>
+                    <p class="mb-plan-row-benefit${rule ? ' has-benefit' : ''}">${rule ? `<span class="mb-plan-current-label">Lagret fordel</span>${safeText(benefitSummary(rule))}` : '<span class="mb-plan-current-label is-empty">Ingen fordel satt</span>Ordinær pris gjelder'}</p></div>
                     <div class="mb-plan-row-actions">
-                    <button type="button" class="mb-button" data-plan-id="${safeText(plan.id)}" aria-expanded="${editing}"${editing ? ' aria-controls="mb-plan-panel"' : ''}${saving ? ' disabled' : ''}>${editing ? 'Redigerer' : rule ? 'Endre' : 'Legg til'}</button>
+                    <button type="button" class="mb-button" data-plan-id="${safeText(plan.id)}" aria-expanded="${editing}"${editing ? ' aria-controls="mb-plan-panel"' : ''}${saving ? ' disabled' : ''}>${editing ? 'Lukk redigering' : rule ? 'Endre fordel' : 'Legg til fordel'}</button>
                     ${rule ? `<button type="button" class="mb-button mb-button-danger" data-remove-plan="${safeText(plan.id)}" aria-label="Fjern fordel for ${safeText(plan.name)}"${saving || demoMode || !payload.csrf_token ? ' disabled' : ''}>Fjern</button>` : ''}
                     </div>
                 </div></li>`;
@@ -366,30 +368,67 @@
         document.getElementById('mb-price-details').open = false;
         rentalMode.value = draft?.mode || (rule?.benefit_type === 'percent_discount' ? 'percentage' : 'per_day');
         legacyWarning.hidden = !legacyRentalFixedPrice || !!draft;
-        dialog.querySelectorAll('input[name="mb-mechanism"]').forEach(input => { input.checked = input.value === (draft?.how || how); });
+        const typeSelect = document.getElementById('mb-benefit-type');
+        typeSelect.value = draft?.how || (activeItem.type === 'rental'
+            ? rule?.benefit_type === 'percent_discount' ? 'total_percentage' : 'day_discount'
+            : how);
         updateEditorPreview();
     };
     function updateEditorPreview() {
         if (!activeItem) return;
-        dialog.querySelectorAll('[data-mb-rental-mode]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.mbRentalMode === rentalMode.value)));
-        document.getElementById('mb-save-verification').disabled = saving || demoMode || !payload.csrf_token
-            || !activeItem.memberverification_supported || document.getElementById('mb-verification').checked === !!activeItem.memberverification;
+        const exclusiveToggle = document.getElementById('mb-member-exclusive');
+        const exclusiveState = document.getElementById('mb-exclusive-state');
+        const exclusiveStatus = document.getElementById('mb-exclusive-status');
+        if (exclusiveToggle && activeItem) {
+            exclusiveToggle.disabled = saving || exclusiveSaving || demoMode || !payload.csrf_token || !activeItem.exclusive_supported;
+            exclusiveState.textContent = exclusiveSaving ? 'Lagrer …' : activeItem.exclusive
+                ? 'Lagret · bare medlemmer kan booke eller melde seg på'
+                : 'Lagret · ingen medlemsbegrensning';
+            exclusiveState.dataset.active = String(!!activeItem.exclusive);
+            if (demoMode) exclusiveStatus.textContent = 'Demo: innstillingen kan ikke lagres.';
+            else if (!activeItem.exclusive_supported) exclusiveStatus.textContent = 'Kan ikke endres her: dette tilbudet støtter ikke innstillingen.';
+            else if (!payload.csrf_token) exclusiveStatus.textContent = 'Kan ikke lagre: sikkerhetstoken mangler.';
+            else if (exclusiveSaving) exclusiveStatus.textContent = 'Lagrer …';
+        }
+        const verificationToggle = document.getElementById('mb-verification');
+        const verificationState = document.getElementById('mb-verification-state');
+        if (verificationToggle && activeItem) {
+            verificationToggle.disabled = saving || verificationSaving || demoMode || !payload.csrf_token || !activeItem.memberverification_supported;
+            verificationState.textContent = verificationSaving ? 'Lagrer …'
+                : !activeItem.memberverification_supported ? 'Ikke tilgjengelig for dette tilbudet'
+                    : 'Lagret · ' + (activeItem.memberverification ? 'aktivert' : 'deaktivert');
+            verificationState.dataset.state = verificationSaving ? 'saving'
+                : !activeItem.memberverification_supported ? 'unsupported' : activeItem.memberverification ? 'active' : 'inactive';
+        }
         if (!editorPlanId) return;
         const rental = activeItem.type === 'rental';
         const how = mechanism();
         valueField.hidden = !rental && how === 'included';
-        document.getElementById('mb-standard-mechanisms').hidden = rental;
-        document.getElementById('mb-rental-mode-field').hidden = !rental;
+        if (rental) rentalMode.value = how === 'total_percentage' ? 'percentage' : 'per_day';
         document.getElementById('mb-rental-quote').hidden = !rental;
         document.getElementById('mb-rental-rate-section').hidden = !rental;
         document.getElementById('mb-price-details').hidden = !rental;
         legacyWarning.hidden = !(rental && savedRule(activeItem,editorPlanId)?.benefit_type === 'fixed_price' && !editorDrafts.has(`${activeItem.id}:${editorPlanId}`));
         document.getElementById('mb-source-access').hidden = !isExclusive(activeItem);
-        valueField.querySelector('label').textContent = rental
-            ? rentalMode.value === 'percentage' ? 'Rabatt på leiesummen (%)' : 'Rabattbeløp per leiedag (kr)'
-            : how === 'percentage' ? 'Rabatt (%)' : how === 'fixed' ? 'Rabattbeløp (kr)' : 'Fast medlemspris (kr)';
-        suffix.textContent = '';
-        document.getElementById('mb-input-help').textContent = rental ? 'Avslaget trekkes fra ordinær leiesum. Ordinære priser endres ikke.' : '';
+        const inputLabel = valueField.querySelector('label');
+        const inputHelp = document.getElementById('mb-input-help');
+        if (rental) {
+            inputLabel.textContent = how === 'total_percentage' ? 'Prosent av leiesummen' : 'Avslag per leiedag';
+            suffix.textContent = how === 'total_percentage' ? '%' : 'kr';
+            inputHelp.textContent = 'Beregnes fra ordinære leiesatser. De ordinære prisene endres ikke.';
+        } else if (how === 'own') {
+            inputLabel.textContent = 'Medlemmet betaler';
+            suffix.textContent = 'kr';
+            inputHelp.textContent = 'Dette er medlemsprisen for den valgte planen.';
+        } else if (how === 'percentage') {
+            inputLabel.textContent = 'Rabatt';
+            suffix.textContent = '%';
+            inputHelp.textContent = 'Trekkes fra ordinær pris.';
+        } else {
+            inputLabel.textContent = 'Avslag';
+            suffix.textContent = 'kr';
+            inputHelp.textContent = 'Trekkes fra ordinær pris.';
+        }
         const key = `${activeItem.id}:${editorPlanId}`;
         const draft = editorDrafts.get(key);
         ruleStatus.textContent = demoMode ? 'DEMO · endringer kan ikke lagres' : draft?.dirty || overrides.has(key) ? 'Ulagret · velg Lagre for å bekrefte' : savedRule(activeItem,editorPlanId) ? `Lagret fordel · ${benefitSummary(savedRule(activeItem,editorPlanId))}` : 'Ingen medlemsfordel satt';
@@ -399,7 +438,7 @@
         try { rule = inputRule(); } catch (err) { error = err.message || 'Ugyldig rabatt'; }
         document.getElementById('mb-apply').disabled = saving || demoMode || !payload.csrf_token || !editorPlanId || !rule || !editorDrafts.has(key) || !!error || (rental && rule?.benefit_type === 'fixed_price' && !editorDrafts.has(key));
         valueInput.setCustomValidity(error);
-        livePrice.previousElementSibling.textContent = rental ? 'Valgt fordel' : 'Medlemmet betaler';
+        livePrice.previousElementSibling.textContent = rental ? 'Eksempel på fordel' : 'Medlemspris etter fordel';
         livePrice.textContent = error || (!rule ? 'Ingen medlemsfordel satt' : benefitSummary(rule));
         document.getElementById('mb-rental-rates').innerHTML = rental ? rentalRateHtml(activeItem) : '';
         if (rental) {
@@ -442,10 +481,33 @@
         endDate.value = '';
         const verify = document.getElementById('mb-verification');
         verify.checked = !!activeItem.memberverification;
-        verify.disabled = !activeItem.memberverification_supported || demoMode;
+        verify.disabled = !activeItem.memberverification_supported || demoMode || !payload.csrf_token;
         document.getElementById('mb-verification-help').textContent = activeItem.memberverification_supported
-            ? 'Gjelder hele tjenesten, uavhengig av medlemsplan og rabatt. Lagres separat fra fordelen.'
-            : 'Kildeobjektet mangler feltet memberverification. Ingen databasekolonner opprettes automatisk.';
+            ? 'Gjelder hele tilbudet, uavhengig av medlemsplan og prisfordel.'
+            : 'Dette tilbudet støtter ikke Medlemsverifisering. Innstillingen kan ikke endres her.';
+        document.getElementById('mb-verification-state').textContent = activeItem.memberverification_supported
+            ? `Lagret · ${activeItem.memberverification ? 'aktivert' : 'deaktivert'}`
+            : 'Ikke tilgjengelig for dette tilbudet';
+        const exclusiveToggle = document.getElementById('mb-member-exclusive');
+        exclusiveToggle.checked = !!activeItem.exclusive;
+        exclusiveToggle.disabled = demoMode || !payload.csrf_token || !activeItem.exclusive_supported;
+        document.getElementById('mb-exclusive-help').textContent = activeItem.exclusive_supported
+            ? 'Begrenser hvem som kan booke eller melde seg på. Endrer ikke medlemsprisene.'
+            : 'Dette tilbudet støtter ikke denne innstillingen. Den kan ikke endres her.';
+        document.getElementById('mb-exclusive-status').textContent = demoMode
+            ? 'Demo: innstillingen kan ikke lagres.'
+            : !payload.csrf_token ? 'Kan ikke lagre: sikkerhetstoken mangler.'
+                : !activeItem.exclusive_supported ? 'Denne tjenesten støtter ikke Kun for medlemmer.'
+                    : 'Lagring skjer automatisk når du endrer valget.';
+        document.getElementById('mb-exclusive-status').removeAttribute('data-state');
+        document.getElementById('mb-exclusive-state').textContent = activeItem.exclusive
+            ? 'Lagret · bare medlemmer kan booke eller melde seg på'
+            : 'Lagret · ingen medlemsbegrensning';
+        document.getElementById('mb-exclusive-state').dataset.active = String(!!activeItem.exclusive);
+        const benefitType = document.getElementById('mb-benefit-type');
+        benefitType.innerHTML = activeItem.type === 'rental'
+            ? '<option value="day_discount">Avslag per leiedag</option><option value="total_percentage">Prosent av leiesummen</option>'
+            : '<option value="own">Egen medlemspris</option><option value="percentage">Prosentvis rabatt</option><option value="fixed">Fast avslag i kroner</option><option value="included">Inkludert</option>';
         loadEditorPlan();
         dialog.hidden = false;
         previousOverflow = document.body.style.overflow;
@@ -453,11 +515,9 @@
         editor.focus();
     }
     function closeEditor(restoreFocus = true, confirmDiscard = true) {
+        if (exclusiveSaving || verificationSaving) return false;
         const dirtyRule = activeItem && editorDrafts.has(`${activeItem.id}:${editorPlanId}`);
-        const dirtyVerification = activeItem?.memberverification_supported
-            && document.getElementById('mb-verification').checked !== !!activeItem.memberverification;
-        if (confirmDiscard && (dirtyRule || dirtyVerification)
-            && !window.confirm('Du har ulagrede endringer. Forkast dem og lukk?')) return false;
+        if (confirmDiscard && dirtyRule && !window.confirm('Du har en ulagret prisfordel. Forkast den og lukk?')) return false;
         discardRow(false);
         dialog.hidden = true;
         document.body.style.overflow = previousOverflow;
@@ -477,7 +537,7 @@
     function setSavingState(value) {
         saving = value;
         editor.setAttribute('aria-busy',String(value));
-        document.getElementById('mb-apply').textContent = value ? 'Lagrer…' : 'Lagre';
+        document.getElementById('mb-apply').textContent = value ? 'Lagrer…' : 'Lagre fordel';
         editor.querySelectorAll('button,input,select').forEach(control => {
             if (value) {
                 control.dataset.mbWasDisabled = String(control.disabled);
@@ -493,11 +553,11 @@
         editorPlan.querySelectorAll('[data-plan-id]').forEach(button => { button.disabled = value; });
         if (activeItem) updateEditorPreview();
     }
-    dialog.querySelectorAll('[data-mb-close]').forEach(button => button.addEventListener('click',() => { if (!saving) closeEditor(); }));
-    dialog.addEventListener('click',event => { if (event.target === dialog && !saving) closeEditor(); });
+    dialog.querySelectorAll('[data-mb-close]').forEach(button => button.addEventListener('click',() => { if (!saving && !exclusiveSaving && !verificationSaving) closeEditor(); }));
+    dialog.addEventListener('click',event => { if (event.target === dialog && !saving && !exclusiveSaving && !verificationSaving) closeEditor(); });
     document.addEventListener('keydown',event => {
         if (dialog.hidden) return;
-        if (event.key === 'Escape' && !saving) { event.preventDefault(); closeEditor(); }
+        if (event.key === 'Escape' && !saving && !exclusiveSaving && !verificationSaving) { event.preventDefault(); closeEditor(); }
         if (event.key === 'Tab') {
             const focusable = [...editor.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),summary')].filter(element => element.offsetParent !== null);
             if (!focusable.length) return;
@@ -506,48 +566,109 @@
             else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
         }
     });
-    dialog.querySelectorAll('input[name="mb-mechanism"]').forEach(input => input.addEventListener('change',() => {
+    document.getElementById('mb-benefit-type').addEventListener('change',() => {
         showSaveFeedback('');
         valueInput.value = '';
+        if (activeItem?.type === 'rental') rentalMode.value = mechanism() === 'total_percentage' ? 'percentage' : 'per_day';
         rememberDraft();
         updateEditorPreview();
-    }));
+    });
     valueInput.addEventListener('input',() => {
         showSaveFeedback('');
-        if (activeItem?.type === 'rental' && valueInput.value.includes('%')) rentalMode.value = 'percentage';
         rememberDraft();
         updateEditorPreview();
     });
-    rentalMode.addEventListener('change',() => {
+    document.getElementById('mb-verification').addEventListener('change',async event => {
+        const toggle = event.currentTarget;
+        if (!activeItem || verificationSaving || demoMode || !payload.csrf_token || !activeItem.memberverification_supported) {
+            toggle.checked = !!activeItem?.memberverification;
+            return;
+        }
+        const product = activeItem;
+        const previous = !!product.memberverification;
+        const requested = toggle.checked;
+        const stateLabel = document.getElementById('mb-verification-state');
+        product.memberverification = requested;
+        verificationSaving = true;
+        toggle.disabled = true;
+        stateLabel.textContent = 'Lagrer …';
+        stateLabel.dataset.state = 'saving';
         showSaveFeedback('');
-        valueInput.value = '';
-        rememberDraft();
-        updateEditorPreview();
-    });
-    dialog.querySelectorAll('[data-mb-rental-mode]').forEach(button => button.addEventListener('click',() => {
-        if (rentalMode.value === button.dataset.mbRentalMode) return;
-        rentalMode.value = button.dataset.mbRentalMode;
-        rentalMode.dispatchEvent(new Event('change'));
-    }));
-    document.getElementById('mb-verification').addEventListener('change',updateEditorPreview);
-    document.getElementById('mb-save-verification').addEventListener('click',async() => {
-        if (!activeItem || saving || demoMode || !payload.csrf_token || !activeItem.memberverification_supported) return;
-        const product=activeItem;
-        showSaveFeedback('');
-        setSavingState(true);
         try {
-            const response=await fetch('/api/save_membership_product_benefit.php',{
+            const response = await fetch('/api/save_membership_product_benefit.php',{
                 method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json',Accept:'application/json'},
-                body:JSON.stringify({action:'memberverification',product_id:product.id,
-                    memberverification:document.getElementById('mb-verification').checked ? 1 : 0,csrf_token:payload.csrf_token})
+                body:JSON.stringify({action:'memberverification',product_id:product.id,memberverification:requested ? 1 : 0,csrf_token:payload.csrf_token})
             });
-            const result=await response.json();
-            if (!response.ok || result.success !== true || typeof result.memberverification !== 'boolean') throw new Error(result.message || 'Medlemsverifisering kunne ikke lagres.');
-            product.memberverification=result.memberverification;
-            showSaveFeedback('Medlemsverifisering lagret.');
-        } catch(error) {
-            showSaveFeedback(error.message || 'Medlemsverifisering kunne ikke lagres.',true);
-        } finally { setSavingState(false); }
+            let result;
+            try { result = await response.json(); }
+            catch (_) { throw new Error('Lagringstjenesten svarte ikke med gyldig JSON.'); }
+            if (!response.ok || result?.success !== true || typeof result.memberverification !== 'boolean') {
+                throw new Error(result?.message || result?.error || 'Medlemsverifisering kunne ikke lagres.');
+            }
+            product.memberverification = result.memberverification;
+            toggle.checked = result.memberverification;
+            stateLabel.textContent = `Lagret · ${result.memberverification ? 'aktivert' : 'deaktivert'}`;
+            stateLabel.dataset.state = result.memberverification ? 'active' : 'inactive';
+        } catch (error) {
+            product.memberverification = previous;
+            toggle.checked = previous;
+            stateLabel.textContent = `${error.message || 'Medlemsverifisering kunne ikke lagres.'} Valget er tilbakestilt.`;
+            stateLabel.dataset.state = 'error';
+        } finally {
+            verificationSaving = false;
+            toggle.disabled = demoMode || !payload.csrf_token || !product.memberverification_supported;
+        }
+    });
+    document.getElementById('mb-member-exclusive').addEventListener('change',async event => {
+        const toggle = event.currentTarget;
+        if (!activeItem || exclusiveSaving || demoMode || !payload.csrf_token || !activeItem.exclusive_supported) {
+            toggle.checked = !!activeItem?.exclusive;
+            return;
+        }
+        const product = activeItem;
+        const previous = !!product.exclusive;
+        const requested = toggle.checked;
+        const status = document.getElementById('mb-exclusive-status');
+        const stateLabel = document.getElementById('mb-exclusive-state');
+        product.exclusive = requested;
+        exclusiveSaving = true;
+        status.removeAttribute('data-state');
+            stateLabel.textContent = 'Lagrer …';
+        status.textContent = 'Lagrer endringen …';
+        toggle.disabled = true;
+        render();
+        try {
+            const response = await fetch('/api/save_membership_product_benefit.php',{
+                method:'POST',
+                credentials:'same-origin',
+                headers:{Accept:'application/json','Content-Type':'application/json'},
+                body:JSON.stringify({action:'member_exclusive',product_id:product.id,member_exclusive:requested ? 1 : 0,csrf_token:payload.csrf_token})
+            });
+            let result;
+            try { result = await response.json(); }
+            catch (_) { throw new Error('Lagringstjenesten svarte ikke med gyldig JSON.'); }
+            if (!response.ok || result?.success !== true || typeof result.exclusive !== 'boolean') {
+                throw new Error(result?.message || result?.error || `Kunne ikke lagre tilgangsvalget (${response.status}).`);
+            }
+            product.exclusive = result.exclusive;
+            toggle.checked = result.exclusive;
+            stateLabel.textContent = result.exclusive ? 'Lagret · bare medlemmer kan booke eller melde seg på' : 'Lagret · ingen medlemsbegrensning';
+            status.textContent = 'Lagret.';
+            status.dataset.state = 'saved';
+            render();
+        } catch (error) {
+            product.exclusive = previous;
+            toggle.checked = previous;
+            stateLabel.textContent = `${previous ? 'Lagret · bare medlemmer kan booke eller melde seg på' : 'Lagret · ingen medlemsbegrensning'} · valget er tilbakestilt`;
+            status.textContent = `${error.message || 'Kunne ikke lagre valget.'} Endringen er tilbakestilt.`;
+            status.dataset.state = 'error';
+            render();
+        } finally {
+            exclusiveSaving = false;
+            if (activeItem?.id === product.id) {
+                toggle.disabled = demoMode || !payload.csrf_token || !product.exclusive_supported;
+            }
+        }
     });
     [startDate,endDate].forEach(input => input.addEventListener('change',updateEditorPreview));
     editorPlan.addEventListener('click',event => {
@@ -564,7 +685,13 @@
             return;
         }
         const tab = event.target.closest('[data-plan-id]');
-        if (!tab || tab.disabled || tab.dataset.planId === editorPlanId || !discardRow()) return;
+        if (!tab || tab.disabled) return;
+        if (tab.dataset.planId === editorPlanId) {
+            if (!discardRow()) return;
+            collapseRow();
+            return;
+        }
+        if (!discardRow()) return;
         showSaveFeedback('');
         editorPlanId = tab.dataset.planId;
         loadEditorPlan();

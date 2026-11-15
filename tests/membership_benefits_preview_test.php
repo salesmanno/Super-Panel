@@ -68,6 +68,14 @@ benefitsCheck(!membershipBenefitsPreviewCanAccess($db,'disabled','a'), 'Inactive
 benefitsCheck(!membershipBenefitsPreviewCanAccess($db,'no-right','a'), 'Missing delegated module is denied');
 benefitsCheck(!membershipBenefitsPreviewCanAccess($db,'admin-b','b'), 'Inactive company module is denied');
 $data = membershipBenefitsPreviewLoad($db, 'a');
+foreach ($data['products'] as $product) {
+    if ($product['type']==='rental' || $product['type']==='events') {
+        benefitsCheck($product['exclusive_supported']===true,'Existing source exclusivity columns are editable');
+    }
+    if ($product['type']==='product') {
+        benefitsCheck($product['exclusive_supported']===false,'Missing exclusivity columns are explicitly unsupported');
+    }
+}
 benefitsCheck(count($data['plans']) === 1 && $data['plans'][0]['id'] === 'm', 'Plans are company scoped');
 benefitsCheck(count($data['products']) === 4, 'Deduplicated catalog excludes another company source');
 $products = array_column($data['products'], null, 'type');

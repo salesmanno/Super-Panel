@@ -43,7 +43,8 @@ fixture.products.find(product => product.id === 'event-1').assigned_benefits = f
 fixture.products.find(product => product.id === 'rental-1').rental_rates = {rental_price:1150,weekday_prices_enabled:1,weekday_prices:{monday:1000,tuesday:1000,wednesday:1000,thursday:1000,friday:1000},weekend_price:3000};
 fixture.products.find(product => product.id === 'rental-1').exclusive = 1;
 fixture.products.find(product => product.id === 'event-1').exclusive = '1';
-fixture.products.forEach(product=>{product.memberverification=false;product.memberverification_supported=true;});
+fixture.products.forEach(product=>{product.memberverification=false;product.memberverification_supported=true;product.exclusive_supported=true;});
+fixture.products.find(product=>product.id==='service-unknown').exclusive_supported=false;
 function createFixtureServer(options={}) {
     const data = JSON.parse(JSON.stringify(fixture));
     return http.createServer((request,response) => {
@@ -57,6 +58,10 @@ function createFixtureServer(options={}) {
                 if(input.action==='memberverification'){
                     product.memberverification=!!input.memberverification;
                     response.end(JSON.stringify({success:true,memberverification:product.memberverification}));return;
+                }
+                if(input.action==='member_exclusive'){
+                    product.exclusive=!!input.member_exclusive;
+                    response.end(JSON.stringify({success:true,exclusive:product.exclusive}));return;
                 }
                 product.assigned_benefits=(product.assigned_benefits||[]).filter(b=>String(b.plan_id)!==input.plan_id);
                 const benefit=input.benefit ? {...input.benefit,plan_id:input.plan_id,source:'membership_product_modifications'} : null;

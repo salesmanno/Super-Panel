@@ -1,6 +1,40 @@
 <?php
 declare(strict_types=1);
 
+/** Access belongs to the source activity, never to an individual price plan. */
+function membershipProductExclusiveSave(PDO $db,string $company,array $input): array {
+    if (!$db->inTransaction()) throw new LogicException('Lagring krever en transaksjon.');
+    $product=$input['product_id']??null;
+    $flag=$input['member_exclusive']??null;
+    if (!is_string($product) || $product==='' || !in_array($flag,[true,false,0,1,'0','1'],true)) {
+        throw new InvalidArgumentException('Produkt og gyldig medlemsrestriksjon må oppgis.');
+    }
+    $lock=$db->getAttribute(PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':'';
+    $q=$db->prepare('SELECT product_type,product_id FROM output_products WHERE id=? AND company_id=?'.$lock);
+    $q->execute([$product,$company]); $catalog=$q->fetch(PDO::FETCH_ASSOC);
+    $tables=['events'=>'events_eventdata','rental'=>'rental_objects','product'=>'sales_products',
+        'sales_item'=>'sales_products','service'=>'reservation_services'];
+    $type=$catalog['product_type']??'';
+    $table=$tables[$type]??null;
+    if (!$table) throw new InvalidArgumentException('Tilbudet støtter ikke medlemsrestriksjon.');
+    $q=$db->prepare("SELECT * FROM $table WHERE id=? AND company_id=?".$lock);
+    $q->execute([$catalog['product_id'],$company]); $source=$q->fetch(PDO::FETCH_ASSOC);
+    $column=$type==='events'?'is_member_exclusive':'member_exclusive';
+    if (!$source || !array_key_exists($column,$source)) {
+        throw new InvalidArgumentException('Tilbudet mangler støtte for medlemsrestriksjon. Ingen endring er lagret.');
+    }
+    if ($type==='events' && !in_array($source['registration_type']??'',['signup','binding'],true)) {
+        throw new InvalidArgumentException('Medlemsrestriksjon krever et arrangement med påmelding.');
+    }
+    $before=[$column=>(int)$source[$column]];
+    $after=[$column=>(int)(bool)$flag];
+    if ($before!==$after) $db->prepare("UPDATE $table SET $column=? WHERE id=? AND company_id=?")
+        ->execute([$after[$column],$catalog['product_id'],$company]);
+    return ['resource'=>$table,'source_id'=>$catalog['product_id'],'before'=>$before,'after'=>$after,
+        'exclusive'=>(bool)$after[$column],
+        'resource_name'=>(string)($source['title']??$source['object_name']??$source['service_name']??$source['name']??$product)];
+}
+
 /** Global source setting, deliberately independent of price rules or selected plan. */
 function membershipProductVerificationSave(PDO $db,string $company,array $input): array {
     if (!$db->inTransaction()) throw new LogicException('Lagring krever en transaksjon.');
