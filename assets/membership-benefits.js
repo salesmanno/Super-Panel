@@ -11,6 +11,7 @@
     const dialog = document.getElementById('mb-dialog');
     const editor = dialog.querySelector('.mb-editor');
     const editorPlan = document.getElementById('mb-editor-plan');
+    const planPanel = document.getElementById('mb-plan-panel');
     const valueField = document.getElementById('mb-value-field');
     const valueInput = document.getElementById('mb-value');
     const suffix = document.getElementById('mb-value-suffix');
@@ -157,7 +158,7 @@
             return `<li><button type="button" class="mb-admin-product" data-mb-admin-item="${safeText(product.id)}"><span class="mb-admin-product-name">${safeText(product.name)}</span><span class="mb-admin-plans">${assigned.length ? assigned.map(plan => safeText(plan.name)).join(' · ') : 'Ingen planfordel satt'}</span></button>${entries.length ? `<div class="mb-admin-rules">${entries.join('')}</div>` : '<p class="mb-admin-no-rule">Ingen lagrede regler eller utkast.</p>'}</li>`;
         }).join('');
         adminOverview.hidden = false;
-        adminOverview.innerHTML = `<div class="mb-admin-head"><div><span class="mb-kicker">ADMIN · OVERSIKT</span><h3>Medlemsfordeler per tilbud</h3><p>Regler og utkast er vist her – ikke på de offentlige tilbudskortene.</p></div><span class="mb-admin-count">${payload.products.filter(benefitEligible).length} tilbud</span></div>${rows ? `<ul class="mb-admin-list">${rows}</ul>` : '<p class="mb-admin-empty">Ingen kvalifiserte tilbud å vise.</p>'}`;
+        adminOverview.innerHTML = `<details><summary>Oversikt over oppsatte fordeler · ${payload.products.filter(product => benefitEligible(product) && product.assigned_benefits.length).length} tjenester</summary>${rows ? `<ul class="mb-admin-list">${rows}</ul>` : '<p class="mb-admin-empty">Ingen kvalifiserte tilbud å vise.</p>'}</details>`;
         adminOverview.querySelectorAll('[data-mb-admin-item]').forEach(button => button.addEventListener('click',() => openEditor(button.dataset.mbAdminItem,button)));
     }
     const effectivePrice = (product,planId) => {
@@ -312,18 +313,57 @@
         if (!activeItem || !editorPlanId) return;
         editorDrafts.set(`${activeItem.id}:${editorPlanId}`,{text:valueInput.value,how:mechanism(),mode:rentalMode.value,dirty:true});
     }
-    function renderTabs() {
-        editorPlan.innerHTML = payload.plans.map((plan,index) => `<button type="button" id="mb-tab-${index}" role="tab" aria-selected="${plan.id === editorPlanId}" aria-controls="mb-plan-panel" tabindex="${plan.id === editorPlanId ? '0' : '-1'}" data-plan-id="${safeText(plan.id)}">${safeText(plan.name)}</button>`).join('') || '<p>Ingen medlemskapsplaner</p>';
-        const index = payload.plans.findIndex(plan => plan.id === editorPlanId);
-        document.getElementById('mb-plan-panel').setAttribute('aria-labelledby',`mb-tab-${index}`);
+    function renderPlanList() {
+        // Move the shared editor before replacing rows; preserve its controls and listeners.
+        editor.insertBefore(planPanel, editor.querySelector('.mb-editor-foot'));
+        planPanel.hidden = true;
+        document.getElementById('mb-plan-count').textContent = `${payload.plans.length} planer`;
+        editorPlan.innerHTML = payload.plans.map((plan,index) => {
+            const rule = savedRule(activeItem,plan.id);
+            const editing = plan.id === editorPlanId;
+            return `<li class="mb-plan-row${editing ? ' is-editing' : ''}" data-plan-row="${safeText(plan.id)}">
+                <div class="mb-plan-row-summary">
+                    <div class="mb-plan-row-copy"><h4 id="mb-plan-name-${index}">${safeText(plan.name)}</h4>
+                    <p class="mb-plan-row-benefit${rule ? ' has-benefit' : ''}">${rule ? safeText(benefitSummary(rule)) : 'Ingen fordel'}</p></div>
+                    <div class="mb-plan-row-actions">
+                    <button type="button" class="mb-button" data-plan-id="${safeText(plan.id)}" aria-expanded="${editing}"${editing ? ' aria-controls="mb-plan-panel"' : ''}${saving ? ' disabled' : ''}>${editing ? 'Redigerer' : rule ? 'Endre' : 'Legg til'}</button>
+                    ${rule ? `<button type="button" class="mb-button mb-button-danger" data-remove-plan="${safeText(plan.id)}" aria-label="Fjern fordel for ${safeText(plan.name)}"${saving || demoMode || !payload.csrf_token ? ' disabled' : ''}>Fjern</button>` : ''}
+                    </div>
+                </div></li>`;
+        }).join('') || '<li class="mb-no-benefit">Ingen medlemsplaner tilgjengelig.</li>';
+        if (editorPlanId) {
+            const row = [...editorPlan.children].find(row => row.dataset.planRow === editorPlanId);
+            if (row) {
+                row.append(planPanel);
+                planPanel.hidden = false;
+                planPanel.setAttribute('role','region');
+                planPanel.setAttribute('aria-labelledby',row.querySelector('h4').id);
+            }
+        }
+    }
+    function discardRow(confirmDiscard = true) {
+        if (!activeItem || !editorPlanId) return true;
+        const key = `${activeItem.id}:${editorPlanId}`;
+        if (confirmDiscard && editorDrafts.has(key) && !window.confirm('Du har ulagrede endringer. Forkast dem?')) return false;
+        overrides.delete(key);
+        editorDrafts.delete(key);
+        return true;
+    }
+    function collapseRow() {
+        const plan = editorPlanId;
+        editorPlanId = '';
+        renderPlanList();
+        editorPlan.querySelector(`[data-plan-id="${CSS.escape(plan)}"]`)?.focus();
     }
     function loadEditorPlan() {
-        renderTabs();
+        renderPlanList();
+        if (!editorPlanId) { updateEditorPreview(); return; }
         const rule = getRule(activeItem,editorPlanId);
         const draft = editorDrafts.get(`${activeItem.id}:${editorPlanId}`);
         const how = {fixed_price:'own',percent_discount:'percentage',amount_discount:'fixed',included:'included'}[rule?.benefit_type] || 'own';
         const legacyRentalFixedPrice = activeItem.type === 'rental' && rule?.benefit_type === 'fixed_price';
         valueInput.value = draft ? draft.text : legacyRentalFixedPrice || rule?.benefit_value == null ? '' : String(rule.benefit_value);
+        document.getElementById('mb-price-details').open = false;
         rentalMode.value = draft?.mode || (rule?.benefit_type === 'percent_discount' ? 'percentage' : 'per_day');
         legacyWarning.hidden = !legacyRentalFixedPrice || !!draft;
         dialog.querySelectorAll('input[name="mb-mechanism"]').forEach(input => { input.checked = input.value === (draft?.how || how); });
@@ -334,6 +374,7 @@
         dialog.querySelectorAll('[data-mb-rental-mode]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.mbRentalMode === rentalMode.value)));
         document.getElementById('mb-save-verification').disabled = saving || demoMode || !payload.csrf_token
             || !activeItem.memberverification_supported || document.getElementById('mb-verification').checked === !!activeItem.memberverification;
+        if (!editorPlanId) return;
         const rental = activeItem.type === 'rental';
         const how = mechanism();
         valueField.hidden = !rental && how === 'included';
@@ -341,23 +382,24 @@
         document.getElementById('mb-rental-mode-field').hidden = !rental;
         document.getElementById('mb-rental-quote').hidden = !rental;
         document.getElementById('mb-rental-rate-section').hidden = !rental;
+        document.getElementById('mb-price-details').hidden = !rental;
         legacyWarning.hidden = !(rental && savedRule(activeItem,editorPlanId)?.benefit_type === 'fixed_price' && !editorDrafts.has(`${activeItem.id}:${editorPlanId}`));
         document.getElementById('mb-source-access').hidden = !isExclusive(activeItem);
         valueField.querySelector('label').textContent = rental
             ? rentalMode.value === 'percentage' ? 'Rabatt på leiesummen (%)' : 'Rabattbeløp per leiedag (kr)'
             : how === 'percentage' ? 'Rabatt (%)' : how === 'fixed' ? 'Rabattbeløp (kr)' : 'Fast medlemspris (kr)';
         suffix.textContent = '';
-        document.getElementById('mb-input-help').textContent = rental ? 'Tomt felt lar gjeldende regel stå uendret. Endringer lagres først når du velger «Lagre fordel».' : '';
+        document.getElementById('mb-input-help').textContent = rental ? 'Avslaget trekkes fra ordinær leiesum. Ordinære priser endres ikke.' : '';
         const key = `${activeItem.id}:${editorPlanId}`;
         const draft = editorDrafts.get(key);
-        ruleStatus.textContent = demoMode ? 'DEMO · endringer kan ikke lagres' : draft?.dirty || overrides.has(key) ? 'Ulagret utkast · lagres bare når du velger Lagre fordel' : savedRule(activeItem,editorPlanId) ? `Lagret fordel · ${benefitSummary(savedRule(activeItem,editorPlanId))}` : 'Ingen medlemsfordel satt';
+        ruleStatus.textContent = demoMode ? 'DEMO · endringer kan ikke lagres' : draft?.dirty || overrides.has(key) ? 'Ulagret · velg Lagre for å bekrefte' : savedRule(activeItem,editorPlanId) ? `Lagret fordel · ${benefitSummary(savedRule(activeItem,editorPlanId))}` : 'Ingen medlemsfordel satt';
         if (!payload.csrf_token && !demoMode) ruleStatus.textContent = 'Kan ikke lagre: sikkerhetstoken mangler fra katalogen.';
-        document.getElementById('mb-reset-item').disabled = saving || (!overrides.has(key) && !draft);
-        document.getElementById('mb-remove-item').disabled = saving || demoMode || !savedRule(activeItem,editorPlanId);
+        document.getElementById('mb-reset-item').disabled = saving;
         let rule = null, error = '';
         try { rule = inputRule(); } catch (err) { error = err.message || 'Ugyldig rabatt'; }
         document.getElementById('mb-apply').disabled = saving || demoMode || !payload.csrf_token || !editorPlanId || !rule || !editorDrafts.has(key) || !!error || (rental && rule?.benefit_type === 'fixed_price' && !editorDrafts.has(key));
         valueInput.setCustomValidity(error);
+        livePrice.previousElementSibling.textContent = rental ? 'Valgt fordel' : 'Medlemmet betaler';
         livePrice.textContent = error || (!rule ? 'Ingen medlemsfordel satt' : benefitSummary(rule));
         document.getElementById('mb-rental-rates').innerHTML = rental ? rentalRateHtml(activeItem) : '';
         if (rental) {
@@ -394,7 +436,7 @@
         returnFocus = card;
         saveFeedback.hidden = true;
         saveFeedback.textContent = '';
-        editorPlanId = selectedPlan()?.id || payload.plans[0]?.id || '';
+        editorPlanId = '';
         draftLabel.textContent = activeItem.name;
         startDate.value = '';
         endDate.value = '';
@@ -410,14 +452,22 @@
         document.body.style.overflow = 'hidden';
         editor.focus();
     }
-    function closeEditor(restoreFocus = true) {
+    function closeEditor(restoreFocus = true, confirmDiscard = true) {
+        const dirtyRule = activeItem && editorDrafts.has(`${activeItem.id}:${editorPlanId}`);
+        const dirtyVerification = activeItem?.memberverification_supported
+            && document.getElementById('mb-verification').checked !== !!activeItem.memberverification;
+        if (confirmDiscard && (dirtyRule || dirtyVerification)
+            && !window.confirm('Du har ulagrede endringer. Forkast dem og lukk?')) return false;
+        discardRow(false);
         dialog.hidden = true;
         document.body.style.overflow = previousOverflow;
         activeItem = null;
+        editorPlanId = '';
         if (restoreFocus) {
             const target = returnFocus?.isConnected ? returnFocus : catalog.querySelector(`[data-mb-item="${CSS.escape(returnFocus?.dataset.mbItem || '')}"]`);
             target?.focus();
         }
+        return true;
     }
     function showSaveFeedback(message,error = false) {
         saveFeedback.textContent = message;
@@ -427,8 +477,7 @@
     function setSavingState(value) {
         saving = value;
         editor.setAttribute('aria-busy',String(value));
-        document.getElementById('mb-apply').textContent = value ? 'Lagrer…' : 'Lagre fordel';
-        document.getElementById('mb-remove-item').textContent = value ? 'Lagrer…' : 'Fjern fordel';
+        document.getElementById('mb-apply').textContent = value ? 'Lagrer…' : 'Lagre';
         editor.querySelectorAll('button,input,select').forEach(control => {
             if (value) {
                 control.dataset.mbWasDisabled = String(control.disabled);
@@ -438,6 +487,10 @@
                 delete control.dataset.mbWasDisabled;
             }
         });
+        editorPlan.querySelectorAll('[data-remove-plan]').forEach(button => {
+            button.disabled = value || demoMode || !payload.csrf_token;
+        });
+        editorPlan.querySelectorAll('[data-plan-id]').forEach(button => { button.disabled = value; });
         if (activeItem) updateEditorPreview();
     }
     dialog.querySelectorAll('[data-mb-close]').forEach(button => button.addEventListener('click',() => { if (!saving) closeEditor(); }));
@@ -446,7 +499,7 @@
         if (dialog.hidden) return;
         if (event.key === 'Escape' && !saving) { event.preventDefault(); closeEditor(); }
         if (event.key === 'Tab') {
-            const focusable = [...editor.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled])')].filter(element => element.offsetParent !== null);
+            const focusable = [...editor.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),summary')].filter(element => element.offsetParent !== null);
             if (!focusable.length) return;
             const first = focusable[0], last = focusable[focusable.length - 1];
             if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
@@ -499,19 +552,23 @@
     [startDate,endDate].forEach(input => input.addEventListener('change',updateEditorPreview));
     editorPlan.addEventListener('click',event => {
         if (saving) return;
+        const remove = event.target.closest('[data-remove-plan]');
+        if (remove) {
+            if (remove.disabled) return;
+            const plan = payload.plans.find(plan => plan.id === remove.dataset.removePlan);
+            if (!plan || !window.confirm(`Fjern ${benefitSummary(savedRule(activeItem,plan.id))} for ${plan.name}? Ordinær pris vil gjelde uten denne fordelen.`)) return;
+            if (!discardRow()) return;
+            editorPlanId = plan.id;
+            loadEditorPlan();
+            persistBenefit(null);
+            return;
+        }
         const tab = event.target.closest('[data-plan-id]');
-        if (!tab) return;
+        if (!tab || tab.disabled || tab.dataset.planId === editorPlanId || !discardRow()) return;
+        showSaveFeedback('');
         editorPlanId = tab.dataset.planId;
         loadEditorPlan();
-        editorPlan.querySelector('[aria-selected="true"]')?.focus();
-    });
-    editorPlan.addEventListener('keydown',event => {
-        const tabs = [...editorPlan.querySelectorAll('[role="tab"]')];
-        const index = tabs.indexOf(document.activeElement);
-        if (index < 0 || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
-        event.preventDefault();
-        const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
-        tabs[next].click();
+        (activeItem.type === 'rental' || mechanism() !== 'included' ? valueInput : document.getElementById('mb-apply')).focus();
     });
     async function persistBenefit(benefit) {
         if (!activeItem || !editorPlanId || saving || demoMode || !payload.csrf_token) return;
@@ -548,7 +605,7 @@
             overrides.delete(key);
             editorDrafts.delete(key);
             render();
-            if (activeItem?.id === productId && editorPlanId === planId) loadEditorPlan();
+            if (activeItem?.id === productId && editorPlanId === planId) collapseRow();
             showSaveFeedback(saved ? 'Fordel lagret.' : 'Fordel fjernet.');
         } catch (error) {
             showSaveFeedback(error.message || 'Kunne ikke lagre fordelen. Prøv igjen.',true);
@@ -566,17 +623,12 @@
         if (!rule || !editorDrafts.has(`${activeItem.id}:${editorPlanId}`)) return;
         persistBenefit({...rule,public_display:true});
     });
-    document.getElementById('mb-remove-item').addEventListener('click',() => {
-        if (!activeItem || !editorPlanId || saving || demoMode || !savedRule(activeItem,editorPlanId)) return;
-        persistBenefit(null);
-    });
     document.getElementById('mb-reset-item').addEventListener('click',() => {
         if (!activeItem || saving) return;
         showSaveFeedback('');
-        overrides.delete(`${activeItem.id}:${editorPlanId}`);
-        editorDrafts.delete(`${activeItem.id}:${editorPlanId}`);
+        discardRow(false);
+        collapseRow();
         render();
-        loadEditorPlan();
     });
     planSelect.addEventListener('change',render);
     showHidden.addEventListener('change',render);
@@ -591,7 +643,7 @@
             overrides.clear();
             editorDrafts.clear();
             showHidden.checked = false;
-            if (!dialog.hidden) closeEditor(false);
+            if (!dialog.hidden) closeEditor(false,false);
             if (loaded) render();
         }
     };

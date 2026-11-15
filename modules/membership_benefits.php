@@ -21,7 +21,7 @@
         </header>
         <div class="mb-preview-note" role="note">
             <span class="mb-note-mark" aria-hidden="true">i</span>
-            <span><strong>Forhåndsvisning av medlemsfordeler.</strong> Katalogen viser lagrede regler. Endringer lagres først når du velger «Lagre fordel» eller «Fjern fordel».</span>
+            <span>Trykk på en tjeneste for å se, endre eller fjerne medlemsfordeler.</span>
             <span class="mb-mode-label" id="mb-mode-label">Henter katalog</span>
         </div>
         <aside id="mb-admin-overview" class="mb-admin-overview" aria-label="Administrativ oversikt over medlemsfordeler" hidden></aside>
@@ -35,23 +35,23 @@
             <button type="button" class="mb-dialog-backdrop" data-mb-close aria-label="Lukk fordelsredigering"></button>
             <section class="mb-editor" role="dialog" aria-modal="true" aria-labelledby="mb-editor-title" tabindex="-1">
                 <header class="mb-editor-head">
-                    <div><span class="mb-kicker">PREVIEW · IKKE LAGRET</span><h3 id="mb-editor-title">Rediger fordel</h3></div>
+                    <div><span class="mb-kicker">MEDLEMSFORDELER</span><h3 id="mb-editor-title">Rediger fordel</h3></div>
                     <button type="button" class="mb-close" data-mb-close aria-label="Lukk">Lukk <span aria-hidden="true">×</span></button>
                 </header>
-                <p class="mb-editor-intro">Prøv hvordan tilbudet oppleves for en besøkende eller et medlem.</p>
+                <p class="mb-editor-intro">Se lagrede fordeler per medlemsplan. Endre eller fjern på den aktuelle raden.</p>
+                <p id="mb-save-feedback" class="mb-save-feedback" role="status" aria-live="polite" hidden></p>
                 <fieldset class="mb-verification-settings">
                     <legend>Medlemskrav for tjenesten</legend>
                     <label><input id="mb-verification" type="checkbox" role="switch"> Medlemsverifisering</label>
                     <p id="mb-verification-help">Gjelder hele tjenesten, uavhengig av medlemsplan og rabatt.</p>
                     <button type="button" class="mb-button" id="mb-save-verification">Lagre medlemsverifisering</button>
                 </fieldset>
-                <div id="mb-editor-plan" class="mb-plan-tabs" role="tablist" aria-label="Medlemskapsplan"></div>
-                <div id="mb-plan-panel" role="tabpanel">
+                <div class="mb-list-heading"><h4>Medlemsplaner</h4><span id="mb-plan-count"></span></div>
+                <ul id="mb-editor-plan" class="mb-plan-list" aria-label="Fordeler per medlemsplan"></ul>
+                <div id="mb-plan-panel" hidden>
                 <p id="mb-rule-status" class="mb-rule-status" aria-live="polite"></p>
                 <p id="mb-source-access" class="mb-editor-intro" hidden>Bare for medlemmer. Alle medlemstyper kvalifiserer. Medlemskravet endres på selve tilbudet.</p>
                 <p id="mb-legacy-warning" class="mb-legacy-warning" hidden>Dette utleietilbudet har en lagret fast medlemspris. Verdien er ikke et dagsavslag. Regelen beholdes til du skriver inn et nytt avslag og velger «Lagre fordel».</p>
-                <p class="mb-storage-note">Dette er en forhåndsvisning. Endringer lagres bare ved et uttrykkelig valg. Fordelsregler lagres per produkt og plan i <code>membership_product_modifications</code>; grunnprisene i <code>rental_objects</code> endres ikke.</p>
-                <p id="mb-save-feedback" class="mb-save-feedback" role="status" aria-live="polite" hidden></p>
                 <fieldset class="mb-mechanisms" id="mb-standard-mechanisms">
                     <legend>Fordelens pris</legend>
                     <label><input type="radio" name="mb-mechanism" value="own"> <span><strong>Egen medlemspris</strong><small>Sett prisen medlemmet betaler</small></span></label>
@@ -72,6 +72,9 @@
                     <div class="mb-input-wrap"><input id="mb-value" type="text" inputmode="decimal" autocomplete="off" aria-describedby="mb-input-help"><span id="mb-value-suffix">kr</span></div>
                     <small id="mb-input-help" class="mb-input-help"></small>
                 </div>
+                <div class="mb-live-result" aria-live="polite"><span>Medlemmet betaler</span><strong id="mb-live-price">–</strong></div>
+                <details id="mb-price-details" class="mb-price-details" hidden>
+                <summary>Ordinære priser og prøveberegning</summary>
                 <section id="mb-rental-rate-section" class="mb-rental-rate-section" hidden aria-label="Ordinære leiesatser">
                     <p class="mb-rates-caption">Aktive ordinære leiesatser · kun lesing</p>
                     <div id="mb-rental-rates" class="mb-rate-list"></div>
@@ -84,11 +87,14 @@
                     <p class="mb-input-help" id="mb-rental-period-help">Datoene teller med, også returdagen. Depositum, rengjøring og gebyrer er ikke med.</p>
                     <div id="mb-quote-result" class="mb-quote-result" aria-live="polite"></div>
                 </div>
-                <div class="mb-live-result" aria-live="polite"><span>Medlemspris i forhåndsvisningen</span><strong id="mb-live-price">–</strong></div>
+                </details>
+                <div class="mb-row-tools">
+                    <button type="button" class="mb-button" id="mb-reset-item">Avbryt</button>
+                    <button type="button" class="mb-button mb-button-primary" id="mb-apply">Lagre</button>
+                </div>
                 </div>
                 <footer class="mb-editor-foot">
-                    <div class="mb-preview-controls"><button type="button" class="mb-reset" id="mb-remove-item">Fjern fordel</button><button type="button" class="mb-reset" id="mb-reset-item">Forkast utkast</button></div>
-                    <div><button type="button" class="mb-button mb-button-quiet" data-mb-close>Lukk</button><button type="button" class="mb-button mb-button-primary" id="mb-apply">Lagre fordel</button></div>
+                    <button type="button" class="mb-button mb-button-quiet" data-mb-close>Lukk</button>
                 </footer>
             </section>
         </div>

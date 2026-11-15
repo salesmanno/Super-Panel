@@ -41,17 +41,17 @@ fixture.products.find(product => product.id === 'event-1').assigned_benefits = [
 ];
 fixture.products.find(product => product.id === 'event-1').assigned_benefits = fixture.products.find(product => product.id === 'event-1').assigned_benefits.filter(rule=>rule.source!=='event_membership_plans');
 fixture.products.find(product => product.id === 'rental-1').rental_rates = {rental_price:1150,weekday_prices_enabled:1,weekday_prices:{monday:1000,tuesday:1000,wednesday:1000,thursday:1000,friday:1000},weekend_price:3000};
-fixture.products.find(product => product.id === 'rental-1').assigned_benefits = [];
 fixture.products.find(product => product.id === 'rental-1').exclusive = 1;
 fixture.products.find(product => product.id === 'event-1').exclusive = '1';
 fixture.products.forEach(product=>{product.memberverification=false;product.memberverification_supported=true;});
 function createFixtureServer(options={}) {
+    const data = JSON.parse(JSON.stringify(fixture));
     return http.createServer((request,response) => {
         const url = new URL(request.url,'http://localhost');
         if(url.pathname==='/api/save_membership_product_benefit.php' && request.method==='POST'){
             let body='';request.on('data',c=>body+=c);request.on('end',()=>{
                 const input=JSON.parse(body);
-                const product=fixture.products.find(p=>p.id===input.product_id);
+                const product=data.products.find(p=>p.id===input.product_id);
                 response.setHeader('Content-Type','application/json');
                 if(!product || input.csrf_token!==fixture.csrf_token){response.writeHead(403);response.end(JSON.stringify({success:false,message:'Sikkerhetskontroll'}));return;}
                 if(input.action==='memberverification'){
@@ -87,7 +87,7 @@ function createFixtureServer(options={}) {
         }
         if (url.pathname === '/api/get_membership_benefits_preview.php') {
             if (options.failAll || (request.headers.cookie || '').includes('membership_fixture_fail=1')) { response.writeHead(503,{'Content-Type':'application/json'}); response.end(JSON.stringify({success:false})); return; }
-            response.writeHead(200,{'Content-Type':'application/json'}); response.end(JSON.stringify(fixture)); return;
+            response.writeHead(200,{'Content-Type':'application/json'}); response.end(JSON.stringify(data)); return;
         }
         response.writeHead(404); response.end('Not found');
     });
