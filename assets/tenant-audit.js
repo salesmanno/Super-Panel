@@ -79,7 +79,7 @@
         return auditRoleLabels[role.toLowerCase()] || role;
     };
     const auditActorName = log => {
-        const name = text(log.actor_name, 'Ukjent administrator');
+        const name = text(log.actor_name, 'Ukjent utfører');
         if (log.actor_type === 'system' || String(log.actor_role || '').toLowerCase() === 'system') return name;
         const role = auditActorRoleLabel(log.actor_role);
         return [role, name].filter(Boolean).join(' ');
@@ -152,7 +152,7 @@
         failed: 'Feilet',
         rolled_back: 'Rullet tilbake',
         smtp_accepted: 'E-post godtatt',
-        legacy: 'Eldre hendelse'
+        legacy: 'Ikke registrert'
     }[String(value || 'legacy')] || text(value));
     const addCellLabel = (cell, label) => cell.setAttribute('data-label', label);
 
@@ -503,15 +503,22 @@
         const stamp = formatDate(log.performed_at);
         appendDetailItem(grid, 'Tidspunkt', [stamp.date, stamp.time].filter(Boolean).join(' · '));
         appendDetailItem(grid, 'Utført av', auditActorName(log));
-        appendDetailItem(grid, 'Rolle', auditActorRoleLabel(log.actor_role) || 'Ikke registrert');
+        if (auditActorRoleLabel(log.actor_role)) appendDetailItem(grid, 'Rolle', auditActorRoleLabel(log.actor_role));
         appendDetailItem(grid, 'Kontotype', auditActorTypeLabel(log.actor_type));
         appendDetailItem(grid, 'Handling', log.action_label || auditActionLabel(log.action));
         appendDetailItem(grid, 'Område', log.module_label || auditModuleLabel(log.module));
         appendDetailItem(grid, 'Ressurs', log.resource_label || auditResourceLabel(log.resource_type));
         appendDetailItem(grid, 'Resultat', formatOutcome(log.outcome));
-        appendDetailItem(grid, 'Bedrift', log.company_name);
+        if (log.company_name) appendDetailItem(grid, 'Bedrift', log.company_name);
         dialogContent.appendChild(grid);
         if (log.description) dialogContent.appendChild(node('p', 'mt-3', log.description));
+        if (!log.actor_name || !log.outcome || log.outcome === 'legacy') {
+            const missing = [];
+            if (!log.actor_name) missing.push('utførerens navn');
+            if (!log.outcome || log.outcome === 'legacy') missing.push('handlingens resultat');
+            dialogContent.appendChild(node('p', 'resource-meta',
+                `Loggoppføringen inneholder ikke ${missing.join(' eller ')}. Dette sier ikke noe om hvor gammel hendelsen er.`));
+        }
 
         dialogContent.appendChild(node('h3', 'section-title', 'Endringer'));
         const redacted = Array.isArray(log.redacted_fields) ? log.redacted_fields : [];
@@ -523,6 +530,7 @@
         const referenceGrid = node('div', 'detail-grid');
         appendDetailItem(referenceGrid, 'Hendelses-ID', log.id);
         appendDetailItem(referenceGrid, 'Ressurs-ID', log.resource_id);
+        if (log.actor_id) appendDetailItem(referenceGrid, 'Brukerkonto-ID', log.actor_id);
         appendDetailItem(referenceGrid, 'Registrert handlingskode', log.action);
         references.appendChild(referenceGrid);
         dialogContent.appendChild(references);

@@ -30,5 +30,5 @@ narrativeCheck(str_contains($text,'System / email_queue registrerte et mislykket
 $legacy=tenantAuditPublicRow(['id'=>'old','performed_at'=>'2026-01-01','module'=>'events','action'=>'events.delete',
     'resource_type'=>'events_eventdata','resource_id'=>'event','resource_name'=>'Historisk fest','company_id'=>'company','user_id'=>null,
     'user_type'=>'tenant_admin','old_values'=>'{}','new_values'=>'{}']);
-narrativeCheck(str_contains($legacy['description'],'Historisk navn ikke registrert') && !$legacy['reversal_candidate'],'Missing historical identity stays unknown; deletion cannot be undone from empty snapshot');
+narrativeCheck(str_contains($legacy['description'],'Ukjent utfører') && !$legacy['reversal_candidate'],'Missing historical identity stays unknown; deletion cannot be undone from empty snapshot');
 echo "Audit narrative tests passed\n";

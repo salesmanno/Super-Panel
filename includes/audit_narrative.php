@@ -24,7 +24,7 @@ function tenantAuditNarrative(array $log): string {
     }
     $role = (string) ($log['actor_role'] ?? '');
     $actor = trim((($log['actor_type'] ?? '') === 'system' || $role === 'Ikke registrert' ? '' : tenantAuditLabel('values', $role) . ' ')
-        . ($log['actor_name'] ?? 'Historisk navn ikke registrert'));
+        . (($log['actor_name'] ?? '') ?: 'Ukjent utfører'));
     $money = static fn($value): string => number_format((float) $value, 2, ',', ' ') . ' NOK';
     $value = static function ($v, string $key = ''): string {
         return tenantAuditDisplayValue($key, $v);

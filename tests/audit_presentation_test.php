@@ -18,6 +18,13 @@ presentationCheck(str_contains($row['description'], '01.11.2026 til 01.11.2027')
 presentationCheck(str_contains($row['description'], 'betalingsstatus fra Venter til Betalt'), 'Statuses translated');
 presentationCheck(!str_contains($row['description'], 'new-plan') && !str_contains($row['description'], 'updated_at'), 'References do not overwhelm description');
 presentationCheck($row['module_label'] === 'Medlemskap' && $row['action_label'] === 'Endring', 'Filter and detail labels');
+$withoutMeta = $base;
+$withoutMeta['new_values'] = '{}';
+$unknown = tenantAuditPublicRow($withoutMeta);
+presentationCheck($unknown['actor_name'] === null && $unknown['company_name'] === null && $unknown['outcome'] === 'legacy',
+    'Missing metadata stays missing, without invented names or a successful outcome');
+presentationCheck(!str_contains($unknown['description'], 'Historisk') && str_contains($unknown['description'], 'Ukjent utfører'),
+    'Missing metadata is not described as old history');
 $changes = array_column($row['changes'], null, 'key');
 presentationCheck($changes['membership_plan_id']['technical'] && tenantAuditTechnicalField('updated_at'), 'References preserved in technical details');
 presentationCheck($changes['auto_renew']['before'] === 'Nei' && $changes['auto_renew']['after'] === 'Ja', 'Flags read as yes/no');

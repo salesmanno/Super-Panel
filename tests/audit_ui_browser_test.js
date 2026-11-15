@@ -63,6 +63,17 @@ const checks = `(async()=>{
  assert(applied.length===1 && applied[0].body.revision==='preview-v1','One confirmed request includes preview revision');
  assert(applied[0].headers['X-CSRF-Token']==='fixture-csrf','Reversal sends actual detail CSRF token');
  assert(document.querySelector('#dialog-content').textContent.includes('Opprinnelig historikk er bevart'),'Success explains preserved history');
+ document.querySelector('#dialog-close').click();
+ Object.assign(log,{actor_name:null,actor_role:'Ikke registrert',outcome:'legacy',company_name:null,
+   description:'Ukjent utfører endret vare «Kaffe».',reversal_candidate:false});
+ document.querySelector('#refresh-button').click();
+ await wait(()=>button('Vis detaljer'));
+ assert(!document.querySelector('#results-content').textContent.includes('Eldre hendelse'),'Missing metadata is not classified as an old event');
+ assert(document.querySelector('#results-content').textContent.includes('Ikke registrert'),'Unknown outcome stays unknown, not successful');
+ await new Promise(resolve=>setTimeout(resolve,100));
+ button('Vis detaljer').click();
+ await wait(()=>document.querySelector('#dialog-content').textContent.includes('Loggoppføringen inneholder ikke'));
+ assert(!document.querySelector('#dialog-content').textContent.includes('Historisk navn'),'No repeated historical-name placeholders');
  return {passed:true,width:innerWidth,checks:9};
 })()`;
 chromiumFixture(fixture,checks,[390,1280],{outputDir:dir}).catch(error=>{console.error(error);process.exitCode=1;});
