@@ -16,6 +16,7 @@ replit.md
 # Reviewed schema source, not a database dump.
 !sql/sales_register_setup.sql
 !sql/membership_product_modifications.sql
+!sql/rental_week_pricing.sql
 !db_migrations/tenant_customer_contacts_backfill.sql
 !db_migrations/tenant_customer_contacts_setup.sql
 *.log

@@ -62,8 +62,9 @@ try {
 
     $weekdaySelect = rentalWeekdayPriceSelect($db);
     $weekdayEnabledSelect = rentalWeekdayPricingEnabledSelect($db);
+    $weeklySelect = rentalWeekSelect($db);
     $objectStmt = $db->prepare(
-        'SELECT ' . $weekdaySelect . ' AS weekday_prices, '
+        'SELECT ' . $weeklySelect . ', ' . $weekdaySelect . ' AS weekday_prices, '
                 . $weekdayEnabledSelect . ' AS weekday_prices_enabled, id, company_id, object_name, rental_price, weekend_price,
                 saturday_price, sunday_price, created_by
          FROM rental_objects
@@ -75,6 +76,7 @@ try {
     if (!$object) {
         throw new InvalidArgumentException('Utleieobjektet er ikke tilgjengelig');
     }
+    $object = rentalWeekAttach($db,$object);
     if (trim((string) ($object['created_by'] ?? '')) === '') {
         throw new RuntimeException('Utleieobjektet mangler ansvarlig tenant-administrator');
     }

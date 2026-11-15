@@ -52,6 +52,8 @@ try {
 
     $weekdaySelect = rentalWeekdayPriceSelect($db, 'ro');
     $weekdayEnabledSelect = rentalWeekdayPricingEnabledSelect($db, 'ro');
+    $weeklySelect = str_replace([' AS pricing_model',' AS daily_prices'],
+        [' AS object_pricing_model',' AS object_daily_prices'],rentalWeekSelect($db,'ro'));
     $customerEmailSql = tenantCustomerContactSql('tc', 'email');
     $customerPhoneSql = tenantCustomerContactSql('tc', 'phone');
     $stmt = $db->prepare("
@@ -59,6 +61,7 @@ try {
             rs.*,
             ro.object_name,
             ro.category      AS object_category,
+            $weeklySelect,
             ro.rental_price  AS object_daily_price,
             ro.weekend_price AS object_weekend_price,
             ro.saturday_price AS object_saturday_price,
@@ -93,6 +96,11 @@ try {
     $today = rentalCodeToday();
     $nextCodes = rentalNextCodeReservations($db, (string)$companyId, $today);
     foreach ($rows as &$row) {
+        $weeklyObject = rentalWeekAttach($db,[
+            'id'=>$row['rental_object_id'],'company_id'=>$companyId,
+            'pricing_model'=>$row['object_pricing_model'],'daily_prices'=>$row['object_daily_prices']
+        ]);
+        $row['object_price_groups'] = $weeklyObject['price_groups'];
         $row['access_code'] = $row['key_box_code'] ?? null;
         $row['can_prepare_code'] = $row['object_category'] === 'venue'
             && ($nextCodes[$row['rental_object_id']] ?? null) === (string)$row['id'];

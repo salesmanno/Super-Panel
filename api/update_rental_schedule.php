@@ -65,6 +65,7 @@ try {
 
     $weekdaySelect = rentalWeekdayPriceSelect($db, 'ro');
     $weekdayEnabledSelect = rentalWeekdayPricingEnabledSelect($db, 'ro');
+    $weeklySelect = rentalWeekSelect($db,'ro');
     $customerEmailSql = tenantCustomerContactSql('tc', 'email');
     $stmt = $db->prepare("
         SELECT rs.id, rs.company_id, rs.rental_object_id, rs.approved, rs.status,
@@ -76,6 +77,7 @@ try {
                rs.customer_name AS request_customer_name,
                rs.customer_email AS request_customer_email,
                ro.object_name, ro.category AS object_category, rv.access_code AS venue_code,
+               $weeklySelect,
                ro.rental_text, ro.rental_price, ro.weekend_price,
                ro.saturday_price, ro.sunday_price,
                $weekdaySelect AS weekday_prices,
@@ -120,6 +122,8 @@ try {
         echo json_encode(['success' => false, 'message' => 'Forespørsel ikke funnet']);
         exit;
     }
+    $weeklyObject = rentalWeekAttach($db, array_replace($row,['id'=>$row['rental_object_id']]));
+    foreach (['pricing_model','daily_prices','price_groups'] as $key) $row[$key] = $weeklyObject[$key] ?? null;
     $auditBefore = $row;
     if (isset($data['expected_version']) && (!is_string($data['expected_version'])
         || !hash_equals(rentalDecisionVersion($row), $data['expected_version']))) {

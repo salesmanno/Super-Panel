@@ -78,6 +78,27 @@ await delay();
 check(errors.length===0,'startup errors: '+errors.join(';'));
 buildCreateForm('venue');
 check(!document.querySelector('#createRentalForm [name="market_price"]'),'venue hides market price');
+const weeklyForm=document.getElementById('createRentalForm');
+let weeklyEditor=weeklyForm.querySelector('[data-rental-week-editor]');
+check(weeklyEditor.querySelector('[value="weekly"]').checked,'New creation defaults to daily rates and groups');
+weeklyEditor.querySelectorAll('[name^="daily_prices["]').forEach(input=>input.value='500.00');
+weeklyEditor.querySelector('[data-weekday-pick="2"]').click();
+weeklyEditor.querySelector('[data-weekday-pick="3"]').click();
+let pendingBlocked=false;
+try { rentalPricingPayload(weeklyForm,'createFormFieldsContainer'); } catch(error) { pendingBlocked=error.message.includes('Bekreft'); }
+check(pendingBlocked,'Object cannot be saved with an unconfirmed group');
+weeklyEditor.querySelector('[data-weekly-price-input]').value='900';
+weeklyEditor.querySelector('[data-dialog-confirm]').click();
+const weeklyPayload=rentalPricingPayload(weeklyForm,'createFormFieldsContainer');
+check(weeklyPayload.daily_prices.sunday==='500.00'&&weeklyPayload.price_groups[0].price==='900.00','Actual create form builds seven daily rates and group payload');
+buildCreateForm('tool',getFormData('createRentalForm'));
+weeklyEditor=document.querySelector('#createRentalForm [data-rental-week-editor]');
+check(weeklyEditor.querySelector('[data-weekly-groups]').value.includes('900.00'),'Category rebuild preserves daily pricing draft');
+buildFormFields('formFieldsContainer','venue',{id:'editing-weekly',object_name:'Saved weekly',pricing_model:'weekly',
+ pricing_version:'server-revision',daily_prices:weeklyPayload.daily_prices,price_groups:weeklyPayload.price_groups});
+check(rentalPricingPayload(document.getElementById('rentalForm'),'formFieldsContainer').pricing_version==='server-revision','Actual edit payload preserves concurrency version');
+buildFormFields('formFieldsContainer','venue',{id:'editing-legacy',object_name:'Old venue',rental_price:100});
+check(document.querySelector('#rentalForm [value="legacy"]').checked,'Legacy edit stays legacy');
 buildCreateForm('tool');document.querySelector('#createRentalForm [name="market_price"]').value='987';
 document.querySelector('#createRentalForm [name="type_data[brand]"]').value='Saved brand';
 buildCreateForm('venue',getFormData('createRentalForm'));

@@ -4,7 +4,7 @@ declare(strict_types=1);
 /** Compare business values before truncation/redaction. Never persist this data. */
 function tenantAuditComparable(string $field, mixed $value): mixed {
     if ($value === null) return null;
-    $jsonFields = ['payment_methods_json','weekday_prices','images','rental_periods',
+    $jsonFields = ['payment_methods_json','weekday_prices','daily_prices','images','rental_periods',
         'options','validation_rules','metadata','settings','configuration'];
     if (in_array($field, $jsonFields, true)) {
         try {

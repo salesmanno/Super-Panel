@@ -95,7 +95,7 @@ function deleteRentalObjectSafely(PDO $db,string $company,string $id): void {
     entityFormRequireModuleAccess($db,$company,'rental_object');
     $db->beginTransaction();
     try {
-        $q=$db->prepare('SELECT id,output_product_id FROM rental_objects WHERE id=? AND company_id=? FOR UPDATE');
+        $q=$db->prepare('SELECT * FROM rental_objects WHERE id=? AND company_id=? FOR UPDATE');
         $q->execute([$id,$company]);
         $object=$q->fetch(PDO::FETCH_ASSOC);
         if(!$object) throw new OutOfBoundsException('Utleieobjekt ikke funnet eller ingen tilgang');
@@ -125,6 +125,11 @@ function deleteRentalObjectSafely(PDO $db,string $company,string $id): void {
         entityFormDelete($db,$company,'rental_object',$id);
         $q=$db->prepare('DELETE FROM rental_customer_field_settings WHERE company_id=? AND rental_object_id=?');
         $q->execute([$company,$id]);
+        // The tariff migration may not have been installed on legacy servers.
+        if (array_key_exists('pricing_model',$object)) {
+            $q=$db->prepare('DELETE FROM rental_price_groups WHERE company_id=? AND rental_object_id=?');
+            $q->execute([$company,$id]);
+        }
         $q=$db->prepare('DELETE FROM rental_objects WHERE id=? AND company_id=?');$q->execute([$id,$company]);
         entityDeletionCatalogRemove($db,$company,$catalog);
         $db->commit();

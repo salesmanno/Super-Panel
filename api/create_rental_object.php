@@ -12,6 +12,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/rental_schemas.php';
 require_once __DIR__ . '/../includes/rental_customer_fields.php';
 require_once __DIR__ . '/../includes/rental_weekday_pricing.php';
+require_once __DIR__ . '/../includes/rental_week_pricing.php';
 require_once __DIR__ . '/../includes/source_catalog_links.php';
 
 $admin = [
@@ -75,7 +76,9 @@ try {
         }
     }
     
-    if (rentalWeekdayPricingIsActive($data)) $data['rental_price'] = null;
+    $weeklyInput = $data;
+    $data = rentalWeekLegacyPayload($data);
+    if (rentalWeekModel($data) !== 'weekly' && rentalWeekdayPricingIsActive($data)) $data['rental_price'] = null;
     $columns = ['id', 'company_id', 'output_product_id', 'object_name', 'serial_number', 
                 'description', 'category', 'rental_price', 'deposit_amount', 
                 'condition_notes', 'image_url', 'images', 'is_available', 'is_active', 'created_by',
@@ -137,6 +140,7 @@ try {
     
     $stmt = $db->prepare("INSERT INTO rental_objects ($columnList) VALUES ($placeholders)");
     $stmt->execute($params);
+    rentalWeekSave($db, (string)$admin['company_id'], $object_id, $weeklyInput, null);
     
     // The base row and its category row are one atomic operation. Do not
     // silently create a base object when the category migration is missing.

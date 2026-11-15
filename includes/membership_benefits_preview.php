@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/rental_week_pricing.php';
 
 function membershipBenefitsPreviewCanAccess(PDO $db, string $admin, string $company): bool {
     $q = $db->prepare("SELECT a.id FROM tenant_admins a
@@ -16,7 +17,7 @@ function membershipBenefitsPreviewCanAccess(PDO $db, string $admin, string $comp
 function membershipBenefitsPreviewRentalRates(array $source): array {
     $rates = array_intersect_key($source, array_flip([
         'rental_price','weekday_prices_enabled','weekday_prices','weekend_price',
-        'saturday_price','sunday_price','deposit_amount'
+        'saturday_price','sunday_price','deposit_amount','pricing_model','daily_prices','price_groups'
     ]));
     $flag = $rates['weekday_prices_enabled'] ?? null;
     $enabled = $flag === null || $flag === ''
@@ -25,7 +26,7 @@ function membershipBenefitsPreviewRentalRates(array $source): array {
     $rates['weekday_prices_enabled'] = $enabled ? 1 : 0;
     // A stored historical base rate must not masquerade as an active tariff.
     // This is a read projection, not a migration of the original object.
-    if ($enabled) $rates['rental_price'] = null;
+    if ($enabled || ($rates['pricing_model'] ?? '') === 'weekly') $rates['rental_price'] = null;
     return $rates;
 }
 
@@ -137,7 +138,10 @@ function membershipBenefitsPreviewLoad(PDO $db, string $company): array {
         try {
             $q = $db->prepare("SELECT * FROM {$table} WHERE company_id=?");
             $q->execute([$company]);
-            foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $source) $sources[$type][(string)$source['id']] = $source;
+            foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $source) {
+                if ($type === 'rental') $source = rentalWeekAttach($db,$source);
+                $sources[$type][(string)$source['id']] = $source;
+            }
         } catch (PDOException $e) {
             error_log('Benefits preview source '.$type.': '.$e->getMessage());
             $warnings[] = 'Kunne ikke hente '.$labels[$type].'. Denne delen av forhåndsvisningen er ufullstendig.';

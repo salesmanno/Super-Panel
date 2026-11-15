@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/rental_schemas.php';
+require_once __DIR__ . '/../config/database.php';
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -8,11 +9,26 @@ if (empty($_SESSION['rental_lifecycle_csrf'])) {
 }
 $rentalLifecycleCsrf = (string) $_SESSION['rental_lifecycle_csrf'];
 $schemas = getRentalSchemas();
+$rentalHeaderBgColor = '#2d5598';
+try {
+    if (!empty($_SESSION['company_id'])) {
+        $rentalThemeStmt = getDBConnection()->prepare(
+            'SELECT header_bg_color FROM tenant_website_general WHERE company_id = ? LIMIT 1'
+        );
+        $rentalThemeStmt->execute([$_SESSION['company_id']]);
+        $storedRentalHeaderColor = $rentalThemeStmt->fetchColumn();
+        if (is_string($storedRentalHeaderColor) && preg_match('/^#[0-9a-fA-F]{6}$/', $storedRentalHeaderColor)) {
+            $rentalHeaderBgColor = $storedRentalHeaderColor;
+        }
+    }
+} catch (Throwable $e) {
+    error_log('Could not load rental header color: ' . $e->getMessage());
+}
 ?>
 
 <style>
 /* Rental / fjord signal — deliberately denser than the surrounding dashboard. */
-#rental-module { --rental-ink:#17324d; --rental-muted:#60758a; --rental-line:#d8e3ea; --rental-paper:#f5f8fa; --rental-teal:#087f8c; --rental-coral:#e56f54; --rental-navy:#163b5c; }
+#rental-module { --rental-ink:#17324d; --rental-muted:#60758a; --rental-line:#d8e3ea; --rental-paper:#f5f8fa; --rental-teal:#087f8c; --rental-coral:#e56f54; --rental-navy:#163b5c; --site-header-bg-color:<?= htmlspecialchars($rentalHeaderBgColor, ENT_QUOTES, 'UTF-8') ?>; }
 #rental-module { color:var(--rental-ink); }
 #rental-module .card { border:1px solid var(--rental-line); border-radius:12px; box-shadow:0 2px 8px rgba(22,59,92,.04); overflow:hidden; }
 #rental-module .card-header { background:linear-gradient(90deg,#edf6f6,#f7fafb); border-bottom:1px solid var(--rental-line); }
@@ -80,6 +96,7 @@ $schemas = getRentalSchemas();
 </style>
 <link rel="stylesheet" href="/assets/entity-form-fields.css">
 <link rel="stylesheet" href="/assets/rental-dashboard.css">
+<link rel="stylesheet" href="/assets/rental_week_editor.css?v=<?= filemtime(__DIR__.'/../assets/rental_week_editor.css') ?>">
 
 <div class="module-content" id="rental-module">
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
@@ -343,6 +360,7 @@ $schemas = getRentalSchemas();
 </div>
 
 <script src="/assets/rental_request_pricing.js?v=<?= filemtime(__DIR__.'/../assets/rental_request_pricing.js') ?>"></script>
+<script src="/assets/rental_week_editor.js?v=<?= filemtime(__DIR__.'/../assets/rental_week_editor.js') ?>"></script>
 <script src="/assets/active-payment-methods.js"></script>
 <script src="/assets/entity-form-fields.js"></script>
 <script src="/assets/rental_request_workflow.js?v=<?= filemtime(__DIR__.'/../assets/rental_request_workflow.js') ?>"></script>
@@ -586,6 +604,16 @@ function renderObjectCard(obj) {
     const invalidWeekdayFlag = weekdayFlag !== null && weekdayFlag !== undefined && weekdayFlag !== ''
         && !['0','1'].includes(String(weekdayFlag));
     const priceFormat = value => Number(value).toLocaleString('nb-NO',{maximumFractionDigits:2});
+    const usesWeeklyPricing = obj.pricing_model === 'weekly';
+    const weeklyRates = rentalWeeklyRates(obj);
+    const weeklyGroups = rentalWeeklyGroups(obj);
+    const weeklyPriceDisplay = usesWeeklyPricing && weeklyRates
+        ? `<span class="rental-weekday-price">${rentalAllWeekdays.map(day => `${day.short} ${weeklyRates[day.key] !== undefined ? priceFormat(weeklyRates[day.key]) : '–'}`).join(' · ')} NOK/dag</span>`
+        : (usesWeeklyPricing ? '<span class="rental-weekday-price rental-weekday-price-error">Ukesprisene må kontrolleres</span>' : '');
+    const weeklyGroupDisplay = usesWeeklyPricing ? weeklyGroups.map(group => {
+        const start = Number(group.start_day), end = Number(group.end_day);
+        return `<span class="rental-weekend-price">Gruppe ${rentalAllWeekdays[start - 1]?.short || '–'}–${rentalAllWeekdays[end - 1]?.short || '–'} · ${priceFormat(group.price)} NOK/forekomst</span>`;
+    }).join('') : '';
     const weekdayPriceDisplay = hasWeekdayPrices
         ? (weekdayPriceState.valid && weekdayPriceState.present
             ? `<span class="rental-weekday-price">${rentalWeekdays.map(day => `${day.short} ${Object.prototype.hasOwnProperty.call(weekdayPriceState.prices, day.key) && weekdayPriceState.prices[day.key] !== '' ? priceFormat(weekdayPriceState.prices[day.key]) : '–'}`).join(' · ')} NOK</span>`
@@ -611,6 +639,7 @@ function renderObjectCard(obj) {
             : '<span class="badge rental-state-badge rental-state-inactive ms-2">Skjult</span>');
     
     const dailyPrice = parseFloat(obj.rental_price) || 0;
+    if (usesWeeklyPricing) weekendPrice = '';
     if (hasWeekdayPrices && !weekendPrice) {
         weekendPrice = `<span class="rental-weekend-price">Helg fra ${priceFormat(dailyPrice)} NOK/dag</span>`;
     }
@@ -646,9 +675,9 @@ function renderObjectCard(obj) {
                         ${obj.description ? `<p class="card-text text-muted small">${escHtml(obj.description.substring(0, 100))}${obj.description.length > 100 ? '...' : ''}</p>` : ''}
                     <div class="d-flex justify-content-between align-items-center gap-2 mt-3 rental-object-footer">
                         <div class="rental-price-block">
-                            <strong class="rental-price">${hasWeekdayPrices ? 'Ukedagspriser' : `${dailyPrice.toLocaleString('nb-NO',{maximumFractionDigits:0})} NOK/dag`}</strong>
-            ${weekdayPriceDisplay || weekdayFlagWarning}
-                            ${weekendPrice}
+                            <strong class="rental-price">${usesWeeklyPricing ? 'Ukespriser' : (hasWeekdayPrices ? 'Ukedagspriser' : `${dailyPrice.toLocaleString('nb-NO',{maximumFractionDigits:0})} NOK/dag`)}</strong>
+            ${usesWeeklyPricing ? weeklyPriceDisplay : (weekdayPriceDisplay || weekdayFlagWarning)}
+                            ${usesWeeklyPricing ? weeklyGroupDisplay : weekendPrice}
                         </div>
                         <div class="btn-group btn-group-sm rental-object-actions">
                             ${obj.category === 'venue' ? `<div class="rental-access-inline" data-rental-access-inline>
@@ -852,6 +881,11 @@ const rentalWeekdays = [
     {key:'thursday', label:'Torsdag', short:'Tor'},
     {key:'friday', label:'Fredag', short:'Fre'}
 ];
+const rentalAllWeekdays = [
+    ...rentalWeekdays,
+    {key:'saturday', label:'Lørdag', short:'Lør'},
+    {key:'sunday', label:'Søndag', short:'Søn'}
+];
 
 function parseRentalWeekdayPrices(raw) {
     if (raw === null || raw === undefined || raw === '') return {valid:true, present:false, prices:{}};
@@ -872,6 +906,19 @@ function parseRentalWeekdayPrices(raw) {
         return {valid:false, present:true, prices, message:'Ukedagsprisene inneholder ukjente dager. Velg prisform på nytt eller fyll inn alle fem ukedagssatsene.'};
     }
     return {valid:true, present:true, prices};
+}
+
+function rentalWeeklyRates(object) {
+    let value = object?.daily_prices ?? object?.object_daily_prices;
+    if (typeof value === 'string') { try { value = JSON.parse(value); } catch (_) { return null; } }
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    return value;
+}
+
+function rentalWeeklyGroups(object) {
+    let value = object?.price_groups ?? object?.object_price_groups;
+    if (typeof value === 'string') { try { value = JSON.parse(value); } catch (_) { return []; } }
+    return Array.isArray(value) ? value : [];
 }
 
 function rentalObjectUsesWeekdayPrices(object, parsed = parseRentalWeekdayPrices(object?.weekday_prices ?? object?.object_weekday_prices)) {
@@ -1024,6 +1071,15 @@ function buildFormFields(containerId, category = '', existingData = {}) {
             : (weekdayState.present ? 'weekdays' : 'flat'));
     const formId = containerId === 'createFormFieldsContainer' ? 'createRentalForm' : 'rentalForm';
     const form = document.getElementById(formId);
+    const pricingModel = ['legacy','weekly'].includes(existingData.pricing_model)
+        ? existingData.pricing_model
+        : (containerId === 'createFormFieldsContainer' ? 'weekly' : 'legacy');
+    let dailyPrices = existingData.daily_prices ?? existingData.object_daily_prices ?? {};
+    if (typeof dailyPrices === 'string') { try { dailyPrices = JSON.parse(dailyPrices); } catch (_) { dailyPrices = {}; } }
+    if (!dailyPrices || typeof dailyPrices !== 'object' || Array.isArray(dailyPrices)) dailyPrices = {};
+    let groupsSource = existingData.price_groups ?? existingData.object_price_groups ?? [];
+    if (typeof groupsSource === 'string') { try { groupsSource = JSON.parse(groupsSource); } catch (_) { groupsSource = []; } }
+    if (!Array.isArray(groupsSource)) groupsSource = [];
     const cached = existingData._categoryDrafts?.[category];
     if (cached) existingData = {...existingData, type_data: {...existingData.type_data, ...cached.type_data}};
     form._rentalCategoryDrafts = existingData._categoryDrafts || {};
@@ -1057,10 +1113,47 @@ function buildFormFields(containerId, category = '', existingData = {}) {
             </div>
         </div>
         
-        <h6 class="text-muted mt-3 mb-2" data-rental-pricing-heading><i class="bi bi-cash-stack me-1"></i>Grunnpris og helgepris</h6>
+        <h6 class="text-muted mt-3 mb-2" data-rental-pricing-heading><i class="bi bi-cash-stack me-1"></i>Priser</h6>
         <div class="card bg-light mb-3">
             <div class="card-body py-2 rental-pricing-card-body">
-                <fieldset class="rental-weekday-mode-selector">
+                <section class="rental-week-editor" data-rental-week-editor data-initial-pricing-model="${pricingModel}">
+                    <h6 class="rental-week-editor-title">Prisoppsett</h6>
+                    <p class="rental-week-editor-copy">Velg en prismodell. Eldre priser beholdes til du velger ukesmodell.</p>
+                    <div class="rental-model-choices" role="radiogroup" aria-label="Prismodell">
+                        <label class="rental-model-choice"><input type="radio" name="pricing_model" value="legacy" ${pricingModel === 'legacy' ? 'checked' : ''}> Eldre prisoppsett</label>
+                        <label class="rental-model-choice"><input type="radio" name="pricing_model" value="weekly" ${pricingModel === 'weekly' ? 'checked' : ''}> Dagspriser og koblinger</label>
+                    </div>
+                    ${existingData.pricing_version !== null && existingData.pricing_version !== undefined && existingData.pricing_version !== '' ? `<input type="hidden" name="pricing_version" value="${escAttr(String(existingData.pricing_version))}">` : ''}
+                    <div data-weekly-rate-panel ${pricingModel === 'weekly' ? '' : 'hidden'}>
+                        <div class="rental-week-rates">
+                            ${rentalAllWeekdays.map((day, index) => `<div class="rental-week-rate">
+                                <div class="rental-week-rate-heading"><label for="${containerId}_new_${day.key}">${day.label}</label><button type="button" class="rental-weekday-pick" data-weekday-pick="${index + 1}" aria-pressed="false" aria-label="Velg ${day.label} som start- eller sluttdag for prisgruppe"><span aria-hidden="true"></span></button></div>
+                                <div class="input-group input-group-sm"><input type="number" class="form-control" id="${containerId}_new_${day.key}" name="daily_prices[${day.key}]" min="0" max="99999999.99" step="0.01" inputmode="decimal" value="${escAttr(String(dailyPrices[day.key] ?? ''))}" required ${pricingModel === 'weekly' ? '' : 'disabled'}><span class="input-group-text">NOK</span></div>
+                            </div>`).join('')}
+                        </div>
+                    </div>
+                    <div data-weekly-groups-panel ${pricingModel === 'weekly' ? '' : 'hidden'}>
+                        <div class="rental-week-group-panel">
+                            <div class="rental-week-group-heading"><strong>Periodepriser <span class="text-muted fw-normal">(maks. 2 grupper)</span></strong><span class="small">Totalpris</span></div>
+                            <p class="rental-week-editor-copy">Klikk fra-dag, deretter til-dag. Koblet pris belastes én gang per berørt periode – også ved delvis leie – uten dagspris i tillegg. Perioder kan gå over søndag, men ikke overlappe.</p>
+                            <p class="rental-weekday-pick-legend mb-2">Bruk avkryssingsknappene ved dagsatsene for å velge fra- og til-dag.</p>
+                            <div class="rental-week-price-form" data-weekly-price-form hidden role="group" aria-labelledby="${containerId}_groupPriceTitle">
+                                <span class="rental-week-eyebrow">Prisgruppe</span>
+                                <h6 id="${containerId}_groupPriceTitle" data-weekly-price-title>Sett totalpris</h6>
+                                <p class="rental-week-dialog-pair" data-price-pair></p>
+                                <label class="form-label" for="${containerId}_groupTotal">Totalpris for forekomsten</label>
+                                <div class="input-group"><input id="${containerId}_groupTotal" class="form-control" data-weekly-price-input type="number" min="0" max="99999999.99" step="0.01" inputmode="decimal" aria-describedby="${containerId}_groupPriceHint"><span class="input-group-text">NOK</span></div>
+                                <small class="form-text" id="${containerId}_groupPriceHint">Null er tillatt. Totalpris belastes én gang per berørt forekomst.</small>
+                                <p class="rental-week-dialog-error" data-weekly-price-error role="alert" hidden></p>
+                                <div class="rental-week-dialog-actions"><button type="button" data-dialog-cancel>Avbryt</button><button type="button" data-dialog-confirm>Bekreft pris</button></div>
+                            </div>
+                            <p class="rental-week-status" data-weekly-status role="status" aria-live="polite"></p>
+                            <div class="rental-week-group-list" data-weekly-group-list></div>
+                            <input type="hidden" name="price_groups" data-weekly-groups value="${escAttr(JSON.stringify(groupsSource))}">
+                        </div>
+                    </div>
+                </section>
+                <fieldset class="rental-weekday-mode-selector" data-legacy-pricing-control>
                     <legend class="form-label">Ukedagspriser</legend>
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" role="switch"
@@ -1073,7 +1166,7 @@ function buildFormFields(containerId, category = '', existingData = {}) {
                     <small class="form-text text-muted">Av: grunnprisen gjelder mandag–fredag. På: satsene nedenfor brukes.</small>
                 </fieldset>
                 <div class="row g-3 rental-base-price-fields">
-                    <div class="col-12 col-md-6 mb-2 rental-base-rate-field">
+                    <div class="col-12 col-md-6 mb-2 rental-base-rate-field" data-legacy-pricing-control>
                         <label class="form-label mb-1" data-rental-base-rate-label for="${containerId}_rentalPrice">Flat dagspris (NOK)</label>
                         <input type="number" class="form-control form-control-sm" id="${containerId}_rentalPrice" name="rental_price" step="0.01" min="0" value="${escAttr(String(existingData.rental_price ?? ''))}">
                         <small class="form-text text-muted" data-rental-base-rate-help></small>
@@ -1088,7 +1181,7 @@ function buildFormFields(containerId, category = '', existingData = {}) {
                         <small class="text-muted">Veiledende/innkjøpspris</small>
                     </div>` : ''}
                 </div>
-                <div id="${containerId}_weekdayPrices" class="row g-2 rental-weekday-prices" hidden>
+                <div id="${containerId}_weekdayPrices" class="row g-2 rental-weekday-prices" data-legacy-pricing-control hidden>
                     ${rentalWeekdays.map(day => {
                         const value = weekdayState.prices?.[day.key] ?? '';
                         const displayValue = value === 0 || value === '0' ? '0' : value;
@@ -1098,9 +1191,9 @@ function buildFormFields(containerId, category = '', existingData = {}) {
                         </div>`;
                     }).join('')}
                 </div>
-                <small class="form-text text-muted rental-weekday-prices-note" id="${containerId}_weekdayPriceNote">Alle fem ukedager må ha en sats, også når en dag er gratis.</small>
-                <div class="alert alert-warning rental-weekday-pricing-error" data-weekday-pricing-error role="alert" hidden></div>
-                <div class="mt-3 mb-2 rental-weekend-toggle">
+                <small class="form-text text-muted rental-weekday-prices-note" data-legacy-pricing-control id="${containerId}_weekdayPriceNote">Alle fem ukedager må ha en sats, også når en dag er gratis.</small>
+                <div class="alert alert-warning rental-weekday-pricing-error" data-legacy-pricing-control data-weekday-pricing-error role="alert" hidden></div>
+                <div class="mt-3 mb-2 rental-weekend-toggle" data-legacy-pricing-control>
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" id="${containerId}_weekendToggle"
                             ${(existingData.weekend_price > 0 || existingData.saturday_price > 0 || existingData.sunday_price > 0) ? 'checked' : ''}
@@ -1108,7 +1201,7 @@ function buildFormFields(containerId, category = '', existingData = {}) {
                         <label class="form-check-label" for="${containerId}_weekendToggle">Egne helgepriser</label>
                     </div>
                 </div>
-                <div id="${containerId}_weekendPricing" class="rental-weekend-pricing" style="display: ${(existingData.weekend_price > 0 || existingData.saturday_price > 0 || existingData.sunday_price > 0) ? 'block' : 'none'};">
+                <div id="${containerId}_weekendPricing" data-legacy-pricing-control class="rental-weekend-pricing" style="display: ${(existingData.weekend_price > 0 || existingData.saturday_price > 0 || existingData.sunday_price > 0) ? 'block' : 'none'};">
                     <div class="mb-2">
                         <div class="form-check form-check-inline">
                             <input class="form-check-input" type="radio" name="${containerId}_pricingMode" id="${containerId}_modeUnified" value="unified"
@@ -1219,8 +1312,64 @@ function buildFormFields(containerId, category = '', existingData = {}) {
     `;
     
     container.innerHTML = html;
+    if (window.RentalWeekEditor) window.RentalWeekEditor.setup(container.querySelector('[data-rental-week-editor]'));
     setupRentalWeekdayPricing(containerId, existingData, weekdayState);
+    rentalSetPricingModel(container, pricingModel);
     if (containerId === 'createFormFieldsContainer') compactRentalCreateFields(container, category);
+}
+
+function rentalSetPricingModel(container, model) {
+    const editor = container?.querySelector('[data-rental-week-editor]');
+    if (!editor) return;
+    const weekly = model === 'weekly';
+    editor.querySelector('[data-weekly-rate-panel]').hidden = !weekly;
+    editor.querySelector('[data-weekly-groups-panel]').hidden = !weekly;
+    editor.querySelectorAll('[name^="daily_prices["]').forEach(input => { input.disabled = !weekly; input.required = weekly; });
+    container.querySelectorAll('[data-legacy-pricing-control]').forEach(node => {
+        if (node.dataset.legacyOriginalHidden === undefined) node.dataset.legacyOriginalHidden = node.hidden ? '1' : '0';
+        node.hidden = weekly || node.dataset.legacyOriginalHidden === '1';
+    });
+    container.querySelectorAll('[name="rental_price"],[name^="weekday_prices["],[name="weekday_prices_enabled"],[name="weekend_price"],[name="saturday_price"],[name="sunday_price"]').forEach(input => {
+        input.disabled = weekly;
+        if (input.name === 'rental_price') input.required = !weekly && rentalWeekdayMode(container.closest('form'), container.id) !== 'weekdays';
+    });
+}
+
+function rentalPricingPayload(form, containerId, isCreate = false) {
+    const editor = document.getElementById(containerId)?.querySelector('[data-rental-week-editor]');
+    const model = window.RentalWeekEditor?.model(editor) || 'legacy';
+    const initialModel = editor?.dataset.initialPricingModel || 'legacy';
+    const version = editor?.querySelector('[name="pricing_version"]')?.value;
+    const versionPayload = !isCreate && version !== undefined && version !== '' ? {pricing_version:version} : {};
+    if (model !== 'weekly') {
+        return (isCreate || initialModel === 'weekly') ? {pricing_model:'legacy', ...versionPayload} : {};
+    }
+    if (editor?._weeklyPendingPair || editor?._weeklyEditingSlot) {
+        throw new Error('Bekreft eller avbryt dagskoblingen før du lagrer objektet.');
+    }
+    const dailyPrices = window.RentalWeekEditor.dailyPrices(editor);
+    const amountPattern = /^\d+(?:\.\d{1,2})?$/;
+    for (const day of rentalAllWeekdays) {
+        const value = String(dailyPrices[day.key] ?? '').trim();
+        if (!amountPattern.test(value) || !Number.isFinite(Number(value)) || Number(value) > window.RentalWeekEditor.amountLimit) {
+            throw new Error(`Fyll inn en pris fra 0 til 99 999 999,99 for ${day.label}. Null er tillatt.`);
+        }
+        dailyPrices[day.key] = Number(value).toFixed(2);
+    }
+    const groups = window.RentalWeekEditor.groups(editor);
+    if (groups.length > 2) throw new Error('Du kan legge til maksimalt to prisgrupper.');
+    const usedDays = new Set();
+    groups.forEach(group => {
+        const span = ((group.end_day - group.start_day + 7) % 7) + 1;
+        if (span < 2) throw new Error('En prisgruppe må inneholde minst to ukedager.');
+        let day = group.start_day;
+        for (let i = 0; i < span; i++) {
+            if (usedDays.has(day)) throw new Error('Prisgruppene kan ikke overlappe.');
+            usedDays.add(day);
+            day = day % 7 + 1;
+        }
+    });
+    return {pricing_model:'weekly', ...versionPayload, daily_prices:dailyPrices, price_groups:groups};
 }
 
 function organizeRentalEditForm(container, category, existingData) {
@@ -1390,6 +1539,7 @@ function compactRentalCreateFields(container, category) {
     const priceHeading = children.find(node => node.matches('[data-rental-pricing-heading]'));
     const priceCard = priceHeading?.nextElementSibling;
     const pricingBody = priceCard?.querySelector('.card-body');
+    const weekEditor = pricingBody?.querySelector('.rental-week-editor');
     const basePriceFields = pricingBody?.querySelector('.rental-base-price-fields');
     const dailyField = basePriceFields?.querySelector('[name="rental_price"]')?.closest('.rental-base-rate-field');
     const modeSelector = pricingBody?.querySelector('.rental-weekday-mode-selector');
@@ -1417,9 +1567,9 @@ function compactRentalCreateFields(container, category) {
     if (weekdayPrices) basePriceRow.append(weekdayPrices);
     if (weekdayNote) basePriceRow.append(weekdayNote);
     if (weekdayError) basePriceRow.append(weekdayError);
-    priceHeading.textContent = 'Grunnpris og helgepris';
+    priceHeading.textContent = 'Prismodell og priser';
     priceCard.className = 'card rental-create-primary-price mb-3';
-    pricingBody.replaceChildren(basePriceRow);
+    pricingBody.replaceChildren(...[weekEditor, basePriceRow].filter(Boolean));
 
     const advanced = document.createElement('details');
     advanced.className = 'rental-create-advanced';
@@ -1602,6 +1752,10 @@ function getFormData(formId) {
         market_price: formData.has('market_price') ? formData.get('market_price') : form._rentalMarketPrice ?? '',
         description: formData.get('description') || '',
         rental_text: formData.get('rental_text') || '',
+        pricing_model: formData.get('pricing_model') || 'legacy',
+        pricing_version: formData.get('pricing_version') || '',
+        daily_prices: window.RentalWeekEditor?.dailyPrices(document.getElementById(containerId)?.querySelector('[data-rental-week-editor]')) || {},
+        price_groups: window.RentalWeekEditor?.groups(document.getElementById(containerId)?.querySelector('[data-rental-week-editor]')) || [],
         is_available: formData.get('is_available') === 'on',
         images: collectImagesFromForm(form, formId === 'createRentalForm' ? 'createFormFieldsContainer' : 'formFieldsContainer'),
         type_data: {}
@@ -1656,16 +1810,22 @@ async function saveRentalObject() {
     const isEdit = id && id !== '';
     const weekdayMode = rentalWeekdayMode(form, 'formFieldsContainer');
     const weekdayState = rentalWeekdayFormState(form, 'formFieldsContainer');
+    let pricingFields;
+    try { pricingFields = rentalPricingPayload(form, 'formFieldsContainer'); }
+    catch (error) { toast.quickError('Prisene må kontrolleres', error.message); return; }
     
     const data = {
         object_name: formData.get('object_name'),
         category: formData.get('category'),
-        rental_price: rentalPriceForPayload(form, formData.get('rental_price'), weekdayMode),
-        weekday_prices_enabled: weekdayMode === 'weekdays' ? 1 : 0,
-        ...(weekdayState.weekday_prices !== undefined ? {weekday_prices: weekdayState.weekday_prices} : {}),
-        weekend_price: parseFloat(formData.get('weekend_price')) || 0,
-        saturday_price: parseFloat(formData.get('saturday_price')) || 0,
-        sunday_price: parseFloat(formData.get('sunday_price')) || 0,
+        ...pricingFields,
+        ...(pricingFields.pricing_model === 'weekly' ? {} : {
+            rental_price: rentalPriceForPayload(form, formData.get('rental_price'), weekdayMode),
+            weekday_prices_enabled: weekdayMode === 'weekdays' ? 1 : 0,
+            ...(weekdayState.weekday_prices !== undefined ? {weekday_prices: weekdayState.weekday_prices} : {}),
+            weekend_price: parseFloat(formData.get('weekend_price')) || 0,
+            saturday_price: parseFloat(formData.get('saturday_price')) || 0,
+            sunday_price: parseFloat(formData.get('sunday_price')) || 0
+        }),
         deposit_amount: parseFloat(formData.get('deposit_amount')) || 0,
         ...(formData.get('category') !== 'venue' && formData.has('market_price') ? {market_price: formData.get('market_price') === '' ? null : Number(formData.get('market_price'))} : {}),
         description: formData.get('description') || null,
@@ -1845,6 +2005,9 @@ function showCreateSummary() {
     const category = formData.get('category');
     const weekdayMode = rentalWeekdayMode(form, 'createFormFieldsContainer');
     const weekdayState = rentalWeekdayFormState(form, 'createFormFieldsContainer');
+    let pricingFields;
+    try { pricingFields = rentalPricingPayload(form, 'createFormFieldsContainer', true); }
+    catch (error) { toast.quickError('Prisene må kontrolleres', error.message); return; }
     
     if (!category) {
         toast.quickError('Feil', 'Du må velge en kategori');
@@ -1854,12 +2017,15 @@ function showCreateSummary() {
     const data = {
         object_name: formData.get('object_name'),
         category: category,
-        rental_price: rentalPriceForPayload(form, formData.get('rental_price'), weekdayMode),
-        weekday_prices_enabled: weekdayMode === 'weekdays' ? 1 : 0,
-        ...(weekdayState.weekday_prices !== undefined ? {weekday_prices: weekdayState.weekday_prices} : {}),
-        weekend_price: parseFloat(formData.get('weekend_price')) || 0,
-        saturday_price: parseFloat(formData.get('saturday_price')) || 0,
-        sunday_price: parseFloat(formData.get('sunday_price')) || 0,
+        ...pricingFields,
+        ...(pricingFields.pricing_model === 'weekly' ? {} : {
+            rental_price: rentalPriceForPayload(form, formData.get('rental_price'), weekdayMode),
+            weekday_prices_enabled: weekdayMode === 'weekdays' ? 1 : 0,
+            ...(weekdayState.weekday_prices !== undefined ? {weekday_prices: weekdayState.weekday_prices} : {}),
+            weekend_price: parseFloat(formData.get('weekend_price')) || 0,
+            saturday_price: parseFloat(formData.get('saturday_price')) || 0,
+            sunday_price: parseFloat(formData.get('sunday_price')) || 0
+        }),
         deposit_amount: parseFloat(formData.get('deposit_amount')) || 0,
         ...(category !== 'venue' && formData.has('market_price') ? {market_price: formData.get('market_price') === '' ? null : Number(formData.get('market_price'))} : {}),
         description: formData.get('description') || null,
@@ -1927,7 +2093,16 @@ function showCreateSummary() {
     summaryHTML += `<tr><td class="text-muted" style="width:45%">Objektnavn</td><td><strong>${escHtml(data.object_name)}</strong></td></tr>`;
     summaryHTML += `<tr><td class="text-muted">Kategori</td><td><span class="badge bg-primary">${escHtml(categoryLabel)}</span></td></tr>`;
     summaryHTML += `<tr><td class="text-muted">Grunnpris og helgepris</td><td></td></tr>`;
-    if (data.weekday_prices_enabled === 1 && data.weekday_prices) {
+    if (data.pricing_model === 'weekly') {
+        summaryHTML += '<tr><td colspan="2" class="small fw-semibold pt-1">Priser mandag–søndag</td></tr>';
+        rentalAllWeekdays.forEach(day => {
+            summaryHTML += `<tr><td class="text-muted">${day.label}</td><td><strong class="text-success">${Number(data.daily_prices[day.key]).toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})} NOK</strong></td></tr>`;
+        });
+        (data.price_groups || []).forEach(group => {
+            const dayLabels = rentalAllWeekdays.map(day => day.label);
+            summaryHTML += `<tr><td class="text-muted">Prisgruppe ${dayLabels[group.start_day - 1]}–${dayLabels[group.end_day - 1]}</td><td><strong>${Number(group.price).toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})} NOK totalt</strong></td></tr>`;
+        });
+    } else if (data.weekday_prices_enabled === 1 && data.weekday_prices) {
         summaryHTML += '<tr><td colspan="2" class="small fw-semibold pt-1">Ukedager</td></tr>';
         rentalWeekdays.forEach(day => {
             summaryHTML += `<tr><td class="text-muted">${day.label}</td><td><strong class="text-success">${Number(data.weekday_prices[day.key]).toLocaleString('nb-NO',{minimumFractionDigits:0,maximumFractionDigits:2})} NOK</strong></td></tr>`;
@@ -2215,6 +2390,14 @@ function viewDetails(objectId) {
     const detailPrimary = safeDetailImages.find(i => i.is_primary) || safeDetailImages[0] || null;
     const weekdayPriceState = parseRentalWeekdayPrices(obj.weekday_prices ?? obj.object_weekday_prices);
     const usesWeekdayPrices = rentalObjectUsesWeekdayPrices(obj, weekdayPriceState);
+    const usesWeeklyPricing = obj.pricing_model === 'weekly';
+    const weeklyRates = rentalWeeklyRates(obj);
+    const weeklyGroups = rentalWeeklyGroups(obj);
+    const weeklyPricingDetails = usesWeeklyPricing
+        ? `<p><strong>Ukespriser:</strong><br>${rentalAllWeekdays.map(day => `${day.label}: ${weeklyRates?.[day.key] !== undefined ? `${Number(weeklyRates[day.key]).toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})} NOK/dag` : 'Ikke satt'}`).join('<br>')}</p>
+           ${weeklyGroups.map(group => `<p><strong>Prisgruppe:</strong> ${rentalAllWeekdays[Number(group.start_day)-1]?.label || '–'}–${rentalAllWeekdays[Number(group.end_day)-1]?.label || '–'} · ${Number(group.price).toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})} NOK per berørt forekomst.</p>`).join('')}
+           <p class="small text-muted">Forekomsten forankres på startdagen, belastes én gang også ved delvis leie og erstatter dagsprisene for perioden.</p>`
+        : '';
     const weekdayPriceDetails = usesWeekdayPrices
         ? (weekdayPriceState.valid
             ? `<p><strong>Ukedagspriser:</strong><br>${rentalWeekdays.map(day => `${day.label}: ${Object.prototype.hasOwnProperty.call(weekdayPriceState.prices, day.key) ? `${Number(weekdayPriceState.prices[day.key]).toLocaleString('nb-NO',{maximumFractionDigits:2})} NOK` : 'Ikke satt'}`).join('<br>')}</p>`
@@ -2227,10 +2410,10 @@ function viewDetails(objectId) {
                 ${detailPrimary ? `<img src="${escAttr(detailPrimary.url)}" class="img-fluid rounded mb-2" alt="${escAttr(obj.object_name)}" id="detailMainImage">` : ''}
                 ${safeDetailImages.length > 1 ? `<div class="d-flex gap-2 flex-wrap mb-3">${safeDetailImages.map((img) => `<img src="${escAttr(img.url)}" class="img-thumbnail detail-thumb" data-detail-url="${escAttr(img.url)}" style="max-height: 60px; cursor: pointer;${img === detailPrimary ? ' border: 2px solid #0d6efd;' : ''}" title="${escAttr(img.caption || '')}" alt="">`).join('')}</div>` : ''}
                 <p><strong>Kategori:</strong> ${escHtml(schema?.label || obj.category)}</p>
-                ${usesWeekdayPrices ? `${weekdayPriceDetails}<p><strong>Helgegrunnpris ved manglende helgesats:</strong> ${parseFloat(obj.rental_price || 0).toLocaleString('nb-NO',{maximumFractionDigits:2})} NOK/dag</p>` : `<p><strong>Flat dagspris:</strong> ${parseFloat(obj.rental_price || 0).toLocaleString('nb-NO',{maximumFractionDigits:2})} NOK/dag</p>`}
-                ${obj.saturday_price > 0 ? `<p><strong>Lørdagspris:</strong> ${parseFloat(obj.saturday_price).toFixed(0)} NOK/dag</p>` : ''}
-                ${obj.sunday_price > 0 ? `<p><strong>Søndagspris:</strong> ${parseFloat(obj.sunday_price).toFixed(0)} NOK/dag</p>` : ''}
-                ${(obj.weekend_price > 0 && !obj.saturday_price && !obj.sunday_price) ? `<p><strong>Helgepris:</strong> ${parseFloat(obj.weekend_price).toFixed(0)} NOK/dag</p>` : ''}
+                ${usesWeeklyPricing ? weeklyPricingDetails : (usesWeekdayPrices ? `${weekdayPriceDetails}<p><strong>Helgegrunnpris ved manglende helgesats:</strong> ${parseFloat(obj.rental_price || 0).toLocaleString('nb-NO',{maximumFractionDigits:2})} NOK/dag</p>` : `<p><strong>Flat dagspris:</strong> ${parseFloat(obj.rental_price || 0).toLocaleString('nb-NO',{maximumFractionDigits:2})} NOK/dag</p>`)}
+                ${!usesWeeklyPricing && obj.saturday_price > 0 ? `<p><strong>Lørdagspris:</strong> ${parseFloat(obj.saturday_price).toFixed(0)} NOK/dag</p>` : ''}
+                ${!usesWeeklyPricing && obj.sunday_price > 0 ? `<p><strong>Søndagspris:</strong> ${parseFloat(obj.sunday_price).toFixed(0)} NOK/dag</p>` : ''}
+                ${!usesWeeklyPricing && obj.weekend_price > 0 && !obj.saturday_price && !obj.sunday_price ? `<p><strong>Helgepris:</strong> ${parseFloat(obj.weekend_price).toFixed(0)} NOK/dag</p>` : ''}
                 ${obj.deposit_amount > 0 ? `<p><strong>Depositum:</strong> ${parseFloat(obj.deposit_amount).toFixed(0)} NOK</p>` : ''}
                 <p><strong>Status:</strong> ${obj.is_available ? '<span class="badge bg-success">Tilgjengelig</span>' : '<span class="badge bg-secondary">Ikke tilgjengelig</span>'}</p>
                 ${obj.description ? `<p><strong>Beskrivelse:</strong><br>${escHtml(obj.description)}</p>` : ''}
@@ -2741,6 +2924,9 @@ function refreshRentalRequestPrice(row) {
                 weekday_prices: row.dataset.weekdayPrices,
                 weekday_prices_enabled: row.dataset.weekdayPricesEnabled === ''
                     ? undefined : row.dataset.weekdayPricesEnabled,
+                pricing_model: row.dataset.objectPricingModel || undefined,
+                daily_prices: row.dataset.objectDailyPrices || undefined,
+                price_groups: row.dataset.objectPriceGroups || undefined,
                 weekend_price: row.dataset.weekendPrice,
                 saturday_price: row.dataset.saturdayPrice,
                 sunday_price: row.dataset.sundayPrice,
@@ -2898,6 +3084,10 @@ async function loadRentalRequests() {
             const weekdayPricesEnabled = r.object_weekday_prices_enabled === null
                 || r.object_weekday_prices_enabled === undefined
                 ? '' : String(r.object_weekday_prices_enabled);
+            const dailyPricesJson = typeof r.object_daily_prices === 'string'
+                ? r.object_daily_prices : JSON.stringify(r.object_daily_prices ?? null);
+            const priceGroupsJson = typeof r.object_price_groups === 'string'
+                ? r.object_price_groups : JSON.stringify(r.object_price_groups ?? []);
 
             return `<tr data-rental-request-id="${escHtml(r.id)}"
                         data-membership-benefits="${escAttr(JSON.stringify(r.membership_benefits || []))}"
@@ -2906,6 +3096,9 @@ async function loadRentalRequests() {
                         data-daily-price="${escAttr(r.object_daily_price ?? '')}"
                         data-weekday-prices="${escAttr(weekdayPricesJson)}"
                         data-weekday-prices-enabled="${escAttr(weekdayPricesEnabled)}"
+                        data-object-pricing-model="${escAttr(r.object_pricing_model ?? '')}"
+                        data-object-daily-prices="${escAttr(dailyPricesJson)}"
+                        data-object-price-groups="${escAttr(priceGroupsJson)}"
                         data-weekend-price="${escAttr(r.object_weekend_price ?? '')}"
                         data-saturday-price="${escAttr(r.object_saturday_price ?? '')}"
                         data-sunday-price="${escAttr(r.object_sunday_price ?? '')}"

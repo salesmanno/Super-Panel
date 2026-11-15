@@ -72,11 +72,88 @@
         return prices;
     }
 
+    const weekDays = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+    function weekMoney(value) {
+        if (!['string','number'].includes(typeof value)
+            || !/^\d{1,8}(?:\.\d{1,2})?$/.test(String(value).trim().replace(',','.'))) {
+            throw new Error('Prisen må være 0–99 999 999,99 kr, med høyst to desimaler.');
+        }
+        return amountToCents(value, 'Dags- eller koblingsprisen', true);
+    }
+    function weekJson(value, label) {
+        if (typeof value === 'string') {
+            try { value = JSON.parse(value); } catch (_) { throw new Error(`${label} har ugyldig JSON.`); }
+        }
+        if (!value || typeof value !== 'object') throw new Error(`${label} mangler eller er ugyldig.`);
+        return value;
+    }
+    function calculateWeeklyBase(rates, start, end) {
+        const daily = weekJson(rates.daily_prices, 'Dagsprisene');
+        if (Array.isArray(daily) || Object.keys(daily).length !== 7
+            || Object.keys(daily).some(key => !weekDays.includes(key))) {
+            throw new Error('Fyll ut enkeltpris for alle dager fra mandag til søndag.');
+        }
+        const prices = weekDays.map(key => weekMoney(daily[key]));
+        const groups = weekJson(rates.price_groups, 'Dagskoblingene');
+        if (!Array.isArray(groups) || groups.length > 2) throw new Error('Det kan være høyst to dagskoblinger per objekt.');
+        const occupied = new Set(), slots = new Set();
+        const normalized = groups.map(group => {
+            if (!group || typeof group !== 'object') throw new Error('Ugyldig dagskobling.');
+            for (const [key,max] of [['slot',2],['start_day',7],['end_day',7]]) {
+                if (!['string','number'].includes(typeof group[key]) || !/^[1-7]$/.test(String(group[key]))
+                    || Number(group[key]) > max) throw new Error('Ugyldig fra-dag, til-dag eller koblingsnummer.');
+            }
+            const slot = Number(group.slot), from = Number(group.start_day), to = Number(group.end_day);
+            if (slots.has(slot) || from === to) throw new Error('Koblinger må ha unikt nummer og dekke minst to dager.');
+            slots.add(slot);
+            const length = (to - from + 7) % 7 + 1;
+            for (let i=0;i<length;i++) {
+                const day = (from-1+i)%7+1;
+                if (occupied.has(day)) throw new Error('Dagskoblingene kan ikke overlappe.');
+                occupied.add(day);
+            }
+            return {slot,from,to,length,cents:weekMoney(group.price)};
+        }).sort((a,b)=>a.slot-b.slot);
+        if ((end-start)/86400000 >= 3660) throw new Error('Velg en gyldig leieperiode på høyst 3660 dager.');
+        let baseCents = 0;
+        const seen = new Set(), lines = [];
+        for (const date = new Date(start); date <= end; date.setUTCDate(date.getUTCDate()+1)) {
+            const weekday = date.getUTCDay() || 7;
+            const group = normalized.find(g => (weekday-g.from+7)%7 < g.length);
+            if (group) {
+                const anchor = new Date(date);
+                anchor.setUTCDate(anchor.getUTCDate()-(weekday-group.from+7)%7);
+                const anchorDate = anchor.toISOString().slice(0,10), key = `${group.slot}:${anchorDate}`;
+                if (!seen.has(key)) {
+                    baseCents += group.cents;
+                    lines.push({type:'group',slot:group.slot,anchor_date:anchorDate,
+                        start_day:group.from,end_day:group.to,amount_cents:group.cents});
+                    seen.add(key);
+                }
+            } else {
+                const cents = prices[weekday-1];
+                baseCents += cents;
+                lines.push({type:'day',date:date.toISOString().slice(0,10),amount_cents:cents});
+            }
+        }
+        return {baseCents,lines};
+    }
+
     function calculateRentalQuote({ rates, startDate, endDate, cleaningFee, cleaning, adjustment, membershipBenefits = [] }) {
         if (!rates || typeof rates !== 'object') {
             throw new Error('Prisene for utleieobjektet mangler. Oppdater prisene før godkjenning.');
         }
 
+        const model = rates.pricing_model ?? 'legacy';
+        if (!['legacy','weekly'].includes(model)) throw new Error('Ukjent prismodell for utleieobjektet.');
+        const start = dateAtUtcMidnight(startDate);
+        const end = dateAtUtcMidnight(endDate);
+        if (end < start) throw new Error('Sluttdato kan ikke være før startdato.');
+        let baseCents = 0, priceLines = [];
+        if (model === 'weekly') {
+            const quote = calculateWeeklyBase(rates,start,end);
+            baseCents = quote.baseCents; priceLines = quote.lines;
+        } else {
         const rateCorrection = 'Oppdater prisene på utleieobjektet.';
         const flag = rates.weekday_prices_enabled;
         const weekdayData = rates.weekday_prices === 'null' ? null : rates.weekday_prices;
@@ -99,13 +176,6 @@
         const weekend = amountToCents(rates.weekend_price, 'Helgeprisen', false, rateCorrection);
         const saturday = amountToCents(rates.saturday_price, 'Lørdagsprisen', false, rateCorrection);
         const sunday = amountToCents(rates.sunday_price, 'Søndagsprisen', false, rateCorrection);
-        const start = dateAtUtcMidnight(startDate);
-        const end = dateAtUtcMidnight(endDate);
-        if (end < start) {
-            throw new Error('Sluttdato kan ikke være før startdato.');
-        }
-
-        let baseCents = 0;
         const chargedWeekends = new Set();
         for (const day = new Date(start); day <= end; day.setUTCDate(day.getUTCDate() + 1)) {
             const weekday = day.getUTCDay();
@@ -129,6 +199,7 @@
                 : weekday === 0 && sunday > 0 ? sunday
                     : (weekday === 0 || weekday === 6) && weekend > 0 ? weekend
                         : daily;
+        }
         }
 
         const cleaningCents = cleaning
@@ -168,6 +239,7 @@
         }
         return {
             baseCents,
+            priceLines,
             rentalDays,
             memberBaseCents,
             membershipDiscountCents: baseCents - memberBaseCents,

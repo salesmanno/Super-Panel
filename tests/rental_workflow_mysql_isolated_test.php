@@ -363,5 +363,53 @@ try {
     $db->exec('ALTER TABLE rental_objects DROP COLUMN weekday_prices');
     workflowAssert($call('get_rental_schedule','a')[1]['success'],'Legacy server without column still reads flat rates');
     workflowAssert($call('update_rental_object','a',['id'=>'oa','csrf_token'=>'form-token','weekday_prices'=>$weekdayPrices])[0]===400,'Missing column rejects active map instead of silently losing prices');
+    // Apply the exact manual SQL only to this socket-only disposable database.
+    $daily=array_combine(rentalWeekDays(),['500.00','500.00','600.00','600.00','800.00','1800.00','1600.00']);
+    $groups=[['slot'=>1,'start_day'=>2,'end_day'=>3,'price'=>'900.00'],
+        ['slot'=>2,'start_day'=>6,'end_day'=>7,'price'=>'3000.00']];
+    $weeklyCreate=['csrf_token'=>'form-token','object_name'=>'Nytt ukeoppsett','category'=>'venue',
+        'pricing_model'=>'weekly','daily_prices'=>$daily,'price_groups'=>$groups,'form_fields'=>$newFormFields];
+    $count=(int)$db->query('SELECT COUNT(*) FROM rental_objects')->fetchColumn();
+    workflowAssert($call('create_rental_object','a',$weeklyCreate)[0]===400,'Weekly creation reports missing migration');
+    workflowAssert((int)$db->query('SELECT COUNT(*) FROM rental_objects')->fetchColumn()===$count,'Missing migration rolls back base creation');
+    $db->exec(str_replace('`salesmanno04`','`rental_workflow`',file_get_contents($root.'/sql/rental_week_pricing.sql')));
+    workflowAssert($db->query("SELECT pricing_model FROM rental_objects WHERE id='oa'")->fetchColumn()==='legacy','Migration keeps all old objects legacy');
+    [$http,$weeklyCreated]=$call('create_rental_object','a',$weeklyCreate);
+    workflowAssert($http===200 && $weeklyCreated['success'],'Weekly object creation succeeds: '.json_encode($weeklyCreated));
+    $weeklyId=$weeklyCreated['object_id'];
+    $weeklyReload=$call('get_rental_objects','a',null,'id='.$weeklyId)[1]['object'];
+    workflowAssert($weeklyReload['daily_prices']===$daily && $weeklyReload['price_groups']===$groups,'API roundtrip of singles and both groups');
+    workflowAssert($call('update_rental_object','b',['id'=>$weeklyId]+$weeklyCreate)[0]===404,'Other company cannot edit weekly prices');
+    workflowAssert($call('update_rental_object','none',['id'=>$weeklyId]+$weeklyCreate)[0]===403,'Weekly write requires module access');
+    workflowAssert($call('update_rental_object','a',['id'=>$weeklyId,'csrf_token'=>'wrong','pricing_model'=>'weekly'])[0]===403,'Weekly write requires CSRF');
+    $weeklyEdit=['id'=>$weeklyId,'csrf_token'=>'form-token','pricing_model'=>'weekly',
+        'pricing_version'=>$weeklyReload['pricing_version'],'daily_prices'=>$daily,'price_groups'=>$groups];
+    workflowAssert($call('update_rental_object','a',$weeklyEdit)[1]['success'],'Unchanged weekly API save succeeds');
+    $invalid=$weeklyEdit;$invalid['price_groups'][1]['start_day']=3;
+    workflowAssert($call('update_rental_object','a',$invalid)[0]===400,'API rejects overlapping groups');
+    $weeklyEdit['price_groups'][0]['price']='850.00';
+    workflowAssert($call('update_rental_object','a',$weeklyEdit)[1]['success'],'Edit group price');
+    workflowAssert($call('update_rental_object','a',$weeklyEdit)[0]===400,'Stale weekly edit rejected');
+    $weeklyReload=$call('get_rental_objects','a',null,'id='.$weeklyId)[1]['object'];
+    $weeklyEdit['pricing_version']=$weeklyReload['pricing_version'];
+    $weeklyEdit['price_groups']=$groups;
+    workflowAssert($call('update_rental_object','a',$weeklyEdit)[1]['success'],'Restore group through explicit save');
+    $weeklyPublic=$payload;
+    $weeklyPublic['object_id']=$weeklyId;$weeklyPublic['submission_id']='weekly-seven-days';
+    $weeklyPublic['start_date']='2031-07-14';$weeklyPublic['end_date']='2031-07-20';
+    [$http,$weeklyRequest]=$call('create_rental_request','public',$weeklyPublic);
+    workflowAssert($http===200&&$weeklyRequest['success'],'Public weekly request: '.json_encode($weeklyRequest));
+    $weeklyRequestId=$weeklyRequest['request_id'];
+    workflowAssert((float)$db->query('SELECT rental_fee FROM rental_schedule WHERE id='.$db->quote($weeklyRequestId))->fetchColumn()===5800.0,'Public server computes coupled price, no legacy fallback');
+    $weeklySchedule=$call('get_rental_schedule','a',null,'request_id='.$weeklyRequestId)[1]['requests'][0];
+    workflowAssert($weeklySchedule['object_pricing_model']==='weekly'&&$weeklySchedule['object_price_groups']===$groups,'Request UI receives full weekly tariff');
+    [$http,$weeklyDates]=$call('update_rental_schedule','a',['id'=>$weeklyRequestId,'csrf_token'=>'decision-token',
+        'expected_version'=>$weeklySchedule['decision_version'],'end_date'=>'2031-07-18']);
+    workflowAssert($http===200&&(float)$weeklyDates['rental_fee']===2800.0,'Date edit recalculates daily and coupled prices');
+    $db->prepare('UPDATE rental_venues SET access_code=? WHERE object_id=?')->execute(['1234',$weeklyId]);
+    [$http,$weeklyApproved]=$call('update_rental_schedule','a',['id'=>$weeklyRequestId,'csrf_token'=>'decision-token',
+        'expected_version'=>$weeklyDates['request']['decision_version'],'status'=>'approved']);
+    workflowAssert($http===200&&$weeklyApproved['success'],'Weekly request approval keeps authoritative price: '.json_encode($weeklyApproved));
+    workflowAssert((float)$db->query('SELECT rental_fee FROM rental_schedule WHERE id='.$db->quote($weekdayRequestId))->fetchColumn()===2800.0,'New model does not reprice another reservation');
     echo "Isolated rental workflow, decisions, notifications and permissions passed\n";
 } finally {proc_terminate($process);proc_close($process);}

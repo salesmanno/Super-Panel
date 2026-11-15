@@ -12,6 +12,7 @@ if (!isset($_SESSION['tenant_admin_id']) || !isset($_SESSION['company_id'])) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/rental_schemas.php';
 require_once __DIR__ . '/../includes/rental_customer_fields.php';
+require_once __DIR__ . '/../includes/rental_week_pricing.php';
 
 $admin = [
     'tenant_admin_id' => $_SESSION['tenant_admin_id'],
@@ -43,6 +44,7 @@ try {
             exit;
         }
         
+        $object = rentalWeekAttach($db,$object);
         if (!empty($object['images']) && is_string($object['images'])) {
             $decoded = json_decode($object['images'], true);
             $object['images'] = is_array($decoded) ? $decoded : [];
@@ -112,6 +114,7 @@ try {
         $objects = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         foreach ($objects as &$object) {
+            $object = rentalWeekAttach($db,$object);
             if (!empty($object['images']) && is_string($object['images'])) {
                 $decoded = json_decode($object['images'], true);
                 $object['images'] = is_array($decoded) ? $decoded : [];

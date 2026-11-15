@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/rental_weekday_pricing.php';
+require_once __DIR__ . '/rental_week_pricing.php';
 
 function rentalDecisionVersion(array $row): string {
     $values = [];
@@ -30,6 +31,7 @@ function rentalMoneyToCents($amount): int {
 }
 
 function rentalPeriodPriceCents(array $object, string $startDate, string $endDate): int {
+    if (rentalWeekModel($object) === 'weekly') return rentalWeekQuote($object,$startDate,$endDate)['base_cents'];
     $start = new DateTimeImmutable($startDate);
     $end = new DateTimeImmutable($endDate);
     if ($end < $start) {

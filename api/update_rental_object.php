@@ -12,6 +12,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/rental_schemas.php';
 require_once __DIR__ . '/../includes/rental_customer_fields.php';
 require_once __DIR__ . '/../includes/rental_weekday_pricing.php';
+require_once __DIR__ . '/../includes/rental_week_pricing.php';
 require_once __DIR__ . '/../includes/source_catalog_links.php';
 
 $admin = [
@@ -50,6 +51,8 @@ try {
         exit;
     }
     
+    rentalWeekSave($db, (string)$admin['company_id'], (string)$data['id'], $data, $existing);
+    $data = rentalWeekLegacyPayload($data);
     // Object type is fixed at creation, including for direct API callers.
     $category = $existing['category'];
     if (array_key_exists('category', $data) && $data['category'] !== $category) {
@@ -138,7 +141,8 @@ try {
     }
 
     // UPDATE base rental_objects table
-    if (rentalWeekdayPricingIsActive(array_replace($existing, $data))) {
+    if (rentalWeekModel(array_replace($existing,$data)) !== 'weekly'
+        && rentalWeekdayPricingIsActive(array_replace($existing, $data))) {
         $data['rental_price'] = null;
     }
     $updateFields = [];

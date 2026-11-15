@@ -273,6 +273,18 @@
         if (!rates) return '<p class="mb-no-benefit">Leiesatser mangler</p>';
         const lines = [];
         const days = [['monday','Mandag'],['tuesday','Tirsdag'],['wednesday','Onsdag'],['thursday','Torsdag'],['friday','Fredag'],['saturday','Lørdag'],['sunday','Søndag']];
+        if (rates.pricing_model === 'weekly') {
+            try {
+                const daily = typeof rates.daily_prices === 'string' ? JSON.parse(rates.daily_prices) : rates.daily_prices;
+                const groups = typeof rates.price_groups === 'string' ? JSON.parse(rates.price_groups) : rates.price_groups;
+                // Validate with the same calculator, even before quote dates are selected.
+                window.RentalRequestPricing.calculateRentalQuote({rates,startDate:'2026-11-16',endDate:'2026-11-22',cleaning:false});
+                days.forEach(([key,label])=>lines.push(`<span>${label} <strong>${money(daily[key])}</strong></span>`));
+                groups.forEach(group=>lines.push(`<span>${safeText(days[group.start_day-1][1])}–${safeText(days[group.end_day-1][1])}
+                    <strong>${money(group.price)} samlet</strong></span>`));
+                return `<div class="mb-rate-list">${lines.join('')}</div>`;
+            } catch (_) { return '<p class="mb-rate-error">Ukeprisoppsettet mangler eller er ugyldig.</p>'; }
+        }
         const enabled = [true,1,'1'].includes(rates.weekday_prices_enabled) || ((rates.weekday_prices_enabled == null || rates.weekday_prices_enabled === '') && !!rates.weekday_prices);
         let dayPrices = rates.weekday_prices || {};
         if (typeof dayPrices === 'string') {
@@ -444,7 +456,10 @@
         if (rental) {
             const rates = activeItem.rental_rates || {};
             const packageActive = number(rates.weekend_price) > 0 && number(rates.saturday_price) <= 0 && number(rates.sunday_price) <= 0;
-            document.getElementById('mb-rental-period-help').textContent = 'Datoene teller med, også returdagen. ' + (packageActive ? 'Helgepakken (lørdag–søndag) belastes én gang per helg, også når bare deler av helgen leies. ' : 'Leien beregnes med satsen for hver valgt dag. ') + 'Depositum, rengjøring og gebyrer er ikke med.';
+            document.getElementById('mb-rental-period-help').textContent = 'Datoene teller med, også returdagen. ' + (rates.pricing_model === 'weekly'
+                ? 'Koblede dager belastes samlet én gang per berørt forekomst. Andre dager bruker enkeltprisen. '
+                : packageActive ? 'Helgepakken (lørdag–søndag) belastes én gang per helg, også når bare deler av helgen leies. '
+                : 'Leien beregnes med satsen for hver valgt dag. ') + 'Depositum, rengjøring og gebyrer er ikke med.';
             const result = document.getElementById('mb-quote-result');
             if (!startDate.value || !endDate.value) { result.textContent = 'Velg fra- og til-dato for å se normal sum og medlemssum.'; return; }
             if (endDate.value < startDate.value) { result.textContent = 'Til-dato må være samme dag som eller etter fra-dato.'; return; }
@@ -456,7 +471,7 @@
                 const weekdayEnabled = [true,1,'1'].includes(activeRates.weekday_prices_enabled)
                     || ((activeRates.weekday_prices_enabled == null || activeRates.weekday_prices_enabled === '') && !!activeRates.weekday_prices);
                 const weekendPackage = number(activeRates.weekend_price) > 0 && number(activeRates.saturday_price) <= 0 && number(activeRates.sunday_price) <= 0;
-                if (weekdayEnabled && !weekendPackage && !(number(activeRates.saturday_price) > 0 && number(activeRates.sunday_price) > 0)) {
+                if (activeRates.pricing_model !== 'weekly' && weekdayEnabled && !weekendPackage && !(number(activeRates.saturday_price) > 0 && number(activeRates.sunday_price) > 0)) {
                     throw new Error('Lørdags- og søndagspris mangler. Dagsprisen brukes ikke som helgefallback.');
                 }
                 const quote = window.RentalRequestPricing.calculateRentalQuote({rates:activeItem.rental_rates,startDate:startDate.value,endDate:endDate.value,cleaning:false,adjustment:null});
