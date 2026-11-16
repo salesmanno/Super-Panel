@@ -6,7 +6,14 @@ if(typeof WebSocket==='undefined') {
 const root=path.join(__dirname,'..'),dir=fs.mkdtempSync(path.join(os.tmpdir(),'rental-workflow-browser-'));
 const rendered=spawnSync('php',['-r','include "modules/rental_content.php";'],{cwd:root,encoding:'utf8'});
 assert.equal(rendered.status,0,rendered.stderr);
-let html=rendered.stdout.replace(/<link[^>]+>/g,'');
+// Keep the actual CSS cascade: edit modal is a sibling of #rental-module.
+// Stripping styles hid a production regression in the old scope-only checks.
+let html=rendered.stdout.replace(/<link\b[^>]*>/g,tag=>{
+ const href=tag.match(/href="\/assets\/([^"]+)"/);
+ if(!href)return '';
+ const name=href[1].split('?')[0];
+ return '<style data-rental-test-css="'+name+'">'+fs.readFileSync(path.join(root,'assets',name),'utf8')+'</style>';
+});
 html=html.replace(/<script src="\/assets\/([^"]+)"><\/script>/g,(_,name)=>
     '<script>'+fs.readFileSync(path.join(root,'assets',name.split('?')[0]),'utf8')+'</script>');
 const dashboard=fs.readFileSync(path.join(root,'pages/company_dashboard.php'),'utf8');
@@ -74,6 +81,31 @@ fs.writeFileSync(file,'<!doctype html><meta name="viewport" content="width=devic
 const checks=`(async()=>{
 const check=(ok,message)=>{if(!ok)throw new Error(message)};
 const delay=()=>new Promise(r=>setTimeout(r,30));
+const verifyWeeklyAppearance=(editor,label)=>{
+ const revealed=[];
+ for(let parent=editor;parent&&parent!==document.body;parent=parent.parentElement){
+  if(getComputedStyle(parent).display==='none'){revealed.push([parent,parent.style.display]);parent.style.display='block';}
+ }
+ try{
+ const pills=[...editor.querySelectorAll('[data-weekday-pick]')];
+ const rects=pills.map(p=>p.getBoundingClientRect());
+ check(rects.every((r,n)=>n===0||r.left>rects[n-1].left),label+': day pills are horizontal');
+ check(rects.every(r=>Math.abs(r.top-rects[0].top)<2),label+': day pills share one row');
+ const pill=pills[0],mark=pill.querySelector('.rental-weekday-mark');
+ const p=pill.getBoundingClientRect(),m=mark.getBoundingClientRect(),style=getComputedStyle(pill);
+ check(parseFloat(style.borderRadius)>=20,label+': day control is a rounded pill, not an unstyled button');
+ check(m.width>=15&&m.height>=15,label+': unchecked checkbox is visible');
+ check(m.left+m.width/2>p.left+p.width*.66,label+': checkbox sits on the right of the pill');
+ check(Math.abs(m.top+m.height/2-p.bottom)<=9,label+': checkbox interrupts the bottom outline');
+ check(getComputedStyle(editor.querySelector('.rental-week-rates')).display==='flex',label+': stylesheet is applied');
+ check(editor.querySelector('[data-daily-rate]').getBoundingClientRect().width<=90,label+': price input stays compact');
+ const prices=[...editor.querySelectorAll('[data-daily-rate]')].map(input=>input.getBoundingClientRect());
+ check(prices.every(r=>Math.abs(r.top-prices[0].top)<2),label+': all price inputs share a horizontal baseline');
+ const accessibleLabel=editor.querySelector('.rental-week-rate > .visually-hidden');
+ check(accessibleLabel&&getComputedStyle(accessibleLabel).position==='absolute'
+  &&accessibleLabel.getBoundingClientRect().width<=1,label+': accessibility labels do not duplicate visible day names');
+ }finally{revealed.reverse().forEach(([node,display])=>node.style.display=display);}
+};
 await delay();
 check(errors.length===0,'startup errors: '+errors.join(';'));
 buildCreateForm('venue');
@@ -81,6 +113,7 @@ check(!document.querySelector('#createRentalForm [name="market_price"]'),'venue 
 const weeklyForm=document.getElementById('createRentalForm');
 let weeklyEditor=weeklyForm.querySelector('[data-rental-week-editor]');
 check(weeklyEditor&&!weeklyEditor.querySelector('[name="pricing_model"]'),'Creation uses only the seven-day editor without a model choice');
+verifyWeeklyAppearance(weeklyEditor,'Actual create form');
 check(!weeklyForm.querySelector('[name="rental_price"],[name^="weekday_prices["],[name="weekend_price"],[name="saturday_price"],[name="sunday_price"]'),'Creation form has no legacy price controls');
 weeklyEditor.querySelectorAll('[name^="daily_prices["]').forEach(input=>input.value='500.00');
 weeklyEditor.querySelector('[data-weekday-pick="2"]').click();
@@ -102,6 +135,15 @@ buildFormFields('formFieldsContainer','venue',{id:'editing-weekly',object_name:'
 const weeklyEditPayload=rentalPricingPayload(document.getElementById('rentalForm'),'formFieldsContainer');
 check(weeklyEditPayload.pricing_version==='server-revision'&&weeklyEditPayload.pricing_model==='weekly','Actual weekly edit preserves concurrency version and weekly mode');
 check(!document.querySelector('#rentalForm [name="pricing_model"],#rentalForm [name="rental_price"],#rentalForm [name^="weekday_prices["],#rentalForm [name="weekend_price"]'),'Edit form removes legacy pricing controls entirely');
+const modalEditor=document.querySelector('#rentalModal [data-rental-week-editor]');
+check(!modalEditor.closest('#rental-module'),'Regression fixture preserves the actual modal placement outside module root');
+verifyWeeklyAppearance(modalEditor,'Actual edit modal outside module root');
+check(getComputedStyle(modalEditor).getPropertyValue('--site-header-bg-color').trim()===
+ getComputedStyle(document.getElementById('rental-module')).getPropertyValue('--site-header-bg-color').trim(),'Company header color reaches both creation and detached edit modal');
+const editTue=modalEditor.querySelector('[data-weekday-pick="2"]');
+check(editTue.classList.contains('is-in-group')&&getComputedStyle(editTue).backgroundColor!==
+ getComputedStyle(modalEditor.querySelector('[data-weekday-pick="1"]')).backgroundColor,'Saved range has visible highlight in the actual edit modal');
+check(Number(getComputedStyle(modalEditor.querySelector('[data-daily-rate="2"]')).opacity)<1,'Grouped daily price is visibly subdued in the actual edit modal');
 buildFormFields('formFieldsContainer','venue',{id:'weekly-no-fallback',object_name:'Weekly source',pricing_model:'weekly',
  daily_prices:{monday:'42.00'},price_groups:[],rental_price:999,weekend_price:700,saturday_price:800,sunday_price:900});
 const weeklyNoFallbackEditor=document.querySelector('#rentalForm [data-rental-week-editor]');
@@ -234,11 +276,30 @@ async function main(){
   const result=await send('Runtime.evaluate',{expression:checks,awaitPromise:true,returnByValue:true},sessionId);
   assert.equal(result.result?.value?.passed,true,JSON.stringify(result));
   console.log('Rental workflow'+(process.env.RENTAL_PRICING_ONLY==='1'?' and membership pricing':' and notifications')+' passed at '+width+'px');
+  if(process.env.KEEP_RENTAL_WORKFLOW_FIXTURE==='1'){
+   const visual=await send('Runtime.evaluate',{expression:`(()=>{
+    const days=['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+    buildFormFields('formFieldsContainer','venue',{object_name:'Kontroll av prisredigering',pricing_model:'weekly',
+     daily_prices:Object.fromEntries(days.map(day=>[day,'1000.00'])),
+     price_groups:[{slot:1,start_day:6,end_day:7,price:'3000.00'}]});
+    const modal=document.getElementById('rentalModal');
+    modal.style.display='block';
+    const editor=modal.querySelector('[data-rental-week-editor]');
+    editor.querySelector('[data-weekday-pick="2"]').click();
+    editor.querySelector('[data-weekday-pick="4"]').click();
+    editor.scrollIntoView({block:'start'});
+    const r=editor.getBoundingClientRect();
+    return {x:r.left+scrollX,y:r.top+scrollY,width:r.width,height:r.height,scale:1};
+   })()`,returnByValue:true},sessionId);
+   const image=await send('Page.captureScreenshot',{format:'png',clip:visual.result.value,captureBeyondViewport:true},sessionId);
+   fs.writeFileSync(path.join(dir,'actual-edit-'+width+'.png'),Buffer.from(image.data,'base64'));
+  }
  }
+ if(process.env.KEEP_RENTAL_WORKFLOW_FIXTURE==='1')console.log('Actual PHP modal screenshots: '+dir);
 }
 main().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{
  if(socket)socket.close();if(browser){const stopped=new Promise(r=>browser.once('exit',r));browser.kill('SIGKILL');await stopped;}
  await new Promise(r=>setTimeout(r,300));
- try {fs.rmSync(dir,{recursive:true,force:true,maxRetries:10,retryDelay:250});}
+ try {if(process.env.KEEP_RENTAL_WORKFLOW_FIXTURE!=='1')fs.rmSync(dir,{recursive:true,force:true,maxRetries:10,retryDelay:250});}
  catch(error){if(error.code!=='ENOTEMPTY'&&error.code!=='EBUSY')throw error;}
 });

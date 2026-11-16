@@ -28,7 +28,8 @@ try {
 
 <style>
 /* Rental / fjord signal — deliberately denser than the surrounding dashboard. */
-#rental-module { --rental-ink:#17324d; --rental-muted:#60758a; --rental-line:#d8e3ea; --rental-paper:#f5f8fa; --rental-teal:#087f8c; --rental-coral:#e56f54; --rental-navy:#163b5c; --site-header-bg-color:<?= htmlspecialchars($rentalHeaderBgColor, ENT_QUOTES, 'UTF-8') ?>; }
+#rental-module, #rentalModal { --site-header-bg-color:<?= htmlspecialchars($rentalHeaderBgColor, ENT_QUOTES, 'UTF-8') ?>; }
+#rental-module { --rental-ink:#17324d; --rental-muted:#60758a; --rental-line:#d8e3ea; --rental-paper:#f5f8fa; --rental-teal:#087f8c; --rental-coral:#e56f54; --rental-navy:#163b5c; }
 #rental-module { color:var(--rental-ink); }
 #rental-module .card { border:1px solid var(--rental-line); border-radius:12px; box-shadow:0 2px 8px rgba(22,59,92,.04); overflow:hidden; }
 #rental-module .card-header { background:linear-gradient(90deg,#edf6f6,#f7fafb); border-bottom:1px solid var(--rental-line); }

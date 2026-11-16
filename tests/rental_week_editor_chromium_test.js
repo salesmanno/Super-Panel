@@ -12,8 +12,9 @@ const editorScript = require('node:fs').readFileSync(path.join(__dirname, '../as
 const editorCss = require('node:fs').readFileSync(path.join(__dirname, '../assets/rental_week_editor.css'), 'utf8');
 const fixture = `<!doctype html><html lang="nb"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>
 ${editorCss}
-body{margin:0;font:16px sans-serif}#rental-module{width:100%;padding:12px;box-sizing:border-box;--site-header-bg-color:#2d5598}
+body{margin:0;font:16px sans-serif}#rental-module,#rentalModal{width:100%;padding:12px;box-sizing:border-box;--site-header-bg-color:#2d5598}
 .card-body{max-width:1100px;margin:auto}.form-control{box-sizing:border-box;width:100%;min-width:0}.input-group-text{white-space:nowrap}
+#rentalModal .rental-edit-base-price .form-control{min-height:44px;font-size:1rem;font-weight:700}
 </style></head><body><main id="rental-module"><form id="fixtureForm"><div class="card-body">
 <section class="rental-week-editor" data-rental-week-editor data-initial-pricing-model="weekly">
  <h6 class="rental-week-editor-title">Ukens priser</h6>
@@ -27,6 +28,7 @@ body{margin:0;font:16px sans-serif}#rental-module{width:100%;padding:12px;box-si
   <p class="rental-week-status" data-weekly-status role="status" aria-live="polite"></p><div class="rental-week-group-list" data-weekly-group-list></div><input type="hidden" data-weekly-groups name="price_groups" value="[]">
  </div>
 </section></div></form></main>
+<section id="rentalModal" aria-label="Rental edit modal fixture"><div class="rental-edit-base-price"><div class="card-body"></div></div></section>
 <script>window.escapeBubbled=false;document.addEventListener('keydown',e=>{if(e.key==='Escape')window.escapeBubbled=true;});</script><script>${editorScript}</script></body></html>`;
 
 const checks = `(async()=>{
@@ -41,6 +43,36 @@ const checks = `(async()=>{
  const cancel=editor.querySelector('[data-dialog-cancel]');
  const groups=()=>JSON.parse(editor.querySelector('[data-weekly-groups]').value);
  await wait();
+  const modalHost=document.querySelector('#rentalModal .card-body');
+  const modalEditor=editor.cloneNode(true);
+  modalEditor.dataset.weekEditorReady='';
+  modalHost.append(modalEditor);
+  window.RentalWeekEditor.setup(modalEditor);
+  await wait();
+  const modalPick=n=>modalEditor.querySelector('[data-weekday-pick="'+n+'"]');
+  const modalRate=n=>modalEditor.querySelector('[data-daily-rate="'+n+'"]');
+  const pill=modalPick(1),mark=pill.querySelector('.rental-weekday-mark');
+  const pillStyle=getComputedStyle(pill),markStyle=getComputedStyle(mark);
+  const idlePillBackground=pillStyle.backgroundColor;
+  const pillRect=pill.getBoundingClientRect(),markRect=mark.getBoundingClientRect();
+  check(pillStyle.borderRadius.split(' ').every(part=>parseFloat(part)>=20),'Sibling modal day button renders as a fully rounded pill');
+  check(parseFloat(markStyle.width)>=16&&parseFloat(markStyle.height)>=16&&markStyle.display!=='none'&&markStyle.visibility==='visible','Modal checkbox remains visibly square at a usable size');
+  check(Math.abs((markRect.left+markRect.width/2)-pillRect.right)<=3
+   &&Math.abs((markRect.top+markRect.height/2)-pillRect.bottom)<=3,'Checkbox center interrupts the lower-right pill outline');
+  check(pillStyle.backgroundColor!=='rgba(0, 0, 0, 0)'&&markStyle.boxShadow!=='none','Checkbox backing visibly interrupts the pill border');
+  modalPick(1).click();
+  check(modalPick(1).getAttribute('aria-pressed')==='true'
+   &&getComputedStyle(modalPick(1)).backgroundColor!==idlePillBackground,'Selected day retains pressed state and uses the header accent surface');
+  check(parseFloat(getComputedStyle(modalRate(1)).opacity)<1,'Sibling modal daily rate is subdued when a day is selected');
+  modalPick(1).click();
+  const modalXs=[...modalEditor.querySelectorAll('[data-weekday-pick]')].map(button=>button.getBoundingClientRect().left);
+  check(modalXs.every((value,index)=>index===0||value>modalXs[index-1]),'Sibling modal days remain in a horizontal weekday strip');
+  const modalInputStyle=getComputedStyle(modalRate(1));
+  check(parseFloat(modalInputStyle.minHeight)<=30&&parseFloat(modalInputStyle.height)<=31
+   &&parseFloat(modalInputStyle.fontSize)<14,'Compact week price field overrides base-price form-control styling in the modal');
+  const modalStrip=modalEditor.querySelector('.rental-week-rates-scroll');
+  if(innerWidth<500)check(modalStrip.scrollWidth>modalStrip.clientWidth,'Sibling modal strip scrolls internally on mobile without stacking');
+  else check(modalStrip.scrollWidth<=modalStrip.clientWidth+1,'Sibling modal strip fits on wide screens ('+modalStrip.scrollWidth+'/'+modalStrip.clientWidth+', editor '+modalEditor.clientWidth+')');
  [...editor.querySelectorAll('[data-daily-rate]')].forEach((field,index)=>field.value=String(105.25+index));
  const originalRates=[...editor.querySelectorAll('[data-daily-rate]')].map(field=>field.value);
  check(!editor.querySelector('[name="pricing_model"]')&&!document.querySelector('[data-legacy-pricing-control]'),'No legacy model or price markup remains');
