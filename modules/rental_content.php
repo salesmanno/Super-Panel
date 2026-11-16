@@ -609,7 +609,7 @@ function renderObjectCard(obj) {
     const weeklyRates = rentalWeeklyRates(obj);
     const weeklyGroups = rentalWeeklyGroups(obj);
     const weeklyPriceDisplay = usesWeeklyPricing && weeklyRates
-        ? `<span class="rental-weekday-price">${rentalAllWeekdays.map(day => `${day.short} ${weeklyRates[day.key] !== undefined ? priceFormat(weeklyRates[day.key]) : '–'}`).join(' · ')} NOK/dag</span>`
+        ? `<span class="rental-weekday-price">${rentalAllWeekdays.map(day => `${day.short} ${weeklyRates[day.key] !== undefined && weeklyRates[day.key] !== null && weeklyRates[day.key] !== '' ? priceFormat(weeklyRates[day.key]) : '–'}`).join(' · ')} NOK/dag</span>`
         : (usesWeeklyPricing ? '<span class="rental-weekday-price rental-weekday-price-error">Ukesprisene må kontrolleres</span>' : '');
     const weeklyGroupDisplay = usesWeeklyPricing ? weeklyGroups.map(group => {
         const start = Number(group.start_day), end = Number(group.end_day);
@@ -1144,11 +1144,10 @@ function buildFormFields(containerId, category = '', existingData = {}) {
             </div>
         </div>
         
-        <h6 class="text-muted mt-3 mb-2" data-rental-pricing-heading><i class="bi bi-cash-stack me-1"></i>Priser</h6>
-        <div class="card bg-light mb-3">
+        <h6 class="text-muted mt-3 mb-2" data-rental-pricing-heading><i class="bi bi-cash-stack me-1"></i>Leiepriser</h6>
+        <div class="card bg-light mb-3 rental-pricing-inline">
             <div class="card-body py-2 rental-pricing-card-body">
                 <section class="rental-week-editor" data-rental-week-editor data-initial-pricing-model="weekly">
-                    <h6 class="rental-week-editor-title">Ukens priser</h6>
                     <p class="rental-week-editor-copy">Sett dagsprisene. Koble dager hvis perioden skal ha én samlet pris.</p>
                     ${existingData.pricing_version !== null && existingData.pricing_version !== undefined && existingData.pricing_version !== '' ? `<input type="hidden" name="pricing_version" value="${escAttr(String(existingData.pricing_version))}">` : ''}
                     <div class="rental-week-rates-scroll" role="region" aria-label="Ukens dagspriser" tabindex="0">
@@ -1273,7 +1272,8 @@ function buildFormFields(containerId, category = '', existingData = {}) {
 function rentalSetPricingModel(container) {
     const editor = container?.querySelector('[data-rental-week-editor]');
     if (!editor) return;
-    editor.querySelectorAll('[name^="daily_prices["]').forEach(input => { input.disabled = false; input.required = true; });
+    editor.querySelectorAll('[name^="daily_prices["]').forEach(input => { input.disabled = false; });
+    window.RentalWeekEditor.refresh(editor);
 }
 
 function rentalPricingPayload(form, containerId, isCreate = false) {
@@ -1285,13 +1285,6 @@ function rentalPricingPayload(form, containerId, isCreate = false) {
     }
     const dailyPrices = window.RentalWeekEditor.dailyPrices(editor);
     const amountPattern = /^\d+(?:\.\d{1,2})?$/;
-    for (const day of rentalAllWeekdays) {
-        const value = String(dailyPrices[day.key] ?? '').trim();
-        if (!amountPattern.test(value) || !Number.isFinite(Number(value)) || Number(value) > window.RentalWeekEditor.amountLimit) {
-            throw new Error(`Fyll inn en pris fra 0 til 99 999 999,99 for ${day.label}. Null er tillatt.`);
-        }
-        dailyPrices[day.key] = Number(value).toFixed(2);
-    }
     const groups = window.RentalWeekEditor.groups(editor);
     if (groups.length > 2) throw new Error('Du kan legge til maksimalt to prisgrupper.');
     const usedDays = new Set();
@@ -1303,6 +1296,17 @@ function rentalPricingPayload(form, containerId, isCreate = false) {
             if (usedDays.has(day)) throw new Error('Prisgruppene kan ikke overlappe.');
             usedDays.add(day);
         }
+    });
+    rentalAllWeekdays.forEach((day, index) => {
+        const value = String(dailyPrices[day.key] ?? '').trim();
+        if (value === '' && usedDays.has(index + 1)) {
+            dailyPrices[day.key] = null;
+            return;
+        }
+        if (!amountPattern.test(value) || !Number.isFinite(Number(value)) || Number(value) > window.RentalWeekEditor.amountLimit) {
+            throw new Error(`Fyll inn en pris fra 0 til 99 999 999,99 for ${day.label}, eller koble dagen til en samlet pris.`);
+        }
+        dailyPrices[day.key] = Number(value).toFixed(2);
     });
     return {pricing_model:'weekly', ...versionPayload, daily_prices:dailyPrices, price_groups:groups};
 }
@@ -1345,7 +1349,7 @@ function organizeRentalEditForm(container, category, existingData) {
     };
 
     priceHeading.remove();
-    priceCard.className = 'card rental-edit-base-price';
+    priceCard.className = 'card rental-edit-base-price rental-pricing-inline';
     if (marketField) marketField.remove();
 
     const core = document.createElement('section');
@@ -1359,8 +1363,8 @@ function organizeRentalEditForm(container, category, existingData) {
     }
 
     const pricing = makeDisclosure(
-        'Ukens priser',
-        '7 dagspriser · maks. 2 grupper',
+        'Leiepriser',
+        'Dagspriser og koblinger',
         'pricing'
     );
     priceCard.querySelector('.rental-pricing-card-body')?.classList.add('rental-edit-pricing-body');
@@ -1463,8 +1467,8 @@ function compactRentalCreateFields(container, category) {
     const schemaHeading = schema && children.find(node => node.tagName === 'H6' && node.textContent.includes('spesifikke detaljer'));
     const schemaCard = schemaHeading?.nextElementSibling;
     const rentalText = children.find(node => node.matches('.card') && node.querySelector('[name="rental_text"]'));
-    priceHeading.textContent = 'Ukens priser';
-    priceCard.className = 'card rental-create-primary-price mb-3';
+    priceHeading.textContent = 'Leiepriser';
+    priceCard.className = 'card rental-create-primary-price rental-pricing-inline mb-3';
     pricingBody.replaceChildren(weekEditor);
 
     const advanced = document.createElement('details');

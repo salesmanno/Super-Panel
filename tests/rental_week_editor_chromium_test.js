@@ -98,6 +98,8 @@ const checks = `(async()=>{
  check(groups().length===1&&groups()[0].start_day===6&&groups()[0].end_day===7&&groups()[0].price==='640.75','Reverse day selection stores an ascending non-wrapping range');
  check(document.activeElement===editor.querySelector('[data-group-edit="1"]'),'Confirming combined price moves keyboard focus to its saved summary');
  check([6,7].every(n=>pick(n).classList.contains('is-in-group')&&rate(n).classList.contains('is-coupled')),'Saved group days stay highlighted and subdued');
+ check(pick(6).querySelector('.rental-weekday-range').textContent==='<'&&pick(7).querySelector('.rental-weekday-range').textContent==='>','Saved weekend has start and end symbols');
+ check(!rate(6).required&&!rate(7).required,'Saved groups do not require redundant daily prices');
  check(!rate(6).disabled&&!rate(6).readOnly,'Saved group daily rates remain editable');
  editor.querySelector('[data-group-edit="1"]').click();input.value='800';cancel.click();
  check(groups()[0].price==='640.75'&&panel.hidden,'Cancel editing leaves saved price untouched');
@@ -108,6 +110,7 @@ const checks = `(async()=>{
  check(groups()[0].price==='700.25','Existing group price can be edited');
  pick(1).click();pick(3).click();
  check([1,2,3].every(n=>pick(n).classList.contains('is-pending')),'Intermediate days highlight continuously before price confirmation');
+ check([1,2,3].map(n=>pick(n).querySelector('.rental-weekday-range').textContent).join('')==='<->','Pending interval shows start, middle and end markers');
  input.value='350';cancel.click();
  check(groups().length===1&&panel.hidden&&![1,2,3].some(n=>rate(n).classList.contains('is-coupled')),'Canceling a pending group restores daily price styling');
  check(!rate(2).disabled&&!rate(2).readOnly,'Cancelled range rates remain editable');

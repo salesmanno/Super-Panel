@@ -13,7 +13,9 @@ for (const patch of [{price_groups:null},{price_groups:[{slot:1,start_day:1,end_
     {price_groups:[{slot:1,start_day:7,end_day:6,price:3000}]},
     {price_groups:[{slot:1,start_day:7,end_day:2,price:3000}]},
     {price_groups:[{slot:1,start_day:1,end_day:2,price:10},{slot:2,start_day:2,end_day:3,price:20}]},
-    {daily_prices:{}},{pricing_model:'unknown'}]) {
+    {daily_prices:{}},{daily_prices:{...item.rates.daily_prices,monday:null}},
+    {daily_prices:{...item.rates.daily_prices,saturday:null},price_groups:[]},
+    {pricing_model:'unknown'}]) {
     assert.throws(()=>calculateRentalQuote({...item,rates:{...item.rates,...patch}}));
 }
 const quote=calculateRentalQuote({...item,cleaning:true,cleaningFee:'250.00',

@@ -132,6 +132,8 @@ weeklyEditor=document.querySelector('#createRentalForm [data-rental-week-editor]
 check(weeklyEditor.querySelector('[data-weekly-groups]').value.includes('900.00'),'Category rebuild preserves daily pricing draft');
 buildFormFields('formFieldsContainer','venue',{id:'editing-weekly',object_name:'Saved weekly',pricing_model:'weekly',
  pricing_version:'server-revision',daily_prices:weeklyPayload.daily_prices,price_groups:weeklyPayload.price_groups});
+organizeRentalEditForm(document.getElementById('formFieldsContainer'),'venue',{object_name:'Saved weekly'});
+document.querySelector('#rentalForm [data-rental-edit-section="pricing"]').open=true;
 const weeklyEditPayload=rentalPricingPayload(document.getElementById('rentalForm'),'formFieldsContainer');
 check(weeklyEditPayload.pricing_version==='server-revision'&&weeklyEditPayload.pricing_model==='weekly','Actual weekly edit preserves concurrency version and weekly mode');
 check(!document.querySelector('#rentalForm [name="pricing_model"],#rentalForm [name="rental_price"],#rentalForm [name^="weekday_prices["],#rentalForm [name="weekend_price"]'),'Edit form removes legacy pricing controls entirely');
@@ -144,6 +146,35 @@ const editTue=modalEditor.querySelector('[data-weekday-pick="2"]');
 check(editTue.classList.contains('is-in-group')&&getComputedStyle(editTue).backgroundColor!==
  getComputedStyle(modalEditor.querySelector('[data-weekday-pick="1"]')).backgroundColor,'Saved range has visible highlight in the actual edit modal');
 check(Number(getComputedStyle(modalEditor.querySelector('[data-daily-rate="2"]')).opacity)<1,'Grouped daily price is visibly subdued in the actual edit modal');
+check(getComputedStyle(modalEditor).backgroundColor==='rgba(0, 0, 0, 0)'&&parseFloat(getComputedStyle(modalEditor).borderTopWidth)===0,
+ 'Price content has no unnecessary nested card');
+check(!modalEditor.querySelector('.rental-week-editor-title')&&!document.getElementById('rentalForm').textContent.includes('Ukens priser'),
+ 'Edit form has no duplicate weekly-prices heading');
+check(![...document.querySelectorAll('[data-rental-pricing-heading],.rental-edit-section-title')].some(el=>el.textContent.includes('Ukens priser')),
+ 'Pricing sections are titled Leiepriser');
+check(document.querySelector('#rentalForm [data-rental-edit-section="pricing"] summary').textContent.includes('Leiepriser'),
+ 'Actual edit disclosure is named Leiepriser');
+check(getComputedStyle(modalEditor.closest('.rental-pricing-inline')).boxShadow==='none',
+ 'Actual edit disclosure has no nested price-card shadow');
+buildFormFields('formFieldsContainer','venue',{id:'blank-weekend',object_name:'Weekend package',pricing_model:'weekly',
+ daily_prices:{monday:500,tuesday:500,wednesday:500,thursday:500,friday:500,saturday:null,sunday:null},
+ price_groups:[{slot:1,start_day:6,end_day:7,price:'3000.00'}]});
+const blankWeekendEditor=document.querySelector('#rentalForm [data-rental-week-editor]');
+check([6,7].every(day=>{const input=blankWeekendEditor.querySelector('[data-daily-rate="'+day+'"]');return !input.required&&input.checkValidity();}),
+ 'Actual edit form accepts blank Saturday and Sunday when weekend has a combined price');
+const blankWeekendPayload=rentalPricingPayload(document.getElementById('rentalForm'),'formFieldsContainer');
+check(blankWeekendPayload.daily_prices.saturday===null&&blankWeekendPayload.daily_prices.sunday===null,
+ 'Grouped missing singles stay null instead of being replaced with zero');
+const previewCard=document.createElement('div');
+previewCard.innerHTML=renderObjectCard({...blankWeekendPayload,id:'blank-weekend',category:'venue',object_name:'Weekend package',is_available:1,images:[],type_data:{}});
+check(rentalAllWeekdays.slice(5).every(day=>previewCard.querySelector('.rental-weekday-price').textContent.includes(day.short+' –')),
+ 'Rental card never displays missing grouped prices as zero');
+blankWeekendEditor.querySelector('[data-group-remove]').click();
+check([6,7].every(day=>blankWeekendEditor.querySelector('[data-daily-rate="'+day+'"]').validity.valueMissing),
+ 'Removing combined price restores required standalone daily prices');
+let missingUngrouped=false;
+try{rentalPricingPayload(document.getElementById('rentalForm'),'formFieldsContainer');}catch(_){missingUngrouped=true;}
+check(missingUngrouped,'Missing ungrouped prices are blocked in the save payload too');
 buildFormFields('formFieldsContainer','venue',{id:'weekly-no-fallback',object_name:'Weekly source',pricing_model:'weekly',
  daily_prices:{monday:'42.00'},price_groups:[],rental_price:999,weekend_price:700,saturday_price:800,sunday_price:900});
 const weeklyNoFallbackEditor=document.querySelector('#rentalForm [data-rental-week-editor]');
@@ -282,6 +313,8 @@ async function main(){
     buildFormFields('formFieldsContainer','venue',{object_name:'Kontroll av prisredigering',pricing_model:'weekly',
      daily_prices:Object.fromEntries(days.map(day=>[day,'1000.00'])),
      price_groups:[{slot:1,start_day:6,end_day:7,price:'3000.00'}]});
+    organizeRentalEditForm(document.getElementById('formFieldsContainer'),'venue',{object_name:'Kontroll av prisredigering'});
+    document.querySelector('#rentalForm [data-rental-edit-section="pricing"]').open=true;
     const modal=document.getElementById('rentalModal');
     modal.style.display='block';
     const editor=modal.querySelector('[data-rental-week-editor]');

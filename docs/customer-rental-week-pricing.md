@@ -51,7 +51,11 @@ kolonner som et allerede aktivert weekly-oppsett.
 
 `rental_objects.daily_prices` er et JSON-objekt med NØYAKTIG disse syv nøklene.
 Beløp skrives som desimalstrenger med to desimaler; les også gyldige numeriske
-JSON-beløp fra integrasjoner. Null, tom tekst og manglende beløp er ugyldig.
+JSON-beløp fra integrasjoner. Dager som dekkes av en gyldig kobling kan ha
+`null` som enkeltpris; de krever ikke en egen dagspris i tillegg til gruppeprisen.
+Tom tekst på en slik dag normaliseres til `null` ved lagring. Behold eksisterende
+enkeltpriser når de finnes. Utenfor en kobling er null og tom tekst ugyldig:
+fjernes koblingen, må manglende enkeltpriser fylles inn før lagring.
 `0.00` er derimot en gyldig gratispris og må aldri trigge fallback.
 
 ```json

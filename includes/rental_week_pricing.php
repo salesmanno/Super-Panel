@@ -46,14 +46,26 @@ function rentalWeekJson($input, string $label): array {
     return $input;
 }
 
-function rentalDailyPrices($input): array {
+function rentalDailyPrices($input, array $groups = []): array {
     $input = rentalWeekJson($input, 'Dagsprisene');
     $days = rentalWeekDays();
     if (count($input) !== 7 || array_diff(array_keys($input), $days)) {
-        throw new RentalWeekPriceException('Fyll ut enkeltpris for alle dager fra mandag til søndag.');
+        throw new RentalWeekPriceException('Dagsprisoppsettet må inneholde mandag til søndag. Grupperte dager kan ha tom pris.');
+    }
+    $covered = [];
+    foreach ($groups as $group) {
+        $length = ($group['end_day'] - $group['start_day'] + 7) % 7 + 1;
+        for ($i=0; $i<$length; $i++) $covered[($group['start_day']-1+$i)%7+1] = true;
     }
     $out = [];
-    foreach ($days as $day) $out[$day] = rentalWeekMoney($input[$day] ?? null);
+    foreach ($days as $index=>$day) {
+        $value = $input[$day] ?? null;
+        if (isset($covered[$index+1]) && ($value === null || (is_string($value) && trim($value) === ''))) {
+            $out[$day] = null;
+        } else {
+            $out[$day] = rentalWeekMoney($value);
+        }
+    }
     return $out;
 }
 
@@ -105,9 +117,9 @@ function rentalWeekDate(string $value): DateTimeImmutable {
 
 /** Return auditable price lines; no client-supplied total is trusted. */
 function rentalWeekQuote(array $object, string $from, string $to): array {
-    $prices = rentalDailyPrices($object['daily_prices'] ?? null);
     // Missing groups is an error, not proof that the object has no packages.
     $groups = rentalPriceGroups($object['price_groups'] ?? null);
+    $prices = rentalDailyPrices($object['daily_prices'] ?? null, $groups);
     $start = rentalWeekDate($from); $end = rentalWeekDate($to);
     if ($end < $start || $start->diff($end)->days >= 3660) {
         throw new RentalWeekPriceException('Velg en gyldig leieperiode på høyst 3660 dager.');
@@ -168,7 +180,7 @@ function rentalWeekAttach(PDO $db, array $object): array {
                 WHERE company_id=? AND rental_object_id=? ORDER BY slot');
             $q->execute([$object['company_id'], $object['id']]);
             $object['price_groups'] = rentalPriceGroups($q->fetchAll(PDO::FETCH_ASSOC));
-            $object['daily_prices'] = rentalDailyPrices($object['daily_prices'] ?? null);
+            $object['daily_prices'] = rentalDailyPrices($object['daily_prices'] ?? null, $object['price_groups']);
         } catch (PDOException $e) {
             throw new RentalWeekPriceException('Dagskoblingene kunne ikke hentes. Kontroller databaseoppdateringen.');
         }
@@ -214,8 +226,8 @@ function rentalWeekSave(PDO $db, string $company, string $id, array $input, ?arr
             throw new RentalWeekPriceException('Prisene er endret eller må lastes på nytt. Åpne objektet igjen før lagring.');
         }
     }
-    $daily = rentalDailyPrices($input['daily_prices'] ?? null);
     $groups = rentalPriceGroups($input['price_groups'] ?? null, true);
+    $daily = rentalDailyPrices($input['daily_prices'] ?? null, $groups);
     // Require the table even for zero groups. No implicit schema creation.
     $q = $db->prepare('SELECT id,slot,start_day,end_day,price FROM rental_price_groups
         WHERE company_id=? AND rental_object_id=? ORDER BY slot');
@@ -225,7 +237,7 @@ function rentalWeekSave(PDO $db, string $company, string $id, array $input, ?arr
     foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) $saved[(int)$row['slot']] = $row;
     $json = json_encode($daily, JSON_THROW_ON_ERROR);
     if (($existing['pricing_model'] ?? '') !== 'weekly'
-        || rentalDailyPrices($existing['daily_prices'] ?? $daily) !== $daily) {
+        || $old['daily_prices'] !== $daily) {
         $db->prepare("UPDATE rental_objects SET pricing_model='weekly',daily_prices=? WHERE company_id=? AND id=?")
             ->execute([$json,$company,$id]);
     }

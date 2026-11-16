@@ -93,7 +93,6 @@
             || Object.keys(daily).some(key => !weekDays.includes(key))) {
             throw new Error('Fyll ut enkeltpris for alle dager fra mandag til søndag.');
         }
-        const prices = weekDays.map(key => weekMoney(daily[key]));
         const groups = weekJson(rates.price_groups, 'Dagskoblingene');
         if (!Array.isArray(groups) || groups.length > 2) throw new Error('Det kan være høyst to dagskoblinger per objekt.');
         const occupied = new Set(), slots = new Set();
@@ -117,6 +116,12 @@
             }
             return {slot,from,to,length,cents:weekMoney(group.price)};
         }).sort((a,b)=>a.slot-b.slot);
+        const prices = weekDays.map((key,index) => {
+            const value = daily[key];
+            if (occupied.has(index+1) && (value === null || value === undefined
+                || (typeof value === 'string' && value.trim() === ''))) return null;
+            return weekMoney(value);
+        });
         if ((end-start)/86400000 >= 3660) throw new Error('Velg en gyldig leieperiode på høyst 3660 dager.');
         let baseCents = 0;
         const seen = new Set(), lines = [];

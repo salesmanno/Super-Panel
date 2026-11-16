@@ -107,6 +107,19 @@
             const day = Number(button.dataset.weekdayPick);
             const group = state.valid ? state.groups.find(item => daysInGroup(item).includes(day)) : null;
             const selected = pendingDays.has(day);
+            const range = selected ? container._weeklyPendingPair : group;
+            const position = !range ? '' : day === range.start_day || day === range.start
+                ? 'start' : day === range.end_day || day === range.end ? 'end' : 'middle';
+            button.dataset.groupPosition = position;
+            let marker = button.querySelector('.rental-weekday-range');
+            if (!marker) {
+                marker = document.createElement('span');
+                marker.className = 'rental-weekday-range';
+                marker.setAttribute('aria-hidden', 'true');
+                button.prepend(marker);
+            }
+            marker.textContent = position === 'start' ? '<' : position === 'end' ? '>' : position ? '-' : '';
+            marker.hidden = !position;
             button.classList.toggle('is-pending', selected);
             button.classList.toggle('is-in-group', !!group);
             button.classList.toggle('is-group-two', group?.slot === 2);
@@ -116,6 +129,7 @@
             const price = container.querySelector(`[data-daily-rate="${day}"]`);
             if (price) {
                 price.classList.toggle('is-coupled', selected || !!group);
+                price.required = !group && !selected;
                 price.removeAttribute('aria-readonly');
             }
         });
@@ -267,6 +281,7 @@
     }
     window.RentalWeekEditor = {
         setup,
+        refresh: renderGroups,
         model: () => 'weekly',
         dailyPrices: container => Object.fromEntries(days.map(day => [day.key, container?.querySelector(`[name="daily_prices[${day.key}]"]`)?.value ?? ''])),
         groups: readGroups,

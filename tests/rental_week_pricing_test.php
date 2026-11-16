@@ -25,6 +25,16 @@ foreach (['2026-11-16','2026-12-28','2027-03-26','2027-10-29'] as $date) {
             $rates = array_replace($object,['price_groups'=>$gs]);
             $q = rentalWeekQuote($rates,$start,$end);
             $cases[] = ['rates'=>$rates,'startDate'=>$start,'endDate'=>$end,'expected'=>$q];
+            if ($gs) {
+                $blankDaily = $daily;
+                foreach ($gs as $g) {
+                    $length = ($g['end_day']-$g['start_day']+7)%7+1;
+                    for ($n=0;$n<$length;$n++) $blankDaily[rentalWeekDays()[($g['start_day']-1+$n)%7]] = null;
+                }
+                $nullableRates = array_replace($rates,['daily_prices'=>$blankDaily]);
+                $cases[] = ['rates'=>$nullableRates,'startDate'=>$start,'endDate'=>$end,'expected'=>$q];
+                weekAssert(rentalWeekQuote($nullableRates,$start,$end)===$q,'Grouped missing singles never change quoted totals');
+            }
         }
     }
 }
@@ -110,6 +120,24 @@ weekReject(fn()=>rentalWeekSave($db,'a','one',['pricing_model'=>'legacy'],$get('
 $db->rollBack();
 $db->beginTransaction();
 weekReject(fn()=>rentalWeekSave($db,'a','one',['rental_price'=>500],$get('one')),'Old client overwrote weekly tariff');
+$db->rollBack();
+$input['price_groups'] = [$groups[1]];
+$input['daily_prices'] = array_replace($daily,['saturday'=>'','sunday'=>null]);
+$input['pricing_version'] = rentalWeekAttach($db,$get('one'))['pricing_version'];
+$db->beginTransaction(); rentalWeekSave($db,'a','one',$input,$get('one')); $db->commit();
+$blankWeekend = rentalWeekAttach($db,$get('one'));
+weekAssert($blankWeekend['daily_prices']['saturday']===null && $blankWeekend['daily_prices']['sunday']===null,
+    'Grouped blank prices save and reopen as null, never invented zero prices');
+weekAssert(rentalPeriodPriceCents($blankWeekend,'2026-11-21','2026-11-22')===300000,
+    'Saved blank weekend singles use the combined weekend price');
+$sameInput = $input;
+$sameInput['pricing_version'] = $blankWeekend['pricing_version'];
+$before = $db->query('SELECT total_changes()')->fetchColumn();
+$db->beginTransaction(); rentalWeekSave($db,'a','one',$sameInput,$get('one')); $db->commit();
+weekAssert($db->query('SELECT total_changes()')->fetchColumn()===$before,'Unchanged nullable grouped pricing performs no writes');
+$withoutGroup = array_replace($sameInput,['price_groups'=>[]]);
+$db->beginTransaction();
+weekReject(fn()=>rentalWeekSave($db,'a','one',$withoutGroup,$get('one')),'Removing package without supplying missing singles was accepted');
 $db->rollBack();
 $old = new PDO('sqlite::memory:');
 $old->exec('CREATE TABLE rental_objects(id TEXT,company_id TEXT)');
