@@ -57,7 +57,7 @@ function rentalDailyPrices($input): array {
     return $out;
 }
 
-function rentalPriceGroups($input): array {
+function rentalPriceGroups($input, bool $normalizeOrder = false): array {
     $input = rentalWeekJson($input, 'Dagskoblingene');
     if (!array_is_list($input) || count($input) > 2) {
         throw new RentalWeekPriceException('Det kan være høyst to dagskoblinger per objekt.');
@@ -74,6 +74,15 @@ function rentalPriceGroups($input): array {
         }
         if (isset($slots[$ints['slot']]) || $ints['start_day'] === $ints['end_day']) {
             throw new RentalWeekPriceException('Koblinger må ha unikt nummer og dekke minst to dager.');
+        }
+        // New writes follow Monday–Sunday order even when endpoints were
+        // selected in reverse. Reads must not silently reinterpret old wrap rules.
+        if ($ints['start_day'] > $ints['end_day']
+            && !($ints['start_day'] === 7 && $ints['end_day'] === 1)) {
+            if (!$normalizeOrder) {
+                throw new RentalWeekPriceException('Dagskoblingen har feil dagrekkefølge. Søndag–mandag er tillatt; øvrige koblinger følger ukerekkefølgen.');
+            }
+            [$ints['start_day'], $ints['end_day']] = [$ints['end_day'], $ints['start_day']];
         }
         $slots[$ints['slot']] = true;
         $length = ($ints['end_day'] - $ints['start_day'] + 7) % 7 + 1;
@@ -192,8 +201,10 @@ function rentalWeekSave(PDO $db, string $company, string $id, array $input, ?arr
         throw new RentalWeekPriceException('Prismodell må oppgis sammen med dagspriser og koblinger.');
     }
     $model = rentalWeekModel($input);
+    if ($model !== 'weekly') {
+        throw new RentalWeekPriceException('Gammelt prisoppsett er utgått. Lagre dagspriser og eventuelle dagskoblinger.');
+    }
     if (!rentalWeekColumnExists($db,'pricing_model') || !rentalWeekColumnExists($db,'daily_prices')) {
-        if ($model === 'legacy' && !array_key_exists('daily_prices',$input) && !array_key_exists('price_groups',$input)) return;
         throw new RentalWeekPriceException('Kjør SQL-oppdateringen rental_week_pricing.sql før du lagrer det nye ukeoppsettet.');
     }
     if ($existing !== null) {
@@ -203,14 +214,8 @@ function rentalWeekSave(PDO $db, string $company, string $id, array $input, ?arr
             throw new RentalWeekPriceException('Prisene er endret eller må lastes på nytt. Åpne objektet igjen før lagring.');
         }
     }
-    if ($model === 'legacy') {
-        if (($existing['pricing_model'] ?? 'legacy') !== 'legacy') {
-            $db->prepare("UPDATE rental_objects SET pricing_model='legacy' WHERE id=? AND company_id=?")->execute([$id,$company]);
-        }
-        return;
-    }
     $daily = rentalDailyPrices($input['daily_prices'] ?? null);
-    $groups = rentalPriceGroups($input['price_groups'] ?? null);
+    $groups = rentalPriceGroups($input['price_groups'] ?? null, true);
     // Require the table even for zero groups. No implicit schema creation.
     $q = $db->prepare('SELECT id,slot,start_day,end_day,price FROM rental_price_groups
         WHERE company_id=? AND rental_object_id=? ORDER BY slot');

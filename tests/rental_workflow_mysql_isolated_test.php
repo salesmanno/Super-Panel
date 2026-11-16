@@ -385,6 +385,16 @@ try {
     $weeklyEdit=['id'=>$weeklyId,'csrf_token'=>'form-token','pricing_model'=>'weekly',
         'pricing_version'=>$weeklyReload['pricing_version'],'daily_prices'=>$daily,'price_groups'=>$groups];
     workflowAssert($call('update_rental_object','a',$weeklyEdit)[1]['success'],'Unchanged weekly API save succeeds');
+    $reversed=$weeklyEdit;
+    $reversed['price_groups'][1]['start_day']=7;
+    $reversed['price_groups'][1]['end_day']=6;
+    workflowAssert($call('update_rental_object','a',$reversed)[1]['success'],'Reverse weekend click order is normalized by API');
+    $normalizedWeekend=$call('get_rental_objects','a',null,'id='.$weeklyId)[1]['object'];
+    workflowAssert($normalizedWeekend['price_groups']===$groups,'Sunday–Saturday stored as Saturday–Sunday, not a wrapped week');
+    $singleDay=$weeklyEdit;$singleDay['price_groups'][1]['start_day']=7;
+    workflowAssert($call('update_rental_object','a',$singleDay)[0]===400,'API blocks coupling just one day');
+    workflowAssert($call('update_rental_object','a',['id'=>$weeklyId,'csrf_token'=>'form-token',
+        'pricing_model'=>'legacy','pricing_version'=>$weeklyReload['pricing_version']])[0]===400,'Retired model cannot replace daily rates');
     $invalid=$weeklyEdit;$invalid['price_groups'][1]['start_day']=3;
     workflowAssert($call('update_rental_object','a',$invalid)[0]===400,'API rejects overlapping groups');
     $weeklyEdit['price_groups'][0]['price']='850.00';
@@ -411,5 +421,19 @@ try {
         'expected_version'=>$weeklyDates['request']['decision_version'],'status'=>'approved']);
     workflowAssert($http===200&&$weeklyApproved['success'],'Weekly request approval keeps authoritative price: '.json_encode($weeklyApproved));
     workflowAssert((float)$db->query('SELECT rental_fee FROM rental_schedule WHERE id='.$db->quote($weekdayRequestId))->fetchColumn()===2800.0,'New model does not reprice another reservation');
+    $weeklyReload=$call('get_rental_objects','a',null,'id='.$weeklyId)[1]['object'];
+    $weeklyEdit['pricing_version']=$weeklyReload['pricing_version'];
+    $weeklyEdit['price_groups']=[['slot'=>1,'start_day'=>7,'end_day'=>1,'price'=>'700.00']];
+    workflowAssert($call('update_rental_object','a',$weeklyEdit)[1]['success'],'API saves Sunday–Monday across the week boundary');
+    $sundayMonday=$call('get_rental_objects','a',null,'id='.$weeklyId)[1]['object'];
+    workflowAssert($sundayMonday['price_groups']===$weeklyEdit['price_groups'],'Sunday–Monday survives API reload without sorting into a whole week');
+    $weeklyPublic['submission_id']='weekly-sunday-monday';
+    $weeklyPublic['start_date']='2031-07-20';$weeklyPublic['end_date']='2031-07-21';
+    [$http,$crossWeekRequest]=$call('create_rental_request','public',$weeklyPublic);
+    workflowAssert($http===200&&$crossWeekRequest['success'],'Public Sunday–Monday request succeeds: '.json_encode($crossWeekRequest));
+    workflowAssert((float)$db->query('SELECT rental_fee FROM rental_schedule WHERE id='.$db->quote($crossWeekRequest['request_id']))->fetchColumn()===700.0,
+        'Public request charges Sunday–Monday once, not twice across ISO weeks');
+    workflowAssert((float)$db->query('SELECT rental_fee FROM rental_schedule WHERE id='.$db->quote($weeklyRequestId))->fetchColumn()===2800.0,
+        'Changing day couplings does not alter previously approved reservation');
     echo "Isolated rental workflow, decisions, notifications and permissions passed\n";
 } finally {proc_terminate($process);proc_close($process);}

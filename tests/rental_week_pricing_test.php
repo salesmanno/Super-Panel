@@ -20,7 +20,8 @@ foreach (['2026-11-16','2026-12-28','2027-03-26','2027-10-29'] as $date) {
     for ($i=0;$i<16;$i++) {
         $start = rentalWeekDate($date)->modify("+$i days")->format('Y-m-d');
         $end = rentalWeekDate($start)->modify('+'.($i%11).' days')->format('Y-m-d');
-        foreach ([$groups,[],[['slot'=>1,'start_day'=>7,'end_day'=>2,'price'=>'750.00']]] as $gs) {
+        foreach ([$groups,[],[['slot'=>1,'start_day'=>1,'end_day'=>7,'price'=>'750.00']],
+            [['slot'=>1,'start_day'=>7,'end_day'=>1,'price'=>'700.00']]] as $gs) {
             $rates = array_replace($object,['price_groups'=>$gs]);
             $q = rentalWeekQuote($rates,$start,$end);
             $cases[] = ['rates'=>$rates,'startDate'=>$start,'endDate'=>$end,'expected'=>$q];
@@ -33,8 +34,13 @@ weekAssert(rentalPeriodPriceCents($object,'2026-11-17','2026-11-17')===90000,'Pa
 weekAssert(rentalPeriodPriceCents($object,'2026-11-21','2026-11-22')===300000,'Weekend only once, not both daily prices');
 weekAssert(rentalPeriodPriceCents($object,'2026-11-22','2026-11-22')===300000,'Historical Sunday touch semantics');
 weekAssert(rentalPeriodPriceCents($object,'2026-11-16','2026-11-29')===1160000,'Repeated groups per occurrence');
-$wrap = array_replace($object,['price_groups'=>[['slot'=>1,'start_day'=>7,'end_day'=>1,'price'=>'700.00']]]);
-weekAssert(rentalPeriodPriceCents($wrap,'2026-11-22','2026-11-23')===70000,'Sunday-Monday belongs to same anchored group');
+weekAssert(rentalPriceGroups([['slot'=>1,'start_day'=>7,'end_day'=>6,'price'=>'700.00']],true)
+    === [['slot'=>1,'start_day'=>6,'end_day'=>7,'price'=>'700.00']],'Reversed selection saves Saturday–Sunday, never seven wrapped days');
+$sundayMonday=[['slot'=>1,'start_day'=>7,'end_day'=>1,'price'=>'700.00']];
+weekAssert(rentalPriceGroups($sundayMonday,true)===$sundayMonday,'Sunday-first then Monday preserves adjacent cross-week group');
+$wrap=array_replace($object,['price_groups'=>$sundayMonday]);
+weekAssert(rentalPeriodPriceCents($wrap,'2026-11-22','2026-11-23')===70000,'Sunday–Monday is charged once, not once per calendar week');
+weekAssert(rentalPeriodPriceCents($wrap,'2026-11-22','2026-11-30')===570000,'Next Sunday–Monday occurrence is charged separately');
 $free = array_replace($object,['daily_prices'=>array_fill_keys(rentalWeekDays(),'0.00'),
     'price_groups'=>[['slot'=>1,'start_day'=>2,'end_day'=>3,'price'=>'0.00']]]);
 weekAssert(rentalPeriodPriceCents($free,'2026-11-16','2026-11-22')===0,'Zero does not fall back to old rates');
@@ -46,6 +52,8 @@ foreach ([
     ['price_groups'=>[$groups[0],array_replace($groups[1],['start_day'=>3])]],
     ['price_groups'=>[$groups[0],$groups[0]]],['price_groups'=>[$groups[0],$groups[1],$groups[0]]],
     ['price_groups'=>[['slot'=>1,'start_day'=>1,'end_day'=>1,'price'=>100]]],
+    ['price_groups'=>[['slot'=>1,'start_day'=>7,'end_day'=>6,'price'=>100]]],
+    ['price_groups'=>[['slot'=>1,'start_day'=>7,'end_day'=>2,'price'=>100]]],
     ['price_groups'=>[['slot'=>1,'start_day'=>1,'end_day'=>2,'price'=>'1.111']]],
     ['pricing_model'=>'unknown']
 ] as $patch) weekReject(fn()=>rentalPeriodPriceCents(array_replace($object,$patch),'2026-11-16','2026-11-22'),'Invalid tariff accepted');
@@ -85,6 +93,21 @@ $input['price_groups']=[$groups[1]];
 $db->beginTransaction(); rentalWeekSave($db,'a','one',$input,$get('one')); $db->commit();
 $read=rentalWeekAttach($db,$get('one'));
 weekAssert($read['price_groups']===[$groups[1]] && $read['daily_prices']===$daily,'Remove one group without changing singles');
+$input['pricing_version']=$read['pricing_version'];
+$input['price_groups']=[array_replace($groups[1],['start_day'=>7,'end_day'=>6])];
+$changes=(int)$db->query('SELECT total_changes()')->fetchColumn();
+$db->beginTransaction(); rentalWeekSave($db,'a','one',$input,$get('one')); $db->commit();
+weekAssert((int)$db->query('SELECT total_changes()')->fetchColumn()===$changes,'Reversed but equivalent selection normalizes without unnecessary writes');
+weekAssert(rentalWeekAttach($db,$get('one'))['price_groups']===[$groups[1]],'Stored endpoints remain ascending after reverse input');
+$input['price_groups']=$sundayMonday;
+$input['pricing_version']=rentalWeekAttach($db,$get('one'))['pricing_version'];
+$db->beginTransaction(); rentalWeekSave($db,'a','one',$input,$get('one')); $db->commit();
+$read=rentalWeekAttach($db,$get('one'));
+weekAssert($read['price_groups']===$sundayMonday,'Sunday–Monday survives save and reopen');
+weekAssert(rentalPeriodPriceCents($read,'2026-11-22','2026-11-23')===70000,'Reloaded Sunday–Monday price is counted once');
+$db->beginTransaction();
+weekReject(fn()=>rentalWeekSave($db,'a','one',['pricing_model'=>'legacy'],$get('one')),'Retired pricing model can be re-enabled');
+$db->rollBack();
 $db->beginTransaction();
 weekReject(fn()=>rentalWeekSave($db,'a','one',['rental_price'=>500],$get('one')),'Old client overwrote weekly tariff');
 $db->rollBack();

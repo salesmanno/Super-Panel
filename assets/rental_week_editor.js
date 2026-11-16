@@ -16,19 +16,14 @@
         try { return JSON.parse(raw); } catch (_) { return fallback; }
     }
     function daysInGroup(group) {
+        if (group.start_day === 7 && group.end_day === 1) return [7,1];
         const result = [];
-        let day = group.start_day;
-        for (let count = 0; count < 7; count++) {
-            result.push(day);
-            if (day === group.end_day) break;
-            day = day % 7 + 1;
-        }
+        for (let day = group.start_day; day <= group.end_day; day++) result.push(day);
         return result;
     }
     function groupsState(container) {
         const input = container?.querySelector('[data-weekly-groups]');
-        const raw = input?.value ?? '[]';
-        const parsed = parseJson(raw, null);
+        const parsed = parseJson(input?.value ?? '[]', null);
         if (!Array.isArray(parsed)) return {valid:false, groups:[], error:'Lagrede prisgrupper har ugyldig format. Kontroller prisdata før du lagrer.'};
         if (parsed.length > 2) return {valid:false, groups:[], error:'Lagrede priser inneholder mer enn to grupper. Kontroller prisdata før du lagrer.'};
         const slots = new Set(), occupied = new Set(), groups = [];
@@ -36,15 +31,14 @@
             const slot = Number(item?.slot), start = Number(item?.start_day), end = Number(item?.end_day);
             const priceText = String(item?.price ?? '');
             if (![1,2].includes(slot) || !Number.isInteger(start) || start < 1 || start > 7
-                || !Number.isInteger(end) || end < 1 || end > 7 || !amountPattern.test(priceText)
-                || !Number.isFinite(Number(priceText)) || Number(priceText) > amountLimit) {
-                return {valid:false, groups:[], error:'En lagret prisgruppe har ugyldig dag, slot eller beløp. Kontroller prisdata før du lagrer.'};
+                || !Number.isInteger(end) || end < 1 || end > 7
+                || (start >= end && !(start === 7 && end === 1))
+                || !amountPattern.test(priceText) || !Number.isFinite(Number(priceText)) || Number(priceText) > amountLimit) {
+                return {valid:false, groups:[], error:'En lagret prisgruppe må ha stigende dager, minst to dager og et gyldig beløp. Kontroller prisdata før du lagrer.'};
             }
             if (slots.has(slot)) return {valid:false, groups:[], error:'Lagrede prisgrupper har duplisert plassnummer. Kontroller prisdata før du lagrer.'};
             slots.add(slot);
             const group = {slot, start_day:start, end_day:end, price:Number(priceText).toFixed(2)};
-            const span = ((end - start + 7) % 7) + 1;
-            if (span < 2) return {valid:false, groups:[], error:'En lagret prisgruppe må inneholde minst to ukedager.'};
             for (const day of daysInGroup(group)) {
                 if (occupied.has(day)) return {valid:false, groups:[], error:'Lagrede prisgrupper overlapper. Fjern eller korriger gruppene før du lagrer.'};
                 occupied.add(day);
@@ -60,16 +54,21 @@
         return state.groups;
     }
     function validateRange(start, end, groups) {
-        const span = ((end - start + 7) % 7) + 1;
-        if (span < 2) return {valid:false, reason:'En prisgruppe må inneholde minst to ukedager.'};
-        const candidate = [];
-        let day = start;
-        for (let i = 0; i < span; i++) { candidate.push(day); day = day % 7 + 1; }
+        start = Number(start); end = Number(end);
+        if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || start > 7 || end < 1 || end > 7 || start === end) {
+            return {valid:false, reason:'En prisgruppe må inneholde minst to sammenhengende dager.'};
+        }
+        const first = Math.min(start, end), last = Math.max(start, end);
+        const wrapsWeek = start === 7 && end === 1;
+        const normalizedStart = wrapsWeek ? 7 : first;
+        const normalizedEnd = wrapsWeek ? 1 : last;
+        const candidate = wrapsWeek ? [7,1] : [];
+        if (!wrapsWeek) for (let day = first; day <= last; day++) candidate.push(day);
         if (groups.some(group => candidate.some(value => daysInGroup(group).includes(value)))) {
             return {valid:false, reason:'Perioden overlapper med en eksisterende prisgruppe.'};
         }
         if (groups.length >= 2) return {valid:false, reason:'Du kan legge til maksimalt to prisgrupper.'};
-        return {valid:true, days:candidate};
+        return {valid:true, start:normalizedStart, end:normalizedEnd, days:candidate};
     }
     function renderGroups(container) {
         const host = container.querySelector('[data-weekly-group-list]');
@@ -82,7 +81,7 @@
             input.value = JSON.stringify(state.groups);
             host.innerHTML = state.groups.length ? state.groups.map(group => {
                 const label = `${dayNames[group.start_day - 1]}–${dayNames[group.end_day - 1]}`;
-                return `<div class="rental-week-group" data-group-slot="${group.slot}">
+                return `<div class="rental-week-group rental-week-group-${group.slot}" data-group-slot="${group.slot}">
                     <span class="rental-week-group-slot">Gruppe ${group.slot}</span>
                     <span class="rental-week-group-period">${label}</span>
                     <strong>${Number(group.price).toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2})} NOK totalt</strong>
@@ -93,14 +92,32 @@
                 </div>`;
             }).join('') : '<p class="rental-week-empty mb-0">Ingen prisgrupper lagt til ennå.</p>';
         }
-        const dayButtons = container.querySelectorAll('[data-weekday-pick]');
-        dayButtons.forEach(button => {
-            const value = Number(button.dataset.weekdayPick);
-            const used = state.valid && state.groups.some(group => daysInGroup(group).includes(value));
-            button.disabled = !state.valid || (used && !container._weeklyPendingPair)
-                || (state.groups.length >= 2 && !container._weeklyPendingPair);
-            button.classList.toggle('is-in-group', used);
-            button.setAttribute('aria-pressed', button.classList.contains('is-pending') || used ? 'true' : 'false');
+        host.querySelectorAll('[data-group-edit],[data-group-remove]').forEach(button => {
+            button.disabled = !!container._weeklyPendingPair || !!container._weeklyEditingSlot;
+        });
+        const pendingDays = new Set();
+        if (container._weeklyPendingPair) {
+            if (container._weeklyPendingPair.end) {
+                daysInGroup({start_day:container._weeklyPendingPair.start,end_day:container._weeklyPendingPair.end})
+                    .forEach(day => pendingDays.add(day));
+            } else pendingDays.add(container._weeklyPendingPair.start);
+        }
+        const groupedDays = new Set(state.valid ? state.groups.flatMap(daysInGroup) : []);
+        container.querySelectorAll('[data-weekday-pick]').forEach(button => {
+            const day = Number(button.dataset.weekdayPick);
+            const group = state.valid ? state.groups.find(item => daysInGroup(item).includes(day)) : null;
+            const selected = pendingDays.has(day);
+            button.classList.toggle('is-pending', selected);
+            button.classList.toggle('is-in-group', !!group);
+            button.classList.toggle('is-group-two', group?.slot === 2);
+            button.setAttribute('aria-pressed', selected || !!group ? 'true' : 'false');
+            button.disabled = !state.valid || !!container._weeklyEditingSlot
+                || !!container._weeklyPendingPair?.end || groupedDays.has(day) || state.groups.length >= 2;
+            const price = container.querySelector(`[data-daily-rate="${day}"]`);
+            if (price) {
+                price.classList.toggle('is-coupled', selected || !!group);
+                price.removeAttribute('aria-readonly');
+            }
         });
         return state;
     }
@@ -109,17 +126,21 @@
         const pending = container._weeklyPendingPair;
         const editSlot = container._weeklyEditingSlot;
         if (panel) panel.hidden = true;
-        if (pending) {
-            container._weeklyPendingPair = null;
-            container.querySelectorAll('[data-weekday-pick]').forEach(button => button.classList.remove('is-pending'));
-        }
+        container._weeklyPendingPair = null;
         container._weeklyEditingSlot = null;
         if (message) container.querySelector('[data-weekly-status]').textContent = message;
         renderGroups(container);
         const focus = pending
             ? container.querySelector(`[data-weekday-pick="${pending.focusDay}"]`)
             : container.querySelector(`[data-group-edit="${editSlot}"]`);
-        focus?.focus();
+        if (focus && !focus.disabled) focus.focus();
+        else {
+            const group = pending && groupsState(container).groups.find(item => daysInGroup(item).includes(pending.focusDay));
+            const target = group
+                ? container.querySelector(`[data-group-edit="${group.slot}"]`)
+                : container.querySelector('[data-weekday-pick]:not(:disabled)');
+            target?.focus();
+        }
     }
     function openPriceForm(container, context) {
         const panel = container.querySelector('[data-weekly-price-form]');
@@ -128,14 +149,13 @@
         container._weeklyPendingPair = context.kind === 'new' ? context : null;
         container._weeklyEditingSlot = context.kind === 'edit' ? context.slot : null;
         panel.querySelector('[data-weekly-price-title]').textContent = context.kind === 'edit' ? 'Rediger totalpris' : 'Sett totalpris';
-        panel.querySelector('[data-price-pair]').textContent = context.kind === 'edit'
-            ? `${dayNames[context.start - 1]} til ${dayNames[context.end - 1]}`
-            : `${dayNames[context.start - 1]} til ${dayNames[context.end - 1]}`;
+        panel.querySelector('[data-price-pair]').textContent = `${dayNames[context.start - 1]}–${dayNames[context.end - 1]}`;
         input.value = context.price ?? '';
         const error = panel.querySelector('[data-weekly-price-error]');
         error.hidden = true;
         error.textContent = '';
         panel.hidden = false;
+        renderGroups(container);
         requestAnimationFrame(() => input.focus());
     }
     function confirmPrice(container) {
@@ -165,7 +185,7 @@
                 return;
             }
             const slot = state.groups.some(group => group.slot === 1) ? 2 : 1;
-            state.groups.push({slot, start_day:pending.start, end_day:pending.end, price:Number(value).toFixed(2)});
+            state.groups.push({slot, start_day:valid.start, end_day:valid.end, price:Number(value).toFixed(2)});
         } else if (editSlot) {
             const group = state.groups.find(item => item.slot === editSlot);
             if (!group) {
@@ -181,23 +201,6 @@
     function setup(container) {
         if (!container || container.dataset.weekEditorReady === '1') return;
         container.dataset.weekEditorReady = '1';
-        container.addEventListener('change', event => {
-            if (!event.target.matches('[name="pricing_model"]')) return;
-            const weekly = event.target.value === 'weekly';
-            container.querySelector('[data-weekly-rate-panel]').hidden = !weekly;
-            container.querySelector('[data-weekly-groups-panel]').hidden = !weekly;
-            const form = container.closest('form');
-            form?.querySelectorAll('[data-legacy-pricing-control]').forEach(node => {
-                if (node.dataset.legacyOriginalHidden === undefined) node.dataset.legacyOriginalHidden = node.hidden ? '1' : '0';
-                node.hidden = weekly || node.dataset.legacyOriginalHidden === '1';
-            });
-            form?.querySelectorAll('[name="rental_price"],[name^="weekday_prices["],[name="weekday_prices_enabled"],[name="weekend_price"],[name="saturday_price"],[name="sunday_price"]').forEach(input => {
-                input.disabled = weekly;
-                if (input.name === 'rental_price') input.required = !weekly && !form.querySelector('[name="weekday_prices_enabled"]')?.checked;
-            });
-            container.querySelectorAll('[name^="daily_prices["]').forEach(input => { input.disabled = !weekly; input.required = weekly; });
-            if (weekly) closePriceForm(container);
-        });
         container.addEventListener('keydown', event => {
             if (event.key !== 'Escape' || !event.target.closest('[data-weekly-price-form]')) return;
             event.preventDefault();
@@ -205,13 +208,11 @@
             closePriceForm(container, 'Prisredigering avbrutt. Ingen endring ble lagret.');
         });
         container.addEventListener('click', event => {
-            const cancel = event.target.closest('[data-dialog-cancel]');
-            if (cancel) {
+            if (event.target.closest('[data-dialog-cancel]')) {
                 closePriceForm(container, 'Prisredigering avbrutt. Ingen endring ble lagret.');
                 return;
             }
-            const confirm = event.target.closest('[data-dialog-confirm]');
-            if (confirm) { confirmPrice(container); return; }
+            if (event.target.closest('[data-dialog-confirm]')) { confirmPrice(container); return; }
             const button = event.target.closest('[data-weekday-pick]');
             if (button && !button.disabled) {
                 const state = groupsState(container);
@@ -222,28 +223,24 @@
                 const day = Number(button.dataset.weekdayPick);
                 if (!container._weeklyPendingPair) {
                     container._weeklyPendingPair = {start:day, focusDay:day};
-                    button.classList.add('is-pending');
-                    button.setAttribute('aria-pressed', 'true');
                     container.querySelector('[data-weekly-status]').textContent = `${dayNames[day - 1]} valgt. Velg siste dag i perioden.`;
-                    return;
-                }
-                const start = container._weeklyPendingPair.start;
-                const result = validateRange(start, day, state.groups);
-                if (!result.valid) {
-                    container.querySelector('[data-weekly-status]').textContent = result.reason;
-                    container._weeklyPendingPair = null;
-                    container.querySelectorAll('[data-weekday-pick]').forEach(item => item.classList.remove('is-pending'));
                     renderGroups(container);
                     return;
                 }
-                container._weeklyPendingPair = {...container._weeklyPendingPair, end:day, focusDay:day};
-                container.querySelectorAll('[data-weekday-pick]').forEach(item => item.classList.remove('is-pending'));
-                result.days.forEach(value => {
-                    const selected = container.querySelector(`[data-weekday-pick="${value}"]`);
-                    selected?.classList.add('is-pending');
-                    selected?.setAttribute('aria-pressed', 'true');
-                });
-                openPriceForm(container, {kind:'new', start, end:day, focusDay:day});
+                const first = container._weeklyPendingPair.start;
+                if (day === first) {
+                    closePriceForm(container, 'Valget er nullstilt. Velg to ulike dager.');
+                    return;
+                }
+                const range = validateRange(first, day, state.groups);
+                if (!range.valid) {
+                    container.querySelector('[data-weekly-status]').textContent = range.reason;
+                    return;
+                }
+                container._weeklyPendingPair = {...container._weeklyPendingPair, start:range.start, end:range.end, focusDay:day};
+                container.querySelector('[data-weekly-status]').textContent = `${dayNames[range.start - 1]}–${dayNames[range.end - 1]} valgt. Legg inn én totalpris for perioden.`;
+                renderGroups(container);
+                openPriceForm(container, {kind:'new', start:range.start, end:range.end, focusDay:day});
                 return;
             }
             const edit = event.target.closest('[data-group-edit]');
@@ -261,7 +258,7 @@
                 const groups = state.groups.filter(item => item.slot !== Number(remove.dataset.groupRemove));
                 groups.forEach((group, index) => { group.slot = index + 1; });
                 container.querySelector('[data-weekly-groups]').value = JSON.stringify(groups);
-                container.querySelector('[data-weekly-status]').textContent = 'Prisgruppe fjernet.';
+                container.querySelector('[data-weekly-status]').textContent = 'Prisgruppe fjernet. Dagsprisene er tilbake i bruk.';
                 renderGroups(container);
                 container.querySelector('[data-weekday-pick]:not(:disabled)')?.focus();
             }
@@ -270,7 +267,7 @@
     }
     window.RentalWeekEditor = {
         setup,
-        model: container => container?.querySelector('[name="pricing_model"]:checked')?.value || 'legacy',
+        model: () => 'weekly',
         dailyPrices: container => Object.fromEntries(days.map(day => [day.key, container?.querySelector(`[name="daily_prices[${day.key}]"]`)?.value ?? ''])),
         groups: readGroups,
         validateRange,

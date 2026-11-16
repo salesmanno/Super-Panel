@@ -105,6 +105,9 @@
             }
             const slot = Number(group.slot), from = Number(group.start_day), to = Number(group.end_day);
             if (slots.has(slot) || from === to) throw new Error('Koblinger må ha unikt nummer og dekke minst to dager.');
+            if (from > to && !(from === 7 && to === 1)) {
+                throw new Error('Dagskoblingen har feil dagrekkefølge. Søndag–mandag er tillatt; øvrige koblinger følger ukerekkefølgen.');
+            }
             slots.add(slot);
             const length = (to - from + 7) % 7 + 1;
             for (let i=0;i<length;i++) {

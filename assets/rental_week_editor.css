@@ -1,47 +1,150 @@
-#rental-module .rental-week-editor{container-type:inline-size;margin-top:1rem;padding:1rem;border:1px solid rgba(25,56,72,.13);border-radius:12px;background:color-mix(in srgb,var(--site-header-bg-color,#2d5598) 11%,transparent);color:#18344a}
-#rental-module .rental-week-editor *{color:inherit}
-#rental-module .rental-week-editor-title{font-size:.9rem;font-weight:750;margin:0}
-#rental-module .rental-week-editor-copy{font-size:.79rem;color:#526b7b;margin:.25rem 0 .8rem}
-#rental-module .rental-model-choices{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.85rem}
-#rental-module .rental-model-choice{display:flex;align-items:center;gap:.45rem;border:1px solid rgba(25,56,72,.18);border-radius:999px;padding:.45rem .75rem;background:rgba(255,255,255,.48);font-size:.82rem;font-weight:650;cursor:pointer}
-#rental-module .rental-week-rates{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.5rem}
-#rental-module .rental-week-rate{min-width:0;padding:.5rem;border:1px solid rgba(25,56,72,.1);border-radius:8px;background:rgba(255,255,255,.28)}
-#rental-module .rental-week-rate-heading{display:flex;align-items:center;justify-content:space-between;gap:.35rem;margin-bottom:.25rem}
-#rental-module .rental-week-rate label{font-size:.74rem;font-weight:700;margin:0}
-#rental-module .rental-week-rate .input-group-text{font-size:.72rem;padding:.35rem}
-#rental-module .rental-weekday-pick{flex:0 0 26px;width:26px;height:26px;display:inline-grid;place-items:center;padding:0;border:1px solid rgba(25,56,72,.35);border-radius:6px;background:rgba(255,255,255,.8);cursor:pointer}
-#rental-module .rental-weekday-pick span{width:12px;height:12px;border-radius:3px;background:transparent}
-#rental-module .rental-weekday-pick.is-pending{background:#173d55;border-color:#173d55}
-#rental-module .rental-weekday-pick.is-pending span{background:#fff;clip-path:polygon(14% 44%,0 59%,40% 100%,100% 19%,84% 5%,38% 69%)}
-#rental-module .rental-weekday-pick.is-in-group{background:#d9eae7;border-color:#426c69}
-#rental-module .rental-weekday-pick.is-in-group span{background:#315f59;clip-path:polygon(14% 44%,0 59%,40% 100%,100% 19%,84% 5%,38% 69%)}
-#rental-module .rental-weekday-pick:disabled{opacity:.48;cursor:not-allowed}
-#rental-module .rental-weekday-pick:focus-visible{outline:3px solid rgba(8,127,140,.4);outline-offset:2px}
-#rental-module .rental-week-group-panel{margin-top:.9rem;padding:.8rem;border-radius:9px;background:rgba(255,255,255,.44);border:1px solid rgba(25,56,72,.11)}
-#rental-module .rental-week-group-heading{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.65rem}
+#rental-module .rental-week-editor{
+    --week-ink:#19394f;
+    --week-muted:#587184;
+    --week-line:color-mix(in srgb,var(--site-header-bg-color,#2d5598) 24%,#fff);
+    container-type:inline-size;
+    min-width:0;
+    margin-top:.65rem;
+    padding:.9rem;
+    border:1px solid var(--week-line);
+    border-radius:12px;
+    background:color-mix(in srgb,var(--site-header-bg-color,#2d5598) 8%,#f8fbfc);
+    color:var(--week-ink);
+}
+#rental-module .rental-week-editor *{box-sizing:border-box}
+#rental-module .rental-week-editor-title{font-size:.92rem;font-weight:760;margin:0;letter-spacing:-.015em}
+#rental-module .rental-week-editor-copy{font-size:.77rem;color:var(--week-muted);margin:.24rem 0 .65rem}
+#rental-module .rental-week-rates-scroll{
+    width:100%;
+    min-width:0;
+    overflow-x:auto;
+    overflow-y:hidden;
+    overscroll-behavior-inline:contain;
+    scrollbar-width:thin;
+    scrollbar-color:color-mix(in srgb,var(--site-header-bg-color,#2d5598) 34%,#fff) transparent;
+    padding:.2rem .1rem .55rem;
+}
+#rental-module .rental-week-rates{
+    display:flex;
+    gap:.45rem;
+    min-width:700px;
+    width:max-content;
+}
+#rental-module .rental-week-rate{
+    flex:1 0 94px;
+    min-width:94px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:.36rem;
+    padding:.05rem .1rem .12rem;
+}
+#rental-module .rental-weekday-pick{
+    width:100%;
+    min-height:65px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:.35rem;
+    border:1px solid color-mix(in srgb,var(--site-header-bg-color,#2d5598) 30%,#fff);
+    border-radius:18px;
+    background:rgba(255,255,255,.76);
+    color:var(--week-ink);
+    cursor:pointer;
+    transition:background-color .15s ease,border-color .15s ease,transform .15s ease;
+}
+#rental-module .rental-weekday-pick:hover:not(:disabled){border-color:var(--site-header-bg-color,#2d5598);transform:translateY(-1px)}
+#rental-module .rental-weekday-name{font-size:.79rem;font-weight:750;white-space:nowrap}
+#rental-module .rental-weekday-mark{
+    width:17px;height:17px;display:block;border:1.5px solid color-mix(in srgb,var(--site-header-bg-color,#2d5598) 52%,#fff);
+    border-radius:5px;background:#fff;position:relative;
+}
+#rental-module .rental-weekday-pick.is-pending{
+    border-color:var(--site-header-bg-color,#2d5598);
+    background:color-mix(in srgb,var(--site-header-bg-color,#2d5598) 14%,#fff);
+}
+#rental-module .rental-weekday-pick.is-pending .rental-weekday-mark,
+#rental-module .rental-weekday-pick.is-in-group .rental-weekday-mark{
+    border-color:var(--site-header-bg-color,#2d5598);
+    background:var(--site-header-bg-color,#2d5598);
+}
+#rental-module .rental-weekday-pick.is-pending .rental-weekday-mark:after,
+#rental-module .rental-weekday-pick.is-in-group .rental-weekday-mark:after{
+    content:"";position:absolute;left:4px;top:1px;width:6px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)
+}
+#rental-module .rental-weekday-pick.is-in-group{
+    border-color:color-mix(in srgb,var(--site-header-bg-color,#2d5598) 62%,#fff);
+    background:color-mix(in srgb,var(--site-header-bg-color,#2d5598) 17%,#fff);
+}
+#rental-module .rental-weekday-pick.is-in-group.is-group-two{
+    border-style:dashed;
+    background:color-mix(in srgb,var(--site-header-bg-color,#2d5598) 9%,#fff);
+}
+#rental-module .rental-weekday-pick:disabled{cursor:not-allowed;opacity:.92}
+#rental-module .rental-weekday-pick:focus-visible{outline:3px solid color-mix(in srgb,var(--site-header-bg-color,#2d5598) 35%,transparent);outline-offset:2px}
+#rental-module .rental-week-rate-price{display:flex;align-items:center;justify-content:center;gap:.28rem;width:100%;min-width:0}
+#rental-module .rental-week-rate-price input{
+    width:9.2ch;min-width:0;max-width:100%;height:30px;padding:.25rem .38rem;
+    border:1px solid #c6d4dd;border-radius:7px;background:#fff;color:var(--week-ink);
+    font-size:.78rem;font-variant-numeric:tabular-nums;text-align:right;
+    -moz-appearance:textfield;
+}
+#rental-module .rental-week-rate-price input::-webkit-inner-spin-button,
+#rental-module .rental-week-rate-price input::-webkit-outer-spin-button,
+#rental-module .rental-week-price-entry input::-webkit-inner-spin-button,
+#rental-module .rental-week-price-entry input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+#rental-module .rental-week-rate-price input:focus{outline:2px solid color-mix(in srgb,var(--site-header-bg-color,#2d5598) 34%,transparent);border-color:var(--site-header-bg-color,#2d5598)}
+#rental-module .rental-week-rate-price input.is-coupled{
+    background:color-mix(in srgb,var(--site-header-bg-color,#2d5598) 10%,#eef2f4);
+    border-color:color-mix(in srgb,var(--site-header-bg-color,#2d5598) 20%,#dce4e8);
+    color:#667b88;opacity:.62;
+}
+#rental-module .rental-week-rate-price input.is-coupled:focus{background:#fff;color:var(--week-ink);opacity:1}
+#rental-module .rental-week-rate-price span{font-size:.68rem;color:var(--week-muted);font-weight:650}
+#rental-module .rental-week-group-panel{margin-top:.45rem;padding:.7rem;border-radius:10px;background:rgba(255,255,255,.52);border:1px solid color-mix(in srgb,var(--site-header-bg-color,#2d5598) 15%,#fff)}
+#rental-module .rental-week-group-heading{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.35rem}
 #rental-module .rental-week-group-heading strong{font-size:.82rem}
-#rental-module .rental-weekday-pick-legend{font-size:.75rem;color:#526b7b}
-#rental-module .rental-week-status{min-height:1.25rem;font-size:.77rem;color:#425f70;margin:.55rem 0 0}
-#rental-module .rental-week-group-list{display:grid;gap:.4rem;margin-top:.65rem}
-#rental-module .rental-week-group{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;border:1px solid rgba(25,56,72,.13);background:rgba(255,255,255,.72);border-radius:8px;padding:.55rem .65rem;font-size:.79rem}
-#rental-module .rental-week-group-slot{font-size:.67rem;text-transform:uppercase;letter-spacing:.06em;font-weight:800;color:#486778}
-#rental-module .rental-week-group-period{font-weight:700}
-#rental-module .rental-week-group-actions{display:flex;gap:.35rem;margin-left:auto}
-#rental-module .rental-week-group-actions button{border:0;background:transparent;text-decoration:underline;font-size:.75rem;padding:.2rem .3rem}
-#rental-module .rental-week-group-actions button:hover{color:#a33c36}
-#rental-module .rental-week-empty{font-size:.77rem;color:#526b7b}
-#rental-module .rental-week-group-error{font-size:.8rem;color:#9e3434;font-weight:650;padding:.55rem;border:1px solid rgba(158,52,52,.3);background:rgba(255,255,255,.78);border-radius:7px}
-#rental-module .rental-week-price-form{margin-top:.75rem;padding:.85rem;border:1px solid rgba(25,56,72,.2);border-radius:9px;background:rgba(255,255,255,.8)}
-#rental-module .rental-week-price-form h6{font-weight:750;margin:.2rem 0}
-#rental-module .rental-week-eyebrow{font-size:.67rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#147c7e}
-#rental-module .rental-week-dialog-pair{font-size:.82rem;color:#526b7b;margin:.2rem 0}
-#rental-module .rental-week-price-form .form-label{font-size:.8rem;font-weight:700;margin:.55rem 0 .3rem}
-#rental-module .rental-week-price-form .form-text{font-size:.73rem;color:#526b7b}
-#rental-module .rental-week-dialog-actions{display:flex;justify-content:flex-end;gap:.5rem;margin-top:.7rem}
-#rental-module .rental-week-dialog-actions button{border:1px solid #b9c9ce;border-radius:7px;background:#fff;padding:.5rem .75rem;font-size:.8rem;font-weight:650}
-#rental-module .rental-week-dialog-actions [data-dialog-confirm]{background:#173d55;color:#fff;border-color:#173d55}
-#rental-module .rental-week-dialog-error{color:#a33c36!important;font-size:.8rem!important}
-@container (max-width:700px){#rental-module .rental-week-rates{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@container (max-width:420px){#rental-module .rental-week-rates{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:767.98px){#rental-module .rental-week-rates{grid-template-columns:repeat(2,minmax(0,1fr))}#rental-module .rental-week-editor{padding:.8rem}}
-@media(max-width:360px){#rental-module .rental-week-rates{grid-template-columns:1fr}}
+#rental-module .rental-week-group-heading .small{font-size:.68rem;color:var(--week-muted);white-space:nowrap}
+#rental-module .rental-weekday-pick-legend{font-size:.74rem;color:var(--week-muted)}
+#rental-module .rental-week-status{min-height:1.1rem;font-size:.75rem;color:#405d70;margin:.4rem 0 0}
+#rental-module .rental-week-group-list{display:grid;gap:.35rem;margin-top:.45rem}
+#rental-module .rental-week-group{
+    display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;min-width:0;
+    border:1px solid color-mix(in srgb,var(--site-header-bg-color,#2d5598) 24%,#fff);
+    background:rgba(255,255,255,.82);border-radius:9px;padding:.45rem .55rem;font-size:.77rem
+}
+#rental-module .rental-week-group-2{border-style:dashed;background:color-mix(in srgb,var(--site-header-bg-color,#2d5598) 5%,#fff)}
+#rental-module .rental-week-group-slot{font-size:.64rem;text-transform:uppercase;letter-spacing:.07em;font-weight:800;color:var(--site-header-bg-color,#2d5598)}
+#rental-module .rental-week-group-period{font-weight:750}
+#rental-module .rental-week-group strong{font-size:.77rem;font-variant-numeric:tabular-nums}
+#rental-module .rental-week-group-actions{display:flex;gap:.28rem;margin-left:auto}
+#rental-module .rental-week-group-actions button{
+    border:1px solid #c8d5dc;border-radius:6px;background:#fff;color:#29495d;
+    font-size:.69rem;font-weight:700;padding:.22rem .45rem;line-height:1.25
+}
+#rental-module .rental-week-group-actions button:hover{border-color:var(--site-header-bg-color,#2d5598);background:color-mix(in srgb,var(--site-header-bg-color,#2d5598) 7%,#fff)}
+#rental-module .rental-week-empty{font-size:.75rem;color:var(--week-muted)}
+#rental-module .rental-week-group-error{font-size:.78rem;color:#923c3c;font-weight:650;padding:.55rem;border:1px solid rgba(158,52,52,.3);background:rgba(255,255,255,.85);border-radius:7px}
+#rental-module .rental-week-price-form{margin-top:.6rem;padding:.7rem;border:1px solid color-mix(in srgb,var(--site-header-bg-color,#2d5598) 30%,#fff);border-radius:9px;background:rgba(255,255,255,.9)}
+#rental-module .rental-week-price-form h6{font-weight:750;margin:.12rem 0;font-size:.9rem}
+#rental-module .rental-week-eyebrow{font-size:.64rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--site-header-bg-color,#2d5598)}
+#rental-module .rental-week-dialog-pair{font-size:.8rem;color:var(--week-muted);margin:.15rem 0}
+#rental-module .rental-week-price-form .form-label{font-size:.76rem;font-weight:700;margin:.42rem 0 .25rem}
+#rental-module .rental-week-price-form .form-text{font-size:.7rem;color:var(--week-muted)}
+#rental-module .rental-week-price-entry{display:flex;align-items:center;gap:.35rem;width:max-content;max-width:100%}
+#rental-module .rental-week-price-entry input{width:10ch;max-width:100%;height:34px;padding:.3rem .45rem;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+#rental-module .rental-week-price-entry .input-group-text{font-size:.72rem;padding:.35rem .45rem}
+#rental-module .rental-week-dialog-actions{display:flex;justify-content:flex-end;gap:.4rem;margin-top:.6rem}
+#rental-module .rental-week-dialog-actions button{border:1px solid #b9c9ce;border-radius:7px;background:#fff;color:#29495d;padding:.38rem .65rem;font-size:.76rem;font-weight:700}
+#rental-module .rental-week-dialog-actions [data-dialog-confirm]{background:var(--site-header-bg-color,#2d5598);color:#fff;border-color:var(--site-header-bg-color,#2d5598)}
+#rental-module .rental-week-dialog-actions [data-dialog-confirm]:hover{filter:brightness(.91)}
+#rental-module .rental-week-dialog-error{color:#a33c36!important;font-size:.78rem!important}
+@container (min-width:760px){#rental-module .rental-week-rates{width:100%;min-width:0}#rental-module .rental-week-rate{flex:1 1 0;min-width:0}}
+@media(max-width:767.98px){
+    #rental-module .rental-week-editor{padding:.75rem}
+    #rental-module .rental-week-rates{min-width:700px}
+    #rental-module .rental-week-rate{flex:0 0 94px}
+    #rental-module .rental-week-group{gap:.36rem}
+    #rental-module .rental-week-group-actions{margin-left:auto}
+}

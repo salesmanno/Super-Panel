@@ -80,25 +80,56 @@ buildCreateForm('venue');
 check(!document.querySelector('#createRentalForm [name="market_price"]'),'venue hides market price');
 const weeklyForm=document.getElementById('createRentalForm');
 let weeklyEditor=weeklyForm.querySelector('[data-rental-week-editor]');
-check(weeklyEditor.querySelector('[value="weekly"]').checked,'New creation defaults to daily rates and groups');
+check(weeklyEditor&&!weeklyEditor.querySelector('[name="pricing_model"]'),'Creation uses only the seven-day editor without a model choice');
+check(!weeklyForm.querySelector('[name="rental_price"],[name^="weekday_prices["],[name="weekend_price"],[name="saturday_price"],[name="sunday_price"]'),'Creation form has no legacy price controls');
 weeklyEditor.querySelectorAll('[name^="daily_prices["]').forEach(input=>input.value='500.00');
 weeklyEditor.querySelector('[data-weekday-pick="2"]').click();
 weeklyEditor.querySelector('[data-weekday-pick="3"]').click();
+check(weeklyEditor.querySelector('[data-daily-rate="2"]').classList.contains('is-coupled')&&!weeklyEditor.querySelector('[data-daily-rate="2"]').readOnly,'Selected days show subdued but editable daily rates');
 let pendingBlocked=false;
 try { rentalPricingPayload(weeklyForm,'createFormFieldsContainer'); } catch(error) { pendingBlocked=error.message.includes('Bekreft'); }
 check(pendingBlocked,'Object cannot be saved with an unconfirmed group');
 weeklyEditor.querySelector('[data-weekly-price-input]').value='900';
 weeklyEditor.querySelector('[data-dialog-confirm]').click();
 const weeklyPayload=rentalPricingPayload(weeklyForm,'createFormFieldsContainer');
-check(weeklyPayload.daily_prices.sunday==='500.00'&&weeklyPayload.price_groups[0].price==='900.00','Actual create form builds seven daily rates and group payload');
+check(weeklyPayload.pricing_model==='weekly'&&weeklyPayload.daily_prices.sunday==='500.00'&&weeklyPayload.price_groups[0].price==='900.00'&&weeklyPayload.price_groups[0].start_day===2&&weeklyPayload.price_groups[0].end_day===3,'Actual create form builds seven daily rates and ascending group payload');
+check(!['rental_price','weekday_prices','weekday_prices_enabled','weekend_price','saturday_price','sunday_price'].some(key=>Object.hasOwn(weeklyPayload,key)),'Weekly payload omits all legacy price keys');
 buildCreateForm('tool',getFormData('createRentalForm'));
 weeklyEditor=document.querySelector('#createRentalForm [data-rental-week-editor]');
 check(weeklyEditor.querySelector('[data-weekly-groups]').value.includes('900.00'),'Category rebuild preserves daily pricing draft');
 buildFormFields('formFieldsContainer','venue',{id:'editing-weekly',object_name:'Saved weekly',pricing_model:'weekly',
  pricing_version:'server-revision',daily_prices:weeklyPayload.daily_prices,price_groups:weeklyPayload.price_groups});
-check(rentalPricingPayload(document.getElementById('rentalForm'),'formFieldsContainer').pricing_version==='server-revision','Actual edit payload preserves concurrency version');
-buildFormFields('formFieldsContainer','venue',{id:'editing-legacy',object_name:'Old venue',rental_price:100});
-check(document.querySelector('#rentalForm [value="legacy"]').checked,'Legacy edit stays legacy');
+const weeklyEditPayload=rentalPricingPayload(document.getElementById('rentalForm'),'formFieldsContainer');
+check(weeklyEditPayload.pricing_version==='server-revision'&&weeklyEditPayload.pricing_model==='weekly','Actual weekly edit preserves concurrency version and weekly mode');
+check(!document.querySelector('#rentalForm [name="pricing_model"],#rentalForm [name="rental_price"],#rentalForm [name^="weekday_prices["],#rentalForm [name="weekend_price"]'),'Edit form removes legacy pricing controls entirely');
+buildFormFields('formFieldsContainer','venue',{id:'weekly-no-fallback',object_name:'Weekly source',pricing_model:'weekly',
+ daily_prices:{monday:'42.00'},price_groups:[],rental_price:999,weekend_price:700,saturday_price:800,sunday_price:900});
+const weeklyNoFallbackEditor=document.querySelector('#rentalForm [data-rental-week-editor]');
+check(weeklyNoFallbackEditor.querySelector('[name="daily_prices[monday]"]').value==='42.00'&&
+ ['tuesday','wednesday','thursday','friday','saturday','sunday'].every(key=>weeklyNoFallbackEditor.querySelector('[name="daily_prices['+key+']"]').value==='')&&
+ JSON.parse(weeklyNoFallbackEditor.querySelector('[data-weekly-groups]').value).length===0,'Already-weekly source never falls back to stale legacy rates');
+buildFormFields('formFieldsContainer','venue',{id:'editing-legacy',object_name:'Old venue',rental_price:100,weekend_price:240});
+let legacyConverted=document.querySelector('#rentalForm [data-rental-week-editor]');
+check(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].every(key=>legacyConverted.querySelector('[name="daily_prices['+key+']"]').value==='100'),'Legacy flat source prefills all seven rates in memory');
+let convertedPayload=rentalPricingPayload(document.getElementById('rentalForm'),'formFieldsContainer');
+check(convertedPayload.pricing_model==='weekly'&&convertedPayload.price_groups.length===1&&convertedPayload.price_groups[0].start_day===6&&convertedPayload.price_groups[0].end_day===7&&convertedPayload.price_groups[0].price==='240.00','Positive shared weekend source converts to a Sat–Sun group on explicit weekly save');
+buildFormFields('formFieldsContainer','venue',{id:'old-map-no-flag',object_name:'Old implicit weekdays',
+ rental_price:100,weekday_prices:{monday:10,tuesday:20,wednesday:30,thursday:40,friday:50},
+ saturday_price:200,sunday_price:0});
+check(document.querySelector('#rentalForm [name="daily_prices[monday]"]').value==='10','A legacy map without an explicit flag retains its previously active rates');
+check(document.querySelector('#rentalForm [name="daily_prices[sunday]"]').value==='100','Zero legacy Sunday rate means base-price fallback, not a new free Sunday');
+buildFormFields('formFieldsContainer','venue',{id:'old-mixed-weekend',object_name:'Old individual weekend',
+ rental_price:100,weekday_prices_enabled:0,saturday_price:200,sunday_price:0,weekend_price:300});
+check(document.querySelector('#rentalForm [name="daily_prices[saturday]"]').value==='200'
+ &&document.querySelector('#rentalForm [name="daily_prices[sunday]"]').value==='300','Mixed legacy weekend source retains the actual per-day amounts without introducing a bundle');
+check(!['rental_price','weekday_prices','weekday_prices_enabled','weekend_price','saturday_price','sunday_price'].some(key=>Object.hasOwn(convertedPayload,key)),'Converted legacy edit payload contains no legacy keys');
+buildFormFields('formFieldsContainer','venue',{id:'editing-weekdays',object_name:'Weekday venue',rental_price:90,weekday_prices_enabled:1,
+ weekday_prices:{monday:101,tuesday:102,wednesday:103,thursday:104,friday:105},saturday_price:130,sunday_price:140});
+legacyConverted=document.querySelector('#rentalForm [data-rental-week-editor]');
+check(['101','102','103','104','105','130','140'].every((value,index)=>legacyConverted.querySelector('[data-daily-rate="'+(index+1)+'"]').value===value),'Legacy weekday and active separate weekend rates prefill their matching days');
+buildFormFields('formFieldsContainer','venue',{id:'editing-missing',object_name:'Missing source rates'});
+legacyConverted=document.querySelector('#rentalForm [data-rental-week-editor]');
+check([...legacyConverted.querySelectorAll('[name^="daily_prices["]')].every(input=>input.value===''&&input.validity.valueMissing),'Missing legacy rates stay visibly blank and require completion');
 buildCreateForm('tool');document.querySelector('#createRentalForm [name="market_price"]').value='987';
 document.querySelector('#createRentalForm [name="type_data[brand]"]').value='Saved brand';
 buildCreateForm('venue',getFormData('createRentalForm'));

@@ -10,10 +10,12 @@ kundesideprosjektet allerede er oppdatert.
 1. Kjør den additive, manuelle SQL-en i `sql/rental_week_pricing.sql`.
    Den endrer ingen eksisterende priser, reservasjoner eller betalinger.
 2. Oppdater kundesidens serverberegning og forhåndsvisning etter denne kontrakten.
-3. Last opp adminendringene, og velg nytt prisoppsett eksplisitt per objekt.
-   Ikke aktiver nye ukepriser på offentlige objekter før kundesiden støtter dem.
-   Opprettelse i det nye adminskjemaet foreslår ukepriser; eksisterende objekter
-   beholder sitt gamle prisvalg.
+3. Last opp adminendringene. Dagspriser og koblinger er nå det eneste
+   prisoppsettet i opprettelse og redigering; det finnes ikke lenger et valg
+   for gammel prising. Eldre objekter forhåndsutfylles fra de eksisterende
+   satsene og går over til nytt oppsett ved uttrykkelig lagring.
+   Oppdater derfor kundesiden før offentlige objekter opprettes eller
+   lagres på nytt. Ingen objekter massekonverteres av opplastingen.
 4. Test samme objekt og periode på begge sider, også med medlemsfordel.
 
 Ingen runtime-kode skal opprette tabeller eller kolonner. Behold de gamle
@@ -29,7 +31,7 @@ bedrift. Hent prisoppsettet fra kildeobjektet. En eventuell flat katalogpris,
 Kontroller tilgjengelighet, aktiv status og bedrift slik kundesiden ellers gjør.
 Ikke eksponer lokalets tilgangskoder når prisdata hentes.
 
-## Velg nøyaktig én prismodell
+## Les nytt oppsett og bevar støtte for eldre objekter
 
 - `pricing_model = 'legacy'`: behold eksisterende beregning med grunnpris,
   ukedagsbryter, ukedagspriser og de gamle helgealternativene.
@@ -39,8 +41,11 @@ Ikke eksponer lokalets tilgangskoder når prisdata hentes.
 - En ukjent modell eller et ugyldig weekly-oppsett skal gi en tydelig feil.
   IKKE fall tilbake til grunnpris eller sett totalen til null.
 
-Det er viktig å beholde dagens felles helgeregel for legacy-objekter. Denne
-endringen skal ikke i seg selv gi disse objektene en annen pris.
+`legacy` er bare bakoverkompatibilitet for objekter som ikke er lagret på
+nytt ennå. Admin tilbyr ikke lenger denne modellen og kan ikke bytte et
+weekly-objekt tilbake til legacy. Behold likevel gammel lesing under overgangen:
+ikke endre prisen på eldre objekter eller bestillinger ved å tolke gamle
+kolonner som et allerede aktivert weekly-oppsett.
 
 ## Dataformat
 
@@ -93,9 +98,14 @@ Eksempel på samlet, offentlig prisobjekt:
 
 Ukedager: 1 = mandag, …, 7 = søndag. `slot` er 1 eller 2.
 Det kan være null, én eller to koblinger. Ingen dag kan inngå i begge.
-Intervallet går fremover inklusive fra- og til-dag: 2→4 dekker tirsdag, onsdag
-og torsdag; 7→1 dekker søndag og den følgende mandagen. Fra-dag og til-dag
-må ikke være ens, da en enkelt dag allerede har sin egen sats.
+Intervallet går fremover: 2→4 dekker tirsdag, onsdag og torsdag.
+Søndag→mandag er et tillatt todagersintervall over ukeskiftet (`7→1`).
+Mandag→søndag (`1→7`) er derimot hele uken; første valgte dag er fra-dagen.
+Øvrige omvendte klikk normaliseres: søndag valgt før lørdag skal lagres som
+6→7 (lørdag–søndag), aldri 7→6. Lagrede koblinger krever derfor
+`start_day < end_day` eller nøyaktig `start_day = 7, end_day = 1`.
+Én dag alene er ugyldig. Andre feilvendte lagrede intervaller skal ikke
+tolkes stille som en annen periode ved lesing.
 
 I API-respons er `price_groups: []` et gyldig, eksplisitt tomt oppsett.
 Manglende `price_groups` for weekly skal ikke tolkes som en tom liste:
@@ -116,18 +126,20 @@ For hver dato D i leieperioden:
 
 1. Finn datoens ISO-ukedag W, mandag=1 … søndag=7.
 2. For hver kobling med start S og slutt E:
-   - `offset = (W - S + 7) % 7`
-   - `length = (E - S + 7) % 7 + 1`
-   - Datoen rammer koblingen hvis `offset < length`.
+   - `offset = (W - S + 7) % 7`.
+   - `length = (E - S + 7) % 7 + 1`.
+   - Datoen treffer koblingen hvis `offset < length`.
 3. Ved treff: finn `anchor_date = D minus offset kalenderdager`.
    Bruk kombinasjonen `(slot, anchor_date)` som nøkkel for forekomsten.
    Legg til koblingsprisen bare første gang denne nøkkelen forekommer.
    IKKE legg til en dagspris for D.
 4. Uten treff: legg til enkeltprisen fra `daily_prices` for W.
 
-Bruk forankret startdato, ikke bare ukenummer, slik at en søndag–mandag-kobling
-bare belastes én gang på tvers av et ukeskifte. Ved to forskjellige forekomster
-skal prisen belastes igjen.
+Bruk forankret startdato, ikke bare koblingens slot: samme kobling i to
+forskjellige uker er to forekomster og skal belastes to ganger.
+En lørdag–søndag-kobling hører til lørdagens dato.
+En søndag–mandag-kobling hører til søndagens dato, også for mandagen:
+ikke tell den på nytt bare fordi ISO-ukenummeret endrer seg.
 
 ### Kontroleksempler
 
@@ -173,13 +185,14 @@ adgangsinnstillinger; en dagskobling endrer ikke disse.
 - `includes/rental_week_pricing.php`: validering, lesing og ren beregning.
   `rentalWeekQuote()` gir `base_cents`, `rental_days` og `lines`.
 - `includes/rental_schedule_editing.php`: `rentalPeriodPriceCents()` velger
-  ny eller gammel beregning ud fra `pricing_model`.
+  ny beregning eller bakoverlesing ut fra `pricing_model`.
 - `assets/rental_request_pricing.js`: samme nettleserberegning,
   `RentalRequestPricing.calculateRentalQuote()`. Returnerer blandt andet
   `baseCents`, `priceLines`, `rentalDays` og `totalCents`.
 - `tests/rental_week_pricing_test.php` og
   `tests/rental_week_pricing_node_test.js`: eksempler og sammenligning av
-  server/nettleser, inklusive årsskifte, sommertid og søndag–mandag.
+  server/nettleser, inklusive årsskifte, sommertid, søndag–mandag og
+  avvisning av øvrige feilvendte lagrede intervaller.
 
 PHP-filene har prosjektavhengigheter; ikke kopier bare én fil og anta at
 alle hjelpefunksjoner automatisk finnes i det andre prosjektet. Gjenbruk
