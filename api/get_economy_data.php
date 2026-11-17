@@ -54,20 +54,29 @@ try {
     switch ($view) {
         case 'overview':
             // The transaction browser is deliberately paged independently of the
-            // aggregate queries below. Keep the latter untouched: dashboard totals
-            // must not change when a user changes page.
+            // aggregate queries below. All use the same source selection, but
+            // dashboard totals must not change when a user changes page.
             $page = filter_var($_GET['page'] ?? 1, FILTER_VALIDATE_INT, ['options' => ['default' => 1]]);
             $perPage = filter_var($_GET['per_page'] ?? 10, FILTER_VALIDATE_INT, ['options' => ['default' => 10]]);
             $page = max(1, min(100000, (int) $page));
             $perPage = max(1, min(100, (int) $perPage));
-            $paymentFilter = $_GET['payment_filter'] ?? 'completed';
+            $paymentFilter = $_GET['payment_filter'] ?? 'all';
             if (!is_string($paymentFilter) || !in_array($paymentFilter, ['completed', 'attempts', 'all'], true)) {
                 http_response_code(400);
                 throw new InvalidArgumentException('Ugyldig betalingsfilter');
             }
-            $listFilter = ledger_reporting_filter_sql($paymentFilter, 'ul');
+            try {
+                $moduleFilter = ledger_reporting_module_filter($_GET['modules'] ?? null);
+                $listModuleFilter = ledger_reporting_module_filter($_GET['modules'] ?? null, 'ul');
+            } catch (InvalidArgumentException $e) {
+                http_response_code(400);
+                throw $e;
+            }
+            $overviewParams = array_merge([$company_id], $moduleFilter['params']);
+            $paidSql = "({$paidSql}) AND {$moduleFilter['sql']}";
+            $listFilter = ledger_reporting_filter_sql($paymentFilter, 'ul') . ' AND ' . $listModuleFilter['sql'];
             $countStmt = $db->prepare("SELECT COUNT(*) FROM unified_ledger ul WHERE ul.company_id = ? AND {$listFilter}");
-            $countStmt->execute([$company_id]);
+            $countStmt->execute($overviewParams);
             $transactionTotal = (int) $countStmt->fetchColumn();
             $totalPages = max(1, (int) ceil($transactionTotal / $perPage));
             $page = min($page, $totalPages);
@@ -90,7 +99,7 @@ try {
                   AND {$paidSql}
                   AND ({$incomeSql}) > 0
             ");
-            $stmt->execute([$vippsFixed, $vippsPct, $company_id]);
+            $stmt->execute(array_merge([$vippsFixed, $vippsPct], $overviewParams));
             $income = $stmt->fetch(PDO::FETCH_ASSOC);
 
             $stmt = $db->prepare("
@@ -99,7 +108,7 @@ try {
                 WHERE company_id = ?
                   AND {$paidSql}
             ");
-            $stmt->execute([$company_id]);
+            $stmt->execute($overviewParams);
             $expenses = $stmt->fetch(PDO::FETCH_ASSOC);
 
             $stmt = $db->prepare("
@@ -117,7 +126,7 @@ try {
                   AND YEAR(transaction_date) = YEAR(CURRENT_DATE)
                   AND MONTH(transaction_date) = MONTH(CURRENT_DATE)
             ");
-            $stmt->execute([$vippsFixed, $vippsPct, $company_id]);
+            $stmt->execute(array_merge([$vippsFixed, $vippsPct], $overviewParams));
             $monthData = $stmt->fetch(PDO::FETCH_ASSOC);
 
             $stmt = $db->prepare("
@@ -134,7 +143,7 @@ try {
                   AND {$paidSql}
                   AND YEAR(transaction_date) = YEAR(CURRENT_DATE)
             ");
-            $stmt->execute([$vippsFixed, $vippsPct, $company_id]);
+            $stmt->execute(array_merge([$vippsFixed, $vippsPct], $overviewParams));
             $yearData = $stmt->fetch(PDO::FETCH_ASSOC);
 
             $stmt = $db->prepare("
@@ -158,7 +167,7 @@ try {
                 ORDER BY ul.transaction_date DESC, ul.id DESC
                 LIMIT {$perPage} OFFSET {$offset}
             ");
-            $stmt->execute([$company_id]);
+            $stmt->execute($overviewParams);
             $recentTransactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
             foreach ($recentTransactions as &$transaction) {
                 $metadata = [];
@@ -182,7 +191,7 @@ try {
             $totalIncome = floatval($income['total_income']);
             $totalExp    = floatval($expenses['total_expenses']);
             $paidCount = $db->prepare("SELECT COUNT(*) FROM unified_ledger WHERE company_id = ? AND {$paidSql}");
-            $paidCount->execute([$company_id]);
+            $paidCount->execute($overviewParams);
             $response['data'] = [
                 'total_income'        => $totalIncome,
                 'total_expenses'      => $totalExp,

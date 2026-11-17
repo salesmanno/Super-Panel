@@ -130,7 +130,14 @@ try {
     requestFixture('/session.php');
     $overview = apiFixture('/api/get_economy_data.php')['data'];
     ledgerCheck((float)$overview['total_income']===560.0 && (float)$overview['total_expenses']===75.0 && (float)$overview['total_profit']===485.0,'completed-only totals, return reversal and positive-cost expense');
-    ledgerCheck($overview['payment_filter']==='completed' && (int)$overview['total']===9 && (int)$overview['transaction_count']===9,'posted default counts');
+    ledgerCheck($overview['payment_filter']==='all' && (int)$overview['total']>9 && (int)$overview['transaction_count']===9,'all history by default, only posted counted');
+    $rentalOverview=apiFixture('/api/get_economy_data.php?modules=rental')['data'];
+    ledgerCheck((float)$rentalOverview['total_income']===130.0 && (int)$rentalOverview['transaction_count']===1 && (int)$rentalOverview['total']===1,'source filters rows and aggregates');
+    $emptyOverview=apiFixture('/api/get_economy_data.php?modules=')['data'];
+    ledgerCheck((float)$emptyOverview['total_income']===0.0 && (float)$emptyOverview['total_expenses']===0.0 && (int)$emptyOverview['total']===0 && (int)$emptyOverview['transaction_count']===0,'no selected sources means no rows or totals');
+    $memberOverview=apiFixture('/api/get_economy_data.php?modules=membership,rental')['data'];
+    ledgerCheck((float)$memberOverview['total_income']===210.0 && (int)$memberOverview['transaction_count']===3,'combined module totals');
+    ledgerCheck(requestFixture('/api/get_economy_data.php?modules=invalid')['code']===400,'invalid source rejected');
     foreach (['completed'=>9,'attempts'=>12,'all'=>21] as $filter=>$count) {
         $seen=[];
         for($page=1;$page<=max(1,(int)ceil($count/3));$page++){

@@ -20,6 +20,22 @@ function ledger_reporting_filter_sql(string $filter, string $alias = ''): string
         default => throw new InvalidArgumentException('Ugyldig betalingsfilter'),
     };
 }
+/** A missing selection means all sources; an explicitly empty one means none. */
+function ledger_reporting_module_filter($selection, string $alias = ''): array {
+    $p = ledger_reporting_prefix($alias);
+    if ($selection === null) return ['sql' => '1 = 1', 'params' => []];
+    if (!is_string($selection)) throw new InvalidArgumentException('Ugyldig modulfilter');
+    $selected = $selection === '' ? [] : array_values(array_unique(explode(',', $selection)));
+    $known = ['membership', 'rental', 'events', 'sales'];
+    if (array_diff($selected, [...$known, 'other'])) throw new InvalidArgumentException('Ugyldig modulfilter');
+    $sources = array_values(array_intersect($known, $selected));
+    $parts = [];
+    if ($sources) $parts[] = "{$p}module_source IN (" . implode(',', array_fill(0, count($sources), '?')) . ')';
+    if (in_array('other', $selected, true)) {
+        $parts[] = "({$p}module_source IS NULL OR {$p}module_source NOT IN ('membership','rental','events','sales'))";
+    }
+    return ['sql' => $parts ? '(' . implode(' OR ', $parts) . ')' : '1 = 0', 'params' => $sources];
+}
 function ledger_reporting_expense_test_sql(string $alias = ''): string {
     $p = ledger_reporting_prefix($alias);
     return "({$p}transaction_type = 'expense' OR {$p}item_type LIKE '%expense%' OR {$p}selling_price < 0)";

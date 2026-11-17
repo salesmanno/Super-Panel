@@ -76,11 +76,15 @@ window.fetch = (input, options={}) => {
         return jsonResponse({success:true});
     }
     if (url.pathname==='/api/get_bank_accounts.php') return jsonResponse({success:true,accounts:window.__invoiceActive?window.__invoiceAccounts.filter(x=>x.is_active===1):[]});
-    const filter = url.searchParams.get('payment_filter') || 'completed';
+    if(url.searchParams.get('payment_filter')!=='all') throw new Error('All payment history must be requested');
+    const modules = url.searchParams.get('modules').split(',').filter(Boolean);
+    const filter = modules.length===5 ? 'all' : modules.includes('sales') ? 'completed' : modules.length ? 'attempts' : 'none';
     const page = Number(url.searchParams.get('page') || 1);
     window.__economyRequests.push({filter,page,url:url.href});
     if (window.__economyFailFilter === filter) return Promise.reject(new Error('simulated fetch failure'));
-    const response = {ok:true,json: async () => dataset(filter,page)};
+    const data=dataset(filter,page);
+    if(filter==='none') Object.assign(data.data,{transactions:[],recent_transactions:[],total:0,total_pages:1,total_income:0,total_expenses:0,total_profit:0,transaction_count:0});
+    const response = {ok:true,json: async () => data};
     if (filter === 'attempts' && window.__economyDelayAttempts) {
         window.__economyDelayAttempts = false;
         return new Promise(resolve => {
@@ -113,10 +117,17 @@ const checks = `(async () => {
         for (let i=0;i<100;i++) { if (predicate()) return; await pause(10); }
         throw new Error('Timed out waiting for UI update');
     };
-    const select = document.getElementById('economy-payment-filter');
-    if (!select || select.value !== 'completed' || select.previousElementSibling?.textContent.trim() !== 'Vis') throw new Error('Default accessible payment filter missing');
+    const box = document.getElementById('economy-module-filters');
+    const inputs = [...box.querySelectorAll('input')];
+    const selectSources=values=>{
+        inputs.forEach(input=>{input.checked=values.includes(input.value)});
+        inputs[0].dispatchEvent(new Event('change',{bubbles:true}));
+    };
+    if(document.getElementById('economy-payment-filter') || inputs.length!==5 || inputs.some(input=>!input.checked)) throw new Error('Checkboxes must replace dropdown, all selected');
     await loadEconomyOverview(1);
-    if (!window.__economyRequests.some(r => r.filter === 'completed' && r.page === 1)) throw new Error('Default filter not sent');
+    if (!window.__economyRequests.some(r => r.filter === 'all' && r.page === 1)) throw new Error('All sources not sent by default');
+    selectSources(['sales']);
+    await waitFor(()=>document.querySelector('#recent-transactions tr.transaction-row')?.textContent.includes('Positiv utgift'));
     const expenseCell = document.querySelector('#recent-transactions tr.transaction-row td:last-child');
     if (!expenseCell || !expenseCell.textContent.includes('25') || expenseCell.textContent.includes('+')) throw new Error('Positive expense amount was not rendered as a 25 expense');
     openEconomyTransaction(0);
@@ -128,8 +139,7 @@ const checks = `(async () => {
     if (!window.__economyRequests.some(r => r.filter === 'completed' && r.page === 2)) throw new Error('Modal page navigation omitted selected payment filter');
     if (!window.__economyRequests.some(r => r.filter === 'completed' && r.page === 2)) throw new Error('Page request not tracked');
 
-    select.value = 'attempts';
-    select.dispatchEvent(new Event('change',{bubbles:true}));
+    selectSources(['membership']);
     await waitFor(() => document.querySelector('#recent-transactions tr.transaction-row')?.textContent.includes('Betalingsforsøk feil'));
     if (!window.__economyRequests.some(r => r.filter === 'attempts' && r.page === 1)) throw new Error('Filter change did not reset to page 1');
     const failedRow = [...document.querySelectorAll('#recent-transactions tr.transaction-row')].find(row => row.textContent.includes('Betalingsforsøk feil'));
@@ -147,26 +157,28 @@ const checks = `(async () => {
     if (!cancelledRow?.textContent.includes('Avbrutt') || cancelledRow.textContent.includes('Gjennomført')) throw new Error('Cancelled ledger status not preferred over payment status');
 
     window.__economyDelayAttempts = true;
-    select.value = 'attempts';
-    select.dispatchEvent(new Event('change',{bubbles:true}));
+    selectSources(['membership']);
     await waitFor(() => typeof window.__economyResolveDelayed === 'function');
-    select.value = 'all';
-    select.dispatchEvent(new Event('change',{bubbles:true}));
+    selectSources(inputs.map(input=>input.value));
     await waitFor(() => document.querySelector('#recent-transactions tr.transaction-row')?.textContent.includes('Alle filter aktiv'));
     window.__economyResolveDelayed();
     await pause(30);
     if (!document.querySelector('#recent-transactions tr.transaction-row')?.textContent.includes('Alle filter aktiv')) throw new Error('Stale attempts response replaced latest filter data');
 
     window.__economyFailFilter = 'attempts';
-    select.value = 'attempts';
-    select.dispatchEvent(new Event('change',{bubbles:true}));
+    selectSources(['membership']);
     await waitFor(() => document.querySelector('#recent-transactions td.text-danger')?.textContent.includes('Feil ved lasting'));
     if (document.querySelector('#recent-transactions tr.transaction-row')) throw new Error('Previous filter rows remained visible after filter request failure');
     window.__economyFailFilter = null;
     await loadEconomyOverview(1);
     if (!document.querySelector('#recent-transactions tr.transaction-row')?.textContent.includes('Betalingsforsøk feil')) throw new Error('Retry did not recover filtered results');
 
-    const filterBox = select.getBoundingClientRect();
+    selectSources([]);
+    await waitFor(()=>document.getElementById('recent-transactions').textContent.includes('Ingen transaksjoner'));
+    if(!document.getElementById('stat-total-income').textContent.includes('0') || document.getElementById('stat-count').textContent!=='0') throw new Error('Empty selection must zero totals');
+    selectSources(inputs.map(input=>input.value));
+    await waitFor(()=>document.querySelector('#recent-transactions tr.transaction-row')?.textContent.includes('Alle filter aktiv'));
+    const filterBox = box.getBoundingClientRect();
     if (filterBox.right > window.innerWidth + 1 || filterBox.left < 0) throw new Error('Payment selector clipped at viewport width '+window.innerWidth);
     await loadPaymentGateways();
     if (!document.getElementById('invoice-bank-setup-null').hidden) throw new Error('Inactive invoice setup should start collapsed');

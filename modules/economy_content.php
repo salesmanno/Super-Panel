@@ -345,15 +345,15 @@
                 </div>
                 
                 <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
                         <h6 class="mb-0">Transaksjoner</h6>
-                        <div class="d-flex align-items-center gap-2">
-                            <label for="economy-payment-filter" class="small mb-0">Vis</label>
-                            <select id="economy-payment-filter" class="form-select form-select-sm" aria-label="Vis betalingshistorikk" style="width:auto;max-width:100%;">
-                                <option value="completed">Gjennomførte betalinger</option>
-                                <option value="attempts">Øvrig betalingshistorikk</option>
-                                <option value="all">Alle</option>
-                            </select>
+                        <div id="economy-module-filters" class="d-flex flex-wrap align-items-center gap-2" role="group" aria-label="Filtrer transaksjoner og summer etter modul">
+                            <?php foreach (['membership'=>'Medlemskap','rental'=>'Utleie','events'=>'Arrangementer','sales'=>'Salg','other'=>'Øvrige'] as $source => $label): ?>
+                            <label class="small d-inline-flex align-items-center gap-1 mb-0">
+                                <input type="checkbox" class="form-check-input mt-0" name="economy-source" value="<?= $source ?>" checked>
+                                <?= $label ?>
+                            </label>
+                            <?php endforeach; ?>
                         </div>
                     </div>
                     <div class="card-body p-0">
@@ -1163,8 +1163,7 @@ let economyTransactionIndex = 0;
 let economyTransactionTotal = 0;
 let economyTransactionLoading = false;
 let economyTransactionRequest = 0;
-let economyPaymentFilter = 'completed';
-let economyRenderedPaymentFilter = 'completed';
+let economyRenderedModuleFilter = null;
 let economyModalNavigationLoading = false;
 let economyCurrentLedgerId = null;
 const economyEsc = value => String(value ?? '-').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
@@ -1192,11 +1191,10 @@ const economyIsPosted = transaction => economyCountsAsPaid(transaction) && econo
 
 async function loadEconomyOverview(requestedPage = economyTransactionPage) {
     const request = ++economyTransactionRequest;
-    const paymentFilter = document.getElementById('economy-payment-filter')?.value || economyPaymentFilter;
-    economyPaymentFilter = paymentFilter;
+    const moduleFilter = [...document.querySelectorAll('#economy-module-filters input:checked')].map(input => input.value).join(',');
     const previous = { page: economyTransactionPage, totalPages: economyTransactionTotalPages, total: economyTransactionTotal, rows: economyTransactionRows.slice() };
     try {
-        const response = await fetch(`/api/get_economy_data.php?view=overview&page=${requestedPage}&per_page=10&payment_filter=${encodeURIComponent(paymentFilter)}`);
+        const response = await fetch(`/api/get_economy_data.php?view=overview&page=${requestedPage}&per_page=10&payment_filter=all&modules=${encodeURIComponent(moduleFilter)}`);
         const result = await response.json();
         if (request !== economyTransactionRequest) return false;
         if (result.success && result.data) {
@@ -1213,8 +1211,7 @@ async function loadEconomyOverview(requestedPage = economyTransactionPage) {
             economyTransactionTotalPages = Number(d.total_pages || 1);
             economyTransactionTotal = Number(d.total || 0);
             economyTransactionRows = d.transactions || d.recent_transactions || [];
-            economyPaymentFilter = d.payment_filter || paymentFilter;
-            economyRenderedPaymentFilter = paymentFilter;
+            economyRenderedModuleFilter = moduleFilter;
             renderRecentTransactions(economyTransactionRows);
             return true;
         } else {
@@ -1223,7 +1220,9 @@ async function loadEconomyOverview(requestedPage = economyTransactionPage) {
     } catch (error) {
         if (request !== economyTransactionRequest) return false;
         console.error('Load overview error:', error);
-        if (paymentFilter !== economyRenderedPaymentFilter) {
+        if (moduleFilter !== economyRenderedModuleFilter) {
+            ['stat-total-income','stat-total-expenses','stat-profit','stat-month','stat-year-income','stat-year-expenses','stat-count']
+                .forEach(id => { document.getElementById(id).textContent = '–'; });
             economyTransactionPage = 1;
             economyTransactionTotalPages = 1;
             economyTransactionTotal = 0;
@@ -1234,7 +1233,7 @@ async function loadEconomyOverview(requestedPage = economyTransactionPage) {
         }
         renderRecentTransactions(economyTransactionRows);
         const tbody = document.getElementById('recent-transactions');
-        if (paymentFilter !== economyRenderedPaymentFilter) {
+        if (moduleFilter !== economyRenderedModuleFilter) {
             tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3 text-danger">Feil ved lasting av transaksjoner. Prøv å laste på nytt.</td></tr>';
         } else {
             tbody.insertAdjacentHTML('afterbegin', '<tr><td colspan="6" class="text-center py-3 text-danger">Feil ved lasting av transaksjoner. Prøv å laste på nytt.</td></tr>');
@@ -1297,8 +1296,7 @@ function updateEconomyTransactionPager(count) {
     if (next) next.disabled = economyTransactionLoading || economyTransactionPage >= economyTransactionTotalPages;
 }
 
-document.getElementById('economy-payment-filter')?.addEventListener('change', event => {
-    economyPaymentFilter = event.target.value;
+document.getElementById('economy-module-filters')?.addEventListener('change', () => {
     economyTransactionPage = 1;
     loadEconomyOverview(1);
 });
