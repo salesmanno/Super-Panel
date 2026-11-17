@@ -659,6 +659,9 @@ try {
                     <a class="nav-link" href="#sales-items">Produkter og lager</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="#sales-online-offers">Varetilbud nett</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="#sales-transactions">Salg</a>
                 </li>
             </ul>

@@ -10,7 +10,7 @@ try {
         http_response_code(401);throw new TenantAuditException('Logg inn før du bruker kassen');
     }
     $action=(string)($_GET['action']??'');
-    $read=in_array($action,['bootstrap','products','cart','orders','order','fields','register_state','register_document','register_reports'],true);
+    $read=in_array($action,['bootstrap','products','online_preview','cart','orders','order','fields','register_state','register_document','register_reports'],true);
     if(($_SERVER['REQUEST_METHOD']??'')!==($read?'GET':'POST')) {
         http_response_code(405);throw new InvalidArgumentException('Ugyldig forespørselsmetode');
     }
@@ -33,6 +33,7 @@ try {
     $result=match($action) {
         'bootstrap'=>$service->bootstrap(),
         'products'=>$service->productList(),
+        'online_preview'=>$service->onlinePreview(),
         'cart'=>$service->cartResult(),
         'orders'=>['orders'=>$service->orders()],
         'order'=>['order'=>$service->orderView((string)($_GET['order_id']??''))],

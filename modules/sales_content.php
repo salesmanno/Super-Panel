@@ -59,6 +59,7 @@
     <div class="sales-ledger-wrap"><table class="table sales-ledger"><thead><tr><th>Ordre</th><th>Tidspunkt</th><th>Betaling</th><th>Status</th><th class="text-end">Sum</th><th></th></tr></thead><tbody id="sales-orders"><tr><td colspan="6"><div class="sales-skeleton"></div></td></tr></tbody></table></div>
   </section>
 
+  <?php include __DIR__.'/sales_online_offers.php'; ?>
   <div class="sales-dialog" id="sales-dialog" hidden role="presentation">
     <div class="sales-dialog-backdrop"></div>
     <section class="sales-dialog-card" role="dialog" aria-modal="true" aria-labelledby="sales-dialog-title" tabindex="-1">

@@ -1,0 +1,120 @@
+.soo-workspace {
+    --soo-ink: #263e54;
+    --soo-muted: #657b8e;
+    --soo-line: #d5e0e7;
+    --soo-paper: #f5f8f8;
+    --soo-accent: #26716e;
+    position: relative;
+    min-width: 0;
+    padding: clamp(.8rem, 2.3vw, 1.6rem);
+    overflow: hidden;
+    border: 1px solid #d4e0e5;
+    border-radius: 15px;
+    background: #f1f6f5;
+    color: var(--soo-ink);
+    font-family: "DM Sans", system-ui, sans-serif;
+}
+.soo-workspace * { box-sizing: border-box; }
+.soo-workspace button { font: inherit; }
+.soo-toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.soo-title-block { min-width: 0; }
+.soo-kicker { color: #4e777d; font-size: .67rem; font-weight: 800; letter-spacing: .14em; }
+.soo-toolbar h2 { margin: .25rem 0 .3rem; color: #1d4058; font: 700 clamp(1.6rem, 3vw, 2.2rem)/1.08 "Instrument Serif", Georgia, serif; }
+.soo-toolbar p { margin: 0; color: var(--soo-muted); font-size: .87rem; }
+.soo-tools { display: flex; align-items: center; justify-content: flex-end; gap: .55rem; flex-wrap: wrap; }
+.soo-hidden-toggle { display: flex; align-items: center; gap: .4rem; color: #4f697b; font-size: .72rem; font-weight: 650; }
+.soo-hidden-toggle input { width: 17px; height: 17px; accent-color: var(--soo-accent); }
+.soo-viewport { display: inline-flex; padding: 3px; border: 1px solid #c8d8dd; border-radius: 8px; background: #e6eeee; }
+.soo-viewport button { min-height: 34px; padding: .35rem .65rem; border: 0; border-radius: 6px; background: transparent; color: #536e7c; font-size: .74rem; font-weight: 700; cursor: pointer; }
+.soo-viewport button[aria-pressed="true"] { background: #fff; color: #275f63; box-shadow: 0 1px 4px #203b4b14; }
+.soo-create { display: inline-flex; align-items: center; gap: .55rem; min-height: 40px; padding: .48rem .8rem; border: 1px solid #236763; border-radius: 7px; background: #286e6a; color: #fff; font-size: .76rem; font-weight: 750; cursor: pointer; transition: background .16s ease, transform .16s ease; }
+.soo-create:hover { transform: translateY(-1px); background: #205d5a; }
+.soo-create span { font-size: 1.1rem; line-height: .8; }
+.soo-preview-note { display: flex; align-items: center; gap: .6rem; margin-bottom: .8rem; padding: .65rem .8rem; border: 1px solid #c9dadd; border-radius: 8px; background: #e8f1f1; color: #496675; font-size: .75rem; line-height: 1.45; }
+.soo-note-mark { display: grid; flex: 0 0 21px; width: 21px; height: 21px; place-items: center; border-radius: 50%; background: #cfe0df; color: #286b69; font: 700 .75rem Georgia, serif; }
+.soo-live-mark { margin-left: auto; padding: .22rem .55rem; border: 1px solid #c4d5d7; border-radius: 99px; background: #f6f9f8; color: #54717a; font-size: .65rem; font-weight: 750; white-space: nowrap; }
+.soo-company-warning { margin: 0 0 .75rem; padding: .6rem .75rem; border: 1px solid #e3d1a8; border-radius: 7px; background: #fff8e9; color: #755e32; font-size: .72rem; line-height: 1.5; }
+.soo-company-warning[hidden], .soo-state[hidden], .soo-preview[hidden] { display: none !important; }
+.soo-state { display: grid; justify-items: center; gap: .65rem; min-height: 225px; padding: 1.5rem; border: 1px dashed #bdcfd6; border-radius: 10px; background: #f8fbfa; color: #607887; text-align: center; font-size: .85rem; }
+.soo-state-error { border-color: #dfc4b9; background: #fff8f5; color: #80594d; }
+.soo-state-empty { border-color: #c8d7d9; }
+.soo-state-symbol { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid #c4d7d8; border-radius: 50%; color: #4e7378; font: 700 1.1rem Georgia, serif; }
+.soo-state-actions { display: flex; align-items: center; gap: .5rem; color: #69808c; font-size: .75rem; }
+.soo-state-actions button { min-height: 39px; padding: .45rem .75rem; border: 1px solid #9bb7ba; border-radius: 6px; background: #fff; color: #286763; font-weight: 750; cursor: pointer; }
+.soo-skeleton { border-radius: 6px; background: linear-gradient(90deg, #e5edeb, #f1f5f4, #e5edeb); background-size: 200% 100%; animation: soo-shimmer 1.2s ease-in-out infinite; }
+.soo-skeleton-head { width: min(320px, 75%); height: 20px; }
+.soo-skeleton-card { width: min(690px, 90%); height: 86px; }
+@keyframes soo-shimmer { to { background-position: -200% 0; } }
+.soo-preview { overflow: hidden; border: 1px solid #c5d8d9; border-radius: var(--soo-site-radius, 8px); background: #e8f0ed; box-shadow: 0 7px 22px #294a4b0c; font-family: var(--soo-site-font, Georgia, serif); }
+.soo-site-header { position: relative; display: flex; align-items: center; justify-content: center; gap: .7rem; padding: .5rem 1rem; }
+.soo-site-header[data-layout="centered"] { flex-direction: column; gap: .25rem; }
+.soo-site-header[data-layout="minimal"] { padding-block: .35rem; }
+.soo-site-header[data-logo-position="right"] .soo-site-logo { order: 2; }
+.soo-site-header[data-logo-position="left"] { justify-content: flex-start; }
+.soo-site-header[data-logo-position="right"] { justify-content: flex-end; }
+.soo-site-logo { width: auto; max-width: min(180px, 28vw); max-height: 100%; object-fit: contain; }
+.soo-site-name { font: inherit; font-weight: 750; }
+.soo-site-admin-tag { position: absolute; right: .7rem; bottom: .3rem; color: currentColor; font: 700 .52rem/1 "DM Sans", system-ui, sans-serif; letter-spacing: .08em; opacity: .78; }
+.soo-site-nav { display: flex; justify-content: center; gap: 1.45rem; min-height: 39px; padding: .65rem 1rem .45rem; background: #fbfcfa; color: #657a7b; font: 500 .68rem/1.2 "DM Sans", system-ui, sans-serif; }
+.soo-site-nav[data-position="left"] { justify-content: flex-start; padding-left: clamp(1rem, 8vw, 5rem); }
+.soo-site-nav[data-position="right"] { justify-content: flex-end; padding-right: clamp(1rem, 8vw, 5rem); }
+.soo-site-nav .is-current { border-bottom: 1px solid #416f71; color: #294c50; font-weight: 750; }
+.soo-catalog-inner { width: 100%; max-width: 1100px; margin-inline: auto; padding: clamp(1rem, 3vw, 2rem); }
+.soo-catalog-intro { display: flex; align-items: end; justify-content: space-between; gap: 1rem; padding: .45rem 0 1.15rem; border-bottom: 1px solid #c4d6d1; }
+.soo-section-label { color: var(--soo-brand, #426b70); font: 800 .62rem/1 "DM Sans", system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; }
+.soo-catalog-intro h3 { margin: .35rem 0 .22rem; color: #294c54; font: 700 clamp(1.7rem, 3vw, 2.3rem)/1 "Instrument Serif", Georgia, serif; }
+.soo-catalog-intro p { margin: 0; color: #61787a; font: .83rem/1.45 "DM Sans", system-ui, sans-serif; }
+.soo-admin-stamp { flex: 0 0 auto; padding: .3rem .55rem; border: 1px solid #c7d9d5; border-radius: 4px; color: #597673; font: 700 .6rem/1.3 "DM Sans", system-ui, sans-serif; letter-spacing: .04em; text-transform: uppercase; }
+.soo-product-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; padding: 1.1rem 0; }
+.soo-product { display: flex; min-width: 0; flex-direction: column; overflow: hidden; padding: 0; border: 1px solid #c5d7d4; border-radius: var(--soo-site-radius, 8px); background: #f7faf7; color: var(--soo-ink); text-align: left; cursor: pointer; transition: transform .17s ease, box-shadow .17s ease, border-color .17s ease; }
+.soo-product:hover { transform: translateY(-2px); border-color: #9ebfbb; box-shadow: 0 9px 19px #24484a15; }
+.soo-product:focus-visible, .soo-workspace button:focus-visible, .soo-workspace input:focus-visible { outline: 3px solid #ba8754; outline-offset: 3px; }
+.soo-product.is-nonpublic { background: #f1f3f1; }
+.soo-product-image { position: relative; display: grid; place-items: center; aspect-ratio: 1.55; overflow: hidden; background: #dbe7e3; }
+.soo-product-image img { width: 100%; height: 100%; object-fit: cover; }
+.soo-image-placeholder { display: grid; width: 46px; height: 46px; place-items: center; border: 1px solid #b4c9c4; border-radius: 50%; }
+.soo-image-placeholder span { display: block; width: 18px; height: 18px; border: 1px solid #7a9b95; transform: rotate(45deg); }
+.soo-image-tag { position: absolute; left: .55rem; bottom: .55rem; padding: .23rem .42rem; border: 1px solid #ffffffa8; border-radius: 3px; background: #f8fbf0e8; color: #47665f; font: 700 .58rem/1.2 "DM Sans", system-ui, sans-serif; }
+.soo-product-body { display: grid; align-content: start; gap: .3rem; min-height: 154px; padding: .75rem; }
+.soo-product-eyebrow { color: #6b8581; font: 800 .57rem/1.2 "DM Sans", system-ui, sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+.soo-product-name { color: #294c54; font: 700 1.13rem/1.1 "Instrument Serif", Georgia, serif; overflow-wrap: anywhere; }
+.soo-product-description { display: -webkit-box; overflow: hidden; color: #627978; font: .73rem/1.45 "DM Sans", system-ui, sans-serif; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.soo-product-price { display: flex; align-items: baseline; gap: .45rem; margin-top: auto; padding-top: .35rem; color: #2c6964; font: 700 .82rem/1.2 "DM Sans", system-ui, sans-serif; }
+.soo-product-price s { color: #8b9b96; font-size: .72rem; font-weight: 500; }
+.soo-product-stock, .soo-card-state { color: #728581; font: .63rem/1.35 "DM Sans", system-ui, sans-serif; }
+.soo-card-state { color: #946d42; }
+.soo-filter-empty { display: grid; justify-items: center; gap: .4rem; min-height: 170px; align-content: center; color: #597174; text-align: center; font: .8rem/1.5 "DM Sans", system-ui, sans-serif; }
+.soo-filter-empty strong { color: #355c60; font: 700 1.2rem "Instrument Serif", Georgia, serif; }
+.soo-catalog-foot { display: flex; justify-content: space-between; gap: .6rem; padding-top: .65rem; border-top: 1px solid #c4d6d1; color: #78908a; font: .62rem/1.4 "DM Sans", system-ui, sans-serif; }
+.soo-phone-view { width: 100%; max-width: 390px; margin-inline: auto; }
+.soo-phone-view .soo-product-grid { grid-template-columns: 1fr; }
+.soo-phone-view .soo-catalog-intro { align-items: flex-start; flex-direction: column; }
+.soo-phone-view .soo-product { display: grid; grid-template-columns: minmax(95px, .8fr) minmax(0, 1.2fr); }
+.soo-phone-view .soo-product-image { min-height: 150px; aspect-ratio: auto; }
+.soo-phone-view .soo-product-body { min-height: 150px; padding: .65rem; }
+.soo-phone-view .soo-site-admin-tag { position: static; margin-left: auto; font-size: .46rem; }
+@media (max-width: 850px) {
+    .soo-toolbar { align-items: flex-start; flex-direction: column; }
+    .soo-tools { width: 100%; justify-content: flex-start; }
+    .soo-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+    .soo-workspace { padding: .7rem; border-radius: 11px; }
+    .soo-toolbar { gap: .8rem; }
+    .soo-tools { gap: .4rem; }
+    .soo-hidden-toggle { width: 100%; }
+    .soo-preview-note { align-items: flex-start; flex-wrap: wrap; font-size: .7rem; }
+    .soo-live-mark { margin-left: 28px; }
+    .soo-product-grid { grid-template-columns: 1fr; }
+    .soo-product { display: grid; grid-template-columns: minmax(92px, .75fr) minmax(0, 1.25fr); }
+    .soo-product-image { min-height: 142px; aspect-ratio: auto; }
+    .soo-product-body { min-height: 142px; padding: .6rem; }
+    .soo-product-name { font-size: 1.05rem; }
+    .soo-site-nav { justify-content: space-around; gap: .35rem; padding-inline: .5rem; font-size: .6rem; }
+    .soo-site-admin-tag { position: static; margin-left: auto; text-align: right; font-size: .45rem; }
+    .soo-site-header { gap: .45rem; padding-inline: .65rem; }
+    .soo-catalog-intro { align-items: flex-start; flex-direction: column; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .soo-workspace *, .soo-workspace *::before, .soo-workspace *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

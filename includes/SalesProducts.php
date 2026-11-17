@@ -84,6 +84,10 @@ trait SalesProducts {
         $rows=$this->q("SELECT p.*,EXISTS(SELECT 1 FROM dynamic_form_fields f WHERE f.company_id=p.company_id AND f.entity_type='sales_product' AND f.entity_id=p.id AND f.is_visible=1) AS _has_fields FROM sales_products p WHERE p.company_id=? ORDER BY p.name,p.id",[$this->company])->fetchAll(PDO::FETCH_ASSOC);
         return ['products'=>array_map(fn($row)=>$this->productView($row),$rows),'tax_registered'=>$this->taxRegistered]+$this->paymentMethods();
     }
+    public function onlinePreview(): array {
+        require_once __DIR__.'/announcement_preview.php';
+        return announcement_preview_company($this->db,$this->company);
+    }
     public function saveProduct(array $data): array {
         return $this->transaction(function() use($data) {
             $id=self::text($data['id']??'',36);$old=$id!==''?$this->product($id,true):null;

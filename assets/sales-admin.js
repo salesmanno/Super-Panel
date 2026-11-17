@@ -419,6 +419,7 @@
     image.onload = () => {win.focus();win.print();};
   }
   function renderAdminProducts() {
+    document.dispatchEvent(new CustomEvent('sales:products-updated'));
     const term = ($('#sales-admin-search').value||'').trim().toLocaleLowerCase('nb');
     const products = state.products.filter(p=>!term || `${p.name} ${p.sku||''} ${p.barcode||''}`.toLocaleLowerCase('nb').includes(term));
     $('#sales-product-total').textContent = `${products.length} produkt${products.length===1?'':'er'}`;
@@ -1209,10 +1210,14 @@
     catch(e){if(e.name!=='AbortError'){$('#sales-dialog-title').textContent='Kvittering kunne ikke lastes';$('#sales-dialog-body').innerHTML=`<div class="sales-error" role="alert">${esc(e.message)}</div><button id="sales-retry-order" class="btn btn-outline-primary" type="button">Prøv igjen</button>`;$('#sales-retry-order').addEventListener('click',()=>showOrder(id));}}
   }
   async function bootstrap() {
+    onlineState.loading=true;
+    onlineState.error='';
     try {
       const r=await api('bootstrap');state.csrf=r.csrf_token||'';state.taxRegistered=Number(r.tax_registered)===1?1:0;state.methodError=r.method_error||'';state.cashierName=r.register_state?.cashier_name||'';
       $('#sales-new-product').disabled=false;
       state.products=r.products||[];state.methods=r.methods||[];state.cart=r.cart||emptyCart();
+      onlineState.ready=true;
+      onlineState.loading=false;
       if(r.pending_order&&isPaidPayment(r.pending_order)){state.pending=null;state.completedOrder=r.pending_order;state.paymentNotice='';}
       else {state.pending=r.pending_order&&!isTerminalPayment(r.pending_order)?r.pending_order:null;if(!state.pending)state.completedOrder=null;}
       if(state.pending)syncServerClock(state.pending);
@@ -1222,6 +1227,9 @@
       if(r.register_state){state.registerState=r.register_state;state.registerError=r.register_state.readiness_error||'';updateRegisterSummary();}
       loadRegisterState().catch(()=>{});
     } catch(e) {
+      onlineState.loading=false;
+      onlineState.error=e.message;
+      document.dispatchEvent(new CustomEvent('sales:products-updated'));
       $('#sales-products').innerHTML=`<div class="sales-error sales-grid-empty" role="alert">${esc(e.message)} <button type="button" id="sales-bootstrap-retry">Prøv igjen</button></div>`;
       $('#sales-bootstrap-retry').addEventListener('click',bootstrap);
     }
@@ -1362,6 +1370,21 @@
     msg.textContent=`${product.name} valgt`;msg.className='sales-inline-message is-success';addProduct(product);
   });
   $('#sales-scanner').addEventListener('input',()=>{$('#sales-scan-message').textContent='';});
+  // Share the existing revision-protected editor, never a second product-saving path.
+  const onlineState={ready:false,loading:false,error:''};
+  window.SalesOnline={
+    snapshot:()=>({products:state.products.map(product=>({...product})),ready:onlineState.ready,error:onlineState.error,loading:onlineState.loading}),
+    edit:id=>{
+      if(!onlineState.ready)return;
+      const product=state.products.find(row=>String(row.id)===String(id));
+      if(product)productForm(product);
+    },
+    create:()=>{if(onlineState.ready)productForm();},
+  };
+  document.addEventListener('sales:online-load',()=>{
+    if(!onlineState.loading && !onlineState.ready)bootstrap();
+    else document.dispatchEvent(new CustomEvent('sales:products-updated'));
+  });
   // Explicitly protect against browser back/navigation while an unresolved provider payment exists.
   $('#sales-new-product').disabled=true;
   bootstrap();
