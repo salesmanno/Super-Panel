@@ -4,6 +4,7 @@ session_write_close();
 require_once '../config/database.php';
 require_once __DIR__ . '/../includes/ledger_reporting.php';
 require_once __DIR__ . '/../includes/tenant_customer_contacts.php';
+require_once __DIR__ . '/../includes/economy_transaction_details.php';
 
 header('Content-Type: application/json');
 
@@ -50,6 +51,14 @@ try {
     $paidSql = ledger_reporting_paid_sql();
     $incomeSql = ledger_reporting_income_sql();
     $expenseSql = ledger_reporting_expense_sql();
+    $fees = economy_payment_fees($db, (string)$company_id);
+    $feeSql = economy_fee_sql($db, $fees, $incomeSql);
+    try {
+        $moduleFilter = ledger_reporting_module_filter($_GET['modules'] ?? null);
+    } catch (InvalidArgumentException $e) {
+        http_response_code(400);
+        throw $e;
+    }
 
     switch ($view) {
         case 'overview':
@@ -86,20 +95,14 @@ try {
             $customerPhoneSql = tenantCustomerContactSql('tc', 'phone');
             $stmt = $db->prepare("
                 SELECT
-                    COALESCE(SUM(
-                        CASE
-                            WHEN LOWER(payment_method) = 'vipps'
-                            THEN ({$incomeSql}) - ? - (({$incomeSql}) * ? / 100)
-                            ELSE ({$incomeSql})
-                        END
-                    ), 0) as total_income,
+                    COALESCE(SUM(({$incomeSql}) - ({$feeSql})), 0) as total_income,
                     COUNT(*) as transaction_count
                 FROM unified_ledger
                 WHERE company_id = ?
                   AND {$paidSql}
                   AND ({$incomeSql}) > 0
             ");
-            $stmt->execute(array_merge([$vippsFixed, $vippsPct], $overviewParams));
+            $stmt->execute($overviewParams);
             $income = $stmt->fetch(PDO::FETCH_ASSOC);
 
             $stmt = $db->prepare("
@@ -113,12 +116,7 @@ try {
 
             $stmt = $db->prepare("
                 SELECT
-                    COALESCE(SUM(CASE WHEN ({$incomeSql}) > 0 THEN
-                        CASE WHEN LOWER(payment_method) = 'vipps'
-                            THEN ({$incomeSql}) - ? - (({$incomeSql}) * ? / 100)
-                            ELSE ({$incomeSql})
-                        END
-                    ELSE 0 END), 0) as month_income,
+                    COALESCE(SUM(({$incomeSql}) - ({$feeSql})), 0) as month_income,
                     COALESCE(SUM({$expenseSql}), 0) as month_expenses
                 FROM unified_ledger
                 WHERE company_id = ?
@@ -126,24 +124,19 @@ try {
                   AND YEAR(transaction_date) = YEAR(CURRENT_DATE)
                   AND MONTH(transaction_date) = MONTH(CURRENT_DATE)
             ");
-            $stmt->execute(array_merge([$vippsFixed, $vippsPct], $overviewParams));
+            $stmt->execute($overviewParams);
             $monthData = $stmt->fetch(PDO::FETCH_ASSOC);
 
             $stmt = $db->prepare("
                 SELECT
-                    COALESCE(SUM(CASE WHEN ({$incomeSql}) > 0 THEN
-                        CASE WHEN LOWER(payment_method) = 'vipps'
-                            THEN ({$incomeSql}) - ? - (({$incomeSql}) * ? / 100)
-                            ELSE ({$incomeSql})
-                        END
-                    ELSE 0 END), 0) as year_income,
+                    COALESCE(SUM(({$incomeSql}) - ({$feeSql})), 0) as year_income,
                     COALESCE(SUM({$expenseSql}), 0) as year_expenses
                 FROM unified_ledger
                 WHERE company_id = ?
                   AND {$paidSql}
                   AND YEAR(transaction_date) = YEAR(CURRENT_DATE)
             ");
-            $stmt->execute(array_merge([$vippsFixed, $vippsPct], $overviewParams));
+            $stmt->execute($overviewParams);
             $yearData = $stmt->fetch(PDO::FETCH_ASSOC);
 
             $stmt = $db->prepare("
@@ -187,6 +180,7 @@ try {
                 }
             }
             unset($transaction);
+            $recentTransactions = array_map(fn($row) => economy_transaction_details($row, $fees), $recentTransactions);
 
             $totalIncome = floatval($income['total_income']);
             $totalExp    = floatval($expenses['total_expenses']);
@@ -214,109 +208,46 @@ try {
             break;
 
         case 'income':
+        case 'expense':
             $dateFilter = '';
-            $params = [$company_id];
+            $params = array_merge([$company_id], $moduleFilter['params']);
+            $qualifiedModules = ledger_reporting_module_filter($_GET['modules'] ?? null, 'ul');
+            $qualifiedPaid = ledger_reporting_paid_sql('ul');
+            $qualifiedIncome = ledger_reporting_income_sql('ul');
+            $qualifiedExpense = ledger_reporting_expense_sql('ul');
+            $amountSql = $view === 'income' ? $qualifiedIncome : $qualifiedExpense;
+            $columns = economy_transaction_columns();
 
             if ($start_date && $end_date) {
-                $dateFilter = " AND transaction_date BETWEEN ? AND ?";
+                $dateFilter = " AND ul.transaction_date BETWEEN ? AND ?";
                 $params[] = $start_date;
                 $params[] = $end_date . ' 23:59:59';
             }
 
             $stmt = $db->prepare("
-                SELECT
-                    transaction_date,
-                    item_name,
-                    module_source as category,
-                    selling_price,
-                    payment_method
-                FROM unified_ledger
-                WHERE company_id = ?
-                  AND {$paidSql}
-                  AND ({$incomeSql}) > 0
+                SELECT {$columns}
+                FROM unified_ledger ul
+                LEFT JOIN tenant_customers tc ON tc.id=ul.customer_id AND tc.company_id=ul.company_id
+                WHERE ul.company_id = ?
+                  AND {$qualifiedModules['sql']}
+                  AND {$qualifiedPaid}
+                  AND ({$amountSql}) > 0
                   {$dateFilter}
-                ORDER BY transaction_date DESC
+                ORDER BY ul.transaction_date DESC, ul.id DESC
             ");
             $stmt->execute($params);
             $rawTransactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $netTotal = 0;
-            $transactions = [];
-            foreach ($rawTransactions as $t) {
-                $gross = floatval($t['selling_price']);
-                $isVipps = strtolower($t['payment_method'] ?? '') === 'vipps';
-                if ($isVipps && ($vippsFixed > 0 || $vippsPct > 0)) {
-                    $fee = $vippsFixed + ($gross * $vippsPct / 100);
-                    $net = $gross - $fee;
-                    $t['adjusted_amount']   = round($net, 2);
-                    $t['fee_amount']        = round($fee, 2);
-                    $t['gross_amount']      = $gross;
-                    $t['vipps_adjusted']    = true;
-                    $netTotal += $net;
-                } else {
-                    $t['adjusted_amount']   = $gross;
-                    $t['fee_amount']        = 0;
-                    $t['gross_amount']      = $gross;
-                    $t['vipps_adjusted']    = false;
-                    $netTotal += $gross;
-                }
-                $transactions[] = $t;
-            }
+            $transactions = array_map(fn($row) => economy_transaction_details($row, $fees), $rawTransactions);
+            $total = array_sum(array_column($transactions, $view === 'income' ? 'adjusted_amount' : 'expense_amount'));
 
             $response['data'] = [
                 'transactions'    => $transactions,
-                'total'           => round($netTotal, 2),
+                'total'           => round($total, 2),
+                'average'         => $transactions ? round($total / count($transactions), 2) : 0,
                 'count'           => count($transactions),
                 'vipps_fee_fixed'   => $vippsFixed,
                 'vipps_fee_percent' => $vippsPct,
-            ];
-            break;
-
-        case 'expense':
-            $dateFilter = '';
-            $params = [$company_id];
-
-            if ($start_date && $end_date) {
-                $dateFilter = " AND transaction_date BETWEEN ? AND ?";
-                $params[] = $start_date;
-                $params[] = $end_date . ' 23:59:59';
-            }
-
-            $stmt = $db->prepare("
-                SELECT
-                    transaction_date,
-                    item_name,
-                    module_source as category,
-                    ({$expenseSql}) as amount,
-                    payment_method
-                FROM unified_ledger
-                WHERE company_id = ?
-                  AND {$paidSql}
-                  AND ({$expenseSql}) > 0
-                  {$dateFilter}
-                ORDER BY transaction_date DESC
-            ");
-            $stmt->execute($params);
-            $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            $stmt = $db->prepare("
-                SELECT
-                    COALESCE(SUM({$expenseSql}), 0) as total,
-                    COALESCE(AVG({$expenseSql}), 0) as average
-                FROM unified_ledger
-                WHERE company_id = ?
-                  AND {$paidSql}
-                  AND ({$expenseSql}) > 0
-                  {$dateFilter}
-            ");
-            $stmt->execute($params);
-            $stats = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            $response['data'] = [
-                'transactions' => $transactions,
-                'total'        => floatval($stats['total']),
-                'average'      => floatval($stats['average']),
-                'count'        => count($transactions)
             ];
             break;
 

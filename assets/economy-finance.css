@@ -1,0 +1,553 @@
+/*
+ * Finance results, income and expense views.
+ * Intentionally scoped to these three tabs; gateways, pending payments and
+ * other Economy screens retain their existing presentation.
+ */
+#economy-results,
+#economy-income,
+#economy-expense {
+    --finance-ink: #193d43;
+    --finance-muted: #6b8281;
+    --finance-line: #dce8e3;
+    --finance-paper: #f5f8f4;
+    --finance-teal: #18776f;
+    --finance-teal-soft: #eaf4ef;
+    color: var(--finance-ink);
+}
+
+#economy-results > .card,
+#economy-income > .card,
+#economy-expense > .card {
+    border-color: var(--finance-line);
+    border-radius: 14px;
+    box-shadow: 0 10px 28px rgba(24, 60, 64, .045);
+}
+
+#economy-results > .card > .card-body,
+#economy-income > .card > .card-body,
+#economy-expense > .card > .card-body {
+    padding: clamp(.85rem, 2vw, 1.2rem);
+}
+
+#economy-results .economy-stat-card,
+#economy-income .economy-stat-card,
+#economy-expense .economy-stat-card {
+    min-height: 82px;
+    padding: .8rem .95rem;
+    border: 1px solid var(--finance-line);
+    border-radius: 11px;
+    background: var(--finance-paper);
+    color: var(--finance-ink);
+    box-shadow: 0 2px 6px rgba(24, 60, 64, .025);
+    transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+
+#economy-results .economy-stat-card:hover,
+#economy-income .economy-stat-card:hover,
+#economy-expense .economy-stat-card:hover {
+    transform: translateY(-1px);
+    border-color: #bfd7ce;
+    box-shadow: 0 5px 14px rgba(24, 60, 64, .07);
+}
+
+#economy-results .economy-stat-card small,
+#economy-income .economy-stat-card small,
+#economy-expense .economy-stat-card small {
+    display: block;
+    color: var(--finance-muted);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .015em;
+}
+
+#economy-results .economy-stat-card h4,
+#economy-income .economy-stat-card h4,
+#economy-expense .economy-stat-card h4 {
+    margin-top: .28rem;
+    color: var(--finance-ink);
+    font-size: clamp(1.1rem, 1.9vw, 1.42rem);
+    font-weight: 770;
+    letter-spacing: -.035em;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Existing Bootstrap contextual backgrounds become quiet semantic accents. */
+#economy-results .economy-stat-card.bg-success,
+#economy-income .economy-stat-card.bg-success {
+    border-color: #bfded0;
+    background: #edf7f0 !important;
+    color: var(--finance-ink) !important;
+}
+#economy-results .economy-stat-card.bg-danger,
+#economy-expense .economy-stat-card.bg-danger {
+    border-color: #ead4cf;
+    background: #fbf1ed !important;
+    color: var(--finance-ink) !important;
+}
+#economy-results .economy-stat-card.bg-primary {
+    border-color: #c7dce0;
+    background: #edf5f5 !important;
+    color: var(--finance-ink) !important;
+}
+#economy-results .economy-stat-card.bg-info {
+    border-color: #d4e2de;
+    background: #f0f6f2 !important;
+    color: var(--finance-ink) !important;
+}
+#economy-results .economy-stat-card.bg-light,
+#economy-income .economy-stat-card.bg-light,
+#economy-expense .economy-stat-card.bg-light {
+    background: #f7f9f6 !important;
+}
+
+#economy-results .card,
+#economy-income .card,
+#economy-expense .card {
+    border-color: var(--finance-line);
+    border-radius: 12px;
+}
+
+#economy-results .card-header,
+#economy-income .card-header,
+#economy-expense .card-header {
+    min-height: 46px;
+    padding: .65rem .85rem;
+    border-bottom-color: var(--finance-line);
+    border-radius: 12px 12px 0 0;
+    background: #f1f6f1;
+    color: #315b55;
+}
+
+#economy-results .card-header h6,
+#economy-income .card-header h6,
+#economy-expense .card-header h6 {
+    color: #315b55;
+    font-size: .82rem;
+    font-weight: 750;
+    letter-spacing: -.01em;
+}
+
+#economy-results .card > .card-body,
+#economy-income .card > .card-body,
+#economy-expense .card > .card-body {
+    padding: .9rem;
+}
+
+#economy-results .card-body.p-0,
+#economy-income .card-body.p-0,
+#economy-expense .card-body.p-0 {
+    padding: 0 !important;
+}
+
+#economy-results .table-responsive,
+#economy-income .table-responsive,
+#economy-expense .table-responsive {
+    border-radius: 0 0 11px 11px;
+}
+
+#economy-results .table,
+#economy-income .table,
+#economy-expense .table {
+    margin: 0;
+    color: #34514f;
+    font-size: .79rem;
+    vertical-align: middle;
+}
+
+#economy-results .table thead th,
+#economy-income .table thead th,
+#economy-expense .table thead th {
+    padding: .58rem .7rem;
+    border-bottom: 1px solid #dce8e3;
+    background: #f5f8f5;
+    color: #6b817d;
+    font-size: .67rem;
+    font-weight: 760;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+#economy-results .table tbody td,
+#economy-income .table tbody td,
+#economy-expense .table tbody td {
+    padding: .62rem .7rem;
+    border-color: #edf2ee;
+    line-height: 1.35;
+}
+
+#economy-results .transaction-row,
+#economy-income .transaction-row,
+#economy-expense .transaction-row {
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    transition: background-color .14s ease, border-color .14s ease;
+}
+
+#economy-results .transaction-row:hover,
+#economy-income .transaction-row:hover,
+#economy-expense .transaction-row:hover {
+    background: #f3f8f4;
+}
+
+#economy-results .transaction-row.income,
+#economy-income .transaction-row.income { border-left-color: #4c9a70; }
+#economy-results .transaction-row.expense,
+#economy-expense .transaction-row.expense { border-left-color: #c97867; }
+#economy-results .transaction-row.not-posted { border-left-color: #aebcb7; }
+
+#economy-results .transaction-row:focus-visible,
+#economy-income .transaction-row:focus-visible,
+#economy-expense .transaction-row:focus-visible {
+    outline: 3px solid rgba(24, 119, 111, .55);
+    outline-offset: -3px;
+}
+
+#economy-results #economy-module-filters,
+#economy-results .economy-module-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .3rem .65rem !important;
+}
+
+#economy-results #economy-module-filters label,
+#economy-results .economy-module-filters label {
+    display: inline-flex;
+    align-items: center;
+    gap: .36rem !important;
+    min-height: 28px;
+    margin: 0;
+    padding: .18rem .48rem;
+    border: 1px solid #dce8e2;
+    border-radius: 999px;
+    background: #fbfcfa;
+    color: #536e67;
+    font-size: .69rem;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+#economy-results #economy-module-filters .form-check-input,
+#economy-results .economy-module-filters .form-check-input {
+    width: .88rem;
+    height: .88rem;
+    margin: 0;
+    accent-color: var(--finance-teal);
+}
+
+#economy-income .card-header > .d-flex,
+#economy-expense .card-header > .d-flex,
+#economy-income .economy-date-filters,
+#economy-expense .economy-date-filters {
+    min-width: 0;
+}
+
+#economy-income .card-header input[type="date"],
+#economy-expense .card-header input[type="date"],
+#economy-income .economy-date-filters input,
+#economy-expense .economy-date-filters input {
+    width: 140px;
+    min-width: 0;
+    min-height: 32px;
+    padding: .27rem .45rem;
+    border-color: #d7e3dc;
+    border-radius: 7px;
+    background: #fff;
+    color: #34514f;
+    font-size: .75rem;
+}
+
+#economy-results .btn-outline-primary,
+#economy-income .btn-outline-primary,
+#economy-expense .btn-outline-primary {
+    --bs-btn-color: #36736b;
+    --bs-btn-border-color: #c7dbd1;
+    --bs-btn-hover-color: #174e49;
+    --bs-btn-hover-bg: #eaf4ef;
+    --bs-btn-hover-border-color: #9ebfb0;
+    --bs-btn-active-color: #174e49;
+    --bs-btn-active-bg: #e3f0e8;
+    --bs-btn-active-border-color: #9ebfb0;
+}
+
+#economy-results :is(button, a, input, select):focus-visible,
+#economy-income :is(button, a, input, select):focus-visible,
+#economy-expense :is(button, a, input, select):focus-visible {
+    outline: 3px solid rgba(24, 119, 111, .35);
+    outline-offset: 2px;
+}
+
+/* Transaction detail modal is outside the tab containers, so scope by ID. */
+#economyTransactionModal {
+    --finance-ink: #193d43;
+    --finance-muted: #6b8281;
+    --finance-line: #dce8e3;
+    --finance-paper: #f5f8f4;
+    --finance-teal: #18776f;
+}
+
+#economyTransactionModal .modal-dialog {
+    max-width: min(660px, calc(100vw - 2rem));
+}
+
+#economyTransactionModal .modal-content {
+    overflow: hidden;
+    border: 1px solid #d7e5dd;
+    border-radius: 16px;
+    color: var(--finance-ink);
+    box-shadow: 0 24px 70px rgba(25, 57, 47, .2);
+}
+
+#economyTransactionModal .modal-header {
+    padding: .95rem 1.2rem;
+    border-bottom-color: var(--finance-line);
+    background: #eef5ef;
+}
+
+#economyTransactionModal .modal-body {
+    padding: 1rem 1.2rem;
+    background: #fafbf8;
+}
+
+#economyTransactionModal .economy-transaction-modal-body {
+    display: flex;
+    align-items: stretch;
+    gap: .75rem;
+}
+
+#economyTransactionModal .economy-transaction-modal-details {
+    min-width: 0;
+    max-height: 64vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
+#economyTransactionModal .economy-detail-top {
+    display: grid;
+    gap: .25rem;
+    padding: 1rem 1.05rem;
+    border: 1px solid #dce8e1;
+    border-radius: 12px;
+    background: linear-gradient(115deg, #fff 58%, #f0f6f0 100%);
+}
+
+#economyTransactionModal .economy-detail-top :is(.economy-detail-eyebrow, .module-badge, small) {
+    color: #6c847b;
+    font-size: .66rem;
+    font-weight: 750;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+}
+
+#economyTransactionModal .economy-detail-top h6 {
+    margin: 0;
+    color: #20484a;
+    font-size: 1rem;
+    font-weight: 760;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+#economyTransactionModal .economy-detail-amount {
+    margin-top: .55rem;
+    color: #246c56;
+    font-size: clamp(1.45rem, 4vw, 1.9rem);
+    font-weight: 790;
+    letter-spacing: -.045em;
+    line-height: 1.12;
+    font-variant-numeric: tabular-nums;
+}
+
+#economyTransactionModal .economy-detail-amount:has([class*="expense"]),
+#economyTransactionModal .economy-detail-amount.is-expense {
+    color: #a45148;
+}
+
+#economyTransactionModal .economy-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .55rem;
+    margin-top: .7rem;
+}
+
+#economyTransactionModal .economy-detail-grid > div,
+#economyTransactionModal .economy-detail-customer {
+    min-width: 0;
+    padding: .65rem .75rem;
+    border: 1px solid #e1eae3;
+    border-radius: 9px;
+    background: #fff;
+}
+
+#economyTransactionModal .economy-detail-grid dt,
+#economyTransactionModal .economy-detail-customer dt {
+    margin: 0 0 .2rem;
+    color: #71857e;
+    font-size: .65rem;
+    font-weight: 750;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+}
+
+#economyTransactionModal .economy-detail-grid dd,
+#economyTransactionModal .economy-detail-customer dd {
+    margin: 0;
+    color: #294d4a;
+    font-size: .8rem;
+    font-weight: 620;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+#economyTransactionModal .economy-detail-customer {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: baseline;
+    gap: .65rem;
+    margin-top: .55rem;
+}
+
+#economyTransactionModal .economy-detail-customer dt {
+    margin: 0;
+}
+
+#economyTransactionModal .economy-detail-result {
+    display: flex;
+    justify-content: space-between;
+    gap: .5rem;
+    margin-top: .55rem;
+    padding: .65rem .75rem;
+    border: 1px solid #d9e6df;
+    border-radius: 9px;
+    background: #f1f6f1;
+    color: #47665d;
+    font-size: .78rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+#economyTransactionModal .economy-detail-result :is(pre, code) {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: #43615a;
+    font-size: .76rem;
+}
+
+#economyTransactionModal .economy-transaction-nav {
+    align-self: center;
+    flex: 0 0 auto;
+    --bs-btn-padding-x: .5rem;
+    --bs-btn-padding-y: .4rem;
+    border-color: #d8e5dd;
+    background: #eef5ef;
+    color: #4d7067;
+}
+
+#economyTransactionModal .economy-transaction-nav:hover {
+    border-color: #a9c9b7;
+    background: #edf5ef;
+    color: #20564e;
+}
+
+#economyTransactionModal :is(button, a):focus-visible {
+    outline: 3px solid rgba(24, 119, 111, .45);
+    outline-offset: 2px;
+}
+
+@media (max-width: 767.98px) {
+    #economy-results .card-header,
+    #economy-income .card-header,
+    #economy-expense .card-header {
+        align-items: flex-start;
+    }
+
+    #economy-results #economy-module-filters,
+    #economy-results .economy-module-filters {
+        flex: 1 1 100%;
+    }
+
+    #economy-income .card-header > .d-flex,
+    #economy-expense .card-header > .d-flex,
+    #economy-income .economy-date-filters,
+    #economy-expense .economy-date-filters {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: .4rem !important;
+    }
+
+    #economy-income .card-header input[type="date"],
+    #economy-expense .card-header input[type="date"],
+    #economy-income .economy-date-filters input,
+    #economy-expense .economy-date-filters input {
+        flex: 1 1 130px;
+        width: auto;
+        max-width: 190px;
+    }
+
+    #economy-results .table,
+    #economy-income .table,
+    #economy-expense .table {
+        min-width: 610px;
+    }
+
+    #economyTransactionModal .modal-dialog {
+        max-width: calc(100vw - 1rem);
+        margin: .5rem;
+    }
+
+    #economyTransactionModal .modal-body {
+        padding: .8rem;
+    }
+
+    #economyTransactionModal .economy-transaction-modal-details {
+        max-height: 68vh;
+    }
+}
+
+@media (max-width: 480px) {
+    #economy-results > .card > .card-body,
+    #economy-income > .card > .card-body,
+    #economy-expense > .card > .card-body {
+        padding: .7rem;
+    }
+
+    #economy-results .economy-stat-card,
+    #economy-income .economy-stat-card,
+    #economy-expense .economy-stat-card {
+        min-height: 72px;
+        padding: .62rem .7rem;
+    }
+
+    #economyTransactionModal .economy-transaction-modal-body {
+        gap: .35rem;
+    }
+
+    #economyTransactionModal .economy-detail-grid {
+        grid-template-columns: 1fr;
+        gap: .4rem;
+    }
+
+    #economyTransactionModal .economy-detail-customer {
+        grid-template-columns: 1fr;
+        gap: .18rem;
+    }
+
+    #economyTransactionModal .economy-detail-top {
+        padding: .8rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #economy-results .economy-stat-card,
+    #economy-income .economy-stat-card,
+    #economy-expense .economy-stat-card,
+    #economy-results .transaction-row,
+    #economy-income .transaction-row,
+    #economy-expense .transaction-row {
+        transition: none;
+    }
+}

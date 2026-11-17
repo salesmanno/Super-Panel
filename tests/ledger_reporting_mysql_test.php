@@ -88,7 +88,7 @@ foreach (['../../x','ul; DROP TABLE x'] as $alias) {
 $app = $tmp.'/app';
 foreach (['api','config','includes'] as $dir) mkdir($app.'/'.$dir,0700,true);
 foreach (['get_economy_data.php','get_membership_income.php','get_membership_income_tracking.php','get_monthly_membership_payments.php','get_event_finances.php','get_event_transactions.php','get_events_results.php','image_upload.php'] as $api) copy($root.'/api/'.$api,$app.'/api/'.$api);
-foreach (['ImageUpload.php','ledger_reporting.php','event_results_helpers.php','event_results_data.php','entity_form_fields.php','tenant_customer_contacts.php'] as $file) symlink($root.'/includes/'.$file,$app.'/includes/'.$file);
+foreach (['ImageUpload.php','ledger_reporting.php','economy_transaction_details.php','event_results_helpers.php','event_results_data.php','entity_form_fields.php','tenant_customer_contacts.php'] as $file) symlink($root.'/includes/'.$file,$app.'/includes/'.$file);
 file_put_contents($app.'/config/database.php', '<?php function getDBConnection(){return new PDO('.var_export('mysql:unix_socket='.$socket.';dbname=fixture',true).',"root","",[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);}');
 // Login fixture exists only in the temporary isolated server, never the app.
 file_put_contents($app.'/session.php', '<?php session_start(); $_SESSION=[]; if(($_GET["mode"]??"")!=="anonymous"){$_SESSION=["tenant_admin_id"=>($_GET["mode"]??"")==="disabled"?"disabled":"admin-a","company_id"=>"company-a"];} echo "ok";');
@@ -152,6 +152,31 @@ try {
         ledgerCheck(count(array_unique($seen))===$count,'no missing/duplicate entries across pages');
     }
     ledgerCheck(requestFixture('/api/get_economy_data.php?payment_filter=invalid')['code']===400,'invalid filter rejected');
+    foreach (['income','expense'] as $view) {
+        $empty=apiFixture('/api/get_economy_data.php?view='.$view.'&modules=')['data'];
+        ledgerCheck((float)$empty['total']===0.0 && count($empty['transactions'])===0,'empty source selection in '.$view);
+        $events=apiFixture('/api/get_economy_data.php?view='.$view.'&modules=events')['data'];
+        ledgerCheck((float)$events['total']===($view==='income'?100.0:25.0),'source-filtered financial totals in '.$view);
+        foreach($events['transactions'] as $row) {
+            ledgerCheck($row['module_source']==='events' && $row['customer_id']==='customer-a'
+                && !empty($row['customer_name']) && !empty($row['customer_email']),'shared detail fields in '.$view);
+        }
+    }
+    // Change only the disposable fixture to verify fees across methods and views.
+    $db->exec("UPDATE economy_configuration_data SET fee_fixed=2,fee_percent=1 WHERE gateway_type='vipps';
+        INSERT INTO economy_configuration_data VALUES('company-a','stripe',1,2);
+        UPDATE unified_ledger SET payment_method='vipps' WHERE id='s1';
+        UPDATE unified_ledger SET payment_method='stripe' WHERE id='s2'");
+    $feeOverview=apiFixture('/api/get_economy_data.php?per_page=100')['data'];
+    $feeRows=array_column($feeOverview['transactions'],null,'ledger_id');
+    ledgerCheck((float)$feeOverview['total_income']===554.2
+        && (float)$feeRows['s1']['fee_amount']===3.2 && (float)$feeRows['s1']['result_amount']===116.8
+        && (float)$feeRows['s2']['fee_amount']===2.6,'overview includes Vipps and other configured payment fees');
+    $feeIncome=apiFixture('/api/get_economy_data.php?view=income')['data'];
+    ledgerCheck((float)$feeIncome['total']===554.2,'income and results agree after fees');
+    $db->exec("UPDATE economy_configuration_data SET fee_fixed=0,fee_percent=0 WHERE gateway_type='vipps';
+        DELETE FROM economy_configuration_data WHERE gateway_type='stripe';
+        UPDATE unified_ledger SET payment_method='cash' WHERE id IN ('s1','s2')");
     $membership = apiFixture('/api/get_membership_income.php');
     ledgerCheck((float)$membership['stats']['total_income']===80.0 && (int)$membership['stats']['total_transactions']===2,'membership no pending, inactive or quantity multiplication');
     ledgerCheck(count($membership['transactions'])===2 && (float)$membership['income_by_plan'][0]['plan_income']===60.0,'membership list and plan settled');

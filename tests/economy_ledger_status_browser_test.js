@@ -33,6 +33,7 @@ const makeRow = (id, name, {status='completed', ledger='active', paid=true, sell
     payment_status: status, ledger_status: ledger, counts_as_paid: paid,
     income_amount: income, expense_amount: expense, selling_price: selling,
     cost_price: cost, profit, transaction_date: '2025-02-03 12:15:00',
+    customer_id:'customer-123',customer_name:'Ola Nordmann',customer_email:'ola@example.test',customer_phone:'99999999',
     metadata: {}
 });
 const dataset = (filter, page) => {
@@ -76,13 +77,20 @@ window.fetch = (input, options={}) => {
         return jsonResponse({success:true});
     }
     if (url.pathname==='/api/get_bank_accounts.php') return jsonResponse({success:true,accounts:window.__invoiceActive?window.__invoiceAccounts.filter(x=>x.is_active===1):[]});
-    if(url.searchParams.get('payment_filter')!=='all') throw new Error('All payment history must be requested');
+    if(url.searchParams.get('view')==='overview' && url.searchParams.get('payment_filter') && url.searchParams.get('payment_filter')!=='all') throw new Error('All payment history must be requested');
     const modules = url.searchParams.get('modules').split(',').filter(Boolean);
     const filter = modules.length===5 ? 'all' : modules.includes('sales') ? 'completed' : modules.length ? 'attempts' : 'none';
     const page = Number(url.searchParams.get('page') || 1);
     window.__economyRequests.push({filter,page,url:url.href});
     if (window.__economyFailFilter === filter) return Promise.reject(new Error('simulated fetch failure'));
     const data=dataset(filter,page);
+    if(['income','expense'].includes(url.searchParams.get('view'))) {
+        const expense=url.searchParams.get('view')==='expense';
+        const rows=filter==='none'?[]:[{...makeRow(700,expense?'Utgift fra liste':'Kjøp fra liste'),module_source:expense?'rental':'events',
+            selling_price:expense?-25:40,income_amount:expense?0:40,expense_amount:expense?25:0,
+            fee_amount:expense?0:2.5,payment_method:expense?'cash':'vipps'}];
+        Object.assign(data.data,{transactions:rows,total:rows.length?(expense?25:37.5):0,count:rows.length});
+    }
     if(filter==='none') Object.assign(data.data,{transactions:[],recent_transactions:[],total:0,total_pages:1,total_income:0,total_expenses:0,total_profit:0,transaction_count:0});
     const response = {ok:true,json: async () => data};
     if (filter === 'attempts' && window.__economyDelayAttempts) {
@@ -108,7 +116,9 @@ const fixtureCss = `
 .text-end{text-align:right}.btn{padding:4px 8px}.badge{padding:3px 6px}.economy-transaction-modal-details{max-width:100%}
 @media(max-width:575px){body{padding:6px}.card-header{align-items:flex-start}.card-header select{max-width:calc(100vw - 72px)!important}}
 </style>`;
-const moduleHtml = rendered.stdout.replace('<script>', `<script>${bootstrapAndFetchMock}</script><script>`);
+const moduleHtml = rendered.stdout
+    .replace(/<link[^>]+economy-finance\.css[^>]*>/, '<style>'+fs.readFileSync(path.join(projectRoot,'assets/economy-finance.css'),'utf8')+'</style>')
+    .replace('<script>', `<script>${bootstrapAndFetchMock}</script><script>`);
 fs.writeFileSync(fixturePath, `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">${fixtureCss}</head><body>${moduleHtml}</body></html>`);
 
 const checks = `(async () => {
@@ -132,7 +142,10 @@ const checks = `(async () => {
     if (!expenseCell || !expenseCell.textContent.includes('25') || expenseCell.textContent.includes('+')) throw new Error('Positive expense amount was not rendered as a 25 expense');
     openEconomyTransaction(0);
     if (!document.getElementById('economyTransactionDetails').innerText.includes('Resultat')) throw new Error('Posted expense details missing profit field');
-    if (!document.getElementById('economyTransactionDetails').innerText.includes('Ledger-status')) throw new Error('Raw ledger status missing from details');
+    if (/Ledger-status|Transaksjons-ID|Ordre-ID|Metadata/.test(document.getElementById('economyTransactionDetails').innerText)) throw new Error('Internal bookkeeping details must not be displayed');
+    const expenseResult=document.querySelector('.economy-detail-result').textContent;
+    if(!expenseResult.includes('−25')) throw new Error('Expense must have negative result');
+    if(!document.getElementById('economyTransactionDetails').textContent.includes('ola@example.test')) throw new Error('Customer details missing');
     await loadEconomyOverview(1);
     openEconomyTransaction(9);
     await moveEconomyTransaction(1);
@@ -152,7 +165,7 @@ const checks = `(async () => {
     if (!refundedRow?.textContent.includes('Refundert') || refundedRow.textContent.includes('Gjennomført') || !refundedRow.textContent.includes('Historisk beløp · ikke medregnet')) throw new Error('Refunded ledger row misrepresents its payment status or amount');
     openEconomyTransaction(1);
     details = document.getElementById('economyTransactionDetails').innerText;
-    if (!details.includes('Historisk oppføring') || !details.includes('Ledger-status') || !details.includes('refunded') || details.includes('Resultat')) throw new Error('Refunded details include posted profit or omit ledger exclusion');
+    if (!details.includes('Historisk oppføring') || details.includes('Ledger-status') || details.includes('Resultat')) throw new Error('Refunded details include posted profit or raw ledger status');
     const cancelledRow = [...document.querySelectorAll('#recent-transactions tr.transaction-row')].find(row => row.textContent.includes('Historisk avbrutt'));
     if (!cancelledRow?.textContent.includes('Avbrutt') || cancelledRow.textContent.includes('Gjennomført')) throw new Error('Cancelled ledger status not preferred over payment status');
 
@@ -180,6 +193,23 @@ const checks = `(async () => {
     await waitFor(()=>document.querySelector('#recent-transactions tr.transaction-row')?.textContent.includes('Alle filter aktiv'));
     const filterBox = box.getBoundingClientRect();
     if (filterBox.right > window.innerWidth + 1 || filterBox.left < 0) throw new Error('Payment selector clipped at viewport width '+window.innerWidth);
+    for(const context of ['income','expense']) {
+        const filterRoot=document.getElementById(context+'-module-filters');
+        if(filterRoot.querySelectorAll('input:checked').length!==5) throw new Error('All sources must be on in '+context);
+        await loadEconomyFinancialList(context);
+        const row=document.querySelector('#'+context+'-transactions .transaction-row');
+        if(!row || row.tabIndex!==0) throw new Error('Clickable accessible financial row missing');
+        row.click();
+        let text=document.getElementById('economyTransactionDetails').textContent;
+        if(!text.includes('customer-123') || !text.includes('99999999') || !text.includes('Ola Nordmann')) throw new Error('Customer fields missing in '+context);
+        if(/Transaksjons-ID|Ledger-status|Metadata|Kilde-ID/.test(text)) throw new Error('Raw details leaked in '+context);
+        if(context==='income' && (!text.includes('+37,50') || !text.includes('Betalingsgebyr') || !text.includes('Arrangementer'))) throw new Error('Income fee/net/module wrong');
+        if(context==='expense' && !text.includes('−25,00')) throw new Error('Expense sign wrong');
+        [...filterRoot.querySelectorAll('input')].forEach(input=>input.checked=false);
+        filterRoot.querySelector('input').dispatchEvent(new Event('change',{bubbles:true}));
+        await waitFor(()=>document.getElementById(context+'-transactions').textContent.includes('Ingen transaksjoner'));
+        if(!document.getElementById(context+'-total').textContent.includes('0,00')) throw new Error('Empty financial selection totals not zero');
+    }
     await loadPaymentGateways();
     if (!document.getElementById('invoice-bank-setup-null').hidden) throw new Error('Inactive invoice setup should start collapsed');
     openInvoiceGatewaySetup('null');
