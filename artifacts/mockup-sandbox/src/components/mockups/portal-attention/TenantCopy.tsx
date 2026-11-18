@@ -106,6 +106,11 @@ export function TenantCopy() {
   const [interactionMode, setInteractionMode] = useState("read");
   const [readerTitle, setReaderTitle] = useState("");
   const [news, setNews] = useState(initialNews);
+  const [createdOffers, setCreatedOffers] = useState<Array<{id: string; title: string; module: ModuleName; price: string}>>([]);
+  const [newOfferOpen, setNewOfferOpen] = useState(false);
+  const [newOfferTitle, setNewOfferTitle] = useState("");
+  const [newOfferModule, setNewOfferModule] = useState<ModuleName>("Medlemskap");
+  const [newOfferPrice, setNewOfferPrice] = useState("");
   const [selectedNewsId, setSelectedNewsId] = useState("julebord");
   const [enabledModules, setEnabledModules] = useState<ModuleName[]>(initialModules);
   const [selectedService, setSelectedService] = useState<ServiceId>("membership");
@@ -237,6 +242,39 @@ export function TenantCopy() {
     setSelectedNewsId(id);
     setFeedback("Ny sak er lagt til i forhåndsvisningen.");
   };
+  const startNewNews = () => {
+    setControlOpen(true);
+    setInteractionMode("content");
+    setEditingPage("home");
+    setReaderTitle("");
+    addNews();
+  };
+  const startNewOffer = () => {
+    const availableModules = enabledModules.filter(module => module !== "Økonomi");
+    if (availableModules.length === 0) {
+      setFeedback("Aktiver en relevant modul før du oppretter et nytt tjenestetilbud.");
+      return;
+    }
+    setControlOpen(true);
+    setInteractionMode("content");
+    setNewOfferModule(availableModules.some(module => module === newOfferModule) ? newOfferModule : availableModules[0]);
+    setNewOfferTitle("");
+    setNewOfferPrice("");
+    setNewOfferOpen(true);
+  };
+  const createOffer = () => {
+    if (!newOfferTitle.trim()) {
+      setFeedback("Skriv inn et navn på tjenesten først.");
+      return;
+    }
+    if (!enabledModules.includes(newOfferModule) || newOfferModule === "Økonomi") {
+      setFeedback("Velg en modul du har tilgang til.");
+      return;
+    }
+    setCreatedOffers(current => [{id: `offer-${Date.now()}`, title: newOfferTitle.trim(), module: newOfferModule, price: newOfferPrice.trim()}, ...current]);
+    setNewOfferOpen(false);
+    setFeedback("Tjenestetilbudet er lagt til i den lokale forhåndsvisningen.");
+  };
   const handleLocalImage = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !activeNews) return;
@@ -355,7 +393,7 @@ export function TenantCopy() {
                 <div>
                   <span className="tc-kicker">BERGSØY DANSEKLUBB</span>
                   <h1>Tjenester</h1>
-                  <p>{activeServices.length} tilbud fra Bergsøy Danseklubb.</p>
+                  <p>{activeServices.length + createdOffers.length} tilbud fra Bergsøy Danseklubb.</p>
                 </div>
                 {enabledModules.includes("Arrangementer") && <button type="button" className="tc-latest-event" aria-label="Rediger siste arrangement" onClick={() => editService("event-dance")}>
                   <span className="tc-edit-marker">Rediger arrangement</span>
@@ -409,6 +447,15 @@ export function TenantCopy() {
                     </button>
                   </section>
                 )}
+                {createdOffers.length > 0 && <section className="tc-service-group tc-created-offers">
+                  <header><div><h2>Nye tilbud</h2><p>Opprettet lokalt i forhåndsvisningen.</p></div><span>{createdOffers.length} tilbud</span></header>
+                  <div className="tc-event-service-grid">
+                    {createdOffers.map(offer => <button type="button" className="tc-public-service tc-event-service" key={offer.id} onClick={() => setReaderTitle(offer.title)}>
+                      <span className="tc-service-image"><img src={offer.module === "Medlemskap" ? serviceMeta.membership.image : offer.module === "Utleie" ? serviceMeta.rental.image : serviceMeta["event-dance"].image} alt="" /></span>
+                      <span className="tc-service-copy"><strong>{offer.title}</strong><small>{offer.module}</small>{offer.price && <span className="tc-price-line"><b>{offer.price}</b></span>}<span className="tc-blue-cta">Se tilbudet</span></span>
+                    </button>)}
+                  </div>
+                </section>}
                 {!activeServices.length && <div className="tc-no-services"><strong>Ingen tjenester vises ennå.</strong><span>Aktiver en modul i administrasjonspanelet for å fylle siden.</span><button type="button" onClick={() => openControlPanel("services")}>Administrer moduler <Arrow /></button></div>}
               </div>
             </div>
@@ -445,11 +492,26 @@ export function TenantCopy() {
         </footer>
       </section>
 
+      {newOfferOpen && <aside className="tc-reader-preview tc-new-service-panel" aria-label="Opprett ny tjeneste">
+        <button type="button" onClick={() => setNewOfferOpen(false)}>Lukk ×</button>
+        <span className="tc-kicker">TJENESTER · LOKAL MOCKUP</span>
+        <h2>Opprett ny tjeneste</h2>
+        <p>Velg en modul du har tilgang til. Tjenesten legges inn i kundesidens forhåndsvisning.</p>
+        <label>Modul<select value={newOfferModule} onChange={event => setNewOfferModule(event.target.value as ModuleName)}>{enabledModules.filter(module => module !== "Økonomi").map(module => <option key={module} value={module}>{module}</option>)}</select></label>
+        <label>Navn<input autoComplete="off" value={newOfferTitle} onChange={event => setNewOfferTitle(event.target.value)} placeholder="For eksempel Sommerdans" /></label>
+        <label>Pris (valgfritt)<input autoComplete="off" value={newOfferPrice} onChange={event => setNewOfferPrice(event.target.value)} placeholder="For eksempel 250 kr" /></label>
+        <button type="button" className="tc-primary-button" onClick={createOffer}>Legg til på Tjenester</button>
+        <small className="tc-local-note">Eksempeldata · ingenting lagres i portalen.</small>
+      </aside>}
       {readerTitle && <aside className="tc-reader-preview" aria-label="Kundevisning"><button type="button" onClick={() => setReaderTitle("")}>Lukk ×</button><h2>{page === "home" ? activeNews?.title : readerTitle}</h2><p>{page === "home" ? activeNews?.summary : "Kundens detaljvisning · lokal demonstrasjon, ingen bestilling eller betaling utføres."}</p></aside>}
       <section className={`tc-control-room ${controlOpen ? "is-open" : ""}`} aria-label="Arbeidsmodus for forhåndsvisningen" aria-hidden={!controlOpen} inert={!controlOpen}>
         <header className="tc-control-hero">
           <div className="tc-control-inner">
-            <div className="tc-admin-eyebrow"><span className="tc-live-dot" /> KONTROLLROM <span>·</span> BERGSØY DANSEKLUBB <button type="button" className="tc-control-close" onClick={() => setControlOpen(false)} aria-label="Lukk kontrollrom">×</button></div>
+            <div className="tc-admin-eyebrow"><span className="tc-live-dot" /> KONTROLLROM <span>·</span> BERGSØY DANSEKLUBB
+              {page === "home" && <button type="button" className="tc-header-create" onClick={startNewNews}>＋ Opprett ny sak</button>}
+              {page === "services" && <button type="button" className="tc-header-create" onClick={startNewOffer}>＋ Opprett ny tjeneste</button>}
+              <button type="button" className="tc-control-close" onClick={() => setControlOpen(false)} aria-label="Lukk kontrollrom">×</button>
+            </div>
             <div className="tc-greeting-row">
               <div>
                 <h2>Hei, Atle.</h2>

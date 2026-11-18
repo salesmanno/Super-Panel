@@ -594,6 +594,24 @@
 }
 .tc-control-inner { width: min(100%, 1144px); margin: 0 auto; }
 .tc-admin-eyebrow { display: flex; align-items: center; gap: 8px; color: rgba(244,248,255,.74); font-family: "DM Sans", "Segoe UI", sans-serif; font-size: 9px; font-weight: 850; letter-spacing: .16em; }
+.tc-header-create {
+  min-height: 31px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  margin-left: auto;
+  border: 1px solid rgba(235, 245, 255, .34);
+  border-radius: 999px;
+  color: #183d70;
+  background: #f4f8fc;
+  box-shadow: 0 2px 8px rgba(9, 24, 45, .15);
+  font-family: "DM Sans", "Segoe UI", sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.tc-header-create:hover { background: #fff; transform: translateY(-1px); }
 .tc-live-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #79d8a3; box-shadow: 0 0 0 4px rgba(121,216,163,.14); }
 .tc-control-close { width: 30px; height: 30px; display: grid; place-items: center; padding: 0; margin-left: auto; border: 1px solid rgba(238,247,255,.25); border-radius: 50%; color: #fff; background: rgba(255,255,255,.1); font-size: 22px; line-height: 1; }
 .tc-control-close:hover { background: rgba(255,255,255,.2); }
@@ -955,6 +973,18 @@
   background: #f6f9fc;
   box-shadow: 0 8px 28px #18365333;
 }
+.tc-new-service-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-height: min(62dvh, 520px);
+}
+.tc-new-service-panel h2 { margin: 0; color: #203b5a; font-size: 22px; }
+.tc-new-service-panel p { margin: 0; color: #657a8e; font-size: 12px; line-height: 1.45; }
+.tc-new-service-panel label { display: flex; flex-direction: column; gap: 4px; color: #526a80; font-size: 10px; font-weight: 750; }
+.tc-new-service-panel input,
+.tc-new-service-panel select { min-height: 38px; padding: 7px 9px; border: 1px solid #c5d4e1; border-radius: 6px; background: #fff; color: #263d53; }
+.tc-new-service-panel .tc-primary-button { align-self: flex-start; min-height: 38px; padding: 0 15px; }
 .tc-floating-inspector .tc-workspace-top { padding: 6px 0; }
 .tc-floating-inspector .tc-workspace-top h2 { font-size: 18px; }
 .tc-floating-inspector .tc-editor-panel { min-height: 0; padding: 10px; }
