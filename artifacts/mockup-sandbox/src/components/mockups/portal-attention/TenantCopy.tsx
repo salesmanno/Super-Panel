@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 import "./tenantCopy.css";
 
 type SitePage = "home" | "services" | "about";
@@ -101,6 +101,10 @@ function Arrow({ direction = "right" }: { direction?: "left" | "right" | "up" | 
 
 export function TenantCopy() {
   const [page, setPage] = useState<SitePage>("home");
+  const [controlOpen, setControlOpen] = useState(false);
+  const [editingPage, setEditingPage] = useState<SitePage | null>(null);
+  const [interactionMode, setInteractionMode] = useState("read");
+  const [readerTitle, setReaderTitle] = useState("");
   const [news, setNews] = useState(initialNews);
   const [selectedNewsId, setSelectedNewsId] = useState("julebord");
   const [enabledModules, setEnabledModules] = useState<ModuleName[]>(initialModules);
@@ -143,7 +147,6 @@ export function TenantCopy() {
     footerText: "© 2026 Bergsøy Danseklubb",
     footerLinks: "Om oss · Kontakt",
   });
-  const workspaceRef = useRef<HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const activeNews = news.find((item) => item.id === selectedNewsId) ?? news[0];
@@ -172,7 +175,35 @@ export function TenantCopy() {
   const updateTheme = (key: keyof typeof theme, value: string | number) => {
     setTheme((current) => ({ ...current, [key]: value }));
   };
-  const scrollToWorkspace = () => workspaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const openControlPanel = (editTarget: SitePage = page) => {
+    if (interactionMode === "read") {
+      setReaderTitle(editTarget === "home" ? (news.find(item => item.id === selectedNewsId)?.title || "Nyhet") : editTarget === "services" ? serviceMeta[selectedService].title : "Om oss");
+      return;
+    }
+    if (editTarget === "home" && interactionMode !== "content") {
+      setFeedback("Denne modusen brukes på tjenestekort. Velg Rediger innhold for nyheter.");
+      return;
+    }
+    setEditingPage(editTarget);
+    setFieldEditorOpen(interactionMode === "fields");
+  };
+  const chooseMode = (mode: string) => {
+    setInteractionMode(mode);
+    setEditingPage(null);
+    setReaderTitle("");
+  };
+  useEffect(() => {
+    const revealOnScroll = () => { if (window.scrollY > 80) setControlOpen(true); };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setEditingPage(null); setReaderTitle(""); setControlOpen(false); }
+    };
+    window.addEventListener("scroll", revealOnScroll, { passive: true });
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("scroll", revealOnScroll);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
   const selectPage = (nextPage: SitePage) => {
     setPage(nextPage);
     setFeedback("");
@@ -249,20 +280,23 @@ export function TenantCopy() {
   };
   const editService = (id: ServiceId) => {
     setSelectedService(id);
-    setPage("services");
-    window.setTimeout(scrollToWorkspace, 40);
+    if (interactionMode === "read") {
+      setReaderTitle(serviceMeta[id].title);
+      return;
+    }
+    openControlPanel("services");
   };
   const toggleField = (field: string) => {
     setCheckedFields((current) => current.includes(field) ? current.filter((item) => item !== field) : [...current, field]);
   };
 
   const currentService = serviceMeta[selectedService];
-  const currentPageLabel = page === "home" ? "Hjem" : page === "services" ? "Tjenester" : "Om oss";
-  const currentPageEditLabel = page === "home" ? "Rediger nyheter" : page === "services" ? enabledModules.length ? "Rediger tjenestetilbud" : "Administrer moduler" : "Rediger sideinnhold";
-
   return (
     <main className="tc-shell">
-      <section className="tc-public-site" style={siteStyle} aria-label="Forhåndsvisning av tenant-copy">
+      <button type="button" className={`tc-admin-launcher ${controlOpen ? "is-hidden" : ""}`} onClick={() => setControlOpen(true)} aria-label="Åpne administrasjonsvalg">
+        <span className="tc-launcher-avatar">AK</span><span><strong>Atle Karl</strong><small>Administrer side</small></span><Arrow direction="down" />
+      </button>
+      <section className={`tc-public-site ${interactionMode !== "read" ? "tc-is-editing" : ""}`} style={siteStyle} aria-label="Forhåndsvisning av tenant-copy">
         <header className="tc-site-header">
           <div className={`tc-brand-position tc-logo-${theme.logoPosition} tc-name-${theme.namePosition} tc-layout-${theme.headerLayout}`}>
             <img className="tc-company-logo" src={companyLogo} alt={`${companyName}-logo`} />
@@ -278,11 +312,6 @@ export function TenantCopy() {
           </div>
         </nav>
 
-        <div className="tc-preview-contextbar">
-          <span><i /> ADMINVISNING <b>/</b> {currentPageLabel}{page === "services" && <small>{enabledModules.length} moduler med tilgang</small>}</span>
-          <button type="button" onClick={scrollToWorkspace}>{currentPageEditLabel}<Arrow /></button>
-        </div>
-
         <div className="tc-site-content">
           {page === "home" && (
             <div className="tc-home-page">
@@ -293,14 +322,14 @@ export function TenantCopy() {
                     <span className="tc-kicker">NYTT FRA BERGSØY</span>
                     <h1>{heroNews.title}</h1>
                     <p>{heroNews.summary}</p>
-                    <button type="button" className="tc-text-link" aria-label={`Rediger nyhetssaken ${heroNews.title}`} onClick={() => { setSelectedNewsId(heroNews.id); scrollToWorkspace(); }}>
+                    <button type="button" className="tc-text-link" aria-label={`Rediger nyhetssaken ${heroNews.title}`} onClick={() => { setSelectedNewsId(heroNews.id); openControlPanel("home"); }}>
                       Rediger saken <Arrow />
                     </button>
                   </div>
-                  {heroNews.image && <button type="button" className="tc-hero-image-button" onClick={() => { setSelectedNewsId(heroNews.id); scrollToWorkspace(); }} aria-label={`Rediger bildet for ${heroNews.title}`}><img src={heroNews.image} alt="" /><span className="tc-image-edit-hint">Rediger bilde</span></button>}
+                  {heroNews.image && <button type="button" className="tc-hero-image-button" onClick={() => { setSelectedNewsId(heroNews.id); openControlPanel("home"); }} aria-label={`Rediger bildet for ${heroNews.title}`}><img src={heroNews.image} alt="" /><span className="tc-image-edit-hint">Rediger bilde</span></button>}
                 </section>
               ) : (
-                <div className="tc-home-empty"><strong>Ingen saker på Hjem akkurat nå.</strong><span>Legg til eller vis en sak i kontrollrommet nedenfor.</span><button type="button" onClick={scrollToWorkspace}>Gå til nyhetsadministrasjon <Arrow /></button></div>
+                <div className="tc-home-empty"><strong>Ingen saker på Hjem akkurat nå.</strong><span>Legg til eller vis en sak i administrasjonspanelet.</span><button type="button" onClick={() => openControlPanel("home")}>Åpne nyhetsadministrasjon <Arrow /></button></div>
               )}
               {theme.homepageModule !== "news" && <section className="tc-home-module-preview">
                 <span className="tc-kicker">{theme.homepageModule === "services" ? "UTVALGTE TJENESTER" : "KOMMENDE ARRANGEMENT"}</span>
@@ -309,7 +338,7 @@ export function TenantCopy() {
               </section>}
               <div className="tc-home-news-list">
                 {visibleNews.slice(heroNews && heroEnabled ? 1 : 0).map((item) => (
-                  <button type="button" className="tc-home-story" key={item.id} aria-label={`Rediger ${item.title}`} onClick={() => { setSelectedNewsId(item.id); scrollToWorkspace(); }}>
+                  <button type="button" className="tc-home-story" key={item.id} aria-label={`Rediger ${item.title}`} onClick={() => { setSelectedNewsId(item.id); openControlPanel("home"); }}>
                     {item.image ? <img src={item.image} alt="" /> : <div className="tc-story-placeholder">BD</div>}
                     <span>{item.title}</span>
                     <small>{item.date}</small>
@@ -380,7 +409,7 @@ export function TenantCopy() {
                     </button>
                   </section>
                 )}
-                {!activeServices.length && <div className="tc-no-services"><strong>Ingen tjenester vises ennå.</strong><span>Aktiver en modul i kontrollrommet for å fylle siden.</span><button type="button" onClick={scrollToWorkspace}>Administrer moduler <Arrow /></button></div>}
+                {!activeServices.length && <div className="tc-no-services"><strong>Ingen tjenester vises ennå.</strong><span>Aktiver en modul i administrasjonspanelet for å fylle siden.</span><button type="button" onClick={() => openControlPanel("services")}>Administrer moduler <Arrow /></button></div>}
               </div>
             </div>
           )}
@@ -392,7 +421,7 @@ export function TenantCopy() {
                 <h1>Om oss</h1>
                 <p>{aboutText}</p>
                 <span className="tc-edit-marker">Rediger Om oss</span>
-                <button type="button" className="tc-text-link" onClick={scrollToWorkspace}>Rediger sideinnhold <Arrow /></button>
+                <button type="button" className="tc-text-link" onClick={() => openControlPanel("about")}>Rediger sideinnhold <Arrow /></button>
               </section>
               <section className="tc-about-contact">
                 <div className="tc-contact-card"><span className="tc-contact-mark">KONTAKT</span><h2>Ta gjerne kontakt</h2><p>Vi svarer så snart vi kan.</p><a href={`tel:${theme.phone.replaceAll(" ", "")}`}>{theme.phone}</a><a href={`mailto:${theme.email}`}>{theme.email}</a></div>
@@ -416,10 +445,11 @@ export function TenantCopy() {
         </footer>
       </section>
 
-      <section className="tc-control-room" ref={workspaceRef} aria-label="Administrasjon av nettsiden">
+      {readerTitle && <aside className="tc-reader-preview" aria-label="Kundevisning"><button type="button" onClick={() => setReaderTitle("")}>Lukk ×</button><h2>{page === "home" ? activeNews?.title : readerTitle}</h2><p>{page === "home" ? activeNews?.summary : "Kundens detaljvisning · lokal demonstrasjon, ingen bestilling eller betaling utføres."}</p></aside>}
+      <section className={`tc-control-room ${controlOpen ? "is-open" : ""}`} aria-label="Arbeidsmodus for forhåndsvisningen" aria-hidden={!controlOpen} inert={!controlOpen}>
         <header className="tc-control-hero">
           <div className="tc-control-inner">
-            <div className="tc-admin-eyebrow"><span className="tc-live-dot" /> KONTROLLROM <span>·</span> BERGSØY DANSEKLUBB</div>
+            <div className="tc-admin-eyebrow"><span className="tc-live-dot" /> KONTROLLROM <span>·</span> BERGSØY DANSEKLUBB <button type="button" className="tc-control-close" onClick={() => setControlOpen(false)} aria-label="Lukk kontrollrom">×</button></div>
             <div className="tc-greeting-row">
               <div>
                 <h2>Hei, Atle.</h2>
@@ -431,22 +461,22 @@ export function TenantCopy() {
               <span>MODULTILGANG</span>
               <div>{enabledModules.length ? enabledModules.map((module) => <span className="tc-module-chip" key={module}>{module}</span>) : <span className="tc-no-module-chip">Ingen moduler valgt</span>}</div>
             </div>
+            <div className="tc-edit-mode-options" role="radiogroup" aria-label="Hva skal klikk på innhold gjøre?">
+              <span className="tc-edit-mode-title">VED KLIKK PÅ INNHOLD</span>
+              {[["read", "Les", "Som på kundesiden"], ["content", "Rediger innhold", "Nyheter og tjenester"], ...(enabledModules.includes("Medlemskap") ? [["benefits", "Medlemsfordeler", "Velg et tjenestekort"]] : []), ...(enabledModules.some(module => ["Arrangementer", "Utleie", "Salg"].includes(module)) ? [["fields", "Skjemafelt", "Velg en tjeneste"]] : [])].map(([mode, title, hint]) => <label key={mode} className={interactionMode === mode ? "checked" : ""}><input type="radio" name="interaction-mode" checked={interactionMode === mode} onChange={() => chooseMode(mode)} /><span><b>{title}</b><small>{hint}</small></span></label>)}
+            </div>
           </div>
         </header>
 
-        <div className="tc-workspace-wrap">
+      </section>
+        {editingPage && <aside className={`tc-workspace-wrap tc-floating-inspector tc-mode-${interactionMode}`} aria-label="Rediger valgt innhold">
+          <button type="button" className="tc-inspector-dismiss" onClick={() => setEditingPage(null)}>Lukk redigering ×</button>
           <div className="tc-workspace-top">
             <div><span className="tc-kicker">NETTSIDEADMINISTRASJON</span><h2>{page === "home" ? "Hjem" : page === "services" ? "Tjenester" : "Om oss"}</h2></div>
             <span className="tc-local-note">Lokal mockup · endringer lagres ikke</span>
           </div>
 
-          <div className="tc-admin-tabs" role="tablist" aria-label="Rediger sideinnhold">
-            <button type="button" role="tab" aria-selected={page === "home"} className={page === "home" ? "active" : ""} onClick={() => selectPage("home")}>Hjem <small>Nyheter</small></button>
-            <button type="button" role="tab" aria-selected={page === "services"} className={page === "services" ? "active" : ""} onClick={() => selectPage("services")}>Tjenester <small>Modulinnhold</small></button>
-            <button type="button" role="tab" aria-selected={page === "about"} className={page === "about" ? "active" : ""} onClick={() => selectPage("about")}>Om oss <small>Innstillinger</small></button>
-          </div>
-
-          {page === "home" && (
+          {editingPage === "home" && (
             <div className="tc-editor-panel tc-home-admin">
               <div className="tc-editor-heading">
                 <div><h3>Saker på Hjem</h3><p>Rekkefølgen her er rekkefølgen besøkende møter sakene.</p></div>
@@ -481,7 +511,7 @@ export function TenantCopy() {
             </div>
           )}
 
-          {page === "services" && (
+          {editingPage === "services" && (
             <div className="tc-editor-panel">
               <div className="tc-editor-heading">
                 <div><h3>Tjenester som kan vises</h3><p>Aktiverte moduler bestemmer hvilke tjenestekategorier som finnes på den offentlige siden.</p></div>
@@ -522,7 +552,7 @@ export function TenantCopy() {
             </div>
           )}
 
-          {page === "about" && (
+          {editingPage === "about" && (
             <div className="tc-editor-panel tc-about-editor">
               <div className="tc-editor-heading">
                 <div><h3>Om bedriften og nettstedet</h3><p>Innhold, uttrykk og kontaktpunkter samles her – ett sted.</p></div>
@@ -574,8 +604,7 @@ export function TenantCopy() {
               <p className="tc-feedback" role="status">{feedback}</p>
             </div>
           )}
-        </div>
-      </section>
+        </aside>}
     </main>
   );
 }
