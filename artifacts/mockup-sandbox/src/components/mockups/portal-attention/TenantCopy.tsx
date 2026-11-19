@@ -606,6 +606,14 @@ export function TenantCopy() {
       <button type="button" className={`tc-admin-launcher ${controlOpen ? "is-hidden" : ""}`} onClick={() => setControlOpen(true)} aria-label="Åpne administrasjonsvalg">
         <span className="tc-launcher-avatar">AK</span><span><strong>Atle Karl</strong><small>Administrer side</small></span><Arrow direction="down" />
       </button>
+      <div className="tc-mode-island" role="radiogroup" aria-label="Velg handling ved trykk på innhold">
+        {[["read", "Se på"], ["content", page === "about" ? "Innstillinger" : "Rediger"], ...(page === "services" && enabledModules.includes("Medlemskap") ? [["benefits", "Fordeler"]] : []), ...(page === "services" && enabledModules.some(module => ["Arrangementer", "Utleie", "Salg"].includes(module)) ? [["fields", "Skjemafelt"]] : [])].map(([mode, title]) => (
+          <label key={mode} className={interactionMode === mode ? "checked" : ""}>
+            <input type="radio" name="interaction-mode" checked={interactionMode === mode} onChange={() => chooseMode(mode)} />
+            <span>{title}</span>
+          </label>
+        ))}
+      </div>
       <section className={`tc-public-site ${interactionMode !== "read" ? "tc-is-editing" : ""}`} style={siteStyle} aria-label="Forhåndsvisning av tenant-copy">
         <header className="tc-site-header">
           <div className={`tc-brand-position tc-logo-${theme.logoPosition} tc-name-${theme.namePosition} tc-layout-${theme.headerLayout}`}>
@@ -992,10 +1000,6 @@ export function TenantCopy() {
             <div className="tc-module-access">
               <span>MODULTILGANG</span>
               <div>{enabledModules.length ? enabledModules.map((module) => <span className="tc-module-chip" key={module}>{module}</span>) : <span className="tc-no-module-chip">Ingen moduler valgt</span>}</div>
-            </div>
-            <div className="tc-edit-mode-options" role="radiogroup" aria-label="Arbeidsmodus for kundesideinnhold">
-              <span className="tc-edit-mode-title">VED KLIKK PÅ INNHOLD</span>
-              {[["read", "Se på", "Vis hovedinnhold"], ["content", page === "about" ? "Innstillinger" : "Rediger innhold", page === "about" ? "Bedrift, ansatte, e-post og webside" : "Nyheter og tjenester"], ...(page === "services" && enabledModules.includes("Medlemskap") ? [["benefits", "Medlemsfordeler", "Velg et tjenestekort"]] : []), ...(page === "services" && enabledModules.some(module => ["Arrangementer", "Utleie", "Salg"].includes(module)) ? [["fields", "Skjemafelt", "Velg en tjeneste"]] : [])].map(([mode, title, hint]) => <label key={mode} className={interactionMode === mode ? "checked" : ""}><input type="radio" name="interaction-mode" checked={interactionMode === mode} onChange={() => chooseMode(mode)} /><span><b>{title}</b><small>{hint}</small></span></label>)}
             </div>
           </div>
         </header>
