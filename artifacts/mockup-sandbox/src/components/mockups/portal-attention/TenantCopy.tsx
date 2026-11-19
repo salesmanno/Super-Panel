@@ -635,22 +635,18 @@ export function TenantCopy() {
             <div className="tc-home-page">
               {heroNews && heroEnabled ? (
                 <section className={`tc-home-hero ${heroNews.image ? "" : "no-image"}`}>
-                  <span className="tc-edit-marker">Rediger toppsak</span>
-                  <div className="tc-home-hero-copy">
+                  <button type="button" className="tc-home-hero-copy" aria-label={`Åpne ${heroNews.title}`} onClick={() => { setSelectedNewsId(heroNews.id); openControlPanel("home"); }}>
                     <span className="tc-kicker">NYTT FRA BERGSØY</span>
                     <h1>{heroNews.title}</h1>
                     <p>{heroNews.summary}</p>
-                    <button type="button" className="tc-text-link" aria-label={`Rediger nyhetssaken ${heroNews.title}`} onClick={() => { setSelectedNewsId(heroNews.id); openControlPanel("home"); }}>
-                      Rediger saken <Arrow />
-                    </button>
-                  </div>
+                  </button>
                   {heroNews.image && <div className="tc-hero-image-stack">
-                    <button type="button" className="tc-hero-image-button" onClick={() => { setSelectedNewsId(heroNews.id); openControlPanel("home"); }} aria-label={`Åpne bildet for ${heroNews.title}`}><img src={heroNews.image} alt="" /><span className="tc-image-edit-hint">Rediger bilde</span></button>
+                    <button type="button" className="tc-hero-image-button" onClick={() => { setSelectedNewsId(heroNews.id); openControlPanel("home"); }} aria-label={`Åpne ${heroNews.title}`}><img src={heroNews.image} alt="" /></button>
                     {canManageHomeCards && <button type="button" className={`tc-card-hide ${heroNews.visible ? "" : "is-hidden"}`} aria-label={`${heroNews.visible ? "Skjul" : "Vis"} ${heroNews.title}`} onClick={() => toggleNews(heroNews.id)}>{heroNews.visible ? "Skjul" : "Vis"}</button>}
                   </div>}
                 </section>
               ) : (
-                <div className="tc-home-empty"><strong>Ingen saker på Hjem akkurat nå.</strong><span>Legg til eller vis en sak i administrasjonspanelet.</span><button type="button" onClick={() => openControlPanel("home")}>Åpne nyhetsadministrasjon <Arrow /></button></div>
+                <div className="tc-home-empty"><strong>Ingen saker på Hjem akkurat nå.</strong><span>Legg til eller vis en sak med administrasjonsvalgene.</span></div>
               )}
               {theme.homepageModule !== "news" && <section className="tc-home-module-preview">
                 <span className="tc-kicker">{theme.homepageModule === "services" ? "UTVALGTE TJENESTER" : "KOMMENDE ARRANGEMENT"}</span>
@@ -667,7 +663,6 @@ export function TenantCopy() {
                     <button type="button" className="tc-home-story-copy" aria-label={`Åpne ${item.title}`} onClick={() => { setSelectedNewsId(item.id); openControlPanel("home"); }}>
                       <span>{item.title}</span>
                       <small>{item.date}</small>
-                      <em>{interactionMode === "content" ? "Rediger" : "Se saken"}</em>
                     </button>
                   </article>
                 ))}
@@ -685,7 +680,6 @@ export function TenantCopy() {
                 </div>
                 {(serviceEntries["event-dance"].active || !canAccessService("event-dance") || canManageServiceCards) && <div className={`tc-service-card-wrap tc-latest-wrap ${serviceEntries["event-dance"].active ? "" : "is-hidden"} ${canAccessService("event-dance") ? "" : "is-locked"}`}>
                   <button type="button" disabled={!canAccessService("event-dance")} className="tc-latest-event" aria-label="Åpne siste arrangement" onClick={() => editService("event-dance")}>
-                    <span className="tc-edit-marker">Rediger arrangement</span>
                     <img src={serviceEntries["event-dance"].image} alt="" />
                     <span><small>SISTE ARRANGEMENT</small><strong>{serviceEntries["event-dance"].title}</strong><span>man. 28. des. 2026 kl. 19:00</span><b>Se arrangementet <Arrow /></b></span>
                   </button>
@@ -700,7 +694,6 @@ export function TenantCopy() {
                       <button type="button" disabled={!canAccessService("membership")} className="tc-public-service tc-membership-card" aria-label="Åpne medlemskapstilbudet Bergsøy Medlem" onClick={() => editService("membership")}>
                         <span className="tc-service-image tc-member-logo"><img src={serviceEntries.membership.image} alt="" /></span>
                         <span className="tc-service-copy"><strong>{serviceEntries.membership.title}</strong><small>{serviceEntries.membership.description}</small><span className="tc-price-line">Pris <b>{serviceEntries.membership.price}</b></span><span className="tc-blue-cta">Sjekk medlemskap</span></span>
-                        <span className="tc-edit-marker">Rediger tilbud</span>
                       </button>
                       {canManageServiceCards && canAccessService("membership") && <button type="button" className={`tc-card-hide ${serviceEntries.membership.active ? "" : "is-hidden"}`} aria-label={`${serviceEntries.membership.active ? "Skjul" : "Vis"} ${serviceEntries.membership.title}`} onClick={() => toggleServiceVisibility("membership")}>{serviceEntries.membership.active ? "Skjul" : "Vis"}</button>}
                     </div>
@@ -713,7 +706,6 @@ export function TenantCopy() {
                       <button type="button" disabled={!canAccessService("rental")} className="tc-public-service" aria-label="Åpne utleietilbudet Høgtun Selskapslokale" onClick={() => editService("rental")}>
                         <span className="tc-service-image"><img src={serviceEntries.rental.image} alt="" /></span>
                         <span className="tc-service-copy"><strong>{serviceEntries.rental.title}</strong><small>{serviceEntries.rental.description}</small><span className="tc-service-address">Vågsgata 61, 6090 Fosnavåg</span><span className="tc-feature-chips"><small>60 sitteplasser</small><small>168 m²</small></span><span className="tc-blue-cta">{serviceEntries.rental.price}</span></span>
-                        <span className="tc-edit-marker">Rediger tilbud</span>
                       </button>
                       {canManageServiceCards && canAccessService("rental") && <button type="button" className={`tc-card-hide ${serviceEntries.rental.active ? "" : "is-hidden"}`} aria-label={`${serviceEntries.rental.active ? "Skjul" : "Vis"} ${serviceEntries.rental.title}`} onClick={() => toggleServiceVisibility("rental")}>{serviceEntries.rental.active ? "Skjul" : "Vis"}</button>}
                     </div>
@@ -730,7 +722,6 @@ export function TenantCopy() {
                           <button type="button" disabled={!canAccessService(id)} className="tc-public-service tc-event-service" aria-label={`Åpne arrangementet ${service.title}`} onClick={() => editService(id)}>
                             <span className="tc-service-image"><img src={service.image} alt="" /></span>
                             <span className="tc-service-copy"><strong>{service.title}</strong><small>{service.description}</small><span className="tc-service-meta"><i>DATO</i><b>{id === "event-dinner" ? "lør. 5. des. 2026 kl. 19:00" : "man. 28. des. 2026 kl. 19:00"}</b><i>STED</i><b>Høgtun, Vågsgata 61</b></span><span className="tc-service-bottom"><span><small>Ordinærpris</small><b>{service.price}</b></span><span className="tc-blue-cta">Reserver billett</span></span></span>
-                            <span className="tc-edit-marker">Rediger arrangement</span>
                           </button>
                           {canManageServiceCards && canAccessService(id) && <button type="button" className={`tc-card-hide ${service.active ? "" : "is-hidden"}`} aria-label={`${service.active ? "Skjul" : "Vis"} ${service.title}`} onClick={() => toggleServiceVisibility(id)}>{service.active ? "Skjul" : "Vis"}</button>}
                         </div>;
@@ -745,7 +736,6 @@ export function TenantCopy() {
                       <button type="button" disabled={!canAccessService("sales")} className="tc-public-service" aria-label="Åpne produktet Dansekalender 2027" onClick={() => editService("sales")}>
                         <span className="tc-service-image"><img src={serviceEntries.sales.image} alt="" /></span>
                         <span className="tc-service-copy"><strong>{serviceEntries.sales.title}</strong><small>{serviceEntries.sales.description}</small><span className="tc-price-line">Pris <b>{serviceEntries.sales.price}</b></span><span className="tc-blue-cta">Se varen</span></span>
-                        <span className="tc-edit-marker">Rediger vare</span>
                       </button>
                       {canManageServiceCards && canAccessService("sales") && <button type="button" className={`tc-card-hide ${serviceEntries.sales.active ? "" : "is-hidden"}`} aria-label={`${serviceEntries.sales.active ? "Skjul" : "Vis"} ${serviceEntries.sales.title}`} onClick={() => toggleServiceVisibility("sales")}>{serviceEntries.sales.active ? "Skjul" : "Vis"}</button>}
                     </div>
@@ -763,7 +753,7 @@ export function TenantCopy() {
                     </div>)}
                   </div>
                 </section>}
-                {!activeServices.length && <div className="tc-no-services"><strong>Ingen tjenester vises ennå.</strong><span>Aktiver en modul i administrasjonspanelet for å fylle siden.</span><button type="button" onClick={() => openControlPanel("services")}>Administrer moduler <Arrow /></button></div>}
+                {!activeServices.length && <div className="tc-no-services"><strong>Ingen tjenester vises ennå.</strong><span>Aktiver en modul med administrasjonsvalgene.</span></div>}
               </div>
             </div>
           )}

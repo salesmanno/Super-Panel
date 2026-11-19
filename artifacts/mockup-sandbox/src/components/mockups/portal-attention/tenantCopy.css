@@ -259,7 +259,16 @@
   white-space: nowrap;
   pointer-events: none;
 }
-.tc-home-hero-copy { min-width: 0; padding: 8px 0; }
+.tc-home-hero-copy {
+  min-width: 0;
+  padding: 8px 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
 .tc-home-hero > .tc-card-hide { top: 9px; right: auto; left: 9px; }
 .tc-all-link { margin-top: 10px; font-size: 11px; }
 .tc-kicker {
@@ -1851,7 +1860,7 @@
 .tc-mode-island {
   position: fixed;
   z-index: 1300;
-  top: 50%;
+  top: 68%;
   left: 50%;
   display: flex;
   align-items: center;
