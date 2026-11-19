@@ -150,6 +150,10 @@ const demoEventRegistrations: Record<"event-dinner" | "event-dance", { name: str
   ],
 };
 
+function ProductAction() {
+  return <span className="tc-blue-cta tc-product-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 7h14l1 14H4L5 7Z" /><path d="M8 8V6a4 4 0 0 1 8 0v2" /></svg><span>Se varen</span><svg className="tc-product-action-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg></span>;
+}
+
 function Arrow({ direction = "right" }: { direction?: "left" | "right" | "up" | "down" }) {
   const paths = {
     left: "M19 12H5m7 7-7-7 7-7",
@@ -728,7 +732,7 @@ export function TenantCopy() {
                     <div className={`tc-service-card-wrap ${serviceEntries.sales.active ? "" : "is-hidden"} ${canAccessService("sales") ? "" : "is-locked"}`}>
                       <button type="button" disabled={!canAccessService("sales")} className="tc-public-service tc-product-card" aria-label={`Åpne produktet ${serviceEntries.sales.title}`} onClick={() => editService("sales")}>
                         <span className="tc-service-image tc-product-image"><img src={serviceEntries.sales.image} alt={serviceEntries.sales.title} loading="lazy" /></span>
-                        <span className="tc-service-copy"><strong>{serviceEntries.sales.title}</strong><small>{serviceEntries.sales.description}</small><span className="tc-service-bottom"><span className="tc-price-line"><b>{serviceEntries.sales.price}</b></span><span className="tc-blue-cta">Se varen <span aria-hidden="true">↗</span></span></span></span>
+                        <span className="tc-service-copy"><strong>{serviceEntries.sales.title}</strong><small>{serviceEntries.sales.description}</small><span className="tc-service-bottom"><span className="tc-price-line"><b>{serviceEntries.sales.price}</b></span><ProductAction /></span></span>
                       </button>
                     </div>
                     </div>
@@ -744,7 +748,7 @@ export function TenantCopy() {
                         } else editService(offer.module === "Medlemskap" ? "membership" : offer.module === "Utleie" ? "rental" : offer.module === "Salg" ? "sales" : "event-dance");
                       }}>
                         <span className={`tc-service-image ${offer.module === "Salg" ? "tc-product-image" : ""}`}><img src={offer.module === "Medlemskap" ? serviceEntries.membership.image : offer.module === "Utleie" ? serviceEntries.rental.image : offer.module === "Salg" ? serviceEntries.sales.image : serviceEntries["event-dance"].image} alt="" /></span>
-                        <span className="tc-service-copy"><strong>{offer.title}</strong><small>{offer.module}</small>{offer.price && <span className="tc-price-line"><b>{offer.price}</b></span>}<span className="tc-blue-cta">{enabledModules.includes(offer.module) ? "Se tilbudet" : "Krever modultilgang"}</span></span>
+                        <span className="tc-service-copy"><strong>{offer.title}</strong><small>{offer.module}</small>{offer.price && <span className="tc-price-line"><b>{offer.price}</b></span>}{offer.module === "Salg" && enabledModules.includes("Salg") ? <ProductAction /> : <span className="tc-blue-cta">{enabledModules.includes(offer.module) ? "Se tilbudet" : "Krever modultilgang"}</span>}</span>
                       </button>
                     </div>)}
                   </div>
