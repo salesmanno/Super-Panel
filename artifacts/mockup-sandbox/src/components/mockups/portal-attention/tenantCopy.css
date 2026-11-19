@@ -1860,7 +1860,8 @@
 .tc-mode-island {
   position: fixed;
   z-index: 1300;
-  top: 68%;
+  top: auto;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   display: flex;
   align-items: center;
@@ -1868,7 +1869,7 @@
   width: max-content;
   max-width: calc(100vw - 24px);
   padding: 6px;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   border: 1px solid rgba(255,255,255,.76);
   border-radius: 999px;
   background: rgba(25, 49, 75, .94);
@@ -1876,7 +1877,7 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
-.tc-mode-island label {
+.tc-mode-island button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1891,8 +1892,8 @@
   cursor: pointer;
   transition: background .16s ease, color .16s ease, border-color .16s ease, box-shadow .16s ease;
 }
-.tc-mode-island label:hover { background: rgba(255,255,255,.11); }
-.tc-mode-island label.checked {
+.tc-mode-island button:hover { background: rgba(255,255,255,.11); }
+.tc-mode-island button.checked {
   color: #173654;
   border-color: #fff;
   background: #fff;
@@ -1907,17 +1908,17 @@
   white-space: nowrap;
   clip-path: inset(50%);
 }
-.tc-mode-island label:focus-within { outline: 2px solid #a9d6ff; outline-offset: 2px; }
+.tc-mode-island button:focus-visible { outline: 2px solid #a9d6ff; outline-offset: 2px; }
 @media (max-width: 600px) {
   .tc-mode-island {
     max-width: calc(100vw - 18px);
     gap: 2px;
     padding: 4px;
   }
-  .tc-mode-island label { min-height: 32px; padding: 0 9px; font-size: 10px; }
+  .tc-mode-island button { min-height: 32px; padding: 0 9px; font-size: 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .tc-mode-island label { transition: none; }
+  .tc-mode-island button { transition: none; }
 }
 .tc-public-about { width: min(1120px, calc(100% - 40px)); margin: 0 auto; padding: clamp(36px,7vw,84px) 0 96px; }
 .tc-about-public-hero { display: grid; grid-template-columns: minmax(0,1.35fr) minmax(220px,.65fr); gap: clamp(28px,6vw,84px); align-items: center; padding: clamp(22px,5vw,54px) 0 clamp(34px,6vw,68px); border-bottom: 1px solid rgba(48,83,126,.17); }
