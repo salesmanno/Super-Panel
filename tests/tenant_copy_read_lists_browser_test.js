@@ -13,10 +13,10 @@ const checks = `(async()=>{
  assert(!panel.textContent.includes('membership_plans'),'Database table exposed');
  panel.querySelector('button').click();
  service('ROMJULSDANS').click();await tick();
- panel=document.querySelector('.tc-reader-data-panel');
+ panel=document.querySelector('.tc-roster');
  assert(panel.querySelector('h2').textContent.toLowerCase()==='påmeldte romjulsdans','Participant heading incorrect');
  assert(!/events_eventdata|events_checkin|→/.test(panel.textContent),'Database references exposed');
- assert(panel.querySelectorAll('.tc-read-data-row').length===2,'Participants missing');
+ assert(panel.querySelectorAll('.tc-roster-row').length===2,'Participants missing');
  return {passed:true,width:innerWidth,planScopedMembers:2,eventParticipants:2};
 })()`;
 chromiumFixture('http://127.0.0.1:23636/__mockup/preview/portal-attention/TenantCopy',checks,[1280,390])

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 import "./tenantCopy.css";
+import { EventRoster } from "./_EventRoster";
 
 type SitePage = "home" | "services" | "about";
 type ModuleName = "Medlemskap" | "Utleie" | "Arrangementer" | "Salg" | "Økonomi";
@@ -973,9 +974,10 @@ export function TenantCopy() {
         </form>}
         <small className="tc-local-note">Eksempeldata · ingenting lagres i portalen.</small>
       </aside>}
-      {readerTitle && <aside className="tc-reader-preview tc-reader-data-panel" aria-label={readerServiceId ? `Se på ${readerTitle}` : "Kundevisning"}>
+      <EventRoster eventId={readerTitle && (readerServiceId === "event-dinner" || readerServiceId === "event-dance") ? readerServiceId : null} title={readerTitle} registrations={demoEventRegistrations} onClose={() => { setReaderTitle(""); setReaderServiceId(null); }} />
+      {readerTitle && readerServiceId !== "event-dinner" && readerServiceId !== "event-dance" && <aside className="tc-reader-preview tc-reader-data-panel" aria-label={readerServiceId ? `Se på ${readerTitle}` : "Kundevisning"}>
         <button type="button" onClick={() => { setReaderTitle(""); setReaderServiceId(null); }}>Lukk ×</button>
-        <h2>{readerServiceId === "event-dinner" || readerServiceId === "event-dance" ? `Påmeldte ${serviceEntries[readerServiceId].title}` : readerServiceId === "membership" ? `Medlemmer ${readerTitle}` : page === "home" ? activeNews?.title : readerTitle}</h2>
+        <h2>{readerServiceId === "membership" ? `Medlemmer ${readerTitle}` : page === "home" ? activeNews?.title : readerTitle}</h2>
         <p>{readerServiceId ? `Se på · ${serviceEntries[readerServiceId].module} · lokale eksempeldata` : page === "home" ? activeNews?.summary : "Kundens detaljvisning · lokal demonstrasjon, ingen bestilling eller betaling utføres."}</p>
         {readerServiceId === "membership" && <div className="tc-read-data-table">
           <div className="tc-read-data-head"><span>Medlem</span><span>Plan · status</span><span>Utløper</span></div>
@@ -986,10 +988,6 @@ export function TenantCopy() {
           <strong>Reservasjoner</strong>
           <div className="tc-read-data-head"><span>Leietaker</span><span>Periode</span><span>Status · beløp</span></div>
           {demoRentalSchedule.map(row => <div className="tc-read-data-row" key={`${row.customer}-${row.from}`}><span><b>{row.customer}</b></span><span>{row.from}<small>til {row.to}</small></span><span><em className={`tc-record-status ${row.status === "Godkjent" ? "approved" : row.status === "Venter" ? "pending" : "rejected"}`}>{row.status}</em><small>{row.amount}</small></span></div>)}
-        </div>}
-        {(readerServiceId === "event-dinner" || readerServiceId === "event-dance") && <div className="tc-read-data-table">
-          <div className="tc-read-data-head"><span>Deltaker</span><span>Kontakt</span><span>Billett · betaling</span></div>
-          {demoEventRegistrations[readerServiceId].map((row, index) => <div className="tc-read-data-row" key={`${row.email}-${index}`}><span><b>{row.name}</b><small>{row.status}</small></span><span>{row.email}<small>{row.phone}</small></span><span>{row.ticket}<small>{row.payment}</small></span></div>)}
         </div>}
         {readerServiceId === "sales" && <div className="tc-read-data-table"><strong>Vare</strong><div className="tc-read-data-row"><span><b>{serviceEntries.sales.title}</b><small>Eksempel på produktinnhold</small></span><span>{serviceEntries.sales.price}</span></div></div>}
       </aside>}
