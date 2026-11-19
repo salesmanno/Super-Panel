@@ -126,6 +126,8 @@ try {
                     navigation_style = ?,
                     header_layout = ?,
                     footer_layout = ?,
+                    header_mode = ?,
+                    footer_mode = ?,
                     homepage_module = ?,
                     hero_enabled = ?,
                     hero_title = ?,
@@ -169,6 +171,8 @@ try {
                 in_array($general['navigation_style'] ?? 'top', ['top', 'side']) ? $general['navigation_style'] : 'top',
                 in_array($general['header_layout'] ?? 'standard', ['standard', 'centered', 'minimal']) ? $general['header_layout'] : 'standard',
                 in_array($general['footer_layout'] ?? 'standard', ['standard', 'minimal', 'extended']) ? $general['footer_layout'] : 'standard',
+                in_array($general['header_mode'] ?? 'static', ['static', 'dynamic'], true) ? $general['header_mode'] : 'static',
+                in_array($general['footer_mode'] ?? 'static', ['static', 'dynamic'], true) ? $general['footer_mode'] : 'static',
                 !empty($general['homepage_module']) ? trim($general['homepage_module']) : null,
                 normalizeBool($general['hero_enabled'] ?? 1),
                 !empty($general['hero_title']) ? trim($general['hero_title']) : null,
@@ -208,6 +212,7 @@ try {
                 INSERT INTO tenant_website_general 
                 (id, company_id, site_title, site_description, logo_url, favicon_url,
                  primary_color, secondary_color, navigation_style, header_layout, footer_layout,
+                 header_mode, footer_mode,
                  homepage_module, hero_enabled, hero_title, hero_description, hero_image_url,
                  hero_button_text, hero_button_url, contact_email, contact_phone, contact_address,
                  social_media_links, footer_text, footer_links, custom_css, custom_js,
@@ -215,7 +220,7 @@ try {
                  header_bg_color, body_bg_color, logo_height, header_height, logo_position,
                  nav_position, font_family, button_style, border_radius, spacing_unit,
                  created_by, created_at, updated_at, updated_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)
             ");
             $stmt->execute([
                 $generalId,
@@ -229,6 +234,8 @@ try {
                 in_array($general['navigation_style'] ?? 'top', ['top', 'side']) ? $general['navigation_style'] : 'top',
                 in_array($general['header_layout'] ?? 'standard', ['standard', 'centered', 'minimal']) ? $general['header_layout'] : 'standard',
                 in_array($general['footer_layout'] ?? 'standard', ['standard', 'minimal', 'extended']) ? $general['footer_layout'] : 'standard',
+                in_array($general['header_mode'] ?? 'static', ['static', 'dynamic'], true) ? $general['header_mode'] : 'static',
+                in_array($general['footer_mode'] ?? 'static', ['static', 'dynamic'], true) ? $general['footer_mode'] : 'static',
                 !empty($general['homepage_module']) ? trim($general['homepage_module']) : null,
                 normalizeBool($general['hero_enabled'] ?? 1),
                 !empty($general['hero_title']) ? trim($general['hero_title']) : null,

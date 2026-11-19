@@ -500,6 +500,25 @@
                             </select>
                         </div>
                     </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Headerposisjon</label>
+                            <select name="general_header_mode" class="form-select">
+                                <option value="static" <?= ($websiteGeneral['header_mode'] ?? 'static') === 'static' ? 'selected' : '' ?>>Statisk – alltid synlig</option>
+                                <option value="dynamic" <?= ($websiteGeneral['header_mode'] ?? 'static') === 'dynamic' ? 'selected' : '' ?>>Dynamisk – følger siden</option>
+                            </select>
+                            <small class="form-text text-muted">Statisk holder headeren synlig mens besøkende ruller.</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Footerposisjon</label>
+                            <select name="general_footer_mode" class="form-select">
+                                <option value="static" <?= ($websiteGeneral['footer_mode'] ?? 'static') === 'static' ? 'selected' : '' ?>>Statisk – alltid synlig</option>
+                                <option value="dynamic" <?= ($websiteGeneral['footer_mode'] ?? 'static') === 'dynamic' ? 'selected' : '' ?>>Dynamisk – følger siden</option>
+                            </select>
+                            <small class="form-text text-muted">Statisk holder footeren synlig mens besøkende ruller.</small>
+                        </div>
+                    </div>
                     
                     <!-- Layout & Styling -->
                     <h6 class="mb-3 mt-4"><i class="bi bi-layout-text-window-reverse me-2"></i>Layout & Styling</h6>
