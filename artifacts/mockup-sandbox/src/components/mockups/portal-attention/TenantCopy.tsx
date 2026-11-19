@@ -96,7 +96,7 @@ const serviceMeta: Record<ServiceId, { module: ModuleName; title: string; image:
   },
 };
 
-const initialModules: ModuleName[] = ["Medlemskap", "Utleie", "Arrangementer", "Økonomi"];
+const initialModules: ModuleName[] = ["Medlemskap", "Utleie", "Arrangementer", "Salg", "Økonomi"];
 const allModuleChoices: ModuleName[] = ["Medlemskap", "Utleie", "Arrangementer", "Salg", "Økonomi"];
 const demoEmails: Record<EmailFolder, { id: string; from: string; address: string; subject: string; preview: string; time: string; body: string }[]> = {
   inbox: [
@@ -190,7 +190,7 @@ export function TenantCopy() {
   const [selectedLedgerId, setSelectedLedgerId] = useState("ledger-1");
   const [economyFilter, setEconomyFilter] = useState<"all" | "income" | "expense">("all");
   const [staffMembers, setStaffMembers] = useState([
-    { id: "atle", name: "Atle Karl", role: "Administrator", firstName: "Atle", lastName: "Karl", email: "atle@salesman.no", phone: "900 11 222", jobTitle: "Daglig leder", department: "Administrasjon", linkedUser: "atlekarl · innlogget bruker", supervisor: true, modules: ["Medlemskap", "Utleie", "Arrangementer", "Økonomi"] as ModuleName[] },
+    { id: "atle", name: "Atle Karl", role: "Administrator", firstName: "Atle", lastName: "Karl", email: "atle@salesman.no", phone: "900 11 222", jobTitle: "Daglig leder", department: "Administrasjon", linkedUser: "atlekarl · innlogget bruker", supervisor: true, modules: ["Medlemskap", "Utleie", "Arrangementer", "Salg", "Økonomi"] as ModuleName[] },
     { id: "kari", name: "Kari Remøy", role: "Arrangementsansvarlig", firstName: "Kari", lastName: "Remøy", email: "kari.remoy@example.no", phone: "905 34 210", jobTitle: "Arrangementsansvarlig", department: "Arrangement", linkedUser: "kari-remoy · ansattkoblet", supervisor: false, modules: ["Arrangementer"] as ModuleName[] },
     { id: "ola", name: "Ola Myrseth", role: "Utleieansvarlig", firstName: "Ola", lastName: "Myrseth", email: "ola.myrseth@example.no", phone: "930 45 678", jobTitle: "Utleieansvarlig", department: "Utleie", linkedUser: "", supervisor: false, modules: ["Utleie"] as ModuleName[] },
   ]);
@@ -722,13 +722,15 @@ export function TenantCopy() {
                   </section>
                 )}
                 {enabledModules.includes("Salg") && serviceEntries.sales.active && (
-                  <section className="tc-service-group">
+                  <section className="tc-service-group tc-group-wide tc-shop-group">
                     <header><div><h2>Varer</h2><p>Produkter fra klubben.</p></div><span>1 tilbud</span></header>
+                    <div className="tc-shop-grid">
                     <div className={`tc-service-card-wrap ${serviceEntries.sales.active ? "" : "is-hidden"} ${canAccessService("sales") ? "" : "is-locked"}`}>
-                      <button type="button" disabled={!canAccessService("sales")} className="tc-public-service" aria-label="Åpne produktet Dansekalender 2027" onClick={() => editService("sales")}>
-                        <span className="tc-service-image"><img src={serviceEntries.sales.image} alt="" /></span>
-                        <span className="tc-service-copy"><strong>{serviceEntries.sales.title}</strong><small>{serviceEntries.sales.description}</small><span className="tc-price-line">Pris <b>{serviceEntries.sales.price}</b></span><span className="tc-blue-cta">Se varen</span></span>
+                      <button type="button" disabled={!canAccessService("sales")} className="tc-public-service tc-product-card" aria-label={`Åpne produktet ${serviceEntries.sales.title}`} onClick={() => editService("sales")}>
+                        <span className="tc-service-image tc-product-image"><img src={serviceEntries.sales.image} alt={serviceEntries.sales.title} loading="lazy" /></span>
+                        <span className="tc-service-copy"><strong>{serviceEntries.sales.title}</strong><small>{serviceEntries.sales.description}</small><span className="tc-service-bottom"><span className="tc-price-line"><b>{serviceEntries.sales.price}</b></span><span className="tc-blue-cta">Se varen <span aria-hidden="true">↗</span></span></span></span>
                       </button>
+                    </div>
                     </div>
                   </section>
                 )}
@@ -736,12 +738,12 @@ export function TenantCopy() {
                   <header><div><h2>Nye tilbud</h2><p>Opprettet lokalt i forhåndsvisningen.</p></div><span>{createdOffers.length} tilbud</span></header>
                   <div className="tc-event-service-grid">
                     {createdOffers.map(offer => <div className={`tc-service-card-wrap ${enabledModules.includes(offer.module) ? "" : "is-locked"}`} key={offer.id}>
-                      <button type="button" disabled={!enabledModules.includes(offer.module)} className="tc-public-service tc-event-service" onClick={() => {
+                      <button type="button" disabled={!enabledModules.includes(offer.module)} className={`tc-public-service ${offer.module === "Salg" ? "tc-product-card" : "tc-event-service"}`} onClick={() => {
                         if (offer.module === "Medlemskap" && interactionMode === "read") {
                           setReaderPlanId(offer.id); setReaderServiceId("membership"); setReaderTitle(offer.title);
                         } else editService(offer.module === "Medlemskap" ? "membership" : offer.module === "Utleie" ? "rental" : offer.module === "Salg" ? "sales" : "event-dance");
                       }}>
-                        <span className="tc-service-image"><img src={offer.module === "Medlemskap" ? serviceEntries.membership.image : offer.module === "Utleie" ? serviceEntries.rental.image : serviceEntries["event-dance"].image} alt="" /></span>
+                        <span className={`tc-service-image ${offer.module === "Salg" ? "tc-product-image" : ""}`}><img src={offer.module === "Medlemskap" ? serviceEntries.membership.image : offer.module === "Utleie" ? serviceEntries.rental.image : offer.module === "Salg" ? serviceEntries.sales.image : serviceEntries["event-dance"].image} alt="" /></span>
                         <span className="tc-service-copy"><strong>{offer.title}</strong><small>{offer.module}</small>{offer.price && <span className="tc-price-line"><b>{offer.price}</b></span>}<span className="tc-blue-cta">{enabledModules.includes(offer.module) ? "Se tilbudet" : "Krever modultilgang"}</span></span>
                       </button>
                     </div>)}

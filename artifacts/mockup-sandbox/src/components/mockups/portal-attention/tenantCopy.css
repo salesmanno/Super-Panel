@@ -1841,6 +1841,42 @@
   .tc-gateway-grid { grid-template-columns: 1fr; }
 }
 
+/* Online goods retain the service-card language, with the product as the focus. */
+.tc-shop-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; }
+.tc-shell .tc-public-service.tc-product-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--tc-radius, 8px);
+}
+.tc-product-card .tc-product-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  flex: none;
+  background: rgba(255,255,255,.62);
+  border-bottom: 1px solid rgba(60,100,150,.15);
+}
+.tc-product-card .tc-product-image img { object-fit: contain; padding: 12px; }
+.tc-product-card .tc-service-copy { width: 100%; flex: 1; padding: 14px; gap: 8px; }
+.tc-product-card .tc-service-copy > strong { font-size: 17px; line-height: 1.25; }
+.tc-product-card .tc-service-copy > small { font-size: 12px; line-height: 1.5; }
+.tc-product-card .tc-service-bottom { width: 100%; margin-top: auto; padding-top: 7px; gap: 12px; }
+.tc-product-card .tc-price-line b { font-size: 18px; white-space: nowrap; }
+.tc-product-card .tc-blue-cta { min-height: 38px; display: inline-flex; align-items: center; gap: 10px; padding: 8px 12px; font-size: 12px; }
+.tc-product-card:focus-visible { outline: 3px solid var(--tc-primary); outline-offset: 3px; }
+@media (max-width: 1000px) {
+  .tc-shop-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 600px) {
+  .tc-shop-grid { grid-template-columns: minmax(0,1fr); }
+  .tc-product-card .tc-product-image { aspect-ratio: 3 / 2; }
+}
+
 /* Quiet availability controls sit below the public cards, never over the image. */
 .tc-home-hero > .tc-card-hide,
 .tc-latest-wrap .tc-card-hide { position: static; }

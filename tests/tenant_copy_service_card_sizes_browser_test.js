@@ -7,7 +7,7 @@ const checks = `(async () => {
   [...document.querySelectorAll('.tc-site-nav button')].find(b => b.textContent === 'Tjenester').click();
   await wait();
   await Promise.all([...document.images].map(img => img.decode().catch(() => {})));
-  const cards = [...document.querySelectorAll('.tc-public-service')];
+  const cards = [...document.querySelectorAll('.tc-public-service:not(.tc-product-card)')];
   check(cards.length === 4, 'Catalog must match the four published offers');
   const sizes = cards.map(card => {
     const before = card.getBoundingClientRect();
@@ -30,6 +30,15 @@ const checks = `(async () => {
     check(card.querySelector('.tc-service-copy').scrollHeight <= card.clientHeight, 'Card content is clipped');
   });
   check(document.querySelector('.tc-service-groups').offsetWidth <= 1060, 'Catalog exceeds customer content width');
+  const product = document.querySelector('.tc-product-card');
+  check(product, 'Online product must be visible in this demo');
+  const productImage = product.querySelector('.tc-product-image');
+  check(productImage.clientWidth >= product.clientWidth - 2, 'Product image should span the card');
+  check(productImage.clientHeight > product.querySelector('.tc-service-copy').clientHeight, 'Product image must be the main focus');
+  check(getComputedStyle(productImage.querySelector('img')).objectFit === 'contain', 'Do not crop the product');
+  check(product.textContent.includes('149,00 kr') && product.textContent.includes('Se varen'), 'Product price and action missing');
+  product.scrollIntoView({block:'center'});
+  await wait();
   check(document.documentElement.scrollWidth <= innerWidth, 'Horizontal overflow');
   return {passed: true, width: innerWidth, sizes};
 })()`;
