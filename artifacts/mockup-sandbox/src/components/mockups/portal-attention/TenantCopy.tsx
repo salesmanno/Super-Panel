@@ -5,6 +5,8 @@ type SitePage = "home" | "services" | "about";
 type ModuleName = "Medlemskap" | "Utleie" | "Arrangementer" | "Salg" | "Økonomi";
 type ServiceId = "membership" | "rental" | "event-dinner" | "event-dance" | "sales";
 type AboutTab = "company" | "staff" | "email" | "economy" | "website";
+type EmailFolder = "inbox" | "sent" | "queue" | "drafts";
+type EconomyView = "results" | "payments";
 
 type NewsItem = {
   id: string;
@@ -89,6 +91,31 @@ const moduleDescriptions: Record<ModuleName, string> = {
   Salg: "Varesalg og nettbutikk",
   Økonomi: "Betalinger, inntekter og utgifter",
 };
+const demoEmails: Record<EmailFolder, { id: string; from: string; address: string; subject: string; preview: string; time: string; body: string }[]> = {
+  inbox: [
+    { id: "mail-1", from: "Kurt Remøy", address: "kurt.remoy@example.no", subject: "Påmelding til julebord", preview: "Hei, jeg forsøkte å melde Aud på …", time: "09:42", body: "Hei! Jeg forsøkte å melde Aud på julebordet, men fikk ikke bekreftelsen. Kan dere sjekke om påmeldingen gikk gjennom?" },
+    { id: "mail-2", from: "Medlemstjenesten", address: "varsler@salesman.no", subject: "Medlemsfornyelse behandlet", preview: "Betalingen er registrert og medlemskapet …", time: "08:16", body: "En medlemsfornyelse er registrert. Dette er et lokalt eksempel i e-postvisningen." },
+    { id: "mail-3", from: "Høgtun Selskapslokale", address: "utleie@example.no", subject: "Spørsmål om helgeleie", preview: "Vi ønsker å avklare tidspunkt for …", time: "I går", body: "Vi ønsker å avklare tidspunkt og adgang før reservasjonen godkjennes." },
+  ],
+  sent: [
+    { id: "mail-4", from: "Bergsøy Danseklubb", address: "bergsoy.d-k@salesman.no", subject: "Bekreftelse på julebord", preview: "Takk for reservasjonen. Her er detaljene …", time: "I går", body: "Takk for reservasjonen. Vi gleder oss til å se dere på Høgtun." },
+    { id: "mail-5", from: "Bergsøy Danseklubb", address: "bergsoy.d-k@salesman.no", subject: "Svar på leieforespørsel", preview: "Vi har mottatt forespørselen din …", time: "16. nov.", body: "Vi har mottatt forespørselen og kommer tilbake med en avklaring." },
+  ],
+  queue: [
+    { id: "mail-6", from: "Automatisk utsending", address: "system", subject: "Medlemsfornyelse · 1 mottaker", preview: "Venter på neste planlagte kjøring …", time: "Kø", body: "Denne meldingen er et eksempel på en melding som står i utsendingskø." },
+  ],
+  drafts: [
+    { id: "mail-7", from: "Atle Karl", address: "kladd", subject: "Informasjon før romjulsdans", preview: "Praktisk informasjon om inngang og …", time: "Kladd", body: "Praktisk informasjon om inngang, parkering og starttidspunkt." },
+  ],
+};
+const demoLedger = [
+  { id: "ledger-1", module: "Medlemskap", description: "Bergsøy Medlem · medlemskap", customer: "Arild Slettestøl", time: "18.11.2026 · 09:24", amount: 500, method: "Vipps", status: "Gjennomført", kind: "income" as const },
+  { id: "ledger-2", module: "Arrangementer", description: "Julebord for medlemmer", customer: "Gry Myrseth", time: "18.11.2026 · 08:51", amount: 500, method: "Vipps", status: "Gjennomført", kind: "income" as const },
+  { id: "ledger-3", module: "Utleie", description: "Høgtun Selskapslokale · helgeleie", customer: "Kulturhuset Fosnavåg", time: "17.11.2026 · 15:12", amount: 3200, method: "Faktura", status: "Åpen", kind: "income" as const },
+  { id: "ledger-4", module: "Økonomi", description: "Vipps-gebyrer · november", customer: "Vipps MobilePay", time: "17.11.2026 · 12:00", amount: -184.5, method: "Vipps", status: "Bokført", kind: "expense" as const },
+  { id: "ledger-5", module: "Økonomi", description: "Leie av øvingslokale", customer: "Høgtun Kulturhus", time: "16.11.2026 · 10:15", amount: -1200, method: "Bank", status: "Betalt", kind: "expense" as const },
+  { id: "ledger-6", module: "Salg", description: "Dansekalender 2027 · 3 stk.", customer: "Kari Remøy", time: "15.11.2026 · 19:31", amount: 447, method: "Kontant", status: "Gjennomført", kind: "income" as const },
+];
 
 function Arrow({ direction = "right" }: { direction?: "left" | "right" | "up" | "down" }) {
   const paths = {
@@ -111,12 +138,26 @@ export function TenantCopy() {
   const [emailModuleEnabled, setEmailModuleEnabled] = useState(true);
   const [websiteModuleEnabled, setWebsiteModuleEnabled] = useState(true);
   const [companyNumber, setCompanyNumber] = useState("987 654 321");
+  const [companyProfile, setCompanyProfile] = useState({
+    subdomain: "bergsoy.salesman.no",
+    aboutUs: "Bergsøy Danseklubb skaper møteplasser, danseglede og gode opplevelser på Sunnmøre. Vi samler mennesker på tvers av generasjoner – på dansegulvet og rundt bordet.",
+    contactPhone: "48145008",
+    city: "Fosnavåg",
+    zip: "6090",
+    state: "Møre og Romsdal",
+    country: "Norge",
+  });
   const [emailAutomation, setEmailAutomation] = useState({ reservation: true, renewal: true, receipt: false });
   const [economySettings, setEconomySettings] = useState({ vatRegistered: false, cash: true, vipps: true, invoice: false });
+  const [emailFolder, setEmailFolder] = useState<EmailFolder>("inbox");
+  const [selectedEmailId, setSelectedEmailId] = useState("mail-1");
+  const [economyView, setEconomyView] = useState<EconomyView>("results");
+  const [selectedLedgerId, setSelectedLedgerId] = useState("ledger-1");
+  const [economyFilter, setEconomyFilter] = useState<"all" | "income" | "expense">("all");
   const [staffMembers, setStaffMembers] = useState([
-    { id: "atle", name: "Atle Karl", role: "Administrator", supervisor: true, modules: ["Medlemskap", "Utleie", "Arrangementer", "Økonomi"] as ModuleName[] },
-    { id: "kari", name: "Kari Remøy", role: "Arrangementsansvarlig", supervisor: false, modules: ["Arrangementer"] as ModuleName[] },
-    { id: "ola", name: "Ola Myrseth", role: "Utleieansvarlig", supervisor: false, modules: ["Utleie"] as ModuleName[] },
+    { id: "atle", name: "Atle Karl", role: "Administrator", firstName: "Atle", lastName: "Karl", email: "atle@salesman.no", phone: "900 11 222", jobTitle: "Daglig leder", department: "Administrasjon", linkedUser: "atlekarl · innlogget bruker", supervisor: true, modules: ["Medlemskap", "Utleie", "Arrangementer", "Økonomi"] as ModuleName[] },
+    { id: "kari", name: "Kari Remøy", role: "Arrangementsansvarlig", firstName: "Kari", lastName: "Remøy", email: "kari.remoy@example.no", phone: "905 34 210", jobTitle: "Arrangementsansvarlig", department: "Arrangement", linkedUser: "kari-remoy · ansattkoblet", supervisor: false, modules: ["Arrangementer"] as ModuleName[] },
+    { id: "ola", name: "Ola Myrseth", role: "Utleieansvarlig", firstName: "Ola", lastName: "Myrseth", email: "ola.myrseth@example.no", phone: "930 45 678", jobTitle: "Utleieansvarlig", department: "Utleie", linkedUser: "", supervisor: false, modules: ["Utleie"] as ModuleName[] },
   ]);
   const [news, setNews] = useState(initialNews);
   const [hiddenServices, setHiddenServices] = useState<string[]>([]);
@@ -244,6 +285,22 @@ export function TenantCopy() {
   const updateTheme = (key: keyof typeof theme, value: string | number) => {
     setTheme((current) => ({ ...current, [key]: value }));
   };
+  const updateCompanyProfile = (key: keyof typeof companyProfile, value: string) => {
+    setCompanyProfile(current => ({ ...current, [key]: value }));
+  };
+  const updateStaffField = (
+    id: string,
+    key: "firstName" | "lastName" | "email" | "phone" | "jobTitle" | "department",
+    value: string,
+  ) => {
+    setStaffMembers(current => current.map(person => {
+      if (person.id !== id) return person;
+      const next = { ...person, [key]: value };
+      if (key === "firstName" || key === "lastName") next.name = `${next.firstName} ${next.lastName}`.trim();
+      if (key === "jobTitle") next.role = value;
+      return next;
+    }));
+  };
   const openControlPanel = (editTarget: SitePage = page) => {
     if (editTarget === "about") {
       setAboutTab("company");
@@ -275,7 +332,7 @@ export function TenantCopy() {
     setControlOpen(true);
   };
   const addStaffMember = () => {
-    setStaffMembers(current => [...current, { id: `staff-${Date.now()}`, name: "Ny medarbeider", role: "Medarbeider", supervisor: false, modules: [] }]);
+    setStaffMembers(current => [...current, { id: `staff-${Date.now()}`, name: "Ny medarbeider", role: "Medarbeider", firstName: "Ny", lastName: "medarbeider", email: "", phone: "", jobTitle: "Medarbeider", department: "Administrasjon", linkedUser: "", supervisor: false, modules: [] }]);
     setFeedback("En ny medarbeider er lagt til lokalt.");
   };
   const toggleStaffModule = (id: string, module: ModuleName) => {
@@ -445,6 +502,17 @@ export function TenantCopy() {
     { id: "website", label: "Webside", sub: "Utseende og visning", number: "05" },
   ];
   const activeAboutTab = aboutTabs.find(tab => tab.id === aboutTab) ?? aboutTabs[0];
+  const folderMessages = demoEmails[emailFolder];
+  const activeEmail = folderMessages.find(mail => mail.id === selectedEmailId) ?? folderMessages[0];
+  const filteredLedger = demoLedger.filter(row => economyFilter === "all" || row.kind === economyFilter);
+  const ledgerIncome = filteredLedger.filter(row => row.amount > 0).reduce((sum, row) => sum + row.amount, 0);
+  const ledgerExpense = Math.abs(filteredLedger.filter(row => row.amount < 0).reduce((sum, row) => sum + row.amount, 0));
+  const ledgerResult = ledgerIncome - ledgerExpense;
+  const paymentChoices = [
+    { key: "cash" as const, name: "Kontant", mark: "KR", detail: "Standard · uten gebyr", configured: true },
+    { key: "vipps" as const, name: "Vipps", mark: "V", detail: "Bedriftskonto tilkoblet · gebyr beregnes", configured: true },
+    { key: "invoice" as const, name: "Faktura", mark: "F", detail: economySettings.invoice ? "Bankkonto valgt" : "Velg bankkonto før aktivering", configured: economySettings.invoice },
+  ];
   return (
     <main className="tc-shell">
       <button type="button" className={`tc-admin-launcher ${controlOpen ? "is-hidden" : ""}`} onClick={() => setControlOpen(true)} aria-label="Åpne administrasjonsvalg">
@@ -620,30 +688,72 @@ export function TenantCopy() {
               <div className="tc-settings-main" role="tabpanel">
                 <div className="tc-settings-main-head">
                   <div><span className="tc-kicker">{activeAboutTab.number} <b>/</b> BEDRIFTSOMRÅDE</span><h2>{activeAboutTab.label}</h2><p>{activeAboutTab.sub} for {companyName}.</p></div>
-                  <button type="button" className="tc-settings-save" onClick={() => setFeedback(`${activeAboutTab.label} er lagret i den lokale forhåndsvisningen.`)}>Lagre endringer <Arrow /></button>
+                  {activeAboutTab.id !== "economy" && <button type="button" className="tc-settings-save" onClick={() => setFeedback(`${activeAboutTab.label} er lagret i den lokale forhåndsvisningen.`)}>Lagre endringer <Arrow /></button>}
                 </div>
-                {activeAboutTab.id === "company" && <div className="tc-settings-section-grid">
-                  <section className="tc-settings-panel tc-profile-panel">
-                    <div className="tc-settings-panel-heading"><div><span><h3>Bedriftsprofil</h3><p>Opplysninger som brukes i systemet.</p></span></div><span className="tc-demo-status">Eksempeldata</span></div>
-                    <div className="tc-profile-hero"><img src={companyLogo} alt="Bergsøy-logo" /><span><strong>{companyName}</strong><small>Foreningsprofil · aktiv</small></span><button type="button" className="tc-outline-action" onClick={() => logoInputRef.current?.click()}>Bytt logo</button><input ref={logoInputRef} type="file" accept="image/*" onChange={handleLocalLogo} hidden /></div>
-                    <div className="tc-form-grid"><label>Firmanavn<input autoComplete="off" value={companyName} onChange={event => setCompanyName(event.target.value)} /></label><label>Organisasjonsnummer<input autoComplete="off" value={companyNumber} onChange={event => setCompanyNumber(event.target.value)} /></label><label>Telefon<input autoComplete="off" value={theme.phone} onChange={event => updateTheme("phone",event.target.value)} /></label><label>E-post<input autoComplete="off" type="email" value={theme.email} onChange={event => updateTheme("email",event.target.value)} /></label><label className="wide">Adresse<input autoComplete="off" value={theme.address} onChange={event => updateTheme("address",event.target.value)} /></label></div>
+                {activeAboutTab.id === "company" && <div className="tc-company-workspace">
+                  <section className="tc-settings-panel tc-company-profile-card">
+                    <div className="tc-company-profile-head"><div><span className="tc-kicker">BEDRIFTSPROFIL</span><h3>{companyName}</h3><p>Opplysninger for den valgte bedriften.</p></div><button type="button" className="tc-settings-save" onClick={() => setFeedback("Bedriftsprofilen er oppdatert lokalt i mockupen.")}>Lagre profil</button></div>
+                    <div className="tc-subdomain-line"><span>NETTADRESSE</span><code>{companyProfile.subdomain}</code><small>tenant_companies.subdomain</small></div>
+                    <div className="tc-company-image-box">
+                      <div className="tc-company-image-header" style={{ backgroundColor: theme.headerBg }}><span>header_bg_color</span><code>{theme.headerBg}</code></div>
+                      <div className="tc-company-image-stage" style={{ backgroundColor: theme.headerBg }}><img src={companyLogo} alt={`${companyName} bedriftslogo`} /><span>{companyName}</span></div>
+                      <div className="tc-company-image-actions"><small>Profilbilde / firmalogo · vises mot bedriftens headerfarge</small><button type="button" className="tc-outline-action" onClick={() => logoInputRef.current?.click()}>Bytt bildefil</button><input ref={logoInputRef} type="file" accept="image/*" onChange={handleLocalLogo} hidden /></div>
+                    </div>
+                    <div className="tc-company-fields">
+                      <label>Firmanavn<input autoComplete="off" value={companyName} onChange={event => setCompanyName(event.target.value)} /></label>
+                      <label>Organisasjonsnummer<input autoComplete="off" value={companyNumber} onChange={event => setCompanyNumber(event.target.value)} /></label>
+                      <label className="wide">Om bedriften · <code>about_us</code><textarea rows={4} value={companyProfile.aboutUs} onChange={event => updateCompanyProfile("aboutUs", event.target.value)} /></label>
+                      <label>Telefon · <code>contact_phone</code><input autoComplete="off" value={companyProfile.contactPhone} onChange={event => updateCompanyProfile("contactPhone", event.target.value)} /></label>
+                      <label>Poststed · <code>address_city</code><input autoComplete="off" value={companyProfile.city} onChange={event => updateCompanyProfile("city", event.target.value)} /></label>
+                      <label>Postnummer · <code>address_zip</code><input autoComplete="off" value={companyProfile.zip} onChange={event => updateCompanyProfile("zip", event.target.value)} /></label>
+                      <label>Fylke / region · <code>address_state</code><input autoComplete="off" value={companyProfile.state} onChange={event => updateCompanyProfile("state", event.target.value)} /></label>
+                      <label>Land · <code>address_country</code><input autoComplete="off" value={companyProfile.country} onChange={event => updateCompanyProfile("country", event.target.value)} /></label>
+                    </div>
+                    <div className="tc-company-preview-foot"><span>Profilen i forhåndsvisningen bruker samme logo og farge.</span><button type="button" className="tc-text-link" onClick={() => setPage("home")}>Se kundesiden <Arrow /></button></div>
                   </section>
-                  <aside className="tc-settings-aside"><span className="tc-kicker">KONTO OG TILGANG</span><h3>Bedriftsansvarlig</h3><p>Brukere og modulrettigheter ligger samlet under Ansatte.</p><div className="tc-access-line"><span>AK</span><div><b>Atle Karl</b><small>Veileder · Bergsøy</small></div><i>✓</i></div><button type="button" className="tc-text-link" onClick={() => setAboutTab("staff")}>Gå til ansatte <Arrow /></button><div className="tc-safe-note">{logoUploadFeedback || "Dette er en frakoblet mockup. Opplasting endrer bare forhåndsvisningen."}</div></aside>
+                  <p className="tc-settings-feedback">{logoUploadFeedback || "Bildefilen vises kun lokalt i denne mockupen. Ingen opplasting eller databasekobling utføres."}</p>
                 </div>}
-                {activeAboutTab.id === "staff" && <div className="tc-settings-stack">
-                  <div className="tc-supervisor-summary"><div><span className="tc-settings-icon">SU</span><span><b>Veilederoversikt</b><small>Ansvar for brukere og moduldelegering</small></span></div><strong>{staffMembers.filter(member=>member.supervisor).length}<small>veileder</small></strong></div>
-                  <section className="tc-settings-panel"><div className="tc-settings-panel-heading"><div><span><h3>Firmabrukere</h3><p>Eksempelbrukere · ingen kontoer endres.</p></span></div><button type="button" className="tc-settings-save" onClick={addStaffMember}>＋ Legg til ansatt</button></div>
-                    <div className="tc-staff-cards">{staffMembers.map(member=><article className="tc-staff-card" key={member.id}><span className="tc-staff-avatar">{member.name.split(" ").map(part=>part[0]).join("").slice(0,2).toUpperCase()}</span><div className="tc-staff-card-main"><div className="tc-staff-card-title"><span><b>{member.name}</b><small>{member.role}</small></span>{member.supervisor&&<em>VEILEDER</em>}</div><div className="tc-delegated-modules"><span>MODULTILGANG</span><div>{allModuleChoices.filter(module=>enabledModules.includes(module)).map(module=><button type="button" key={module} className={member.modules.includes(module)?"assigned":""} aria-pressed={member.modules.includes(module)} onClick={()=>toggleStaffModule(member.id,module)}>{module}{member.modules.includes(module)?" ×":" +"}</button>)}</div></div></div><button type="button" className="tc-outline-action" onClick={()=>setFeedback(`Passordvalg for ${member.name} er åpnet lokalt.`)}>Passord</button></article>)}</div>
-                  </section>
+                {activeAboutTab.id === "staff" && <div className="tc-staff-workspace">
+                  <div className="tc-staff-toolbar"><div><span className="tc-kicker">ANSATTREGISTER</span><h3>{staffMembers.length} ansatte</h3><p>Kontaktinformasjon, stilling og eventuell innlogget brukerkonto.</p></div><button type="button" className="tc-settings-save" onClick={addStaffMember}>＋ Legg til ansatt</button></div>
+                  <div className="tc-staff-directory">{staffMembers.map(member => <article className="tc-staff-record" key={member.id}>
+                    <div className="tc-staff-record-top"><span className="tc-staff-avatar">{member.firstName[0]}{member.lastName[0]}</span><div><strong>{member.firstName} {member.lastName}</strong><small>{member.jobTitle} · {member.department}</small></div>{member.supervisor && <em>VEILEDER</em>}</div>
+                    <div className="tc-staff-edit-grid">
+                      <label>Fornavn<input autoComplete="off" value={member.firstName} onChange={event => updateStaffField(member.id, "firstName", event.target.value)} /></label>
+                      <label>Etternavn<input autoComplete="off" value={member.lastName} onChange={event => updateStaffField(member.id, "lastName", event.target.value)} /></label>
+                      <label>E-post<input autoComplete="off" type="email" value={member.email} onChange={event => updateStaffField(member.id, "email", event.target.value)} /></label>
+                      <label>Telefon<input autoComplete="off" value={member.phone} onChange={event => updateStaffField(member.id, "phone", event.target.value)} /></label>
+                      <label>Stilling<input autoComplete="off" value={member.jobTitle} onChange={event => updateStaffField(member.id, "jobTitle", event.target.value)} /></label>
+                      <label>Avdeling<input autoComplete="off" value={member.department} onChange={event => updateStaffField(member.id, "department", event.target.value)} /></label>
+                    </div>
+                    <div className={`tc-linked-user ${member.linkedUser ? "is-linked" : "is-unlinked"}`}><span className="tc-link-indicator">{member.linkedUser ? "✓" : "·"}</span><span><small>BRUKERTILKNYTNING</small><strong>{member.linkedUser || "Ingen bruker knyttet til denne ansatte"}</strong></span><button type="button" onClick={() => setFeedback(member.linkedUser ? `Brukerkobling for ${member.firstName} vises lokalt.` : `Koble en bruker til ${member.firstName} lokalt.`)}>{member.linkedUser ? "Se bruker" : "Koble bruker"}</button></div>
+                    <div className="tc-staff-module-access"><span>MODULTILGANG</span><div>{allModuleChoices.filter(module => enabledModules.includes(module)).map(module => <button type="button" key={module} className={member.modules.includes(module) ? "assigned" : ""} aria-pressed={member.modules.includes(module)} onClick={() => toggleStaffModule(member.id, module)}>{module}{member.modules.includes(module) ? " ×" : " +"}</button>)}</div></div>
+                  </article>)}</div>
                 </div>}
-                {activeAboutTab.id === "email" && <div className="tc-settings-stack">
-                  <div className="tc-settings-section-grid"><section className="tc-settings-panel"><div className="tc-settings-panel-heading"><div><span><h3>Avsender</h3><p>Standardinformasjon i e-poster.</p></span></div><span className="tc-demo-status">Ikke tilkoblet</span></div><div className="tc-form-grid"><label>Avsendernavn<input autoComplete="off" value={companyName} onChange={event=>setCompanyName(event.target.value)} /></label><label>Avsenderadresse<input autoComplete="off" type="email" value={theme.email} onChange={event=>updateTheme("email",event.target.value)} /></label></div><div className="tc-safe-note">Tekniske nøkler og passord er ikke en del av denne forhåndsvisningen.</div></section>
-                    <section className="tc-settings-panel"><div className="tc-settings-panel-heading"><div><span><h3>Automatiske e-poster</h3><p>På/av-valg i eksempelvisningen.</p></span></div></div>{([["reservation","Påmeldingsbekreftelse"],["renewal","Medlemsfornyelse"],["receipt","Salgsbilag"]] as const).map(([key,label])=><label className="tc-setting-toggle" key={key}><input type="checkbox" checked={emailAutomation[key]} onChange={event=>setEmailAutomation(current=>({...current,[key]:event.target.checked}))} /><span>{label}</span></label>)}</section></div>
-                  <section className="tc-settings-panel"><div className="tc-settings-panel-heading"><div><span><h3>Maler</h3><p>Velg en eksempelmal for forhåndsvisning.</p></span></div><span className="tc-demo-status">4 eksempler</span></div><div className="tc-template-list">{[["reservation_confirmation","Påmeldingsbekreftelse"],["membership_renewal","Medlemsfornyelse"],["sales_receipt","Salgsbilag"],["rental_request","Utleieforespørsel"]].map(([key,name])=><button type="button" key={key} onClick={()=>setFeedback(`Forhåndsvisning av ${name} er valgt.`)}><span><strong>{name}</strong><small>Åpne eksempelmal</small></span><code>{key}</code><Arrow /></button>)}</div></section></div>}
-                {activeAboutTab.id === "economy" && <div className="tc-settings-stack">
-                  <div className="tc-finance-demo-grid"><article><small>INNTEKTER DENNE MÅNEDEN</small><strong>18 450 kr</strong><span>12 fullførte · demo</span></article><article><small>ÅPNE FAKTURAER</small><strong>2 400 kr</strong><span>3 krav · demo</span></article><article><small>STATUS</small><strong>Eksempeldata</strong><span>Ingen live-kobling</span></article></div>
-                  <div className="tc-settings-section-grid"><section className="tc-settings-panel"><div className="tc-settings-panel-heading"><div><span><h3>Betalingsmetoder</h3><p>Aktive valg i eksempeldata.</p></span></div></div>{([["cash","Kontant"],["vipps","Vipps"],["invoice","Faktura"]] as const).map(([key,label])=><label className="tc-setting-toggle" key={key}><input type="checkbox" checked={economySettings[key]} onChange={event=>setEconomySettings(current=>({...current,[key]:event.target.checked}))} /><span>{label}</span></label>)}{economySettings.invoice&&<label className="tc-form-label">Primær bankkonto<input autoComplete="off" defaultValue="1503.28.45109 · Bergsøy Danseklubb" /></label>}</section>
-                    <section className="tc-settings-panel"><div className="tc-settings-panel-heading"><div><span><h3>Siste bevegelser</h3><p>Kun statiske eksempelposter.</p></span></div></div><div className="tc-demo-transaction"><span>MB</span><div><b>Bergsøy Medlem</b><small>14. november · betaling</small></div><strong>+500,00 kr</strong></div><div className="tc-demo-transaction"><span>UT</span><div><b>Høgtun selskapslokale</b><small>12. november · utleie</small></div><strong>−1 250,00 kr</strong></div></section></div>
+                {activeAboutTab.id === "email" && <div className="tc-email-workspace">
+                  <div className="tc-mail-client">
+                    <div className="tc-mail-client-toolbar"><strong>{emailFolder === "inbox" ? "Innboks" : emailFolder === "sent" ? "Sendt" : emailFolder === "queue" ? "Utsendingskø" : "Utkast"}</strong><button type="button" className="tc-settings-save" onClick={() => setFeedback("Ny e-post åpnet i lokal demo.")}>＋ Ny e-post</button></div>
+                    <nav className="tc-mail-folders" aria-label="E-postmapper">{([["inbox","Innboks","3"],["sent","Sendt","2"],["queue","Utsendingskø","1"],["drafts","Utkast","1"]] as const).map(([folder,label,count]) => <button type="button" key={folder} className={emailFolder === folder ? "active" : ""} onClick={() => {setEmailFolder(folder);setSelectedEmailId(demoEmails[folder][0]?.id || "");}}><span>{label}</span><b>{count}</b></button>)}</nav>
+                    <div className="tc-mail-list" aria-label="Meldinger">{folderMessages.map(mail => <button type="button" key={mail.id} className={selectedEmailId === mail.id ? "active" : ""} onClick={() => setSelectedEmailId(mail.id)}><span className="tc-mail-avatar">{mail.from.split(" ").map(word => word[0]).join("").slice(0,2).toUpperCase()}</span><span className="tc-mail-list-copy"><strong>{mail.from}</strong><b>{mail.subject}</b><small>{mail.preview}</small></span><time>{mail.time}</time></button>)}{!folderMessages.length && <p className="tc-empty-note">Denne mappen er tom.</p>}</div>
+                    <article className="tc-mail-reader">{activeEmail ? <><div className="tc-mail-reader-toolbar"><button type="button" onClick={() => setFeedback("Svar er åpnet i lokal e-postdemo.")}>Svar</button><button type="button" onClick={() => setFeedback("Meldingen er arkivert i denne skissen.")}>Arkiver</button><button type="button" onClick={() => setFeedback("Meldingen er markert som lest.")}>⋯</button></div><span className="tc-kicker">{emailFolder === "queue" ? "UTSENDINGSKØ" : emailFolder === "sent" ? "SENDT" : emailFolder === "drafts" ? "UTKAST" : "INNBOKS"}</span><h4>{activeEmail.subject}</h4><div className="tc-mail-sender"><span className="tc-mail-avatar">{activeEmail.from.split(" ").map(word => word[0]).join("").slice(0,2).toUpperCase()}</span><span><strong>{activeEmail.from}</strong><small>{activeEmail.address}</small></span><time>{activeEmail.time}</time></div><p>{activeEmail.body}</p></> : <div className="tc-empty-note">Velg en melding for å lese den.</div>}</article>
+                  </div>
+                  <section className="tc-mail-automation"><div><span className="tc-kicker">AUTOMATISK UTSENDING</span><h4>Små på/av-valg for hver e-posttype</h4></div><div className="tc-mail-switches">{([["reservation","Påmeldingsbekreftelse"],["renewal","Medlemsfornyelse"],["receipt","Salgsbilag"]] as const).map(([key,label]) => <label key={key} className={emailAutomation[key] ? "enabled" : ""}><span>{label}</span><input type="checkbox" checked={emailAutomation[key]} onChange={event => setEmailAutomation(current => ({...current,[key]:event.target.checked}))} /><i /></label>)}</div></section>
+                  <div className="tc-settings-feedback" role="status">{feedback || "Lokale e-posteksempler · ingen meldinger sendes."}</div>
+                </div>}
+                {activeAboutTab.id === "economy" && <div className="tc-economy-workspace">
+                  <div className="tc-economy-toolbar">
+                    <div><span className="tc-kicker">ØKONOMI · UNIFIED LEDGER</span><h3>{economyView === "results" ? "Resultater" : "Betalingsløsninger"}</h3><p>{economyView === "results" ? "Inntekter minus utgifter fra eksempelpostene i hovedboken." : "Tilgjengelige betalingsmetoder og aktiveringsvalg."}</p></div>
+                    {economyView === "results" ? <button type="button" className="tc-settings-save" onClick={() => setEconomyView("payments")}>Betalingsløsninger <Arrow /></button> : <button type="button" className="tc-outline-action" onClick={() => setEconomyView("results")}><Arrow direction="left" /> Tilbake til resultater</button>}
+                  </div>
+                  {economyView === "results" ? <>
+                    <div className="tc-result-summary">
+                      <article className="tc-net-result"><span>RESULTAT · INN − UT</span><strong>{ledgerResult.toLocaleString("nb-NO", {minimumFractionDigits:2,maximumFractionDigits:2})} kr</strong><small>Fra {filteredLedger.length} eksempelposter i unified_ledger.list</small></article>
+                      <article><span>INNTEKTER</span><strong>+{ledgerIncome.toLocaleString("nb-NO", {minimumFractionDigits:2,maximumFractionDigits:2})} kr</strong></article>
+                      <article><span>UTGIFTER</span><strong>−{ledgerExpense.toLocaleString("nb-NO", {minimumFractionDigits:2,maximumFractionDigits:2})} kr</strong></article>
+                    </div>
+                    <div className="tc-ledger-heading"><div><span className="tc-kicker">HOVEDBOK</span><h4>Transaksjoner</h4></div><div className="tc-ledger-filters" role="group" aria-label="Filtrer transaksjoner">{([["all","Alle"],["income","Inntekter"],["expense","Utgifter"]] as const).map(([filter,label]) => <button type="button" key={filter} className={economyFilter === filter ? "active" : ""} onClick={() => setEconomyFilter(filter)}>{label}</button>)}</div></div>
+                    <div className="tc-ledger-table"><div className="tc-ledger-columns"><span>Modul / beskrivelse</span><span>Kunde</span><span>Tidspunkt</span><span>Betalingsløsning</span><span>Status</span><span>Beløp</span></div>{filteredLedger.map(row => <button type="button" key={row.id} className={`tc-ledger-row ${selectedLedgerId === row.id ? "selected" : ""} ${row.kind}`} onClick={() => setSelectedLedgerId(row.id)}><span><small>{row.module}</small><strong>{row.description}</strong></span><span>{row.customer}</span><time>{row.time}</time><span className="tc-ledger-method">{row.method}</span><span className={`tc-ledger-status ${row.status === "Gjennomført" || row.status === "Betalt" ? "complete" : "pending"}`}>{row.status}</span><strong className={row.amount < 0 ? "expense" : "income"}>{row.amount < 0 ? "−" : "+"}{Math.abs(row.amount).toLocaleString("nb-NO",{minimumFractionDigits:2,maximumFractionDigits:2})} kr</strong></button>)}</div>
+                    <div className="tc-ledger-footer"><span>Viser {filteredLedger.length} av {demoLedger.length} poster · lokalt eksempel</span><span>Valgt: {demoLedger.find(row => row.id === selectedLedgerId)?.description || "Ingen"}</span></div>
+                  </> : <div className="tc-gateway-grid">{paymentChoices.map(method => <article className={`tc-gateway-card ${economySettings[method.key] ? "is-active" : ""} ${method.configured ? "is-configured" : "is-unconfigured"}`} key={method.key}><div className="tc-gateway-card-top"><span className={`tc-gateway-logo tc-gateway-${method.key}`}>{method.mark}</span><span className={`tc-gateway-light ${method.configured ? economySettings[method.key] ? "green" : "amber" : "gray"}`} /></div><h4>{method.name}</h4><p>{method.detail}</p><button type="button" className={economySettings[method.key] ? "deactivate" : "activate"} onClick={() => {if (method.key === "invoice" && !method.configured) {setEconomySettings(current => ({...current,invoice:true}));setFeedback("Faktura er satt opp med eksempelbankkonto.");} else setEconomySettings(current => ({...current,[method.key]:!current[method.key]}));}}>{method.configured ? economySettings[method.key] ? "Deaktiver" : "Aktiver" : "Konfigurer"}</button>{method.key === "invoice" && economySettings.invoice && <small className="tc-gateway-account">Primærkonto · 1503.28.45109</small>}</article>)}</div>}
                 </div>}
                 {activeAboutTab.id === "website" && <div className="tc-settings-section-grid tc-website-preview-grid">
                   <section className="tc-settings-panel"><div className="tc-settings-panel-heading"><div><span><h3>Profil og utseende</h3><p>Juster profilen som vises på Hjem og Tjenester.</p></span></div><span className="tc-demo-status">Lokal demo</span></div><div className="tc-form-grid"><label>Firmanavn<input autoComplete="off" value={companyName} onChange={event=>setCompanyName(event.target.value)} /></label><label>Font<select value={theme.fontFamily} onChange={event=>updateTheme("fontFamily",event.target.value)}><option value="Georgia, serif">Georgia</option><option value="DM Sans, sans-serif">DM Sans</option><option value="Trebuchet MS, sans-serif">Trebuchet</option></select></label><label>Headerfarge<span className="tc-color-control"><input type="color" value={theme.headerBg} onChange={event=>updateTheme("headerBg",event.target.value)} /><code>{theme.headerBg}</code></span></label><label>Sidebakgrunn<span className="tc-color-control"><input type="color" value={theme.bodyBg} onChange={event=>updateTheme("bodyBg",event.target.value)} /><code>{theme.bodyBg}</code></span></label></div><div className="tc-form-grid"><label>Logoens plassering<select value={theme.logoPosition} onChange={event=>updateTheme("logoPosition",event.target.value)}><option value="left">Venstre</option><option value="center">Senter</option><option value="right">Høyre</option></select></label><label>Navigasjon<select value={theme.navPosition} onChange={event=>updateTheme("navPosition",event.target.value)}><option value="center">Sentrert</option><option value="left">Venstre</option><option value="right">Høyre</option></select></label></div><div className="tc-footer-calculation"><span>Footerhøyde beregnes fra header</span><strong>{theme.headerHeight}px × 0,6 = {footerHeight}px</strong></div></section>

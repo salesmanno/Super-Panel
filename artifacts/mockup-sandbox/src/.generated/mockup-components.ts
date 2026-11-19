@@ -4,9 +4,9 @@ export const modules: ModuleMap = {
   "./components/mockups/event-checkin/Current.tsx": () => import("../components/mockups/event-checkin/Current.tsx"),
   "./components/mockups/event-checkin/Unified.tsx": () => import("../components/mockups/event-checkin/Unified.tsx"),
   "./components/mockups/news-composer/Composer.tsx": () => import("../components/mockups/news-composer/Composer.tsx"),
-  "./components/mockups/payment-gateway-cards/Current.tsx": () => import("../components/mockups/payment-gateway-cards/Current.tsx"),
-  "./components/mockups/payment-gateway-cards/Refreshed.tsx": () => import("../components/mockups/payment-gateway-cards/Refreshed.tsx"),
   "./components/mockups/portal-attention/Current.tsx": () => import("../components/mockups/portal-attention/Current.tsx"),
   "./components/mockups/portal-attention/Overview.tsx": () => import("../components/mockups/portal-attention/Overview.tsx"),
-  "./components/mockups/portal-attention/TenantCopy.tsx": () => import("../components/mockups/portal-attention/TenantCopy.tsx")
+  "./components/mockups/portal-attention/TenantCopy.tsx": () => import("../components/mockups/portal-attention/TenantCopy.tsx"),
+  "./components/mockups/payment-gateway-cards/Current.tsx": () => import("../components/mockups/payment-gateway-cards/Current.tsx"),
+  "./components/mockups/payment-gateway-cards/Refreshed.tsx": () => import("../components/mockups/payment-gateway-cards/Refreshed.tsx")
 };
