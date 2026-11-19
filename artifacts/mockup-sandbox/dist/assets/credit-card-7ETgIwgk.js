@@ -1,0 +1,1 @@
+import{c}from"./chevron-down-DioidJji.js";const e=[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"m9 12 2 2 4-4",key:"dzmm74"}]],t=c("circle-check",e);const r=[["rect",{width:"20",height:"14",x:"2",y:"5",rx:"2",key:"ynyp8z"}],["line",{x1:"2",x2:"22",y1:"10",y2:"10",key:"1b3vmo"}]],i=c("credit-card",r);export{t as C,i as a};

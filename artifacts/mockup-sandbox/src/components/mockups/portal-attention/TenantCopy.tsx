@@ -4,6 +4,19 @@ import "./tenantCopy.css";
 type SitePage = "home" | "services" | "about";
 type ModuleName = "Medlemskap" | "Utleie" | "Arrangementer" | "Salg" | "Økonomi";
 type ServiceId = "membership" | "rental" | "event-dinner" | "event-dance" | "sales";
+type BenefitRule = { enabled: boolean; basis: "percent" | "amount"; value: string };
+type ServiceEntry = { module: ModuleName; title: string; image: string; description: string; price: string; active: boolean; sourceTable: string };
+const serviceSourceTables: Record<ServiceId, string> = {
+  membership: "membership_plans",
+  rental: "rental_objects",
+  "event-dinner": "events_eventdata",
+  "event-dance": "events_eventdata",
+  sales: "output_products",
+};
+const configuredMembershipPlans = [
+  { id: "member", name: "Bergsøy Medlem", price: "500,00 kr" },
+  { id: "board", name: "Bergsøy Medlem Styre", price: "0,00 kr" },
+];
 type AboutTab = "company" | "staff" | "email" | "economy" | "website";
 type EmailFolder = "inbox" | "sent" | "queue" | "drafts";
 type EconomyView = "results" | "payments";
@@ -84,13 +97,6 @@ const serviceMeta: Record<ServiceId, { module: ModuleName; title: string; image:
 
 const initialModules: ModuleName[] = ["Medlemskap", "Utleie", "Arrangementer", "Økonomi"];
 const allModuleChoices: ModuleName[] = ["Medlemskap", "Utleie", "Arrangementer", "Salg", "Økonomi"];
-const moduleDescriptions: Record<ModuleName, string> = {
-  Medlemskap: "Planer, medlemmer og fordeler",
-  Utleie: "Lokaler, priser og forespørsler",
-  Arrangementer: "Påmelding, billett og innsjekk",
-  Salg: "Varesalg og nettbutikk",
-  Økonomi: "Betalinger, inntekter og utgifter",
-};
 const demoEmails: Record<EmailFolder, { id: string; from: string; address: string; subject: string; preview: string; time: string; body: string }[]> = {
   inbox: [
     { id: "mail-1", from: "Kurt Remøy", address: "kurt.remoy@example.no", subject: "Påmelding til julebord", preview: "Hei, jeg forsøkte å melde Aud på …", time: "09:42", body: "Hei! Jeg forsøkte å melde Aud på julebordet, men fikk ikke bekreftelsen. Kan dere sjekke om påmeldingen gikk gjennom?" },
@@ -160,7 +166,12 @@ export function TenantCopy() {
     { id: "ola", name: "Ola Myrseth", role: "Utleieansvarlig", firstName: "Ola", lastName: "Myrseth", email: "ola.myrseth@example.no", phone: "930 45 678", jobTitle: "Utleieansvarlig", department: "Utleie", linkedUser: "", supervisor: false, modules: ["Utleie"] as ModuleName[] },
   ]);
   const [news, setNews] = useState(initialNews);
-  const [hiddenServices, setHiddenServices] = useState<string[]>([]);
+  const [serviceEntries, setServiceEntries] = useState<Record<ServiceId, ServiceEntry>>(() =>
+    Object.fromEntries(Object.entries(serviceMeta).map(([id, entry]) => [
+      id,
+      { ...entry, active: true, sourceTable: serviceSourceTables[id as ServiceId] },
+    ])) as Record<ServiceId, ServiceEntry>,
+  );
   const [hiddenOffers, setHiddenOffers] = useState<string[]>([]);
   const [createdOffers, setCreatedOffers] = useState<Array<{id: string; title: string; module: ModuleName; price: string}>>([]);
   const [newOfferOpen, setNewOfferOpen] = useState(false);
@@ -172,9 +183,29 @@ export function TenantCopy() {
   const [selectedService, setSelectedService] = useState<ServiceId>("membership");
   const [fieldEditorOpen, setFieldEditorOpen] = useState(false);
   const [checkedFields, setCheckedFields] = useState(["Fornavn", "Etternavn", "E-postadresse", "Telefonnummer"]);
-  const [benefitEnabled, setBenefitEnabled] = useState(true);
-  const [memberVerification, setMemberVerification] = useState(true);
-  const [memberExclusive, setMemberExclusive] = useState(false);
+  const [benefitAssignments, setBenefitAssignments] = useState<Record<ServiceId, Record<string, BenefitRule>>>(() => ({
+    membership: {},
+    rental: {
+      member: { enabled: true, basis: "amount", value: "50" },
+      board: { enabled: false, basis: "percent", value: "0" },
+    },
+    "event-dinner": {
+      member: { enabled: true, basis: "amount", value: "125" },
+      board: { enabled: false, basis: "amount", value: "0" },
+    },
+    "event-dance": {
+      member: { enabled: false, basis: "amount", value: "0" },
+      board: { enabled: false, basis: "amount", value: "0" },
+    },
+    sales: {},
+  }));
+  const [memberRules, setMemberRules] = useState<Record<ServiceId, { memberVerification: boolean; memberExclusive: boolean }>>({
+    membership: { memberVerification: false, memberExclusive: false },
+    rental: { memberVerification: true, memberExclusive: false },
+    "event-dinner": { memberVerification: true, memberExclusive: true },
+    "event-dance": { memberVerification: true, memberExclusive: false },
+    sales: { memberVerification: false, memberExclusive: false },
+  });
   const [feedback, setFeedback] = useState("");
   const [aboutText, setAboutText] = useState("Bergsøy Danseklubb skaper møteplasser, danseglede og gode opplevelser på Sunnmøre. Vi samler mennesker på tvers av generasjoner – på dansegulvet og rundt bordet.");
   const [companyName, setCompanyName] = useState("Bergsøy Danseklubb");
@@ -220,15 +251,15 @@ export function TenantCopy() {
   const visibleNews = news.filter((item) => item.visible);
   const heroNews = visibleNews[0];
   const activeServices = useMemo(
-    () => Object.entries(serviceMeta).filter(([, service]) => enabledModules.includes(service.module)) as [ServiceId, (typeof serviceMeta)[ServiceId]][],
-    [enabledModules],
+    () => Object.entries(serviceEntries).filter(([, service]) => enabledModules.includes(service.module)) as [ServiceId, ServiceEntry][],
+    [enabledModules, serviceEntries],
   );
   const canManageHomeCards = interactionMode === "content" || interactionMode === "news";
   const canManageServiceCards = interactionMode === "content";
   const canManageBenefits = interactionMode === "benefits";
   const canManageFields = interactionMode === "fields";
   const visibleEventServiceIds = (["event-dinner", "event-dance"] as ServiceId[]).filter(
-    id => canManageServiceCards || !hiddenServices.includes(id),
+    id => canManageServiceCards || serviceEntries[id].active,
   );
   const displayedHomeStories = news.filter((item) =>
     (canManageHomeCards || item.visible) && (!heroNews || !heroEnabled || item.id !== heroNews.id),
@@ -301,6 +332,21 @@ export function TenantCopy() {
       return next;
     }));
   };
+  const updateServiceEntry = (id: ServiceId, key: "title" | "description" | "image" | "price" | "active", value: string | boolean) => {
+    setServiceEntries(current => ({ ...current, [id]: { ...current[id], [key]: value } }));
+  };
+  const updateBenefitRule = (id: ServiceId, planId: string, patch: Partial<BenefitRule>) => {
+    setBenefitAssignments(current => ({
+      ...current,
+      [id]: {
+        ...current[id],
+        [planId]: { ...(current[id][planId] ?? { enabled: false, basis: "amount", value: "0" }), ...patch },
+      },
+    }));
+  };
+  const updateMemberRule = (id: ServiceId, key: "memberVerification" | "memberExclusive", value: boolean) => {
+    setMemberRules(current => ({ ...current, [id]: { ...current[id], [key]: value } }));
+  };
   const openControlPanel = (editTarget: SitePage = page) => {
     if (editTarget === "about") {
       setAboutTab("company");
@@ -309,7 +355,7 @@ export function TenantCopy() {
     }
     setControlOpen(true);
     if (interactionMode === "read") {
-      setReaderTitle(editTarget === "home" ? (news.find(item => item.id === selectedNewsId)?.title || "Nyhet") : editTarget === "services" ? serviceMeta[selectedService].title : "Om oss");
+      setReaderTitle(editTarget === "home" ? (news.find(item => item.id === selectedNewsId)?.title || "Nyhet") : editTarget === "services" ? serviceEntries[selectedService].title : "Om oss");
       return;
     }
     if (editTarget === "home" && interactionMode !== "content" && interactionMode !== "news") {
@@ -321,7 +367,7 @@ export function TenantCopy() {
   };
   const chooseMode = (mode: string) => {
     setInteractionMode(mode);
-    setEditingPage(mode === "content" && page !== "about" ? page : null);
+    setEditingPage(null);
     setReaderTitle("");
     setFeedback("");
   };
@@ -377,8 +423,11 @@ export function TenantCopy() {
     setFeedback("Visningen på Hjem er oppdatert i denne skissen.");
   };
   const toggleServiceVisibility = (id: string) => {
-    setHiddenServices(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
-    setFeedback("Synligheten er endret i den lokale forhåndsvisningen.");
+    if (id in serviceEntries) {
+      const serviceId = id as ServiceId;
+      updateServiceEntry(serviceId, "active", !serviceEntries[serviceId].active);
+      setFeedback("is_active er endret for den valgte posten i den lokale forhåndsvisningen.");
+    }
   };
   const toggleOfferVisibility = (id: string) => {
     setHiddenOffers(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
@@ -470,20 +519,10 @@ export function TenantCopy() {
     };
     reader.readAsDataURL(file);
   };
-  const toggleModule = (module: ModuleName) => {
-    const next = enabledModules.includes(module)
-      ? enabledModules.filter((item) => item !== module)
-      : [...enabledModules, module];
-    setEnabledModules(next);
-    if (!next.includes(serviceMeta[selectedService].module)) {
-      const fallback = Object.entries(serviceMeta).find(([, service]) => next.includes(service.module));
-      if (fallback) setSelectedService(fallback[0] as ServiceId);
-    }
-  };
   const editService = (id: ServiceId) => {
     setSelectedService(id);
     if (interactionMode === "read") {
-      setReaderTitle(serviceMeta[id].title);
+      setReaderTitle(serviceEntries[id].title);
       return;
     }
     openControlPanel("services");
@@ -492,7 +531,23 @@ export function TenantCopy() {
     setCheckedFields((current) => current.includes(field) ? current.filter((item) => item !== field) : [...current, field]);
   };
 
-  const currentService = serviceMeta[selectedService];
+  const currentService = serviceEntries[selectedService];
+  const selectedPriceColumn = selectedService === "rental"
+    ? "rental_price"
+    : selectedService === "membership"
+      ? "price"
+      : selectedService === "sales"
+        ? "selling_price"
+        : "ticket_price";
+  const selectedImageColumn = selectedService === "rental"
+    ? "image_url"
+    : selectedService === "membership"
+      ? "image_url"
+      : selectedService === "sales"
+        ? "img_product"
+        : "event_image_url";
+  const supportsMemberRules = selectedService === "rental" || selectedService === "event-dinner" || selectedService === "event-dance";
+  const selectedMemberRules = memberRules[selectedService];
   // Preview-only access catalog: deliberately local and independent of any API/DB.
   const aboutTabs: { id: AboutTab; label: string; sub: string; number: string }[] = [
     { id: "company", label: "Bedriften", sub: "Profil og kontakt", number: "01" },
@@ -587,39 +642,39 @@ export function TenantCopy() {
                   <h1>Tjenester</h1>
                   <p>{activeServices.length + createdOffers.length} tilbud fra Bergsøy Danseklubb.</p>
                 </div>
-                {enabledModules.includes("Arrangementer") && (!hiddenServices.includes("event-dance") || canManageServiceCards) && <div className={`tc-service-card-wrap tc-latest-wrap ${hiddenServices.includes("event-dance") ? "is-hidden" : ""}`}>
+                {enabledModules.includes("Arrangementer") && (serviceEntries["event-dance"].active || canManageServiceCards) && <div className={`tc-service-card-wrap tc-latest-wrap ${serviceEntries["event-dance"].active ? "" : "is-hidden"}`}>
                   <button type="button" className="tc-latest-event" aria-label="Åpne siste arrangement" onClick={() => editService("event-dance")}>
                     <span className="tc-edit-marker">Rediger arrangement</span>
-                    <img src="/__mockup/images/portal-reimagined-dance.jpg" alt="" />
-                    <span><small>SISTE ARRANGEMENT</small><strong>ROMJULSDANS</strong><span>man. 28. des. 2026 kl. 19:00</span><b>Se arrangementet <Arrow /></b></span>
+                    <img src={serviceEntries["event-dance"].image} alt="" />
+                    <span><small>SISTE ARRANGEMENT</small><strong>{serviceEntries["event-dance"].title}</strong><span>man. 28. des. 2026 kl. 19:00</span><b>Se arrangementet <Arrow /></b></span>
                   </button>
-                  {canManageServiceCards && <button type="button" className={`tc-card-hide ${hiddenServices.includes("event-dance") ? "is-hidden" : ""}`} aria-label={`${hiddenServices.includes("event-dance") ? "Vis" : "Skjul"} Romjulsdans`} onClick={() => toggleServiceVisibility("event-dance")}>{hiddenServices.includes("event-dance") ? "Vis" : "Skjul"}</button>}
+                  {canManageServiceCards && <button type="button" className={`tc-card-hide ${serviceEntries["event-dance"].active ? "" : "is-hidden"}`} aria-label={`${serviceEntries["event-dance"].active ? "Skjul" : "Vis"} ${serviceEntries["event-dance"].title}`} onClick={() => toggleServiceVisibility("event-dance")}>{serviceEntries["event-dance"].active ? "Skjul" : "Vis"}</button>}
                 </div>}
               </section>
               <div id="tc-service-groups" className="tc-service-groups">
-                {enabledModules.includes("Medlemskap") && (!hiddenServices.includes("membership") || canManageServiceCards) && (
+                {enabledModules.includes("Medlemskap") && (serviceEntries.membership.active || canManageServiceCards) && (
                   <section className="tc-service-group">
                     <header><div><h2>Medlemskap</h2><p>Medlemskap for danseglede.</p></div><span>1 tilbud</span></header>
-                    <div className={`tc-service-card-wrap ${hiddenServices.includes("membership") ? "is-hidden" : ""}`}>
+                    <div className={`tc-service-card-wrap ${serviceEntries.membership.active ? "" : "is-hidden"}`}>
                       <button type="button" className="tc-public-service tc-membership-card" aria-label="Åpne medlemskapstilbudet Bergsøy Medlem" onClick={() => editService("membership")}>
-                        <span className="tc-service-image tc-member-logo"><img src="/__mockup/images/portal-reimagined-logo.png" alt="" /></span>
-                        <span className="tc-service-copy"><strong>Bergsøy Medlem</strong><small>Med i Bergsøy Danseklubb!</small><span className="tc-price-line">Pris <b>250,00 kr</b></span><span className="tc-blue-cta">Sjekk medlemskap</span></span>
+                        <span className="tc-service-image tc-member-logo"><img src={serviceEntries.membership.image} alt="" /></span>
+                        <span className="tc-service-copy"><strong>{serviceEntries.membership.title}</strong><small>{serviceEntries.membership.description}</small><span className="tc-price-line">Pris <b>{serviceEntries.membership.price}</b></span><span className="tc-blue-cta">Sjekk medlemskap</span></span>
                         <span className="tc-edit-marker">Rediger tilbud</span>
                       </button>
-                      {canManageServiceCards && <button type="button" className={`tc-card-hide ${hiddenServices.includes("membership") ? "is-hidden" : ""}`} aria-label={`${hiddenServices.includes("membership") ? "Vis" : "Skjul"} Bergsøy Medlem`} onClick={() => toggleServiceVisibility("membership")}>{hiddenServices.includes("membership") ? "Vis" : "Skjul"}</button>}
+                      {canManageServiceCards && <button type="button" className={`tc-card-hide ${serviceEntries.membership.active ? "" : "is-hidden"}`} aria-label={`${serviceEntries.membership.active ? "Skjul" : "Vis"} ${serviceEntries.membership.title}`} onClick={() => toggleServiceVisibility("membership")}>{serviceEntries.membership.active ? "Skjul" : "Vis"}</button>}
                     </div>
                   </section>
                 )}
-                {enabledModules.includes("Utleie") && (!hiddenServices.includes("rental") || canManageServiceCards) && (
+                {enabledModules.includes("Utleie") && (serviceEntries.rental.active || canManageServiceCards) && (
                   <section className="tc-service-group">
                     <header><div><h2>Utleie</h2><p>Lokaler og andre utleieobjekter.</p></div><span>1 tilbud</span></header>
-                    <div className={`tc-service-card-wrap ${hiddenServices.includes("rental") ? "is-hidden" : ""}`}>
+                    <div className={`tc-service-card-wrap ${serviceEntries.rental.active ? "" : "is-hidden"}`}>
                       <button type="button" className="tc-public-service" aria-label="Åpne utleietilbudet Høgtun Selskapslokale" onClick={() => editService("rental")}>
-                        <span className="tc-service-image"><img src="/__mockup/images/portal-reimagined-venue.jpg" alt="" /></span>
-                        <span className="tc-service-copy"><strong>Høgtun Selskapslokale</strong><small>Næringslokale i hjertet av Fosnavåg. Enkelt å leie hele døgnet.</small><span className="tc-service-address">Vågsgata 61, 6090 Fosnavåg</span><span className="tc-feature-chips"><small>60 sitteplasser</small><small>168 m²</small></span><span className="tc-blue-cta">Se detaljer og ledige datoer</span></span>
+                        <span className="tc-service-image"><img src={serviceEntries.rental.image} alt="" /></span>
+                        <span className="tc-service-copy"><strong>{serviceEntries.rental.title}</strong><small>{serviceEntries.rental.description}</small><span className="tc-service-address">Vågsgata 61, 6090 Fosnavåg</span><span className="tc-feature-chips"><small>60 sitteplasser</small><small>168 m²</small></span><span className="tc-blue-cta">{serviceEntries.rental.price}</span></span>
                         <span className="tc-edit-marker">Rediger tilbud</span>
                       </button>
-                      {canManageServiceCards && <button type="button" className={`tc-card-hide ${hiddenServices.includes("rental") ? "is-hidden" : ""}`} aria-label={`${hiddenServices.includes("rental") ? "Vis" : "Skjul"} Høgtun Selskapslokale`} onClick={() => toggleServiceVisibility("rental")}>{hiddenServices.includes("rental") ? "Vis" : "Skjul"}</button>}
+                      {canManageServiceCards && <button type="button" className={`tc-card-hide ${serviceEntries.rental.active ? "" : "is-hidden"}`} aria-label={`${serviceEntries.rental.active ? "Skjul" : "Vis"} ${serviceEntries.rental.title}`} onClick={() => toggleServiceVisibility("rental")}>{serviceEntries.rental.active ? "Skjul" : "Vis"}</button>}
                     </div>
                   </section>
                 )}
@@ -628,30 +683,30 @@ export function TenantCopy() {
                     <header><div><h2>Arrangementer</h2><p>Dato, sted og påmelding.</p></div><span>{visibleEventServiceIds.length} tilbud</span></header>
                     <div className="tc-event-service-grid">
                       {visibleEventServiceIds.map((id) => {
-                        const service = serviceMeta[id];
-                        if (hiddenServices.includes(id) && !canManageServiceCards) return null;
-                        return <div className={`tc-service-card-wrap ${hiddenServices.includes(id) ? "is-hidden" : ""}`} key={id}>
+                        const service = serviceEntries[id];
+                        if (!service.active && !canManageServiceCards) return null;
+                        return <div className={`tc-service-card-wrap ${service.active ? "" : "is-hidden"}`} key={id}>
                           <button type="button" className="tc-public-service tc-event-service" aria-label={`Åpne arrangementet ${service.title}`} onClick={() => editService(id)}>
                             <span className="tc-service-image"><img src={service.image} alt="" /></span>
                             <span className="tc-service-copy"><strong>{service.title}</strong><small>{service.description}</small><span className="tc-service-meta"><i>DATO</i><b>{id === "event-dinner" ? "lør. 5. des. 2026 kl. 19:00" : "man. 28. des. 2026 kl. 19:00"}</b><i>STED</i><b>Høgtun, Vågsgata 61</b></span><span className="tc-service-bottom"><span><small>Ordinærpris</small><b>{service.price}</b></span><span className="tc-blue-cta">Reserver billett</span></span></span>
                             <span className="tc-edit-marker">Rediger arrangement</span>
                           </button>
-                          {canManageServiceCards && <button type="button" className={`tc-card-hide ${hiddenServices.includes(id) ? "is-hidden" : ""}`} aria-label={`${hiddenServices.includes(id) ? "Vis" : "Skjul"} ${service.title}`} onClick={() => toggleServiceVisibility(id)}>{hiddenServices.includes(id) ? "Vis" : "Skjul"}</button>}
+                          {canManageServiceCards && <button type="button" className={`tc-card-hide ${service.active ? "" : "is-hidden"}`} aria-label={`${service.active ? "Skjul" : "Vis"} ${service.title}`} onClick={() => toggleServiceVisibility(id)}>{service.active ? "Skjul" : "Vis"}</button>}
                         </div>;
                       })}
                     </div>
                   </section>
                 )}
-                {enabledModules.includes("Salg") && (!hiddenServices.includes("sales") || canManageServiceCards) && (
+                {enabledModules.includes("Salg") && (serviceEntries.sales.active || canManageServiceCards) && (
                   <section className="tc-service-group">
                     <header><div><h2>Varer</h2><p>Produkter fra klubben.</p></div><span>1 tilbud</span></header>
-                    <div className={`tc-service-card-wrap ${hiddenServices.includes("sales") ? "is-hidden" : ""}`}>
+                    <div className={`tc-service-card-wrap ${serviceEntries.sales.active ? "" : "is-hidden"}`}>
                       <button type="button" className="tc-public-service" aria-label="Åpne produktet Dansekalender 2027" onClick={() => editService("sales")}>
-                        <span className="tc-service-image"><img src="/__mockup/images/portal-reimagined-dance.jpg" alt="" /></span>
-                        <span className="tc-service-copy"><strong>Dansekalender 2027</strong><small>En liten bit av dansegleden med hjem.</small><span className="tc-price-line">Pris <b>149,00 kr</b></span><span className="tc-blue-cta">Se varen</span></span>
+                        <span className="tc-service-image"><img src={serviceEntries.sales.image} alt="" /></span>
+                        <span className="tc-service-copy"><strong>{serviceEntries.sales.title}</strong><small>{serviceEntries.sales.description}</small><span className="tc-price-line">Pris <b>{serviceEntries.sales.price}</b></span><span className="tc-blue-cta">Se varen</span></span>
                         <span className="tc-edit-marker">Rediger vare</span>
                       </button>
-                      {canManageServiceCards && <button type="button" className={`tc-card-hide ${hiddenServices.includes("sales") ? "is-hidden" : ""}`} aria-label={`${hiddenServices.includes("sales") ? "Vis" : "Skjul"} Dansekalender 2027`} onClick={() => toggleServiceVisibility("sales")}>{hiddenServices.includes("sales") ? "Vis" : "Skjul"}</button>}
+                      {canManageServiceCards && <button type="button" className={`tc-card-hide ${serviceEntries.sales.active ? "" : "is-hidden"}`} aria-label={`${serviceEntries.sales.active ? "Skjul" : "Vis"} ${serviceEntries.sales.title}`} onClick={() => toggleServiceVisibility("sales")}>{serviceEntries.sales.active ? "Skjul" : "Vis"}</button>}
                     </div>
                   </section>
                 )}
@@ -660,7 +715,7 @@ export function TenantCopy() {
                   <div className="tc-event-service-grid">
                     {createdOffers.filter(offer => enabledModules.includes(offer.module) && (!hiddenOffers.includes(offer.id) || canManageServiceCards)).map(offer => <div className={`tc-service-card-wrap ${hiddenOffers.includes(offer.id) ? "is-hidden" : ""}`} key={offer.id}>
                       <button type="button" className="tc-public-service tc-event-service" onClick={() => editService(offer.module === "Medlemskap" ? "membership" : offer.module === "Utleie" ? "rental" : "event-dance")}>
-                        <span className="tc-service-image"><img src={offer.module === "Medlemskap" ? serviceMeta.membership.image : offer.module === "Utleie" ? serviceMeta.rental.image : serviceMeta["event-dance"].image} alt="" /></span>
+                        <span className="tc-service-image"><img src={offer.module === "Medlemskap" ? serviceEntries.membership.image : offer.module === "Utleie" ? serviceEntries.rental.image : serviceEntries["event-dance"].image} alt="" /></span>
                         <span className="tc-service-copy"><strong>{offer.title}</strong><small>{offer.module}</small>{offer.price && <span className="tc-price-line"><b>{offer.price}</b></span>}<span className="tc-blue-cta">Se tilbudet</span></span>
                       </button>
                       {canManageServiceCards && enabledModules.includes(offer.module) && <button type="button" className={`tc-card-hide ${hiddenOffers.includes(offer.id) ? "is-hidden" : ""}`} aria-label={`${hiddenOffers.includes(offer.id) ? "Vis" : "Skjul"} ${offer.title}`} onClick={() => toggleOfferVisibility(offer.id)}>{hiddenOffers.includes(offer.id) ? "Vis" : "Skjul"}</button>}
@@ -717,6 +772,7 @@ export function TenantCopy() {
                   <div className="tc-staff-toolbar"><div><span className="tc-kicker">ANSATTREGISTER</span><h3>{staffMembers.length} ansatte</h3><p>Kontaktinformasjon, stilling og eventuell innlogget brukerkonto.</p></div><button type="button" className="tc-settings-save" onClick={addStaffMember}>＋ Legg til ansatt</button></div>
                   <div className="tc-staff-directory">{staffMembers.map(member => <article className="tc-staff-record" key={member.id}>
                     <div className="tc-staff-record-top"><span className="tc-staff-avatar">{member.firstName[0]}{member.lastName[0]}</span><div><strong>{member.firstName} {member.lastName}</strong><small>{member.jobTitle} · {member.department}</small></div>{member.supervisor && <em>VEILEDER</em>}</div>
+                    <div className="tc-staff-profile-heading"><strong>Ansattopplysninger</strong><span>Kontakt og stilling · uavhengig av innloggingskonto</span></div>
                     <div className="tc-staff-edit-grid">
                       <label>Fornavn<input autoComplete="off" value={member.firstName} onChange={event => updateStaffField(member.id, "firstName", event.target.value)} /></label>
                       <label>Etternavn<input autoComplete="off" value={member.lastName} onChange={event => updateStaffField(member.id, "lastName", event.target.value)} /></label>
@@ -725,7 +781,11 @@ export function TenantCopy() {
                       <label>Stilling<input autoComplete="off" value={member.jobTitle} onChange={event => updateStaffField(member.id, "jobTitle", event.target.value)} /></label>
                       <label>Avdeling<input autoComplete="off" value={member.department} onChange={event => updateStaffField(member.id, "department", event.target.value)} /></label>
                     </div>
-                    <div className={`tc-linked-user ${member.linkedUser ? "is-linked" : "is-unlinked"}`}><span className="tc-link-indicator">{member.linkedUser ? "✓" : "·"}</span><span><small>BRUKERTILKNYTNING</small><strong>{member.linkedUser || "Ingen bruker knyttet til denne ansatte"}</strong></span><button type="button" onClick={() => setFeedback(member.linkedUser ? `Brukerkobling for ${member.firstName} vises lokalt.` : `Koble en bruker til ${member.firstName} lokalt.`)}>{member.linkedUser ? "Se bruker" : "Koble bruker"}</button></div>
+                    <div className={`tc-linked-user ${member.linkedUser ? "is-linked" : "is-unlinked"}`}>
+                      <div className="tc-linked-user-heading"><strong>Innloggingskonto</strong><span className="tc-account-state">{member.linkedUser ? "Tilknyttet" : "Ikke tilknyttet"}</span></div>
+                      <div className="tc-linked-user-content"><span className="tc-link-indicator">{member.linkedUser ? "✓" : "+"}</span><span><strong>{member.linkedUser ? member.linkedUser.split(" · ")[0] : "Ingen brukerkonto koblet"}</strong><small>{member.linkedUser ? "Denne kontoen kan logge inn og få delegerte modultilganger." : "Ansattopplysningene kan stå alene uten innlogging."}</small></span></div>
+                      <button type="button" onClick={() => setFeedback(member.linkedUser ? `Brukerkobling for ${member.firstName} vises lokalt.` : `Koble en bruker til ${member.firstName} lokalt.`)}>{member.linkedUser ? "Administrer kobling" : "Koble til konto"}</button>
+                    </div>
                     <div className="tc-staff-module-access"><span>MODULTILGANG</span><div>{allModuleChoices.filter(module => enabledModules.includes(module)).map(module => <button type="button" key={module} className={member.modules.includes(module) ? "assigned" : ""} aria-pressed={member.modules.includes(module)} onClick={() => toggleStaffModule(member.id, module)}>{module}{member.modules.includes(module) ? " ×" : " +"}</button>)}</div></div>
                   </article>)}</div>
                 </div>}
@@ -741,7 +801,7 @@ export function TenantCopy() {
                 </div>}
                 {activeAboutTab.id === "economy" && <div className="tc-economy-workspace">
                   <div className="tc-economy-toolbar">
-                    <div><span className="tc-kicker">ØKONOMI · UNIFIED LEDGER</span><h3>{economyView === "results" ? "Resultater" : "Betalingsløsninger"}</h3><p>{economyView === "results" ? "Inntekter minus utgifter fra eksempelpostene i hovedboken." : "Tilgjengelige betalingsmetoder og aktiveringsvalg."}</p></div>
+                    <div><h3>{economyView === "results" ? "Resultater" : "Betalingsløsninger"}</h3></div>
                     {economyView === "results" ? <button type="button" className="tc-settings-save" onClick={() => setEconomyView("payments")}>Betalingsløsninger <Arrow /></button> : <button type="button" className="tc-outline-action" onClick={() => setEconomyView("results")}><Arrow direction="left" /> Tilbake til resultater</button>}
                   </div>
                   {economyView === "results" ? <>
@@ -930,38 +990,65 @@ export function TenantCopy() {
           {editingPage === "services" && (
             <div className="tc-editor-panel">
               <div className="tc-editor-heading">
-                <div><h3>Tjenester som kan vises</h3><p>Aktiverte moduler bestemmer hvilke tjenestekategorier som finnes på den offentlige siden.</p></div>
+                <div>
+                  <h3>{interactionMode === "benefits" ? "Medlemsfordeler" : interactionMode === "fields" ? "Skjemafelt" : "Rediger innhold"}</h3>
+                  <p>{interactionMode === "benefits" ? "Fordeler settes på hvert tilbud for hver medlemskapsplan." : interactionMode === "fields" ? "Velg feltene kunden skal fylle ut for dette tilbudet." : "Endringer gjelder den valgte posten — ikke alle varer eller tjenester."}</p>
+                </div>
                 <span className="tc-count-badge">{activeServices.length} tilbud</span>
-              </div>
-              <div className="tc-module-toggle-row">
-                {allModuleChoices.map((module) => <button type="button" className={`tc-module-toggle ${enabledModules.includes(module) ? "enabled" : ""}`} key={module} aria-pressed={enabledModules.includes(module)} onClick={() => toggleModule(module)}>
-                  <span className="tc-module-check">{enabledModules.includes(module) ? "✓" : "+"}</span><span><strong>{module}</strong><small>{moduleDescriptions[module]}</small></span>
-                </button>)}
               </div>
               <div className="tc-services-admin-grid">
                 <div className="tc-admin-service-list">
-                  {activeServices.map(([id, service]) => <button type="button" key={id} className={`tc-admin-service ${selectedService === id ? "selected" : ""}`} onClick={() => setSelectedService(id)}>
-                    <img src={service.image} alt="" /><span><small>{service.module}</small><strong>{service.title}</strong><span>{service.price}</span></span><Arrow />
+                  {activeServices.map(([id, service]) => <button type="button" key={id} className={`tc-admin-service ${selectedService === id ? "selected" : ""}`} onClick={() => { setSelectedService(id); setFeedback(""); setFieldEditorOpen(interactionMode === "fields"); }}>
+                    <img src={service.image} alt="" /><span><small>{service.module}{service.active ? "" : " · is_active = 0"}</small><strong>{service.title}</strong><span>{service.price}</span></span><Arrow />
                   </button>)}
-                  {!activeServices.length && <div className="tc-empty-note">Velg en modul ovenfor for å vise tjenestene.</div>}
+                  {!activeServices.length && <div className="tc-empty-note">Ingen tjenester i de aktive modulene.</div>}
                 </div>
                 <div className="tc-service-inspector">
-                  <div className="tc-inspector-top"><span>REDIGER TJENESTE</span><span className="tc-service-tag">{currentService.module}</span></div>
-                  <h4>{currentService.title}</h4>
-                  <p>{currentService.description}</p>
-                  {(interactionMode === "content" || canManageBenefits) && selectedService === "membership" && <>
-                    <div className="tc-plan-tabs" role="tablist" aria-label="Medlemskapsplaner"><button type="button" className="active">Bergsøy Medlem</button><button type="button" onClick={() => setFeedback("Familieplanen er eksempeldata i denne skissen.")}>Familie</button><button type="button" className="tc-add-plan" onClick={() => setFeedback("Ny plan kan opprettes her.")}>+ Plan</button></div>
-                    <label className="tc-check-line"><input type="checkbox" checked={benefitEnabled} onChange={(event) => setBenefitEnabled(event.target.checked)} /><span><strong>Medlemsfordel på tilbud</strong><small>{benefitEnabled ? "250 kr vises som medlemspris" : "Tilbudet bruker ordinær pris"}</small></span></label>
-                    {benefitEnabled && <div className="tc-inline-price"><span>Ordinærpris <b>250 kr</b></span><span>Medlemspris <b>250 kr</b></span><button type="button" onClick={() => setFeedback("Medlemsfordelen er endret lokalt.")}>Endre fordel</button></div>}
+                  {interactionMode === "content" && <>
+                    <div className="tc-inspector-top"><span>VALGT TABELLPOST</span><span className="tc-service-tag">{currentService.module}</span></div>
+                    <div className="tc-record-table-line"><code>{currentService.sourceTable}</code><span>kun denne posten</span></div>
+                    <label className="tc-record-field">Navn / tittel<input value={currentService.title} onChange={event => updateServiceEntry(selectedService, "title", event.target.value)} /></label>
+                    <label className="tc-record-field">Beskrivelse<textarea rows={3} value={currentService.description} onChange={event => updateServiceEntry(selectedService, "description", event.target.value)} /></label>
+                    <label className="tc-record-field">{selectedPriceColumn}<input value={currentService.price} onChange={event => updateServiceEntry(selectedService, "price", event.target.value)} /></label>
+                    <label className="tc-record-field">{selectedImageColumn}<input value={currentService.image} onChange={event => updateServiceEntry(selectedService, "image", event.target.value)} /></label>
+                    <label className="tc-check-line tc-record-active"><input type="checkbox" checked={currentService.active} onChange={event => updateServiceEntry(selectedService, "active", event.target.checked)} /><span><strong>is_active</strong><small>{currentService.active ? "Posten vises i kundens tjenesteoversikt." : "Posten skjules fra kundens visning."}</small></span></label>
+                    <p className="tc-inspector-help">Feltene oppdaterer bare posten for «{currentService.title}» i {currentService.sourceTable} i denne mockupen. Forhåndsvisningen endres direkte.</p>
                   </>}
-                  {(interactionMode === "content" || canManageBenefits) && selectedService !== "membership" && <><label className="tc-check-line"><input type="checkbox" checked={benefitEnabled} onChange={(event) => setBenefitEnabled(event.target.checked)} /><span><strong>Medlemsfordel på tilbud</strong><small>{benefitEnabled ? "En aktiv medlemsfordel er satt opp" : "Ingen medlemsfordel"}</small></span></label><label className="tc-check-line"><input type="checkbox" checked={memberExclusive} onChange={(event) => setMemberExclusive(event.target.checked)} /><span><strong>Kun for medlemmer</strong><small>{memberExclusive ? "Tilbudet skjules for ikke-medlemmer" : "Tilbudet er synlig for alle"}</small></span></label></>}
-                  {(interactionMode === "content" || canManageBenefits) && (selectedService === "rental" || selectedService === "event-dinner" || selectedService === "event-dance") && <label className="tc-check-line"><input type="checkbox" checked={memberVerification} onChange={(event) => setMemberVerification(event.target.checked)} /><span><strong>Medlemsverifisering</strong><small>Kontroller medlemsstatus ved innsending</small></span></label>}
-                  {(interactionMode === "content" || canManageFields) && (selectedService === "rental" || selectedService === "event-dinner" || selectedService === "event-dance" || selectedService === "sales") && <>
-                    <div className="tc-field-editor-head"><div><strong>Skjemafelt</strong><small>Velg hvilke opplysninger kunden skal fylle ut.</small></div><button type="button" className="tc-small-button quiet" onClick={() => setFieldEditorOpen((open) => !open)}>{fieldEditorOpen ? "Skjul felt" : "Rediger felt"}</button></div>
-                    {fieldEditorOpen && <div className="tc-form-presets">{["Fornavn", "Etternavn", "E-postadresse", "Telefonnummer", "Adresse", "Postnummer", "Poststed", "Alder"].map((field) => <label key={field}><input type="checkbox" checked={checkedFields.includes(field)} onChange={() => toggleField(field)} />{field}</label>)}</div>}
-                    <div className="tc-field-summary">{checkedFields.length} felter valgt <span>{checkedFields.slice(0, 4).join(" · ")}{checkedFields.length > 4 ? " …" : ""}</span></div>
+                  {canManageBenefits && <>
+                    <div className="tc-inspector-top"><span>MEDLEMSFORDELER FOR VALGT TILBUD</span><span className="tc-service-tag">{currentService.module}</span></div>
+                    {selectedService === "membership" ? <div className="tc-benefit-source-note">
+                      <strong>Medlemskapsplaner</strong><p>Planene er fordelens medlemskilder. Velg et arrangements- eller utleiekort i listen for å sette fordeler opp mot hver av disse planene.</p>
+                      {configuredMembershipPlans.map(plan => <div className="tc-benefit-plan-summary" key={plan.id}><span>{plan.name}</span><b>{plan.price}</b></div>)}
+                    </div> : supportsMemberRules ? <>
+                      <p className="tc-benefit-context"><strong>{currentService.title}</strong><span>Fordelen gjelder dette tilbudet og settes per medlemskapsplan.</span></p>
+                      <div className="tc-benefit-plan-list">
+                        {configuredMembershipPlans.map(plan => {
+                          const rule = benefitAssignments[selectedService][plan.id] ?? { enabled: false, basis: "amount" as const, value: "0" };
+                          return <div className={`tc-benefit-plan-row ${rule.enabled ? "is-enabled" : ""}`} key={plan.id}>
+                            <label className="tc-benefit-plan-check"><input type="checkbox" checked={rule.enabled} onChange={event => updateBenefitRule(selectedService, plan.id, { enabled: event.target.checked })} /><span><strong>{plan.name}</strong><small>Planpris {plan.price}</small></span></label>
+                            <div className="tc-benefit-value">
+                              <select aria-label={`Rabattype for ${plan.name}`} value={rule.basis} onChange={event => updateBenefitRule(selectedService, plan.id, { basis: event.target.value as BenefitRule["basis"] })}><option value="amount">Kr avslag</option><option value="percent">% avslag</option></select>
+                              <input aria-label={`Rabattverdi for ${plan.name}`} type="number" min="0" max={rule.basis === "percent" ? "100" : undefined} step="1" value={rule.value} disabled={!rule.enabled} onChange={event => updateBenefitRule(selectedService, plan.id, { value: event.target.value })} />
+                              <small>{rule.basis === "percent" ? "%" : "kr"}</small>
+                            </div>
+                          </div>;
+                        })}
+                      </div>
+                      <div className="tc-benefit-rules">
+                        <label className="tc-check-line"><input type="checkbox" checked={selectedMemberRules.memberVerification} onChange={event => updateMemberRule(selectedService, "memberVerification", event.target.checked)} /><span><strong>Medlemsverifisering</strong><small>Kontroller medlemsstatus når kunden sender inn skjemaet.</small></span></label>
+                        <label className="tc-check-line"><input type="checkbox" checked={selectedMemberRules.memberExclusive} onChange={event => updateMemberRule(selectedService, "memberExclusive", event.target.checked)} /><span><strong>Kun for medlemmer</strong><small>{selectedMemberRules.memberExclusive ? "Bare medlemmer kan se eller bruke dette tilbudet." : "Tilbudet er tilgjengelig for alle."}</small></span></label>
+                      </div>
+                    </> : <div className="tc-benefit-source-note"><strong>Ikke tilgjengelig for denne varetypen</strong><p>Medlemsfordeler i denne arbeidsflaten gjelder medlemsplaner mot arrangementer og utleie. Salgsvarer konfigureres ikke her.</p></div>}
                   </>}
-                  {selectedService === "sales" && <div className="tc-sales-note">Dette tilbudet hentes fra Salg. Pris og vareinnhold redigeres i modulens vareoversikt.</div>}
+                  {canManageFields && <>
+                    {(selectedService === "rental" || selectedService === "event-dinner" || selectedService === "event-dance" || selectedService === "sales") ? <>
+                      <div className="tc-inspector-top"><span>DYNAMISKE FELT</span><span className="tc-service-tag">{currentService.module}</span></div>
+                      <div className="tc-record-table-line"><code>dynamic_form_fields</code><span>koblet til {currentService.sourceTable}</span></div>
+                      <div className="tc-field-editor-head"><div><strong>Felter på «{currentService.title}»</strong><small>Endringene gjelder kun dette skjemaet.</small></div><button type="button" className="tc-small-button quiet" onClick={() => setFieldEditorOpen(open => !open)}>{fieldEditorOpen ? "Skjul" : "Vis felt"}</button></div>
+                      {fieldEditorOpen && <div className="tc-form-presets">{["Fornavn", "Etternavn", "E-postadresse", "Telefonnummer", "Adresse", "Postnummer", "Poststed", "Alder"].map((field) => <label key={field}><input type="checkbox" checked={checkedFields.includes(field)} onChange={() => toggleField(field)} />{field}</label>)}</div>}
+                      <div className="tc-field-summary">{checkedFields.length} felter valgt <span>{checkedFields.slice(0, 4).join(" · ")}{checkedFields.length > 4 ? " …" : ""}</span></div>
+                    </> : <div className="tc-benefit-source-note"><strong>Ingen skjemaoppsett på dette kortet</strong><p>Dynamiske innsendingsfelt brukes på arrangementer, utleie og salgsvarer.</p></div>}
+                  </>}
                   <p className="tc-feedback" role="status">{feedback}</p>
                 </div>
               </div>
