@@ -23,7 +23,7 @@ const checks = `(async () => {
     const baseline = geometry();
     const y = scrollY;
     const position = dock().top;
-    for (const button of document.querySelectorAll('.tc-mode-island button')) {
+    for (const button of document.querySelectorAll('.tc-mode-island button[aria-pressed]')) {
       button.focus({preventScroll:true});
       button.click();
       await settle();

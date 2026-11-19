@@ -1,3 +1,33 @@
+.tc-new-service-choices { display: grid; gap: 10px; margin: 18px 0; }
+.tc-new-service-choices button { display: flex; align-items: center; justify-content: space-between; padding: 16px; border: 1px solid #cad9df; border-radius: 12px; background: #f7fbfc; color: #193c4c; }
+.tc-new-service-choices button:hover { border-color: #24777a; background: #edf6f6; }
+.tc-new-service-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tc-new-service-rates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.tc-new-service-panel form { display: grid; gap: 12px; }
+.tc-new-service-panel fieldset { padding: 0; border: 0; }
+.tc-new-service-panel legend { font-weight: 700; font-size: 15px; margin-bottom: 12px; }
+.tc-mode-island .tc-island-new { background: #fff; color: #173b49; }
+.tc-shell .tc-creation-modal {
+  position: fixed; top: calc(50% - 18px); left: 50%; right: auto; bottom: auto;
+  transform: translate(-50%, -50%); width: min(1020px, calc(100vw - 48px));
+  max-height: calc(100dvh - 150px); padding: 28px; overflow: auto;
+  border-radius: 18px; box-shadow: 0 16px 70px #17374645; background: #fff; z-index: 1200;
+}
+.tc-shell .tc-creation-modal label { font-size: 13px; }
+.tc-shell .tc-creation-modal input, .tc-shell .tc-creation-modal select, .tc-shell .tc-creation-modal textarea {
+  font: inherit; min-height: 42px; border: 1px solid #c5d4e1; border-radius: 8px; padding: 10px; width: 100%; box-sizing: border-box;
+}
+.tc-shell .tc-creation-modal input[type="checkbox"] { width: auto; min-height: 0; }
+.tc-shell .tc-new-service-panel form { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 22px; }
+.tc-shell .tc-new-service-panel form > :is(button, h3, p, fieldset),
+.tc-shell .tc-new-service-panel form > label:has(textarea),
+.tc-shell .tc-new-service-panel form > label:has(input[type="url"]) { grid-column: 1 / -1; }
+.tc-shell .tc-news-creation-modal .tc-news-editor-grid { grid-template-columns: minmax(200px, .65fr) minmax(0, 1.35fr); }
+@media (max-width: 600px) {
+  .tc-shell .tc-creation-modal { width: calc(100vw - 20px); max-height: calc(100dvh - 130px); padding: 18px; }
+  .tc-shell .tc-news-creation-modal .tc-news-editor-grid { grid-template-columns: 1fr; }
+  .tc-shell .tc-new-service-panel form { grid-template-columns: 1fr; }
+}
 .tc-shell {
   --tc-ink: #16243a;
   --tc-blue: #305a9f;

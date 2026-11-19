@@ -118,10 +118,8 @@ const checks = `
         check(document.getElementById('registration_deadline_container').style.display==='none','Deadline hidden again');
         check(!field('registration_deadline').required,'Deadline no longer required');
         check(document.getElementById('venue-name-field').style.display==='none','Venue visibility reset');
-        check(form.querySelector('[name="membership_price_fixture-plan"]').value==='','Member price cleared');
-        check(form.querySelector('[name="membership_public_fixture-plan"]').checked,'Member public default restored');
+        check(!form.querySelector('[name^="membership_price_"],[name="memberverification"],[name="is_member_exclusive"]'),'Membership benefits are not configured during creation');
         check(document.querySelectorAll('#payment-methods-container input').length===2,'Company payment configuration retained');
-        check(membershipPlansData.length===1,'Company plans retained');
         check(fixtureConfirms===0,'Automatic reset never asks for confirmation');
     };
     try{
@@ -168,8 +166,6 @@ const checks = `
         input(field('event_image_url'),'data:image/png,fixture');
         document.getElementById('has_venue_name').checked=true;
         input(field('venue_name'),'Gammelt sted');
-        input(form.querySelector('[name="membership_price_fixture-plan"]'),'150');
-        form.querySelector('[name="membership_public_fixture-plan"]').checked=false;
         wizardCurrentStep=7;updateWizardSummary();
         fixtureMode='failure';await submit();
         check(field('title').value==='Første arrangement'&&field('start_time').value==='09:30','API failure retains values');
@@ -262,13 +258,13 @@ const checks = `
         updateWizardSummary();await settle();
         check(form.querySelector('[name="binding_payment_method"][value="vipps"]').checked,
             'Vipps selection survives opening the event summary');
-        field('memberverification').checked=true;field('is_member_exclusive').checked=true;
+        check(!field('memberverification')&&!field('is_member_exclusive'),'Creation must not show membership restrictions');
         const bindingMethods=EventSettings.paymentMethods(form,'#payment-methods-container input[type="checkbox"]','binding');
         check(!bindingMethods.includes('cash'),'Binding create filters cash before submission');
         await submit();
         const bindingSave=fixtureSaves.at(-1);
-        check(bindingSave.registration_type==='binding'&&bindingSave.memberverification===1&&bindingSave.is_member_exclusive===1,
-            'Actual binding create saves both membership flags');
+        check(bindingSave.registration_type==='binding'&&bindingSave.memberverification===0&&bindingSave.is_member_exclusive===0,
+            'Actual binding create leaves membership settings to Fordeler');
         check(bindingSave.allowed_payment_methods.join()==='vipps','Actual binding creation uses digital payment only');
         check(edit.querySelector('.event-time-minutes').value==='05','Edit minute synced');
         check(fixtureErrors.length===0,'No unexpected browser errors: '+fixtureErrors.join('; '));

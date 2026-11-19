@@ -894,18 +894,12 @@ try {
                             <div class="step-circle">4</div>
                             <div class="step-label">Priser</div>
                         </div>
-                        <?php if (!empty($hasMembershipAccess)): ?>
-                        <div class="wizard-step" data-step="5">
-                            <div class="step-circle">5</div>
-                            <div class="step-label">Medlemskap</div>
-                        </div>
-                        <?php endif; ?>
                         <div class="wizard-step" data-step="6">
-                            <div class="step-circle">6</div>
+                            <div class="step-circle">5</div>
                             <div class="step-label">Betaling</div>
                         </div>
                         <div class="wizard-step" data-step="7">
-                            <div class="step-circle">7</div>
+                            <div class="step-circle">6</div>
                             <div class="step-label">Oppsummering</div>
                         </div>
                     </div>
@@ -1135,63 +1129,12 @@ try {
                                     <small class="text-muted d-block">Priser vises på arrangementsiden</small>
                                 </div>
                                 
-                                <hr class="my-4">
-                                
-                                <?php if (!empty($hasMembershipAccess)): ?>
-                                <h6 class="mb-3"><i class="bi bi-people-fill me-2"></i>Medlemspriser</h6>
-                                <div id="membership-pricing-container">
-                                    <div class="text-center py-3">
-                                        <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-                                        <small class="text-muted">Laster medlemsplaner...</small>
-                                    </div>
-                                </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 5: Membership Add-ons -->
-                    <?php if (!empty($hasMembershipAccess)): ?>
-                    <div class="wizard-content" id="wizard-step-5" style="display: none;">
-                        <div class="text-center mb-4">
-                            <h4 class="mb-2">Medlemstillegg</h4>
-                            <p class="text-muted">Spesielle innstillinger for medlemmer</p>
-                        </div>
-                        
-                        <div class="row justify-content-center">
-                            <div class="col-md-8">
-                                <div class="card border-0 bg-light mb-3">
-                                    <div class="card-body">
-                                        <div class="form-check mb-3">
-                                            <input class="form-check-input" type="checkbox" name="memberverification" id="memberverification">
-                                            <label class="form-check-label" for="memberverification">
-                                                <i class="bi bi-shield-check text-success me-2"></i>
-                                                <strong>Autofyll og autogodkjenning</strong>
-                                            </label>
-                                            <small class="text-muted d-block ms-4">Medlemmer får automatisk utfylt informasjon og godkjennes umiddelbart</small>
-                                        </div>
-                                        
-                                        <div class="form-check" id="members-only-container">
-                                            <input class="form-check-input" type="checkbox" name="is_member_exclusive" id="memberExclusive">
-                                            <label class="form-check-label" for="memberExclusive">
-                                                <i class="bi bi-lock-fill text-warning me-2"></i>
-                                                <strong>Kun for medlemmer</strong>
-                                            </label>
-                                            <small class="text-muted d-block ms-4">Bare medlemmer kan melde seg på dette arrangementet</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="alert alert-info">
-                                    <i class="bi bi-info-circle me-2"></i>
-                                    Disse valgene vises bare for arrangementer med påmelding.
-                                </div>
+                                <p class="small text-muted">Medlemspriser og medlemsrestriksjoner settes under Fordeler etter opprettelse.</p>
                             </div>
                         </div>
                     </div>
 
                     <!-- Step 6: Payment Methods -->
-                    <?php endif; ?>
                     <div class="wizard-content" id="wizard-step-6" style="display: none;">
                         <div class="text-center mb-4">
                             <h4 class="mb-2">Betalingsmetoder</h4>
@@ -2660,21 +2603,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            // Collect membership plan pricing
+            // Benefits are configured separately after creation.
             const membershipPricing = [];
-            membershipPlansData.forEach(plan => {
-                // Use plan_id if available, otherwise use id (matches loadWizardMembershipPlans)
-                const planId = plan.plan_id || plan.id;
-                const priceInput = document.querySelector(`input[data-plan-id="${planId}"]`);
-                const publicCheckbox = document.querySelector(`input[name="membership_public_${planId}"]`);
-                if (priceInput && priceInput.value) {
-                    membershipPricing.push({
-                        plan_id: planId,
-                        price: parseFloat(priceInput.value),
-                        public_display: publicCheckbox && publicCheckbox.checked ? 1 : 0
-                    });
-                }
-            });
             
             // Collect allowed payment methods from Economy configuration
             let allowedPaymentMethods;
@@ -2711,7 +2641,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 age_limit: formData.get('age_limit') || null,
                 ticket_price: registrationType === 'none' ? 0 : (formData.get('ticket_price') || 0),
                 event_image_url: formData.get('event_image_url') || null,
-                ...EventSettings.membership(this),
+                is_member_exclusive: 0,
+                memberverification: 0,
                 registration_type: registrationType,
                 payment_timing_methods: paymentTimingMethods,
                 membership_pricing: membershipPricing,
@@ -7052,7 +6983,7 @@ function getNextValidStep(currentStep, direction) {
             nextStep = direction > 0 ? 7 : 3;
         }
     }
-    // For "Påmelding" (signup) - all steps accessible including step 5 (medlemstillegg)
+    // Signup keeps ordinary pricing/payment steps; benefits are configured separately.
     // No skipping for this registration type
     // For "Bindende" - skip step 5 AND step 6 (payment already chosen in step 1)
     else if (regType === 'binding') {
@@ -7060,7 +6991,7 @@ function getNextValidStep(currentStep, direction) {
             nextStep = direction > 0 ? 7 : 4;
         }
     }
-    if (nextStep === 5 && !eventHasMembershipAccess()) nextStep += direction;
+    if (nextStep === 5) nextStep += direction; // Membership is configured through Fordeler.
     
     // Clamp to valid range
     if (nextStep < 1) nextStep = 1;
@@ -7072,7 +7003,7 @@ function getNextValidStep(currentStep, direction) {
 function wizardGoToStep(step) {
     if (eventCreationBusy) return;
     if (step < 1 || step > wizardTotalSteps) return;
-    if (step === 5 && !eventHasMembershipAccess()) return;
+    if (step === 5) return;
     
     // Block navigation to steps that should be skipped based on registration_type
     const regType = document.querySelector('#create-event-form input[name="registration_type"]:checked')?.value;

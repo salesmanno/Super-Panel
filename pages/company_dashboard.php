@@ -13,8 +13,10 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/session_manager.php';
 require_once __DIR__ . '/../includes/tenant_audit.php';
 require_once __DIR__ . '/../includes/tenant_supervisor.php';
+require_once __DIR__ . '/../includes/portal_view_mode.php';
 $auditVisible = false;
 $isSupervisor = false;
+$portalMode = 'legacy';
 
 $adminName = $_SESSION['admin_name'] ?? 'Bruker';
 $companyName = $_SESSION['company_name'] ?? 'Firma';
@@ -26,6 +28,7 @@ $companySubdomain = $_SESSION['subdomain'] ?? null;
 $companyIsActive = false;
 try {
     $db = getDBConnection();
+    if ($db) $portalMode = portalViewMode($db, (string)$_SESSION['tenant_admin_id']);
     if ($db && isset($_SESSION['company_id'])) {
         $isSupervisor = tenantIsSupervisor($db, (string) $_SESSION['company_id']);
         $auditVisible = $isSupervisor;
@@ -410,7 +413,9 @@ try {
     <link rel="stylesheet" href="../assets/dashboard-module-theme.css">
     <link rel="stylesheet" href="/assets/portal-overview.css">
 </head>
-<body data-company-id="<?= htmlspecialchars((string)($_SESSION['company_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" data-admin-id="<?= htmlspecialchars((string)($_SESSION['tenant_admin_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+<body class="<?= $portalMode === 'wpreview' ? 'portal-wpreview' : '' ?>" data-company-id="<?= htmlspecialchars((string)($_SESSION['company_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" data-admin-id="<?= htmlspecialchars((string)($_SESSION['tenant_admin_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+    <?php if ($portalMode === 'wpreview') include __DIR__ . '/../includes/portal_website_preview.php'; ?>
+    <div id="portal-legacy">
     <!-- Navigation -->
     <nav class="navbar navbar-gradient navbar-dark">
         <div class="container-fluid">
@@ -1944,5 +1949,9 @@ try {
     <?php include __DIR__ . '/../includes/norwegian_datetime_inputs.php'; ?>
     <?php include __DIR__ . '/../includes/toast_notification.php'; ?>
     <script src="/assets/image-upload.js" defer></script>
+    </div>
+    <?php if ($portalMode === 'wpreview'): ?>
+    <script src="/assets/portal-website-preview.js?v=<?= filemtime(__DIR__.'/../assets/portal-website-preview.js') ?>" defer></script>
+    <?php endif; ?>
 </body>
 </html>
