@@ -549,7 +549,7 @@
 .tc-latest-event b { display: inline-flex; align-items: center; gap: 5px; padding: 5px 7px; border: 1px solid #7f9fbd; border-radius: 2px; color: #244d82; font-family: "DM Sans", "Segoe UI", sans-serif; font-size: 9px; font-weight: 700; }
 .tc-service-groups {
   scroll-margin-top: calc(var(--tc-header-height) + 65px);
-  width: min(100%, 1200px);
+  width: min(100%, 1060px);
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
@@ -620,10 +620,10 @@
 .tc-card-hide:focus-visible { color: #365a7d; background: #fff; opacity: 1; }
 .tc-card-hide.is-hidden { color: #47704e; border-color: rgba(88, 144, 100, .24); }
 .tc-home-story { width: 100%; }
-.tc-service-image { min-width: 0; overflow: hidden; background: #c4d9f0; }
-.tc-service-image img { width: 100%; height: 100%; min-height: 146px; object-fit: cover; }
+.tc-service-image { position: relative; min-width: 0; overflow: hidden; background: #c4d9f0; }
+.tc-service-image img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; min-height: 0; object-fit: cover; }
 .tc-service-image.tc-member-logo { display: grid; place-items: center; padding: 15px; background: var(--tc-secondary); }
-.tc-service-image.tc-member-logo img { width: min(100%, 76px); height: auto; min-height: 0; aspect-ratio: 1; object-fit: contain; filter: drop-shadow(0 1px 0 rgba(255,255,255,.4)); }
+.tc-service-image.tc-member-logo img { position: static; width: min(100%, 76px); height: auto; min-height: 0; aspect-ratio: 1; object-fit: contain; filter: drop-shadow(0 1px 0 rgba(255,255,255,.4)); }
 .tc-service-copy { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 10px 12px; }
 .tc-service-copy > strong { color: #1b2430; font-size: 14px; font-weight: 750; line-height: 1.15; }
 .tc-service-copy > small { color: #53677b; font-size: 9px; line-height: 1.38; }
@@ -636,7 +636,7 @@
 .tc-group-wide { grid-column: 1 / -1; }
 .tc-event-service-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .tc-event-service { grid-template-columns: 28% minmax(0, 1fr); min-height: 176px; }
-.tc-event-service .tc-service-image img { min-height: 176px; }
+.tc-event-service .tc-service-image img { min-height: 0; }
 .tc-event-service .tc-service-copy { gap: 4px; padding: 9px 10px; }
 .tc-service-meta { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 2px 5px; margin-top: 3px; }
 .tc-service-meta i { color: #7890a6; font-family: "DM Sans", "Segoe UI", sans-serif; font-size: 7px; font-style: normal; font-weight: 800; letter-spacing: .08em; }
@@ -1002,7 +1002,6 @@
   .tc-public-site { font-size: max(15px, var(--tc-font-size)); }
   .tc-home-hero,
   .tc-service-intro,
-  .tc-service-groups,
   .tc-home-news-list,
   .tc-footer-inner { width: min(100%, 1320px); }
 }
@@ -1064,14 +1063,14 @@
   .tc-service-groups { grid-template-columns: 1fr; gap: 18px; padding: 16px 17px 28px; }
   .tc-service-group > header h2 { font-size: 18px; }
   .tc-public-service { grid-template-columns: 32% minmax(0,1fr); min-height: 137px; }
-  .tc-service-image img { min-height: 137px; }
+  .tc-service-image img { min-height: 0; }
   .tc-service-copy { gap: 4px; padding: 8px 9px; }
   .tc-service-copy > strong { font-size: 12px; }
   .tc-service-copy > small { font-size: 8px; }
   .tc-blue-cta { padding: 4px 6px; font-size: 8px; }
   .tc-event-service-grid { grid-template-columns: 1fr; }
   .tc-event-service { grid-template-columns: 28% minmax(0,1fr); min-height: 154px; }
-  .tc-event-service .tc-service-image img { min-height: 154px; }
+  .tc-event-service .tc-service-image img { min-height: 0; }
   .tc-about-page { min-height: 540px; padding: 27px 18px 36px; }
   .tc-about-intro { padding: 15px 0 24px; }
   .tc-about-intro h1 { font-size: 34px; }
