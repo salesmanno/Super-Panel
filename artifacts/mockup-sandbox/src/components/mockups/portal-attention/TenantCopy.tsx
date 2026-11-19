@@ -692,7 +692,7 @@ export function TenantCopy() {
                 </div>
                 {activeAboutTab.id === "company" && <div className="tc-company-workspace">
                   <section className="tc-settings-panel tc-company-profile-card">
-                    <div className="tc-company-profile-head"><div><span className="tc-kicker">BEDRIFTSPROFIL</span><h3>{companyName}</h3><p>Opplysninger for den valgte bedriften.</p></div><button type="button" className="tc-settings-save" onClick={() => setFeedback("Bedriftsprofilen er oppdatert lokalt i mockupen.")}>Lagre profil</button></div>
+                    <div className="tc-company-profile-head"><div><span className="tc-kicker">BEDRIFTSPROFIL</span><h3>{companyName}</h3><p>Opplysninger for den valgte bedriften.</p></div></div>
                     <div className="tc-subdomain-line"><span>NETTADRESSE</span><code>{companyProfile.subdomain}</code><small>tenant_companies.subdomain</small></div>
                     <div className="tc-company-image-box">
                       <div className="tc-company-image-header" style={{ backgroundColor: theme.headerBg }}><span>header_bg_color</span><code>{theme.headerBg}</code></div>

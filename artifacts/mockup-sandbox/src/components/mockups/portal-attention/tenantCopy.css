@@ -2000,3 +2000,108 @@
   .tc-about-inspector .tc-settings-card input:not([type=checkbox]),
   .tc-about-inspector .tc-bank-account input { min-height: 42px; font-size: 14px; }
 }
+
+/* Om oss is the settings page itself; remove the nested dashboard card shell. */
+.tc-settings-layout {
+  display: block;
+  width: min(100%, 1240px);
+}
+.tc-settings-nav {
+  position: static;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 5px;
+  overflow-x: auto;
+  padding: 0 0 12px;
+  margin: 0 0 20px;
+  border: 0;
+  border-bottom: 1px solid rgba(60, 100, 150, .22);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  scrollbar-width: thin;
+}
+.tc-settings-nav-label,
+.tc-settings-nav-foot { display: none; }
+.tc-settings-nav > button {
+  min-width: 150px;
+  flex: 1 0 150px;
+  min-height: 60px;
+  padding: 8px 10px;
+  border-color: transparent;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+}
+.tc-settings-nav > button.active {
+  border-color: transparent transparent #315c91;
+  border-bottom-width: 3px;
+  color: #274c74;
+  background: rgba(255,255,255,.42);
+}
+.tc-settings-main {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.tc-settings-main-head {
+  width: 100%;
+  margin-bottom: 20px;
+}
+.tc-company-workspace { gap: 0; }
+.tc-company-profile-card {
+  display: grid;
+  grid-template-columns: minmax(240px,.82fr) minmax(0,1.18fr);
+  align-items: start;
+  gap: 15px 28px;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.tc-company-profile-head,
+.tc-subdomain-line,
+.tc-company-preview-foot {
+  grid-column: 1 / -1;
+  padding-right: 0;
+  padding-left: 0;
+}
+.tc-company-profile-head {
+  align-items: center;
+  padding-top: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(60, 100, 150, .2);
+  background: transparent;
+}
+.tc-company-image-box {
+  padding: 0;
+  border: 0;
+}
+.tc-company-fields {
+  align-content: start;
+  gap: 14px 16px;
+  padding: 0;
+}
+.tc-company-fields input,
+.tc-company-fields textarea { background: rgba(255,255,255,.78); }
+.tc-company-preview-foot {
+  padding-top: 4px;
+  border-top: 1px solid rgba(60, 100, 150, .16);
+  background: transparent;
+}
+@media (max-width: 760px) {
+  .tc-settings-nav { margin-bottom: 14px; }
+  .tc-settings-nav > button { min-width: 134px; min-height: 54px; flex-basis: 134px; }
+  .tc-settings-main-head { margin-bottom: 14px; }
+  .tc-company-profile-card { grid-template-columns: minmax(0,1fr); gap: 12px; }
+  .tc-company-profile-head,
+  .tc-subdomain-line,
+  .tc-company-preview-foot { grid-column: 1; }
+  .tc-company-profile-head { align-items: flex-start; flex-direction: column; }
+  .tc-company-image-box { max-width: 100%; }
+  .tc-company-fields { grid-template-columns: minmax(0,1fr); }
+  .tc-company-fields label.wide { grid-column: 1; }
+}
