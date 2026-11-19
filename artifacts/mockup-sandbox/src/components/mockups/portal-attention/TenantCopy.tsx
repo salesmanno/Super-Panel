@@ -122,6 +122,32 @@ const demoLedger = [
   { id: "ledger-5", module: "Økonomi", description: "Leie av øvingslokale", customer: "Høgtun Kulturhus", time: "16.11.2026 · 10:15", amount: -1200, method: "Bank", status: "Betalt", kind: "expense" as const },
   { id: "ledger-6", module: "Salg", description: "Dansekalender 2027 · 3 stk.", customer: "Kari Remøy", time: "15.11.2026 · 19:31", amount: 447, method: "Kontant", status: "Gjennomført", kind: "income" as const },
 ];
+const demoAuditLogs = [
+  { time: "09:42", actor: "Atle Karl", role: "Administrator", action: "endret bedriftsprofilen", target: "Bergsøy Danseklubb" },
+  { time: "08:51", actor: "Kari Remøy", role: "Arrangementsansvarlig", action: "godkjente 2 påmeldinger til", target: "Julebord for medlemmer" },
+  { time: "I går", actor: "Atle Karl", role: "Administrator", action: "oppdaterte leieprisen for", target: "Høgtun Selskapslokale" },
+];
+const demoMembershipRows = [
+  { name: "Arild Slettestøl", email: "arild@example.no", phone: "481 45 008", plan: "Bergsøy Medlem", status: "Aktiv", until: "31.03.2027" },
+  { name: "Kari Remøy", email: "kari@example.no", phone: "905 34 210", plan: "Bergsøy Medlem Styre", status: "Aktiv", until: "31.03.2027" },
+  { name: "Ola Myrseth", email: "ola@example.no", phone: "930 45 678", plan: "Bergsøy Medlem", status: "Venter", until: "—" },
+];
+const demoRentalSchedule = [
+  { customer: "Kulturhuset Fosnavåg", from: "21.11.2026", to: "22.11.2026", status: "Godkjent", amount: "3 200 kr" },
+  { customer: "Kari Remøy", from: "28.11.2026", to: "29.11.2026", status: "Venter", amount: "3 200 kr" },
+  { customer: "Myrseth Familie", from: "05.12.2026", to: "06.12.2026", status: "Avvist", amount: "3 200 kr" },
+];
+const demoEventRegistrations: Record<"event-dinner" | "event-dance", { name: string; email: string; phone: string; ticket: string; payment: string; status: string }[]> = {
+  "event-dinner": [
+    { name: "Gry Myrseth", email: "gry@example.no", phone: "911 22 334", ticket: "500 kr", payment: "Betalt", status: "Påmeldt" },
+    { name: "Karl-Sverre Moltumyr", email: "karl@example.no", phone: "922 33 445", ticket: "500 kr", payment: "Venter", status: "Reservert" },
+    { name: "Aud Remøy", email: "aud@example.no", phone: "933 44 556", ticket: "500 kr", payment: "Betalt", status: "Påmeldt" },
+  ],
+  "event-dance": [
+    { name: "Kari Remøy", email: "kari@example.no", phone: "905 34 210", ticket: "400 kr", payment: "Betalt", status: "Påmeldt" },
+    { name: "Ola Myrseth", email: "ola@example.no", phone: "930 45 678", ticket: "400 kr", payment: "Betalt", status: "Påmeldt" },
+  ],
+};
 
 function Arrow({ direction = "right" }: { direction?: "left" | "right" | "up" | "down" }) {
   const paths = {
@@ -139,6 +165,7 @@ export function TenantCopy() {
   const [editingPage, setEditingPage] = useState<SitePage | null>(null);
   const [interactionMode, setInteractionMode] = useState("read");
   const [readerTitle, setReaderTitle] = useState("");
+  const [readerServiceId, setReaderServiceId] = useState<ServiceId | null>(null);
   const [aboutTab, setAboutTab] = useState<AboutTab>("company");
   const isSupervisor = true;
   const [emailModuleEnabled, setEmailModuleEnabled] = useState(true);
@@ -259,7 +286,7 @@ export function TenantCopy() {
   const canManageBenefits = interactionMode === "benefits";
   const canManageFields = interactionMode === "fields";
   const visibleEventServiceIds = (["event-dinner", "event-dance"] as ServiceId[]).filter(
-    id => canManageServiceCards || serviceEntries[id].active,
+    id => serviceEntries[id].active || !enabledModules.includes(serviceEntries[id].module) || (canManageServiceCards && enabledModules.includes(serviceEntries[id].module)),
   );
   const displayedHomeStories = news.filter((item) =>
     (canManageHomeCards || item.visible) && (!heroNews || !heroEnabled || item.id !== heroNews.id),
@@ -355,6 +382,7 @@ export function TenantCopy() {
     }
     setControlOpen(true);
     if (interactionMode === "read") {
+      setReaderServiceId(null);
       setReaderTitle(editTarget === "home" ? (news.find(item => item.id === selectedNewsId)?.title || "Nyhet") : editTarget === "services" ? serviceEntries[selectedService].title : "Om oss");
       return;
     }
@@ -369,6 +397,7 @@ export function TenantCopy() {
     setInteractionMode(mode);
     setEditingPage(null);
     setReaderTitle("");
+    setReaderServiceId(null);
     setFeedback("");
   };
   const openAllNews = () => {
@@ -413,6 +442,7 @@ export function TenantCopy() {
     setInteractionMode("read");
     setEditingPage(null);
     setReaderTitle("");
+    setReaderServiceId(null);
     setFeedback("");
   };
   const updateNews = (id: string, key: "title" | "summary", value: string) => {
@@ -520,11 +550,14 @@ export function TenantCopy() {
     reader.readAsDataURL(file);
   };
   const editService = (id: ServiceId) => {
+    if (!canAccessService(id)) return;
     setSelectedService(id);
     if (interactionMode === "read") {
+      setReaderServiceId(id);
       setReaderTitle(serviceEntries[id].title);
       return;
     }
+    setReaderServiceId(null);
     openControlPanel("services");
   };
   const toggleField = (field: string) => {
@@ -547,14 +580,14 @@ export function TenantCopy() {
         ? "img_product"
         : "event_image_url";
   const supportsMemberRules = selectedService === "rental" || selectedService === "event-dinner" || selectedService === "event-dance";
+  const canAccessService = (id: ServiceId) => enabledModules.includes(serviceEntries[id].module);
   const selectedMemberRules = memberRules[selectedService];
   // Preview-only access catalog: deliberately local and independent of any API/DB.
   const aboutTabs: { id: AboutTab; label: string; sub: string; number: string }[] = [
-    { id: "company", label: "Bedriften", sub: "Profil og kontakt", number: "01" },
-    { id: "staff", label: "Ansatte", sub: "Brukere og tilganger", number: "02" },
-    { id: "email", label: "E-post", sub: "Utsendinger og maler", number: "03" },
-    { id: "economy", label: "Økonomi", sub: "Betaling og konto", number: "04" },
-    { id: "website", label: "Webside", sub: "Utseende og visning", number: "05" },
+    ...(isSupervisor ? [{ id: "company" as const, label: "Bedriften", sub: "Profil og kontakt", number: "01" }, { id: "staff" as const, label: "Ansatte", sub: "Brukere og tilganger", number: "02" }] : []),
+    ...(emailModuleEnabled ? [{ id: "email" as const, label: "E-post", sub: "Utsendinger og maler", number: "03" }] : []),
+    ...(enabledModules.includes("Økonomi") ? [{ id: "economy" as const, label: "Økonomi", sub: "Betaling og konto", number: "04" }] : []),
+    ...(websiteModuleEnabled ? [{ id: "website" as const, label: "Webside", sub: "Utseende og visning", number: "05" }] : []),
   ];
   const activeAboutTab = aboutTabs.find(tab => tab.id === aboutTab) ?? aboutTabs[0];
   const folderMessages = demoEmails[emailFolder];
@@ -626,7 +659,7 @@ export function TenantCopy() {
                     <button type="button" className="tc-home-story-copy" aria-label={`Åpne ${item.title}`} onClick={() => { setSelectedNewsId(item.id); openControlPanel("home"); }}>
                       <span>{item.title}</span>
                       <small>{item.date}</small>
-                      <em>{interactionMode === "content" ? "Rediger" : "Les saken"}</em>
+                      <em>{interactionMode === "content" ? "Rediger" : "Se saken"}</em>
                     </button>
                   </article>
                 ))}
@@ -640,41 +673,41 @@ export function TenantCopy() {
                 <div>
                   <span className="tc-kicker">BERGSØY DANSEKLUBB</span>
                   <h1>Tjenester</h1>
-                  <p>{activeServices.length + createdOffers.length} tilbud fra Bergsøy Danseklubb.</p>
+                  <p>{Object.values(serviceEntries).filter(service => service.active).length + createdOffers.length} tilbud fra Bergsøy Danseklubb.</p>
                 </div>
-                {enabledModules.includes("Arrangementer") && (serviceEntries["event-dance"].active || canManageServiceCards) && <div className={`tc-service-card-wrap tc-latest-wrap ${serviceEntries["event-dance"].active ? "" : "is-hidden"}`}>
-                  <button type="button" className="tc-latest-event" aria-label="Åpne siste arrangement" onClick={() => editService("event-dance")}>
+                {(serviceEntries["event-dance"].active || !canAccessService("event-dance") || canManageServiceCards) && <div className={`tc-service-card-wrap tc-latest-wrap ${serviceEntries["event-dance"].active ? "" : "is-hidden"} ${canAccessService("event-dance") ? "" : "is-locked"}`}>
+                  <button type="button" disabled={!canAccessService("event-dance")} className="tc-latest-event" aria-label="Åpne siste arrangement" onClick={() => editService("event-dance")}>
                     <span className="tc-edit-marker">Rediger arrangement</span>
                     <img src={serviceEntries["event-dance"].image} alt="" />
                     <span><small>SISTE ARRANGEMENT</small><strong>{serviceEntries["event-dance"].title}</strong><span>man. 28. des. 2026 kl. 19:00</span><b>Se arrangementet <Arrow /></b></span>
                   </button>
-                  {canManageServiceCards && <button type="button" className={`tc-card-hide ${serviceEntries["event-dance"].active ? "" : "is-hidden"}`} aria-label={`${serviceEntries["event-dance"].active ? "Skjul" : "Vis"} ${serviceEntries["event-dance"].title}`} onClick={() => toggleServiceVisibility("event-dance")}>{serviceEntries["event-dance"].active ? "Skjul" : "Vis"}</button>}
+                  {canManageServiceCards && canAccessService("event-dance") && <button type="button" className={`tc-card-hide ${serviceEntries["event-dance"].active ? "" : "is-hidden"}`} aria-label={`${serviceEntries["event-dance"].active ? "Skjul" : "Vis"} ${serviceEntries["event-dance"].title}`} onClick={() => toggleServiceVisibility("event-dance")}>{serviceEntries["event-dance"].active ? "Skjul" : "Vis"}</button>}
                 </div>}
               </section>
               <div id="tc-service-groups" className="tc-service-groups">
-                {enabledModules.includes("Medlemskap") && (serviceEntries.membership.active || canManageServiceCards) && (
+                {(serviceEntries.membership.active || !canAccessService("membership") || canManageServiceCards) && (
                   <section className="tc-service-group">
                     <header><div><h2>Medlemskap</h2><p>Medlemskap for danseglede.</p></div><span>1 tilbud</span></header>
-                    <div className={`tc-service-card-wrap ${serviceEntries.membership.active ? "" : "is-hidden"}`}>
-                      <button type="button" className="tc-public-service tc-membership-card" aria-label="Åpne medlemskapstilbudet Bergsøy Medlem" onClick={() => editService("membership")}>
+                    <div className={`tc-service-card-wrap ${serviceEntries.membership.active ? "" : "is-hidden"} ${canAccessService("membership") ? "" : "is-locked"}`}>
+                      <button type="button" disabled={!canAccessService("membership")} className="tc-public-service tc-membership-card" aria-label="Åpne medlemskapstilbudet Bergsøy Medlem" onClick={() => editService("membership")}>
                         <span className="tc-service-image tc-member-logo"><img src={serviceEntries.membership.image} alt="" /></span>
                         <span className="tc-service-copy"><strong>{serviceEntries.membership.title}</strong><small>{serviceEntries.membership.description}</small><span className="tc-price-line">Pris <b>{serviceEntries.membership.price}</b></span><span className="tc-blue-cta">Sjekk medlemskap</span></span>
                         <span className="tc-edit-marker">Rediger tilbud</span>
                       </button>
-                      {canManageServiceCards && <button type="button" className={`tc-card-hide ${serviceEntries.membership.active ? "" : "is-hidden"}`} aria-label={`${serviceEntries.membership.active ? "Skjul" : "Vis"} ${serviceEntries.membership.title}`} onClick={() => toggleServiceVisibility("membership")}>{serviceEntries.membership.active ? "Skjul" : "Vis"}</button>}
+                      {canManageServiceCards && canAccessService("membership") && <button type="button" className={`tc-card-hide ${serviceEntries.membership.active ? "" : "is-hidden"}`} aria-label={`${serviceEntries.membership.active ? "Skjul" : "Vis"} ${serviceEntries.membership.title}`} onClick={() => toggleServiceVisibility("membership")}>{serviceEntries.membership.active ? "Skjul" : "Vis"}</button>}
                     </div>
                   </section>
                 )}
-                {enabledModules.includes("Utleie") && (serviceEntries.rental.active || canManageServiceCards) && (
+                {(serviceEntries.rental.active || !canAccessService("rental") || canManageServiceCards) && (
                   <section className="tc-service-group">
                     <header><div><h2>Utleie</h2><p>Lokaler og andre utleieobjekter.</p></div><span>1 tilbud</span></header>
-                    <div className={`tc-service-card-wrap ${serviceEntries.rental.active ? "" : "is-hidden"}`}>
-                      <button type="button" className="tc-public-service" aria-label="Åpne utleietilbudet Høgtun Selskapslokale" onClick={() => editService("rental")}>
+                    <div className={`tc-service-card-wrap ${serviceEntries.rental.active ? "" : "is-hidden"} ${canAccessService("rental") ? "" : "is-locked"}`}>
+                      <button type="button" disabled={!canAccessService("rental")} className="tc-public-service" aria-label="Åpne utleietilbudet Høgtun Selskapslokale" onClick={() => editService("rental")}>
                         <span className="tc-service-image"><img src={serviceEntries.rental.image} alt="" /></span>
                         <span className="tc-service-copy"><strong>{serviceEntries.rental.title}</strong><small>{serviceEntries.rental.description}</small><span className="tc-service-address">Vågsgata 61, 6090 Fosnavåg</span><span className="tc-feature-chips"><small>60 sitteplasser</small><small>168 m²</small></span><span className="tc-blue-cta">{serviceEntries.rental.price}</span></span>
                         <span className="tc-edit-marker">Rediger tilbud</span>
                       </button>
-                      {canManageServiceCards && <button type="button" className={`tc-card-hide ${serviceEntries.rental.active ? "" : "is-hidden"}`} aria-label={`${serviceEntries.rental.active ? "Skjul" : "Vis"} ${serviceEntries.rental.title}`} onClick={() => toggleServiceVisibility("rental")}>{serviceEntries.rental.active ? "Skjul" : "Vis"}</button>}
+                      {canManageServiceCards && canAccessService("rental") && <button type="button" className={`tc-card-hide ${serviceEntries.rental.active ? "" : "is-hidden"}`} aria-label={`${serviceEntries.rental.active ? "Skjul" : "Vis"} ${serviceEntries.rental.title}`} onClick={() => toggleServiceVisibility("rental")}>{serviceEntries.rental.active ? "Skjul" : "Vis"}</button>}
                     </div>
                   </section>
                 )}
@@ -684,39 +717,39 @@ export function TenantCopy() {
                     <div className="tc-event-service-grid">
                       {visibleEventServiceIds.map((id) => {
                         const service = serviceEntries[id];
-                        if (!service.active && !canManageServiceCards) return null;
-                        return <div className={`tc-service-card-wrap ${service.active ? "" : "is-hidden"}`} key={id}>
-                          <button type="button" className="tc-public-service tc-event-service" aria-label={`Åpne arrangementet ${service.title}`} onClick={() => editService(id)}>
+                        if (!service.active && canAccessService(id) && !canManageServiceCards) return null;
+                        return <div className={`tc-service-card-wrap ${service.active ? "" : "is-hidden"} ${canAccessService(id) ? "" : "is-locked"}`} key={id}>
+                          <button type="button" disabled={!canAccessService(id)} className="tc-public-service tc-event-service" aria-label={`Åpne arrangementet ${service.title}`} onClick={() => editService(id)}>
                             <span className="tc-service-image"><img src={service.image} alt="" /></span>
                             <span className="tc-service-copy"><strong>{service.title}</strong><small>{service.description}</small><span className="tc-service-meta"><i>DATO</i><b>{id === "event-dinner" ? "lør. 5. des. 2026 kl. 19:00" : "man. 28. des. 2026 kl. 19:00"}</b><i>STED</i><b>Høgtun, Vågsgata 61</b></span><span className="tc-service-bottom"><span><small>Ordinærpris</small><b>{service.price}</b></span><span className="tc-blue-cta">Reserver billett</span></span></span>
                             <span className="tc-edit-marker">Rediger arrangement</span>
                           </button>
-                          {canManageServiceCards && <button type="button" className={`tc-card-hide ${service.active ? "" : "is-hidden"}`} aria-label={`${service.active ? "Skjul" : "Vis"} ${service.title}`} onClick={() => toggleServiceVisibility(id)}>{service.active ? "Skjul" : "Vis"}</button>}
+                          {canManageServiceCards && canAccessService(id) && <button type="button" className={`tc-card-hide ${service.active ? "" : "is-hidden"}`} aria-label={`${service.active ? "Skjul" : "Vis"} ${service.title}`} onClick={() => toggleServiceVisibility(id)}>{service.active ? "Skjul" : "Vis"}</button>}
                         </div>;
                       })}
                     </div>
                   </section>
                 )}
-                {enabledModules.includes("Salg") && (serviceEntries.sales.active || canManageServiceCards) && (
+                {(serviceEntries.sales.active || !canAccessService("sales") || canManageServiceCards) && (
                   <section className="tc-service-group">
                     <header><div><h2>Varer</h2><p>Produkter fra klubben.</p></div><span>1 tilbud</span></header>
-                    <div className={`tc-service-card-wrap ${serviceEntries.sales.active ? "" : "is-hidden"}`}>
-                      <button type="button" className="tc-public-service" aria-label="Åpne produktet Dansekalender 2027" onClick={() => editService("sales")}>
+                    <div className={`tc-service-card-wrap ${serviceEntries.sales.active ? "" : "is-hidden"} ${canAccessService("sales") ? "" : "is-locked"}`}>
+                      <button type="button" disabled={!canAccessService("sales")} className="tc-public-service" aria-label="Åpne produktet Dansekalender 2027" onClick={() => editService("sales")}>
                         <span className="tc-service-image"><img src={serviceEntries.sales.image} alt="" /></span>
                         <span className="tc-service-copy"><strong>{serviceEntries.sales.title}</strong><small>{serviceEntries.sales.description}</small><span className="tc-price-line">Pris <b>{serviceEntries.sales.price}</b></span><span className="tc-blue-cta">Se varen</span></span>
                         <span className="tc-edit-marker">Rediger vare</span>
                       </button>
-                      {canManageServiceCards && <button type="button" className={`tc-card-hide ${serviceEntries.sales.active ? "" : "is-hidden"}`} aria-label={`${serviceEntries.sales.active ? "Skjul" : "Vis"} ${serviceEntries.sales.title}`} onClick={() => toggleServiceVisibility("sales")}>{serviceEntries.sales.active ? "Skjul" : "Vis"}</button>}
+                      {canManageServiceCards && canAccessService("sales") && <button type="button" className={`tc-card-hide ${serviceEntries.sales.active ? "" : "is-hidden"}`} aria-label={`${serviceEntries.sales.active ? "Skjul" : "Vis"} ${serviceEntries.sales.title}`} onClick={() => toggleServiceVisibility("sales")}>{serviceEntries.sales.active ? "Skjul" : "Vis"}</button>}
                     </div>
                   </section>
                 )}
                 {createdOffers.length > 0 && <section className="tc-service-group tc-created-offers">
                   <header><div><h2>Nye tilbud</h2><p>Opprettet lokalt i forhåndsvisningen.</p></div><span>{createdOffers.length} tilbud</span></header>
                   <div className="tc-event-service-grid">
-                    {createdOffers.filter(offer => enabledModules.includes(offer.module) && (!hiddenOffers.includes(offer.id) || canManageServiceCards)).map(offer => <div className={`tc-service-card-wrap ${hiddenOffers.includes(offer.id) ? "is-hidden" : ""}`} key={offer.id}>
-                      <button type="button" className="tc-public-service tc-event-service" onClick={() => editService(offer.module === "Medlemskap" ? "membership" : offer.module === "Utleie" ? "rental" : "event-dance")}>
+                    {createdOffers.filter(offer => !hiddenOffers.includes(offer.id) || canManageServiceCards).map(offer => <div className={`tc-service-card-wrap ${hiddenOffers.includes(offer.id) ? "is-hidden" : ""} ${enabledModules.includes(offer.module) ? "" : "is-locked"}`} key={offer.id}>
+                      <button type="button" disabled={!enabledModules.includes(offer.module)} className="tc-public-service tc-event-service" onClick={() => editService(offer.module === "Medlemskap" ? "membership" : offer.module === "Utleie" ? "rental" : offer.module === "Salg" ? "sales" : "event-dance")}>
                         <span className="tc-service-image"><img src={offer.module === "Medlemskap" ? serviceEntries.membership.image : offer.module === "Utleie" ? serviceEntries.rental.image : serviceEntries["event-dance"].image} alt="" /></span>
-                        <span className="tc-service-copy"><strong>{offer.title}</strong><small>{offer.module}</small>{offer.price && <span className="tc-price-line"><b>{offer.price}</b></span>}<span className="tc-blue-cta">Se tilbudet</span></span>
+                        <span className="tc-service-copy"><strong>{offer.title}</strong><small>{offer.module}</small>{offer.price && <span className="tc-price-line"><b>{offer.price}</b></span>}<span className="tc-blue-cta">{enabledModules.includes(offer.module) ? "Se tilbudet" : "Krever modultilgang"}</span></span>
                       </button>
                       {canManageServiceCards && enabledModules.includes(offer.module) && <button type="button" className={`tc-card-hide ${hiddenOffers.includes(offer.id) ? "is-hidden" : ""}`} aria-label={`${hiddenOffers.includes(offer.id) ? "Vis" : "Skjul"} ${offer.title}`} onClick={() => toggleOfferVisibility(offer.id)}>{hiddenOffers.includes(offer.id) ? "Vis" : "Skjul"}</button>}
                     </div>)}
@@ -745,9 +778,8 @@ export function TenantCopy() {
                   <div><span className="tc-kicker">{activeAboutTab.number} <b>/</b> BEDRIFTSOMRÅDE</span><h2>{activeAboutTab.label}</h2><p>{activeAboutTab.sub} for {companyName}.</p></div>
                   {activeAboutTab.id !== "economy" && <button type="button" className="tc-settings-save" onClick={() => setFeedback(`${activeAboutTab.label} er lagret i den lokale forhåndsvisningen.`)}>Lagre endringer <Arrow /></button>}
                 </div>
-                {activeAboutTab.id === "company" && <div className="tc-company-workspace">
+                {activeAboutTab?.id === "company" && <div className="tc-company-workspace">
                   <section className="tc-settings-panel tc-company-profile-card">
-                    <div className="tc-company-profile-head"><div><span className="tc-kicker">BEDRIFTSPROFIL</span><h3>{companyName}</h3><p>Opplysninger for den valgte bedriften.</p></div></div>
                     <div className="tc-subdomain-line"><span>NETTADRESSE</span><code>{companyProfile.subdomain}</code><small>tenant_companies.subdomain</small></div>
                     <div className="tc-company-image-box">
                       <div className="tc-company-image-header" style={{ backgroundColor: theme.headerBg }}><span>header_bg_color</span><code>{theme.headerBg}</code></div>
@@ -768,8 +800,8 @@ export function TenantCopy() {
                   </section>
                   <p className="tc-settings-feedback">{logoUploadFeedback || "Bildefilen vises kun lokalt i denne mockupen. Ingen opplasting eller databasekobling utføres."}</p>
                 </div>}
-                {activeAboutTab.id === "staff" && <div className="tc-staff-workspace">
-                  <div className="tc-staff-toolbar"><div><span className="tc-kicker">ANSATTREGISTER</span><h3>{staffMembers.length} ansatte</h3><p>Kontaktinformasjon, stilling og eventuell innlogget brukerkonto.</p></div><button type="button" className="tc-settings-save" onClick={addStaffMember}>＋ Legg til ansatt</button></div>
+                {activeAboutTab?.id === "staff" && <div className="tc-staff-workspace">
+                  <div className="tc-staff-toolbar"><span className="tc-count-badge">{staffMembers.length} ansatte</span><button type="button" className="tc-settings-save" onClick={addStaffMember}>＋ Legg til ansatt</button></div>
                   <div className="tc-staff-directory">{staffMembers.map(member => <article className="tc-staff-record" key={member.id}>
                     <div className="tc-staff-record-top"><span className="tc-staff-avatar">{member.firstName[0]}{member.lastName[0]}</span><div><strong>{member.firstName} {member.lastName}</strong><small>{member.jobTitle} · {member.department}</small></div>{member.supervisor && <em>VEILEDER</em>}</div>
                     <div className="tc-staff-profile-heading"><strong>Ansattopplysninger</strong><span>Kontakt og stilling · uavhengig av innloggingskonto</span></div>
@@ -815,9 +847,9 @@ export function TenantCopy() {
                     <div className="tc-ledger-footer"><span>Viser {filteredLedger.length} av {demoLedger.length} poster · lokalt eksempel</span><span>Valgt: {demoLedger.find(row => row.id === selectedLedgerId)?.description || "Ingen"}</span></div>
                   </> : <div className="tc-gateway-grid">{paymentChoices.map(method => <article className={`tc-gateway-card ${economySettings[method.key] ? "is-active" : ""} ${method.configured ? "is-configured" : "is-unconfigured"}`} key={method.key}><div className="tc-gateway-card-top"><span className={`tc-gateway-logo tc-gateway-${method.key}`}>{method.mark}</span><span className={`tc-gateway-light ${method.configured ? economySettings[method.key] ? "green" : "amber" : "gray"}`} /></div><h4>{method.name}</h4><p>{method.detail}</p><button type="button" className={economySettings[method.key] ? "deactivate" : "activate"} onClick={() => {if (method.key === "invoice" && !method.configured) {setEconomySettings(current => ({...current,invoice:true}));setFeedback("Faktura er satt opp med eksempelbankkonto.");} else setEconomySettings(current => ({...current,[method.key]:!current[method.key]}));}}>{method.configured ? economySettings[method.key] ? "Deaktiver" : "Aktiver" : "Konfigurer"}</button>{method.key === "invoice" && economySettings.invoice && <small className="tc-gateway-account">Primærkonto · 1503.28.45109</small>}</article>)}</div>}
                 </div>}
-                {activeAboutTab.id === "website" && <div className="tc-settings-section-grid tc-website-preview-grid">
+                {activeAboutTab?.id === "website" && <div className="tc-settings-section-grid tc-website-settings-grid">
                   <section className="tc-settings-panel"><div className="tc-settings-panel-heading"><div><span><h3>Profil og utseende</h3><p>Juster profilen som vises på Hjem og Tjenester.</p></span></div><span className="tc-demo-status">Lokal demo</span></div><div className="tc-form-grid"><label>Firmanavn<input autoComplete="off" value={companyName} onChange={event=>setCompanyName(event.target.value)} /></label><label>Font<select value={theme.fontFamily} onChange={event=>updateTheme("fontFamily",event.target.value)}><option value="Georgia, serif">Georgia</option><option value="DM Sans, sans-serif">DM Sans</option><option value="Trebuchet MS, sans-serif">Trebuchet</option></select></label><label>Headerfarge<span className="tc-color-control"><input type="color" value={theme.headerBg} onChange={event=>updateTheme("headerBg",event.target.value)} /><code>{theme.headerBg}</code></span></label><label>Sidebakgrunn<span className="tc-color-control"><input type="color" value={theme.bodyBg} onChange={event=>updateTheme("bodyBg",event.target.value)} /><code>{theme.bodyBg}</code></span></label></div><div className="tc-form-grid"><label>Logoens plassering<select value={theme.logoPosition} onChange={event=>updateTheme("logoPosition",event.target.value)}><option value="left">Venstre</option><option value="center">Senter</option><option value="right">Høyre</option></select></label><label>Navigasjon<select value={theme.navPosition} onChange={event=>updateTheme("navPosition",event.target.value)}><option value="center">Sentrert</option><option value="left">Venstre</option><option value="right">Høyre</option></select></label></div><div className="tc-footer-calculation"><span>Footerhøyde beregnes fra header</span><strong>{theme.headerHeight}px × 0,6 = {footerHeight}px</strong></div></section>
-                  <aside className="tc-website-mini-preview"><div className="tc-website-mini-header" style={{background:theme.headerBg,color:theme.headerText}}><img src={companyLogo} alt="" /><b>{companyName}</b></div><div className="tc-website-mini-nav">Om oss　·　Hjem　·　Tjenester</div><div className="tc-website-mini-body" style={{background:theme.bodyBg}}><span className="tc-kicker">FORHÅNDSVISNING</span><h3>{companyName}</h3><p>Profilendringer vises her mens du justerer.</p></div><span className="tc-website-mini-caption">KUNDESIDE · DEMO</span></aside>
+                  {renderSeoSettings()}
                 </div>}
                 {feedback && <p className="tc-settings-feedback" role="status">{feedback}</p>}
               </div>
@@ -914,18 +946,42 @@ export function TenantCopy() {
         <button type="button" className="tc-primary-button" onClick={createOffer}>Legg til på Tjenester</button>
         <small className="tc-local-note">Eksempeldata · ingenting lagres i portalen.</small>
       </aside>}
-      {readerTitle && <aside className="tc-reader-preview" aria-label="Kundevisning"><button type="button" onClick={() => setReaderTitle("")}>Lukk ×</button><h2>{page === "home" ? activeNews?.title : readerTitle}</h2><p>{page === "home" ? activeNews?.summary : "Kundens detaljvisning · lokal demonstrasjon, ingen bestilling eller betaling utføres."}</p></aside>}
+      {readerTitle && <aside className="tc-reader-preview tc-reader-data-panel" aria-label={readerServiceId ? `Se på ${readerTitle}` : "Kundevisning"}>
+        <button type="button" onClick={() => { setReaderTitle(""); setReaderServiceId(null); }}>Lukk ×</button>
+        <h2>{page === "home" ? activeNews?.title : readerTitle}</h2>
+        <p>{readerServiceId ? `Se på · ${serviceEntries[readerServiceId].module} · lokale eksempeldata` : page === "home" ? activeNews?.summary : "Kundens detaljvisning · lokal demonstrasjon, ingen bestilling eller betaling utføres."}</p>
+        {readerServiceId === "membership" && <div className="tc-read-data-table">
+          <strong>Medlemsliste · membership_plans</strong>
+          <div className="tc-read-data-head"><span>Medlem</span><span>Plan · status</span><span>Utløper</span></div>
+          {demoMembershipRows.map(row => <div className="tc-read-data-row" key={row.email}><span><b>{row.name}</b><small>{row.email} · {row.phone}</small></span><span>{row.plan}<small>{row.status}</small></span><time>{row.until}</time></div>)}
+        </div>}
+        {readerServiceId === "rental" && <div className="tc-read-data-table">
+          <strong>Reservasjoner · rental_schedule · Høgtun Selskapslokale</strong>
+          <div className="tc-read-data-head"><span>Leietaker</span><span>Periode</span><span>Status · beløp</span></div>
+          {demoRentalSchedule.map(row => <div className="tc-read-data-row" key={`${row.customer}-${row.from}`}><span><b>{row.customer}</b></span><span>{row.from}<small>til {row.to}</small></span><span><em className={`tc-record-status ${row.status === "Godkjent" ? "approved" : row.status === "Venter" ? "pending" : "rejected"}`}>{row.status}</em><small>{row.amount}</small></span></div>)}
+        </div>}
+        {(readerServiceId === "event-dinner" || readerServiceId === "event-dance") && <div className="tc-read-data-table">
+          <strong>Påmeldte · events_eventdata → events_checkin · {serviceEntries[readerServiceId].title}</strong>
+          <div className="tc-read-data-head"><span>Deltaker</span><span>Kontakt</span><span>Billett · betaling</span></div>
+          {demoEventRegistrations[readerServiceId].map((row, index) => <div className="tc-read-data-row" key={`${row.email}-${index}`}><span><b>{row.name}</b><small>{row.status}</small></span><span>{row.email}<small>{row.phone}</small></span><span>{row.ticket}<small>{row.payment}</small></span></div>)}
+        </div>}
+        {readerServiceId === "sales" && <div className="tc-read-data-table"><strong>Vare · output_products</strong><div className="tc-read-data-row"><span><b>{serviceEntries.sales.title}</b><small>Eksempel på produktinnhold</small></span><span>{serviceEntries.sales.price}</span></div></div>}
+      </aside>}
       <section className={`tc-control-room ${controlOpen ? "is-open" : ""}`} aria-label="Arbeidsmodus for forhåndsvisningen" aria-hidden={!controlOpen} inert={!controlOpen}>
         <header className="tc-control-hero">
           <div className="tc-control-inner">
               <div className="tc-admin-eyebrow"><span className="tc-live-dot" /> KONTROLLROM <span>·</span> BERGSØY DANSEKLUBB
                 <div className="tc-admin-actions">
-                  {(page === "home" || page === "about") && <button type="button" className="tc-header-create tc-news-link" onClick={openAllNews}>Alle nyheter <Arrow /></button>}
+                  {page === "home" && <button type="button" role="tab" aria-selected={interactionMode === "news"} className={`tc-header-create tc-news-link ${interactionMode === "news" ? "active" : ""}`} onClick={openAllNews}>Alle nyheter <Arrow /></button>}
                   {page === "home" && <button type="button" className="tc-header-create" onClick={startNewNews}>＋ Opprett ny sak</button>}
-                  {page === "services" && <button type="button" className="tc-header-create" onClick={startNewOffer}>＋ Opprett ny tjeneste</button>}
+                  {page === "services" && <button type="button" disabled={!enabledModules.some(module => module !== "Økonomi")} className="tc-header-create" onClick={startNewOffer}>＋ Opprett ny tjeneste</button>}
                 </div>
                 <button type="button" className="tc-control-close" onClick={() => setControlOpen(false)} aria-label="Lukk kontrollrom">×</button>
             </div>
+            {page === "about" && <div className="tc-audit-header-strip" aria-label="Siste tre aktivitetsloggoppføringer">
+              <span className="tc-audit-header-title">SISTE AKTIVITET <small>· lokale eksempler</small></span>
+              <div>{demoAuditLogs.map((entry, index) => <p key={`${entry.time}-${index}`}><time>{entry.time}</time><span><b>{entry.role} · {entry.actor}</b> {entry.action} <strong>{entry.target}</strong></span></p>)}</div>
+            </div>}
             <div className="tc-greeting-row">
               <div>
                 <h2>Hei, Atle.</h2>
@@ -939,7 +995,7 @@ export function TenantCopy() {
             </div>
             <div className="tc-edit-mode-options" role="radiogroup" aria-label="Arbeidsmodus for kundesideinnhold">
               <span className="tc-edit-mode-title">VED KLIKK PÅ INNHOLD</span>
-              {[["read", "Les", "Som på kundesiden"], ["content", page === "about" ? "Innstillinger" : "Rediger innhold", page === "about" ? "Bedrift, ansatte, e-post og webside" : "Nyheter og tjenester"], ...(page === "services" && enabledModules.includes("Medlemskap") ? [["benefits", "Medlemsfordeler", "Velg et tjenestekort"]] : []), ...(page === "services" && enabledModules.some(module => ["Arrangementer", "Utleie", "Salg"].includes(module)) ? [["fields", "Skjemafelt", "Velg en tjeneste"]] : [])].map(([mode, title, hint]) => <label key={mode} className={interactionMode === mode ? "checked" : ""}><input type="radio" name="interaction-mode" checked={interactionMode === mode} onChange={() => chooseMode(mode)} /><span><b>{title}</b><small>{hint}</small></span></label>)}
+              {[["read", "Se på", "Vis hovedinnhold"], ["content", page === "about" ? "Innstillinger" : "Rediger innhold", page === "about" ? "Bedrift, ansatte, e-post og webside" : "Nyheter og tjenester"], ...(page === "services" && enabledModules.includes("Medlemskap") ? [["benefits", "Medlemsfordeler", "Velg et tjenestekort"]] : []), ...(page === "services" && enabledModules.some(module => ["Arrangementer", "Utleie", "Salg"].includes(module)) ? [["fields", "Skjemafelt", "Velg en tjeneste"]] : [])].map(([mode, title, hint]) => <label key={mode} className={interactionMode === mode ? "checked" : ""}><input type="radio" name="interaction-mode" checked={interactionMode === mode} onChange={() => chooseMode(mode)} /><span><b>{title}</b><small>{hint}</small></span></label>)}
             </div>
           </div>
         </header>
