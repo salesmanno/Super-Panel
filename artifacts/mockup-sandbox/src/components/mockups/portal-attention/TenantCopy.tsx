@@ -603,7 +603,7 @@ export function TenantCopy() {
       <button type="button" className={`tc-admin-launcher ${controlOpen ? "is-hidden" : ""}`} onClick={() => setControlOpen(true)} aria-label="Åpne administrasjonsvalg">
         <span className="tc-launcher-avatar">AK</span><span><strong>Atle Karl</strong><small>Administrer side</small></span><Arrow direction="down" />
       </button>
-      <div className="tc-mode-island" role="group" aria-label="Velg handling ved trykk på innhold">
+      <div className={`tc-mode-island ${page === "about" ? "is-faded" : ""}`} inert={page === "about"} aria-hidden={page === "about"} role="group" aria-label="Velg handling ved trykk på innhold">
         {[["read", "Se på"], ["content", page === "about" ? "Innstillinger" : "Rediger"], ...(page === "services" && enabledModules.includes("Medlemskap") ? [["benefits", "Fordeler"]] : []), ...(page === "services" && enabledModules.some(module => ["Arrangementer", "Utleie", "Salg"].includes(module)) ? [["fields", "Skjemafelt"]] : [])].map(([mode, title]) => (
           <button key={mode} type="button" aria-pressed={interactionMode === mode} className={interactionMode === mode ? "checked" : ""} onClick={() => chooseMode(mode)}>
             <span>{title}</span>

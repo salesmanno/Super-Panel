@@ -6,6 +6,9 @@ const checks = `(async () => {
   for (let n = 0; n < 60 && !document.querySelector('.tc-site-nav'); n++) await wait();
   [...document.querySelectorAll('.tc-site-nav button')].find(b => b.textContent === 'Om oss').click();
   await wait();
+  await wait();
+  const island = document.querySelector('.tc-mode-island');
+  check(getComputedStyle(island).opacity === '0' && island.inert, 'Island must fade out and be inactive on Om oss');
   const nav = document.querySelector('.tc-settings-nav');
   const tabs = [...nav.querySelectorAll('[role=tab]')];
   check(tabs.length === 5, 'All five areas must remain available');
@@ -27,7 +30,14 @@ const checks = `(async () => {
   }
   tabs[0].click();
   await wait();
-  return {passed: true, width: innerWidth, tabs: tabs.length, navHeight: nav.offsetHeight};
+  [...document.querySelectorAll('.tc-site-nav button')].find(b => b.textContent === 'Hjem').click();
+  await wait();
+  await wait();
+  check(getComputedStyle(island).opacity === '1' && !island.inert, 'Island must return on Hjem');
+  [...document.querySelectorAll('.tc-site-nav button')].find(b => b.textContent === 'Om oss').click();
+  await wait();
+  await wait();
+  return {passed: true, width: innerWidth, tabs: tabs.length, navHeight: document.querySelector('.tc-settings-nav').offsetHeight};
 })()`;
 
 chromiumFixture('http://127.0.0.1:23636/__mockup/preview/portal-attention/TenantCopy',

@@ -1988,6 +1988,12 @@
   clip-path: inset(50%);
 }
 .tc-mode-island button:focus-visible { outline: 2px solid #a9d6ff; outline-offset: 2px; }
+.tc-mode-island { opacity: 1; visibility: visible; transition: opacity .2s ease, visibility 0s; }
+.tc-mode-island.is-faded { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .2s ease, visibility 0s linear .2s; }
+@media (prefers-reduced-motion: reduce) {
+  .tc-mode-island,
+  .tc-mode-island.is-faded { transition: none; }
+}
 @media (max-width: 600px) {
   .tc-mode-island {
     max-width: calc(100vw - 18px);
