@@ -62,28 +62,28 @@ const serviceMeta: Record<ServiceId, { module: ModuleName; title: string; image:
     module: "Medlemskap",
     title: "Bergsøy Medlem",
     image: "/__mockup/images/portal-reimagined-logo.png",
-    description: "Medlemskap for danseglede. Bli med i Bergsøy Danseklubb!",
+    description: "💃🕺 Bli med i Bergsøy Danseklubb!",
     price: "250,00 kr",
   },
   rental: {
     module: "Utleie",
     title: "Høgtun Selskapslokale",
     image: "/__mockup/images/portal-reimagined-venue.jpg",
-    description: "Næringslokale i hjertet av Fosnavåg. Et innbydende lokale for gode øyeblikk.",
+    description: "Nyrenovert lokale i hjertet av fosnavåg. Enkeltdager på helg avslås, du må leie hele helgen(LØRDAG+SØNDAG) for å få innvilget leie.",
     price: "Fra 1 250 kr",
   },
   "event-dinner": {
     module: "Arrangementer",
-    title: "Julebord med julemiddag",
+    title: "Julebord for medlemmer / Med julemiddag",
     image: "/__mockup/images/portal-reimagined-dinner.jpg",
-    description: "Vi inviterer til julebord for alle våre medlemmer.",
+    description: "Vi inviterer til Julebord for alle våre medlemmer!",
     price: "500,00 kr",
   },
   "event-dance": {
     module: "Arrangementer",
-    title: "Romjulsdans",
-    image: "/__mockup/images/portal-reimagined-dance.jpg",
-    description: "Dans til levende musikk på Høgtun Kulturhus.",
+    title: "ROMJULSDANS",
+    image: "/__mockup/images/portal-reimagined-romjul.jpg",
+    description: "Vi inviterer til Romjulsdans på Herøy Kulturhus.",
     price: "400,00 kr",
   },
   sales: {
@@ -671,12 +671,12 @@ export function TenantCopy() {
                 <div>
                   <span className="tc-kicker">BERGSØY DANSEKLUBB</span>
                   <h1>Tjenester</h1>
-                  <p>{Object.values(serviceEntries).filter(service => service.active).length + createdOffers.length} tilbud fra Bergsøy Danseklubb.</p>
+                  <p>{activeServices.filter(([, service]) => service.active).length + createdOffers.length} tilbud fra Bergsøy Danseklubb.</p>
                 </div>
                 {serviceEntries["event-dance"].active && <div className={`tc-service-card-wrap tc-latest-wrap ${canAccessService("event-dance") ? "" : "is-locked"}`}>
                   <button type="button" disabled={!canAccessService("event-dance")} className="tc-latest-event" aria-label="Åpne siste arrangement" onClick={() => editService("event-dance")}>
                     <img src={serviceEntries["event-dance"].image} alt="" />
-                    <span><small>SISTE ARRANGEMENT</small><strong>{serviceEntries["event-dance"].title}</strong><span>man. 28. des. 2026 kl. 19:00</span><b>Se arrangementet <Arrow /></b></span>
+                    <span><small>SISTE ARRANGEMENT</small><strong>{serviceEntries["event-dance"].title}</strong><span>man. 28. des. 2026 kl. 00:00</span><b>Se arrangementet ↗</b></span>
                   </button>
                 </div>}
               </section>
@@ -687,7 +687,7 @@ export function TenantCopy() {
                     <div className={`tc-service-card-wrap ${serviceEntries.membership.active ? "" : "is-hidden"} ${canAccessService("membership") ? "" : "is-locked"}`}>
                       <button type="button" disabled={!canAccessService("membership")} className="tc-public-service tc-membership-card" aria-label="Åpne medlemskapstilbudet Bergsøy Medlem" onClick={() => editService("membership")}>
                         <span className="tc-service-image tc-member-logo"><img src={serviceEntries.membership.image} alt="" /></span>
-                        <span className="tc-service-copy"><strong>{serviceEntries.membership.title}</strong><small>{serviceEntries.membership.description}</small><span className="tc-price-line">Pris <b>{serviceEntries.membership.price}</b></span><span className="tc-blue-cta">Sjekk medlemskap</span></span>
+                        <span className="tc-service-copy"><strong>{serviceEntries.membership.title}</strong><small>{serviceEntries.membership.description}</small><span className="tc-service-bottom"><span className="tc-price-line">Pris <b>{serviceEntries.membership.price}</b></span><span className="tc-blue-cta">Bli medlem</span></span></span>
                       </button>
                     </div>
                   </section>
@@ -698,7 +698,7 @@ export function TenantCopy() {
                     <div className={`tc-service-card-wrap ${serviceEntries.rental.active ? "" : "is-hidden"} ${canAccessService("rental") ? "" : "is-locked"}`}>
                       <button type="button" disabled={!canAccessService("rental")} className="tc-public-service" aria-label="Åpne utleietilbudet Høgtun Selskapslokale" onClick={() => editService("rental")}>
                         <span className="tc-service-image"><img src={serviceEntries.rental.image} alt="" /></span>
-                        <span className="tc-service-copy"><strong>{serviceEntries.rental.title}</strong><small>{serviceEntries.rental.description}</small><span className="tc-service-address">Vågsgata 61, 6090 Fosnavåg</span><span className="tc-feature-chips"><small>60 sitteplasser</small><small>168 m²</small></span><span className="tc-blue-cta">{serviceEntries.rental.price}</span></span>
+                        <span className="tc-service-copy"><strong>{serviceEntries.rental.title}</strong><small>{serviceEntries.rental.description}</small><span className="tc-service-address">Vågsgata 61, 6090 Fosnavåg</span><span className="tc-feature-chips"><small>60 sittende / 100 stående</small><small>186 m²</small><small>Fullstendig kjøkken</small></span><span className="tc-service-bottom"><span className="tc-blue-cta">Se detaljer og ledige datoer</span></span></span>
                       </button>
                     </div>
                   </section>
@@ -713,14 +713,14 @@ export function TenantCopy() {
                         return <div className={`tc-service-card-wrap ${service.active ? "" : "is-hidden"} ${canAccessService(id) ? "" : "is-locked"}`} key={id}>
                           <button type="button" disabled={!canAccessService(id)} className="tc-public-service tc-event-service" aria-label={`Åpne arrangementet ${service.title}`} onClick={() => editService(id)}>
                             <span className="tc-service-image"><img src={service.image} alt="" /></span>
-                            <span className="tc-service-copy"><strong>{service.title}</strong><small>{service.description}</small><span className="tc-service-meta"><i>DATO</i><b>{id === "event-dinner" ? "lør. 5. des. 2026 kl. 19:00" : "man. 28. des. 2026 kl. 19:00"}</b><i>STED</i><b>Høgtun, Vågsgata 61</b></span><span className="tc-service-bottom"><span><small>Ordinærpris</small><b>{service.price}</b></span><span className="tc-blue-cta">Reserver billett</span></span></span>
+                            <span className="tc-service-copy"><strong>{service.title}</strong><small>{service.description}</small><span className="tc-service-meta"><i>DATO</i><b>{id === "event-dinner" ? "lør. 5. des. 2026 kl. 19:00" : "man. 28. des. 2026 kl. 00:00"}</b><i>STED</i><b>{id === "event-dinner" ? "Høgtun, Vågsgata 61, 6090 Fosnavåg" : "Lisjebøvegen 10a, 6092 Fosnavåg"}</b></span><span className="tc-service-member-prices"><span>Medlemspriser</span><span>Bergsøy Medlem: {id === "event-dinner" ? service.price : "350,00 kr"}</span></span><span className="tc-service-bottom">{id !== "event-dinner" && <span><small>Ordinærpris</small><b>{service.price}</b></span>}<span className="tc-blue-cta">Reserver billett</span></span></span>
                           </button>
                         </div>;
                       })}
                     </div>
                   </section>
                 )}
-                {serviceEntries.sales.active && (
+                {enabledModules.includes("Salg") && serviceEntries.sales.active && (
                   <section className="tc-service-group">
                     <header><div><h2>Varer</h2><p>Produkter fra klubben.</p></div><span>1 tilbud</span></header>
                     <div className={`tc-service-card-wrap ${serviceEntries.sales.active ? "" : "is-hidden"} ${canAccessService("sales") ? "" : "is-locked"}`}>

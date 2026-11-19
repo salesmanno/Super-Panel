@@ -8,15 +8,26 @@ const checks = `(async () => {
   await wait();
   await Promise.all([...document.images].map(img => img.decode().catch(() => {})));
   const cards = [...document.querySelectorAll('.tc-public-service')];
-  check(cards.length >= 4, 'Missing service samples');
+  check(cards.length === 4, 'Catalog must match the four published offers');
   const sizes = cards.map(card => {
     const before = card.getBoundingClientRect();
     const image = card.querySelector('img');
-    check(before.height <= 180, 'Oversized card: ' + card.textContent.slice(0, 30) + ' ' + before.height);
+    check(before.height <= 230, 'Oversized card: ' + card.textContent.slice(0, 30) + ' ' + before.height);
     if (!image.closest('.tc-member-logo')) {
       check(getComputedStyle(image).position === 'absolute', 'Source image can resize the card');
     }
     return {height: Math.round(before.height), width: Math.round(before.width)};
+  });
+  const expected = [
+    ['Bergsøy Medlem', '💃🕺 Bli med i Bergsøy Danseklubb!', 'Pris', '250,00 kr', 'Bli medlem'],
+    ['Høgtun Selskapslokale', 'Nyrenovert lokale i hjertet av fosnavåg. Enkeltdager på helg avslås, du må leie hele helgen(LØRDAG+SØNDAG) for å få innvilget leie.', 'Vågsgata 61, 6090 Fosnavåg', '60 sittende / 100 stående', '186 m²', 'Fullstendig kjøkken', 'Se detaljer og ledige datoer'],
+    ['Julebord for medlemmer / Med julemiddag', 'Vi inviterer til Julebord for alle våre medlemmer!', 'DATO', 'lør. 5. des. 2026 kl. 19:00', 'STED', 'Høgtun, Vågsgata 61, 6090 Fosnavåg', 'Medlemspriser', 'Bergsøy Medlem: 500,00 kr', 'Reserver billett'],
+    ['ROMJULSDANS', 'Vi inviterer til Romjulsdans på Herøy Kulturhus.', 'DATO', 'man. 28. des. 2026 kl. 00:00', 'STED', 'Lisjebøvegen 10a, 6092 Fosnavåg', 'Medlemspriser', 'Bergsøy Medlem: 350,00 kr', 'Ordinærpris', '400,00 kr', 'Reserver billett']
+  ];
+  const normalize = text => text.replace(/\\s/g, '').toLowerCase();
+  cards.forEach((card, index) => {
+    check(normalize(card.textContent) === normalize(expected[index].join('')), 'Card differs from customer content: ' + index);
+    check(card.querySelector('.tc-service-copy').scrollHeight <= card.clientHeight, 'Card content is clipped');
   });
   check(document.querySelector('.tc-service-groups').offsetWidth <= 1060, 'Catalog exceeds customer content width');
   check(document.documentElement.scrollWidth <= innerWidth, 'Horizontal overflow');

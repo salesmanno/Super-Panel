@@ -640,11 +640,13 @@
 .tc-event-service .tc-service-copy { gap: 4px; padding: 9px 10px; }
 .tc-service-meta { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 2px 5px; margin-top: 3px; }
 .tc-service-meta i { color: #7890a6; font-family: "DM Sans", "Segoe UI", sans-serif; font-size: 7px; font-style: normal; font-weight: 800; letter-spacing: .08em; }
-.tc-service-meta b { overflow: hidden; color: #354d64; font-family: "DM Sans", "Segoe UI", sans-serif; font-size: 8px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.tc-service-meta b { min-width: 0; color: #354d64; font-family: "DM Sans", "Segoe UI", sans-serif; font-size: 8px; font-weight: 650; white-space: normal; overflow-wrap: anywhere; }
+.tc-service-member-prices { display: grid; gap: 3px; margin-top: 3px; color: #354d64; font: 9px/1.4 "DM Sans", "Segoe UI", sans-serif; }
 .tc-service-bottom { width: 100%; display: flex; align-items: end; justify-content: space-between; gap: 5px; margin-top: auto; }
 .tc-service-bottom > span:first-child { display: flex; flex-direction: column; gap: 1px; }
 .tc-service-bottom small { color: #778b9e; font-size: 8px; }
 .tc-service-bottom b { color: #192a3d; font-family: "DM Sans", "Segoe UI", sans-serif; font-size: 11px; }
+.tc-service-bottom .tc-blue-cta { text-align: center; white-space: normal; }
 
 .tc-about-page { width: min(100%, 1200px); min-height: 620px; padding: 42px 28px 60px; margin: 0 auto; }
 .tc-about-intro { position: relative; max-width: 830px; padding: 20px 0 35px; }
