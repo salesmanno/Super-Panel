@@ -62,6 +62,20 @@ installasjoner uten kolonnen beholder legacy. Oppdateringen kjører ingen DDL.
   aktiv bedrift og supervisor eller delegert Ditt nettsted-tilgang gjelder
   fortsatt, også ved lagring og bildeopplasting. Firmabrukere vises bare for
   supervisor, og modulområder følger brukerens delegerte tilgang.
+- Webside bruker samme grupper som mockupen: Profil og farger, Visning og
+  navigasjon, Søkemotorer og deling. Øvrige eksisterende felter er beholdt
+  under «Flere nettsideinnstillinger». Hele skjemaet sendes fortsatt til
+  `api/update_webside_data.php`; urørte innstillinger fjernes ikke.
+  `config_*` lagres i `tenant_website_config`, og `general_*` lagres i
+  `tenant_website_general`. Firmanavn lagres i `tenant_companies.name` i
+  samme transaksjon. Ingen nye tabeller eller kolonner kreves.
+- Farger, font, logo, høyder, navigasjon og statisk/dynamisk header/footer
+  vises i preview før lagring. Ulagrede endringer krever bekreftelse ved
+  navigasjon bort. Lagringsfeil beholder verdiene og lar brukeren prøve igjen.
+- Den overliggende administrasjonsheaderen åpnes ved en ekstra oppovergest
+  fra toppen, eller via «Åpne kontrollrom» i brukerknappen. Vanlig scrolling
+  åpner den ikke. Touch krever et nedtrekk som starter helt øverst.
+  Panelet ligger over innholdet og forskyver eller låser ikke body.
 
 ## Avgrensning
 
@@ -84,4 +98,8 @@ Ta med `pages/company_dashboard.php`, `includes/portal_view_mode.php`,
 Ta også med `includes/portal_preview_account.php`, `includes/company_settings_access.php`,
 `includes/ImageUpload.php` og oppdateringene til `api/load_ditt_nettsted_content.php`,
 `api/update_company_data.php`, `api/update_webside_data.php` og `api/update_about_us.php`.
+Den nye innstillingsvisningen krever også `assets/portal-preview-website.js`,
+`assets/portal-preview-control-room.js`, `assets/portal-preview-settings.css` og
+`includes/portal_preview_control_room.php`, samt oppdaterte
+`includes/announcement_preview.php` og `includes/portal_website_preview_data.php`.
 Mockup-sandkassen kreves ikke på PHP-webhotellet.

@@ -280,7 +280,6 @@ export function TenantCopy() {
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const lastScrollY = useRef(0);
   const activeNews = news.find((item) => item.id === selectedNewsId) ?? news[0];
   const visibleNews = news.filter((item) => item.visible);
   const heroNews = visibleNews[0];
@@ -419,26 +418,42 @@ export function TenantCopy() {
     setStaffMembers(current => current.map(person => person.id === id ? { ...person, modules: person.modules.includes(module) ? person.modules.filter(value => value !== module) : [...person.modules, module].filter(value => enabledModules.includes(value)) } : person));
   };
   useEffect(() => {
-    lastScrollY.current = window.scrollY;
-    const revealOnScroll = () => {
-      const currentY = window.scrollY;
-      const direction = currentY - lastScrollY.current;
-      if (currentY <= 80) {
-        setControlOpen(false);
-      } else if (direction > 4) {
-        setControlOpen(true);
-      } else if (direction < -4) {
-        setControlOpen(false);
+    let distance = 0, lastWheel = 0, touchStart: number | null = null;
+    const atTop = () => window.scrollY <= 1;
+    const excluded = (target: EventTarget | null) => {
+      if (!(target instanceof Element)) return false;
+      if (target.closest("input,textarea,select,[contenteditable],.tc-control-room,.tc-floating-inspector")) return true;
+      for (let node: Element | null = target; node && node !== document.body && node !== document.documentElement; node = node.parentElement) {
+        if (node.scrollHeight > node.clientHeight + 2 && /auto|scroll/.test(getComputedStyle(node).overflowY)) return true;
       }
-      lastScrollY.current = currentY;
+      return false;
     };
+    const revealOnPull = (event: WheelEvent) => {
+      if (!atTop() || event.deltaY >= 0 || event.ctrlKey || excluded(event.target)) { distance = 0; return; }
+      const now = performance.now();
+      if (now - lastWheel > 600) distance = 0;
+      lastWheel = now;
+      distance += Math.min(120, -event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1));
+      if (distance >= 64) { setControlOpen(true); distance = 0; }
+    };
+    const startPull = (event: TouchEvent) => { touchStart = atTop() && event.touches.length === 1 && !excluded(event.target) ? event.touches[0].clientY : null; };
+    const movePull = (event: TouchEvent) => {
+      if (touchStart !== null && atTop() && event.touches.length === 1 && event.touches[0].clientY - touchStart >= 72) { setControlOpen(true); touchStart = null; }
+    };
+    const endPull = () => { touchStart = null; };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") { setEditingPage(null); setReaderTitle(""); setControlOpen(false); }
     };
-    window.addEventListener("scroll", revealOnScroll, { passive: true });
+    window.addEventListener("wheel", revealOnPull, { passive: true });
+    window.addEventListener("touchstart", startPull, { passive: true });
+    window.addEventListener("touchmove", movePull, { passive: true });
+    window.addEventListener("touchend", endPull, { passive: true });
     window.addEventListener("keydown", closeOnEscape);
     return () => {
-      window.removeEventListener("scroll", revealOnScroll);
+      window.removeEventListener("wheel", revealOnPull);
+      window.removeEventListener("touchstart", startPull);
+      window.removeEventListener("touchmove", movePull);
+      window.removeEventListener("touchend", endPull);
       window.removeEventListener("keydown", closeOnEscape);
     };
   }, []);

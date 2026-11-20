@@ -32,11 +32,18 @@ function announcement_preview_company(PDO $db, string $companyId): array {
         'company' => [
             'name' => (string)($profile['name'] ?? ''),
             'img_url' => (string)($profile['img_url'] ?? $profile['logo_url'] ?? ''),
+            'website_logo_url' => (string)($theme['logo_url'] ?? ''),
             'header_bg_color' => preg_match('/^#[0-9a-fA-F]{6}$/', (string)($theme['header_bg_color'] ?? ''))
                 ? $theme['header_bg_color'] : '#176b69',
             'header_text_color' => preg_match('/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/', (string)($theme['header_text_color'] ?? ''))
                 ? $theme['header_text_color'] : '',
             'header_height' => announcement_preview_size($theme['header_height'] ?? '', '80px'),
+            'body_bg_color' => preg_match('/^#[0-9a-fA-F]{6}$/', (string)($theme['body_bg_color'] ?? '')) ? $theme['body_bg_color'] : '#e0f0fc',
+            'primary_color' => preg_match('/^#[0-9a-fA-F]{6}$/', (string)($theme['primary_color'] ?? '')) ? $theme['primary_color'] : '#315c91',
+            'secondary_color' => preg_match('/^#[0-9a-fA-F]{6}$/', (string)($theme['secondary_color'] ?? '')) ? $theme['secondary_color'] : '#666666',
+            'hero_enabled' => (int)($theme['hero_enabled'] ?? 1),
+            'header_mode' => ($theme['header_mode'] ?? 'static') === 'dynamic' ? 'dynamic' : 'static',
+            'footer_mode' => ($theme['footer_mode'] ?? 'static') === 'dynamic' ? 'dynamic' : 'static',
             'logo_height' => announcement_preview_size($theme['logo_height'] ?? '', '50px'),
             'company_header_font_size' => announcement_preview_size($theme['company_header_font_size'] ?? '', '20px'),
             'border_radius' => announcement_preview_size($theme['border_radius'] ?? '', '16px'),

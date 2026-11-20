@@ -20,7 +20,7 @@ const data = {
   ], errors:[]
 };
 fs.writeFileSync(fixture, `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-<style>${fs.readFileSync('assets/portal-website-preview.css','utf8')}${fs.readFileSync('assets/entity-form-fields.css','utf8')}</style>
+<style>${fs.readFileSync('assets/portal-website-preview.css','utf8')}${fs.readFileSync('assets/portal-preview-settings.css','utf8')}${fs.readFileSync('assets/entity-form-fields.css','utf8')}</style>
 <body class="portal-wpreview">
 <section id="portal-website-preview"><header class="pwp-brand"><div class="pwp-brand-identity"><img id="pwp-logo" hidden><strong id="pwp-company-name"></strong></div>${account.stdout}</header>
 <nav class="pwp-site-nav"><button data-pwp-page="home">Hjem</button><button data-pwp-page="services">Tjenester</button><button data-pwp-page="about">Om oss</button></nav>

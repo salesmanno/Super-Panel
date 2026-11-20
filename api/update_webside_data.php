@@ -11,6 +11,7 @@ require_once __DIR__ . '/../config/database.php';
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($data)) throw new InvalidArgumentException('Ugyldig skjema.');
     
     $db = getDBConnection();
     require_once __DIR__.'/../includes/company_settings_access.php';
@@ -19,6 +20,12 @@ try {
     
     $companyId = $_SESSION['company_id'];
     $adminId = $_SESSION['tenant_admin_id'];
+    if (array_key_exists('company_name', $data)) {
+        $name = is_string($data['company_name']) ? trim($data['company_name']) : '';
+        if ($name === '' || mb_strlen($name) > 255) throw new InvalidArgumentException('Firmanavnet må inneholde 1–255 tegn.');
+        $stmt = $db->prepare("UPDATE tenant_companies SET name = ?, updated_at = NOW() WHERE id = ? AND BINARY COALESCE(name, '') <> BINARY ?");
+        $stmt->execute([$name,$companyId,$name]);
+    }
     
     // Helper function to normalize boolean values
     function normalizeBool($value) {
@@ -280,12 +287,16 @@ try {
         'message' => 'Websideinnstillinger oppdatert'
     ]);
     
+} catch (InvalidArgumentException $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
+    http_response_code(400);
+    echo json_encode(['success'=>false,'error'=>$e->getMessage()]);
 } catch (DomainException $e) {
     if (isset($db) && $db->inTransaction()) $db->rollBack();
     http_response_code(403);
     echo json_encode(['success'=>false,'error'=>$e->getMessage()]);
 } catch (Exception $e) {
-    if (isset($db)) {
+    if (isset($db) && $db->inTransaction()) {
         $db->rollBack();
     }
     error_log("Error updating webside data: " . $e->getMessage());

@@ -5,7 +5,7 @@
     const dialog = document.getElementById('pwp-dialog');
     if (!dialog) return;
     const body = document.getElementById('pwp-dialog-body');
-    let mounted = null, aboutMounted = null, opener = null, beforeClose = null, afterClose = null;
+    let mounted = null, aboutMounted = null, aboutEditor = null, opener = null, beforeClose = null, afterClose = null;
     let settingRevision = 0;
     const restore = record => {
         if (!record) return;
@@ -62,6 +62,7 @@
         return opened;
     }
     function clearAbout() {
+        aboutEditor?.destroy(); aboutEditor = null;
         settingRevision++;
         restore(aboutMounted); aboutMounted = null;
     }
@@ -157,6 +158,7 @@
             if (!pane) throw new Error('Denne innstillingen er ikke tilgjengelig.');
             host.replaceChildren();
             aboutMounted = mount(pane, host);
+            if (key === 'website') aboutEditor = window.PortalWebsiteSettings?.mount(pane) || null;
             document.dispatchEvent(new CustomEvent('portal:settings-mounted', {detail:{key}}));
         } catch (error) {
             if (revision !== settingRevision) return;
@@ -177,5 +179,6 @@
     adoptModals();
     // Modules can load modals lazily. Keep them outside hidden navigation.
     new MutationObserver(adoptModals).observe(document.getElementById('portal-legacy'), {childList:true,subtree:true});
-    window.PortalWorkspace = {show, showTemporary, close, activate, moduleSurface, settings, clearAbout, adoptModals};
+    window.PortalWorkspace = {show, showTemporary, close, activate, moduleSurface, settings, clearAbout, adoptModals,
+        canLeaveSettings: () => !aboutEditor || aboutEditor.canClose()};
 })();

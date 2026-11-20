@@ -1865,6 +1865,8 @@ try {
     <?php if (!array_intersect(['events','rental','sales'], $previewKeys)): ?>
     <script src="/assets/entity-form-fields.js?v=<?= filemtime(__DIR__.'/../assets/entity-form-fields.js') ?>" defer></script>
     <?php endif; ?>
+    <script src="/assets/portal-preview-website.js?v=<?= filemtime(__DIR__.'/../assets/portal-preview-website.js') ?>" defer></script>
+    <script src="/assets/portal-preview-control-room.js?v=<?= filemtime(__DIR__.'/../assets/portal-preview-control-room.js') ?>" defer></script>
     <script src="/assets/portal-preview-workspace.js?v=<?= filemtime(__DIR__.'/../assets/portal-preview-workspace.js') ?>" defer></script>
     <script src="/assets/portal-website-preview.js?v=<?= filemtime(__DIR__.'/../assets/portal-website-preview.js') ?>" defer></script>
     <?php endif; ?>

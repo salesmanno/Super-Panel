@@ -3,7 +3,7 @@
     const root = document.getElementById('portal-website-preview');
     if (!root) return;
     const data = JSON.parse(document.getElementById('pwp-data').textContent);
-    const company = data.company || {};
+    let company = data.company || {};
     const modules = new Set(data.modules.map(module => module.module_key));
     if (modules.has('reservation')) modules.add('reservations');
     const content = document.getElementById('pwp-content');
@@ -216,6 +216,7 @@
     function selectSetting(key) {
         const choices = settingChoices();
         if (!choices.some(([value]) => value === key)) return;
+        if (!workspace.canLeaveSettings()) return;
         activeSetting = key;
         root.querySelector('.pwp-settings-tools')?.removeAttribute('open');
         root.querySelectorAll('[data-pwp-setting]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.pwpSetting === key)));
@@ -229,6 +230,7 @@
     }
     function render() {
         workspace.clearAbout();
+        root.dataset.page = page;
         document.querySelectorAll('[data-pwp-page]').forEach(button => {
             if (button.dataset.pwpPage === page) button.setAttribute('aria-current', 'page');
             else button.removeAttribute('aria-current');
@@ -252,37 +254,64 @@
             }).join('');
         } else {
             const choices = settingChoices();
-            const primary = choices.filter(([key]) => ['company','staff','email','economy','website'].includes(key));
+            const primaryOrder = ['company','staff','email','economy','website'];
+            const primary = choices.filter(([key]) => primaryOrder.includes(key))
+                .sort(([a],[b]) => primaryOrder.indexOf(a) - primaryOrder.indexOf(b));
             const tools = choices.filter(([key]) => !primary.some(([value]) => value === key));
-            content.innerHTML = `<section class="pwp-about"><header><h1>Om oss</h1><p>Bedriften, nettsiden og administrasjonen samlet. Dette er din interne arbeidsflate.</p></header>
-                <div class="pwp-settings-layout"><nav class="pwp-settings-nav" aria-label="Bedriftsinnstillinger">${primary.map(([key,label])=>`<button type="button" data-pwp-setting="${esc(key)}" aria-selected="false">${esc(label)}</button>`).join('')}
+            const descriptions = {company:'Bedriftsprofil',staff:'Medarbeidere',email:'Utsending og maler',economy:'Betaling og oversikt',website:'Utseende og nettside'};
+            content.innerHTML = `<section class="pwp-about"><header><div><span class="pwp-about-kicker">ADMINISTRASJON / INNSTILLINGER</span><h1>Om oss</h1><p>Bedriftens interne arbeidsflate. Dette er ikke innhold som vises til kundene.</p></div></header>
+                <div class="pwp-settings-layout"><nav class="pwp-settings-nav" aria-label="Bedriftsinnstillinger">${primary.map(([key,label],index)=>`<button type="button" data-pwp-setting="${esc(key)}" aria-selected="false"><span class="pwp-setting-number">${String(index+1).padStart(2,'0')}</span><span class="pwp-setting-label"><b>${esc(label)}</b><small>${esc(descriptions[key])}</small></span><span class="pwp-setting-arrow" aria-hidden="true">→</span></button>`).join('')}
                 ${tools.length ? `<details class="pwp-settings-tools"><summary>Flere verktøy <span aria-hidden="true">⌄</span></summary><div>${tools.map(([key,label])=>`<button type="button" data-pwp-setting="${esc(key)}" aria-selected="false">${esc(label)}</button>`).join('')}</div></details>`:''}</nav>
                 <div id="pwp-settings-main" class="pwp-settings-main"></div></div></section>`;
             selectSetting(choices.some(([key]) => key === activeSetting) ? activeSetting : choices[0][0]);
         }
+        applyWebsiteAppearance(company);
     }
-    for (const [property, value] of Object.entries({
-        '--pwp-header': company.header_bg_color, '--pwp-ink': company.header_text_color || '#ffffff',
-        '--pwp-height': company.header_height, '--pwp-logo-height': company.logo_height,
-        '--pwp-title-size': company.company_header_font_size, '--pwp-radius': company.border_radius,
-        '--pwp-font': company.font_family,
-        '--pwp-logo-position': {left:'flex-start',center:'center',right:'flex-end'}[company.logo_position],
-    })) if (value) root.style.setProperty(property, value);
-    document.getElementById('pwp-company-name').textContent = company.name || '';
-    document.getElementById('pwp-footer-company').textContent = company.name || '';
-    document.getElementById('pwp-contact').textContent = [company.contact_phone, company.address_street, company.address_zip, company.address_city].filter(Boolean).join(' · ');
-    const logo = document.getElementById('pwp-logo');
-    if (url(company.img_url)) { logo.src = url(company.img_url); logo.hidden = false; }
+    function applyWebsiteAppearance(theme) {
+        const color = (value,fallback) => /^#[\da-f]{3,8}$/i.test(value || '') ? value : fallback;
+        const size = (value,fallback) => /^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/i.test(value || '') ? value : fallback;
+        const positions = {left:'flex-start',center:'center',right:'flex-end'};
+        for (const [property,value] of Object.entries({
+            '--pwp-header':color(theme.header_bg_color,'#176b69'), '--pwp-ink':color(theme.header_text_color,'#ffffff'),
+            '--pwp-height':size(theme.header_height,'80px'),'--pwp-logo-height':size(theme.logo_height,'50px'),
+            '--pwp-title-size':size(theme.company_header_font_size,'20px'),'--pwp-radius':size(theme.border_radius,'16px'),
+            '--pwp-font': /^[a-zA-Z0-9 ,'"_-]{1,150}$/.test(theme.font_family || '') ? theme.font_family : 'Inter, sans-serif',
+            '--pwp-body':color(theme.body_bg_color,'#e0f0fc'),'--pwp-primary':color(theme.primary_color,'#315c91'),
+            '--pwp-logo-position':positions[theme.logo_position] || 'center'
+        })) root.style.setProperty(property,value);
+        root.dataset.headerMode = theme.header_mode === 'dynamic' ? 'dynamic' : 'static';
+        root.dataset.footerMode = theme.footer_mode === 'dynamic' ? 'dynamic' : 'static';
+        root.querySelector('.pwp-site-nav').style.justifyContent = positions[theme.nav_position] || 'center';
+        document.getElementById('pwp-company-name').textContent = theme.name || '';
+        const controlCompany = document.getElementById('pwp-control-company');
+        if (controlCompany) controlCompany.textContent = theme.name || '';
+        document.getElementById('pwp-footer-company').textContent = theme.name || '';
+        document.getElementById('pwp-contact').textContent = [theme.contact_phone,theme.address_street,theme.address_zip,theme.address_city].filter(Boolean).join(' · ');
+        const logo = document.getElementById('pwp-logo');
+        logo.hidden = !url(theme.img_url);
+        if (!logo.hidden) logo.src = url(theme.img_url);
+        else logo.removeAttribute('src');
+        root.querySelectorAll('.pwp-hero').forEach(hero => { hero.hidden = String(theme.hero_enabled ?? '1') === '0'; });
+    }
+    applyWebsiteAppearance(company);
+    document.addEventListener('portal:website-preview', event => {
+        Object.assign(company,event.detail); applyWebsiteAppearance(company);
+    });
+    document.addEventListener('portal:website-saved', event => {
+        Object.assign(company,event.detail); data.company = company;
+        document.getElementById('pwp-data').textContent = JSON.stringify(data);
+    });
     say(data.errors.join(' '));
     root.addEventListener('click', event => {
         const pageButton = event.target.closest('[data-pwp-page]');
         if (pageButton) {
+            if (!workspace.canLeaveSettings()) return;
             root.querySelector('.pwp-account')?.removeAttribute('open');
             page = pageButton.dataset.pwpPage;
             menu.hidden = true; newButton.setAttribute('aria-expanded', 'false');
             if (page !== 'services' && ['benefits','fields'].includes(mode)) mode = 'read';
             root.querySelectorAll('[data-pwp-mode]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.pwpMode === mode)));
-            render(); return;
+            render(); applyWebsiteAppearance(company); return;
         }
         const modeButton = event.target.closest('[data-pwp-mode]');
         if (modeButton) {
@@ -363,6 +392,9 @@
             if (!response.ok || !next.success) throw new Error(next.message || 'Kunne ikke oppdatere forhåndsvisningen.');
             if (serial !== refreshSerial) return;
             Object.assign(data, next);
+            company = data.company || {};
+            document.getElementById('pwp-data').textContent = JSON.stringify(data);
+            applyWebsiteAppearance(company);
             modules.clear(); next.modules.forEach(module => modules.add(module.module_key));
             if (modules.has('reservation')) modules.add('reservations');
             if (!document.getElementById('pwp-dialog')?.open) { render(); say(next.errors.join(' ')); }

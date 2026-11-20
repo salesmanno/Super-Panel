@@ -7,7 +7,9 @@ $previewData['is_supervisor'] = $isSupervisor;
 ?>
 <link rel="stylesheet" href="/assets/portal-website-preview.css?v=<?= filemtime(__DIR__.'/../assets/portal-website-preview.css') ?>">
 <link rel="stylesheet" href="/assets/entity-form-fields.css?v=<?= filemtime(__DIR__.'/../assets/entity-form-fields.css') ?>">
+<link rel="stylesheet" href="/assets/portal-preview-settings.css?v=<?= filemtime(__DIR__.'/../assets/portal-preview-settings.css') ?>">
 <section id="portal-website-preview" aria-label="Kundesidelignende administrasjon">
+    <?php include __DIR__.'/portal_preview_control_room.php'; ?>
     <header class="pwp-brand">
         <div class="pwp-brand-identity"><img id="pwp-logo" alt="" hidden><strong id="pwp-company-name"></strong></div>
         <?php include __DIR__ . '/portal_preview_account.php'; ?>

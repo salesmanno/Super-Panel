@@ -13,6 +13,9 @@ function portalWebsitePreviewData(PDO $db, string $company, array $userModules, 
     try {
         $branding = announcement_preview_company($db, $company);
         $data['company'] = $branding['company'];
+        if (preg_match('~^https?://~i', $data['company']['website_logo_url'] ?? '')) {
+            $data['company']['img_url'] = $data['company']['website_logo_url'];
+        }
         $data['errors'] = $branding['warnings'];
         $query = $db->prepare(
             'SELECT id, title, content, image_url FROM tenant_announcements
