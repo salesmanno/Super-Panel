@@ -194,6 +194,26 @@ const checks = `(async()=>{
  assert(document.querySelector('[data-pwp-setting="website"]'),'Delegated website access must remain available for non-supervisors');
  click('[data-pwp-setting="website"]');await tick();
  assert(document.querySelector('#pwp-settings-main #firma-webside'),'Delegated website settings no longer load');
+ // Empty sales/appointment sections must not appear merely because modules are enabled.
+ click('[data-pwp-page="services"]');
+ const offerData=JSON.parse(document.getElementById('pwp-data').textContent);
+ offerData.products=offerData.products.filter(item=>!['sales','reservations'].includes(item.module));
+ const salesOffer={id:'web-sale',module:'sales',source_id:'sale-two',name:'Nettvare',price:50,is_visible:true,is_public:false};
+ const bookingOffer={id:'web-booking',module:'reservations',source_id:'service-two',name:'Bestillingstime',price:100,is_visible:false,is_public:true};
+ offerData.products.push(salesOffer,bookingOffer);
+ const refreshOffers=async()=>{document.getElementById('pwp-data').textContent=JSON.stringify(offerData);document.dispatchEvent(new CustomEvent('portal:surface-closed'));await tick();};
+ const hasSection=label=>[...document.querySelectorAll('#pwp-content section > h2')].some(h=>h.textContent===label);
+ await refreshOffers();
+ assert(!hasSection('Salgsvarer')&&!hasSection('Timebestilling'),'Empty/private/hidden offers must not leave empty sections');
+ assert(hasSection('Medlemskap'),'Other service sections were unintentionally removed');
+ click('#pwp-new');
+ assert(document.querySelector('[data-create="sales"]')&&document.querySelector('[data-create="reservations"]'),'Hiding empty sections must preserve permitted creation');
+ click('#pwp-new');
+ salesOffer.is_public=true;bookingOffer.is_visible=true;await refreshOffers();
+ assert(hasSection('Salgsvarer')&&hasSection('Timebestilling'),'Public offers must restore their sections');
+ offerData.products=offerData.products.filter(item=>!['sales','reservations'].includes(item.module));
+ await refreshOffers();
+ assert(!hasSection('Salgsvarer')&&!hasSection('Timebestilling'),'Removing the last offer must hide its section again');
  return {passed:true,width:innerWidth,creationFlows:6,originalFormsPreserved:true};
 })()`;
 chromiumFixture(fixture, checks, [1280,390]).catch(error=>{console.error(error);process.exitCode=1;});

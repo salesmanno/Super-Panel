@@ -247,6 +247,7 @@
         } else if (page === 'services') {
             content.innerHTML = '<h1>Tjenester</h1>' + Object.entries(labels).filter(([key]) => modules.has(key)).map(([key, label]) => {
                 const products = data.products.filter(item => item.module === key && item.is_visible && item.is_public);
+                if (['sales','reservations'].includes(key) && products.length === 0) return '';
                 return `<section><h2>${esc(label)}</h2>${products.length ? `<div class="pwp-grid">${products.map(item => `<button type="button" class="pwp-card" data-service-id="${esc(item.id)}">${image(item.image_url, item.name)}<span class="pwp-card-body"><h3>${esc(item.name)}</h3><p>${esc(text(item.description).slice(0, 150))}</p>${item.price !== null ? `<strong>${Number(item.price).toLocaleString('nb-NO', {style:'currency',currency:'NOK'})}</strong>` : ''}</span></button>`).join('')}</div>` : '<p>Ingen offentlige tilbud. Du kan opprette et tilbud med «Ny».</p>'}</section>`;
             }).join('');
         } else {
