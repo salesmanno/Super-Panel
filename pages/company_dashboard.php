@@ -1477,6 +1477,7 @@ try {
                             errorDiv.style.display = 'none';
                             unlockBtn.disabled = false;
                             unlockBtn.innerHTML = '<i class="bi bi-unlock me-1"></i>Lås opp';
+                            document.dispatchEvent(new CustomEvent('portal:settings-unlocked'));
                         });
                 } else {
                     errorDiv.textContent = data.error || 'Feil passord';
@@ -1951,6 +1952,10 @@ try {
     <script src="/assets/image-upload.js" defer></script>
     </div>
     <?php if ($portalMode === 'wpreview'): ?>
+    <?php if (!array_intersect(['events','rental','sales'], $previewKeys)): ?>
+    <script src="/assets/entity-form-fields.js?v=<?= filemtime(__DIR__.'/../assets/entity-form-fields.js') ?>" defer></script>
+    <?php endif; ?>
+    <script src="/assets/portal-preview-workspace.js?v=<?= filemtime(__DIR__.'/../assets/portal-preview-workspace.js') ?>" defer></script>
     <script src="/assets/portal-website-preview.js?v=<?= filemtime(__DIR__.'/../assets/portal-website-preview.js') ?>" defer></script>
     <?php endif; ?>
 </body>

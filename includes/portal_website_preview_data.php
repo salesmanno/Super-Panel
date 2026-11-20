@@ -8,6 +8,7 @@ function portalWebsitePreviewData(PDO $db, string $company, array $userModules, 
 {
     $modules = portalPreviewModules($userModules, $companyModules);
     $keys = array_column($modules, 'module_key');
+    if (in_array('reservation', $keys, true)) $keys[] = 'reservations';
     $data = ['company'=>[], 'news'=>[], 'products'=>[], 'modules'=>$modules, 'errors'=>[]];
     try {
         $branding = announcement_preview_company($db, $company);

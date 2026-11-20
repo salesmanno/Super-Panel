@@ -142,6 +142,10 @@ const checks=`(async()=>{
  check(document.querySelector('.mb-editor').scrollWidth<=document.querySelector('.mb-editor').clientWidth+1,'No horizontal modal overflow');
  // Focus loop remains usable even when price details are collapsed.
  const dialog=document.getElementById('mb-dialog');
+ close();
+ await window.MembershipBenefits.openProduct('rental-1');
+ check(!dialog.hidden&&document.body.contains(dialog)&&dialog.parentElement===document.body,'Direct preview action must open selected product dialog outside hidden module');
+ check(document.getElementById('mb-editor-title').textContent.includes('Selskapslokale'),'Direct product action loaded wrong item');
  check(dialog.querySelectorAll('button:not([disabled])').length>0,'Focusable actions available');
  document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
  check(dialog.hidden,'Escape closes clean editor');

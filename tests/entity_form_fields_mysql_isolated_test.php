@@ -139,6 +139,23 @@ $setup->exec("CREATE TABLE economy_bank_accounts(company_id CHAR(36),is_active I
 $setup->exec("INSERT INTO economy_configuration_data(id,company_id,gateway_type,config_name,is_active,test_mode) VALUES('active','a','vipps','Vipps',1,0),('other','b','stripe','Kort',1,0)");
 $setup->exec("CREATE TABLE event_membership_plans(event_id CHAR(36),membership_plan_id CHAR(36),ticket_price DECIMAL(12,2),public_display INT,created_at DATETIME DEFAULT CURRENT_TIMESTAMP)");
 $setup->exec("CREATE TABLE membership_plans(id CHAR(36),name VARCHAR(255),company_id CHAR(36),is_active INT DEFAULT 1)");
+$setup->exec("INSERT INTO membership_plans(id,name,company_id) VALUES('plan','Testplan','a'),('foreign-plan','Annen plan','b')");
+try {
+    entityFormRequireModuleAccess($db,'a','membership_plan');
+    throw new RuntimeException('Membership fields allowed without membership access');
+} catch (TenantAuditException $expected) {}
+$setup->exec("INSERT INTO system_modules VALUES('membership-module','membership',1)");
+$setup->exec("INSERT INTO tenant_admin_modules VALUES('admin','membership-module')");
+entityFormRequireModuleAccess($db,'a','membership_plan');
+$memberFields=entityFormLoad($db,'a','membership_plan','plan');
+formsAssert($memberFields['fields'][0]['field_label']==='Medlemskontakt','Existing membership field row must load by plan');
+$memberEdit=$memberFields['fields'];$memberEdit[0]['field_label']='E-post til medlem';
+entityFormSave($db,'a','membership_plan','plan',$memberEdit,entityFormRevision($memberFields));
+formsAssert(entityFormLoad($db,'a','membership_plan','plan')['fields'][0]['field_label']==='E-post til medlem','Membership fields must save to the same plan');
+try {
+    entityFormContext($db,'a','membership_plan','foreign-plan');
+    throw new RuntimeException('Foreign membership fields allowed');
+} catch (OutOfBoundsException $expected) {}
 $setup->exec("CREATE TABLE output_products(id CHAR(36) PRIMARY KEY,company_id CHAR(36),module_id CHAR(36),
  product_type VARCHAR(50),product_id CHAR(36),is_visible INT,is_public INT,is_marketplace_featured INT,
  marketplace_priority INT,discount_percent DECIMAL(12,2),created_by CHAR(36))");

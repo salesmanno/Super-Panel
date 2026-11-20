@@ -5,35 +5,21 @@
     const data = JSON.parse(document.getElementById('pwp-data').textContent);
     const company = data.company || {};
     const modules = new Set(data.modules.map(module => module.module_key));
+    if (modules.has('reservation')) modules.add('reservations');
     const content = document.getElementById('pwp-content');
     // Notifications must remain visible even while the legacy workspace is hidden.
     const toastContainer = document.getElementById('toastContainer');
     if (toastContainer) document.body.appendChild(toastContainer);
     const menu = document.getElementById('pwp-create-menu');
     const newButton = document.getElementById('pwp-new');
-    let page = 'home', mode = 'read', previousScroll = 0;
+    let page = 'home', mode = 'read';
+    const workspace = window.PortalWorkspace;
+    let activeSetting = 'company';
     let clearMemberScope = () => {};
-    function clearCreationSurface() {
-        document.body.classList.remove('pwp-creation-open');
-        document.querySelectorAll('[data-pwp-create-path], [data-pwp-create-surface]').forEach(element => {
-            if (element.hasAttribute('data-pwp-create-surface')) {
-                element.removeAttribute('role');
-                element.removeAttribute('aria-modal');
-            }
-            element.removeAttribute('data-pwp-create-path');
-            element.removeAttribute('data-pwp-create-surface');
-        });
-    }
     function showCreationSurface(element) {
         if (!element) return;
-        element.setAttribute('data-pwp-create-surface', '');
-        element.setAttribute('role', 'dialog');
-        element.setAttribute('aria-modal', 'false');
-        for (let parent = element.parentElement; parent; parent = parent.parentElement) {
-            parent.setAttribute('data-pwp-create-path', '');
-            if (parent.id === 'portal-legacy') break;
-        }
-        document.body.classList.add('pwp-creation-open');
+        workspace.show(element, {announcements:'Opprett ny sak', rental:'Opprett utleieobjekt', events:'Opprett arrangement'}[element.dataset.pwpKind] || 'Opprett',
+            {className:element.id.startsWith('news-')?'news-control-room':''});
     }
     const esc = value => String(value ?? '').replace(/[&<>"']/g, char =>
         ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
@@ -54,15 +40,8 @@
     const canOpen = key => key === 'announcements' || modules.has(key);
     function openWorkspace(key) {
         if (!canOpen(key)) { say('Du har ikke tilgang til denne modulen.'); return false; }
-        const button = document.querySelector(`[data-bs-target="#content-${key}"]`);
-        if (!button) { say('Modulen er ikke tilgjengelig i denne portalen.'); return false; }
+        if (!workspace.activate(key)) { say('Modulen er ikke tilgjengelig i denne portalen.'); return false; }
         clearMemberScope();
-        clearCreationSurface();
-        previousScroll = scrollY;
-        document.body.classList.add('pwp-workspace-open');
-        document.getElementById('pwp-workspace-bar').hidden = false;
-        bootstrap.Tab.getOrCreateInstance(button).show();
-        window.scrollTo(0, 0);
         return true;
     }
     function openPlanMembers(item) {
@@ -94,6 +73,7 @@
             clearMemberScope = () => {};
         };
         membersLink.click();
+        workspace.show(document.getElementById('membership-members'), `Medlemmer ${item.name}`);
     }
     async function create(key) {
         menu.hidden = true;
@@ -107,7 +87,9 @@
             sales: '#sales-new-product',
             reservations: '[data-bs-target="#createServiceModal"]',
         };
-        if (key === 'rental' && typeof window.openRentalCreate === 'function') {
+        if (key === 'announcements' && window.PortalNews) {
+            if (!window.PortalNews.openNew()) return;
+        } else if (key === 'rental' && typeof window.openRentalCreate === 'function') {
             window.openRentalCreate();
         } else if (key === 'reservations' && typeof window.openCreateServiceModal === 'function') {
             window.openCreateServiceModal();
@@ -124,15 +106,138 @@
             else document.querySelector('#pwp-workspace-bar span').textContent = 'Opprettelsesskjemaet ble ikke funnet. Åpne det fra modulen.';
         }
         const inlineForms = {announcements:'#news-create-panel', rental:'#rental-create', events:'#events-create'};
-        if (inlineForms[key]) showCreationSurface(document.querySelector(inlineForms[key]));
+        if (inlineForms[key]) {
+            const surface = document.querySelector(inlineForms[key]);
+            if (surface) surface.dataset.pwpKind = key;
+            showCreationSurface(surface);
+        }
+    }
+    async function editSalesProduct(id) {
+        const ready = () => window.SalesOnline?.snapshot().ready;
+        if (!ready()) {
+            say('Henter salgsvarer …');
+            document.dispatchEvent(new CustomEvent('sales:online-load'));
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => { cleanup(); reject(new Error('Varelisten kunne ikke lastes. Prøv igjen.')); }, 8000);
+                const cleanup = () => { clearTimeout(timeout); document.removeEventListener('sales:products-updated', updated); };
+                const updated = () => {
+                    const state = window.SalesOnline?.snapshot();
+                    if (state?.error) { cleanup(); reject(new Error(state.error)); }
+                    else if (state?.ready) { cleanup(); resolve(); }
+                };
+                document.addEventListener('sales:products-updated', updated);
+                updated();
+            });
+        }
+        if (!window.SalesOnline.snapshot().products.some(product => String(product.id) === String(id))) throw new Error('Varen er ikke tilgjengelig i bedriftens vareliste.');
+        say('');
+        window.SalesOnline.edit(id);
+    }
+    async function openServiceFields(item) {
+        const type = {events:'event',rental:'rental_object',sales:'sales_product',membership:'membership_plan'}[item.module];
+        const host = document.createElement('div');
+        host.id = 'pwp-service-fields';
+        if (!type || !window.EntityFormFields?.mount) {
+            host.textContent = !type ? 'Denne tjenestetypen har ikke et separat skjemafeltoppsett i denne modulen.' : 'Skjemafeltredigeringen kunne ikke lastes. Last siden på nytt.';
+            workspace.showTemporary(host, `Skjemafelt · ${item.name}`);
+            return;
+        }
+        let editor;
+        if (!workspace.showTemporary(host, `Skjemafelt · ${item.name}`, {beforeClose:()=>editor?.confirmClose() ?? true})) return;
+        editor = window.EntityFormFields.mount(host, {
+            entityType:type, entityId:item.source_id, eventLayout:true,
+            onSaved:()=>workspace.close(true)
+        });
+        await editor.refresh();
+    }
+    function openProductSummary(item) {
+        const article = document.createElement('article');
+        article.innerHTML = `${image(item.image_url,item.name)}<h2>${esc(item.name)}</h2><p>${esc(text(item.description))}</p>${item.price != null ? `<strong>${Number(item.price).toLocaleString('nb-NO',{style:'currency',currency:'NOK'})}</strong>`:''}`;
+        workspace.showTemporary(article, `Se på · ${item.name}`);
+    }
+    async function openService(item, action) {
+        if (!item || !canOpen(item.module)) { say('Du har ikke tilgang til denne tjenesten.'); return; }
+        if (!workspace.close()) return;
+        if (action === 'fields') { await openServiceFields(item); return; }
+        if (action === 'benefits') {
+            if (!modules.has('membership') || !window.MembershipBenefits) throw new Error('Medlemsfordeler er ikke tilgjengelig.');
+            await window.MembershipBenefits.openProduct(item.id);
+            return;
+        }
+        if (item.module === 'membership' && action === 'read') { openPlanMembers(item); return; }
+        if (!openWorkspace(item.module)) return;
+        if (action === 'edit') {
+            switch (item.module) {
+                case 'rental':
+                    if (window.loadRentalObjects) await window.loadRentalObjects();
+                    if (!window.editRentalObject) break;
+                    await window.editRentalObject(item.source_id); return;
+                case 'events':
+                    if (!window.editEvent) break;
+                    await window.editEvent(item.source_id); return;
+                case 'membership':
+                    if (!window.editMembershipPlan) break;
+                    await window.editMembershipPlan(item.source_id); return;
+                case 'sales': await editSalesProduct(item.source_id); return;
+                case 'reservations':
+                    if (window.loadServices) await window.loadServices();
+                    if (!window.editService) break;
+                    await window.editService(item.source_id); return;
+            }
+            throw new Error('Redigeringen for denne tjenestetypen kunne ikke åpnes.');
+        }
+        if (action === 'read') {
+            if (item.module === 'events') {
+                if (window.loadEvents) await window.loadEvents();
+                if (!window.EventsDashboard?.openParticipants) throw new Error('Deltakerlisten kunne ikke åpnes.');
+                await window.EventsDashboard.openParticipants(item.source_id);
+            } else if (item.module === 'rental') {
+                if (window.loadRentalObjects) await window.loadRentalObjects();
+                if (!window.viewDetails) throw new Error('Utleieobjektet kunne ikke åpnes.');
+                window.viewDetails(item.source_id);
+            } else openProductSummary(item);
+            return;
+        }
+        throw new Error('Ukjent handling. Velg Se på, Rediger, Fordeler eller Skjemafelt.');
+    }
+    function settingChoices() {
+        return [
+            ...(data.is_supervisor ? [
+                ['company','Bedriften'], ['staff','Ansatte'], ['access','Firmabrukere og modultilgang'], ['about','Om oss-tekst']
+            ] : []),
+            ...(modules.has('ditt_nettsted') ? [['website','Webside']] : []),
+            ...(modules.has('email') || modules.has('webmail') ? [['email','E-post']] : []),
+            ...(modules.has('economy') ? [['economy','Økonomi']] : []),
+            ...[...modules].filter(key => ['sales','events','rental','membership','reservations'].includes(key))
+                .map(key => [key, labels[key] || 'Timebestilling']),
+            ['announcements','Nyhetsadministrasjon']
+        ];
+    }
+    function selectSetting(key) {
+        const choices = settingChoices();
+        if (!choices.some(([value]) => value === key)) return;
+        activeSetting = key;
+        root.querySelectorAll('[data-pwp-setting]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.pwpSetting === key)));
+        const select = document.getElementById('pwp-settings-select');
+        if (select) select.value = key;
+        const host = document.getElementById('pwp-settings-main');
+        workspace.clearAbout();
+        host.replaceChildren();
+        if (['company','staff','access','about','website','email','economy'].includes(key)) workspace.settings(key, host);
+        else workspace.moduleSurface(key, choices.find(([value]) => value === key)[1], host);
     }
     function render() {
+        workspace.clearAbout();
         document.querySelectorAll('[data-pwp-page]').forEach(button => {
             if (button.dataset.pwpPage === page) button.setAttribute('aria-current', 'page');
             else button.removeAttribute('aria-current');
         });
         root.querySelector('[data-pwp-mode="benefits"]')?.toggleAttribute('hidden', page !== 'services');
+        root.querySelector('[data-pwp-mode="fields"]')?.toggleAttribute('hidden', page !== 'services');
         newButton.hidden = page === 'about';
+        const island = root.querySelector('.pwp-island');
+        island.classList.toggle('is-faded', page === 'about');
+        island.inert = page === 'about';
         if (page === 'home') {
             const [hero, ...rest] = data.news;
             content.innerHTML = hero ? `<article class="pwp-hero" data-news-id="${esc(hero.id)}" tabindex="0" role="button"><div><h1>${esc(hero.title)}</h1><p>${esc(text(hero.content).slice(0, 240))}</p></div>${image(hero.image_url, hero.title)}</article>
@@ -144,9 +249,13 @@
                 return `<section><h2>${esc(label)}</h2>${products.length ? `<div class="pwp-grid">${products.map(item => `<button type="button" class="pwp-card" data-service-id="${esc(item.id)}">${image(item.image_url, item.name)}<span class="pwp-card-body"><h3>${esc(item.name)}</h3><p>${esc(text(item.description).slice(0, 150))}</p>${item.price !== null ? `<strong>${Number(item.price).toLocaleString('nb-NO', {style:'currency',currency:'NOK'})}</strong>` : ''}</span></button>`).join('')}</div>` : '<p>Ingen offentlige tilbud. Du kan opprette et tilbud med «Ny».</p>'}</section>`;
             }).join('');
         } else {
-            content.innerHTML = '<h1>Administrasjon</h1><div class="pwp-grid">' +
-                data.modules.map(module => `<button type="button" class="pwp-card" data-open-module="${esc(module.module_key)}"><span class="pwp-card-body"><h3>${esc(module.name)}</h3><p>Åpne eksisterende administrasjon</p></span></button>`).join('') +
-                '<button type="button" class="pwp-card" data-open-module="announcements"><span class="pwp-card-body"><h3>Nyhetsadministrasjon</h3></span></button></div>';
+            const choices = settingChoices();
+            content.innerHTML = `<section class="pwp-about"><header><h1>Om oss</h1><p>Bedriften, nettsiden og administrasjonen samlet. Dette er din interne arbeidsflate.</p></header>
+                <div class="pwp-settings-layout"><nav class="pwp-settings-nav" aria-label="Bedriftsinnstillinger">${choices.map(([key,label])=>`<button type="button" data-pwp-setting="${esc(key)}" aria-selected="false">${esc(label)}</button>`).join('')}</nav>
+                <label class="visually-hidden" for="pwp-settings-select">Velg innstilling</label><select id="pwp-settings-select">${choices.map(([key,label])=>`<option value="${esc(key)}">${esc(label)}</option>`).join('')}</select>
+                <div id="pwp-settings-main" class="pwp-settings-main"></div></div></section>`;
+            selectSetting(choices.some(([key]) => key === activeSetting) ? activeSetting : choices[0][0]);
+            document.getElementById('pwp-settings-select').addEventListener('change', event => selectSetting(event.target.value));
         }
     }
     for (const [property, value] of Object.entries({
@@ -167,7 +276,7 @@
         if (pageButton) {
             page = pageButton.dataset.pwpPage;
             menu.hidden = true; newButton.setAttribute('aria-expanded', 'false');
-            if (page !== 'services' && mode === 'benefits') mode = 'read';
+            if (page !== 'services' && ['benefits','fields'].includes(mode)) mode = 'read';
             root.querySelectorAll('[data-pwp-mode]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.pwpMode === mode)));
             render(); return;
         }
@@ -177,22 +286,28 @@
             root.querySelectorAll('[data-pwp-mode]').forEach(button => button.setAttribute('aria-pressed', String(button === modeButton)));
             return; // Do not rerender or change the preview on mode selection.
         }
-        const moduleButton = event.target.closest('[data-open-module]');
-        if (moduleButton) { openWorkspace(moduleButton.dataset.openModule); return; }
+        const settingButton = event.target.closest('[data-pwp-setting]');
+        if (settingButton) { selectSetting(settingButton.dataset.pwpSetting); return; }
         const story = event.target.closest('[data-news-id]');
         if (story && openWorkspace('announcements')) {
             const id = story.dataset.newsId;
-            const card = [...document.querySelectorAll('#news-home-preview [data-edit-story], #news-edit-cards [data-edit-story]')].find(item => item.dataset.editStory === id);
-            card?.click(); return;
+            if (mode === 'read') {
+                const item = data.news.find(news => String(news.id) === id);
+                const article = document.createElement('article');
+                article.innerHTML = `<h2>${esc(item?.title)}</h2>${image(item?.image_url,item?.title)}<p style="white-space:pre-line">${esc(text(item?.content))}</p>`;
+                workspace.showTemporary(article, item?.title || 'Nyhet');
+            } else {
+                if (!window.PortalNews) { say('Nyhetsredigeringen er ikke tilgjengelig. Last siden på nytt.'); return; }
+                window.PortalNews.edit(id).then(opened => {
+                    if (!opened) say('Saken kunne ikke åpnes, eller åpningen ble avbrutt.');
+                }).catch(error => say(error.message));
+            }
+            return;
         }
         const service = event.target.closest('[data-service-id]');
         if (service) {
             const item = data.products.find(product => product.id === service.dataset.serviceId);
-            if (mode === 'benefits' && modules.has('membership')) {
-                if (openWorkspace('membership')) document.querySelector('[href="#membership-benefits"]')?.click();
-            } else if (item?.module === 'membership' && mode === 'read') {
-                openPlanMembers(item);
-            } else if (item) openWorkspace(item.module);
+            openService(item, mode).catch(error=>say(error.message));
         }
     });
     root.addEventListener('keydown', event => {
@@ -221,14 +336,19 @@
         }
     });
     let refreshSerial = 0;
-    document.getElementById('pwp-close-workspace').addEventListener('click', async () => {
-        if (document.querySelector('.modal.show')) return;
+    document.addEventListener('portal:settings-unlocked', () => {
+        if (page === 'about') selectSetting(activeSetting);
+    });
+    document.addEventListener('portal:news-saved', () => workspace.close(true));
+    document.addEventListener('hidden.bs.modal', event => {
+        if (event.target.classList.contains('pwp-module-modal')) document.dispatchEvent(new CustomEvent('portal:surface-closed'));
+    });
+    document.addEventListener('portal:news-editor-open', () => {
+        workspace.show(document.getElementById('news-create-panel'), 'Rediger sak',
+            {className:'news-control-room',beforeClose:()=>window.PortalNews.canClose()});
+    });
+    document.addEventListener('portal:surface-closed', async () => {
         clearMemberScope();
-        clearCreationSurface();
-        // The same DOM is kept mounted, so unsaved drafts are never discarded.
-        document.body.classList.remove('pwp-workspace-open');
-        document.getElementById('pwp-workspace-bar').hidden = true;
-        window.scrollTo(0, previousScroll);
         const serial = ++refreshSerial;
         try {
             const response = await fetch('/api/get_portal_website_preview.php', {credentials:'same-origin', cache:'no-store', headers:{Accept:'application/json'}});
@@ -237,7 +357,8 @@
             if (serial !== refreshSerial) return;
             Object.assign(data, next);
             modules.clear(); next.modules.forEach(module => modules.add(module.module_key));
-            if (!document.body.classList.contains('pwp-workspace-open')) { render(); say(next.errors.join(' ')); }
+            if (modules.has('reservation')) modules.add('reservations');
+            if (!document.getElementById('pwp-dialog')?.open) { render(); say(next.errors.join(' ')); }
         } catch (error) {
             if (serial === refreshSerial) say(error.message || 'Kunne ikke oppdatere forhåndsvisningen. Last siden på nytt.');
         }

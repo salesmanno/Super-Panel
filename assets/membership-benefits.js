@@ -94,7 +94,13 @@
             warnings:Array.isArray(data.warnings) ? data.warnings.map(String) : []
         };
     };
-    async function loadCatalog(force = false) {
+    let catalogRequest = null;
+    function loadCatalog(force = false) {
+        if (catalogRequest) return catalogRequest;
+        catalogRequest = fetchCatalog(force).finally(() => { catalogRequest = null; });
+        return catalogRequest;
+    }
+    async function fetchCatalog(force = false) {
         if (loaded && !force) return;
         if (loading) return;
         loading = true;
@@ -779,6 +785,19 @@
         document.querySelectorAll('[data-mb-viewport]').forEach(item => item.setAttribute('aria-pressed',String(item === button)));
         catalog.classList.toggle('mb-phone-view',viewport === 'phone');
     }));
+    window.MembershipBenefits = {
+        async openProduct(id) {
+            await loadCatalog();
+            if (!loaded || demoMode || !payload?.products.some(product => String(product.id) === String(id))) {
+                throw new Error('Fordelene for denne tjenesten kunne ikke lastes.');
+            }
+            const item = payload.products.find(product => String(product.id) === String(id));
+            if (!benefitEligible(item)) throw new Error('Denne tjenesten kan ikke tildeles medlemsfordeler.');
+            // The editor must remain visible while the module itself stays hidden.
+            document.body.appendChild(dialog);
+            openEditor(item.id, null);
+        }
+    };
     const maybeLoad = event => {
         if (event?.detail?.module === 'membership' && event.detail.subtab === 'membership-benefits') loadCatalog();
         else {

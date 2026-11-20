@@ -26,26 +26,45 @@ installasjoner uten kolonnen beholder legacy. Oppdateringen kjører ingen DDL.
 - Tjenester leser offentlige og synlige `output_products` med kildeinformasjon.
   Både brukerens modultilgang og bedriftens aktive moduler må tillate modulen.
 - Firmaets logo og headerinnstillinger leses fra eksisterende nettsideoppsett.
-- «Ny» på Hjem åpner eksisterende nyhetseditor.
+- «Ny» på Hjem åpner artikkelredigeringen i et eget wpreview-vindu.
+- «Rediger» og trykk på et nyhetskort åpner riktig sak direkte i samme
+  vinduslayout. Henting, publisering og lagring bruker den faktiske nyhetseditoren.
 - «Ny» på Tjenester viser tilgjengelige tjenestetyper og åpner de eksisterende
   opprettelsesskjemaene. Felt, validering, betaling og lagring gjøres fortsatt
   av disse modulene; de erstattes ikke med den forenklede mockupens data.
 - Nyheter, arrangement og utleie åpnes som større dialogflater, og opprettelse
   av medlemskapsplan bruker en utvidet modal. De opprinnelige skjemaelementene
-  beholdes på sin plass, slik at eksisterende lagringshendelser fortsatt virker.
+  flyttes midlertidig inn i vinduet og tilbake ved lukking. Det opprettes ikke
+  parallelle kopier av skjemaene eller nye lagringsløp.
 - Arrangement opprettes uten medlemspriser eller medlemsrestriksjoner i
   veiviseren. Disse settes etterpå under Fordeler.
 - «Se på» på et medlemskapskort åpner medlemslisten avgrenset til akkurat
   kildeplanen. Filteret beholdes også dersom planvalgene lastes på nytt.
-- Tilbake-knappen bevarer modulenes DOM og utkast og henter oppdatert innhold.
+- Lukking bevarer modulenes DOM og henter oppdatert sideinnhold. Ulagrede
+  nyhetsendringer krever bekreftelse før vinduet lukkes.
+- «Se på» på et arrangement åpner den eksisterende, komplette deltaker- og
+  innsjekkingsmodalen. Redigering retter seg direkte mot kildeobjektet.
+- Kontrolløya bruker separate handlinger: Se på, Rediger, Fordeler og
+  Skjemafelt. De skal aldri falle tilbake til samme generelle modulvisning.
+  Skjemafelt åpner eksisterende `dynamic_form_fields` for arrangement,
+  utleieobjekt, salgsprodukt eller medlemskapsplan i egen modal med
+  riktig `entity_type` og kilde-ID. Feltlagring bruker samme tilgangskontroll,
+  revisjonskontroll og audit som de eksisterende redigeringene.
+- Fordeler åpner den valgte tjenestens fordelsmodal direkte, ikke en ny
+  katalog. Redigering av utleie venter på at objektlisten er hentet.
+- Logg ut ligger i headeren, ikke i den hvite sidenavigasjonen.
+- Om oss samler Bedriften, Ansatte, Firmabrukere, Om oss-tekst, Webside,
+  E-post, Økonomi og tilgjengelige administrasjonsområder. På mobil brukes
+  et kompakt valg i stedet for en bred, rullbar meny. Bedriftsinnstillinger
+  krever samme administratorpassord som før. Firmabrukere vises bare for
+  supervisor, og modulområder følger brukerens delegerte tilgang.
 
 ## Avgrensning
 
 Dette er en innlogget forhåndsvisningsinngang, ikke en erstatning for kundesiden.
-De eksisterende administrasjonsmodulene brukes fortsatt som arbeidsflate ved
-opprettelse og administrasjon. Om oss gir tilgang til disse modulene.
-Mockupens detaljerte interne Om oss-paneler er ikke flyttet over som nye
-lagringsskjemaer.
+De eksisterende modulenes felt og lagringsfunksjoner beholdes, men monteres i
+avgrensede wpreview-vinduer eller innstillingsflaten i Om oss. Hele
+legacy-navigasjonen skal aldri vises for å utføre en preview-handling.
 
 Canvas-demoen er fortsatt lokal og skriver ikke til databasen. Dens
 opprettelsesvalg illustrerer arbeidsflyten, mens portalen bruker de komplette
@@ -55,6 +74,7 @@ eksisterende skjemaene.
 
 Ta med `pages/company_dashboard.php`, `includes/portal_view_mode.php`,
 `includes/portal_website_preview.php`, `includes/portal_website_preview_data.php`,
-`assets/portal-website-preview.css`, `assets/portal-website-preview.js` og
+`assets/portal-website-preview.css`, `assets/portal-website-preview.js`,
+`assets/portal-preview-workspace.js`, `modules/announcements_content.php` og
 `api/get_portal_website_preview.php`, samt deres eksisterende avhengigheter.
 Mockup-sandkassen kreves ikke på PHP-webhotellet.

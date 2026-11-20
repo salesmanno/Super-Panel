@@ -684,15 +684,16 @@ function resetProduct(){let s=$('announcement-product-id');s.selectedIndex=0;$('
    $('announcement-content-feedback').hidden=true;contentEditor().classList.remove('is-invalid');$('announcement-image-url').value='';updateImagePreview();syncDraft();
   }
    function openNew(){
-    if(!canReplaceEditor())return;
-    if(!val('announcement-id')){setNewsPanel('create');return}
+    if(!canReplaceEditor())return false;
+    if(!val('announcement-id')){setNewsPanel('create');return true}
      editRevision+=1;publishIntent=false;$('announcement-save-status').hidden=true;resetComposer();
     restoreNewStory();
     setNewsPanel('create');
+    return true;
    }
   async function edit(id){
-   if(!canReplaceEditor())return;
-   let revision=++editRevision,a=announcements.find(x=>String(x.id)===String(id));if(!a)return;
+   if(!canReplaceEditor())return false;
+   let revision=++editRevision,a=announcements.find(x=>String(x.id)===String(id));if(!a)return false;
    try{if(a.product)await loadProducts()}catch(e){alert('Kunne ikke hente produktet. Prøv igjen.');return}
    if(revision!==editRevision)return;
    rememberNewStory();
@@ -709,6 +710,8 @@ function resetProduct(){let s=$('announcement-product-id');s.selectedIndex=0;$('
    const authorSlot=document.querySelector('.nc-author-slot');if(authorSlot)authorSlot.innerHTML=`<div class="news-compose-author">Opprinnelig forfatter · ${esc(selectedAuthorName||'Navn ikke tilgjengelig')}</div>`;
    $('announcementModalTitle').textContent='Rediger sak';$('announcement-save-status').hidden=true;
     priorityDraft=null;syncDraft();editBaseline=editorFingerprint();setNewsPanel('edit');
+    document.dispatchEvent(new CustomEvent('portal:news-editor-open'));
+    return true;
   }
   function setSaveBusy(busy){if(saveBusy===busy)return;saveBusy=busy;let form=$('announcementForm');form.setAttribute('aria-busy',String(busy));form.querySelectorAll('input,select,textarea,button').forEach(control=>{if(busy){control.dataset.saveWasDisabled=control.disabled?'1':'0';control.disabled=true}else{control.disabled=control.dataset.saveWasDisabled==='1';delete control.dataset.saveWasDisabled}});form.querySelectorAll('[contenteditable]').forEach(control=>{if(busy){control.dataset.saveEditable=control.getAttribute('contenteditable');control.setAttribute('contenteditable','false')}else if('saveEditable' in control.dataset){control.setAttribute('contenteditable',control.dataset.saveEditable);delete control.dataset.saveEditable}})}
  function applyPriorityMap(priorities){if(!priorities||typeof priorities!=='object')return false;announcements=announcements.map(a=>Object.prototype.hasOwnProperty.call(priorities,String(a.id))?{...a,priority:priorityValue(priorities[String(a.id)])}:a);render();return true}
@@ -755,6 +758,7 @@ function resetProduct(){let s=$('announcement-product-id');s.selectedIndex=0;$('
    setSaveBusy(false);
    if(id){editBaseline=editorFingerprint();resetComposer();restoreNewStory();setNewsPanel('edit',false)}
    else{resetComposer();$('announcement-save-status').textContent=publishIntent?(scheduled?'Nyheten er lagret for planlagt publisering.':'Nyheten er publisert.'):'Nyheten er lagret som kladd.';$('announcement-save-status').textContent+=' Skjemaet er nullstilt og klart for neste sak.';$('announcement-save-status').hidden=false;setNewsPanel('create')}
+   document.dispatchEvent(new CustomEvent('portal:news-saved'));
   }catch(e){alert('Kunne ikke lagre. Kontroller forbindelsen og prøv igjen.')}
   finally{setSaveBusy(false)}
  }
@@ -831,11 +835,20 @@ function resetProduct(){let s=$('announcement-product-id');s.selectedIndex=0;$('
    $('news-admin-filter').addEventListener('change',renderEditCards);
   $('news-edit-refresh').addEventListener('click',load);
   $('cancelAnnouncement').addEventListener('click',()=>{
+    if(document.body.classList.contains('portal-wpreview')&&document.getElementById('pwp-dialog')?.open){window.PortalWorkspace?.close();return}
     if(val('announcement-id'))$('news-edit-back').click();else setNewsPanel('edit');
   });
   $('compose-preview-desktop').addEventListener('click',()=>{composePreviewMode='desktop';$('compose-preview-desktop').classList.add('active');$('compose-preview-mobile').classList.remove('active');renderComposerPreview()});
   $('compose-preview-mobile').addEventListener('click',()=>{composePreviewMode='mobile';$('compose-preview-mobile').classList.add('active');$('compose-preview-desktop').classList.remove('active');renderComposerPreview()});
    $('saveDraftButton').addEventListener('click',()=>saveAnnouncement(false));$('publishButton').addEventListener('click',()=>saveAnnouncement(true));
+  window.PortalNews = {
+    canClose: canReplaceEditor,
+    openNew,
+    async edit(id) {
+      if(!announcements.some(a=>String(a.id)===String(id))&&!await load())return false;
+      return edit(id);
+    }
+  };
   document.addEventListener('shown.bs.tab',e=>{if(e.target.dataset.bsTarget==='#content-announcements')load()});
   document.querySelectorAll('#announcementForm input,#announcementForm select').forEach(field=>field.addEventListener('input',syncDraft));
   document.querySelectorAll('#announcementForm select,#announcementForm input[type="checkbox"]').forEach(field=>field.addEventListener('change',()=>{if(field.id==='announcement-product-toggle')toggleProduct();else if(field.id==='announcement-scheduled'){ $('announcement-schedule-fields').hidden=!field.checked;renderPaper();syncDraft()}else syncDraft()}));

@@ -7,9 +7,10 @@ require_once __DIR__ . '/audit_resources.php';
 function entityFormContext(PDO $db, string $company, string $type, string $id, bool $lock = false): array {
     $table = match ($type) {
         'event' => 'events_eventdata', 'rental_object' => 'rental_objects', 'sales_product' => 'sales_products',
+        'membership_plan' => 'membership_plans',
         default => throw new InvalidArgumentException('Ugyldig skjematype'),
     };
-    $columns = match ($type) {'event'=>'id,title AS name,registration_type','sales_product'=>'id,name',default=>'id,object_name AS name'};
+    $columns = match ($type) {'event'=>'id,title AS name,registration_type','sales_product','membership_plan'=>'id,name',default=>'id,object_name AS name'};
     $q = $db->prepare("SELECT $columns FROM $table WHERE id = ? AND company_id = ?" . ($lock ? ' FOR UPDATE' : ''));
     $q->execute([$id, $company]);
     $row = $q->fetch(PDO::FETCH_ASSOC);
@@ -26,7 +27,7 @@ function entityFormCanonicalName(string $type, string $name): string {
 
 function entityFormRequireModuleAccess(PDO $db,string $company,string $type): array {
     $actor=tenantAuditActor($db,$company);
-    $module=match($type){'event'=>'events','rental_object'=>'rental','sales_product'=>'sales',default=>throw new InvalidArgumentException('Ugyldig skjematype')};
+    $module=match($type){'event'=>'events','rental_object'=>'rental','sales_product'=>'sales','membership_plan'=>'membership',default=>throw new InvalidArgumentException('Ugyldig skjematype')};
     if (!empty($_SESSION['company_auth_version'])) {
         require_once __DIR__.'/company_login.php';
         if (!in_array($module,companyLoginModuleKeys($db,$actor['id']),true)) throw new TenantAuditException('Modulen er ikke tilgjengelig i valgt bedrift');
@@ -197,7 +198,7 @@ function entityFormRaw(PDO $db,string $company,string $type,string $id,bool $loc
 }
 
 function entityFormLegacy(PDO $db,string $company,string $type,string $id): array {
-    if ($type === 'sales_product') return [];
+    if (in_array($type, ['sales_product','membership_plan'], true)) return [];
     try {
         if ($type==='event') {
             $q=$db->prepare('SELECT f.* FROM event_registration_fields f JOIN events_eventdata e ON e.id=f.event_id WHERE e.company_id=? AND e.id=? ORDER BY f.display_order,f.id');
@@ -293,7 +294,7 @@ function entityFormSave(PDO $db,string $company,string $type,string $id,array $i
         $desired[]=['field_name'=>'__configured','field_label'=>'Skjema konfigurert','field_type'=>'hidden',
             'is_required'=>0,'is_visible'=>0,'sort_order'=>10000,'default_value'=>null,'options'=>[],'validation_rules'=>[]];
         $operation=static function() use($db,$company,$type,$id,$desired,$byName,$context,$actor) {
-            $module=match($type){'event'=>'events','sales_product'=>'sales',default=>'rental'};
+            $module=match($type){'event'=>'events','sales_product'=>'sales','membership_plan'=>'membership',default=>'rental'};
             foreach($desired as $field) {
                 $old=$byName[$field['field_name']]??[];
                 unset($byName[$field['field_name']]);
@@ -389,7 +390,7 @@ function entityFormDelete(PDO $db,string $company,string $type,string $id): void
     $actor=tenantAuditActor($db,$company);
     $rows=entityFormRaw($db,$company,$type,$id,true);
     $operation=static function()use($db,$company,$type,$id,$rows,$actor,$context) {
-        $module=match($type){'event'=>'events','sales_product'=>'sales',default=>'rental'};
+        $module=match($type){'event'=>'events','sales_product'=>'sales','membership_plan'=>'membership',default=>'rental'};
         $db->prepare('DELETE FROM dynamic_form_fields WHERE company_id=? AND entity_type=? AND entity_id=?')->execute([$company,$type,$id]);
         foreach($rows as $row)tenantAuditRecord($db,$company,$module,$module.'.form_fields.delete',
             'dynamic_form_fields',$row['id'],$context['name'].' / '.$row['field_label'],$row,[],'success',[],$actor);
