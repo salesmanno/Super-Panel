@@ -217,6 +217,7 @@
         const choices = settingChoices();
         if (!choices.some(([value]) => value === key)) return;
         activeSetting = key;
+        root.querySelector('.pwp-settings-tools')?.removeAttribute('open');
         root.querySelectorAll('[data-pwp-setting]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.pwpSetting === key)));
         const select = document.getElementById('pwp-settings-select');
         if (select) select.value = key;
@@ -250,12 +251,13 @@
             }).join('');
         } else {
             const choices = settingChoices();
+            const primary = choices.filter(([key]) => ['company','staff','email','economy','website'].includes(key));
+            const tools = choices.filter(([key]) => !primary.some(([value]) => value === key));
             content.innerHTML = `<section class="pwp-about"><header><h1>Om oss</h1><p>Bedriften, nettsiden og administrasjonen samlet. Dette er din interne arbeidsflate.</p></header>
-                <div class="pwp-settings-layout"><nav class="pwp-settings-nav" aria-label="Bedriftsinnstillinger">${choices.map(([key,label])=>`<button type="button" data-pwp-setting="${esc(key)}" aria-selected="false">${esc(label)}</button>`).join('')}</nav>
-                <label class="visually-hidden" for="pwp-settings-select">Velg innstilling</label><select id="pwp-settings-select">${choices.map(([key,label])=>`<option value="${esc(key)}">${esc(label)}</option>`).join('')}</select>
+                <div class="pwp-settings-layout"><nav class="pwp-settings-nav" aria-label="Bedriftsinnstillinger">${primary.map(([key,label])=>`<button type="button" data-pwp-setting="${esc(key)}" aria-selected="false">${esc(label)}</button>`).join('')}
+                ${tools.length ? `<details class="pwp-settings-tools"><summary>Flere verktøy <span aria-hidden="true">⌄</span></summary><div>${tools.map(([key,label])=>`<button type="button" data-pwp-setting="${esc(key)}" aria-selected="false">${esc(label)}</button>`).join('')}</div></details>`:''}</nav>
                 <div id="pwp-settings-main" class="pwp-settings-main"></div></div></section>`;
             selectSetting(choices.some(([key]) => key === activeSetting) ? activeSetting : choices[0][0]);
-            document.getElementById('pwp-settings-select').addEventListener('change', event => selectSetting(event.target.value));
         }
     }
     for (const [property, value] of Object.entries({
@@ -274,6 +276,7 @@
     root.addEventListener('click', event => {
         const pageButton = event.target.closest('[data-pwp-page]');
         if (pageButton) {
+            root.querySelector('.pwp-account')?.removeAttribute('open');
             page = pageButton.dataset.pwpPage;
             menu.hidden = true; newButton.setAttribute('aria-expanded', 'false');
             if (page !== 'services' && ['benefits','fields'].includes(mode)) mode = 'read';
@@ -328,17 +331,20 @@
         if (button) create(button.dataset.create);
     });
     document.addEventListener('keydown', event => {
-        if (event.key === 'Escape') { menu.hidden = true; newButton.setAttribute('aria-expanded', 'false'); }
+        if (event.key === 'Escape') {
+            menu.hidden = true; newButton.setAttribute('aria-expanded', 'false');
+            const account = root.querySelector('.pwp-account[open]');
+            if (account) { account.removeAttribute('open'); account.querySelector('summary').focus({preventScroll:true}); }
+        }
     });
     document.addEventListener('click', event => {
+        const account = root.querySelector('.pwp-account[open]');
+        if (account && !account.contains(event.target)) account.removeAttribute('open');
         if (!menu.contains(event.target) && !newButton.contains(event.target)) {
             menu.hidden = true; newButton.setAttribute('aria-expanded', 'false');
         }
     });
     let refreshSerial = 0;
-    document.addEventListener('portal:settings-unlocked', () => {
-        if (page === 'about') selectSetting(activeSetting);
-    });
     document.addEventListener('portal:news-saved', () => workspace.close(true));
     document.addEventListener('hidden.bs.modal', event => {
         if (event.target.classList.contains('pwp-module-modal')) document.dispatchEvent(new CustomEvent('portal:surface-closed'));

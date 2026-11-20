@@ -30,10 +30,9 @@ final class ImageUpload
         require_once __DIR__ . '/entity_form_fields.php';
         $actor = tenantAuditActor($db, $company);
         if (in_array($module, ['company', 'website'], true)) {
-            if (empty($_SESSION['ditt_nettsted_unlocked']) || (int)($_SESSION['ditt_nettsted_expires'] ?? 0) <= time()) {
-                throw new TenantAuditException('Lås opp firmainnstillingene før du laster opp bilder.');
-            }
-            $module = 'ditt_nettsted';
+            require_once __DIR__.'/company_settings_access.php';
+            companySettingsRequireAccess($db, $company);
+            return;
         }
         // Announcements is a shared dashboard function available to signed-in
         // administrators, not a separately licensed module in this application.

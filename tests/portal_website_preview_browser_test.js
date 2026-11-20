@@ -1,7 +1,10 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const {spawnSync} = require('node:child_process');
 const chromiumFixture = require('./chromium_fixture');
+const account = spawnSync('php',['-r','$adminName="Test Administrator";include "includes/portal_preview_account.php";'],{encoding:'utf8'});
+if (account.status) throw new Error(account.stderr);
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portal-website-preview-'));
 const fixture = path.join(dir, 'index.html');
 const data = {
@@ -19,7 +22,7 @@ const data = {
 fs.writeFileSync(fixture, `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <style>${fs.readFileSync('assets/portal-website-preview.css','utf8')}${fs.readFileSync('assets/entity-form-fields.css','utf8')}</style>
 <body class="portal-wpreview">
-<section id="portal-website-preview"><header class="pwp-brand"><div class="pwp-brand-identity"><img id="pwp-logo" hidden><strong id="pwp-company-name"></strong></div><a class="pwp-header-logout" href="/auth/logout.php">Logg ut</a></header>
+<section id="portal-website-preview"><header class="pwp-brand"><div class="pwp-brand-identity"><img id="pwp-logo" hidden><strong id="pwp-company-name"></strong></div>${account.stdout}</header>
 <nav class="pwp-site-nav"><button data-pwp-page="home">Hjem</button><button data-pwp-page="services">Tjenester</button><button data-pwp-page="about">Om oss</button></nav>
 <div id="pwp-errors"></div><div id="pwp-content" style="min-height:1200px"></div><footer><span id="pwp-footer-company"></span><span id="pwp-contact"></span></footer>
 <div class="pwp-island"><button data-pwp-mode="read">Se på</button><button data-pwp-mode="edit">Rediger</button><button data-pwp-mode="benefits">Fordeler</button><button data-pwp-mode="fields">Skjemafelt</button><button id="pwp-new">＋ Ny</button></div>
@@ -35,7 +38,6 @@ ${['announcements',...data.modules.map(m=>m.module_key)].map(key=>`<section id="
 <select id="member-plan-filter"><option value="">Alle</option><option value="plan-member">Bergsøy Medlem</option><option value="plan-board">Bergsøy Medlem Styre</option></select><div id="fixture-members"></div></section>
 <form id="legacy-original-form"><input name="important-legacy-field" value="Preserved"></form></div>
 <div id="firmaModalTabContent"></div>
-<div id="dittNettstedPasswordForm"><input id="dittNettstedPassword" type="password"></div>
 <div id="rentalModal" class="modal"><div class="modal-dialog"><div class="modal-content">Utleieredigering</div></div></div>
 <script id="pwp-data" type="application/json">${JSON.stringify(data)}</script>
 <script>${fs.readFileSync('assets/entity-form-fields.js','utf8')}</script>
@@ -44,7 +46,7 @@ window.openRentalCreate=()=>actions.push('rental-create'); window.openCreateServ
 for(const id of ['news-create-panel','rental-create','events-create']){
 const panel=document.createElement('section');panel.id=id;panel.innerHTML='<input name="creation-test-field" value="Kept">';document.getElementById('portal-legacy').appendChild(panel);
 }
-window.unlocked=false;window.saved=0;
+window.unlocked=true;window.saved=0;
 window.fetch=async url=>url.includes('get_entity_form_fields')
   ?{ok:true,json:async()=>({success:true,csrf_token:'fixture-token',revision:'a'.repeat(64),presets:[{id:'standard',label:'Kontakt',fields:[{field_name:'email',field_label:'E-post',field_type:'email',is_visible:1}]}],fields:[{field_name:'email',field_label:'Eksisterende felt for '+new URL(url,'http://fixture').searchParams.get('entity_id'),field_type:'email',is_visible:1,is_required:0,sort_order:0,options:[],validation_rules:{}}]})}
   :url.includes('load_ditt_nettsted_content')
@@ -144,14 +146,26 @@ const checks = `(async()=>{
   assert(document.querySelector('.pwp-header-logout')&&!document.querySelector('.pwp-site-nav a[href*="logout"]'),'Logout is not exclusively in the header');
   const island=document.querySelector('.pwp-island').getBoundingClientRect();
   assert(island.left>=0&&island.right<=innerWidth,'Action island overflows on mobile');
+  assert(island.height<52,'Action island no longer matches compact single-row mockup');
+  click('.pwp-account summary');
+  assert(document.querySelector('.pwp-account').open,'User menu did not open');
+  assert(getComputedStyle(document.querySelector('.pwp-header-logout')).textDecorationLine==='none','Logout should be a menu action, not an underlined bare link');
+  document.querySelector('.pwp-account summary').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+  assert(!document.querySelector('.pwp-account').open,'Escape did not close account menu');
   click('[data-pwp-page="about"]');await tick();
   assert(document.querySelector('.pwp-settings-layout'),'About must render the integrated settings workspace');
   assert(document.querySelector('.pwp-island').inert,'Island should not receive focus on About');
-  assert(document.querySelector('#pwp-settings-main #dittNettstedPasswordForm'),'Protected settings must require unlock');
-  window.unlocked=true;document.dispatchEvent(new CustomEvent('portal:settings-unlocked'));await tick();
+  assert(!document.querySelector('#pwp-settings-main input[type="password"]'),'Company settings must not ask for another password');
+  const settingsNav=document.querySelector('.pwp-settings-nav').getBoundingClientRect();
+  assert(settingsNav.width>innerWidth*.5&&settingsNav.height<125,'About should use compact horizontal/wrapped tabs rather than tall sidebar');
+  assert(document.documentElement.scrollWidth<=document.documentElement.clientWidth,'About tabs must not create horizontal page scrolling');
   assert(document.querySelector('#pwp-settings-main #companyDataForm')||document.querySelector('#pwp-settings-main #fixture-company-name'),'Unlocked company form must render inline');
   document.querySelector('#pwp-settings-main form').requestSubmit();
   assert(saved===1,'Mounted company form lost its real save handler');
+  window.unlocked=false;click('[data-pwp-setting="website"]');await tick();
+  assert(document.querySelector('#pwp-settings-main').textContent.includes('ikke tilgang'),'Removing the password must not bypass access denial');
+  assert(!document.querySelector('#pwp-settings-main input[type="password"]'),'Denied access must not resurrect password prompt');
+  window.unlocked=true;
   click('[data-pwp-setting="website"]');await tick();
   assert(document.querySelector('#pwp-settings-main #firma-webside'),'Website settings not integrated');
   click('[data-pwp-setting="email"]');await tick();

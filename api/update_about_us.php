@@ -21,6 +21,8 @@ try {
     }
     
     $db = getDBConnection();
+    require_once __DIR__.'/../includes/company_settings_access.php';
+    companySettingsRequireAccess($db, (string)($_SESSION['company_id'] ?? ''));
     
     // Verifiser at admin tilhører dette firmaet
     $stmt = $db->prepare("SELECT company_id FROM tenant_admins WHERE id = ?");
@@ -38,6 +40,9 @@ try {
     
     echo json_encode(['success' => true, 'message' => 'Om oss tekst oppdatert']);
     
+} catch (DomainException $e) {
+    http_response_code(403);
+    echo json_encode(['success'=>false,'message'=>$e->getMessage()]);
 } catch (Exception $e) {
     error_log("Error updating about_us: " . $e->getMessage());
     echo json_encode(['success' => false, 'message' => 'Feil: ' . $e->getMessage()]);

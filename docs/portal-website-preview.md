@@ -52,11 +52,15 @@ installasjoner uten kolonnen beholder legacy. Oppdateringen kjører ingen DDL.
   revisjonskontroll og audit som de eksisterende redigeringene.
 - Fordeler åpner den valgte tjenestens fordelsmodal direkte, ikke en ny
   katalog. Redigering av utleie venter på at objektlisten er hentet.
-- Logg ut ligger i headeren, ikke i den hvite sidenavigasjonen.
+- Logg ut ligger i brukerknappen øverst til høyre i headeren, ikke i den
+  hvite sidenavigasjonen. Knappen bruker innlogget navn og initialer.
 - Om oss samler Bedriften, Ansatte, Firmabrukere, Om oss-tekst, Webside,
   E-post, Økonomi og tilgjengelige administrasjonsområder. På mobil brukes
-  et kompakt valg i stedet for en bred, rullbar meny. Bedriftsinnstillinger
-  krever samme administratorpassord som før. Firmabrukere vises bare for
+  kompakte, linjebrytende faner i stedet for en stor sidekolonne eller en
+  bred, rullbar meny. Øvrige valg ligger under «Flere verktøy».
+  Bedriftsinnstillinger krever ikke et ekstra passord; vanlig innlogging,
+  aktiv bedrift og supervisor eller delegert Ditt nettsted-tilgang gjelder
+  fortsatt, også ved lagring og bildeopplasting. Firmabrukere vises bare for
   supervisor, og modulområder følger brukerens delegerte tilgang.
 
 ## Avgrensning
@@ -77,4 +81,7 @@ Ta med `pages/company_dashboard.php`, `includes/portal_view_mode.php`,
 `assets/portal-website-preview.css`, `assets/portal-website-preview.js`,
 `assets/portal-preview-workspace.js`, `modules/announcements_content.php` og
 `api/get_portal_website_preview.php`, samt deres eksisterende avhengigheter.
+Ta også med `includes/portal_preview_account.php`, `includes/company_settings_access.php`,
+`includes/ImageUpload.php` og oppdateringene til `api/load_ditt_nettsted_content.php`,
+`api/update_company_data.php`, `api/update_webside_data.php` og `api/update_about_us.php`.
 Mockup-sandkassen kreves ikke på PHP-webhotellet.

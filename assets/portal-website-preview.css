@@ -7,12 +7,25 @@
 .pwp-brand-identity { display: flex; align-items: center; justify-content: center; gap: 18px; min-width: 0; }
 .pwp-brand-identity strong { font-size: var(--pwp-title-size, 24px); }
 .pwp-brand-identity img { height: var(--pwp-logo-height, 56px); max-width: 32%; object-fit: contain; background: transparent; }
-.pwp-header-logout { position: absolute; top: 50%; right: 5%; transform: translateY(-50%); padding: 7px 0 7px 10px; color: var(--pwp-ink); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; opacity: .86; }
-.pwp-header-logout:hover, .pwp-header-logout:focus-visible { opacity: 1; }
-.pwp-header-logout:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; border-radius: 2px; }
-.pwp-site-nav { display: flex; justify-content: center; align-items: center; gap: 20px; padding: 12px; background: #fff; }
-.pwp-site-nav button, .pwp-site-nav a { border: 0; background: transparent; color: #526675; text-decoration: none; padding: 8px 4px; }
-.pwp-site-nav [aria-current] { color: #172d3c; box-shadow: 0 2px var(--pwp-header); }
+.pwp-account { position: fixed; z-index: 1036; top: 12px; right: max(14px, calc((100vw - 1240px) / 2)); font-family: "DM Sans", "Segoe UI", sans-serif; }
+.pwp-account summary { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 4px 12px 4px 5px; border: 1px solid #e7f0f880; border-radius: 999px; color: #fff; background: #193765eb; box-shadow: 0 5px 18px #12243d38; cursor: pointer; list-style: none; transition: background .16s ease, box-shadow .16s ease; }
+.pwp-account summary::-webkit-details-marker { display: none; }
+.pwp-account summary:hover, .pwp-account[open] summary { background: #1e477f; }
+.pwp-account summary:focus-visible, .pwp-account-menu :is(a,button):focus-visible { outline: 2px solid #82b4eb; outline-offset: 3px; }
+.pwp-account-avatar { width: 30px; height: 30px; flex: 0 0 30px; display: grid; place-items: center; border-radius: 50%; color: #234a82; background: #dcecff; font-size: 9px; font-weight: 900; }
+.pwp-account-copy { display: flex; flex-direction: column; gap: 1px; max-width: 148px; text-align: left; }
+.pwp-account-copy strong { overflow: hidden; color: #fff; font-size: 10px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.pwp-account-copy small { color: #f0f6ffba; font-size: 8px; line-height: 1.4; }
+.pwp-account-chevron { flex: 0 0 12px; transition: transform .16s ease; }
+.pwp-account[open] .pwp-account-chevron { transform: rotate(180deg); }
+.pwp-account-menu { position: absolute; right: 0; top: calc(100% + 8px); width: 210px; max-width: calc(100vw - 24px); padding: 6px; border: 1px solid #bacdde; border-radius: 12px; background: #f6f9fc; box-shadow: 0 8px 28px #18365333; }
+#portal-website-preview .pwp-account-menu :is(button,a) { display: flex; align-items: center; gap: 9px; width: 100%; padding: 10px 12px; border: 0; border-radius: 7px; background: transparent; color: #19374f; font: 600 12px/1.4 "DM Sans", "Segoe UI", sans-serif; text-align: left; text-decoration: none; cursor: pointer; }
+#portal-website-preview .pwp-account-menu :is(button,a):hover { background: #e6eef7; }
+.pwp-site-nav { display: flex; justify-content: center; align-items: stretch; min-height: 53px; gap: 10px; padding: 0 24px; border-bottom: 1px solid #dbe1e7; background: #fff; }
+#portal-website-preview .pwp-site-nav button { position: relative; min-width: 67px; border: 0; padding: 0 10px; background: transparent; color: #7a8188; font: 400 12px/1.4 "DM Sans", "Segoe UI", sans-serif; cursor: pointer; }
+#portal-website-preview .pwp-site-nav button:hover, #portal-website-preview .pwp-site-nav [aria-current] { color: #27364a; }
+#portal-website-preview .pwp-site-nav [aria-current] { font-weight: 750; }
+.pwp-site-nav [aria-current]::after { content: ''; position: absolute; bottom: 10px; left: 10px; right: 10px; height: 2px; border-radius: 2px; background: #27364a; }
 .pwp-content { max-width: 1120px; margin: auto; padding: 36px 24px 100px; min-height: 65vh; }
 .pwp-hero { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 32px; min-height: 260px; margin-bottom: 36px; }
 .pwp-hero img { width: 100%; height: 260px; object-fit: contain; }
@@ -26,9 +39,11 @@
 .pwp-card p { font-size: 14px; margin: 0 0 12px; }
 .pwp-card:hover { border-color: var(--pwp-header); }
 .pwp-footer { background: var(--pwp-header); color: var(--pwp-ink); padding: 30px 5% 110px; display: grid; gap: 8px; }
-.pwp-island { position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px; padding: 6px; z-index: 1035; border: 1px solid #ffffff90; border-radius: 22px; background: #173746f2; box-shadow: 0 5px 22px #142f3833; width: max-content; max-width: calc(100vw - 20px); white-space: nowrap; }
-.pwp-island button { flex: 0 0 auto; border: 0; border-radius: 100px; background: transparent; color: #fff; padding: 10px 14px; }
-.pwp-island button[aria-pressed="true"], .pwp-island #pwp-new { background: #fff; color: #173746; }
+.pwp-island { position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; gap: 4px; padding: 6px; z-index: 1035; border: 1px solid #ffffffc2; border-radius: 999px; background: #19314bf0; box-shadow: 0 10px 32px #11273e47, 0 2px 7px #11273e29; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); width: max-content; max-width: calc(100vw - 24px); white-space: nowrap; }
+#portal-website-preview .pwp-island button { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; flex: 0 0 auto; padding: 0 13px; border: 1px solid transparent; border-radius: 999px; color: #e6eef7; background: transparent; font: 700 11px/1 "DM Sans", "Segoe UI", sans-serif; white-space: nowrap; cursor: pointer; transition: background .16s ease, color .16s ease, border-color .16s ease, box-shadow .16s ease; }
+#portal-website-preview .pwp-island button:hover { background: #ffffff1c; }
+#portal-website-preview .pwp-island button[aria-pressed="true"], #portal-website-preview .pwp-island #pwp-new { background: #fff; color: #173654; border-color: #fff; box-shadow: 0 1px 3px #0000001f; }
+#portal-website-preview .pwp-island button:focus-visible { outline: 2px solid #a4caf3; outline-offset: 2px; }
 .pwp-create-menu { position: fixed; bottom: calc(92px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: min(360px, calc(100vw - 24px)); max-height: 65vh; overflow-y: auto; padding: 12px; border-radius: 18px; background: #fff; box-shadow: 0 8px 35px #142f3833; z-index: 1035; }
 .pwp-create-menu button { width: 100%; display: block; text-align: left; border: 0; border-radius: 10px; padding: 14px; background: transparent; }
 .pwp-create-menu button:hover { background: #e9f2f6; }
@@ -42,12 +57,17 @@
     .pwp-hero { grid-template-columns: 1fr; gap: 14px; }
     .pwp-hero img { height: 200px; }
     .pwp-grid { grid-template-columns: 1fr; }
-    .pwp-island { width: min(360px, calc(100vw - 20px)); gap: 3px; }
-    .pwp-island button { font-size: 13px; padding: 9px 10px; }
+    .pwp-island { max-width: calc(100vw - 18px); gap: 2px; padding: 4px; }
+    #portal-website-preview .pwp-island button { min-height: 32px; font-size: 10px; padding: 0 9px; }
     .pwp-brand { padding-right: 16px; padding-left: 16px; }
     .pwp-brand-identity { gap: 10px; }
     .pwp-brand-identity strong { font-size: min(var(--pwp-title-size, 24px), 20px); }
-    .pwp-header-logout { right: 16px; font-size: 12px; }
+    .pwp-account { top: 8px; right: 8px; }
+    .pwp-account summary { min-height: 37px; gap: 6px; padding: 3px 9px 3px 4px; }
+    .pwp-account-avatar { width: 28px; height: 28px; flex-basis: 28px; font-size: 8px; }
+    .pwp-account-copy strong { font-size: 9px; }
+    .pwp-account-copy small { font-size: 7px; }
+    .pwp-site-nav { min-height: 47px; padding: 0 12px; }
     .portal-wpreview #createPlanModal .modal-dialog { max-width: calc(100vw - 16px); margin: 16px auto; }
 }
 
@@ -93,8 +113,8 @@
     align-items: center;
     justify-content: space-between;
     gap: 18px;
-    min-height: 76px;
-    padding: 16px 24px;
+    min-height: 60px;
+    padding: 12px 20px;
     border-bottom: 1px solid #dce6e8;
     background: #fbfdfc;
 }
@@ -102,15 +122,15 @@
     min-width: 0;
     margin: 0;
     color: #173744;
-    font-size: clamp(19px, 2.4vw, 25px);
+    font-size: 18px;
     font-weight: 760;
     letter-spacing: -.035em;
     line-height: 1.15;
 }
 .portal-wpreview #pwp-dialog-close {
     flex: 0 0 auto;
-    width: 38px;
-    height: 38px;
+    width: 32px;
+    height: 32px;
     display: grid;
     place-items: center;
     padding: 0;
@@ -123,7 +143,7 @@
     cursor: pointer;
     transition: background .16s ease, color .16s ease, transform .16s ease;
 }
-.portal-wpreview #pwp-dialog-close:hover { color: #153c49; background: #e8f2f1; transform: rotate(4deg); }
+.portal-wpreview #pwp-dialog-close:hover { color: #153c49; background: #e8f2f1; }
 .portal-wpreview #pwp-dialog-body {
     min-height: 0;
     overflow: auto;
@@ -427,4 +447,35 @@
         animation: none;
         transition: none;
     }
+}
+
+/* Match the approved Om oss: compact tabs on the page, not a boxed sidebar. */
+.portal-wpreview #portal-website-preview .pwp-about { padding: 25px 0 40px; }
+.portal-wpreview #portal-website-preview .pwp-about > header { padding-bottom: 16px; }
+.portal-wpreview #portal-website-preview .pwp-about > header h1 { font-size: 24px; letter-spacing: -.025em; }
+.portal-wpreview #portal-website-preview .pwp-about > header p { font-size: 12px; }
+.portal-wpreview #portal-website-preview .pwp-settings-layout { display: block; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.portal-wpreview #portal-website-preview .pwp-settings-layout,
+.portal-wpreview #portal-website-preview .pwp-settings-layout * { box-sizing: border-box; }
+.portal-wpreview #portal-website-preview .pwp-settings-nav { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 5px; margin-bottom: 16px; padding: 0 0 10px; border: 0; border-bottom: 1px solid #b9ccdf; }
+.portal-wpreview #portal-website-preview .pwp-settings-nav > button,
+.portal-wpreview #portal-website-preview .pwp-settings-tools > summary { display: flex; align-items: center; justify-content: center; gap: 6px; flex: 0 1 auto; width: auto; min-height: 40px; padding: 8px 16px; border: 1px solid #3c649633; border-radius: 7px; background: #ffffff3d; color: #526c87; font: 700 12px/1.3 "DM Sans", "Segoe UI", sans-serif; text-align: center; cursor: pointer; }
+.portal-wpreview #portal-website-preview .pwp-settings-nav > button:hover { transform: none; background: #ffffff80; }
+.portal-wpreview #portal-website-preview .pwp-settings-nav > button[aria-selected="true"] { border-color: var(--pwp-header); color: var(--pwp-header); background: #ffffffcc; box-shadow: inset 0 -2px var(--pwp-header); }
+.portal-wpreview #portal-website-preview #pwp-settings-select { display: none; }
+.pwp-settings-tools { position: relative; }
+.pwp-settings-tools > summary { list-style: none; }
+.pwp-settings-tools > summary::-webkit-details-marker { display: none; }
+.pwp-settings-tools > div { position: absolute; z-index: 10; top: calc(100% + 6px); right: 0; width: 240px; max-width: calc(100vw - 40px); padding: 6px; border: 1px solid #bacdde; border-radius: 9px; background: #f6f9fc; box-shadow: 0 8px 28px #18365325; }
+.portal-wpreview #portal-website-preview .pwp-settings-tools button { display: block; width: 100%; min-height: 36px; padding: 8px 10px; color: #365775; font: 600 12px/1.4 "DM Sans", "Segoe UI", sans-serif; text-align: left; }
+.portal-wpreview #portal-website-preview .pwp-settings-tools button[aria-selected="true"] { box-shadow: none; }
+@media (max-width: 760px) {
+    .portal-wpreview #portal-website-preview .pwp-settings-nav { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 5px; }
+    .portal-wpreview #portal-website-preview .pwp-settings-nav > button,
+    .portal-wpreview #portal-website-preview .pwp-settings-tools > summary { width: 100%; min-width: 0; min-height: 44px; padding: 8px 5px; font-size: 12px; }
+    .pwp-settings-tools > div { right: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .portal-wpreview .pwp-island:not(.is-faded), .portal-wpreview .pwp-account-chevron,
+    #portal-website-preview .pwp-island button { transition: none; }
 }

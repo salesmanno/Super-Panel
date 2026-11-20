@@ -144,9 +144,7 @@
             const response = await fetch('/api/load_ditt_nettsted_content.php', {credentials:'same-origin',cache:'no-store'});
             if (revision !== settingRevision) return;
             if (response.status === 403) {
-                loading.textContent = 'Lås opp bedriftsinnstillingene med administratorpassordet. Vanlig tilgangskontroll gjelder.';
-                const passwordForm = document.getElementById('dittNettstedPasswordForm');
-                if (passwordForm) aboutMounted = mount(passwordForm, host);
+                loading.textContent = 'Du har ikke tilgang til disse bedriftsinnstillingene.';
                 return;
             }
             if (!response.ok) throw new Error('Kunne ikke hente bedriftsinnstillinger. Prøv igjen.');
@@ -159,9 +157,6 @@
             if (!pane) throw new Error('Denne innstillingen er ikke tilgjengelig.');
             host.replaceChildren();
             aboutMounted = mount(pane, host);
-            // Preserve the same explicit unlock before rendering any protected fields.
-            const passwordForm = document.getElementById('dittNettstedPasswordForm');
-            if (passwordForm) passwordForm.style.display = 'block';
             document.dispatchEvent(new CustomEvent('portal:settings-mounted', {detail:{key}}));
         } catch (error) {
             if (revision !== settingRevision) return;
@@ -175,7 +170,7 @@
     document.getElementById('pwp-dialog-close').addEventListener('click', () => close());
     dialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
     document.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && dialog.open && !document.querySelector('.modal.show')) {
+        if (event.key === 'Escape' && dialog.open && !document.querySelector('.modal.show, .pwp-account[open]')) {
             event.preventDefault(); close();
         }
     });

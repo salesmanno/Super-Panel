@@ -10,7 +10,7 @@ $previewData['is_supervisor'] = $isSupervisor;
 <section id="portal-website-preview" aria-label="Kundesidelignende administrasjon">
     <header class="pwp-brand">
         <div class="pwp-brand-identity"><img id="pwp-logo" alt="" hidden><strong id="pwp-company-name"></strong></div>
-        <a class="pwp-header-logout" href="/auth/logout.php">Logg ut</a>
+        <?php include __DIR__ . '/portal_preview_account.php'; ?>
     </header>
     <nav class="pwp-site-nav" aria-label="Sidenavigasjon">
         <button type="button" data-pwp-page="about">Om oss</button>

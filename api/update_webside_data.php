@@ -13,6 +13,8 @@ try {
     $data = json_decode(file_get_contents('php://input'), true);
     
     $db = getDBConnection();
+    require_once __DIR__.'/../includes/company_settings_access.php';
+    companySettingsRequireAccess($db, (string)($_SESSION['company_id'] ?? ''));
     $db->beginTransaction();
     
     $companyId = $_SESSION['company_id'];
@@ -278,6 +280,10 @@ try {
         'message' => 'Websideinnstillinger oppdatert'
     ]);
     
+} catch (DomainException $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
+    http_response_code(403);
+    echo json_encode(['success'=>false,'error'=>$e->getMessage()]);
 } catch (Exception $e) {
     if (isset($db)) {
         $db->rollBack();

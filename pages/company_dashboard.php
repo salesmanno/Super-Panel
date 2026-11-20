@@ -870,9 +870,10 @@ try {
                                 // Innholdet lastes først når passordet er validert
                                 ?>
                                 <div id="ditt-nettsted-locked" class="text-center py-5">
-                                    <i class="bi bi-lock-fill" style="font-size: 4rem; color: #6c757d;"></i>
-                                    <h3 class="mt-3">Passord påkrevd</h3>
-                                    <p class="text-muted">Klikk på firmanavnet for å låse opp firmadetaljer</p>
+                                    <i class="bi bi-building" style="font-size: 4rem; color: #6c757d;"></i>
+                                    <h3 class="mt-3">Bedriftsinnstillinger</h3>
+                                    <p class="text-muted">Administrer bedriftens opplysninger og nettside.</p>
+                                    <button type="button" class="btn btn-primary" onclick="navigateToDittNettsted()">Åpne innstillinger</button>
                                 </div>
                                 <div id="ditt-nettsted-content" style="display: none;">
                                     <!-- Innhold lastes her dynamisk -->
@@ -988,38 +989,6 @@ try {
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-0">
-                    <!-- Password form (vises først) -->
-                    <div id="dittNettstedPasswordForm" class="container py-5">
-                        <div class="row justify-content-center">
-                            <div class="col-md-6">
-                                <div class="card shadow">
-                                    <div class="card-body p-4">
-                                        <div class="text-center mb-4">
-                                            <i class="bi bi-lock-fill" style="font-size: 3rem; color: #667eea;"></i>
-                                            <h4 class="mt-3">Passord påkrevd</h4>
-                                            <p class="text-muted">Vennligst skriv inn administratorpassord for å få tilgang</p>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="dittNettstedPassword" class="form-label">Administratorpassord</label>
-                                            <input type="password" 
-                                                   class="form-control form-control-lg" 
-                                                   id="dittNettstedPassword" 
-                                                   placeholder="Skriv inn passord"
-                                                   onkeypress="if(event.key === 'Enter') unlockDittNettsted()">
-                                        </div>
-                                        <div id="dittNettstedPasswordError" class="alert alert-danger" style="display: none;"></div>
-                                        <div class="d-grid gap-2">
-                                            <button type="button" class="btn btn-primary btn-lg" onclick="unlockDittNettsted()">
-                                                <i class="bi bi-unlock me-1"></i>Lås opp
-                                            </button>
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
                     <!-- Innhold (vises etter vellykket passord) -->
                     <div id="dittNettstedModalContent" style="display: none;">
                         <!-- Subtabs -->
@@ -1431,77 +1400,18 @@ try {
             }));
         }
         
-        function navigateToDittNettsted() {
-            // Vis passord-prompt modal
-            const modal = new bootstrap.Modal(document.getElementById('dittNettstedPasswordModal'));
-            modal.show();
+        async function navigateToDittNettsted() {
+            const content = document.getElementById('dittNettstedModalContent');
+            const host = document.getElementById('firmaModalTabContent');
+            content.style.display = 'block';
+            host.textContent = 'Henter bedriftsinnstillinger …';
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('dittNettstedPasswordModal')).show();
+            try {
+                const response = await fetch('/api/load_ditt_nettsted_content.php', {cache:'no-store'});
+                if (!response.ok) throw new Error(response.status === 403 ? 'Du har ikke tilgang til bedriftsinnstillingene.' : 'Kunne ikke hente bedriftsinnstillingene.');
+                host.innerHTML = await response.text();
+            } catch (error) { host.textContent = error.message; }
         }
-        
-        function unlockDittNettsted() {
-            const password = document.getElementById('dittNettstedPassword').value;
-            const errorDiv = document.getElementById('dittNettstedPasswordError');
-            const unlockBtn = document.querySelector('#dittNettstedPasswordForm .btn-primary');
-            
-            if (!password) {
-                errorDiv.textContent = 'Vennligst skriv inn passord';
-                errorDiv.style.display = 'block';
-                return;
-            }
-            
-            // Vis laster-indikator
-            unlockBtn.disabled = true;
-            unlockBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Låser opp...';
-            
-            // Send passord til server for validering
-            fetch('/api/unlock_ditt_nettsted.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: password })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Last inn innholdet
-                    return fetch('/api/load_ditt_nettsted_content.php')
-                        .then(response => response.text())
-                        .then(html => {
-                            // Skjul password-form og vis innhold i modalen
-                            document.getElementById('dittNettstedPasswordForm').style.display = 'none';
-                            document.getElementById('dittNettstedModalContent').style.display = 'block';
-                            
-                            // Last inn innholdet i modal tab-content
-                            document.getElementById('firmaModalTabContent').innerHTML = html;
-                            
-                            // Nullstill input og knapp
-                            document.getElementById('dittNettstedPassword').value = '';
-                            errorDiv.style.display = 'none';
-                            unlockBtn.disabled = false;
-                            unlockBtn.innerHTML = '<i class="bi bi-unlock me-1"></i>Lås opp';
-                            document.dispatchEvent(new CustomEvent('portal:settings-unlocked'));
-                        });
-                } else {
-                    errorDiv.textContent = data.error || 'Feil passord';
-                    errorDiv.style.display = 'block';
-                    unlockBtn.disabled = false;
-                    unlockBtn.innerHTML = '<i class="bi bi-unlock me-1"></i>Lås opp';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                errorDiv.textContent = 'En feil oppstod';
-                errorDiv.style.display = 'block';
-                unlockBtn.disabled = false;
-                unlockBtn.innerHTML = '<i class="bi bi-unlock me-1"></i>Lås opp';
-            });
-        }
-        
-        // Nullstill modal når den lukkes
-        document.getElementById('dittNettstedPasswordModal').addEventListener('hidden.bs.modal', function() {
-            document.getElementById('dittNettstedPasswordForm').style.display = 'block';
-            document.getElementById('dittNettstedModalContent').style.display = 'none';
-            document.getElementById('dittNettstedPassword').value = '';
-            document.getElementById('dittNettstedPasswordError').style.display = 'none';
-        });
         
         document.addEventListener('DOMContentLoaded', function() {
             // Hent lagrede verdier
