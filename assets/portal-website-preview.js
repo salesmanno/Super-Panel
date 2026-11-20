@@ -205,7 +205,7 @@
             ...(data.is_supervisor ? [
                 ['company','Bedriften'], ['staff','Ansatte'], ['access','Firmabrukere og modultilgang'], ['about','Om oss-tekst']
             ] : []),
-            ...(modules.has('ditt_nettsted') ? [['website','Webside']] : []),
+            ...(data.is_supervisor || modules.has('ditt_nettsted') ? [['website','Webside']] : []),
             ...(modules.has('email') || modules.has('webmail') ? [['email','E-post']] : []),
             ...(modules.has('economy') ? [['economy','Økonomi']] : []),
             ...[...modules].filter(key => ['sales','events','rental','membership','reservations'].includes(key))

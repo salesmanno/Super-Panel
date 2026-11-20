@@ -10,7 +10,7 @@ const fixture = path.join(dir, 'index.html');
 const data = {
   company: {name:'Testbedrift',header_bg_color:'#244d83',header_text_color:'#ffffff',header_height:'100px'},
   is_supervisor:true,
-  modules: ['events','rental','membership','sales','reservations','ditt_nettsted','email','economy'].map(module_key=>({module_key,name:module_key})),
+  modules: ['events','rental','membership','sales','reservations','email','economy'].map(module_key=>({module_key,name:module_key})),
   news: [{id:'news-1',title:'Nyhet',content:'Eksempel',image_url:''}],
   products:[
     {id:'offer-member',module:'membership',source_id:'plan-member',name:'Bergsøy Medlem',description:'',image_url:'',price:250,is_visible:true,is_public:true},
@@ -168,6 +168,7 @@ const checks = `(async()=>{
   window.unlocked=true;
   click('[data-pwp-setting="website"]');await tick();
   assert(document.querySelector('#pwp-settings-main #firma-webside'),'Website settings not integrated');
+  assert(!JSON.parse(document.getElementById('pwp-data').textContent).modules.some(module=>module.module_key==='ditt_nettsted'),'Supervisor test must not rely on website module assignment');
   click('[data-pwp-setting="email"]');await tick();
   assert(document.querySelector('#pwp-settings-main #content-email'),'Email must stay inside About');
   click('[data-pwp-setting="economy"]');await tick();
@@ -181,6 +182,18 @@ const checks = `(async()=>{
  document.querySelector('[data-create="forbidden"]').click();
  assert(actions.length===length,'Unpermitted module opened');
  assert(document.querySelector('#pwp-errors').textContent.includes('ikke tilgang'),'Missing access error');
+ const accessData=JSON.parse(document.getElementById('pwp-data').textContent);
+ accessData.is_supervisor=false;
+ document.getElementById('pwp-data').textContent=JSON.stringify(accessData);
+ document.dispatchEvent(new CustomEvent('portal:surface-closed'));await tick();
+ click('[data-pwp-page="about"]');await tick();
+ assert(!document.querySelector('[data-pwp-setting="website"]'),'Non-supervisor without website module must not see Website');
+ accessData.modules.push({module_key:'ditt_nettsted',name:'Webside'});
+ document.getElementById('pwp-data').textContent=JSON.stringify(accessData);
+ document.dispatchEvent(new CustomEvent('portal:surface-closed'));await tick();
+ assert(document.querySelector('[data-pwp-setting="website"]'),'Delegated website access must remain available for non-supervisors');
+ click('[data-pwp-setting="website"]');await tick();
+ assert(document.querySelector('#pwp-settings-main #firma-webside'),'Delegated website settings no longer load');
  return {passed:true,width:innerWidth,creationFlows:6,originalFormsPreserved:true};
 })()`;
 chromiumFixture(fixture, checks, [1280,390]).catch(error=>{console.error(error);process.exitCode=1;});

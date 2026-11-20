@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__.'/../includes/session_manager.php';
 require_once __DIR__.'/../includes/portal_website_preview_data.php';
+require_once __DIR__.'/../includes/tenant_supervisor.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
@@ -26,6 +27,7 @@ try {
         getTenantAdminModules($_SESSION['tenant_admin_id']),
         getCompanyModules($_SESSION['company_id'])
     );
+    $data['is_supervisor'] = tenantIsSupervisor($db, (string)$_SESSION['company_id']);
     echo json_encode(['success'=>true] + $data, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR);
 } catch (Throwable $error) {
     error_log('Refresh portal preview: '.$error->getMessage());
