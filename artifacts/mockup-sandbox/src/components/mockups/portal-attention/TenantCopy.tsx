@@ -258,6 +258,8 @@ export function TenantCopy() {
     secondaryColor: "#d0e2f7",
     headerText: "#ffffff",
     headerHeight: 88,
+    headerMode: "static",
+    footerMode: "static",
     logoHeight: 56,
     logoPosition: "center",
     namePosition: "beside",
@@ -310,6 +312,23 @@ export function TenantCopy() {
     "--tc-logo-height": `${theme.logoHeight}px`,
     "--tc-footer-height": `${footerHeight}px`,
   } as CSSProperties;
+  const renderPositionSettings = () => (
+    <>
+      <label>Headerens posisjon
+        <select name="header_mode" value={theme.headerMode} onChange={event => updateTheme("headerMode", event.target.value)}>
+          <option value="static">Statisk – alltid synlig</option>
+          <option value="dynamic">Dynamisk – ruller med siden</option>
+        </select>
+      </label>
+      <label>Footerens posisjon
+        <select name="footer_mode" value={theme.footerMode} onChange={event => updateTheme("footerMode", event.target.value)}>
+          <option value="static">Statisk – alltid synlig</option>
+          <option value="dynamic">Dynamisk – ruller med siden</option>
+        </select>
+      </label>
+      <p className="tc-position-help">Statisk blir stående på skjermen. Dynamisk følger innholdet og kan rulle ut av syne. Valgene gjelder kundesidens header og footer, ikke administrasjonsheaderen.</p>
+    </>
+  );
   const renderSeoSettings = () => (
     <section className="tc-settings-card tc-seo-card">
       <div className="tc-seo-heading">
@@ -631,7 +650,7 @@ export function TenantCopy() {
         ))}
         {page !== "about" && <button type="button" className="tc-island-new" onClick={page === "home" ? startNewNews : startNewOffer}>＋ Ny</button>}
       </div>
-      <section className="tc-public-site" style={siteStyle} aria-label="Forhåndsvisning av tenant-copy">
+      <section className="tc-public-site" style={siteStyle} data-page={page} data-header-mode={theme.headerMode} data-footer-mode={theme.footerMode} aria-label="Forhåndsvisning av tenant-copy">
         <header className="tc-site-header">
           <div className={`tc-brand-position tc-logo-${theme.logoPosition} tc-name-${theme.namePosition} tc-layout-${theme.headerLayout}`}>
             <img className="tc-company-logo" src={companyLogo} alt={`${companyName}-logo`} />
@@ -861,6 +880,7 @@ export function TenantCopy() {
                   </> : <div className="tc-gateway-grid">{paymentChoices.map(method => <article className={`tc-gateway-card ${economySettings[method.key] ? "is-active" : ""} ${method.configured ? "is-configured" : "is-unconfigured"}`} key={method.key}><div className="tc-gateway-card-top"><span className={`tc-gateway-logo tc-gateway-${method.key}`}>{method.mark}</span><span className={`tc-gateway-light ${method.configured ? economySettings[method.key] ? "green" : "amber" : "gray"}`} /></div><h4>{method.name}</h4><p>{method.detail}</p><button type="button" className={economySettings[method.key] ? "deactivate" : "activate"} onClick={() => {if (method.key === "invoice" && !method.configured) {setEconomySettings(current => ({...current,invoice:true}));setFeedback("Faktura er satt opp med eksempelbankkonto.");} else setEconomySettings(current => ({...current,[method.key]:!current[method.key]}));}}>{method.configured ? economySettings[method.key] ? "Deaktiver" : "Aktiver" : "Konfigurer"}</button>{method.key === "invoice" && economySettings.invoice && <small className="tc-gateway-account">Primærkonto · 1503.28.45109</small>}</article>)}</div>}
                 </div>}
                 {activeAboutTab?.id === "website" && <div className="tc-settings-section-grid tc-website-settings-grid">
+                  <section className="tc-settings-panel tc-position-settings"><h3>Header og footer</h3>{renderPositionSettings()}</section>
                   <section className="tc-settings-panel"><div className="tc-settings-panel-heading"><div><span><h3>Profil og utseende</h3><p>Juster profilen som vises på Hjem og Tjenester.</p></span></div><span className="tc-demo-status">Lokal demo</span></div><div className="tc-form-grid"><label>Firmanavn<input autoComplete="off" value={companyName} onChange={event=>setCompanyName(event.target.value)} /></label><label>Font<select value={theme.fontFamily} onChange={event=>updateTheme("fontFamily",event.target.value)}><option value="Georgia, serif">Georgia</option><option value="DM Sans, sans-serif">DM Sans</option><option value="Trebuchet MS, sans-serif">Trebuchet</option></select></label><label>Headerfarge<span className="tc-color-control"><input type="color" value={theme.headerBg} onChange={event=>updateTheme("headerBg",event.target.value)} /><code>{theme.headerBg}</code></span></label><label>Sidebakgrunn<span className="tc-color-control"><input type="color" value={theme.bodyBg} onChange={event=>updateTheme("bodyBg",event.target.value)} /><code>{theme.bodyBg}</code></span></label></div><div className="tc-form-grid"><label>Logoens plassering<select value={theme.logoPosition} onChange={event=>updateTheme("logoPosition",event.target.value)}><option value="left">Venstre</option><option value="center">Senter</option><option value="right">Høyre</option></select></label><label>Navigasjon<select value={theme.navPosition} onChange={event=>updateTheme("navPosition",event.target.value)}><option value="center">Sentrert</option><option value="left">Venstre</option><option value="right">Høyre</option></select></label></div><div className="tc-footer-calculation"><span>Footerhøyde beregnes fra header</span><strong>{theme.headerHeight}px × 0,6 = {footerHeight}px</strong></div></section>
                   {renderSeoSettings()}
                 </div>}
@@ -924,6 +944,7 @@ export function TenantCopy() {
                 {aboutTab === "website" && websiteModuleEnabled && <section className="tc-about-content tc-body-settings">
                   <div className="tc-about-section-heading"><div><span className="tc-kicker">DITT NETTSTED · tenant_general_website</span><h2>Webside</h2><p>Generelle innstillinger for kundesiden. Endringer speiles direkte i forhåndsvisningen.</p></div><span className="tc-live-preview">Preview</span></div>
                   <div className="tc-settings-grid"><section className="tc-settings-card"><h4>Profil og farger</h4><label>Firmanavn<input autoComplete="off" value={companyName} onChange={event => setCompanyName(event.target.value)} /></label><label>Headerfarge<span className="tc-color-control"><input type="color" value={theme.headerBg} onChange={event => updateTheme("headerBg",event.target.value)} /><code>{theme.headerBg}</code></span></label><label>Sidebakgrunn<span className="tc-color-control"><input type="color" value={theme.bodyBg} onChange={event => updateTheme("bodyBg",event.target.value)} /><code>{theme.bodyBg}</code></span></label><label>Font<select value={theme.fontFamily} onChange={event => updateTheme("fontFamily",event.target.value)}><option value="Georgia, serif">Georgia</option><option value="DM Sans, sans-serif">DM Sans</option><option value="Trebuchet MS, sans-serif">Trebuchet</option></select></label></section><section className="tc-settings-card"><h4>Visning og navigasjon</h4><label className="tc-setting-toggle"><input type="checkbox" checked={heroEnabled} onChange={event => setHeroEnabled(event.target.checked)} /><span>Vis toppsak på Hjem</span></label><label>Logoens plassering<select value={theme.logoPosition} onChange={event => updateTheme("logoPosition",event.target.value)}><option value="left">Venstre</option><option value="center">Senter</option><option value="right">Høyre</option></select></label><label>Navigasjon<select value={theme.navPosition} onChange={event => updateTheme("navPosition",event.target.value)}><option value="center">Sentrert</option><option value="left">Venstre</option><option value="right">Høyre</option></select></label><div className="tc-footer-calculation"><span>Footerhøyde</span><strong>{theme.headerHeight}px × 0,6 = {footerHeight}px</strong></div></section></div>
+                  <section className="tc-settings-card tc-position-settings"><h4>Header og footer</h4>{renderPositionSettings()}</section>
                   {renderSeoSettings()}
                 </section>}
 
@@ -1225,6 +1246,7 @@ export function TenantCopy() {
                     <label>Primærfarge<span className="tc-color-control"><input type="color" value={theme.primaryColor} onChange={(event) => updateTheme("primaryColor", event.target.value)} /><code>{theme.primaryColor}</code></span></label>
                     <label>Sekundærfarge<span className="tc-color-control"><input type="color" value={theme.secondaryColor} onChange={(event) => updateTheme("secondaryColor", event.target.value)} /><code>{theme.secondaryColor}</code></span></label>
                     <label>Font<select value={theme.fontFamily} onChange={(event) => updateTheme("fontFamily", event.target.value)}><option value="Georgia, serif">Georgia</option><option value="DM Sans, sans-serif">DM Sans</option><option value="Trebuchet MS, sans-serif">Trebuchet</option></select></label>
+                    {renderPositionSettings()}
                     <label>Headerhøyde <output>{theme.headerHeight}px</output><input type="range" min="72" max="150" value={theme.headerHeight} onChange={(event) => updateTheme("headerHeight", Number(event.target.value))} /></label>
                     <label>Logohøyde <output>{theme.logoHeight}px</output><input type="range" min="34" max="84" value={theme.logoHeight} onChange={(event) => updateTheme("logoHeight", Number(event.target.value))} /></label>
                     <label>Brødtekst <output>{theme.fontSize}px</output><input type="range" min="12" max="20" value={theme.fontSize} onChange={(event) => updateTheme("fontSize", Number(event.target.value))} /></label>

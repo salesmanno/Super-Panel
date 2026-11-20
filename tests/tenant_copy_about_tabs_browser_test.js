@@ -28,7 +28,37 @@ const checks = `(async () => {
     check(tab.getAttribute('aria-selected') === 'true', 'Selected state was not updated');
     check(document.querySelector('.tc-settings-main-head h2').textContent === tab.querySelector('b').textContent, 'Wrong settings area opened');
   }
-  tabs[0].click();
+  const website = document.querySelector('.tc-website-settings-grid');
+  const headerMode = website.querySelector('[name="header_mode"]');
+  const footerMode = website.querySelector('[name="footer_mode"]');
+  check(headerMode && footerMode, 'Website must offer header and footer modes');
+  const setMode = async (field, value) => {
+    field.value = value;
+    field.dispatchEvent(new Event('change', {bubbles:true}));
+    await wait();
+  };
+  check(headerMode.value === 'static' && footerMode.value === 'static', 'Modes must initially be static');
+  await setMode(headerMode, 'dynamic');
+  await setMode(footerMode, 'dynamic');
+  check(getComputedStyle(document.querySelector('.tc-site-header')).position === 'static', 'Dynamic header must scroll with the page');
+  check(getComputedStyle(document.querySelector('.tc-site-nav')).position === 'static', 'Dynamic header navigation must scroll too');
+  [...document.querySelectorAll('.tc-site-nav button')].find(b => b.textContent === 'Hjem').click();
+  await wait();
+  check(getComputedStyle(document.querySelector('.tc-site-footer')).position !== 'fixed', 'Dynamic footer must remain in document flow');
+  [...document.querySelectorAll('.tc-site-nav button')].find(b => b.textContent === 'Om oss').click();
+  await wait();
+  document.querySelectorAll('.tc-settings-nav [role=tab]')[4].click();
+  await wait();
+  check(document.querySelector('.tc-website-settings-grid [name="header_mode"]').value === 'dynamic', 'Modes must survive page navigation');
+  await setMode(document.querySelector('.tc-website-settings-grid [name="header_mode"]'), 'static');
+  await setMode(document.querySelector('.tc-website-settings-grid [name="footer_mode"]'), 'static');
+  check(getComputedStyle(document.querySelector('.tc-site-header')).position === 'sticky', 'Static header must stay visible');
+  [...document.querySelectorAll('.tc-site-nav button')].find(b => b.textContent === 'Hjem').click();
+  await wait();
+  check(getComputedStyle(document.querySelector('.tc-site-footer')).position === 'fixed', 'Static footer must stay visible');
+  [...document.querySelectorAll('.tc-site-nav button')].find(b => b.textContent === 'Om oss').click();
+  await wait();
+  document.querySelectorAll('.tc-settings-nav [role=tab]')[0].click();
   await wait();
   [...document.querySelectorAll('.tc-site-nav button')].find(b => b.textContent === 'Hjem').click();
   await wait();
@@ -37,6 +67,9 @@ const checks = `(async () => {
   [...document.querySelectorAll('.tc-site-nav button')].find(b => b.textContent === 'Om oss').click();
   await wait();
   await wait();
+  document.querySelectorAll('.tc-settings-nav [role=tab]')[4].click();
+  await wait();
+  document.querySelector('.tc-website-settings-grid .tc-position-settings').scrollIntoView({block:'center'});
   return {passed: true, width: innerWidth, tabs: tabs.length, navHeight: document.querySelector('.tc-settings-nav').offsetHeight};
 })()`;
 

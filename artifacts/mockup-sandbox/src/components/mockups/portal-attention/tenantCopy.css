@@ -206,6 +206,31 @@
 .tc-preview-contextbar button:hover { border-color: #6f91b6; background: #f1f7fc; }
 .tc-preview-contextbar button svg { width: 12px; height: 12px; }
 .tc-site-content { min-height: 680px; background: var(--tc-body-bg); }
+.tc-public-site[data-header-mode="dynamic"] > .tc-site-header,
+.tc-public-site[data-header-mode="dynamic"] > .tc-site-nav { position: static; }
+.tc-public-site[data-footer-mode="static"]:not([data-page="about"]) {
+  padding-bottom: max(92px, calc(var(--tc-footer-height) + 28px));
+}
+.tc-public-site[data-footer-mode="static"] > .tc-site-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+}
+.tc-position-settings { margin-top: 14px; }
+.tc-position-settings > label { display: grid; gap: 7px; margin: 12px 0; }
+.tc-position-settings select {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #cad9e5;
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+}
+.tc-position-help { grid-column: 1 / -1; margin: 8px 0 0; color: var(--tc-muted); font-size: 12px; line-height: 1.6; }
 
 .tc-home-page { width: 100%; }
 .tc-home-hero {
