@@ -80,6 +80,9 @@ elif [[ "${1:-}" == "--email" ]]; then
     php "$ROOT/tests/rental_confirmation_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--email-audit" ]]; then
     php "$ROOT/tests/email_audit_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
+elif [[ "${1:-}" == "--database-security" ]]; then
+    php "$ROOT/tests/database_security_mysql_test.php" "$ROOT" "$TEMP_ROOT"
+    php "$ROOT/tests/tenant_audit_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--audit" ]]; then
     php "$ROOT/tests/tenant_audit_mysql_isolated_test.php" "$ROOT" "$TEMP_ROOT"
 elif [[ "${1:-}" == "--event-payment-audit" ]]; then

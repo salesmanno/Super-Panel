@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/tenant_audit.php';
 require_once __DIR__ . '/audit_resources.php';
 require_once __DIR__ . '/audit_sql.php';
+require_once __DIR__ . '/database_security.php';
 
 /**
  * Existing controllers retain their SQL and transaction boundaries. Known portal
@@ -65,7 +66,7 @@ final class AuditedPDO extends PDO {
     }
 
     public function __construct(string $dsn, ?string $username = null, ?string $password = null, ?array $options = null) {
-        parent::__construct($dsn, $username, $password, $options);
+        parent::__construct($dsn, $username, $password, databaseSecureOptions($dsn, $options));
         $this->setAttribute(PDO::ATTR_STATEMENT_CLASS, [AuditedPDOStatement::class, [$this]]);
         require_once __DIR__ . '/company_login.php';
         companyLoginGuardConnection($this);
