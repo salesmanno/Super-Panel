@@ -404,15 +404,6 @@
                             <label class="form-label">Visningsnavn</label>
                             <input type="text" name="config_display_name" class="form-control" value="<?= htmlspecialchars($websiteConfig['display_name'] ?? '') ?>">
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">SEO Tittel</label>
-                            <input type="text" name="config_seo_title" class="form-control" value="<?= htmlspecialchars($websiteConfig['seo_title'] ?? '') ?>">
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">SEO Beskrivelse</label>
-                        <textarea name="config_seo_description" class="form-control" rows="2"><?= htmlspecialchars($websiteConfig['seo_description'] ?? '') ?></textarea>
                     </div>
                     
                     <hr class="my-4">
@@ -420,6 +411,14 @@
                     
                     <!-- Website General Settings -->
                     <?php if ($websiteGeneral): ?>
+                    <div class="mb-3">
+                        <label class="form-label">SEO Tittel</label>
+                        <input type="text" name="general_seo_title" class="form-control" value="<?= htmlspecialchars($websiteGeneral['seo_title'] ?? '') ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">SEO Beskrivelse</label>
+                        <textarea name="general_seo_description" class="form-control" rows="2"><?= htmlspecialchars($websiteGeneral['seo_description'] ?? '') ?></textarea>
+                    </div>
                     <div class="row mb-4">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Nettstedstittel</label>

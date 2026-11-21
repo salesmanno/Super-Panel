@@ -12,6 +12,16 @@ require_once __DIR__ . '/../config/database.php';
 try {
     $data = json_decode(file_get_contents('php://input'), true);
     if (!is_array($data)) throw new InvalidArgumentException('Ugyldig skjema.');
+    foreach (['general', 'config'] as $section) {
+        if (isset($data[$section]) && !is_array($data[$section])) throw new InvalidArgumentException('Ugyldige websideinnstillinger.');
+    }
+    // Accept older cached editors too, but SEO belongs to website_general.
+    foreach (['seo_title', 'seo_description'] as $key) {
+        if (array_key_exists($key, $data['config'] ?? [])) {
+            if (!array_key_exists($key, $data['general'] ?? [])) $data['general'][$key] = $data['config'][$key];
+            unset($data['config'][$key]);
+        }
+    }
     
     $db = getDBConnection();
     require_once __DIR__.'/../includes/company_settings_access.php';
@@ -65,7 +75,7 @@ try {
     }
     
     // Update or insert tenant_website_config
-    if (isset($data['config'])) {
+    if (!empty($data['config'])) {
         $config = $data['config'];
         
         // Check if config exists
@@ -79,9 +89,7 @@ try {
             $normalizedConfig = [
                 'is_published' => normalizeBool($config['is_published'] ?? 0),
                 'is_enabled' => normalizeBool($config['is_enabled'] ?? 0),
-                'display_name' => !empty($config['display_name']) ? trim($config['display_name']) : null,
-                'seo_title' => !empty($config['seo_title']) ? trim($config['seo_title']) : null,
-                'seo_description' => !empty($config['seo_description']) ? trim($config['seo_description']) : null
+                'display_name' => !empty($config['display_name']) ? trim($config['display_name']) : null
             ];
             $configChanges = [];
             foreach (array_intersect_key($normalizedConfig, $data['config']) as $column => $value) {
@@ -92,16 +100,16 @@ try {
             }
             if ($configChanges) {
                 $set = implode(',', array_map(static fn($column) => "`{$column}` = ?", array_keys($configChanges)));
-                $db->prepare("UPDATE tenant_website_config SET {$set}, updated_at = NOW() WHERE company_id = ?")
-                    ->execute([...array_values($configChanges), $companyId]);
+                $db->prepare("UPDATE tenant_website_config SET {$set}, updated_at = NOW() WHERE id = ? AND company_id = ?")
+                    ->execute([...array_values($configChanges), $existingConfig['id'], $companyId]);
             }
         } else {
             // Insert new
             $configId = bin2hex(random_bytes(16));
             $stmt = $db->prepare("
                 INSERT INTO tenant_website_config 
-                (id, company_id, is_published, is_enabled, display_name, seo_title, seo_description, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                (id, company_id, module_id, is_published, is_enabled, display_name, created_by, created_at, updated_at)
+                VALUES (?, ?, (SELECT id FROM system_modules WHERE module_key = 'ditt_nettsted' LIMIT 1), ?, ?, ?, ?, NOW(), NOW())
             ");
             $stmt->execute([
                 $configId,
@@ -109,8 +117,7 @@ try {
                 normalizeBool($config['is_published'] ?? 0),
                 normalizeBool($config['is_enabled'] ?? 0),
                 !empty($config['display_name']) ? trim($config['display_name']) : null,
-                !empty($config['seo_title']) ? trim($config['seo_title']) : null,
-                !empty($config['seo_description']) ? trim($config['seo_description']) : null
+                $adminId
             ]);
         }
     }
@@ -144,7 +151,7 @@ try {
                 'contact_email','contact_phone','contact_address','social_media_links','footer_text','footer_links',
                 'google_analytics_id','is_active','maintenance_mode','maintenance_message','header_bg_color',
                 'body_bg_color','logo_height','header_height','logo_position','nav_position','font_family',
-                'button_style','border_radius'];
+                'button_style','border_radius','seo_title','seo_description'];
             $normalized = array_combine($columns, [
                 !empty($general['site_title']) ? trim($general['site_title']) : null,
                 !empty($general['site_description']) ? trim($general['site_description']) : null,
@@ -182,7 +189,9 @@ try {
                 in_array($general['nav_position'] ?? 'center', ['left', 'center', 'right']) ? $general['nav_position'] : 'center',
                 !empty($general['font_family']) ? trim($general['font_family']) : 'Inter, sans-serif',
                 in_array($general['button_style'] ?? 'rounded', ['rounded', 'square', 'pill']) ? $general['button_style'] : 'rounded',
-                validateCssSize($general['border_radius'] ?? '16px', '16px')
+                validateCssSize($general['border_radius'] ?? '16px', '16px'),
+                !empty($general['seo_title']) ? trim($general['seo_title']) : null,
+                !empty($general['seo_description']) ? trim($general['seo_description']) : null
             ]);
             $changes = [];
             foreach (array_intersect_key($normalized, $data['general']) as $column => $value) {
@@ -193,8 +202,8 @@ try {
             }
             if ($changes) {
                 $set = implode(',', array_map(static fn($column) => "`{$column}` = ?", array_keys($changes)));
-                $db->prepare("UPDATE tenant_website_general SET {$set}, updated_at = NOW(), updated_by = ? WHERE company_id = ?")
-                    ->execute([...array_values($changes), $adminId, $companyId]);
+                $db->prepare("UPDATE tenant_website_general SET {$set}, updated_at = NOW() WHERE company_id = ?")
+                    ->execute([...array_values($changes), $companyId]);
             }
         } else {
             // Insert new
@@ -210,8 +219,8 @@ try {
                  google_analytics_id, is_active, maintenance_mode, maintenance_message,
                  header_bg_color, body_bg_color, logo_height, header_height, logo_position,
                  nav_position, font_family, button_style, border_radius,
-                 created_by, created_at, updated_at, updated_by)
-                VALUES (" . implode(',', array_fill(0, 40, '?')) . ", NOW(), NOW(), ?)
+                 seo_title, seo_description, created_at, updated_at)
+                VALUES (" . implode(',', array_fill(0, 41, '?')) . ", NOW(), NOW())
             ");
             $stmt->execute([
                 $generalId,
@@ -253,8 +262,8 @@ try {
                 !empty($general['font_family']) ? trim($general['font_family']) : 'Inter, sans-serif',
                 in_array($general['button_style'] ?? 'rounded', ['rounded', 'square', 'pill']) ? $general['button_style'] : 'rounded',
                 validateCssSize($general['border_radius'] ?? '16px', '16px'),
-                $adminId,
-                $adminId
+                !empty($general['seo_title']) ? trim($general['seo_title']) : null,
+                !empty($general['seo_description']) ? trim($general['seo_description']) : null
             ]);
         }
     }

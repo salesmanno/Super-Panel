@@ -90,8 +90,8 @@
             const footerNote = document.createElement('p');
             footerNote.className = 'pwp-footer-calculation';
             group('navigation').append(footerNote);
-            move('config_seo_title','seo','Søketittel');
-            move('config_seo_description','seo','Søkebeskrivelse');
+            move('general_seo_title','seo','Søketittel');
+            move('general_seo_description','seo','Søkebeskrivelse');
             move('general_site_title','seo','Sidetittel');
             move('general_site_description','seo','Sidebeskrivelse');
             for (const field of ['config_is_published','config_is_enabled','config_display_name',

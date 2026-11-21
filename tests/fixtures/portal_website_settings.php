@@ -18,9 +18,9 @@ class WebsiteFixtureDatabase {
                 'header_bg_color'=>'#244d83','body_bg_color'=>'#e0f0fc','font_family'=>'Inter, sans-serif',
                 'header_height'=>'90px','logo_height'=>'50px','hero_enabled'=>1,'header_mode'=>'static','footer_mode'=>'dynamic',
                 'custom_js'=>'/* existing script */','custom_css'=>'.existing { color: blue; }','contact_phone'=>'12345678',
-                'google_analytics_id'=>'G-EXISTING'
+                'google_analytics_id'=>'G-EXISTING','seo_title'=>'Eksisterende søketittel'
             ],
-            str_contains($sql,'FROM tenant_website_config ') => ['is_enabled'=>1,'is_published'=>1,'seo_title'=>'Eksisterende søketittel'],
+            str_contains($sql,'FROM tenant_website_config ') => ['is_enabled'=>1,'is_published'=>1],
             default => null
         };
         return new WebsiteFixtureStatement($row ? [$row] : []);

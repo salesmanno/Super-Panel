@@ -71,8 +71,9 @@ try {
             font_family,
             button_style,
             border_radius,
-            created_by
-        ) VALUES (" . implode(',', array_fill(0, 37, '?')) . ")
+            seo_title,
+            seo_description
+        ) VALUES (" . implode(',', array_fill(0, 38, '?')) . ")
     ");
     
     $stmt->execute([
@@ -112,7 +113,8 @@ try {
         'Inter, sans-serif', // font_family
         'rounded', // button_style
         '16px', // border_radius
-        $_SESSION['tenant_admin_id']
+        $companyName . ' - Hjem',
+        'Velkommen til ' . $companyName
     ]);
     
     // Create tenant_website_config entry with default values  
@@ -124,23 +126,18 @@ try {
             is_public,
             show_in_navigation,
             display_name,
-            seo_title,
-            seo_description,
             is_published,
             created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, (SELECT id FROM system_modules WHERE module_key = 'ditt_nettsted' LIMIT 1), ?, ?, ?, ?, ?, ?)
     ");
     
     // Execute with positional parameters
     $stmt->execute([
         $companyId,
-        null, // module_id - optional
         1, // is_enabled (MySQL uses 1/0 for boolean)
         1, // is_public
         1, // show_in_navigation
         $companyName,
-        $companyName . ' - Hjem',
-        'Velkommen til ' . $companyName,
         0, // is_published
         $_SESSION['tenant_admin_id']
     ]);

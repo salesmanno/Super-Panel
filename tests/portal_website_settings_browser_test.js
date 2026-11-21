@@ -77,7 +77,7 @@ const checks=`(async()=>{
  assert(document.getElementById('websideForm')===form&&form.closest('#pwp-settings-main'),'Unsaved website changes were discarded without approval');
  form.elements.company_name.value='Oppdatert bedrift';
  form.dispatchEvent(new Event('input',{bubbles:true}));
- const submit=()=>form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+ const submit=()=>form.querySelector('button[type="submit"]').click();
  window.failWrite=true;submit();await tick();
  assert(form.querySelector('[role="status"]').textContent.includes('Testet lagringsfeil'),'Save error not shown');
  assert(!form.querySelector('button[type="submit"]').disabled,'Failed save prevented retry');
@@ -90,6 +90,7 @@ const checks=`(async()=>{
  }
  assert(payload.company_name==='Oppdatert bedrift'&&payload.general.header_bg_color==='#b04455','Wrong settings save payload');
  assert(payload.general.footer_mode==='static','Footer mode not included in save');
+ assert(payload.general.seo_title==='Eksisterende søketittel' && !('seo_title' in payload.config),'SEO must be saved to general rather than module config');
  for(const key of removed)assert(!(key in payload.general),'Removed field submitted: '+key);
  assert(form.querySelector('[role="status"]').textContent.includes('er lagret'),'Save success missing');
  click('[data-pwp-page="home"]');await tick();
