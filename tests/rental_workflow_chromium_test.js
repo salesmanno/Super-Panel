@@ -17,7 +17,7 @@ let html=rendered.stdout.replace(/<link\b[^>]*>/g,tag=>{
 html=html.replace(/<script src="\/assets\/([^"]+)"><\/script>/g,(_,name)=>
     '<script>'+fs.readFileSync(path.join(root,'assets',name.split('?')[0]),'utf8')+'</script>');
 const dashboard=fs.readFileSync(path.join(root,'pages/company_dashboard.php'),'utf8');
-const subtab=dashboard.slice(dashboard.indexOf('function showSubTabContent('),dashboard.indexOf('function navigateToDittNettsted('));
+const subtab=dashboard.slice(dashboard.indexOf('function showSubTabContent('),dashboard.indexOf('async function navigateToDittNettsted('));
 const stubs=`
 window.errors=[];window.calls=[];window.messages=[];window.failSave=false;window.failDecision=false;
 window.failAck=false;window.opened=[];window.refreshes=0;
@@ -77,7 +77,8 @@ const file=path.join(dir,'fixture.html');
 fs.writeFileSync(file,'<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><script>'+stubs+'</script>'+
     '<div class="module-tabs"><button data-bs-target="#content-rental">Utleie</button></div><div id="subtabs-rental"></div><div id="tenant-notifications" class="po-notice-stack"><p class="po-empty">Henter varsler …</p></div><div id="po-agenda"></div><div id="content-rental">'+html+'</div>'+
     spawnSync('php',['-r','include "includes/norwegian_datetime_inputs.php";'],{cwd:root,encoding:'utf8'}).stdout+
-    '<script>'+fs.readFileSync(path.join(root,'assets/tenant_notifications.js'),'utf8')+'</script>');
+    '<script>'+fs.readFileSync(path.join(root,'assets/tenant_notifications.js'),'utf8')+'</script>'+
+    '<script>'+fs.readFileSync(path.join(root,'assets/image-upload.js'),'utf8')+'</script>');
 const checks=`(async()=>{
 const check=(ok,message)=>{if(!ok)throw new Error(message)};
 const delay=()=>new Promise(r=>setTimeout(r,30));
@@ -133,6 +134,48 @@ check(weeklyEditor.querySelector('[data-weekly-groups]').value.includes('900.00'
 buildFormFields('formFieldsContainer','venue',{id:'editing-weekly',object_name:'Saved weekly',pricing_model:'weekly',
  pricing_version:'server-revision',daily_prices:weeklyPayload.daily_prices,price_groups:weeklyPayload.price_groups});
 organizeRentalEditForm(document.getElementById('formFieldsContainer'),'venue',{object_name:'Saved weekly'});
+const unchangedRentalForm=document.getElementById('rentalForm');
+// The PHP-only fixture has no database schema; add the real schema time control.
+unchangedRentalForm.insertAdjacentHTML('beforeend',generateIntegratedFieldHTML('pickup_time',{type:'time',label:'Henting'},'19:00:00',true));
+const initialRentalSnapshot=rentalFormSnapshot(unchangedRentalForm);
+unchangedRentalForm.dataset.rentalBaseline=initialRentalSnapshot;
+await delay();
+check(Boolean(unchangedRentalForm.querySelector('[data-norwegian-date-time-proxy]')),'Real date/time enhancement is present in rental edit');
+check(Boolean(unchangedRentalForm.querySelector('.shared-image-upload__file')),'Real upload enhancement is present in rental edit');
+check(rentalFormSnapshot(unchangedRentalForm)===initialRentalSnapshot,'Opening rental edit remains clean after date/time and upload enhancements');
+const editedRentalName=unchangedRentalForm.querySelector('[name="object_name"]');
+const originalRentalName=editedRentalName.value;
+editedRentalName.value='Actually changed';
+check(rentalFormSnapshot(unchangedRentalForm)!==initialRentalSnapshot,'An actual rental name change is still dirty');
+editedRentalName.value=originalRentalName;
+check(rentalFormSnapshot(unchangedRentalForm)===initialRentalSnapshot,'Restoring the original rental name clears the dirty state');
+const originalConfirm=window.confirm;
+let closePrompts=0;
+window.confirm=()=>{closePrompts++;return false;};
+const attemptRentalClose=()=>{
+ const event=new Event('hide.bs.modal',{bubbles:true,cancelable:true});
+ document.getElementById('rentalModal').dispatchEvent(event);
+ return !event.defaultPrevented;
+};
+check(attemptRentalClose()&&closePrompts===0,'Opening and closing unchanged rental edit never prompts');
+const rentalTime=unchangedRentalForm.querySelector('[name="type_data[pickup_time]"]');
+const rentalTimeProxy=rentalTime.previousElementSibling;
+rentalTimeProxy.value='20:30';
+rentalTimeProxy.dispatchEvent(new Event('input',{bubbles:true}));
+check(!attemptRentalClose()&&closePrompts===1,'Changing pickup time still guards closing');
+rentalTimeProxy.value='19:00';
+rentalTimeProxy.dispatchEvent(new Event('input',{bubbles:true}));
+check(attemptRentalClose()&&closePrompts===1,'Restoring pickup time clears the dirty guard despite seconds formatting');
+rentalTimeProxy.value='2';
+rentalTimeProxy.dispatchEvent(new Event('input',{bubbles:true}));
+check(!attemptRentalClose()&&closePrompts===2,'Incomplete time text is not silently discarded');
+rentalTimeProxy.value='19:00';
+rentalTimeProxy.dispatchEvent(new Event('input',{bubbles:true}));
+const rentalImage=unchangedRentalForm.querySelector('.image-url-input');
+rentalImage.value='https://example.com/changed.webp';
+check(!attemptRentalClose()&&closePrompts===3,'Changing an image URL still guards closing');
+rentalImage.value='';
+window.confirm=originalConfirm;
 document.querySelector('#rentalForm [data-rental-edit-section="pricing"]').open=true;
 const weeklyEditPayload=rentalPricingPayload(document.getElementById('rentalForm'),'formFieldsContainer');
 check(weeklyEditPayload.pricing_version==='server-revision'&&weeklyEditPayload.pricing_model==='weekly','Actual weekly edit preserves concurrency version and weekly mode');

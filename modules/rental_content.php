@@ -422,10 +422,27 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function rentalFormSnapshot(form) {
-    return JSON.stringify([...form.querySelectorAll('input, select, textarea')].map(field => [
-        field.name || field.id || field.className,
-        field.type === 'checkbox' || field.type === 'radio' ? field.checked : field.value
-    ]));
+    // Enhancers add file/proxy controls and change generated IDs/classes after
+    // opening. Compare the actual values, not that asynchronous presentation.
+    return JSON.stringify([...form.querySelectorAll('input, select, textarea')]
+        .filter(field => field.type !== 'file' && !field.hasAttribute('data-norwegian-date-time-proxy'))
+        .map(field => {
+            let value = field.type === 'checkbox' || field.type === 'radio' ? field.checked : field.value;
+            if (['time', 'date', 'datetime-local'].includes(field.type)) {
+                const proxy = field.previousElementSibling;
+                if (proxy?.hasAttribute('data-norwegian-date-time-proxy')) {
+                    // Preserve dirty detection for incomplete/invalid typed text too.
+                    value = proxy.value;
+                } else if (field.type === 'time') {
+                    value = value.substring(0, 5);
+                } else {
+                    value = value.replace(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}:\d{2}).*)?$/, (_, year, month, day, time) =>
+                        `${day}.${month}.${year}${time ? ` ${time}` : ''}`);
+                }
+            }
+            // Unnamed image controls receive generated IDs from the uploader.
+            return [field.name || '', value];
+        }));
 }
 
 function openRentalCreate() {
