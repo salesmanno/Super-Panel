@@ -69,30 +69,32 @@ try {
         $config = $data['config'];
         
         // Check if config exists
-        $stmt = $db->prepare("SELECT id FROM tenant_website_config WHERE company_id = ?");
+        if (!is_array($config)) throw new InvalidArgumentException('Ugyldig nettstedskonfigurering.');
+        $stmt = $db->prepare("SELECT * FROM tenant_website_config WHERE company_id = ? FOR UPDATE");
         $stmt->execute([$companyId]);
         $existingConfig = $stmt->fetch();
+        $config = array_replace($existingConfig ?: [], $config);
         
         if ($existingConfig) {
-            // Update existing
-            $stmt = $db->prepare("
-                UPDATE tenant_website_config 
-                SET is_published = ?, 
-                    is_enabled = ?,
-                    display_name = ?,
-                    seo_title = ?,
-                    seo_description = ?,
-                    updated_at = NOW()
-                WHERE company_id = ?
-            ");
-            $stmt->execute([
-                normalizeBool($config['is_published'] ?? 0),
-                normalizeBool($config['is_enabled'] ?? 0),
-                !empty($config['display_name']) ? trim($config['display_name']) : null,
-                !empty($config['seo_title']) ? trim($config['seo_title']) : null,
-                !empty($config['seo_description']) ? trim($config['seo_description']) : null,
-                $companyId
-            ]);
+            $normalizedConfig = [
+                'is_published' => normalizeBool($config['is_published'] ?? 0),
+                'is_enabled' => normalizeBool($config['is_enabled'] ?? 0),
+                'display_name' => !empty($config['display_name']) ? trim($config['display_name']) : null,
+                'seo_title' => !empty($config['seo_title']) ? trim($config['seo_title']) : null,
+                'seo_description' => !empty($config['seo_description']) ? trim($config['seo_description']) : null
+            ];
+            $configChanges = [];
+            foreach (array_intersect_key($normalizedConfig, $data['config']) as $column => $value) {
+                $before = $existingConfig[$column] ?? null;
+                if (($before === null || $value === null) ? $before !== $value : (string)$before !== (string)$value) {
+                    $configChanges[$column] = $value;
+                }
+            }
+            if ($configChanges) {
+                $set = implode(',', array_map(static fn($column) => "`{$column}` = ?", array_keys($configChanges)));
+                $db->prepare("UPDATE tenant_website_config SET {$set}, updated_at = NOW() WHERE company_id = ?")
+                    ->execute([...array_values($configChanges), $companyId]);
+            }
         } else {
             // Insert new
             $configId = bin2hex(random_bytes(16));
@@ -118,59 +120,32 @@ try {
         $general = $data['general'];
         
         // Check if general settings exist
-        $stmt = $db->prepare("SELECT id FROM tenant_website_general WHERE company_id = ?");
+        if (!is_array($general)) throw new InvalidArgumentException('Ugyldige websideinnstillinger.');
+        $stmt = $db->prepare("SELECT * FROM tenant_website_general WHERE company_id = ? FOR UPDATE");
         $stmt->execute([$companyId]);
         $existingGeneral = $stmt->fetch();
+        // This is a partial form: controls removed from Webside must retain their stored values.
+        $general = array_replace([
+            'navigation_style'=>'top','header_layout'=>'standard','footer_layout'=>'standard',
+            'header_mode'=>'static','footer_mode'=>'static','logo_position'=>'left',
+            'nav_position'=>'center','button_style'=>'rounded'
+        ], $existingGeneral ?: [], $general);
+        foreach (['header_mode', 'footer_mode'] as $positionKey) {
+            if (!in_array($general[$positionKey] ?? 'static', ['static', 'dynamic'], true)) {
+                throw new InvalidArgumentException('Velg statisk eller dynamisk posisjon.');
+            }
+        }
         
         if ($existingGeneral) {
-            // Update existing
-            $stmt = $db->prepare("
-                UPDATE tenant_website_general 
-                SET site_title = ?,
-                    site_description = ?,
-                    logo_url = ?,
-                    favicon_url = ?,
-                    primary_color = ?,
-                    secondary_color = ?,
-                    navigation_style = ?,
-                    header_layout = ?,
-                    footer_layout = ?,
-                    header_mode = ?,
-                    footer_mode = ?,
-                    homepage_module = ?,
-                    hero_enabled = ?,
-                    hero_title = ?,
-                    hero_description = ?,
-                    hero_image_url = ?,
-                    hero_button_text = ?,
-                    hero_button_url = ?,
-                    contact_email = ?,
-                    contact_phone = ?,
-                    contact_address = ?,
-                    social_media_links = ?,
-                    footer_text = ?,
-                    footer_links = ?,
-                    custom_css = ?,
-                    custom_js = ?,
-                    google_analytics_id = ?,
-                    is_active = ?,
-                    maintenance_mode = ?,
-                    maintenance_message = ?,
-                    header_bg_color = ?,
-                    body_bg_color = ?,
-                    logo_height = ?,
-                    header_height = ?,
-                    logo_position = ?,
-                    nav_position = ?,
-                    font_family = ?,
-                    button_style = ?,
-                    border_radius = ?,
-                    spacing_unit = ?,
-                    updated_at = NOW(),
-                    updated_by = ?
-                WHERE company_id = ?
-            ");
-            $stmt->execute([
+            // Normalize submitted fields only. Removed controls are not written at all.
+            $columns = ['site_title','site_description','logo_url','favicon_url','primary_color','secondary_color',
+                'navigation_style','header_layout','footer_layout','header_mode','footer_mode','homepage_module',
+                'hero_enabled','hero_title','hero_description','hero_image_url','hero_button_text','hero_button_url',
+                'contact_email','contact_phone','contact_address','social_media_links','footer_text','footer_links',
+                'google_analytics_id','is_active','maintenance_mode','maintenance_message','header_bg_color',
+                'body_bg_color','logo_height','header_height','logo_position','nav_position','font_family',
+                'button_style','border_radius'];
+            $normalized = array_combine($columns, [
                 !empty($general['site_title']) ? trim($general['site_title']) : null,
                 !empty($general['site_description']) ? trim($general['site_description']) : null,
                 validateUrl($general['logo_url'] ?? null),
@@ -195,8 +170,6 @@ try {
                 !empty($general['social_media_links']) ? trim($general['social_media_links']) : null,
                 !empty($general['footer_text']) ? trim($general['footer_text']) : null,
                 !empty($general['footer_links']) ? trim($general['footer_links']) : null,
-                !empty($general['custom_css']) ? trim($general['custom_css']) : null,
-                !empty($general['custom_js']) ? trim($general['custom_js']) : null,
                 !empty($general['google_analytics_id']) ? trim($general['google_analytics_id']) : null,
                 normalizeBool($general['is_active'] ?? 1),
                 normalizeBool($general['maintenance_mode'] ?? 0),
@@ -209,11 +182,20 @@ try {
                 in_array($general['nav_position'] ?? 'center', ['left', 'center', 'right']) ? $general['nav_position'] : 'center',
                 !empty($general['font_family']) ? trim($general['font_family']) : 'Inter, sans-serif',
                 in_array($general['button_style'] ?? 'rounded', ['rounded', 'square', 'pill']) ? $general['button_style'] : 'rounded',
-                validateCssSize($general['border_radius'] ?? '16px', '16px'),
-                validateCssSize($general['spacing_unit'] ?? '1rem', '1rem'),
-                $adminId,
-                $companyId
+                validateCssSize($general['border_radius'] ?? '16px', '16px')
             ]);
+            $changes = [];
+            foreach (array_intersect_key($normalized, $data['general']) as $column => $value) {
+                $before = $existingGeneral[$column] ?? null;
+                if (($before === null || $value === null) ? $before !== $value : (string)$before !== (string)$value) {
+                    $changes[$column] = $value;
+                }
+            }
+            if ($changes) {
+                $set = implode(',', array_map(static fn($column) => "`{$column}` = ?", array_keys($changes)));
+                $db->prepare("UPDATE tenant_website_general SET {$set}, updated_at = NOW(), updated_by = ? WHERE company_id = ?")
+                    ->execute([...array_values($changes), $adminId, $companyId]);
+            }
         } else {
             // Insert new
             $generalId = bin2hex(random_bytes(16));
@@ -224,12 +206,12 @@ try {
                  header_mode, footer_mode,
                  homepage_module, hero_enabled, hero_title, hero_description, hero_image_url,
                  hero_button_text, hero_button_url, contact_email, contact_phone, contact_address,
-                 social_media_links, footer_text, footer_links, custom_css, custom_js,
+                 social_media_links, footer_text, footer_links,
                  google_analytics_id, is_active, maintenance_mode, maintenance_message,
                  header_bg_color, body_bg_color, logo_height, header_height, logo_position,
-                 nav_position, font_family, button_style, border_radius, spacing_unit,
+                 nav_position, font_family, button_style, border_radius,
                  created_by, created_at, updated_at, updated_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)
+                VALUES (" . implode(',', array_fill(0, 40, '?')) . ", NOW(), NOW(), ?)
             ");
             $stmt->execute([
                 $generalId,
@@ -258,8 +240,6 @@ try {
                 !empty($general['social_media_links']) ? trim($general['social_media_links']) : null,
                 !empty($general['footer_text']) ? trim($general['footer_text']) : null,
                 !empty($general['footer_links']) ? trim($general['footer_links']) : null,
-                !empty($general['custom_css']) ? trim($general['custom_css']) : null,
-                !empty($general['custom_js']) ? trim($general['custom_js']) : null,
                 !empty($general['google_analytics_id']) ? trim($general['google_analytics_id']) : null,
                 normalizeBool($general['is_active'] ?? 1),
                 normalizeBool($general['maintenance_mode'] ?? 0),
@@ -273,7 +253,6 @@ try {
                 !empty($general['font_family']) ? trim($general['font_family']) : 'Inter, sans-serif',
                 in_array($general['button_style'] ?? 'rounded', ['rounded', 'square', 'pill']) ? $general['button_style'] : 'rounded',
                 validateCssSize($general['border_radius'] ?? '16px', '16px'),
-                validateCssSize($general['spacing_unit'] ?? '1rem', '1rem'),
                 $adminId,
                 $adminId
             ]);
@@ -295,13 +274,14 @@ try {
     if (isset($db) && $db->inTransaction()) $db->rollBack();
     http_response_code(403);
     echo json_encode(['success'=>false,'error'=>$e->getMessage()]);
-} catch (Exception $e) {
+} catch (Throwable $e) {
     if (isset($db) && $db->inTransaction()) {
         $db->rollBack();
     }
     error_log("Error updating webside data: " . $e->getMessage());
+    http_response_code(500);
     echo json_encode([
         'success' => false,
-        'error' => 'Kunne ikke oppdatere websideinnstillinger: ' . $e->getMessage()
+        'error' => 'Websideinnstillingene kunne ikke lagres. Ingen endring er bekreftet.'
     ]);
 }

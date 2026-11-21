@@ -54,7 +54,18 @@ const checks=`(async()=>{
  assert(form.closest('#pwp-settings-main'),'Website did not open on About for supervisor without module');
  assert(form.querySelector('.pwp-website-grid'),'Website still uses the old form layout');
  assert(document.querySelector('#firma-webside > .card > .card-body > .card-title').hidden,'Legacy website heading was duplicated');
+ const removed=['is_active','maintenance_mode','logo_url','favicon_url','homepage_module','navigation_style','header_layout','footer_layout','hero_title','hero_image_url','hero_description','hero_button_text','hero_button_url','contact_email','contact_phone','contact_address','footer_text','footer_links','custom_css','custom_js','spacing_unit'];
+ for(const key of removed)assert(!form.elements['general_'+key],'Removed setting still rendered: '+key);
+ assert(!form.querySelector('input[type="url"],input[type="file"]'),'Removed image upload controls still present');
+ assert(!form.textContent.includes('Generelle Innstillinger'),'Redundant general settings heading remains');
+ const footerMode=form.elements.general_footer_mode;
+ assert(footerMode&&form.elements.general_header_mode,'Header/footer position missing');
+ footerMode.value='static';footerMode.dispatchEvent(new Event('change',{bubbles:true}));
+ assert(getComputedStyle(document.querySelector('.pwp-footer')).position==='fixed','Static footer did not apply live');
+ footerMode.value='dynamic';footerMode.dispatchEvent(new Event('change',{bubbles:true}));
+ assert(getComputedStyle(document.querySelector('.pwp-footer')).position==='static','Dynamic footer did not apply live');
  const original=Object.fromEntries(new FormData(form));
+ footerMode.value='static';footerMode.dispatchEvent(new Event('change',{bubbles:true}));
  const color=form.elements.general_header_bg_color;
  color.dispatchEvent(new WheelEvent('wheel',{deltaY:-120,bubbles:true}));
  assert(!panel.classList.contains('is-open'),'Wheel inside input opened control room');
@@ -74,14 +85,17 @@ const checks=`(async()=>{
  assert(writes.length===2&&legacySubmits===0,'Website save was duplicated through legacy handler');
  const payload=writes[1];
  for(const [name,value] of Object.entries(original)){
-   if(name.startsWith('general_')&&!['general_header_bg_color','general_body_bg_color'].includes(name))assert(payload.general[name.slice(8)]===value,'Untouched general setting lost: '+name);
+   if(name.startsWith('general_')&&!['general_header_bg_color','general_body_bg_color','general_footer_mode'].includes(name))assert(payload.general[name.slice(8)]===value,'Untouched general setting lost: '+name);
    if(name.startsWith('config_'))assert(payload.config[name.slice(7)]===value,'Untouched config setting lost: '+name);
  }
  assert(payload.company_name==='Oppdatert bedrift'&&payload.general.header_bg_color==='#b04455','Wrong settings save payload');
+ assert(payload.general.footer_mode==='static','Footer mode not included in save');
+ for(const key of removed)assert(!(key in payload.general),'Removed field submitted: '+key);
  assert(form.querySelector('[role="status"]').textContent.includes('er lagret'),'Save success missing');
  click('[data-pwp-page="home"]');await tick();
  assert(document.getElementById('pwp-company-name').textContent==='Oppdatert bedrift','Saved company name not retained');
  assert(document.getElementById('pwp-control-company').textContent==='Oppdatert bedrift','Admin header retained stale company name');
+ assert(document.getElementById('portal-website-preview').dataset.footerMode==='static','Saved footer mode lost after navigation');
  click('[data-pwp-page="about"]');await tick();click('[data-pwp-setting="website"]');await tick();
  const next=document.getElementById('websideForm');next.elements.general_header_bg_color.value='#112233';next.dispatchEvent(new Event('input',{bubbles:true}));
  window.allowDiscard=true;click('[data-pwp-page="home"]');await tick();
@@ -90,4 +104,4 @@ const checks=`(async()=>{
  click('[data-pwp-page="about"]');await tick();click('[data-pwp-setting="website"]');await tick();
  return{passed:true,width:innerWidth,checks:'real settings form, live colors, full save payload, retries, dirty protection, top-only wheel and touch admin header'};
 })()`;
-browser(fixture,checks,[1280,390]).catch(error=>{console.error(error);process.exitCode=1});
+browser(fixture,checks,[1280,390,320]).catch(error=>{console.error(error);process.exitCode=1});

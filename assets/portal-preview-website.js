@@ -1,4 +1,4 @@
-/* Present the real website form as the approved settings workspace; keep every field. */
+/* Present the simplified website form as the approved settings workspace. */
 (() => {
     'use strict';
     window.PortalWebsiteSettings = {
@@ -76,6 +76,7 @@
             move('general_header_height','navigation','Headerhøyde');
             move('general_logo_height','navigation','Logohøyde');
             move('general_border_radius','navigation','Avrunding');
+            move('general_button_style','navigation','Knappestil');
             const hero = fields.get('general_hero_enabled');
             let heroToggle = null;
             if (hero) {
@@ -93,9 +94,11 @@
             move('config_seo_description','seo','Søkebeskrivelse');
             move('general_site_title','seo','Sidetittel');
             move('general_site_description','seo','Sidebeskrivelse');
-            group('advanced').append(original);
-            // Keep every other named control, including URLs, contact data and existing integrations.
-            group('advanced').querySelectorAll('button[type="submit"]').forEach(button => { button.hidden = true; });
+            for (const field of ['config_is_published','config_is_enabled','config_display_name',
+                'general_social_media_links','general_google_analytics_id']) {
+                move(field,'advanced');
+            }
+            // Keep the old scaffolding detached, not as duplicate empty sections below the editor.
             const saveButton = layout.querySelector('button[type="submit"]');
             const status = layout.querySelector('.pwp-website-status');
             let saving = false, destroyed = false;
@@ -106,7 +109,6 @@
                 for (const key of ['header_bg_color','body_bg_color','primary_color','secondary_color','font_family','header_height','logo_height','logo_position','nav_position','header_mode','footer_mode','border_radius','hero_enabled']) {
                     if (`general_${key}` in values) result[key] = values[`general_${key}`];
                 }
-                if (values.general_logo_url) result.img_url = values.general_logo_url;
                 return result;
             }
             let baseline = snapshot(), baselineTheme = theme();
@@ -117,8 +119,7 @@
                     const output = input.closest('.pwp-color-control')?.querySelector('output');
                     if (output) output.textContent = input.value.toUpperCase();
                 });
-                const height = form.elements.general_header_height?.value || '80px';
-                footerNote.textContent = `Footerhøyde: ${height} × 0,6. Velg om footeren alltid skal være synlig eller følge siden.`;
+                footerNote.textContent = 'Statisk: alltid synlig nederst i skjermen. Dynamisk: følger siden og kan rulles ut av synsfeltet. Kontrolløya står fast uavhengig av footeren.';
                 const dirty = snapshot() !== baseline;
                 saveButton.disabled = saving || !dirty;
                 status.textContent = dirty ? 'Endringene vises i previewen. Trykk «Lagre endringer» for å publisere innstillingene.' : 'Ingen ulagrede endringer.';
@@ -193,10 +194,7 @@
                             if (record.labelFor === null) record.label.removeAttribute('for'); else record.label.htmlFor = record.labelFor;
                         }
                     }
-                    const advanced = group('advanced');
-                    advanced.querySelectorAll('button[type="submit"]').forEach(button => { button.hidden = false; });
-                    const restored = document.createDocumentFragment(); restored.append(...advanced.childNodes);
-                    form.replaceChildren(restored);
+                    form.replaceChildren(original);
                 }
             };
         }

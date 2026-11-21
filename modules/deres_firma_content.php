@@ -420,25 +420,10 @@
                     
                     <!-- Website General Settings -->
                     <?php if ($websiteGeneral): ?>
-                    <h6 class="mb-3"><i class="bi bi-info-circle me-2"></i>Generelle Innstillinger</h6>
                     <div class="row mb-4">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Nettstedstittel</label>
                             <input type="text" name="general_site_title" class="form-control" value="<?= htmlspecialchars($websiteGeneral['site_title'] ?? '') ?>">
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Aktiv</label>
-                            <select name="general_is_active" class="form-select">
-                                <option value="0" <?= !($websiteGeneral['is_active'] ?? 1) ? 'selected' : '' ?>>Inaktiv</option>
-                                <option value="1" <?= ($websiteGeneral['is_active'] ?? 1) ? 'selected' : '' ?>>Aktiv</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Vedlikeholdsmodus</label>
-                            <select name="general_maintenance_mode" class="form-select">
-                                <option value="0" <?= !($websiteGeneral['maintenance_mode'] ?? 0) ? 'selected' : '' ?>>Av</option>
-                                <option value="1" <?= ($websiteGeneral['maintenance_mode'] ?? 0) ? 'selected' : '' ?>>På</option>
-                            </select>
                         </div>
                     </div>
                     
@@ -447,20 +432,6 @@
                         <textarea name="general_site_description" class="form-control" rows="3"><?= htmlspecialchars($websiteGeneral['site_description'] ?? '') ?></textarea>
                     </div>
                     
-                    <div class="row mb-4">
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Logo URL</label>
-                            <input type="url" name="general_logo_url" class="form-control" value="<?= htmlspecialchars($websiteGeneral['logo_url'] ?? '') ?>" placeholder="https://...">
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Favicon URL</label>
-                            <input type="url" name="general_favicon_url" class="form-control" value="<?= htmlspecialchars($websiteGeneral['favicon_url'] ?? '') ?>" placeholder="https://...">
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Hjemmesidem odul</label>
-                            <input type="text" name="general_homepage_module" class="form-control" value="<?= htmlspecialchars($websiteGeneral['homepage_module'] ?? '') ?>" placeholder="products, events, etc">
-                        </div>
-                    </div>
                     
                     <!-- Design Settings -->
                     <h6 class="mb-3 mt-4"><i class="bi bi-palette-fill me-2"></i>Design</h6>
@@ -473,33 +444,8 @@
                             <label class="form-label">Sekundærfarge</label>
                             <input type="color" name="general_secondary_color" class="form-control form-control-color" value="<?= htmlspecialchars($websiteGeneral['secondary_color'] ?? '#666666') ?>">
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Navigasjonsstil</label>
-                            <select name="general_navigation_style" class="form-select">
-                                <option value="top" <?= ($websiteGeneral['navigation_style'] ?? 'top') === 'top' ? 'selected' : '' ?>>Top</option>
-                                <option value="side" <?= ($websiteGeneral['navigation_style'] ?? 'top') === 'side' ? 'selected' : '' ?>>Side</option>
-                            </select>
-                        </div>
                     </div>
                     
-                    <div class="row mb-4">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Header layout</label>
-                            <select name="general_header_layout" class="form-select">
-                                <option value="standard" <?= ($websiteGeneral['header_layout'] ?? 'standard') === 'standard' ? 'selected' : '' ?>>Standard</option>
-                                <option value="centered" <?= ($websiteGeneral['header_layout'] ?? 'standard') === 'centered' ? 'selected' : '' ?>>Sentrert</option>
-                                <option value="minimal" <?= ($websiteGeneral['header_layout'] ?? 'standard') === 'minimal' ? 'selected' : '' ?>>Minimal</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Footer layout</label>
-                            <select name="general_footer_layout" class="form-select">
-                                <option value="standard" <?= ($websiteGeneral['footer_layout'] ?? 'standard') === 'standard' ? 'selected' : '' ?>>Standard</option>
-                                <option value="minimal" <?= ($websiteGeneral['footer_layout'] ?? 'standard') === 'minimal' ? 'selected' : '' ?>>Minimal</option>
-                                <option value="extended" <?= ($websiteGeneral['footer_layout'] ?? 'standard') === 'extended' ? 'selected' : '' ?>>Utvidet</option>
-                            </select>
-                        </div>
-                    </div>
 
                     <div class="row mb-4">
                         <div class="col-md-6 mb-3">
@@ -577,73 +523,14 @@
                             <label class="form-label">Font familie</label>
                             <input type="text" name="general_font_family" class="form-control" value="<?= htmlspecialchars($websiteGeneral['font_family'] ?? 'Inter, sans-serif') ?>" placeholder="Inter, sans-serif">
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Spacing enhet</label>
-                            <input type="text" name="general_spacing_unit" class="form-control" value="<?= htmlspecialchars($websiteGeneral['spacing_unit'] ?? '1rem') ?>" placeholder="1rem">
-                        </div>
                     </div>
                     
-                    <!-- Hero Section -->
-                    <h6 class="mb-3 mt-4"><i class="bi bi-image me-2"></i>Hero-seksjon</h6>
                     <div class="mb-3">
-                        <label class="form-label">Hero aktivert</label>
+                        <label class="form-label">Vis toppsak på Hjem</label>
                         <select name="general_hero_enabled" class="form-select">
                             <option value="0" <?= !($websiteGeneral['hero_enabled'] ?? 1) ? 'selected' : '' ?>>Av</option>
                             <option value="1" <?= ($websiteGeneral['hero_enabled'] ?? 1) ? 'selected' : '' ?>>På</option>
                         </select>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Hero-tittel</label>
-                            <input type="text" name="general_hero_title" class="form-control" value="<?= htmlspecialchars($websiteGeneral['hero_title'] ?? '') ?>">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Hero bilde URL</label>
-                            <input type="url" name="general_hero_image_url" class="form-control" value="<?= htmlspecialchars($websiteGeneral['hero_image_url'] ?? '') ?>" placeholder="https://...">
-                        </div>
-                    </div>
-                    <div class="mb-4">
-                        <label class="form-label">Hero-beskrivelse</label>
-                        <textarea name="general_hero_description" class="form-control" rows="2"><?= htmlspecialchars($websiteGeneral['hero_description'] ?? '') ?></textarea>
-                    </div>
-                    <div class="row mb-4">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Knappetekst</label>
-                            <input type="text" name="general_hero_button_text" class="form-control" value="<?= htmlspecialchars($websiteGeneral['hero_button_text'] ?? '') ?>">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Knapp URL</label>
-                            <input type="url" name="general_hero_button_url" class="form-control" value="<?= htmlspecialchars($websiteGeneral['hero_button_url'] ?? '') ?>" placeholder="https://...">
-                        </div>
-                    </div>
-                    
-                    <!-- Contact Information -->
-                    <h6 class="mb-3 mt-4"><i class="bi bi-envelope me-2"></i>Kontaktinformasjon</h6>
-                    <div class="row mb-4">
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">E-post</label>
-                            <input type="email" name="general_contact_email" class="form-control" value="<?= htmlspecialchars($websiteGeneral['contact_email'] ?? '') ?>">
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Telefon</label>
-                            <input type="text" name="general_contact_phone" class="form-control" value="<?= htmlspecialchars($websiteGeneral['contact_phone'] ?? '') ?>">
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Adresse</label>
-                            <input type="text" name="general_contact_address" class="form-control" value="<?= htmlspecialchars($websiteGeneral['contact_address'] ?? '') ?>">
-                        </div>
-                    </div>
-                    
-                    <!-- Footer Section -->
-                    <h6 class="mb-3 mt-4"><i class="bi bi-layout-text-sidebar-reverse me-2"></i>Footer</h6>
-                    <div class="mb-3">
-                        <label class="form-label">Footer tekst</label>
-                        <textarea name="general_footer_text" class="form-control" rows="2" placeholder="Copyright tekst og annen footer-informasjon"><?= htmlspecialchars($websiteGeneral['footer_text'] ?? '') ?></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Footer lenker (JSON format)</label>
-                        <textarea name="general_footer_links" class="form-control" rows="3" placeholder='[{"title": "Om oss", "url": "/about"}, {"title": "Kontakt", "url": "/contact"}]'><?= htmlspecialchars($websiteGeneral['footer_links'] ?? '') ?></textarea>
-                        <small class="text-muted">Bruk JSON-format for å definere footer-lenker</small>
                     </div>
                     <div class="mb-4">
                         <label class="form-label">Sosiale medier lenker (JSON format)</label>
@@ -658,20 +545,6 @@
                             <label class="form-label">Google Analytics ID</label>
                             <input type="text" name="general_google_analytics_id" class="form-control" value="<?= htmlspecialchars($websiteGeneral['google_analytics_id'] ?? '') ?>" placeholder="G-XXXXXXXXXX">
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Vedlikeholdsmelding</label>
-                            <textarea name="general_maintenance_message" class="form-control" rows="2" placeholder="Vises når vedlikeholdsmodus er på"><?= htmlspecialchars($websiteGeneral['maintenance_message'] ?? '') ?></textarea>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Custom CSS</label>
-                        <textarea name="general_custom_css" class="form-control" rows="5" placeholder="/* Legg til custom CSS her */"><?= htmlspecialchars($websiteGeneral['custom_css'] ?? '') ?></textarea>
-                        <small class="text-muted">Egendefinert CSS for å overstyre standard styling</small>
-                    </div>
-                    <div class="mb-4">
-                        <label class="form-label">Custom JavaScript</label>
-                        <textarea name="general_custom_js" class="form-control" rows="5" placeholder="// Legg til custom JavaScript her"><?= htmlspecialchars($websiteGeneral['custom_js'] ?? '') ?></textarea>
-                        <small class="text-muted">Egendefinert JavaScript for tilpasset funksjonalitet</small>
                     </div>
                     <?php endif; ?>
                     

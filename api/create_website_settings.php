@@ -12,6 +12,8 @@ require_once __DIR__ . '/../config/database.php';
 try {
     $db = getDBConnection();
     $companyId = $_SESSION['company_id'];
+    require_once __DIR__.'/../includes/company_settings_access.php';
+    companySettingsRequireAccess($db, (string)$companyId);
     
     $db->beginTransaction();
     
@@ -56,8 +58,6 @@ try {
             social_media_links,
             footer_text,
             footer_links,
-            custom_css,
-            custom_js,
             google_analytics_id,
             is_active,
             maintenance_mode,
@@ -71,9 +71,8 @@ try {
             font_family,
             button_style,
             border_radius,
-            spacing_unit,
             created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (" . implode(',', array_fill(0, 37, '?')) . ")
     ");
     
     $stmt->execute([
@@ -100,8 +99,6 @@ try {
         null, // social_media_links
         '© ' . date('Y') . ' ' . $companyName . '. Alle rettigheter reservert.', // footer_text
         null, // footer_links
-        null, // custom_css
-        null, // custom_js
         null, // google_analytics_id
         true, // is_active
         false, // maintenance_mode
@@ -115,7 +112,6 @@ try {
         'Inter, sans-serif', // font_family
         'rounded', // button_style
         '16px', // border_radius
-        '1rem', // spacing_unit
         $_SESSION['tenant_admin_id']
     ]);
     
