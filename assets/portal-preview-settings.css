@@ -17,7 +17,6 @@ html.pwp-overscroll-guard { overscroll-behavior-y:contain; }
 .portal-wpreview #portal-website-preview .pwp-brand-identity img { max-height:calc(max(62px,var(--pwp-height,80px)) - 12px); }
 #portal-website-preview[data-header-mode="static"] .pwp-brand { position:sticky;top:0;z-index:1005; }
 #portal-website-preview[data-header-mode="static"] .pwp-site-nav { position:sticky;top:max(62px,var(--pwp-height,80px));z-index:1004; }
-#portal-website-preview[data-footer-mode="static"] .pwp-footer { position:fixed;left:0;right:0;bottom:0;z-index:1003;box-sizing:border-box;min-height:calc(var(--pwp-height,80px) * .6); }
 #portal-website-preview .pwp-hero[hidden] { display:none; }
 .portal-wpreview #portal-website-preview .pwp-about > header { display:flex;align-items:center;justify-content:space-between;gap:16px; }
 .pwp-about-kicker,.pwp-settings-heading small { color:#547496;font:800 9px/1.4 "DM Sans","Segoe UI",sans-serif;letter-spacing:.13em; }

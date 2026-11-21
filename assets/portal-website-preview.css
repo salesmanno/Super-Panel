@@ -38,7 +38,10 @@
 .pwp-card h3 { font-size: 19px; margin: 0 0 8px; }
 .pwp-card p { font-size: 14px; margin: 0 0 12px; }
 .pwp-card:hover { border-color: var(--pwp-header); }
-.pwp-footer { background: var(--pwp-header); color: var(--pwp-ink); padding: 30px 5% 110px; display: grid; gap: 8px; }
+#portal-website-preview .pwp-footer { background: var(--pwp-header); color: var(--pwp-ink); padding: 16px 5%; display: grid; gap: 6px; margin: 0; height: auto; min-height: 0; box-sizing: border-box; overflow-wrap: anywhere; }
+#portal-website-preview[data-footer-mode="static"] { padding-bottom: var(--pwp-footer-height, 80px); }
+#portal-website-preview[data-footer-mode="static"] .pwp-footer { position: fixed; inset: auto 0 0; z-index: 1003; }
+#portal-website-preview[data-footer-mode="dynamic"] .pwp-footer { position: static; inset: auto; }
 .pwp-island { position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; gap: 4px; padding: 6px; z-index: 1035; border: 1px solid #ffffffc2; border-radius: 999px; background: #19314bf0; box-shadow: 0 10px 32px #11273e47, 0 2px 7px #11273e29; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); width: max-content; max-width: calc(100vw - 24px); white-space: nowrap; }
 #portal-website-preview .pwp-island [hidden] { display: none !important; }
 #portal-website-preview .pwp-island button[data-pwp-island-step] { min-width: 32px; min-height: 44px; padding: 0 8px; font-size: 24px; }

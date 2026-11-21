@@ -18,14 +18,23 @@
         const island = root.querySelector('.pwp-island');
         const actions = [...island.querySelectorAll('[data-pwp-mode], #pwp-new')].filter(button =>
             page === 'services' || ['read', 'edit'].includes(button.dataset.pwpMode) || button === newButton);
-        islandPage = Math.max(0, Math.min(islandPage, Math.ceil(actions.length / 3) - 1));
+        const pageCount = Math.max(1, Math.ceil(actions.length / 3));
+        islandPage = ((islandPage % pageCount) + pageCount) % pageCount;
         island.querySelectorAll('[data-pwp-mode], #pwp-new').forEach(button => {
             const index = actions.indexOf(button);
             button.hidden = page === 'about' || index < islandPage * 3 || index >= islandPage * 3 + 3;
         });
         island.querySelectorAll('[data-pwp-island-step]').forEach(button => {
-            button.disabled = Number(button.dataset.pwpIslandStep) < 0 ? islandPage === 0 : (islandPage + 1) * 3 >= actions.length;
+            button.disabled = pageCount <= 1;
         });
+    }
+    // Reserve only the actual fixed footer height; the island has no layout footprint.
+    const footer = root.querySelector('.pwp-footer');
+    function measureFooter() {
+        root.style.setProperty('--pwp-footer-height', `${footer?.getBoundingClientRect().height || 0}px`);
+    }
+    if (footer && typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(measureFooter).observe(footer);
     }
     const workspace = window.PortalWorkspace;
     let activeSetting = 'company';
@@ -401,6 +410,7 @@
         if (controlCompany) controlCompany.textContent = theme.name || '';
         document.getElementById('pwp-footer-company').textContent = theme.name || '';
         document.getElementById('pwp-contact').textContent = [theme.contact_phone,theme.address_street,theme.address_zip,theme.address_city].filter(Boolean).join(' · ');
+        measureFooter();
         const logo = document.getElementById('pwp-logo');
         logo.hidden = !url(theme.img_url);
         if (!logo.hidden) logo.src = url(theme.img_url);
