@@ -106,4 +106,19 @@ paymentReject(fn()=>portalServicePaymentValidate(['vipps'],['vipps'],'none'), 'N
 paymentReject(fn()=>portalServicePaymentValidate(['first'=>'vipps'],['vipps']), 'Object accepted instead of list');
 paymentReject(fn()=>portalServicePaymentTarget('sales'), 'Unsupported table accepted');
 paymentAssert(portalServicePaymentValidate(['Vipps','vipps','kontant'],['vipps','cash']) === ['vipps','cash'], 'Canonical names/duplicates incorrect');
+foreach (['vipps', "'vipps'", "['vipps']", '"vipps"'] as $legacy) {
+    paymentAssert(portalServicePaymentSelection($legacy) === ['vipps'], 'Legacy Vipps value failed');
+    $db = new ServicePaymentPDO;
+    $db->rows['membership_plans'] = ['id'=>'object','name'=>'Testplan','payment_methods_json'=>$legacy];
+    $loaded = portalServicePayments($db,'company','membership','object');
+    paymentAssert(!$db->writes && $loaded['selected'] === ['vipps'], 'Legacy read wrote or lost selection');
+    $db->transaction = true;
+    $saved = portalServicePayments($db,'company','membership','object',['version'=>$loaded['version'],'methods'=>['vipps']]);
+    paymentAssert($saved['changed'] && $db->rows['membership_plans']['payment_methods_json'] === '["vipps"]', 'Explicit save did not repair legacy JSON');
+    $again = portalServicePayments($db,'company','membership','object',['version'=>$saved['version'],'methods'=>['vipps']]);
+    paymentAssert(!$again['changed'] && count($db->audits) === 1, 'Repeated save wrote audit');
+}
+paymentAssert(portalServicePaymentSelection("['vipps', 'cash']") === ['vipps','cash'], 'Legacy list lost methods');
+paymentAssert(portalServicePaymentSelection('') === [], 'Empty historical selection failed');
+paymentReject(fn()=>portalServicePaymentSelection("['vipps', broken]"), 'Broken list accepted');
 echo "PASS: service payment selection, permissions, scoping, CSRF, JSON, stale writes, event rules, audit and no-op protection\n";

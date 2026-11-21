@@ -13,8 +13,30 @@ function portalServicePaymentTarget(string $module): array {
 }
 
 function portalServicePaymentSelection($json): array {
-    $decoded = json_decode($json ?? '[]', true, 512, JSON_THROW_ON_ERROR);
+    $raw = trim($json ?? '');
+    if ($raw === '') return [];
+    try {
+        $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+    } catch (JsonException $error) {
+        // Older services stored a plain method or SQL-style single-quoted list.
+        // Accept only recognizable payment names, never arbitrary broken JSON.
+        if (preg_match("/^\[\s*'[a-zA-Z_ -]+'\s*(?:,\s*'[a-zA-Z_ -]+'\s*)*\]$/D", $raw)) {
+            preg_match_all("/'([^']+)'/", $raw, $matches);
+            return array_values(array_unique(array_map('activePaymentMethodName', $matches[1])));
+        }
+        try {
+            $method = activePaymentMethodName(trim($raw, "'"));
+            if ($method !== null) return [$method];
+        } catch (InvalidArgumentException $ignored) {
+            // Report a useful settings error instead of the JSON parser's English message.
+        }
+        throw new InvalidArgumentException('Lagrede betalingsmetoder har ugyldig format. Ingen verdier er endret.', 0, $error);
+    }
     if ($decoded === null) return [];
+    if (is_string($decoded)) {
+        $method = activePaymentMethodName($decoded);
+        return $method === null ? [] : [$method];
+    }
     if (!is_array($decoded) || !array_is_list($decoded)) {
         throw new InvalidArgumentException('Lagrede betalingsmetoder må være en JSON-liste.');
     }
@@ -73,7 +95,11 @@ function portalServicePayments(PDO $db, string $company, string $module, string 
         $next = portalServicePaymentValidate($input['methods'], array_column($methods, 'method_type'), $registration);
         $beforeSorted = $selected; $afterSorted = $next;
         sort($beforeSorted); sort($afterSorted);
-        $changed = $beforeSorted !== $afterSorted;
+        // Repair a recognized legacy representation only on an explicit save.
+        $storedJson = $row['payment_methods_json'];
+        $legacyFormat = $storedJson !== null && trim($storedJson) !== 'null'
+            && !is_array(json_decode($storedJson, true));
+        $changed = $beforeSorted !== $afterSorted || $legacyFormat;
         if ($changed) {
             $after = ['payment_methods_json'=>json_encode($next, JSON_THROW_ON_ERROR)];
             if ($module === 'events') {
