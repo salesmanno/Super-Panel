@@ -535,7 +535,9 @@
         document.body.style.overflow = 'hidden';
         editor.focus();
     }
+    let previewEditorClosing = false;
     function closeEditor(restoreFocus = true, confirmDiscard = true) {
+        if (!previewEditorClosing && editor.closest('#pwp-dialog')) return window.PortalWorkspace.close();
         if (exclusiveSaving || verificationSaving) return false;
         const dirtyRule = activeItem && editorDrafts.has(`${activeItem.id}:${editorPlanId}`);
         if (confirmDiscard && dirtyRule && !window.confirm('Du har en ulagret prisfordel. Forkast den og lukk?')) return false;
@@ -786,6 +788,10 @@
         catalog.classList.toggle('mb-phone-view',viewport === 'phone');
     }));
     window.MembershipBenefits = {
+        closeProduct() {
+            if (saving || exclusiveSaving || verificationSaving) return false;
+            return dialog.hidden || closeEditor(false) !== false;
+        },
         async openProduct(id) {
             await loadCatalog();
             if (!loaded || demoMode || !payload?.products.some(product => String(product.id) === String(id))) {
@@ -796,6 +802,22 @@
             // The editor must remain visible while the module itself stays hidden.
             document.body.appendChild(dialog);
             openEditor(item.id, null);
+            if (document.body.classList.contains('portal-wpreview') && window.PortalWorkspace) {
+                dialog.hidden = true;
+                document.body.style.overflow = previousOverflow;
+                window.PortalWorkspace.show(editor,`Fordeler · ${item.name}`,{
+                    className:'mb-dialog pwp-benefits-surface',
+                    beforeClose:()=>{
+                        if (saving || exclusiveSaving || verificationSaving) return false;
+                        return !editorDrafts.has(`${activeItem?.id}:${editorPlanId}`)
+                            || confirm('Du har en ulagret prisfordel. Forkast den og lukk?');
+                    },
+                    onClose:()=>{
+                        previewEditorClosing = true;
+                        try { closeEditor(false,false); } finally { previewEditorClosing = false; }
+                    }
+                });
+            }
         }
     };
     const maybeLoad = event => {

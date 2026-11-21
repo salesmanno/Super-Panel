@@ -58,7 +58,7 @@ window.EventsDashboard={openParticipants:id=>actions.push('participants:'+id)};
 window.loadRentalObjects=async()=>{actions.push('load-rental')};
 window.loadEvents=async()=>{actions.push('load-events')};
 window.viewDetails=id=>actions.push('read-rental:'+id);
-window.MembershipBenefits={openProduct:async id=>actions.push('benefits:'+id)};
+window.MembershipBenefits={openProduct:async id=>{actions.push('benefits:'+id);const editor=document.createElement('div');editor.textContent='Fordeler '+id;PortalWorkspace.showTemporary(editor,'Fordeler '+id)}};
 const actualFieldMount=window.EntityFormFields.mount;
 window.EntityFormFields.mount=(host,options)=>{
  actions.push('fields:'+options.entityType+':'+options.entityId);
@@ -92,7 +92,7 @@ const checks = `(async()=>{
  click('#pwp-dialog-close');await tick();
  click('[data-pwp-page="services"]');
  click('[data-pwp-mode="read"]');
- click('[data-service-id="offer-member"]');
+ click('[data-service-id="offer-member"]');await tick();
  assert(document.getElementById('member-plan-filter').value==='plan-member','Membership card must select its exact plan');
  assert(document.getElementById('member-plan-filter').disabled,'Scoped card list must not mix plans');
  assert(!document.getElementById('fixture-members').textContent.includes('Styre'),'Different plan leaked into member list');
@@ -122,7 +122,7 @@ const checks = `(async()=>{
  }
   click('[data-pwp-mode="read"]');click('[data-service-id="offer-event"]');await tick();
   assert(actions.includes('participants:event-one'),'Read mode must open the real participant/check-in window');
-  click('[data-pwp-mode="edit"]');click('[data-service-id="offer-event"]');
+  click('[data-pwp-mode="edit"]');click('[data-service-id="offer-event"]');await tick();
   assert(actions.includes('edit-event:event-one'),'Event edit must target the source event');
   click('[data-service-id="offer-rental"]');await tick();
   assert(actions.includes('edit-rental:rental-one'),'Rental edit must target the source rental');
@@ -140,7 +140,7 @@ const checks = `(async()=>{
   }
   click('[data-pwp-mode="benefits"]');click('[data-service-id="offer-rental"]');await tick();
   assert(actions.includes('benefits:offer-rental'),'Benefits must open the specific output product, not the catalog');
-  assert(!document.getElementById('pwp-dialog').open,'Benefits fell back to general module display');
+  assert(document.getElementById('pwp-dialog').open&&document.getElementById('pwp-dialog-title').textContent.includes('Fordeler offer-rental'),'Benefits must use the shared window for this product');
   click('[data-pwp-mode="read"]');click('[data-service-id="offer-rental"]');await tick();
   assert(actions.includes('read-rental:rental-one'),'Read rental must show that exact object');
   assert(document.querySelector('.pwp-header-logout')&&!document.querySelector('.pwp-site-nav a[href*="logout"]'),'Logout is not exclusively in the header');

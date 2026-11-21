@@ -53,16 +53,27 @@
   const usableMethods = () => (state.methods || []).filter(m => m.available && (m.is_active===undefined || Number(m.is_active)===1) && (m.method_type==='cash' || (m.method_type==='vipps' && !state.methodError)));
   const paymentKey = m => m.method_type==='cash'?'cash':m.id;
   const selectedPayment = () => usableMethods().find(m=>m.method_type===state.selectedMethod && (m.method_type==='cash' || m.id===state.selectedGatewayId));
+  let previewDialogClosing = false;
   function modal(title, content, opts = {}) {
     if (state.dialog?.kind === 'fields' && !closeFields()) return false;
     const dialog = $('#sales-dialog'); if(dialog.hidden)state.lastFocus = document.activeElement;
     $('#sales-dialog-title').textContent = title; $('#sales-dialog-kicker').textContent = opts.kicker || 'Salgsrom';
     $('#sales-dialog-body').innerHTML = content; $('#sales-dialog-foot').innerHTML = opts.footer || '';
     dialog.hidden = false; document.body.classList.add('sales-dialog-open'); state.dialog = opts;
+    if (opts.kind==='product' && document.body.classList.contains('portal-wpreview') && window.PortalWorkspace) {
+      document.body.classList.remove('sales-dialog-open');
+      if (!window.PortalWorkspace.show(dialog,title,{
+        className:'sales-admin pwp-sales-surface',
+        beforeClose:()=>!$('#sales-save-product')?.disabled && !state.checkoutSubmitting && !state.cancelSubmitting && (state.dialog?.kind!=='fields' || closeFields()),
+        onClose:()=>{previewDialogClosing=true;try{closeDialog(true);}finally{previewDialogClosing=false;dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');}}
+      })) { dialog.hidden=true;return false; }
+      dialog.setAttribute('role','group');dialog.removeAttribute('aria-modal');
+    }
     const initial = dialog.querySelector('[data-initial-focus]') || dialog.querySelector('.sales-dialog-close') || dialog.querySelector('.sales-dialog-card');
     initial?.focus(); return true;
   }
   function closeDialog(force = false) {
+    if (!previewDialogClosing && $('#sales-dialog').closest('#pwp-dialog')) return window.PortalWorkspace.close(force);
     if(state.checkoutSubmitting || state.cancelSubmitting)return false;
     if (!force && state.dialog?.kind === 'fields' && !closeFields()) return;
     const dialog = $('#sales-dialog'); dialog.hidden = true; document.body.classList.remove('sales-dialog-open'); state.dialog = null;
@@ -1373,6 +1384,7 @@
   // Share the existing revision-protected editor, never a second product-saving path.
   const onlineState={ready:false,loading:false,error:''};
   window.SalesOnline={
+    close:()=>{const closed=closeDialog();return closed!==false && $('#sales-dialog').hidden;},
     snapshot:()=>({products:state.products.map(product=>({...product})),ready:onlineState.ready,error:onlineState.error,loading:onlineState.loading}),
     edit:id=>{
       if(!onlineState.ready)return;

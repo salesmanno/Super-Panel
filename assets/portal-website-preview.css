@@ -95,6 +95,7 @@
     width: min(1040px, calc(100vw - 48px));
     max-width: none;
     max-height: min(840px, calc(100dvh - 56px));
+    height: min(840px, calc(100dvh - 56px));
     padding: 0;
     overflow: hidden;
     border: 1px solid #c8d8df;
@@ -106,7 +107,7 @@
 .portal-wpreview #pwp-dialog[open] {
     display: flex;
     flex-direction: column;
-    animation: pwp-dialog-enter .2s ease-out both;
+    animation: none;
 }
 .portal-wpreview #pwp-dialog::backdrop {
     background: rgba(18, 43, 53, .48);
@@ -115,6 +116,8 @@
 .portal-wpreview .pwp-dialog-shell {
     min-height: 0;
     max-height: inherit;
+    height: 100%;
+    width: 100%;
     display: flex;
     flex-direction: column;
 }
@@ -382,6 +385,30 @@
     box-shadow: 0 28px 90px #13313d47;
 }
 .portal-wpreview .pwp-module-modal .modal-body { overflow: auto; }
+.portal-wpreview #pwp-dialog .pwp-embedded-modal.modal { position:static;inset:auto;width:100%;height:auto;max-height:none;overflow:visible;opacity:1;transform:none;pointer-events:auto; }
+.portal-wpreview #pwp-dialog .pwp-embedded-modal .modal-dialog { width:100%;max-width:none;height:auto;min-height:0;margin:0;transform:none;pointer-events:auto; }
+.portal-wpreview #pwp-dialog .pwp-embedded-modal .modal-content { display:contents;border:0;box-shadow:none;background:transparent; }
+.portal-wpreview #pwp-dialog .pwp-embedded-modal .modal-header { display:none; }
+.portal-wpreview #pwp-dialog .pwp-embedded-modal .modal-body { padding:0;overflow:visible; }
+.portal-wpreview #pwp-dialog .pwp-embedded-modal .modal-footer { margin-top:16px;padding:12px 0 0;background:transparent; }
+.portal-wpreview #pwp-dialog #sales-dialog { position:static;inset:auto;display:block;padding:0;background:transparent;backdrop-filter:none;overflow:visible; }
+.portal-wpreview #pwp-dialog #sales-dialog .sales-dialog-backdrop,
+.portal-wpreview #pwp-dialog #sales-dialog .sales-dialog-head,
+.portal-wpreview #pwp-dialog .mb-editor > header { display:none; }
+.portal-wpreview #pwp-dialog #sales-dialog .sales-dialog-card,
+.portal-wpreview #pwp-dialog .mb-editor { width:100%;max-width:none;max-height:none;margin:0;border:0;border-radius:0;box-shadow:none;background:transparent;overflow:visible; }
+.portal-wpreview #pwp-dialog .mb-editor { padding:0; }
+.portal-wpreview #pwp-dialog #sales-dialog-body { padding:0; }
+.portal-wpreview #pwp-dialog-body .pwp-benefits-surface,
+.portal-wpreview #pwp-dialog-body .pwp-sales-surface { position:static;inset:auto;display:block;padding:0;margin:0;border:0;border-radius:0;background:transparent;overflow:visible; }
+.portal-wpreview .pwp-service-navigation { display:flex;align-items:center;gap:10px;padding:10px 12px;margin:0 0 16px;border:1px solid #d2dfe7;border-radius:12px;background:#f3f7fa;color:#25485c;flex-shrink:0; }
+.portal-wpreview .pwp-service-navigation label { display:flex;flex:1;min-width:0;flex-direction:column;gap:3px;margin:0; }
+.portal-wpreview .pwp-service-navigation label span { font-size:10px;line-height:1.2;letter-spacing:.04em;color:#617b8a; }
+.portal-wpreview .pwp-service-navigation select { width:100%;min-width:0;min-height:32px;border:0;border-radius:5px;background:transparent;color:#203f54;font:600 14px/1.3 system-ui; }
+.portal-wpreview .pwp-service-navigation button { display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;border:1px solid #cadbe4;border-radius:50%;background:#fff;color:#25485c;font:26px/1 system-ui;cursor:pointer; }
+.portal-wpreview .pwp-service-navigation button:hover { background:#e5eef4; }
+.portal-wpreview .pwp-service-navigation :is(button,select):focus-visible { outline:2px solid #3976ac;outline-offset:2px; }
+.portal-wpreview .pwp-service-navigation :disabled { opacity:.45;cursor:wait; }
 .portal-wpreview .pwp-surface-tabs {
     display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;
 }

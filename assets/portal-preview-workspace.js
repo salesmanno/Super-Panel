@@ -6,6 +6,7 @@
     if (!dialog) return;
     const body = document.getElementById('pwp-dialog-body');
     let mounted = null, aboutMounted = null, aboutEditor = null, opener = null, beforeClose = null, afterClose = null;
+    let transient = false;
     let settingRevision = 0;
     const restore = record => {
         if (!record) return;
@@ -28,14 +29,16 @@
         if (!dialog.open && !mounted) return true;
         if (!force && beforeClose && !beforeClose()) return false;
         beforeClose = null;
+        const wasTransient = transient;
+        transient = false;
         restore(mounted); mounted = null;
         const cleanup = afterClose; afterClose = null;
-        cleanup?.();
         dialog.close();
         body.replaceChildren();
         document.body.classList.remove('pwp-dialog-open');
         opener?.focus({preventScroll:true});
-        document.dispatchEvent(new CustomEvent('portal:surface-closed'));
+        cleanup?.();
+        if (!wasTransient) document.dispatchEvent(new CustomEvent('portal:surface-closed'));
         return true;
     }
     function show(element, title, options = {}) {
@@ -43,12 +46,14 @@
         opener = document.activeElement;
         beforeClose = options.beforeClose || null;
         afterClose = options.onClose || null;
+        transient = options.transient === true;
         document.getElementById('pwp-dialog-title').textContent = title;
         const wrapper = document.createElement('div');
         wrapper.className = options.className || '';
         body.appendChild(wrapper);
         mounted = mount(element, wrapper);
         dialog.show(); // Non-blocking: the customer-side body remains usable.
+        body.scrollTop = 0;
         document.body.classList.add('pwp-dialog-open');
         document.getElementById('pwp-dialog-close').focus({preventScroll:true});
         window.dispatchEvent(new Event('resize'));
@@ -73,6 +78,48 @@
             document.body.appendChild(modal);
         });
     }
+    function embedModal(modal) {
+        const instance = window.bootstrap?.Modal?.getInstance(modal);
+        if (!instance) return false;
+        const originalHide = instance.hide;
+        const originalRole = modal.getAttribute('role');
+        const originalModal = modal.getAttribute('aria-modal');
+        const originalHidden = modal.getAttribute('aria-hidden');
+        const title = modal.querySelector('.modal-title,h2,h3,h4,h5')?.textContent.trim() || 'Tjeneste';
+        let embedded = false;
+        const opened = show(modal,title,{
+            beforeClose:()=>{
+                const event = new Event('hide.bs.modal',{bubbles:true,cancelable:true});
+                modal.dispatchEvent(event);
+                return !event.defaultPrevented;
+            },
+            onClose:()=>{
+                embedded = false;
+                instance.hide = originalHide;
+                modal.classList.remove('pwp-embedded-modal');
+                if (originalRole === null) modal.removeAttribute('role'); else modal.setAttribute('role',originalRole);
+                if (originalModal === null) modal.removeAttribute('aria-modal'); else modal.setAttribute('aria-modal',originalModal);
+                if (originalHidden === null) modal.removeAttribute('aria-hidden'); else modal.setAttribute('aria-hidden',originalHidden);
+                delete dialog.dataset.pwpSourceModal;
+                modal.dispatchEvent(new Event('hidden.bs.modal',{bubbles:true}));
+            }
+        });
+        if (!opened) return false;
+        embedded = true;
+        modal.classList.add('pwp-embedded-modal');
+        modal.setAttribute('role','group'); modal.removeAttribute('aria-modal'); modal.removeAttribute('aria-hidden');
+        dialog.dataset.pwpSourceModal = modal.id;
+        instance.hide = function () { return embedded ? close() : originalHide.call(this); };
+        modal.dispatchEvent(new Event('shown.bs.modal',{bubbles:true}));
+        return true;
+    }
+    // Reuse the real forms and modal events, but render one window with no Bootstrap backdrop.
+    document.addEventListener('show.bs.modal',event=>{
+        const modal=event.target;
+        if (!(modal instanceof HTMLElement) || !modal.classList.contains('pwp-module-modal') || event.defaultPrevented) return;
+        event.preventDefault();
+        embedModal(modal);
+    });
     function moduleButton(key) {
         const aliases = {reservations:'reservation', email:document.querySelector('[data-bs-target="#content-email"]')?'email':'webmail'};
         return document.querySelector(`[data-bs-target="#content-${key}"]`)

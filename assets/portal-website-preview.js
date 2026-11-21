@@ -178,9 +178,120 @@
         article.innerHTML = `${image(item.image_url,item.name)}<h2>${esc(item.name)}</h2><p>${esc(text(item.description))}</p>${item.price != null ? `<strong>${Number(item.price).toLocaleString('nb-NO',{style:'currency',currency:'NOK'})}</strong>`:''}`;
         workspace.showTemporary(article, `Se på · ${item.name}`);
     }
+    let serviceView = null, serviceNavigating = false;
+    const serviceActionLabels = {read:'Se på',edit:'Rediger',fields:'Skjemafelt',benefits:'Fordeler',payments:'Betalingsmetoder'};
+    function serviceActions(item) {
+        const actions = ['read','edit'];
+        if (['events','rental','membership','sales'].includes(item.module) && window.EntityFormFields?.mount) actions.push('fields');
+        if (modules.has('membership') && window.MembershipBenefits?.openProduct
+            && ['events','rental','sales'].includes(item.module) && item.benefit_eligible !== false) actions.push('benefits');
+        if (['events','rental','membership'].includes(item.module)) actions.push('payments');
+        return actions;
+    }
+    function serviceFormSnapshot(surface) {
+        return JSON.stringify([...surface.querySelectorAll('input,select,textarea')]
+            .filter(field => !field.closest('.pwp-service-navigation') && (field.name || field.id)
+                && field.type !== 'file' && !field.hasAttribute('data-norwegian-date-time-proxy'))
+            .map(field => [field.name || field.id,field.type === 'checkbox' || field.type === 'radio' ? field.checked
+                : field.multiple ? [...field.selectedOptions].map(option=>option.value) : field.value]));
+    }
+    async function closeServiceView() {
+        const view = serviceView, surface = view?.surface;
+        if (!surface) return true;
+        if ((surface.id === 'pwp-dialog' && !surface.open)
+            || (surface.matches('.modal') && !surface.classList.contains('show'))
+            || (['mb-dialog','sales-dialog'].includes(surface.id) && surface.hidden)) return true;
+        // Event/rental already own their dirty guards; do not prompt twice.
+        if (view.action === 'edit' && !['editEventModal','rentalModal'].includes(surface.dataset.pwpSourceModal || surface.id)
+            && view.interacted && serviceFormSnapshot(surface) !== view.baseline
+            && !confirm('Du har ulagrede endringer. Forkast dem og bytt visning?')) return false;
+        if (surface.id === 'pwp-dialog') return workspace.close();
+        if (surface.id === 'mb-dialog') return window.MembershipBenefits.closeProduct();
+        if (surface.id === 'sales-dialog') return window.SalesOnline.close();
+        if (surface.matches('.modal')) {
+            const instance = window.bootstrap?.Modal.getInstance(surface);
+            if (!instance) return !surface.classList.contains('show');
+            return new Promise(resolve => {
+                let timer;
+                const finish = ok => {
+                    clearTimeout(timer); surface.removeEventListener('hidden.bs.modal', hidden);
+                    surface.removeEventListener('hide.bs.modal', hiding); resolve(ok);
+                };
+                const hidden = () => finish(true);
+                const hiding = event => queueMicrotask(()=>{if(event.defaultPrevented) finish(false);});
+                surface.addEventListener('hidden.bs.modal',hidden);
+                surface.addEventListener('hide.bs.modal',hiding);
+                timer = setTimeout(()=>finish(!surface.classList.contains('show')),1000);
+                instance.hide();
+            });
+        }
+        return false;
+    }
+    function mountServiceNavigation(view) {
+        if (serviceView !== view) return;
+        const surface = document.getElementById('pwp-dialog')?.open ? document.getElementById('pwp-dialog')
+            : [...document.querySelectorAll('.pwp-module-modal.show')].at(-1)
+                || ['mb-dialog','sales-dialog'].map(id=>document.getElementById(id)).find(element=>element && !element.hidden);
+        if (!surface) { serviceView = null; return; }
+        const host = surface.querySelector('#pwp-dialog-body,.modal-body,#sales-dialog-body,.mb-editor') || surface;
+        surface.querySelector('.pwp-service-navigation')?.remove();
+        const nav = document.createElement('nav');
+        nav.className = 'pwp-service-navigation';
+        nav.setAttribute('aria-label',`Visninger for ${view.item.name}`);
+        const actions = serviceActions(view.item);
+        nav.innerHTML = `<button type="button" data-service-step="-1" aria-label="Forrige visning">‹</button>
+            <label><span>Samme tjeneste</span><select aria-label="Velg visning for samme tjeneste">${actions.map(action=>
+                `<option value="${action}"${action===view.action?' selected':''}>${serviceActionLabels[action]}</option>`).join('')}</select></label>
+            <button type="button" data-service-step="1" aria-label="Neste visning">›</button>`;
+        host.prepend(nav);
+        view.surface = surface; view.baseline = serviceFormSnapshot(surface); view.interacted = false;
+        const interaction = event => { if (!nav.contains(event.target)) view.interacted = true; };
+        surface.addEventListener('input',interaction); surface.addEventListener('change',interaction);
+        view.cleanup = () => {
+            nav.remove(); surface.removeEventListener('input',interaction); surface.removeEventListener('change',interaction);
+        };
+        const select = nav.querySelector('select');
+        const navigate = action => openService(view.item,action).catch(error=>say(error.message));
+        select.addEventListener('change',()=>{const next=select.value;select.value=view.action;navigate(next);});
+        nav.addEventListener('click',event=>{
+            const button=event.target.closest('[data-service-step]');
+            if (!button) return;
+            const index=actions.indexOf(view.action);
+            navigate(actions[(index+Number(button.dataset.serviceStep)+actions.length)%actions.length]);
+        });
+    }
     async function openService(item, action) {
+        if (serviceNavigating) return;
         if (!item || !canOpen(item.module)) { say('Du har ikke tilgang til denne tjenesten.'); return; }
-        if (!workspace.close()) return;
+        serviceNavigating = true;
+        const previous = serviceView;
+        previous?.surface?.querySelectorAll('.pwp-service-navigation button,.pwp-service-navigation select')
+            .forEach(control=>{control.disabled=true;});
+        try {
+            if (!await closeServiceView()) return;
+            previous?.cleanup?.();
+            const view = {item,action};
+            serviceView = view;
+            try {
+                const loading = document.createElement('p');
+                loading.dataset.pwpServiceLoading = '';
+                loading.textContent = `Henter ${serviceActionLabels[action]?.toLowerCase() || 'visning'} for ${item.name} …`;
+                workspace.showTemporary(loading,`${serviceActionLabels[action] || 'Tjeneste'} · ${item.name}`,{transient:true});
+                await openServiceSurface(item,action);
+                mountServiceNavigation(view);
+            } catch (error) {
+                if (document.querySelector('#pwp-dialog-body [data-pwp-service-loading]')) workspace.close(true);
+                serviceView = null;
+                throw error;
+            }
+        } finally {
+            serviceNavigating = false;
+            serviceView?.surface?.querySelectorAll('.pwp-service-navigation button,.pwp-service-navigation select')
+                .forEach(control=>{control.disabled=false;});
+        }
+    }
+    async function openServiceSurface(item, action) {
+        if (!item || !canOpen(item.module)) { say('Du har ikke tilgang til denne tjenesten.'); return; }
         if (action === 'payments') { await openServicePayments(item); return; }
         if (action === 'fields') { await openServiceFields(item); return; }
         if (action === 'benefits') {
@@ -431,6 +542,7 @@
         if (pageButton) {
             if (!workspace.canLeaveSettings()) return;
             root.querySelector('.pwp-account')?.removeAttribute('open');
+            if (!workspace.close()) return;
             page = pageButton.dataset.pwpPage;
             menu.hidden = true; newButton.setAttribute('aria-expanded', 'false');
             if (page !== 'services' && ['benefits','fields','payments'].includes(mode)) mode = 'read';
