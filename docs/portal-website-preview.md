@@ -103,3 +103,36 @@ Den nye innstillingsvisningen krever også `assets/portal-preview-website.js`,
 `includes/portal_preview_control_room.php`, samt oppdaterte
 `includes/announcement_preview.php` og `includes/portal_website_preview_data.php`.
 Mockup-sandkassen kreves ikke på PHP-webhotellet.
+
+## Betalingsvalg fra kontrolløya
+
+Øya viser maksimalt tre handlinger om gangen, med forrige-/neste-piler.
+På Tjenester velges «Betalingsmetoder», deretter tjenestekortet. Vinduet
+henter stående valg og lar administrator velge flere aktive, konfigurerte
+metoder fra bedriftens betalingsoppsett. Det oppretter ikke nye betalingsoppsett.
+
+Ta med disse filene ved eksport av denne endringen:
+
+- `includes/portal_website_preview.php`
+- `assets/portal-website-preview.js`
+- `assets/portal-website-preview.css`
+- `api/portal_service_payments.php`
+- `includes/portal_service_payments.php`
+
+API-et bruker den eksisterende `entity_form_csrf`-beskyttelsen, innlogget
+administrator, bedriftsavgrensning og tjenestens modulrettighet. GET leser uten
+å skrive. POST skriver en JSON-liste med kanoniske metodenavn (for eksempel
+`["vipps","stripe"]`) til valgt rad i `events_eventdata.payment_methods_json`,
+`membership_plans.payment_methods_json` eller `rental_objects.payment_methods_json`.
+Tom liste betyr ingen valgte betalingsmetoder, ikke automatisk «alle».
+Kundesidens betalingsvalg må lese denne listen og kontrollere at metodene
+fortsatt er aktive ved betaling.
+
+Bindende arrangementer tillater ikke kontant eller tomt betalingsutvalg.
+Arrangementer uten påmelding har ingen betalingsvalg. Ved endrede
+arrangementsvalg holdes også eksisterende standardbetalingsmetode og
+betalingstidspunkt konsistente. Endringer og audit lagres i samme transaksjon;
+uendret lagring skriver ikke audit. En versjonskontroll hindrer overskriving
+av et betalingsoppsett som er endret etter at vinduet ble åpnet.
+
+Ingen nye tabeller eller kolonner er nødvendige.

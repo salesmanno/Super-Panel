@@ -13,6 +13,20 @@
     const menu = document.getElementById('pwp-create-menu');
     const newButton = document.getElementById('pwp-new');
     let page = 'home', mode = 'read';
+    let islandPage = 0;
+    function renderIsland() {
+        const island = root.querySelector('.pwp-island');
+        const actions = [...island.querySelectorAll('[data-pwp-mode], #pwp-new')].filter(button =>
+            page === 'services' || ['read', 'edit'].includes(button.dataset.pwpMode) || button === newButton);
+        islandPage = Math.max(0, Math.min(islandPage, Math.ceil(actions.length / 3) - 1));
+        island.querySelectorAll('[data-pwp-mode], #pwp-new').forEach(button => {
+            const index = actions.indexOf(button);
+            button.hidden = page === 'about' || index < islandPage * 3 || index >= islandPage * 3 + 3;
+        });
+        island.querySelectorAll('[data-pwp-island-step]').forEach(button => {
+            button.disabled = Number(button.dataset.pwpIslandStep) < 0 ? islandPage === 0 : (islandPage + 1) * 3 >= actions.length;
+        });
+    }
     const workspace = window.PortalWorkspace;
     let activeSetting = 'company';
     let clearMemberScope = () => {};
@@ -158,6 +172,7 @@
     async function openService(item, action) {
         if (!item || !canOpen(item.module)) { say('Du har ikke tilgang til denne tjenesten.'); return; }
         if (!workspace.close()) return;
+        if (action === 'payments') { await openServicePayments(item); return; }
         if (action === 'fields') { await openServiceFields(item); return; }
         if (action === 'benefits') {
             if (!modules.has('membership') || !window.MembershipBenefits) throw new Error('Medlemsfordeler er ikke tilgjengelig.');
@@ -200,6 +215,107 @@
         }
         throw new Error('Ukjent handling. Velg Se på, Rediger, Fordeler eller Skjemafelt.');
     }
+    async function openServicePayments(item) {
+        const host = document.createElement('form');
+        host.className = 'pwp-payment-settings';
+        const supported = ['events', 'membership', 'rental'].includes(item.module);
+        if (!supported) {
+            host.textContent = 'Betalingsmetoder kan velges for arrangementer, medlemskap og utleie.';
+            workspace.showTemporary(host, `Betalingsmetoder · ${item.name}`);
+            return;
+        }
+        let pending = false, baseline = '', state;
+        const selection = () => [...host.querySelectorAll('input[name="method"]:checked')].map(input => input.value);
+        const signature = () => JSON.stringify(selection().sort());
+        const status = document.createElement('p');
+        status.setAttribute('role', 'status');
+        status.textContent = 'Henter betalingsmetoder …';
+        host.append(status);
+        if (!workspace.showTemporary(host, `Betalingsmetoder · ${item.name}`, {
+            beforeClose: () => !pending && (!state || baseline === signature() || confirm('Du har ulagrede betalingsvalg. Lukk uten å lagre?'))
+        })) return;
+        const request = async (options = {}) => {
+            const query = new URLSearchParams({module: item.module, id: item.source_id});
+            const response = await fetch(`/api/portal_service_payments.php?${query}`, {cache:'no-store', ...options});
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.message || 'Betalingsmetodene kunne ikke behandles.');
+            return result;
+        };
+        const load = async () => {
+            try {
+                state = await request();
+                if (!host.isConnected) return;
+                host.replaceChildren();
+                const introduction = document.createElement('p');
+                introduction.textContent = state.registration_type === 'none'
+                    ? 'Arrangementet er uten påmelding og bruker ingen betalingsmetoder.'
+                    : 'Velg betalingsmetodene som skal tilbys for denne tjenesten. Flere kan velges.';
+                host.append(introduction);
+                if (state.registration_type === 'binding') {
+                    const hint = document.createElement('p');
+                    hint.textContent = 'Bindende påmelding: kontant er ikke tillatt.';
+                    host.append(hint);
+                }
+                const list = document.createElement('fieldset');
+                const legend = document.createElement('legend');
+                legend.textContent = 'Betalingsmetoder';
+                list.append(legend);
+                const options = [...state.methods];
+                state.selected.filter(value => !options.some(option => option.value === value))
+                    .forEach(value => options.push({value, label:`${value} – ikke tilgjengelig lenger. Fjern valget før lagring.`, unavailable:true}));
+                for (const option of options) {
+                    const label = document.createElement('label');
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox'; checkbox.name = 'method'; checkbox.value = option.value;
+                    checkbox.checked = state.selected.includes(option.value);
+                    if (option.unavailable) checkbox.addEventListener('change', () => { checkbox.disabled = !checkbox.checked; });
+                    label.append(checkbox, document.createTextNode(option.label));
+                    list.append(label);
+                }
+                if (!options.length) {
+                    const empty = document.createElement('p');
+                    empty.textContent = state.registration_type === 'none' ? 'Ingen betalingsvalg er nødvendige.'
+                        : 'Ingen aktive og konfigurerte betalingsmetoder. Aktiver dem i Økonomi → Betalingsløsninger først.';
+                    list.append(empty);
+                }
+                const save = document.createElement('button');
+                save.type = 'submit'; save.className = 'btn btn-primary'; save.textContent = 'Lagre betalingsmetoder';
+                host.append(list, status, save);
+                status.textContent = '';
+                baseline = signature();
+            } catch (error) {
+                status.textContent = error.message;
+                if (!host.querySelector('[data-payment-retry]')) {
+                    const retry = document.createElement('button');
+                    retry.type = 'button'; retry.dataset.paymentRetry = ''; retry.textContent = 'Prøv igjen';
+                    retry.addEventListener('click', () => { retry.remove(); load(); });
+                    host.append(retry);
+                }
+            }
+        };
+        host.addEventListener('submit', async event => {
+            event.preventDefault();
+            if (pending || !state) return;
+            const chosen = selection();
+            pending = true;
+            host.querySelectorAll('input,button').forEach(control => { control.disabled = true; });
+            status.textContent = 'Lagrer …';
+            try {
+                const result = await request({method:'POST', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({module:item.module, id:item.source_id, methods:chosen,
+                        version:state.version, csrf_token:data.payment_csrf})});
+                state = result;
+                baseline = signature();
+                status.textContent = result.changed ? 'Betalingsmetodene er lagret.' : 'Ingen endringer å lagre.';
+            } catch (error) {
+                status.textContent = error.message;
+            } finally {
+                pending = false;
+                host.querySelectorAll('input,button').forEach(control => { control.disabled = false; });
+            }
+        });
+        await load();
+    }
     function settingChoices() {
         return [
             ...(data.is_supervisor ? [
@@ -235,9 +351,7 @@
             if (button.dataset.pwpPage === page) button.setAttribute('aria-current', 'page');
             else button.removeAttribute('aria-current');
         });
-        root.querySelector('[data-pwp-mode="benefits"]')?.toggleAttribute('hidden', page !== 'services');
-        root.querySelector('[data-pwp-mode="fields"]')?.toggleAttribute('hidden', page !== 'services');
-        newButton.hidden = page === 'about';
+        renderIsland();
         const island = root.querySelector('.pwp-island');
         island.classList.toggle('is-faded', page === 'about');
         island.inert = page === 'about';
@@ -309,9 +423,17 @@
             root.querySelector('.pwp-account')?.removeAttribute('open');
             page = pageButton.dataset.pwpPage;
             menu.hidden = true; newButton.setAttribute('aria-expanded', 'false');
-            if (page !== 'services' && ['benefits','fields'].includes(mode)) mode = 'read';
+            if (page !== 'services' && ['benefits','fields','payments'].includes(mode)) mode = 'read';
+            islandPage = 0;
             root.querySelectorAll('[data-pwp-mode]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.pwpMode === mode)));
             render(); applyWebsiteAppearance(company); return;
+        }
+        const islandArrow = event.target.closest('[data-pwp-island-step]');
+        if (islandArrow) {
+            islandPage += Number(islandArrow.dataset.pwpIslandStep);
+            menu.hidden = true; newButton.setAttribute('aria-expanded', 'false');
+            renderIsland();
+            return;
         }
         const modeButton = event.target.closest('[data-pwp-mode]');
         if (modeButton) {
